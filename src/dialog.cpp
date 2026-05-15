@@ -138,13 +138,13 @@ void message_dialog::draw() const
 	// OK Button
 	std::string ok_text = "  OK  ";
 	int btn_x = x_ + (width_ - static_cast<int>(ok_text.length())) / 2;
-	int btn_y = y_ + height_ - 3; // Move up one line to avoid clobbering border
+	int btn_y = y_ + height_ - 3; 
 
 	// Button Shadow
 	// Side shadow (full block)
-	attron(COLOR_PAIR(1));
-	mvaddstr(btn_y, btn_x + static_cast<int>(ok_text.length()), "▄");
-	attroff(COLOR_PAIR(1));
+	attron(COLOR_PAIR(6));
+	mvaddstr(btn_y, btn_x + static_cast<int>(ok_text.length()), " ");
+	attroff(COLOR_PAIR(6));
 	
 	// Bottom shadow (half block)
 	attron(COLOR_PAIR(1));

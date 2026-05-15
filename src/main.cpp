@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 	init_pair(7, COLOR_RED, COLOR_BLACK);   // Hotkeys on selected background
 	init_pair(8, COLOR_WHITE + 8, COLOR_CYAN);  // Selection highlight (Bright White)
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
-	init_pair(10, COLOR_BLACK, COLOR_GREEN); // Buttons
+	init_pair(10, COLOR_WHITE, COLOR_GREEN); // Buttons (White on Green)
 	init_pair(11, COLOR_WHITE + 8, COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
 	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
