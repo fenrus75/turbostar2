@@ -53,6 +53,10 @@ int main(int argc, char** argv)
 	init_pair(8, COLOR_WHITE, COLOR_CYAN);  // Selection highlight
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 
+	if (can_change_color()) {
+	        // Red, Green, Blue values are on a scale of 0 to 1000
+	        init_color(COLOR_BLUE, 0, 0, 500); // Set to a deeper, darker navy blue
+	}
 	raw();
 
 	nonl();

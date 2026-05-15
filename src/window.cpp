@@ -159,7 +159,7 @@ void window::draw_content() const
 		}
 	}
 
-	attron(COLOR_PAIR(3));
+	attrset(COLOR_PAIR(3));
 	attron(A_BOLD); // Always bold for bright yellow text
 	
 	for (int i = 1; i < height_ - 1; ++i) {
