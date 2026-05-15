@@ -42,7 +42,6 @@ int main(int argc, char** argv)
 	setenv("ESCDELAY", "25", 1);
 	initscr();
 	start_color();
-	use_default_colors();
 	// Color pairs based on docs/colorscheme.md
 	init_pair(1, COLOR_BLACK, COLOR_WHITE); // Menu/Status bar
 	init_pair(2, COLOR_RED, COLOR_WHITE);   // Hotkeys
@@ -52,7 +51,7 @@ int main(int argc, char** argv)
 	init_pair(6, COLOR_BLACK, COLOR_BLACK); // Drop shadows
 	init_pair(7, COLOR_RED, COLOR_BLACK);   // Hotkeys on selected background
 	init_pair(8, COLOR_WHITE, COLOR_CYAN);  // Selection highlight
-	init_pair(9, COLOR_CYAN, COLOR_BLUE);   // Desktop pattern
+	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 
 	raw();
 

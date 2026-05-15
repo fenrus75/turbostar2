@@ -150,8 +150,6 @@ void window::update_viewport() const
 
 void window::draw_content() const
 {
-	attron(COLOR_PAIR(3));
-	
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
 	bool has_sel = false;
 	if (doc_) {
@@ -161,6 +159,9 @@ void window::draw_content() const
 		}
 	}
 
+	attron(COLOR_PAIR(3));
+	attron(A_BOLD); // Always bold for bright yellow text
+	
 	for (int i = 1; i < height_ - 1; ++i) {
 		move(y_ + i, x_ + 1);
 		
@@ -187,6 +188,7 @@ void window::draw_content() const
 			}
 
 			if (in_selection) {
+				attroff(A_BOLD);
 				attroff(COLOR_PAIR(3));
 				attron(COLOR_PAIR(8));
 			}
@@ -200,9 +202,11 @@ void window::draw_content() const
 			if (in_selection) {
 				attroff(COLOR_PAIR(8));
 				attron(COLOR_PAIR(3));
+				attron(A_BOLD);
 			}
 		}
 	}
+	attroff(A_BOLD);
 	attroff(COLOR_PAIR(3));
 }
 
