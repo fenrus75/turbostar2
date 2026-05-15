@@ -27,11 +27,12 @@ int btn_y = parent_y + parent_height - 3; // Ensure 1 line gap at bottom
 ```
 
 ### 2. Draw Side Shadow
-Use a single space character with the black-on-black pair (**Pair 6**) at the position immediately following the button text.
+Use the **Lower Half Block (`▄`)** character with the standard dialog background pair (**Pair 1**). 
+This creates a "tapered" effect where the shadow only occupies the bottom half of the character cell on the button's line.
 ```cpp
-attron(COLOR_PAIR(6));
-mvaddstr(btn_y, btn_x + static_cast<int>(text.length()), " ");
-attroff(COLOR_PAIR(6));
+attron(COLOR_PAIR(1));
+mvaddstr(btn_y, btn_x + static_cast<int>(text.length()), "▄");
+attroff(COLOR_PAIR(1));
 ```
 
 ### 3. Draw Bottom Shadow (The "Half-Block")

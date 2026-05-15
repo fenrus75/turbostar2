@@ -141,10 +141,10 @@ void message_dialog::draw() const
 	int btn_y = y_ + height_ - 3; 
 
 	// Button Shadow
-	// Side shadow (full block)
-	attron(COLOR_PAIR(6));
-	mvaddstr(btn_y, btn_x + static_cast<int>(ok_text.length()), " ");
-	attroff(COLOR_PAIR(6));
+	// Side shadow (half block)
+	attron(COLOR_PAIR(1));
+	mvaddstr(btn_y, btn_x + static_cast<int>(ok_text.length()), "▄");
+	attroff(COLOR_PAIR(1));
 	
 	// Bottom shadow (half block)
 	attron(COLOR_PAIR(1));
