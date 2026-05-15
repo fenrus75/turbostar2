@@ -33,8 +33,8 @@ void dialog::draw() const
 		}
 	}
 
-	// Double line border with A_BOLD on Pair 11
-	attron(COLOR_PAIR(11) | A_BOLD);
+	// Double line border with Pair 11
+	attron(COLOR_PAIR(11));
 	mvaddstr(y_, x_, "╔");
 	for (int i = 1; i < width_ - 1; ++i) addstr("═");
 	addstr("╗");
@@ -47,7 +47,7 @@ void dialog::draw() const
 	mvaddstr(y_ + height_ - 1, x_, "╚");
 	for (int i = 1; i < width_ - 1; ++i) addstr("═");
 	addstr("╝");
-	attroff(COLOR_PAIR(11) | A_BOLD);
+	attroff(COLOR_PAIR(11));
 
 	// Title
 	if (!title_.empty()) {

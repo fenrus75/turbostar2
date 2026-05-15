@@ -160,7 +160,6 @@ void window::draw_content() const
 	}
 
 	attrset(COLOR_PAIR(3));
-	attron(A_BOLD); // Always bold for bright yellow text
 	
 	for (int i = 1; i < height_ - 1; ++i) {
 		move(y_ + i, x_ + 1);
@@ -188,9 +187,7 @@ void window::draw_content() const
 			}
 
 			if (in_selection) {
-				attroff(A_BOLD);
-				attroff(COLOR_PAIR(3));
-				attron(COLOR_PAIR(8));
+				attrset(COLOR_PAIR(8));
 			}
 			
 			if (text_col < static_cast<int>(line_text.length())) {
@@ -200,23 +197,16 @@ void window::draw_content() const
 			}
 			
 			if (in_selection) {
-				attroff(COLOR_PAIR(8));
-				attron(COLOR_PAIR(3));
-				attron(A_BOLD);
+				attrset(COLOR_PAIR(3));
 			}
 		}
 	}
-	attroff(A_BOLD);
-	attroff(COLOR_PAIR(3));
+	attrset(0);
 }
 
 void window::draw_border() const
 {
-	if (is_active_) {
-		attron(COLOR_PAIR(5) | A_BOLD);
-	} else {
-		attron(COLOR_PAIR(5));
-	}
+	attrset(COLOR_PAIR(5));
 
 	std::string current_title = title_;
 	if (doc_) {
@@ -254,21 +244,16 @@ void window::draw_border() const
 
 	// Draw close widget
 	mvaddstr(y_, x_ + 2, "[");
-	attron(COLOR_PAIR(3) | A_BOLD); // Bright Yellow
+	attron(COLOR_PAIR(3)); // Bright Yellow
 	addstr("■");
-	attroff(A_BOLD);
-	if (is_active_) attron(COLOR_PAIR(5) | A_BOLD);
-	else attron(COLOR_PAIR(5));
+	attroff(COLOR_PAIR(3));
+	attron(COLOR_PAIR(5));
 	addstr("]");
 
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
 
-	if (is_active_) {
-		attroff(COLOR_PAIR(5) | A_BOLD);
-	} else {
-		attroff(COLOR_PAIR(5));
-	}
+	attroff(COLOR_PAIR(5));
 	// Draw scrollbars
 	attron(COLOR_PAIR(4));
 	for (int i = 1; i < height_ - 1; ++i) {

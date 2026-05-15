@@ -43,17 +43,18 @@ int main(int argc, char** argv)
 	initscr();
 	start_color();
 	// Color pairs based on docs/colorscheme.md
+	// Note: using (COLOR_X + 8) to access bright versions (8-15) in 16-color terminals
 	init_pair(1, COLOR_BLACK, COLOR_WHITE); // Menu/Status bar
 	init_pair(2, COLOR_RED, COLOR_WHITE);   // Hotkeys
-	init_pair(3, COLOR_YELLOW, COLOR_BLUE); // Window Text (Yellow on Blue)
+	init_pair(3, COLOR_YELLOW + 8, COLOR_BLUE); // Window Text (Bright Yellow on Blue)
 	init_pair(4, COLOR_CYAN, COLOR_BLUE);   // Scrollbars
-	init_pair(5, COLOR_WHITE, COLOR_BLUE);  // Window borders/widgets
+	init_pair(5, COLOR_WHITE + 8, COLOR_BLUE);  // Window borders/widgets (Bright White on Blue)
 	init_pair(6, COLOR_BLACK, COLOR_BLACK); // Drop shadows
 	init_pair(7, COLOR_RED, COLOR_BLACK);   // Hotkeys on selected background
-	init_pair(8, COLOR_WHITE, COLOR_CYAN);  // Selection highlight
+	init_pair(8, COLOR_WHITE + 8, COLOR_CYAN);  // Selection highlight (Bright White)
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 	init_pair(10, COLOR_BLACK, COLOR_GREEN); // Buttons
-	init_pair(11, COLOR_WHITE, COLOR_WHITE); // Dialog borders (Bright White on Gray)
+	init_pair(11, COLOR_WHITE + 8, COLOR_WHITE); // Dialog borders (Bright White on Gray)
 
 	if (can_change_color()) {
 	        // Red, Green, Blue values are on a scale of 0 to 1000
