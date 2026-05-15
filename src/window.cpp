@@ -21,6 +21,15 @@ event_queue& window::get_queue()
 	return window_queue_;
 }
 
+void window::attach_document(std::shared_ptr<document> doc)
+{
+	doc_ = doc;
+	// Update title to document filename if empty
+	if (doc_ && title_.empty()) {
+		title_ = doc_->get_filename();
+	}
+}
+
 void window::draw() const
 {
 	draw_content();
@@ -32,8 +41,20 @@ void window::draw_content() const
 	attron(COLOR_PAIR(3));
 	for (int i = 1; i < height_ - 1; ++i) {
 		move(y_ + i, x_ + 1);
+		
+		int doc_line_idx = top_line_ + i - 1;
+		std::string line_text;
+		if (doc_ && doc_line_idx < static_cast<int>(doc_->get_line_count())) {
+			line_text = doc_->get_line(doc_line_idx).get_text();
+		}
+
 		for (int j = 1; j < width_ - 1; ++j) {
-			addch(' ');
+			int text_col = left_column_ + j - 1;
+			if (text_col < static_cast<int>(line_text.length())) {
+				addch(line_text[text_col]);
+			} else {
+				addch(' ');
+			}
 		}
 	}
 	attroff(COLOR_PAIR(3));

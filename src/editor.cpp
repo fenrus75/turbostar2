@@ -5,6 +5,15 @@
 editor::editor(bool debug_mode, const std::string& debug_string)
 	: debug_mode_(debug_mode), debug_string_(debug_string)
 {
+	// Create an initial document
+	auto doc = std::make_shared<document>("NONAME00.PAS");
+	documents_.push_back(doc);
+
+	// Create an initial window and attach the document
+	auto win = std::make_unique<window>(1, 4, 3, 60, 15, "NONAME00.PAS");
+	win->attach_document(doc);
+	win->set_active(true);
+	windows_.push_back(std::move(win));
 }
 
 void editor::run()

@@ -4,6 +4,7 @@
 #include "menu_bar.h"
 #include "status_bar.h"
 #include "window.h"
+#include "document.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -23,6 +24,7 @@ private:
 	menu_bar top_menu_;
 	status_bar bottom_status_;
 	
+	std::vector<std::shared_ptr<document>> documents_;
 	std::vector<std::unique_ptr<window>> windows_;
 
 	bool is_running_{true};
