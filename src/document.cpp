@@ -716,11 +716,23 @@ void document::get_selection_range(int& start_x, int& start_y, int& end_x, int& 
 void document::log_state() const
 {
 	std::shared_lock lock(mutex_);
-	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cursor_x_ + 1);
-	if (selection_start_y_ != -1) msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" + std::to_string(selection_start_x_ + 1);
-	else msg += " S=none";
-	if (selection_end_y_ != -1) msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" + std::to_string(selection_end_x_ + 1);
-	else msg += " E=none";
+	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
+	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cur_disp_x + 1);
+	
+	if (selection_start_y_ != -1) {
+		int sel_start_disp_x = lines_[selection_start_y_]->char_to_display_col(selection_start_x_);
+		msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" + std::to_string(sel_start_disp_x + 1);
+	} else {
+		msg += " S=none";
+	}
+	
+	if (selection_end_y_ != -1) {
+		int sel_end_disp_x = lines_[selection_end_y_]->char_to_display_col(selection_end_x_);
+		msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" + std::to_string(sel_end_disp_x + 1);
+	} else {
+		msg += " E=none";
+	}
+	
 	event_logger::get_instance().log(msg);
 }
 

@@ -34,8 +34,10 @@ void window::attach_document(std::shared_ptr<document> doc)
 void window::set_cursor_position() const
 {
 	if (doc_) {
+		auto l = doc_->get_line(doc_->get_cursor_y());
+		int display_col = l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
 		int screen_y = y_ + 1 + doc_->get_cursor_y() - top_line_;
-		int screen_x = x_ + 1 + doc_->get_cursor_x() - left_column_;
+		int screen_x = x_ + 1 + display_col - left_column_;
 		move(screen_y, screen_x);
 	}
 }
@@ -59,7 +61,7 @@ bool window::process_events()
 			} else if (ev->key_code == KEY_RIGHT) {
 				doc_->move_cursor(1, 0);
 				needs_render = true;
-			} else if (!ev->utf8_char.empty() && ev->key_code >= 32 && ev->key_code != 127) {
+			} else if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
 				doc_->insert_char(ev->utf8_char);
 				needs_render = true;
 			} else if (ev->key_code == KEY_BACKSPACE || ev->key_code == 127 || ev->key_code == 8) {
@@ -113,7 +115,9 @@ bool window::process_events()
 
 int window::get_cursor_x() const
 {
-	return doc_ ? doc_->get_cursor_x() : -1;
+	if (!doc_) return -1;
+	auto l = doc_->get_line(doc_->get_cursor_y());
+	return l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
 }
 
 int window::get_cursor_y() const
@@ -132,7 +136,8 @@ void window::update_viewport() const
 {
 	if (!doc_) return;
 	
-	int cx = doc_->get_cursor_x();
+	auto l = doc_->get_line(doc_->get_cursor_y());
+	int display_col = l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
 	int cy = doc_->get_cursor_y();
 	
 	if (cy < top_line_) {
@@ -141,10 +146,10 @@ void window::update_viewport() const
 		top_line_ = cy - (height_ - 2) + 1;
 	}
 	
-	if (cx < left_column_) {
-		left_column_ = cx;
-	} else if (cx >= left_column_ + width_ - 2) {
-		left_column_ = cx - (width_ - 2) + 1;
+	if (display_col < left_column_) {
+		left_column_ = display_col;
+	} else if (display_col >= left_column_ + width_ - 2) {
+		left_column_ = display_col - (width_ - 2) + 1;
 	}
 }
 
@@ -152,60 +157,82 @@ void window::draw_content() const
 {
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
 	bool has_sel = false;
-	if (doc_) {
-		if (doc_->has_selection()) {
-			doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
-			has_sel = true;
-		}
+	if (doc_ && doc_->has_selection()) {
+		doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+		has_sel = true;
 	}
 
-	attrset(COLOR_PAIR(3));
-	
 	for (int i = 1; i < height_ - 1; ++i) {
+		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
 		
-		int doc_line_idx = top_line_ + i - 1;
-		std::string line_text;
-		std::shared_ptr<line> current_l;
-		if (doc_ && doc_line_idx < static_cast<int>(doc_->get_line_count())) {
-			current_l = doc_->get_line(doc_line_idx);
-			if (current_l) line_text = current_l->get_text();
+		// Clear line background
+		attrset(COLOR_PAIR(3));
+		for (int k = 0; k < width_ - 2; ++k) addch(' ');
+
+		if (!doc_ || doc_line_idx >= static_cast<int>(doc_->get_line_count())) {
+			continue;
 		}
 
-		for (int j = 1; j < width_ - 1; ++j) {
-			int text_col = left_column_ + j - 1;
+		auto current_l = doc_->get_line(doc_line_idx);
+		if (!current_l) continue;
+		
+		std::string line_text = current_l->get_text();
+		size_t char_count = current_l->length_in_chars();
+		int current_display_col = 0;
+
+		for (size_t char_idx = 0; char_idx < char_count; ++char_idx) {
+			int start_col = current_display_col;
 			
-			bool in_selection = false;
-			if (has_sel) {
-				if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
-					in_selection = true;
-				} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-					in_selection = (text_col >= sel_start_x && text_col < sel_end_x);
-				} else if (doc_line_idx == sel_start_y) {
-					in_selection = (text_col >= sel_start_x);
-				} else if (doc_line_idx == sel_end_y) {
-					in_selection = (text_col < sel_end_x);
+			// Determine character width and content
+			std::string utf8_char;
+			size_t byte_off = current_l->char_to_byte_offset(char_idx);
+			size_t next_byte_off = current_l->char_to_byte_offset(char_idx + 1);
+			utf8_char = line_text.substr(byte_off, next_byte_off - byte_off);
+			
+			int char_width = 1;
+			if (utf8_char == "\t") {
+				char_width = 8 - (start_col % 8);
+			}
+			
+			int end_col = start_col + char_width;
+			current_display_col = end_col;
+
+			// Check if any part of character is within horizontal viewport
+			for (int col = start_col; col < end_col; ++col) {
+				if (col >= left_column_ && col < left_column_ + width_ - 2) {
+					int screen_x_offset = col - left_column_;
+					move(y_ + i, x_ + 1 + screen_x_offset);
+
+					bool in_selection = false;
+					if (has_sel) {
+						if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
+							in_selection = true;
+						} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
+							in_selection = (static_cast<int>(char_idx) >= sel_start_x && static_cast<int>(char_idx) < sel_end_x);
+						} else if (doc_line_idx == sel_start_y) {
+							in_selection = (static_cast<int>(char_idx) >= sel_start_x);
+						} else if (doc_line_idx == sel_end_y) {
+							in_selection = (static_cast<int>(char_idx) < sel_end_x);
+						}
+					}
+
+					syntax_attribute attr = current_l->get_attribute(char_idx);
+					int pair = 3;
+					if (in_selection) {
+						pair = 8;
+						if (attr == syntax_attribute::keyword) pair = 13;
+					} else {
+						if (attr == syntax_attribute::keyword) pair = 12;
+					}
+
+					attrset(COLOR_PAIR(pair));
+					if (utf8_char == "\t") {
+						addch(' ');
+					} else {
+						addstr(utf8_char.c_str());
+					}
 				}
-			}
-
-			syntax_attribute attr = syntax_attribute::normal;
-			if (current_l) attr = current_l->get_attribute(text_col);
-
-			// Map attribute to color pair
-			int pair = 3; // Default normal text
-			if (in_selection) {
-				pair = 8; // Default selection
-				if (attr == syntax_attribute::keyword) pair = 13;
-			} else {
-				if (attr == syntax_attribute::keyword) pair = 12;
-			}
-
-			attrset(COLOR_PAIR(pair));
-			
-			if (text_col < static_cast<int>(line_text.length())) {
-				addch(line_text[text_col]);
-			} else {
-				addch(' ');
 			}
 		}
 	}

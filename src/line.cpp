@@ -188,6 +188,37 @@ void line::merge(const line& other_line)
 	attributes_.assign(length_in_chars(), syntax_attribute::normal);
 }
 
+int line::char_to_display_col(int char_pos) const
+{
+	std::shared_lock lock(mutex_);
+	int col = 0;
+	int current_char = 0;
+	size_t byte_offset = 0;
+	
+	while (current_char < char_pos && byte_offset < text_.length()) {
+		unsigned char c = static_cast<unsigned char>(text_[byte_offset]);
+		int char_bytes = 1;
+		
+		if (c < 0x80) {
+			if (c == '\t') {
+				col = (col / 8 + 1) * 8;
+			} else {
+				col += 1;
+			}
+			char_bytes = 1;
+		} else if ((c & 0xE0) == 0xC0) char_bytes = 2;
+		else if ((c & 0xE0) == 0xE0) char_bytes = 3;
+		else if ((c & 0xF0) == 0xF0) char_bytes = 4;
+		else char_bytes = 1;
+		
+		if (c >= 0x80) col += 1; // Basic assumption: multi-byte chars are 1 cell wide for now
+		
+		byte_offset += char_bytes;
+		current_char++;
+	}
+	return col;
+}
+
 void line::set_attributes(const std::vector<syntax_attribute>& attrs)
 {
 	std::unique_lock lock(mutex_);

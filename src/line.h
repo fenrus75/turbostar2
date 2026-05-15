@@ -36,6 +36,7 @@ public:
 
 	size_t length_in_chars() const;
 	size_t char_to_byte_offset(int char_pos) const;
+	int char_to_display_col(int char_pos) const;
 
 	// Syntax highlighting
 	void set_attributes(const std::vector<syntax_attribute>& attrs);
