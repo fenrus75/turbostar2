@@ -178,11 +178,11 @@ void window::draw_content() const
 				if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
 					in_selection = true;
 				} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-					in_selection = (text_col >= sel_start_x && text_col <= sel_end_x);
+					in_selection = (text_col >= sel_start_x && text_col < sel_end_x);
 				} else if (doc_line_idx == sel_start_y) {
 					in_selection = (text_col >= sel_start_x);
 				} else if (doc_line_idx == sel_end_y) {
-					in_selection = (text_col <= sel_end_x);
+					in_selection = (text_col < sel_end_x);
 				}
 			}
 

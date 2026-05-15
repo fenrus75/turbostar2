@@ -121,8 +121,15 @@ bool editor::handle_k_block_key(int key)
 	auto& logger = event_logger::get_instance();
 	logger.log("K-block handling key: " + std::to_string(key));
 	
-	char c = std::tolower(static_cast<char>(key));
+	char c = 0;
+	if (key > 0 && key <= 26) {
+		c = static_cast<char>(key + 'a' - 1);
+	} else if (key >= 0 && key < 256) {
+		c = std::tolower(static_cast<char>(key));
+	}
 	
+	if (c == 0) return false;
+
 	for (auto& w : windows_) {
 		if (w->is_active()) {
 			auto doc = documents_[0]; // Simplified for now, should find doc from window
