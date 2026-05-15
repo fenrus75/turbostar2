@@ -370,10 +370,12 @@ void editor::render()
 	}
 
 	bottom_status_.draw(status_help, cur_x, cur_y);
-
-	if (active_dialog_) {
-		active_dialog_->draw();
-		curs_set(0); // Hide cursor when dialog is up
+	
+	if (active_dialog_ || current_focus_ == focus_target::menu_bar) {
+		if (active_dialog_) {
+			active_dialog_->draw();
+		}
+		curs_set(0); // Hide cursor when dialog or menu is up
 	} else {
 		// Position hardware cursor
 		for (const auto& w : windows_) {
