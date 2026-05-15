@@ -30,7 +30,10 @@ python = pymod.find_installation('python3', required: false)
 if python.found()
   test('e2e_basic', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_basic.py')],
-    env: ['MESON_BUILD_ROOT=' + meson.project_build_root()],
+    env: [
+      'MESON_BUILD_ROOT=' + meson.project_build_root(),
+      'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e')
+    ],
     workdir: meson.project_build_root(),
     timeout: 10
   )
