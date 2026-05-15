@@ -2,10 +2,12 @@
 #include "event_logger.h"
 #include <mutex>
 #include <fstream>
+#include <regex>
 
 document::document()
 {
-	lines_.emplace_back(""); 
+	lines_.push_back(std::make_shared<line>(""));
+	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	log_state();
 }
 
@@ -13,9 +15,19 @@ document::document(const std::string& filename)
 	: filename_(filename)
 {
 	if (filename.empty() || !load_from_file(filename)) {
-		if (lines_.empty()) lines_.emplace_back("");
+		if (lines_.empty()) lines_.push_back(std::make_shared<line>(""));
 	}
+	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	log_state();
+}
+
+document::~document()
+{
+	stop_thread_ = true;
+	dirty_cv_.notify_all();
+	if (highlighter_thread_.joinable()) {
+		highlighter_thread_.join();
+	}
 }
 
 bool document::load_from_file(const std::string& filename)
@@ -30,10 +42,12 @@ bool document::load_from_file(const std::string& filename)
 	lines_.clear();
 	std::string line_text;
 	while (std::getline(file, line_text)) {
-		lines_.emplace_back(line_text);
+		auto l = std::make_shared<line>(line_text);
+		lines_.push_back(l);
+		mark_line_dirty(l);
 	}
 	if (lines_.empty()) {
-		lines_.emplace_back("");
+		lines_.push_back(std::make_shared<line>(""));
 	}
 	
 	filename_ = filename;
@@ -73,7 +87,7 @@ bool document::save_to_file(const std::string& filename)
 	}
 
 	for (size_t i = 0; i < lines_.size(); ++i) {
-		file << lines_[i].get_text();
+		file << lines_[i]->get_text();
 		if (i < lines_.size() - 1) {
 			file << "\n";
 		}
@@ -91,7 +105,9 @@ void document::clear()
 {
 	std::unique_lock lock(mutex_);
 	lines_.clear();
-	lines_.emplace_back("");
+	auto l = std::make_shared<line>("");
+	lines_.push_back(l);
+	mark_line_dirty(l);
 	filename_ = "";
 	modified_ = false;
 	cursor_x_ = 0;
@@ -120,11 +136,11 @@ size_t document::get_line_count() const
 	return lines_.size();
 }
 
-const line& document::get_line(size_t index) const
+std::shared_ptr<line> document::get_line(size_t index) const
 {
 	std::shared_lock lock(mutex_);
-	// In a real scenario, bounds checking should be handled carefully
-	return lines_[index];
+	if (index < lines_.size()) return lines_[index];
+	return nullptr;
 }
 
 int document::get_cursor_x() const
@@ -150,7 +166,7 @@ void document::move_cursor(int dx, int dy)
 		cursor_y_ = static_cast<int>(lines_.size()) - 1;
 	}
 
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ < 0) cursor_x_ = 0;
 	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
 	
@@ -164,7 +180,8 @@ void document::insert_char(const std::string& utf8_char)
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
 		adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
-		lines_[cursor_y_].insert_at(cursor_x_, utf8_char);
+		lines_[cursor_y_]->insert_at(cursor_x_, utf8_char);
+		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_++;
 		set_modified();
 	}
@@ -177,17 +194,19 @@ void document::backspace()
 	std::unique_lock lock(mutex_);
 	if (cursor_x_ > 0) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_ - 1, 1);
-		lines_[cursor_y_].remove_at(cursor_x_ - 1);
+		lines_[cursor_y_]->remove_at(cursor_x_ - 1);
+		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_--;
 		set_modified();
 	} else if (cursor_y_ > 0) {
 		// Join with previous line
 		int prev_line_idx = cursor_y_ - 1;
-		int prev_line_char_len = static_cast<int>(lines_[prev_line_idx].length_in_chars());
+		int prev_line_char_len = static_cast<int>(lines_[prev_line_idx]->length_in_chars());
 		
 		adjust_selection_for_join(cursor_y_, cursor_x_);
 		
-		lines_[prev_line_idx].merge(lines_[cursor_y_]);
+		lines_[prev_line_idx]->merge(*lines_[cursor_y_]);
+		mark_line_dirty(lines_[prev_line_idx]);
 		lines_.erase(lines_.begin() + cursor_y_);
 		
 		cursor_y_ = prev_line_idx;
@@ -201,16 +220,18 @@ void document::backspace()
 void document::delete_char()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ < line_char_len) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
-		lines_[cursor_y_].remove_at(cursor_x_);
+		lines_[cursor_y_]->remove_at(cursor_x_);
+		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
 	} else if (cursor_y_ < static_cast<int>(lines_.size()) - 1) {
 		// Join next line into this one
 		int next_line_idx = cursor_y_ + 1;
 		adjust_selection_for_join(next_line_idx, 0);
-		lines_[cursor_y_].merge(lines_[next_line_idx]);
+		lines_[cursor_y_]->merge(*lines_[next_line_idx]);
+		mark_line_dirty(lines_[cursor_y_]);
 		lines_.erase(lines_.begin() + next_line_idx);
 		set_modified();
 	}
@@ -221,13 +242,14 @@ void document::delete_char()
 void document::delete_to_eol()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
 		for (int i = 0; i < count; ++i) {
-			lines_[cursor_y_].remove_at(cursor_x_);
+			lines_[cursor_y_]->remove_at(cursor_x_);
 		}
+		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
 	}
 	lock.unlock();
@@ -241,8 +263,9 @@ void document::delete_to_bol()
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, 0, count);
 		for (int i = 0; i < count; ++i) {
-			lines_[cursor_y_].remove_at(0);
+			lines_[cursor_y_]->remove_at(0);
 		}
+		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_ = 0;
 		set_modified();
 	}
@@ -253,26 +276,16 @@ void document::delete_to_bol()
 void document::delete_word_forward()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
 		log_state();
 		return;
 	}
 
-	std::string text = lines_[cursor_y_].get_text();
+	std::string text = lines_[cursor_y_]->get_text();
 	auto get_char_at = [&](int idx) -> char {
-		size_t offset = 0;
-		int count = 0;
-		while (count < idx && offset < text.length()) {
-			unsigned char c = static_cast<unsigned char>(text[offset]);
-			if (c < 0x80) offset += 1;
-			else if ((c & 0xE0) == 0xC0) offset += 2;
-			else if ((c & 0xE0) == 0xE0) offset += 3;
-			else if ((c & 0xF0) == 0xF0) offset += 4;
-			else offset += 1;
-			count++;
-		}
+		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
 		if (offset < text.length()) return text[offset];
 		return 0;
 	};
@@ -285,8 +298,9 @@ void document::delete_word_forward()
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
 		for (int j = 0; j < count; ++j) {
-			lines_[cursor_y_].remove_at(cursor_x_);
+			lines_[cursor_y_]->remove_at(cursor_x_);
 		}
+		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
 	}
 	lock.unlock();
@@ -302,19 +316,9 @@ void document::delete_word_backward()
 		return;
 	}
 
-	std::string text = lines_[cursor_y_].get_text();
+	std::string text = lines_[cursor_y_]->get_text();
 	auto get_char_at = [&](int idx) -> char {
-		size_t offset = 0;
-		int count = 0;
-		while (count < idx && offset < text.length()) {
-			unsigned char c = static_cast<unsigned char>(text[offset]);
-			if (c < 0x80) offset += 1;
-			else if ((c & 0xE0) == 0xC0) offset += 2;
-			else if ((c & 0xE0) == 0xE0) offset += 3;
-			else if ((c & 0xF0) == 0xF0) offset += 4;
-			else offset += 1;
-			count++;
-		}
+		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
 		if (offset < text.length()) return text[offset];
 		return 0;
 	};
@@ -327,8 +331,9 @@ void document::delete_word_backward()
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, i, count);
 		for (int j = 0; j < count; ++j) {
-			lines_[cursor_y_].remove_at(i);
+			lines_[cursor_y_]->remove_at(i);
 		}
+		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_ = i;
 		set_modified();
 	}
@@ -341,9 +346,11 @@ void document::split_line()
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
 		adjust_selection_for_split(cursor_y_, cursor_x_);
-		line new_line("");
-		lines_[cursor_y_].split_at(cursor_x_, new_line);
-		lines_.insert(lines_.begin() + cursor_y_ + 1, std::move(new_line));
+		auto new_l = std::make_shared<line>("");
+		lines_[cursor_y_]->split_at(cursor_x_, *new_l);
+		mark_line_dirty(lines_[cursor_y_]);
+		mark_line_dirty(new_l);
+		lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
 		cursor_y_++;
 		cursor_x_ = 0;
 		set_modified();
@@ -364,7 +371,7 @@ void document::move_to_eol()
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
-		cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+		cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	}
 	lock.unlock();
 	log_state();
@@ -383,7 +390,7 @@ void document::move_to_bottom()
 {
 	std::unique_lock lock(mutex_);
 	cursor_y_ = static_cast<int>(lines_.size()) - 1;
-	cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	lock.unlock();
 	log_state();
 }
@@ -394,7 +401,7 @@ void document::move_page_up(int page_height)
 	cursor_y_ -= page_height;
 	if (cursor_y_ < 0) cursor_y_ = 0;
 	
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
 	lock.unlock();
 	log_state();
@@ -408,7 +415,7 @@ void document::move_page_down(int page_height)
 		cursor_y_ = static_cast<int>(lines_.size()) - 1;
 	}
 	
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
 	lock.unlock();
 	log_state();
@@ -417,8 +424,8 @@ void document::move_page_down(int page_height)
 void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
-	std::string text = lines_[cursor_y_].get_text();
-	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	std::string text = lines_[cursor_y_]->get_text();
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	
 	if (cursor_x_ >= line_char_len) {
 		if (cursor_y_ < static_cast<int>(lines_.size()) - 1) {
@@ -431,17 +438,7 @@ void document::move_next_word()
 	}
 
 	auto get_char_at = [&](int idx) -> char {
-		size_t offset = 0;
-		int count = 0;
-		while (count < idx && offset < text.length()) {
-			unsigned char c = static_cast<unsigned char>(text[offset]);
-			if (c < 0x80) offset += 1;
-			else if ((c & 0xE0) == 0xC0) offset += 2;
-			else if ((c & 0xE0) == 0xE0) offset += 3;
-			else if ((c & 0xF0) == 0xF0) offset += 4;
-			else offset += 1;
-			count++;
-		}
+		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
 		if (offset < text.length()) return text[offset];
 		return 0;
 	};
@@ -467,26 +464,16 @@ void document::move_prev_word()
 	if (cursor_x_ == 0) {
 		if (cursor_y_ > 0) {
 			cursor_y_--;
-			cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+			cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 		}
 		lock.unlock();
 		log_state();
 		return;
 	}
 
-	std::string text = lines_[cursor_y_].get_text();
+	std::string text = lines_[cursor_y_]->get_text();
 	auto get_char_at = [&](int idx) -> char {
-		size_t offset = 0;
-		int count = 0;
-		while (count < idx && offset < text.length()) {
-			unsigned char c = static_cast<unsigned char>(text[offset]);
-			if (c < 0x80) offset += 1;
-			else if ((c & 0xE0) == 0xC0) offset += 2;
-			else if ((c & 0xE0) == 0xE0) offset += 3;
-			else if ((c & 0xF0) == 0xF0) offset += 4;
-			else offset += 1;
-			count++;
-		}
+		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
 		if (offset < text.length()) return text[offset];
 		return 0;
 	};
@@ -504,7 +491,8 @@ void document::delete_line()
 {
 	std::unique_lock lock(mutex_);
 	if (lines_.size() <= 1) {
-		lines_[0].set_text("");
+		lines_[0]->set_text("");
+		mark_line_dirty(lines_[0]);
 		selection_start_x_ = selection_start_y_ = -1;
 		selection_end_x_ = selection_end_y_ = -1;
 		cursor_x_ = 0;
@@ -556,7 +544,6 @@ void document::clear_selection()
 
 std::vector<line> document::get_selection_block() const
 {
-	// Already inside mutex
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) return {};
 
 	int sx, sy, ex, ey;
@@ -570,14 +557,14 @@ std::vector<line> document::get_selection_block() const
 
 	std::vector<line> block;
 	if (sy == ey) {
-		line l(lines_[sy].get_text().substr(lines_[sy].char_to_byte_offset(sx), 
-		                                    lines_[sy].char_to_byte_offset(ex) - lines_[sy].char_to_byte_offset(sx)));
+		line l(lines_[sy]->get_text().substr(lines_[sy]->char_to_byte_offset(sx), 
+		                                     lines_[sy]->char_to_byte_offset(ex) - lines_[sy]->char_to_byte_offset(sx)));
 		block.push_back(std::move(l));
 	} else {
-		line l1(lines_[sy].get_text().substr(lines_[sy].char_to_byte_offset(sx)));
+		line l1(lines_[sy]->get_text().substr(lines_[sy]->char_to_byte_offset(sx)));
 		block.push_back(std::move(l1));
-		for (int i = sy + 1; i < ey; ++i) block.push_back(lines_[i]);
-		line ln(lines_[ey].get_text().substr(0, lines_[ey].char_to_byte_offset(ex)));
+		for (int i = sy + 1; i < ey; ++i) block.push_back(*lines_[i]);
+		line ln(lines_[ey]->get_text().substr(0, lines_[ey]->char_to_byte_offset(ex)));
 		block.push_back(std::move(ln));
 	}
 	return block;
@@ -602,13 +589,15 @@ void document::delete_selection()
 	}
 
 	if (sy == ey) {
-		for (int i = 0; i < (ex - sx); ++i) lines_[sy].remove_at(sx);
+		for (int i = 0; i < (ex - sx); ++i) lines_[sy]->remove_at(sx);
+		mark_line_dirty(lines_[sy]);
 	} else {
 		line tail_line("");
-		lines_[ey].split_at(ex, tail_line);
+		lines_[ey]->split_at(ex, tail_line);
 		line throwaway("");
-		lines_[sy].split_at(sx, throwaway);
-		lines_[sy].merge(tail_line);
+		lines_[sy]->split_at(sx, throwaway);
+		lines_[sy]->merge(tail_line);
+		mark_line_dirty(lines_[sy]);
 		lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
 	}
 
@@ -665,7 +654,7 @@ void document::move_selection()
 	
 	cursor_x_ = tx; cursor_y_ = ty;
 	if (cursor_y_ >= static_cast<int>(lines_.size())) cursor_y_ = lines_.size() - 1;
-	int line_len = lines_[cursor_y_].length_in_chars();
+	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_len) cursor_x_ = line_len;
 
 	int fx = cursor_x_; int fy = cursor_y_;
@@ -685,13 +674,20 @@ void document::insert_block(const std::vector<line>& block)
 {
 	if (block.empty()) return;
 	line tail("");
-	lines_[cursor_y_].split_at(cursor_x_, tail);
-	lines_[cursor_y_].merge(block[0]);
+	lines_[cursor_y_]->split_at(cursor_x_, tail);
+	lines_[cursor_y_]->merge(block[0]);
+	mark_line_dirty(lines_[cursor_y_]);
 	if (block.size() > 1) {
-		lines_.insert(lines_.begin() + cursor_y_ + 1, block.begin() + 1, block.end());
-		lines_[cursor_y_ + block.size() - 1].merge(tail);
+		for (size_t i = 1; i < block.size(); ++i) {
+			auto nl = std::make_shared<line>(block[i]);
+			lines_.insert(lines_.begin() + cursor_y_ + i, nl);
+			mark_line_dirty(nl);
+		}
+		lines_[cursor_y_ + block.size() - 1]->merge(tail);
+		mark_line_dirty(lines_[cursor_y_ + block.size() - 1]);
 	} else {
-		lines_[cursor_y_].merge(tail);
+		lines_[cursor_y_]->merge(tail);
+		mark_line_dirty(lines_[cursor_y_]);
 	}
 	cursor_y_ += block.size() - 1;
 	if (block.size() == 1) cursor_x_ += block[0].length_in_chars();
@@ -768,7 +764,7 @@ void document::adjust_selection_for_split(int y, int x)
 void document::adjust_selection_for_join(int y, int x)
 {
 	(void)x;
-	int prev_line_char_len = static_cast<int>(lines_[y - 1].length_in_chars());
+	int prev_line_char_len = static_cast<int>(lines_[y - 1]->length_in_chars());
 	auto adjust = [&](int& sx, int& sy) {
 		if (sy == y) { sy--; sx += prev_line_char_len; }
 		else if (sy > y) { sy--; }
@@ -784,7 +780,7 @@ void document::adjust_selection_for_line_delete(int y)
 			sx = 0; 
 			if (y >= static_cast<int>(lines_.size()) - 1) {
 				sy = y - 1;
-				sx = static_cast<int>(lines_[sy].length_in_chars());
+				sx = static_cast<int>(lines_[sy]->length_in_chars());
 			}
 		} else if (sy > y) {
 			sy--;
@@ -792,4 +788,77 @@ void document::adjust_selection_for_line_delete(int y)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
+}
+
+void document::mark_line_dirty(std::shared_ptr<line> l)
+{
+	std::lock_guard lock(dirty_mutex_);
+	dirty_lines_.push(l);
+	dirty_cv_.notify_one();
+}
+
+void document::highlighter_thread_loop()
+{
+	while (!stop_thread_) {
+		std::shared_ptr<line> l;
+		{
+			std::unique_lock lock(dirty_mutex_);
+			dirty_cv_.wait(lock, [&]{ return !dirty_lines_.empty() || stop_thread_; });
+			if (stop_thread_) break;
+			l = dirty_lines_.front();
+			dirty_lines_.pop();
+		}
+		if (l) {
+			process_line_highlight(l);
+		}
+	}
+}
+
+void document::process_line_highlight(std::shared_ptr<line> l)
+{
+	std::string text = l->get_text();
+	size_t char_count = l->length_in_chars();
+	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
+
+	// Simple C++ keyword highlighting
+	static const std::vector<std::string> keywords = {
+		"void", "int", "char", "const", "bool", "class", "struct", "enum", "virtual", "override", "return", "if", "else", "for", "while"
+	};
+
+	// Use regex to find whole words
+	// Since we are UTF-8, this is a bit rough but works for ASCII keywords
+	for (const auto& kw : keywords) {
+		std::regex kw_regex("\\b" + kw + "\\b");
+		auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
+		auto words_end = std::sregex_iterator();
+
+		for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+			std::smatch match = *i;
+			size_t byte_pos = match.position();
+			size_t byte_len = match.length();
+
+			// Convert byte pos to char pos
+			int char_pos = 0;
+			size_t current_byte = 0;
+			while (current_byte < byte_pos && char_pos < static_cast<int>(char_count)) {
+				unsigned char c = static_cast<unsigned char>(text[current_byte]);
+				if (c < 0x80) current_byte += 1;
+				else if ((c & 0xE0) == 0xC0) current_byte += 2;
+				else if ((c & 0xE0) == 0xE0) current_byte += 3;
+				else if ((c & 0xF0) == 0xF0) current_byte += 4;
+				else current_byte += 1;
+				char_pos++;
+			}
+
+			// Mark as keyword
+			// Simple assumes ASCII keywords (no multi-byte chars IN the keyword)
+			for (size_t j = 0; j < byte_len; ++j) {
+				if (char_pos + j < attrs.size()) {
+					attrs[char_pos + j] = syntax_attribute::keyword;
+				}
+			}
+		}
+	}
+
+	l->set_attributes(attrs);
 }

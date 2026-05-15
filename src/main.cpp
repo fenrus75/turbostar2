@@ -55,6 +55,8 @@ int main(int argc, char** argv)
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 	init_pair(10, COLOR_BLACK, COLOR_GREEN); // Buttons
 	init_pair(11, COLOR_WHITE + 8, COLOR_WHITE); // Dialog borders (Bright White on Gray)
+	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
+	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
 
 	if (can_change_color()) {
 	        // Red, Green, Blue values are on a scale of 0 to 1000

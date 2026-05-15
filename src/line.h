@@ -4,6 +4,15 @@
 #include <vector>
 #include <cstdint>
 #include <shared_mutex>
+/**
+ * @brief Categorization of characters for syntax highlighting.
+ */
+enum class syntax_attribute : uint8_t {
+	normal = 0,
+	keyword = 1,
+	comment = 2,
+	string_literal = 3
+};
 
 class line {
 public:
@@ -28,8 +37,13 @@ public:
 	size_t length_in_chars() const;
 	size_t char_to_byte_offset(int char_pos) const;
 
+	// Syntax highlighting
+	void set_attributes(const std::vector<syntax_attribute>& attrs);
+	syntax_attribute get_attribute(int char_pos) const;
+
 private:
 	std::string text_;
+	std::vector<syntax_attribute> attributes_;
 	mutable std::shared_mutex mutex_;
-	// Future: Metadata for syntax highlighting, e.g., std::vector<uint32_t> attributes_;
 };
+

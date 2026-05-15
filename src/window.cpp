@@ -166,8 +166,10 @@ void window::draw_content() const
 		
 		int doc_line_idx = top_line_ + i - 1;
 		std::string line_text;
+		std::shared_ptr<line> current_l;
 		if (doc_ && doc_line_idx < static_cast<int>(doc_->get_line_count())) {
-			line_text = doc_->get_line(doc_line_idx).get_text();
+			current_l = doc_->get_line(doc_line_idx);
+			if (current_l) line_text = current_l->get_text();
 		}
 
 		for (int j = 1; j < width_ - 1; ++j) {
@@ -186,18 +188,24 @@ void window::draw_content() const
 				}
 			}
 
+			syntax_attribute attr = syntax_attribute::normal;
+			if (current_l) attr = current_l->get_attribute(text_col);
+
+			// Map attribute to color pair
+			int pair = 3; // Default normal text
 			if (in_selection) {
-				attrset(COLOR_PAIR(8));
+				pair = 8; // Default selection
+				if (attr == syntax_attribute::keyword) pair = 13;
+			} else {
+				if (attr == syntax_attribute::keyword) pair = 12;
 			}
+
+			attrset(COLOR_PAIR(pair));
 			
 			if (text_col < static_cast<int>(line_text.length())) {
 				addch(line_text[text_col]);
 			} else {
 				addch(' ');
-			}
-			
-			if (in_selection) {
-				attrset(COLOR_PAIR(3));
 			}
 		}
 	}

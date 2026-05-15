@@ -4,12 +4,16 @@
 #include <vector>
 #include <shared_mutex>
 #include "line.h"
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <atomic>
 
 class document {
 public:
 	document();
 	explicit document(const std::string& filename);
-	~document() = default;
+	~document();
 
 	bool load_from_file(const std::string& filename);
 	bool save();
@@ -20,7 +24,7 @@ public:
 	
 	// Basic accessors for now
 	size_t get_line_count() const;
-	const line& get_line(size_t index) const;
+	std::shared_ptr<line> get_line(size_t index) const;
 
 	int get_cursor_x() const;
 	int get_cursor_y() const;
@@ -67,7 +71,12 @@ private:
 	void adjust_selection_for_join(int y, int x);
 	void adjust_selection_for_line_delete(int y);
 
-	std::vector<line> lines_;
+	// Syntax highlighting
+	void mark_line_dirty(std::shared_ptr<line> l);
+	void highlighter_thread_loop();
+	void process_line_highlight(std::shared_ptr<line> l);
+
+	std::vector<std::shared_ptr<line>> lines_;
 	mutable std::shared_mutex mutex_;
 	
 	std::string filename_;
@@ -80,4 +89,11 @@ private:
 	int selection_start_y_{-1};
 	int selection_end_x_{-1};
 	int selection_end_y_{-1};
+
+	// Threading for highlighting
+	std::queue<std::shared_ptr<line>> dirty_lines_;
+	std::mutex dirty_mutex_;
+	std::condition_variable dirty_cv_;
+	std::thread highlighter_thread_;
+	std::atomic<bool> stop_thread_{false};
 };
