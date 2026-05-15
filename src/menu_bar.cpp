@@ -21,7 +21,9 @@ menu_bar::menu_bar()
 			{"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
 		}},
 		{"Search", 's', {}},
-		{"Help", 'h', {}}
+		{"Help", 'h', {
+			{"About...", event_type::about, 'a', "", false}
+		}}
 	};
 }
 

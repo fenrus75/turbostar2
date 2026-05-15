@@ -239,6 +239,22 @@ void editor::dispatch(const editor_event& ev)
 		return;
 	}
 
+	if (ev.type == event_type::about) {
+		logger.log("Dispatching about event.");
+		std::vector<std::string> about_lines = {
+			"TurboStar Editor",
+			"Version 0.1.0",
+			"",
+			"A nostalgia inspured TUI editor",
+			"",
+			"Copyright (c) 2026",
+			"Arjan van de Ven"
+		};
+		active_dialog_ = std::make_unique<message_dialog>("About TurboStar", about_lines);
+		set_focus(focus_target::dialog, "menu_about");
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 		

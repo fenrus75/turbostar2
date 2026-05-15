@@ -106,3 +106,48 @@ std::string input_dialog::get_result() const
 {
 	return buffer_;
 }
+
+message_dialog::message_dialog(const std::string& title, const std::vector<std::string>& lines)
+	: dialog(title, 40, static_cast<int>(lines.size()) + 6), lines_(lines)
+{
+	// Adjust width if any line is too long
+	for (const auto& line : lines) {
+		if (static_cast<int>(line.length()) + 6 > width_) {
+			width_ = static_cast<int>(line.length()) + 6;
+		}
+	}
+	// Recalculate x/y after width adjustment
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	x_ = (max_x - width_) / 2;
+	y_ = (max_y - height_) / 2;
+}
+
+void message_dialog::draw() const
+{
+	dialog::draw();
+	attron(COLOR_PAIR(1));
+	
+	for (size_t i = 0; i < lines_.size(); ++i) {
+		int text_x = x_ + (width_ - static_cast<int>(lines_[i].length())) / 2;
+		mvaddstr(y_ + 2 + i, text_x, lines_[i].c_str());
+	}
+	
+	// OK Button
+	std::string ok_btn = "[ OK ]";
+	int btn_x = x_ + (width_ - static_cast<int>(ok_btn.length())) / 2;
+	attron(A_REVERSE);
+	mvaddstr(y_ + height_ - 2, btn_x, ok_btn.c_str());
+	attroff(A_REVERSE);
+	
+	attroff(COLOR_PAIR(1));
+}
+
+dialog_result message_dialog::handle_key(int key)
+{
+	// Any of these keys close the dialog
+	if (key == 27 || key == 10 || key == 13 || key == KEY_ENTER || key == 32) {
+		return dialog_result::confirmed;
+	}
+	return dialog_result::pending;
+}

@@ -61,3 +61,18 @@ private:
 	std::string prompt_;
 	std::string buffer_;
 };
+
+/**
+ * @brief A dialog box for displaying multiple lines of text with an OK button.
+ */
+class message_dialog : public dialog {
+public:
+	message_dialog(const std::string& title, const std::vector<std::string>& lines);
+	~message_dialog() override = default;
+
+	void draw() const override;
+	dialog_result handle_key(int key) override;
+
+private:
+	std::vector<std::string> lines_;
+};

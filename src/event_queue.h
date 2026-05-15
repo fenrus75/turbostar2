@@ -13,7 +13,8 @@ enum class event_type {
 	quit,       ///< An application exit event
 	load,       ///< Request to load a file (triggers dialog)
 	save,       ///< Request to save a file (triggers dialog)
-	new_doc     ///< Request to clear current document
+	new_doc,    ///< Request to clear current document
+	about       ///< Request to show About dialog
 };
 
 /**
