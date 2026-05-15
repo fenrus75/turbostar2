@@ -34,6 +34,7 @@ def test_file_exit():
     try:
         runner.start()
         runner.send_keys('\x1bf') # Alt-F
+        runner.assert_text_on_screen('Exit')
         runner.send_keys('\n')    # Enter selects the first item ("Exit")
         runner.wait(timeout=2)
         log_contents = runner.get_log()
