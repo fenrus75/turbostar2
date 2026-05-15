@@ -82,3 +82,22 @@ The central controller that manages the overall application state.
 - **Input Loop**: The primary thread that reads from `ncurses`, translates keybindings (using a keymap derived from `docs/joe-keys.md`), and pushes them into the **Global Event Queue**.
 - **Central Dispatcher**: Pulls events from the **Global Event Queue** (e.g., menu actions, global shortcuts) and dispatches them to the relevant **Per-Window/Document Queues**.
 - **Status Bar / Menu**: Manages the Turbo Pascal-style chrome (menus, status lines).
+
+## UI Elements and Structure
+
+Based on the Turbo Pascal interface, Turbostar will implement the following core UI components, coordinated by the Editor (Manager):
+
+- **Desktop Layout**:
+  - **Menu Bar (Top)**: A horizontal strip containing dropdown menus (File, Edit, Search, etc.).
+  - **Status Bar (Bottom)**: A horizontal strip showing contextual hotkeys (e.g., `F1 Help`) and system messages.
+  - **Workspace**: The central area where editor windows and dialogs are rendered over a dark blue background.
+- **Editor Window**:
+  - **Border**: Double-line box drawing characters.
+  - **Header**: Contains the centered filename, a close box `[■]` on the left, and a window number/maximize indicator on the right.
+  - **Scrollbars**: Vertical (right edge) and horizontal (bottom edge) indicators, utilizing cyan shaded characters.
+  - **Footer**: Shows cursor position (e.g., `1:1`) in the bottom left corner of the border.
+  - **Content Area**: The viewport into the text `Document`.
+- **Dialog Box**:
+  - **Border**: Double-line box drawing characters over a light gray background.
+  - **Shadow**: A black block-character shadow offset to the right and bottom to simulate depth.
+  - **Controls**: Interactive buttons with distinct background colors (e.g., Green for OK) and text labels.
