@@ -101,3 +101,14 @@ Based on the Turbo Pascal interface, Turbostar will implement the following core
   - **Border**: Double-line box drawing characters over a light gray background.
   - **Shadow**: A black block-character shadow offset to the right and bottom to simulate depth.
   - **Controls**: Interactive buttons with distinct background colors (e.g., Green for OK) and text labels.
+
+## Testing and Diagnostics
+
+To ensure reliability, Turbostar incorporates testing and diagnostic infrastructure from the outset:
+
+- **Unit Testing**: Basic unit tests for individual classes and methods.
+- **End-to-End (E2E) Testing**: Uses tools like `tmux` or equivalent Python libraries to drive the application, send keystrokes, and verify the rendered output.
+- **Event Logging Infrastructure**: A centralized event logging system to record application state changes and actions.
+- **Command Line Options**:
+  - `--log <filename>`: Writes the complete event log to the specified file upon application exit, enabling test cases to verify internal behavior.
+  - `--debug [optional_string]`: Modifies the UI to show the most recent event log message in the bottom Status Bar. The message is wrapped in clear markers (e.g., `»message«` or `>>message<<`) to make it easily extractable by the E2E test framework. If `optional_string` is provided, the Status Bar only displays the most recent event message that contains the given string as a substring.
