@@ -133,7 +133,10 @@ void menu_bar::draw() const
 		move(0, col);
 		
 		bool is_active = (active_category_ == static_cast<int>(i));
-		if (is_active) attron(A_REVERSE);
+		if (is_active) attrset(COLOR_PAIR(14));
+		else attrset(COLOR_PAIR(1));
+		
+		addch(' ');
 		
 		// Find hotkey position in category name
 		size_t hotkey_pos = std::string::npos;
@@ -143,32 +146,22 @@ void menu_bar::draw() const
 
 		for (size_t j = 0; j < categories_[i].name.length(); ++j) {
 			if (j == hotkey_pos) {
-				if (is_active) {
-					// Assuming A_REVERSE on PAIR(1) gives Black background
-					// If we had a Red on Black pair for categories...
-					// PAIR(7) is Red on Black, which is exactly what we need!
-					attron(COLOR_PAIR(7));
-				} else {
-					attron(COLOR_PAIR(2));
-				}
+				if (is_active) attron(COLOR_PAIR(15));
+				else attron(COLOR_PAIR(2));
 				addch(categories_[i].name[j]);
-				if (is_active) {
-					attroff(COLOR_PAIR(7));
-					attron(COLOR_PAIR(1));
-					attron(A_REVERSE);
-				} else {
-					attroff(COLOR_PAIR(2));
-					attron(COLOR_PAIR(1));
-				}
+				if (is_active) attron(COLOR_PAIR(14));
+				else attron(COLOR_PAIR(1));
 			} else {
 				addch(categories_[i].name[j]);
 			}
 		}
 		
-		if (is_active) attroff(A_REVERSE);
+		addch(' ');
+		if (is_active) attrset(0);
+
 		col += 2 + categories_[i].name.length();
 	}
-	attroff(COLOR_PAIR(1));
+	attrset(0);
 	
 	if (active_category_ != -1) {
 		const auto& cat = categories_[active_category_];
@@ -202,7 +195,8 @@ void menu_bar::draw() const
 			} else {
 				bool selected = (static_cast<int>(i) == selected_item_);
 				mvaddstr(2 + i, drop_col, "│");
-				if (selected) attron(A_REVERSE);
+				if (selected) attrset(COLOR_PAIR(14));
+				else attrset(COLOR_PAIR(1));
 				
 				// Background fill
 				for(int j=1; j<drop_width-1; ++j) mvaddch(2+i, drop_col+j, ' ');
@@ -219,20 +213,13 @@ void menu_bar::draw() const
 				// Draw name with hotkey
 				for (size_t j = 0; j < item.name.length(); ++j) {
 					if (j == hotkey_pos) {
-						if (selected) {
-							attron(COLOR_PAIR(7));
-						} else {
-							attron(COLOR_PAIR(2));
-						}
+						if (selected) attron(COLOR_PAIR(15));
+						else attron(COLOR_PAIR(2));
+						
 						addch(item.name[j]);
-						if (selected) {
-							attroff(COLOR_PAIR(7));
-							attron(COLOR_PAIR(1));
-							attron(A_REVERSE);
-						} else {
-							attroff(COLOR_PAIR(2));
-							attron(COLOR_PAIR(1));
-						}
+						
+						if (selected) attron(COLOR_PAIR(14));
+						else attron(COLOR_PAIR(1));
 					} else {
 						addch(item.name[j]);
 					}
@@ -244,7 +231,7 @@ void menu_bar::draw() const
 					mvaddstr(2 + i, shortcut_x, item.shortcut.c_str());
 				}
 
-				if (selected) attroff(A_REVERSE);
+				attrset(COLOR_PAIR(1));
 				mvaddstr(2 + i, drop_col + drop_width - 1, "│");
 			}
 		}

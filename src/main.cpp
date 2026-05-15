@@ -57,6 +57,8 @@ int main(int argc, char** argv)
 	init_pair(11, COLOR_WHITE + 8, COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
 	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
+	init_pair(14, COLOR_BLACK, COLOR_GREEN);     // Selected Menu Item
+	init_pair(15, COLOR_RED, COLOR_GREEN);       // Hotkey on Selected Menu
 
 	if (can_change_color()) {
 	        // Red, Green, Blue values are on a scale of 0 to 1000
