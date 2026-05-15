@@ -77,10 +77,10 @@ void find_dialog::draw() const
 	mvaddstr(y_ + 2, x_ + 56, "[↓]"); // History button
 
 	// Groups
-	draw_group_box(4, 2, 30, 5, "Options");
-	draw_group_box(4, 33, 28, 5, "Direction");
-	draw_group_box(10, 2, 30, 4, "Scope");
-	draw_group_box(10, 33, 28, 4, "Origin");
+	draw_group_box(5, 2, 30, 4, "Options");
+	draw_group_box(5, 33, 28, 3, "Direction");
+	draw_group_box(10, 2, 30, 3, "Scope");
+	draw_group_box(10, 33, 28, 3, "Origin");
 
 	// Focus indicator
 	auto draw_checkbox = [&](int ry, int rx, bool val, bool focused) {
@@ -122,21 +122,21 @@ void find_dialog::draw() const
 	};
 
 	// Options content
-	draw_checkbox(5, 4, !params_.ignore_case, focus_idx_ == 1);
-	draw_group_labeled_text(5, 8, "Case sensitive", 'c');
+	draw_checkbox(6, 4, !params_.ignore_case, focus_idx_ == 1);
+	draw_group_labeled_text(6, 8, "Case sensitive", 'c');
 	
-	draw_checkbox(6, 4, params_.whole_words, focus_idx_ == 2);
-	draw_group_labeled_text(6, 8, "Whole words only", 'w');
+	draw_checkbox(7, 4, params_.whole_words, focus_idx_ == 2);
+	draw_group_labeled_text(7, 8, "Whole words only", 'w');
 	
-	draw_checkbox(7, 4, params_.regex, focus_idx_ == 3);
-	draw_group_labeled_text(7, 8, "Regular expression", 'r');
+	draw_checkbox(8, 4, params_.regex, focus_idx_ == 3);
+	draw_group_labeled_text(8, 8, "Regular expression", 'r');
 
 	// Direction content
-	draw_radio(5, 35, !params_.backward, focus_idx_ == 4);
-	draw_group_labeled_text(5, 39, "Forward", 'f');
+	draw_radio(6, 35, !params_.backward, focus_idx_ == 4);
+	draw_group_labeled_text(6, 39, "Forward", 'f');
 	
-	draw_radio(6, 35, params_.backward, focus_idx_ == 5);
-	draw_group_labeled_text(6, 39, "Backward", 'b');
+	draw_radio(7, 35, params_.backward, focus_idx_ == 5);
+	draw_group_labeled_text(7, 39, "Backward", 'b');
 
 	// Scope content
 	draw_radio(11, 4, !params_.selected_text_only, focus_idx_ == 6);
