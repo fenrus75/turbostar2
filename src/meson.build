@@ -1,6 +1,6 @@
 turbostar_sources = [
   'main.cpp',
-  'EventLogger.cpp',
+  'event_logger.cpp',
 ]
 
 executable('turbostar',
