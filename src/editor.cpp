@@ -141,6 +141,14 @@ bool editor::handle_k_block_key(int key)
 				logger.log("K-block: Set Selection End");
 				doc->set_selection_end();
 				return true;
+			} else if (c == 'n') {
+				logger.log("K-block: New File");
+				doc->clear();
+				return true;
+			} else if (c == 'd') {
+				logger.log("K-block: Save File");
+				doc->save();
+				return true;
 			} else if (c == 'c') {
 				logger.log("K-block: Copy Block");
 				doc->copy_selection();
@@ -222,6 +230,12 @@ void editor::dispatch(const editor_event& ev)
 		active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", doc->get_filename());
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
+		return;
+	}
+
+	if (ev.type == event_type::new_doc) {
+		logger.log("Dispatching new_doc event.");
+		documents_[0]->clear();
 		return;
 	}
 

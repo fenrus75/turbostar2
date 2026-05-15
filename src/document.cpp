@@ -87,6 +87,21 @@ bool document::save_to_file(const std::string& filename)
 	return true;
 }
 
+void document::clear()
+{
+	std::unique_lock lock(mutex_);
+	lines_.clear();
+	lines_.emplace_back("");
+	filename_ = "";
+	modified_ = false;
+	cursor_x_ = 0;
+	cursor_y_ = 0;
+	selection_start_x_ = selection_start_y_ = -1;
+	selection_end_x_ = selection_end_y_ = -1;
+	lock.unlock();
+	log_state();
+}
+
 const std::string& document::get_filename() const
 {
 	std::shared_lock lock(mutex_);

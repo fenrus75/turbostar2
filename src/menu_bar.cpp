@@ -7,19 +7,19 @@ menu_bar::menu_bar()
 {
 	categories_ = {
 		{"File", 'f', {
-			menu_item("New", event_type::key_press, 'n', "", false),
-			{"Open...", event_type::load, 'o', "F3", false},
-			{"Save", event_type::save, 's', "F2", false},
-			{"Save as...", event_type::save, 'a', "", false},
-			{"Save all", event_type::key_press, 'l', "", false},
+			{"New", event_type::new_doc, 'n', "^KN", false},
+			{"Open...", event_type::load, 'o', "F3,^KE", false},
+			{"Save", event_type::save, 's', "F2,^KD", false},
+			{"Save as...", event_type::save, 'a', "^KW", false},
 			{"", event_type::key_press, 0, "", true},
-			{"Change dir...", event_type::key_press, 'c', "", false},
-			{"Print", event_type::key_press, 'p', "", false},
-			{"Printer setup...", event_type::key_press, 'r', "", false},
-			{"DOS shell", event_type::key_press, 'd', "", false},
-			menu_item("Exit", event_type::quit, 'x', "Alt+X", false)
+			menu_item("Exit", event_type::quit, 'x', "Alt+X,^KX", false)
 		}},
-		{"Edit", 'e', {}},
+		{"Edit", 'e', {
+			{"Delete Line", event_type::key_press, 25, 'y', "^Y", false},
+			{"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
+			{"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
+			{"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
+		}},
 		{"Search", 's', {}},
 		{"Help", 'h', {}}
 	};
@@ -85,7 +85,9 @@ bool menu_bar::handle_key(int key, event_queue& queue)
 	} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 		if (!categories_[active_category_].items.empty()) {
 			editor_event ev;
-			ev.type = categories_[active_category_].items[selected_item_].action;
+			const auto& item = categories_[active_category_].items[selected_item_];
+			ev.type = item.action;
+			ev.key_code = item.action_key_code;
 			event_logger::get_instance().log("Menu pushing event: " + std::to_string(static_cast<int>(ev.type)));
 			queue.push(ev);
 		}
@@ -98,6 +100,7 @@ bool menu_bar::handle_key(int key, event_queue& queue)
 			if (!items[i].is_separator && std::tolower(items[i].hotkey) == c) {
 				editor_event ev;
 				ev.type = items[i].action;
+				ev.key_code = items[i].action_key_code;
 				event_logger::get_instance().log("Menu hotkey " + std::string(1, c) + " pushing event: " + std::to_string(static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();

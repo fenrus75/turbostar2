@@ -14,6 +14,7 @@ public:
 	bool load_from_file(const std::string& filename);
 	bool save();
 	bool save_to_file(const std::string& filename);
+	void clear();
 	const std::string& get_filename() const;
 	bool is_modified() const;
 	
