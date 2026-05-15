@@ -245,7 +245,7 @@ void editor::dispatch(const editor_event& ev)
 			"TurboStar Editor",
 			"Version 0.1.0",
 			"",
-			"A nostalgia inspured TUI editor",
+			"A nostalgia inspired TUI editor",
 			"",
 			"Copyright (c) 2026",
 			"Arjan van de Ven"
