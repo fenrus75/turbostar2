@@ -15,9 +15,11 @@
  */
 struct search_params {
 	std::string query;
+	std::string replacement;
 	bool ignore_case{true};
 	bool whole_words{false};
 	bool regex{false};
+	bool prompt_on_replace{true};
 	bool backward{false};
 	bool selected_text_only{false};
 	bool from_cursor{true};

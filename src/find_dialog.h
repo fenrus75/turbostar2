@@ -12,7 +12,7 @@
  */
 class find_dialog : public dialog {
 public:
-	find_dialog(const std::string& title, const search_params& initial_params);
+	find_dialog(const std::string& title, const search_params& initial_params, bool is_replace = false);
 	~find_dialog() override = default;
 
 	void draw() const override;
@@ -22,8 +22,10 @@ public:
 private:
 	void draw_group_box(int y, int x, int w, int h, const std::string& title) const;
 	void draw_labeled_text(int y, int x, const std::string& text, char hotkey) const;
-	void draw_group_labeled_text(int y, int x, const std::string& text, char hotkey) const;
+	void draw_group_labeled_text(int ly, int lx, const std::string& text, char hotkey) const;
 
 	search_params params_;
-	int focus_idx_{0}; // 0=input, 1-3=options, 4-5=direction, 6-7=scope, 8-9=origin, 10=OK
-};
+	bool is_replace_{false};
+	int focus_idx_{0}; 
+	};
+

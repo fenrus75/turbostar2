@@ -2,8 +2,8 @@
 #include <ncurses.h>
 #include <cctype>
 
-find_dialog::find_dialog(const std::string& title, const search_params& initial_params)
-	: dialog(title, 64, 16), params_(initial_params)
+find_dialog::find_dialog(const std::string& title, const search_params& initial_params, bool is_replace)
+	: dialog(title, 64, is_replace ? 18 : 16), params_(initial_params), is_replace_(is_replace)
 {
 }
 
@@ -65,38 +65,55 @@ void find_dialog::draw() const
 	dialog::draw();
 	attrset(COLOR_PAIR(1));
 	
+	int y_off = is_replace_ ? 2 : 0;
+
 	// Label: Text to find
 	draw_labeled_text(2, 2, "Text to find", 't');
 	
-	// Input field
-	attrset(COLOR_PAIR(3)); // Yellow on Blue for input
+	// Input field 1
+	attrset(COLOR_PAIR(3)); 
 	move(y_ + 2, x_ + 16);
 	for (int i = 0; i < 40; ++i) addch(' ');
 	mvaddstr(y_ + 2, x_ + 16, params_.query.c_str());
+	if (focus_idx_ == 0) {
+		move(y_ + 2, x_ + 16 + params_.query.length());
+		attrset(COLOR_PAIR(19)); addch(' '); attrset(COLOR_PAIR(3));
+	}
 	attrset(COLOR_PAIR(1));
-	mvaddstr(y_ + 2, x_ + 56, "[↓]"); // History button
+	mvaddstr(y_ + 2, x_ + 56, "[↓]");
+
+	if (is_replace_) {
+		draw_labeled_text(4, 2, "Replace with", 'n');
+		attrset(COLOR_PAIR(3));
+		move(y_ + 4, x_ + 16);
+		for (int i = 0; i < 40; ++i) addch(' ');
+		mvaddstr(y_ + 4, x_ + 16, params_.replacement.c_str());
+		if (focus_idx_ == 1) {
+			move(y_ + 4, x_ + 16 + params_.replacement.length());
+			attrset(COLOR_PAIR(19)); addch(' '); attrset(COLOR_PAIR(3));
+		}
+		attrset(COLOR_PAIR(1));
+		mvaddstr(y_ + 4, x_ + 56, "[↓]");
+	}
 
 	// Groups
-	draw_group_box(5, 2, 30, 4, "Options");
-	draw_group_box(5, 33, 28, 3, "Direction");
-	draw_group_box(10, 2, 30, 3, "Scope");
-	draw_group_box(10, 33, 28, 3, "Origin");
+	draw_group_box(5 + y_off, 2, 30, is_replace_ ? 5 : 4, "Options");
+	draw_group_box(5 + y_off, 33, 28, 3, "Direction");
+	draw_group_box(10 + y_off, 2, 30, 3, "Scope");
+	draw_group_box(10 + y_off, 33, 28, 3, "Origin");
 
-	// Focus indicator
+	// Focus indicator helpers
 	auto draw_checkbox = [&](int ry, int rx, bool val, bool focused) {
 		move(y_ + ry, x_ + rx);
 		if (focused) attrset(COLOR_PAIR(19));
 		else attrset(COLOR_PAIR(17));
-
 		addch('[');
 		if (val) {
 			if (focused) attrset(COLOR_PAIR(19));
-			else attrset(COLOR_PAIR(11)); // Bright White on Cyan
+			else attrset(COLOR_PAIR(11)); 
 			addch('X');
 			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
-		} else {
-			addch(' ');
-		}
+		} else addch(' ');
 		addch(']');
 		attrset(0);
 	};
@@ -105,82 +122,69 @@ void find_dialog::draw() const
 		move(y_ + ry, x_ + rx);
 		if (focused) attrset(COLOR_PAIR(19));
 		else attrset(COLOR_PAIR(17));
-
 		addch('(');
 		if (val) {
 			if (focused) attrset(COLOR_PAIR(19));
-			else attrset(COLOR_PAIR(11)); // Bright White on Cyan
+			else attrset(COLOR_PAIR(11));
 			addstr("•");
 			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
-		} else {
-			addch(' ');
-		}
+		} else addch(' ');
 		addch(')');
 		attrset(0);
 	};
 
+	int f_off = is_replace_ ? 1 : 0;
 
 	// Options content
-	draw_checkbox(6, 4, !params_.ignore_case, focus_idx_ == 1);
-	draw_group_labeled_text(6, 8, "Case sensitive", 'c');
-	
-	draw_checkbox(7, 4, params_.whole_words, focus_idx_ == 2);
-	draw_group_labeled_text(7, 8, "Whole words only", 'w');
-	
-	draw_checkbox(8, 4, params_.regex, focus_idx_ == 3);
-	draw_group_labeled_text(8, 8, "Regular expression", 'r');
+	draw_checkbox(6 + y_off, 4, !params_.ignore_case, focus_idx_ == 1 + f_off);
+	draw_group_labeled_text(6 + y_off, 8, "Case sensitive", 'c');
+	draw_checkbox(7 + y_off, 4, params_.whole_words, focus_idx_ == 2 + f_off);
+	draw_group_labeled_text(7 + y_off, 8, "Whole words only", 'w');
+	draw_checkbox(8 + y_off, 4, params_.regex, focus_idx_ == 3 + f_off);
+	draw_group_labeled_text(8 + y_off, 8, "Regular expression", 'r');
+	if (is_replace_) {
+		draw_checkbox(9 + y_off, 4, params_.prompt_on_replace, focus_idx_ == 5);
+		draw_group_labeled_text(9 + y_off, 8, "Prompt on replace", 'p');
+	}
 
 	// Direction content
-	draw_radio(6, 35, !params_.backward, focus_idx_ == 4);
-	draw_group_labeled_text(6, 39, "Forward", 'f');
-	
-	draw_radio(7, 35, params_.backward, focus_idx_ == 5);
-	draw_group_labeled_text(7, 39, "Backward", 'b');
+	draw_radio(6 + y_off, 35, !params_.backward, focus_idx_ == (is_replace_ ? 6 : 4));
+	draw_group_labeled_text(6 + y_off, 39, "Forward", 'f');
+	draw_radio(7 + y_off, 35, params_.backward, focus_idx_ == (is_replace_ ? 7 : 5));
+	draw_group_labeled_text(7 + y_off, 39, "Backward", 'b');
 
 	// Scope content
-	draw_radio(11, 4, !params_.selected_text_only, focus_idx_ == 6);
-	draw_group_labeled_text(11, 8, "Global", 'g');
-	
-	draw_radio(12, 4, params_.selected_text_only, focus_idx_ == 7);
-	draw_group_labeled_text(12, 8, "Selected text", 's');
+	draw_radio(11 + y_off, 4, !params_.selected_text_only, focus_idx_ == (is_replace_ ? 8 : 6));
+	draw_group_labeled_text(11 + y_off, 8, "Global", 'g');
+	draw_radio(12 + y_off, 4, params_.selected_text_only, focus_idx_ == (is_replace_ ? 9 : 7));
+	draw_group_labeled_text(12 + y_off, 8, "Selected text", 's');
 
 	// Origin content
-	draw_radio(11, 35, params_.from_cursor, focus_idx_ == 8);
-	draw_group_labeled_text(11, 39, "From cursor", 'o');
-	
-	draw_radio(12, 35, !params_.from_cursor, focus_idx_ == 9);
-	draw_group_labeled_text(12, 39, "Entire scope", 'e');
+	draw_radio(11 + y_off, 35, params_.from_cursor, focus_idx_ == (is_replace_ ? 10 : 8));
+	draw_group_labeled_text(11 + y_off, 39, "From cursor", 'o');
+	draw_radio(12 + y_off, 35, !params_.from_cursor, focus_idx_ == (is_replace_ ? 11 : 9));
+	draw_group_labeled_text(12 + y_off, 39, "Entire scope", 'e');
 
 	// Buttons
 	auto draw_btn = [&](int by, int bx, const std::string& btext, char bhot, bool focused) {
-		// Shadow
 		attrset(COLOR_PAIR(1));
 		mvaddstr(y_ + by, x_ + bx + btext.length(), "▄");
-		for (size_t i = 0; i < btext.length(); ++i) {
-			mvaddstr(y_ + by + 1, x_ + bx + 1 + i, "▀");
-		}
-		
-		// Surface
+		for (size_t i = 0; i < btext.length(); ++i) mvaddstr(y_ + by + 1, x_ + bx + 1 + i, "▀");
 		move(y_ + by, x_ + bx);
-		if (focused) attrset(COLOR_PAIR(14)); // Black on Green
-		else attrset(COLOR_PAIR(10)); // White on Green
-		
+		attrset(focused ? COLOR_PAIR(14) : COLOR_PAIR(10));
 		for (size_t i = 0; i < btext.length(); ++i) {
 			if (std::tolower(btext[i]) == std::tolower(bhot)) {
-				attrset(COLOR_PAIR(15)); // Red on Green
-				addch(btext[i]);
-				if (focused) attrset(COLOR_PAIR(14));
-				else attrset(COLOR_PAIR(10));
-			} else {
-				addch(btext[i]);
-			}
+				attrset(COLOR_PAIR(15)); addch(btext[i]); attrset(focused ? COLOR_PAIR(14) : COLOR_PAIR(10));
+			} else addch(btext[i]);
 		}
 		attrset(0);
 	};
 
-	draw_btn(14, 18, "  OK  ", 'o', focus_idx_ == 10);
-	draw_btn(14, 28, " Cancel ", 'c', focus_idx_ == 11);
-	draw_btn(14, 42, " Help ", 'h', false);
+	int btn_y = 14 + y_off;
+	draw_btn(btn_y, 8, "  OK  ", 'o', focus_idx_ == (is_replace_ ? 12 : 10));
+	if (is_replace_) draw_btn(btn_y, 18, " Change all ", 'a', focus_idx_ == 13);
+	draw_btn(btn_y, is_replace_ ? 34 : 28, " Cancel ", 'c', focus_idx_ == (is_replace_ ? 14 : 11));
+	draw_btn(btn_y, is_replace_ ? 46 : 42, " Help ", 'h', false);
 
 	attrset(0);
 }
@@ -189,19 +193,13 @@ dialog_result find_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		if (focus_idx_ == 11) return dialog_result::cancelled;
+		if (focus_idx_ == (is_replace_ ? 14 : 11)) return dialog_result::cancelled;
 		return dialog_result::confirmed;
 	}
 	
-	// Define navigation groups
-	static const std::vector<std::vector<int>> groups = {
-		{0},             // Input
-		{1, 2, 3},       // Options
-		{4, 5},          // Direction
-		{6, 7},          // Scope
-		{8, 9},          // Origin
-		{10, 11}         // Buttons
-	};
+	std::vector<std::vector<int>> groups;
+	if (!is_replace_) groups = {{0}, {1, 2, 3}, {4, 5}, {6, 7}, {8, 9}, {10, 11}};
+	else groups = {{0}, {1}, {2, 3, 4, 5}, {6, 7}, {8, 9}, {10, 11}, {12, 13, 14}};
 
 	auto get_group_of = [&](int idx) -> int {
 		for (size_t i = 0; i < groups.size(); ++i) {
@@ -232,25 +230,44 @@ dialog_result find_dialog::handle_key(int key)
 		return dialog_result::pending;
 	}
 
-	if (focus_idx_ == 0) {
+	if (focus_idx_ == 0 || (is_replace_ && focus_idx_ == 1)) {
+		std::string& buf = (focus_idx_ == 0) ? params_.query : params_.replacement;
 		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-			if (!params_.query.empty()) params_.query.pop_back();
+			if (!buf.empty()) buf.pop_back();
 		} else if (key >= 32 && key <= 126) {
-			params_.query += static_cast<char>(key);
+			buf += static_cast<char>(key);
 		}
 	} else if (key == ' ') {
-		switch (focus_idx_) {
-			case 1: params_.ignore_case = !params_.ignore_case; break;
-			case 2: params_.whole_words = !params_.whole_words; break;
-			case 3: params_.regex = !params_.regex; break;
-			case 4: params_.backward = false; break;
-			case 5: params_.backward = true; break;
-			case 6: params_.selected_text_only = false; break;
-			case 7: params_.selected_text_only = true; break;
-			case 8: params_.from_cursor = true; break;
-			case 9: params_.from_cursor = false; break;
-			case 10: return dialog_result::confirmed;
-			case 11: return dialog_result::cancelled;
+		if (!is_replace_) {
+			switch (focus_idx_) {
+				case 1: params_.ignore_case = !params_.ignore_case; break;
+				case 2: params_.whole_words = !params_.whole_words; break;
+				case 3: params_.regex = !params_.regex; break;
+				case 4: params_.backward = false; break;
+				case 5: params_.backward = true; break;
+				case 6: params_.selected_text_only = false; break;
+				case 7: params_.selected_text_only = true; break;
+				case 8: params_.from_cursor = true; break;
+				case 9: params_.from_cursor = false; break;
+				case 10: return dialog_result::confirmed;
+				case 11: return dialog_result::cancelled;
+			}
+		} else {
+			switch (focus_idx_) {
+				case 2: params_.ignore_case = !params_.ignore_case; break;
+				case 3: params_.whole_words = !params_.whole_words; break;
+				case 4: params_.regex = !params_.regex; break;
+				case 5: params_.prompt_on_replace = !params_.prompt_on_replace; break;
+				case 6: params_.backward = false; break;
+				case 7: params_.backward = true; break;
+				case 8: params_.selected_text_only = false; break;
+				case 9: params_.selected_text_only = true; break;
+				case 10: params_.from_cursor = true; break;
+				case 11: params_.from_cursor = false; break;
+				case 12: return dialog_result::confirmed;
+				case 13: return dialog_result::confirmed; 
+				case 14: return dialog_result::cancelled;
+			}
 		}
 	}
 	
