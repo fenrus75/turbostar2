@@ -10,3 +10,9 @@ endif
 
 
 subdir('src')
+
+executable('turbostar',
+  turbostar_sources,
+  dependencies : [ncurses_dep],
+  install : true)
+
