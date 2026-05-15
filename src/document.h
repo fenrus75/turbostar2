@@ -12,6 +12,8 @@ public:
 	~document() = default;
 
 	bool load_from_file(const std::string& filename);
+	bool save();
+	bool save_to_file(const std::string& filename);
 	const std::string& get_filename() const;
 	bool is_modified() const;
 	
@@ -22,8 +24,48 @@ public:
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 	void move_cursor(int dx, int dy);
+	void insert_char(const std::string& utf8_char);
+	void backspace();
+	void delete_char();
+	void delete_word_forward();
+	void delete_word_backward();
+	void delete_to_eol();
+	void delete_to_bol();
+	void split_line();
+	void delete_line();
+
+	void move_to_bol();
+	void move_to_eol();
+	void move_to_top();
+	void move_to_bottom();
+	void move_page_up(int page_height);
+	void move_page_down(int page_height);
+	void move_next_word();
+	void move_prev_word();
+
+	// Selection management
+	void set_selection_start();
+	void set_selection_end();
+	void clear_selection();
+	void delete_selection();
+	void copy_selection();
+	void move_selection();
+	bool has_selection() const;
+
+	void get_selection_range(int& start_x, int& start_y, int& end_x, int& end_y) const;
+
+	void log_state() const;
 
 private:
+	std::vector<line> get_selection_block() const;
+	void insert_block(const std::vector<line>& block);
+	void set_modified();
+	void adjust_selection_for_insert(int y, int x, int count);
+	void adjust_selection_for_delete(int y, int x, int count);
+	void adjust_selection_for_split(int y, int x);
+	void adjust_selection_for_join(int y, int x);
+	void adjust_selection_for_line_delete(int y);
+
 	std::vector<line> lines_;
 	mutable std::shared_mutex mutex_;
 	

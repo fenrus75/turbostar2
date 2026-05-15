@@ -15,12 +15,21 @@ public:
 	bool is_active() const;
 
 	void attach_document(std::shared_ptr<document> doc);
+	/**
+	 * @brief Returns the window's local event queue.
+	 */
 	event_queue& get_queue();
 
+	/**
+	 * @brief Processes all pending events in the window's local queue.
+	 * @return true if an event was processed that requires a re-render.
+	 */
 	bool process_events();
 	void set_cursor_position() const;
 	int get_cursor_x() const;
 	int get_cursor_y() const;
+
+	int get_content_height() const { return height_ - 2; }
 
 private:
 	void draw_border() const;

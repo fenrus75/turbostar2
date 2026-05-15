@@ -66,6 +66,12 @@ class TurbostarRunner:
 
     def send_keys(self, keys):
         if isinstance(keys, str):
+            # Convert \n to \r because we use nonl() in the editor
+            keys = keys.replace('\n', '\r')
+        self.send_raw_keys(keys)
+
+    def send_raw_keys(self, keys):
+        if isinstance(keys, str):
             keys = keys.encode('utf-8')
         time.sleep(0.2)
         os.write(self.master_fd, keys)
@@ -121,6 +127,12 @@ class TurbostarRunner:
             os.close(self.slave_fd)
             self.slave_fd = None
         if self.master_fd is not None:
+            # Try to quit gracefully via ^KQ
+            try:
+                self.send_keys('\x0b' + 'q')
+                time.sleep(0.2)
+            except:
+                pass
             os.close(self.master_fd)
             self.master_fd = None
         if self.proc is not None and self.proc.poll() is None:

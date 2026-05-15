@@ -6,7 +6,19 @@
 menu_bar::menu_bar()
 {
 	categories_ = {
-		{"File", 'f', {{"Exit", event_type::quit}}},
+		{"File", 'f', {
+			menu_item("New", event_type::key_press, 'n', "", false),
+			{"Open...", event_type::key_press, 'o', "F3", false},
+			{"Save", event_type::key_press, 's', "F2", false},
+			{"Save as...", event_type::key_press, 'a', "", false},
+			{"Save all", event_type::key_press, 'l', "", false},
+			{"", event_type::key_press, 0, "", true},
+			{"Change dir...", event_type::key_press, 'c', "", false},
+			{"Print", event_type::key_press, 'p', "", false},
+			{"Printer setup...", event_type::key_press, 'r', "", false},
+			{"DOS shell", event_type::key_press, 'd', "", false},
+			menu_item("Exit", event_type::quit, 'x', "Alt+X", false)
+		}},
 		{"Edit", 'e', {}},
 		{"Search", 's', {}},
 		{"Help", 'h', {}}
@@ -41,6 +53,7 @@ void menu_bar::close_menu()
 bool menu_bar::handle_key(int key, event_queue& queue)
 {
 	if (!is_open()) return false;
+	event_logger::get_instance().log("Menu handle_key: " + std::to_string(key));
 	
 	if (key == 27) { // ESC
 		close_menu();
@@ -61,20 +74,36 @@ bool menu_bar::handle_key(int key, event_queue& queue)
 		active_category_ = (active_category_ + 1) % categories_.size();
 		selected_item_ = 0;
 		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
+			event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
 	} else if (key == KEY_LEFT) {
 		active_category_ = (active_category_ - 1 + categories_.size()) % categories_.size();
 		selected_item_ = 0;
 		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
+			event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
 	} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 		if (!categories_[active_category_].items.empty()) {
 			editor_event ev;
 			ev.type = categories_[active_category_].items[selected_item_].action;
+			event_logger::get_instance().log("Menu pushing event: " + std::to_string(static_cast<int>(ev.type)));
 			queue.push(ev);
 		}
 		close_menu();
 		return true;
+	} else if (key > 0 && key < 256) {
+		char c = std::tolower(static_cast<char>(key));
+		const auto& items = categories_[active_category_].items;
+		for (size_t i = 0; i < items.size(); ++i) {
+			if (!items[i].is_separator && std::tolower(items[i].hotkey) == c) {
+				editor_event ev;
+				ev.type = items[i].action;
+				event_logger::get_instance().log("Menu hotkey " + std::string(1, c) + " pushing event: " + std::to_string(static_cast<int>(ev.type)));
+				queue.push(ev);
+				close_menu();
+				return true;
+			}
+		}
 	}
 	
 	return true; // Consume other keys while menu is open
@@ -94,22 +123,39 @@ void menu_bar::draw() const
 		move(0, col);
 		
 		bool is_active = (active_category_ == static_cast<int>(i));
+		if (is_active) attron(A_REVERSE);
 		
-		if (is_active) {
-			attron(A_REVERSE);
+		// Find hotkey position in category name
+		size_t hotkey_pos = std::string::npos;
+		std::string lower_name = categories_[i].name;
+		for(char &c : lower_name) c = std::tolower(c);
+		hotkey_pos = lower_name.find(std::tolower(categories_[i].hotkey));
+
+		for (size_t j = 0; j < categories_[i].name.length(); ++j) {
+			if (j == hotkey_pos) {
+				if (is_active) {
+					// Assuming A_REVERSE on PAIR(1) gives Black background
+					// If we had a Red on Black pair for categories...
+					// PAIR(7) is Red on Black, which is exactly what we need!
+					attron(COLOR_PAIR(7));
+				} else {
+					attron(COLOR_PAIR(2));
+				}
+				addch(categories_[i].name[j]);
+				if (is_active) {
+					attroff(COLOR_PAIR(7));
+					attron(COLOR_PAIR(1));
+					attron(A_REVERSE);
+				} else {
+					attroff(COLOR_PAIR(2));
+					attron(COLOR_PAIR(1));
+				}
+			} else {
+				addch(categories_[i].name[j]);
+			}
 		}
 		
-		attron(COLOR_PAIR(2));
-		addch(categories_[i].name[0]);
-		attroff(COLOR_PAIR(2));
-		
-		attron(COLOR_PAIR(1));
-		printw("%s", categories_[i].name.c_str() + 1);
-		
-		if (is_active) {
-			attroff(A_REVERSE);
-		}
-		
+		if (is_active) attroff(A_REVERSE);
 		col += 2 + categories_[i].name.length();
 	}
 	attroff(COLOR_PAIR(1));
@@ -117,46 +163,85 @@ void menu_bar::draw() const
 	if (active_category_ != -1) {
 		const auto& cat = categories_[active_category_];
 		int drop_col = category_cols[active_category_];
-		int drop_width = 16;
+		
+		int drop_width = 0;
+		for (const auto& item : cat.items) {
+			int w = item.name.length() + item.shortcut.length() + 4;
+			if (w > drop_width) drop_width = w;
+		}
+		if (drop_width < 15) drop_width = 15;
 		int drop_height = cat.items.size() + 2;
 		
-		if (drop_height > 2) {
-			attron(COLOR_PAIR(1));
-			mvaddstr(1, drop_col, "┌");
-			for(int j=1; j<drop_width-1; ++j) addstr("─");
-			addstr("┐");
-			
-			for (size_t i = 0; i < cat.items.size(); ++i) {
+		// Draw shadow
+		attron(COLOR_PAIR(6));
+		for(int i=0; i<drop_height; ++i) mvaddch(2+i, drop_col + drop_width, ' ');
+		for(int i=0; i<drop_width; ++i) mvaddch(drop_height + 1, drop_col + 1 + i, ' ');
+		attroff(COLOR_PAIR(6));
+		
+		attron(COLOR_PAIR(1));
+		mvaddstr(1, drop_col, "┌");
+		for(int j=1; j<drop_width-1; ++j) addstr("─");
+		addstr("┐");
+		
+		for (size_t i = 0; i < cat.items.size(); ++i) {
+			const auto& item = cat.items[i];
+			if (item.is_separator) {
+				mvaddstr(2 + i, drop_col, "├");
+				for(int j=1; j<drop_width-1; ++j) addstr("─");
+				addstr("┤");
+			} else {
+				bool selected = (static_cast<int>(i) == selected_item_);
 				mvaddstr(2 + i, drop_col, "│");
+				if (selected) attron(A_REVERSE);
 				
-				if (static_cast<int>(i) == selected_item_) {
-					attron(A_REVERSE);
+				// Background fill
+				for(int j=1; j<drop_width-1; ++j) mvaddch(2+i, drop_col+j, ' ');
+				move(2+i, drop_col+1);
+
+				// Find hotkey position
+				size_t hotkey_pos = std::string::npos;
+				if (item.hotkey != 0) {
+					std::string lower_name = item.name;
+					for(char &c : lower_name) c = std::tolower(c);
+					hotkey_pos = lower_name.find(std::tolower(item.hotkey));
 				}
-				printw(" %-*s ", drop_width - 4, cat.items[i].name.c_str());
-				if (static_cast<int>(i) == selected_item_) {
-					attroff(A_REVERSE);
+
+				// Draw name with hotkey
+				for (size_t j = 0; j < item.name.length(); ++j) {
+					if (j == hotkey_pos) {
+						if (selected) {
+							attron(COLOR_PAIR(7));
+						} else {
+							attron(COLOR_PAIR(2));
+						}
+						addch(item.name[j]);
+						if (selected) {
+							attroff(COLOR_PAIR(7));
+							attron(COLOR_PAIR(1));
+							attron(A_REVERSE);
+						} else {
+							attroff(COLOR_PAIR(2));
+							attron(COLOR_PAIR(1));
+						}
+					} else {
+						addch(item.name[j]);
+					}
 				}
-				
+
+				// Draw shortcut right-aligned
+				if (!item.shortcut.empty()) {
+					int shortcut_x = drop_col + drop_width - 1 - item.shortcut.length() - 1;
+					mvaddstr(2 + i, shortcut_x, item.shortcut.c_str());
+				}
+
+				if (selected) attroff(A_REVERSE);
 				mvaddstr(2 + i, drop_col + drop_width - 1, "│");
 			}
-			
-			mvaddstr(2 + cat.items.size(), drop_col, "└");
-			for(int j=1; j<drop_width-1; ++j) addstr("─");
-			addstr("┘");
-			attroff(COLOR_PAIR(1));
-		} else {
-			// Empty menu drop down indicator
-			attron(COLOR_PAIR(1));
-			mvaddstr(1, drop_col, "┌");
-			for(int j=1; j<drop_width-1; ++j) addstr("─");
-			addstr("┐");
-			mvaddstr(2, drop_col, "│");
-			printw(" %-*s ", drop_width - 4, "(empty)");
-			mvaddstr(2, drop_col + drop_width - 1, "│");
-			mvaddstr(3, drop_col, "└");
-			for(int j=1; j<drop_width-1; ++j) addstr("─");
-			addstr("┘");
-			attroff(COLOR_PAIR(1));
 		}
+		
+		mvaddstr(2 + cat.items.size(), drop_col, "└");
+		for(int j=1; j<drop_width-1; ++j) addstr("─");
+		addstr("┘");
+		attroff(COLOR_PAIR(1));
 	}
 }

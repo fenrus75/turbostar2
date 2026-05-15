@@ -1,20 +1,21 @@
 #include "document.h"
+#include "event_logger.h"
 #include <mutex>
 #include <fstream>
 
 document::document()
 {
-	for (int i = 0; i < 10; ++i) {
-		lines_.emplace_back(""); // Start with 10 empty lines for testing
-	}
+	lines_.emplace_back(""); 
+	log_state();
 }
 
 document::document(const std::string& filename)
 	: filename_(filename)
 {
-	if (!load_from_file(filename)) {
-		for (int i = 0; i < 10; ++i) lines_.emplace_back("");
+	if (filename.empty() || !load_from_file(filename)) {
+		if (lines_.empty()) lines_.emplace_back("");
 	}
+	log_state();
 }
 
 bool document::load_from_file(const std::string& filename)
@@ -39,6 +40,43 @@ bool document::load_from_file(const std::string& filename)
 	return true;
 }
 
+
+bool document::save()
+{
+	std::shared_lock lock(mutex_);
+	std::string fname = filename_;
+	lock.unlock();
+	
+	if (fname.empty()) {
+		event_logger::get_instance().log("Save failed: No filename specified.");
+		return false;
+	}
+	return save_to_file(fname);
+}
+
+bool document::save_to_file(const std::string& filename)
+{
+	std::unique_lock lock(mutex_);
+	std::ofstream file(filename);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Save failed: Could not open file " + filename);
+		return false;
+	}
+
+	for (size_t i = 0; i < lines_.size(); ++i) {
+		file << lines_[i].get_text();
+		if (i < lines_.size() - 1) {
+			file << "\n";
+		}
+	}
+	
+	filename_ = filename;
+	modified_ = false;
+	event_logger::get_instance().log("Document saved to: " + filename);
+	lock.unlock();
+	log_state();
+	return true;
+}
 
 const std::string& document::get_filename() const
 {
@@ -88,7 +126,646 @@ void document::move_cursor(int dx, int dy)
 		cursor_y_ = static_cast<int>(lines_.size()) - 1;
 	}
 
-	int line_len = static_cast<int>(lines_[cursor_y_].get_text().length());
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
 	if (cursor_x_ < 0) cursor_x_ = 0;
+	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
+	
+	event_logger::get_instance().log("Cursor moved to: " + std::to_string(cursor_y_) + ":" + std::to_string(cursor_x_));
+	lock.unlock();
+	log_state();
+}
+
+void document::insert_char(const std::string& utf8_char)
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
+		adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
+		lines_[cursor_y_].insert_at(cursor_x_, utf8_char);
+		cursor_x_++;
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::backspace()
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_x_ > 0) {
+		adjust_selection_for_delete(cursor_y_, cursor_x_ - 1, 1);
+		lines_[cursor_y_].remove_at(cursor_x_ - 1);
+		cursor_x_--;
+		set_modified();
+	} else if (cursor_y_ > 0) {
+		// Join with previous line
+		int prev_line_idx = cursor_y_ - 1;
+		int prev_line_char_len = static_cast<int>(lines_[prev_line_idx].length_in_chars());
+		
+		adjust_selection_for_join(cursor_y_, cursor_x_);
+		
+		lines_[prev_line_idx].merge(lines_[cursor_y_]);
+		lines_.erase(lines_.begin() + cursor_y_);
+		
+		cursor_y_ = prev_line_idx;
+		cursor_x_ = prev_line_char_len;
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_char()
+{
+	std::unique_lock lock(mutex_);
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	if (cursor_x_ < line_char_len) {
+		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
+		lines_[cursor_y_].remove_at(cursor_x_);
+		set_modified();
+	} else if (cursor_y_ < static_cast<int>(lines_.size()) - 1) {
+		// Join next line into this one
+		int next_line_idx = cursor_y_ + 1;
+		adjust_selection_for_join(next_line_idx, 0);
+		lines_[cursor_y_].merge(lines_[next_line_idx]);
+		lines_.erase(lines_.begin() + next_line_idx);
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_to_eol()
+{
+	std::unique_lock lock(mutex_);
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	int count = line_char_len - cursor_x_;
+	if (count > 0) {
+		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
+		for (int i = 0; i < count; ++i) {
+			lines_[cursor_y_].remove_at(cursor_x_);
+		}
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_to_bol()
+{
+	std::unique_lock lock(mutex_);
+	int count = cursor_x_;
+	if (count > 0) {
+		adjust_selection_for_delete(cursor_y_, 0, count);
+		for (int i = 0; i < count; ++i) {
+			lines_[cursor_y_].remove_at(0);
+		}
+		cursor_x_ = 0;
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_word_forward()
+{
+	std::unique_lock lock(mutex_);
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	if (cursor_x_ >= line_char_len) {
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	std::string text = lines_[cursor_y_].get_text();
+	auto get_char_at = [&](int idx) -> char {
+		size_t offset = 0;
+		int count = 0;
+		while (count < idx && offset < text.length()) {
+			unsigned char c = static_cast<unsigned char>(text[offset]);
+			if (c < 0x80) offset += 1;
+			else if ((c & 0xE0) == 0xC0) offset += 2;
+			else if ((c & 0xE0) == 0xE0) offset += 3;
+			else if ((c & 0xF0) == 0xF0) offset += 4;
+			else offset += 1;
+			count++;
+		}
+		if (offset < text.length()) return text[offset];
+		return 0;
+	};
+
+	int i = cursor_x_;
+	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i)))) i++;
+	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i)))) i++;
+	
+	int count = i - cursor_x_;
+	if (count > 0) {
+		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
+		for (int j = 0; j < count; ++j) {
+			lines_[cursor_y_].remove_at(cursor_x_);
+		}
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_word_backward()
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_x_ == 0) {
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	std::string text = lines_[cursor_y_].get_text();
+	auto get_char_at = [&](int idx) -> char {
+		size_t offset = 0;
+		int count = 0;
+		while (count < idx && offset < text.length()) {
+			unsigned char c = static_cast<unsigned char>(text[offset]);
+			if (c < 0x80) offset += 1;
+			else if ((c & 0xE0) == 0xC0) offset += 2;
+			else if ((c & 0xE0) == 0xE0) offset += 3;
+			else if ((c & 0xF0) == 0xF0) offset += 4;
+			else offset += 1;
+			count++;
+		}
+		if (offset < text.length()) return text[offset];
+		return 0;
+	};
+
+	int i = cursor_x_ - 1;
+	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i)))) i--;
+	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1)))) i--;
+	
+	int count = cursor_x_ - i;
+	if (count > 0) {
+		adjust_selection_for_delete(cursor_y_, i, count);
+		for (int j = 0; j < count; ++j) {
+			lines_[cursor_y_].remove_at(i);
+		}
+		cursor_x_ = i;
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::split_line()
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
+		adjust_selection_for_split(cursor_y_, cursor_x_);
+		line new_line("");
+		lines_[cursor_y_].split_at(cursor_x_, new_line);
+		lines_.insert(lines_.begin() + cursor_y_ + 1, std::move(new_line));
+		cursor_y_++;
+		cursor_x_ = 0;
+		set_modified();
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::move_to_bol()
+{
+	std::unique_lock lock(mutex_);
+	cursor_x_ = 0;
+	lock.unlock();
+	log_state();
+}
+
+void document::move_to_eol()
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
+		cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	}
+	lock.unlock();
+	log_state();
+}
+
+void document::move_to_top()
+{
+	std::unique_lock lock(mutex_);
+	cursor_x_ = 0;
+	cursor_y_ = 0;
+	lock.unlock();
+	log_state();
+}
+
+void document::move_to_bottom()
+{
+	std::unique_lock lock(mutex_);
+	cursor_y_ = static_cast<int>(lines_.size()) - 1;
+	cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	lock.unlock();
+	log_state();
+}
+
+void document::move_page_up(int page_height)
+{
+	std::unique_lock lock(mutex_);
+	cursor_y_ -= page_height;
+	if (cursor_y_ < 0) cursor_y_ = 0;
+	
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
+	lock.unlock();
+	log_state();
+}
+
+void document::move_page_down(int page_height)
+{
+	std::unique_lock lock(mutex_);
+	cursor_y_ += page_height;
+	if (cursor_y_ >= static_cast<int>(lines_.size())) {
+		cursor_y_ = static_cast<int>(lines_.size()) - 1;
+	}
+	
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	if (cursor_x_ > line_char_len) cursor_x_ = line_char_len;
+	lock.unlock();
+	log_state();
+}
+
+void document::move_next_word()
+{
+	std::unique_lock lock(mutex_);
+	std::string text = lines_[cursor_y_].get_text();
+	int line_char_len = static_cast<int>(lines_[cursor_y_].length_in_chars());
+	
+	if (cursor_x_ >= line_char_len) {
+		if (cursor_y_ < static_cast<int>(lines_.size()) - 1) {
+			cursor_y_++;
+			cursor_x_ = 0;
+		}
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	auto get_char_at = [&](int idx) -> char {
+		size_t offset = 0;
+		int count = 0;
+		while (count < idx && offset < text.length()) {
+			unsigned char c = static_cast<unsigned char>(text[offset]);
+			if (c < 0x80) offset += 1;
+			else if ((c & 0xE0) == 0xC0) offset += 2;
+			else if ((c & 0xE0) == 0xE0) offset += 3;
+			else if ((c & 0xF0) == 0xF0) offset += 4;
+			else offset += 1;
+			count++;
+		}
+		if (offset < text.length()) return text[offset];
+		return 0;
+	};
+
+	int i = cursor_x_;
+	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i)))) i++;
+	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i)))) i++;
+	
+	if (i >= line_char_len && cursor_y_ < static_cast<int>(lines_.size()) - 1) {
+		cursor_y_++;
+		cursor_x_ = 0;
+	} else {
+		cursor_x_ = i;
+	}
+	
+	lock.unlock();
+	log_state();
+}
+
+void document::move_prev_word()
+{
+	std::unique_lock lock(mutex_);
+	if (cursor_x_ == 0) {
+		if (cursor_y_ > 0) {
+			cursor_y_--;
+			cursor_x_ = static_cast<int>(lines_[cursor_y_].length_in_chars());
+		}
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	std::string text = lines_[cursor_y_].get_text();
+	auto get_char_at = [&](int idx) -> char {
+		size_t offset = 0;
+		int count = 0;
+		while (count < idx && offset < text.length()) {
+			unsigned char c = static_cast<unsigned char>(text[offset]);
+			if (c < 0x80) offset += 1;
+			else if ((c & 0xE0) == 0xC0) offset += 2;
+			else if ((c & 0xE0) == 0xE0) offset += 3;
+			else if ((c & 0xF0) == 0xF0) offset += 4;
+			else offset += 1;
+			count++;
+		}
+		if (offset < text.length()) return text[offset];
+		return 0;
+	};
+
+	int i = cursor_x_ - 1;
+	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i)))) i--;
+	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1)))) i--;
+	
+	cursor_x_ = i;
+	lock.unlock();
+	log_state();
+}
+
+void document::delete_line()
+{
+	std::unique_lock lock(mutex_);
+	if (lines_.size() <= 1) {
+		lines_[0].set_text("");
+		selection_start_x_ = selection_start_y_ = -1;
+		selection_end_x_ = selection_end_y_ = -1;
+		cursor_x_ = 0;
+		cursor_y_ = 0;
+		set_modified();
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	adjust_selection_for_line_delete(cursor_y_);
+	lines_.erase(lines_.begin() + cursor_y_);
+	if (cursor_y_ >= static_cast<int>(lines_.size())) {
+		cursor_y_ = static_cast<int>(lines_.size()) - 1;
+	}
+	
+	cursor_x_ = 0;
+	set_modified();
+	lock.unlock();
+	log_state();
+}
+
+void document::set_selection_start()
+{
+	std::unique_lock lock(mutex_);
+	selection_start_x_ = cursor_x_;
+	selection_start_y_ = cursor_y_;
+	lock.unlock();
+	log_state();
+}
+
+void document::set_selection_end()
+{
+	std::unique_lock lock(mutex_);
+	selection_end_x_ = cursor_x_;
+	selection_end_y_ = cursor_y_;
+	lock.unlock();
+	log_state();
+}
+
+void document::clear_selection()
+{
+	std::unique_lock lock(mutex_);
+	selection_start_x_ = selection_start_y_ = -1;
+	selection_end_x_ = selection_end_y_ = -1;
+	lock.unlock();
+	log_state();
+}
+
+std::vector<line> document::get_selection_block() const
+{
+	// Already inside mutex
+	if (selection_start_y_ == -1 || selection_end_y_ == -1) return {};
+
+	int sx, sy, ex, ey;
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
+		sx = selection_start_x_; sy = selection_start_y_;
+		ex = selection_end_x_; ey = selection_end_y_;
+	} else {
+		sx = selection_end_x_; sy = selection_end_y_;
+		ex = selection_start_x_; ey = selection_start_y_;
+	}
+
+	std::vector<line> block;
+	if (sy == ey) {
+		line l(lines_[sy].get_text().substr(lines_[sy].char_to_byte_offset(sx), 
+		                                    lines_[sy].char_to_byte_offset(ex) - lines_[sy].char_to_byte_offset(sx)));
+		block.push_back(std::move(l));
+	} else {
+		line l1(lines_[sy].get_text().substr(lines_[sy].char_to_byte_offset(sx)));
+		block.push_back(std::move(l1));
+		for (int i = sy + 1; i < ey; ++i) block.push_back(lines_[i]);
+		line ln(lines_[ey].get_text().substr(0, lines_[ey].char_to_byte_offset(ex)));
+		block.push_back(std::move(ln));
+	}
+	return block;
+}
+
+void document::delete_selection()
+{
+	std::unique_lock lock(mutex_);
+	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	int sx, sy, ex, ey;
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
+		sx = selection_start_x_; sy = selection_start_y_;
+		ex = selection_end_x_; ey = selection_end_y_;
+	} else {
+		sx = selection_end_x_; sy = selection_end_y_;
+		ex = selection_start_x_; ey = selection_start_y_;
+	}
+
+	if (sy == ey) {
+		for (int i = 0; i < (ex - sx); ++i) lines_[sy].remove_at(sx);
+	} else {
+		line tail_line("");
+		lines_[ey].split_at(ex, tail_line);
+		line throwaway("");
+		lines_[sy].split_at(sx, throwaway);
+		lines_[sy].merge(tail_line);
+		lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
+	}
+
+	cursor_x_ = sx;
+	cursor_y_ = sy;
+	selection_start_x_ = selection_start_y_ = -1;
+	selection_end_x_ = selection_end_y_ = -1;
+	set_modified();
+	lock.unlock();
+	log_state();
+}
+
+void document::copy_selection()
+{
+	std::unique_lock lock(mutex_);
+	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	std::vector<line> block = get_selection_block();
+	int tx = cursor_x_;
+	int ty = cursor_y_;
+	insert_block(block);
+	
+	selection_start_x_ = tx;
+	selection_start_y_ = ty;
+	selection_end_y_ = ty + block.size() - 1;
+	if (block.size() == 1) selection_end_x_ = tx + block[0].length_in_chars();
+	else selection_end_x_ = block.back().length_in_chars();
+
+	set_modified();
+	lock.unlock();
+	log_state();
+}
+
+void document::move_selection()
+{
+	std::unique_lock lock(mutex_);
+	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+		lock.unlock();
+		log_state();
+		return;
+	}
+
+	std::vector<line> block = get_selection_block();
+	int tx = cursor_x_;
+	int ty = cursor_y_;
+	
+	lock.unlock();
+	delete_selection();
+	lock.lock();
+	
+	cursor_x_ = tx; cursor_y_ = ty;
+	if (cursor_y_ >= static_cast<int>(lines_.size())) cursor_y_ = lines_.size() - 1;
+	int line_len = lines_[cursor_y_].length_in_chars();
 	if (cursor_x_ > line_len) cursor_x_ = line_len;
+
+	int fx = cursor_x_; int fy = cursor_y_;
+	insert_block(block);
+
+	selection_start_x_ = fx; selection_start_y_ = fy;
+	selection_end_y_ = fy + block.size() - 1;
+	if (block.size() == 1) selection_end_x_ = fx + block[0].length_in_chars();
+	else selection_end_x_ = block.back().length_in_chars();
+
+	set_modified();
+	lock.unlock();
+	log_state();
+}
+
+void document::insert_block(const std::vector<line>& block)
+{
+	if (block.empty()) return;
+	line tail("");
+	lines_[cursor_y_].split_at(cursor_x_, tail);
+	lines_[cursor_y_].merge(block[0]);
+	if (block.size() > 1) {
+		lines_.insert(lines_.begin() + cursor_y_ + 1, block.begin() + 1, block.end());
+		lines_[cursor_y_ + block.size() - 1].merge(tail);
+	} else {
+		lines_[cursor_y_].merge(tail);
+	}
+	cursor_y_ += block.size() - 1;
+	if (block.size() == 1) cursor_x_ += block[0].length_in_chars();
+	else cursor_x_ = block.back().length_in_chars();
+}
+
+bool document::has_selection() const
+{
+	std::shared_lock lock(mutex_);
+	return selection_start_y_ != -1 && selection_end_y_ != -1;
+}
+
+void document::get_selection_range(int& start_x, int& start_y, int& end_x, int& end_y) const
+{
+	std::shared_lock lock(mutex_);
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
+		start_x = selection_start_x_; start_y = selection_start_y_;
+		end_x = selection_end_x_; end_y = selection_end_y_;
+	} else {
+		start_x = selection_end_x_; start_y = selection_end_y_;
+		end_x = selection_start_x_; end_y = selection_start_y_;
+	}
+}
+
+void document::log_state() const
+{
+	std::shared_lock lock(mutex_);
+	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cursor_x_ + 1);
+	if (selection_start_y_ != -1) msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" + std::to_string(selection_start_x_ + 1);
+	else msg += " S=none";
+	if (selection_end_y_ != -1) msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" + std::to_string(selection_end_x_ + 1);
+	else msg += " E=none";
+	event_logger::get_instance().log(msg);
+}
+
+void document::set_modified()
+{
+	modified_ = true;
+}
+
+void document::adjust_selection_for_insert(int y, int x, int count)
+{
+	auto adjust = [&](int& sx, int& sy) {
+		if (sy == y) {
+			if (sx >= x) sx += count;
+		}
+	};
+	adjust(selection_start_x_, selection_start_y_);
+	adjust(selection_end_x_, selection_end_y_);
+}
+
+void document::adjust_selection_for_delete(int y, int x, int count)
+{
+	auto adjust = [&](int& sx, int& sy) {
+		if (sy == y) {
+			if (sx > x + count) sx -= count;
+			else if (sx > x) sx = x;
+		}
+	};
+	adjust(selection_start_x_, selection_start_y_);
+	adjust(selection_end_x_, selection_end_y_);
+}
+
+void document::adjust_selection_for_split(int y, int x)
+{
+	auto adjust = [&](int& sx, int& sy) {
+		if (sy == y && sx >= x) { sy++; sx -= x; }
+		else if (sy > y) { sy++; }
+	};
+	adjust(selection_start_x_, selection_start_y_);
+	adjust(selection_end_x_, selection_end_y_);
+}
+
+void document::adjust_selection_for_join(int y, int x)
+{
+	(void)x;
+	int prev_line_char_len = static_cast<int>(lines_[y - 1].length_in_chars());
+	auto adjust = [&](int& sx, int& sy) {
+		if (sy == y) { sy--; sx += prev_line_char_len; }
+		else if (sy > y) { sy--; }
+	};
+	adjust(selection_start_x_, selection_start_y_);
+	adjust(selection_end_x_, selection_end_y_);
+}
+
+void document::adjust_selection_for_line_delete(int y)
+{
+	auto adjust = [&](int& sx, int& sy) {
+		if (sy == y) {
+			sx = 0; 
+			if (y >= static_cast<int>(lines_.size()) - 1) {
+				sy = y - 1;
+				sx = static_cast<int>(lines_[sy].length_in_chars());
+			}
+		} else if (sy > y) {
+			sy--;
+		}
+	};
+	adjust(selection_start_x_, selection_start_y_);
+	adjust(selection_end_x_, selection_end_y_);
 }

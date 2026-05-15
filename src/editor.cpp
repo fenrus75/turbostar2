@@ -25,43 +25,63 @@ void editor::run()
 	timeout(50);
 
 	while (is_running_) {
-		int ch = getch();
-		if (ch != ERR) {
+		wint_t wch;
+		int res = get_wch(&wch);
+		if (res != ERR) {
 			editor_event ev;
-			if (ch == 27) { // ESC sequence
-				nodelay(stdscr, TRUE);
-				int next_ch = getch();
-				if (next_ch == '[') { // Arrow keys start with ESC-[
-					int arrow_ch = getch();
-					if (arrow_ch != ERR) {
-						int key = 0;
-						switch(arrow_ch) {
-							case 'A': key = KEY_UP; break;
-							case 'B': key = KEY_DOWN; break;
-							case 'C': key = KEY_RIGHT; break;
-							case 'D': key = KEY_LEFT; break;
+			if (res == KEY_CODE_YES) {
+				// Functional keys
+				ev.type = event_type::key_press;
+				ev.key_code = static_cast<int>(wch);
+				global_queue_.push(ev);
+			} else {
+				// Character or ESC sequence
+				if (wch == 27) { // ESC sequence
+					nodelay(stdscr, TRUE);
+					wint_t next_wch;
+					int next_res = get_wch(&next_wch);
+					if (next_res != ERR && next_res != KEY_CODE_YES && next_wch == '[') {
+						wint_t arrow_wch;
+						int arrow_res = get_wch(&arrow_wch);
+						if (arrow_res != ERR && arrow_res != KEY_CODE_YES) {
+							int key = 0;
+							switch(arrow_wch) {
+								case 'A': key = KEY_UP; break;
+								case 'B': key = KEY_DOWN; break;
+								case 'C': key = KEY_RIGHT; break;
+								case 'D': key = KEY_LEFT; break;
+							}
+							if (key != 0) {
+								ev.type = event_type::key_press;
+								ev.key_code = key;
+								global_queue_.push(ev);
+							}
 						}
-						if (key != 0) {
-							ev.type = event_type::key_press;
-							ev.key_code = key;
-							global_queue_.push(ev);
-						}
+					} else if (next_res != ERR) {
+						// Alt + key
+						ev.type = event_type::key_press;
+						ev.key_code = -static_cast<int>(next_wch);
+						global_queue_.push(ev);
+					} else {
+						ev.type = event_type::key_press;
+						ev.key_code = 27; // Bare ESC
+						global_queue_.push(ev);
 					}
-				} else if (next_ch != ERR) {
-					// Alt + key
-					ev.type = event_type::key_press;
-					ev.key_code = -next_ch;
-					global_queue_.push(ev);
+					nodelay(stdscr, FALSE);
 				} else {
+					// Printable character or UTF-8 sequence
 					ev.type = event_type::key_press;
-					ev.key_code = 27; // Bare ESC
+					ev.key_code = static_cast<int>(wch);
+					
+					// Convert wide char to UTF-8 string
+					char buf[8];
+					int len = wctomb(buf, wch);
+					if (len > 0) {
+						ev.utf8_char.assign(buf, len);
+					}
+					
 					global_queue_.push(ev);
 				}
-				nodelay(stdscr, FALSE);
-			} else {
-				ev.type = event_type::key_press;
-				ev.key_code = ch;
-				global_queue_.push(ev);
 			}
 		}
 
@@ -83,50 +103,137 @@ void editor::run()
 	}
 }
 
+void editor::set_focus(focus_target target, const std::string& source)
+{
+	std::string target_name;
+	switch(target) {
+		case focus_target::menu_bar: target_name = "menu_bar"; break;
+		case focus_target::window: target_name = "window"; break;
+		case focus_target::dialog: target_name = "dialog"; break;
+	}
+	
+	event_logger::get_instance().log("Focus change: " + source + " -> " + target_name);
+	current_focus_ = target;
+}
+
+bool editor::handle_k_block_key(int key)
+{
+	auto& logger = event_logger::get_instance();
+	logger.log("K-block handling key: " + std::to_string(key));
+	
+	char c = std::tolower(static_cast<char>(key));
+	
+	for (auto& w : windows_) {
+		if (w->is_active()) {
+			auto doc = documents_[0]; // Simplified for now, should find doc from window
+			if (c == 'b') {
+				logger.log("K-block: Set Selection Begin");
+				doc->set_selection_start();
+				return true;
+			} else if (c == 'k') {
+				logger.log("K-block: Set Selection End");
+				doc->set_selection_end();
+				return true;
+			} else if (c == 'c') {
+				logger.log("K-block: Copy Block");
+				doc->copy_selection();
+				return true;
+			} else if (c == 'm') {
+				logger.log("K-block: Move Block");
+				doc->move_selection();
+				return true;
+			} else if (c == 'q') {
+				logger.log("K-block: Quit (Abort)");
+				editor_event quit_ev;
+				quit_ev.type = event_type::quit;
+				global_queue_.push(quit_ev);
+				return true;
+			} else if (c == 'x') {
+				logger.log("K-block: Save & Exit");
+				doc->save();
+				editor_event quit_ev;
+				quit_ev.type = event_type::quit;
+				global_queue_.push(quit_ev);
+				return true;
+			} else if (c == 'u') {
+				logger.log("K-block: Top of File");
+				doc->move_to_top();
+				return true;
+			} else if (c == 'v') {
+				logger.log("K-block: End of File");
+				doc->move_to_bottom();
+				return true;
+			} else if (c == 'y') {
+				logger.log("K-block: Delete Block");
+				doc->delete_selection();
+				return true;
+			} else if (c == 'h') {
+				logger.log("K-block: Clear Selection");
+				doc->clear_selection();
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 void editor::dispatch(const editor_event& ev)
 {
 	auto& logger = event_logger::get_instance();
+	
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
 		is_running_ = false;
-	} else if (ev.type == event_type::key_press) {
+		return;
+	}
+
+	if (ev.type == event_type::key_press) {
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 		
-		if (ev.key_code < 0) { // Alt + key
-			if (top_menu_.handle_alt_key(static_cast<char>(-ev.key_code), global_queue_)) {
+		if (k_block_mode_) {
+			if (handle_k_block_key(ev.key_code)) {
+				k_block_mode_ = false;
 				return;
 			}
-		}
-		
-		if (top_menu_.is_open()) {
-			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
-				return;
-			}
+			k_block_mode_ = false;
+			// Fall through if not handled, though typically K-block consumes or cancels
 		}
 
-		// Fallback to quit using Ctrl-C
-logger.log("Dispatching key_press: " + std::to_string(ev.key_code));
-		if (ev.key_code == 3) {
-			editor_event quit_ev;
-			quit_ev.type = event_type::quit;
-			global_queue_.push(quit_ev);
+		if (ev.key_code == 11) { // Ctrl-K
+			logger.log("Entering K-block mode.");
+			k_block_mode_ = true;
 			return;
 		}
 
-		// Route to active window
-		for (auto& w : windows_) {
-			if (w->is_active()) {
-				if (ev.key_code == KEY_UP || ev.key_code == KEY_DOWN || 
-				    ev.key_code == KEY_LEFT || ev.key_code == KEY_RIGHT) {
-					w->get_queue().push(ev);
-				} else {
-					logger.log("Routing key_press to window: " + std::to_string(ev.key_code));
-					editor_event win_ev;
-					win_ev.type = event_type::key_press;
-					win_ev.key_code = ev.key_code;
-					w->get_queue().push(win_ev);
+		if (ev.key_code < 0) { // Alt + key
+			if (top_menu_.handle_alt_key(static_cast<char>(-ev.key_code), global_queue_)) {
+				set_focus(focus_target::menu_bar, "alt_key");
+				return;
+			}
+		}
+
+		// Route based on focus
+		if (current_focus_ == focus_target::menu_bar) {
+			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
+				if (!top_menu_.is_open()) {
+					set_focus(focus_target::window, "menu_close");
 				}
-				break;
+				return;
+			}
+		} else if (current_focus_ == focus_target::window) {
+			// Fallback to quit using Ctrl-C
+			if (ev.key_code == 3) {
+				logger.log("Ctrl-C pressed (Ignored for direct quit, use ^KQ or ^KX)");
+				return;
+			}
+
+			// Route to active window
+			for (auto& w : windows_) {
+				if (w->is_active()) {
+					w->get_queue().push(ev);
+					break;
+				}
 			}
 		}
 	}

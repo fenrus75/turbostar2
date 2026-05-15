@@ -7,6 +7,10 @@
 struct menu_item {
 	std::string name;
 	event_type action;
+	char hotkey{0};
+	std::string shortcut;
+	menu_item(std::string n, event_type a, char h, std::string s, bool sep) : name(n), action(a), hotkey(h), shortcut(s), is_separator(sep) {}
+	bool is_separator{false};
 };
 
 struct menu_category {

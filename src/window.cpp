@@ -59,6 +59,51 @@ bool window::process_events()
 			} else if (ev->key_code == KEY_RIGHT) {
 				doc_->move_cursor(1, 0);
 				needs_render = true;
+			} else if (!ev->utf8_char.empty() && ev->key_code >= 32 && ev->key_code != 127) {
+				doc_->insert_char(ev->utf8_char);
+				needs_render = true;
+			} else if (ev->key_code == KEY_BACKSPACE || ev->key_code == 127 || ev->key_code == 8) {
+				doc_->backspace();
+				needs_render = true;
+			} else if (ev->key_code == 13 || ev->key_code == KEY_ENTER) {
+				doc_->split_line();
+				needs_render = true;
+			} else if (ev->key_code == 10) { // Ctrl-J
+				doc_->delete_to_eol();
+				needs_render = true;
+			} else if (ev->key_code == -111 || ev->key_code == -79) { // Alt-O
+				doc_->delete_to_bol();
+				needs_render = true;
+			} else if (ev->key_code == 25) { // Ctrl-Y
+				doc_->delete_line();
+				needs_render = true;
+			} else if (ev->key_code == 1) { // Ctrl-A
+				doc_->move_to_bol();
+				needs_render = true;
+			} else if (ev->key_code == 5) { // Ctrl-E
+				doc_->move_to_eol();
+				needs_render = true;
+			} else if (ev->key_code == 4) { // Ctrl-D
+				doc_->delete_char();
+				needs_render = true;
+			} else if (ev->key_code == 21) { // Ctrl-U
+				doc_->move_page_up(get_content_height());
+				needs_render = true;
+			} else if (ev->key_code == 22) { // Ctrl-V
+				doc_->move_page_down(get_content_height());
+				needs_render = true;
+			} else if (ev->key_code == 24) { // Ctrl-X
+				doc_->move_next_word();
+				needs_render = true;
+			} else if (ev->key_code == 26) { // Ctrl-Z
+				doc_->move_prev_word();
+				needs_render = true;
+			} else if (ev->key_code == 23) { // Ctrl-W
+				doc_->delete_word_forward();
+				needs_render = true;
+			} else if (ev->key_code == 15) { // Ctrl-O
+				doc_->delete_word_backward();
+				needs_render = true;
 			}
 		}
 	}
@@ -103,6 +148,16 @@ void window::draw() const
 void window::draw_content() const
 {
 	attron(COLOR_PAIR(3));
+	
+	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
+	bool has_sel = false;
+	if (doc_) {
+		if (doc_->has_selection()) {
+			doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+			has_sel = true;
+		}
+	}
+
 	for (int i = 1; i < height_ - 1; ++i) {
 		move(y_ + i, x_ + 1);
 		
@@ -114,11 +169,29 @@ void window::draw_content() const
 
 		for (int j = 1; j < width_ - 1; ++j) {
 			int text_col = left_column_ + j - 1;
+			
+			bool in_selection = false;
+			if (has_sel) {
+				if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
+					in_selection = true;
+				} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
+					in_selection = (text_col >= sel_start_x && text_col < sel_end_x);
+				} else if (doc_line_idx == sel_start_y) {
+					in_selection = (text_col >= sel_start_x);
+				} else if (doc_line_idx == sel_end_y) {
+					in_selection = (text_col < sel_end_x);
+				}
+			}
+
+			if (in_selection) attron(A_REVERSE);
+			
 			if (text_col < static_cast<int>(line_text.length())) {
 				addch(line_text[text_col]);
 			} else {
 				addch(' ');
 			}
+			
+			if (in_selection) attroff(A_REVERSE);
 		}
 	}
 	attroff(COLOR_PAIR(3));

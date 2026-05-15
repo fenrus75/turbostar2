@@ -31,10 +31,22 @@ After making a change, create a git commit for the change.
 - ncursesw is used for creating the TUI
 - RAII memory management paradigm throughout
 - Design goal: responsiveness 
-- Multi-threaded:
-  - Main thread: UI rendering and input handling.
-  - Background threads: Per-document worker threads for heavy tasks (like future syntax highlighting or file I/O).
-  - Synchronization: `std::shared_mutex` and a thread-safe system of **Global** and **Per-Window/Document Event Queues**.
+- Multi-tier Locking Model:
+    - **Document-level**: Each `document` uses a `std::shared_mutex` to protect the structure of the document (the list of lines) and the cursor/selection state. `shared_lock` is used for rendering and reading state, while `unique_lock` is used for structural changes or moving the cursor.
+    - **Line-level**: Each `line` uses its own `std::shared_mutex` to protect its internal UTF-8 string data. This allows background threads to process different lines of the same document concurrently without blocking the main document or each other.
+    - **Lock Ordering**: To prevent deadlocks, the locking order is always **Document -> Line**.
+    - **Snapshots**: `line::get_text()` returns a `std::string` copy to provide a thread-safe snapshot of the line content to readers.
+  - Per-Window/Document Event Queues: Thread-safe queues for passing events between threads.
+- **Selection Model**:
+  - Turbostar uses a **Persistent Marker Selection** model (WordStar/Joe style).
+  - Two markers, `Selection Begin` (^KB) and `Selection End` (^KK), define a contiguous range of text.
+  - The selection is "persistent": it stays active even as the cursor moves, until specifically moved or hidden.
+  - **Editing Awareness**: The document class ensures that markers stay pinned to the logical text. If characters are inserted or deleted before a marker, the marker's position is adjusted.
+  - **Visuals**: The range between Begin and End markers is highlighted using a distinct color pair (Inverse).
+- **Stateful Key Sequences**:
+  - Turbostar supports "prefix" keys, most notably the `Ctrl-K` block.
+  - When a prefix key is pressed, the editor enters a sub-state waiting for the next "command" key.
+  - This enables a large number of commands while keeping the primary keymap uncluttered.
 - Cursor mapping: Custom lightweight UTF-8 utility mapping logical character index <-> UTF-8 byte offset.
 
 
@@ -86,7 +98,19 @@ The central controller that manages the overall application state.
 - **Windows**: Manages the layout and lifecycle of `Window` objects on the screen.
 - **UI Components**: Owns and coordinates the rendering of the `menu_bar` and `status_bar`.
 - **Input Loop**: Drives the primary thread using a non-blocking `getch` loop (`timeout(50)`). It reads keybindings, wraps them into `editor_event` objects, and pushes them into the **Global Event Queue**.
-- **Central Dispatcher**: Immediately pulls events from the **Global Event Queue** and dispatches them to update the UI or target specific **Per-Window/Document Queues**.
+## Focus Management and Event Routing
+
+To ensure predictable interaction, Turbostar uses a focused-based event routing model:
+
+- **Active Focus**: A global property (managed by the `editor` class) tracks which UI component currently has "Focus" (e.g., the `menu_bar`, an active `window`, or a `dialog`).
+- **Routing Logic**:
+    1.  The Input Loop pushes raw keys into the **Global Event Queue**.
+    2.  The **Central Dispatcher** pulls from the Global Queue and identifies the current focus.
+    3.  If the focus is the `menu_bar`, keys are routed to it.
+    4.  If the focus is a `window`, keys are pushed into that specific **Per-Window Event Queue**.
+- **Focus Transitions**:
+    - Focus changes (e.g., pressing `Alt` to enter the menu or clicking a window) are handled through a centralized method (e.g., `editor::set_focus()`).
+    - **Diagnostics**: Every focus change is logged with the source and destination component names for debugging.
 
 ## UI Elements and Structure
 
