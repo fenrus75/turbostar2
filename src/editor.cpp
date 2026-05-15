@@ -6,11 +6,12 @@ editor::editor(bool debug_mode, const std::string& debug_string)
 	: debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	// Create an initial document
-	auto doc = std::make_shared<document>("NONAME00.PAS");
+	auto doc = std::make_shared<document>("unknown.txt");
 	documents_.push_back(doc);
 
 	// Create an initial window and attach the document
-	auto win = std::make_unique<window>(1, 4, 3, 60, 15, "NONAME00.PAS");
+	// Full screen: x=0, y=1 (below menu), width=COLS, height=LINES-2 (above status bar)
+	auto win = std::make_unique<window>(1, 0, 1, COLS, LINES - 2, "unknown.txt");
 	win->attach_document(doc);
 	win->set_active(true);
 	windows_.push_back(std::move(win));
