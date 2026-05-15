@@ -35,6 +35,9 @@ bool menu_bar::handle_alt_key(char c, event_queue& queue)
 		if (categories_[i].hotkey == c) {
 			active_category_ = static_cast<int>(i);
 			selected_item_ = 0;
+			if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
+				find_next_item();
+			}
 			event_logger::get_instance().log("Menu activated: " + categories_[i].name);
 			return true;
 		}
@@ -63,24 +66,26 @@ bool menu_bar::handle_key(int key, event_queue& queue)
 	}
 	
 	if (key == KEY_DOWN) {
-		if (!categories_[active_category_].items.empty()) {
-			selected_item_ = (selected_item_ + 1) % categories_[active_category_].items.size();
-		}
+		find_next_item();
 		return true;
 	} else if (key == KEY_UP) {
-		if (!categories_[active_category_].items.empty()) {
-			selected_item_ = (selected_item_ - 1 + categories_[active_category_].items.size()) % categories_[active_category_].items.size();
-		}
+		find_prev_item();
 		return true;
 	} else if (key == KEY_RIGHT) {
 		active_category_ = (active_category_ + 1) % categories_.size();
 		selected_item_ = 0;
+		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
+			find_next_item();
+		}
 		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
 			event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
 	} else if (key == KEY_LEFT) {
 		active_category_ = (active_category_ - 1 + categories_.size()) % categories_.size();
 		selected_item_ = 0;
+		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
+			find_next_item();
+		}
 		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
 			event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
@@ -249,4 +254,22 @@ void menu_bar::draw() const
 		addstr("┘");
 		attroff(COLOR_PAIR(1));
 	}
+}
+
+void menu_bar::find_next_item()
+{
+	if (active_category_ == -1 || categories_[active_category_].items.empty()) return;
+	int start_item = selected_item_;
+	do {
+		selected_item_ = (selected_item_ + 1) % categories_[active_category_].items.size();
+	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
+}
+
+void menu_bar::find_prev_item()
+{
+	if (active_category_ == -1 || categories_[active_category_].items.empty()) return;
+	int start_item = selected_item_;
+	do {
+		selected_item_ = (selected_item_ - 1 + categories_[active_category_].items.size()) % categories_[active_category_].items.size();
+	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
 }

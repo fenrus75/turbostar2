@@ -35,6 +35,8 @@ public:
 	void close_menu();
 
 private:
+	void find_next_item();
+	void find_prev_item();
 	std::vector<menu_category> categories_;
 	int active_category_{-1};
 	int selected_item_{0};

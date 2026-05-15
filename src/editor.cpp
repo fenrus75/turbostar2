@@ -329,6 +329,8 @@ void editor::dispatch(const editor_event& ev)
 
 void editor::render()
 {
+	curs_set(0); // Default to hidden
+
 	// Paint desktop background with dithered pattern
 	attron(COLOR_PAIR(9));
 	for (int y = 1; y < LINES - 1; ++y) {
@@ -347,7 +349,7 @@ void editor::render()
 
 	std::string debug_out;
 	int cur_x = -1, cur_y = -1;
-	
+
 	if (debug_mode_) {
 		auto& logger = event_logger::get_instance();
 		auto msg = logger.get_latest_matching_message(debug_string_);
@@ -370,23 +372,21 @@ void editor::render()
 	}
 
 	bottom_status_.draw(status_help, cur_x, cur_y);
-	
-	if (active_dialog_ || current_focus_ == focus_target::menu_bar) {
-		if (active_dialog_) {
-			active_dialog_->draw();
-		}
-		curs_set(0); // Hide cursor when dialog or menu is up
-	} else {
-		// Position hardware cursor
+
+	if (active_dialog_) {
+		active_dialog_->draw();
+	}
+
+	// Only show cursor if we are in window focus and NOT in a modal state
+	if (current_focus_ == focus_target::window && !active_dialog_ && !k_block_mode_) {
 		for (const auto& w : windows_) {
 			if (w->is_active()) {
 				w->set_cursor_position();
+				curs_set(1); 
 				break;
 			}
 		}
-		curs_set(1); // Ensure cursor is visible
 	}
 
 	refresh();
-	}
-
+}
