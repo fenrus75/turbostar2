@@ -3,8 +3,7 @@
 #include <ncurses.h>
 #include <locale.h>
 #include "event_logger.h"
-#include "menu_bar.h"
-#include "status_bar.h"
+#include "editor.h"
 
 int main(int argc, char** argv)
 {
@@ -47,40 +46,10 @@ int main(int argc, char** argv)
 	keypad(stdscr, TRUE);
 	curs_set(0); // Hide the cursor for now
 
-	menu_bar top_menu;
-	status_bar bottom_status;
-
-	// Paint desktop background
-	attron(COLOR_PAIR(3));
-	for (int y = 1; y < LINES - 1; ++y) {
-		move(y, 0);
-		for (int x = 0; x < COLS; ++x) {
-			addch(' ');
-		}
-	}
-	attroff(COLOR_PAIR(3));
-
-	top_menu.draw();
-	bottom_status.draw();
-	refresh();
-
 	logger.log("UI initialized.");
 
-	int ch;
-	while ((ch = getch()) != 'q') {
-		logger.log("Key pressed: " + std::to_string(ch));
-		
-		std::string debug_out;
-		if (debug_mode) {
-			auto msg = logger.get_latest_matching_message(debug_string);
-			if (msg) {
-				debug_out = ">>" + *msg + "<<";
-			}
-		}
-		
-		bottom_status.draw(debug_out);
-		refresh();
-	}
+	editor main_editor(debug_mode, debug_string);
+	main_editor.run();
 
 	logger.log("Exiting application loop.");
 
