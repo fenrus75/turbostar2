@@ -1,0 +1,56 @@
+import time
+from turbostar_runner import TurbostarRunner
+
+def check_menu(key, expected_menu_name):
+    runner = TurbostarRunner()
+    log_contents = ""
+    try:
+        runner.start()
+        runner.send_keys(f'\x1b{key}') # ESC + key = Alt+key
+        runner.send_keys('\x1b')       # ESC to close menu
+        runner.send_keys('\x03')       # Ctrl-C to quit
+        runner.wait(timeout=2)
+        log_contents = runner.get_log()
+        assert f"Menu activated: {expected_menu_name}" in log_contents
+    except Exception as e:
+        print(f"FAILED. Log contents:\n{runner.get_log()}")
+        raise e
+    finally:
+        runner.cleanup()
+
+def test_menu_file(): check_menu('f', 'File')
+def test_menu_edit(): check_menu('e', 'Edit')
+def test_menu_search(): check_menu('s', 'Search')
+def test_menu_run(): check_menu('r', 'Run')
+def test_menu_compile(): check_menu('c', 'Compile')
+def test_menu_debug(): check_menu('d', 'Debug')
+def test_menu_tools(): check_menu('t', 'Tools')
+def test_menu_options(): check_menu('o', 'Options')
+def test_menu_window(): check_menu('w', 'Window')
+def test_menu_help(): check_menu('h', 'Help')
+
+def test_file_exit():
+    runner = TurbostarRunner()
+    try:
+        runner.start()
+        runner.send_keys('\x1bf') # Alt-F
+        runner.send_keys('\n')    # Enter selects the first item ("Exit")
+        runner.wait(timeout=2)
+        log_contents = runner.get_log()
+        assert "Menu activated: File" in log_contents
+        assert "Dispatching quit event." in log_contents
+    finally:
+        runner.cleanup()
+
+if __name__ == "__main__":
+    test_menu_file()
+    test_menu_edit()
+    test_menu_search()
+    test_menu_run()
+    test_menu_compile()
+    test_menu_debug()
+    test_menu_tools()
+    test_menu_options()
+    test_menu_window()
+    test_menu_help()
+    test_file_exit()

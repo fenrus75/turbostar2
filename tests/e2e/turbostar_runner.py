@@ -39,7 +39,9 @@ class TurbostarRunner:
     def send_keys(self, keys):
         if isinstance(keys, str):
             keys = keys.encode('utf-8')
+        time.sleep(0.2)
         os.write(self.master_fd, keys)
+        time.sleep(0.2)
 
     def wait(self, timeout=2):
         if self.proc:

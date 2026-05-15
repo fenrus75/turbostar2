@@ -33,6 +33,7 @@ int main(int argc, char** argv)
 
 	// Initialize ncurses
 	setlocale(LC_ALL, ""); // Important for UTF-8 and ncursesw
+	setenv("ESCDELAY", "25", 1);
 	initscr();
 	start_color();
 	use_default_colors();
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
 	init_pair(4, COLOR_CYAN, COLOR_BLUE);   // Scrollbars
 	init_pair(5, COLOR_GREEN, COLOR_BLUE);  // Window widgets
 
-	cbreak();
+	raw();
 	noecho();
 	keypad(stdscr, TRUE);
 	curs_set(0); // Hide the cursor for now
