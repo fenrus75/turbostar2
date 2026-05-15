@@ -10,6 +10,7 @@ int main(int argc, char** argv)
 	std::string log_file;
 	bool debug_mode = false;
 	std::string debug_string;
+	std::string filename = "unknown.txt";
 
 	// Basic argument parsing
 	for (int i = 1; i < argc; ++i) {
@@ -21,6 +22,8 @@ int main(int argc, char** argv)
 			if (i + 1 < argc && argv[i + 1][0] != '-') {
 				debug_string = argv[++i];
 			}
+		} else if (arg[0] != '-') {
+			filename = arg;
 		}
 	}
 
@@ -51,16 +54,16 @@ int main(int argc, char** argv)
 
 	logger.log("UI initialized.");
 
-	editor main_editor(debug_mode, debug_string);
+	editor main_editor(debug_mode, debug_string, filename);
 	main_editor.run();
-
-	logger.log("Exiting application loop.");
-
-	endwin();
 
 	if (!log_file.empty()) {
 		logger.write_to_file(log_file);
 	}
+	logger.log("Exiting application loop.");
+	logger.write_to_file(log_file);
+
+	endwin();
 
 	return 0;
 }

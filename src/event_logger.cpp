@@ -11,6 +11,8 @@ void event_logger::log(const std::string& message)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	events.push_back(message);
+	// We might need to handle this differently for tests, but for now, this ensures 
+	// log is updated in memory immediately.
 }
 
 void event_logger::write_to_file(const std::string& filename)
