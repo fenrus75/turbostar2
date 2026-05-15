@@ -47,6 +47,10 @@ After making a change, create a git commit for the change.
   - Turbostar supports "prefix" keys, most notably the `Ctrl-K` block.
   - When a prefix key is pressed, the editor enters a sub-state waiting for the next "command" key.
   - This enables a large number of commands while keeping the primary keymap uncluttered.
+- **Visual Colors & Highlighting**:
+  - Turbostar uses a 16-color palette (base colors + 8 for high intensity).
+  - Explicit color pairs MUST be used for all UI elements and highlights.
+  - **Avoid `A_REVERSE`**: Never use the `A_REVERSE` attribute to highlight focus or selection. Instead, always allocate and use a dedicated color pair (e.g., Black on Green). This ensures visual consistency and predictability across different terminal environments.
 - Cursor mapping: Custom lightweight UTF-8 utility mapping logical character index <-> UTF-8 byte offset.
 
 

@@ -85,16 +85,15 @@ void find_dialog::draw() const
 	// Focus indicator
 	auto draw_checkbox = [&](int ry, int rx, bool val, bool focused) {
 		move(y_ + ry, x_ + rx);
-		if (focused) attron(A_REVERSE);
-		else attron(COLOR_PAIR(17));
-		
+		if (focused) attrset(COLOR_PAIR(19));
+		else attrset(COLOR_PAIR(17));
+
 		addch('[');
 		if (val) {
-			attrset(COLOR_PAIR(8)); // Bright White on Cyan
-			if (focused) attron(A_REVERSE);
+			if (focused) attrset(COLOR_PAIR(19));
+			else attrset(COLOR_PAIR(11)); // Bright White on Cyan
 			addch('X');
-			attrset(COLOR_PAIR(17));
-			if (focused) attron(A_REVERSE);
+			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
 		} else {
 			addch(' ');
 		}
@@ -104,22 +103,22 @@ void find_dialog::draw() const
 
 	auto draw_radio = [&](int ry, int rx, bool val, bool focused) {
 		move(y_ + ry, x_ + rx);
-		if (focused) attron(A_REVERSE);
-		else attron(COLOR_PAIR(17));
-		
+		if (focused) attrset(COLOR_PAIR(19));
+		else attrset(COLOR_PAIR(17));
+
 		addch('(');
 		if (val) {
-			attrset(COLOR_PAIR(8)); // Bright White on Cyan
-			if (focused) attron(A_REVERSE);
+			if (focused) attrset(COLOR_PAIR(19));
+			else attrset(COLOR_PAIR(11)); // Bright White on Cyan
 			addstr("•");
-			attrset(COLOR_PAIR(17));
-			if (focused) attron(A_REVERSE);
+			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
 		} else {
 			addch(' ');
 		}
 		addch(')');
 		attrset(0);
 	};
+
 
 	// Options content
 	draw_checkbox(6, 4, !params_.ignore_case, focus_idx_ == 1);
@@ -194,9 +193,42 @@ dialog_result find_dialog::handle_key(int key)
 		return dialog_result::confirmed;
 	}
 	
+	// Define navigation groups
+	static const std::vector<std::vector<int>> groups = {
+		{0},             // Input
+		{1, 2, 3},       // Options
+		{4, 5},          // Direction
+		{6, 7},          // Scope
+		{8, 9},          // Origin
+		{10, 11}         // Buttons
+	};
+
+	auto get_group_of = [&](int idx) -> int {
+		for (size_t i = 0; i < groups.size(); ++i) {
+			for (int item : groups[i]) if (item == idx) return static_cast<int>(i);
+		}
+		return 0;
+	};
+
+	auto get_item_idx_in_group = [&](int idx, int g) -> int {
+		for (size_t i = 0; i < groups[g].size(); ++i) if (groups[g][i] == idx) return static_cast<int>(i);
+		return 0;
+	};
+
 	if (key == '\t' || key == KEY_BTAB) {
-		if (key == '\t') focus_idx_ = (focus_idx_ + 1) % 12;
-		else focus_idx_ = (focus_idx_ - 1 + 12) % 12;
+		int g = get_group_of(focus_idx_);
+		if (key == '\t') g = (g + 1) % groups.size();
+		else g = (g - 1 + groups.size()) % groups.size();
+		focus_idx_ = groups[g][0];
+		return dialog_result::pending;
+	}
+
+	if (key == KEY_DOWN || key == KEY_RIGHT || key == KEY_UP || key == KEY_LEFT) {
+		int g = get_group_of(focus_idx_);
+		int i = get_item_idx_in_group(focus_idx_, g);
+		if (key == KEY_DOWN || key == KEY_RIGHT) i = (i + 1) % groups[g].size();
+		else i = (i - 1 + groups[g].size()) % groups[g].size();
+		focus_idx_ = groups[g][i];
 		return dialog_result::pending;
 	}
 
