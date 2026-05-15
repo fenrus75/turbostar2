@@ -53,6 +53,7 @@ int main(int argc, char** argv)
 	init_pair(8, COLOR_WHITE, COLOR_CYAN);  // Selection highlight
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 	init_pair(10, COLOR_BLACK, COLOR_GREEN); // Buttons
+	init_pair(11, COLOR_WHITE, COLOR_WHITE); // Dialog borders (Bright White on Gray)
 
 	if (can_change_color()) {
 	        // Red, Green, Blue values are on a scale of 0 to 1000

@@ -31,8 +31,8 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | Element | Foreground | Background | Pair | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **Dialog Background** | Black | Light Gray | 1 | Main dialog content area. |
-| **Dialog Borders** | White | Light Gray | (TBD) | Double-line box drawing characters. |
-| **Dialog Title** | White | Light Gray | (TBD) | Centered on the top border. |
+| **Dialog Borders** | Bright White | Light Gray | 11 | Double-line high-contrast borders. |
+| **Dialog Title** | Black | Light Gray | 1 | Centered on the top border. |
 | **Dialog Shadow** | Black | Black | 6 | Offset right and down for depth. |
-| **Primary Button** | White/Yellow | Green | (TBD) | e.g., the `[ OK ]` button. |
-| **Button Shadow** | Black | Black | 6 | Small shadow under buttons. |
+| **Primary Button** | Black | Green | 10 | The signature Borland green button. |
+| **Button Shadow** | Black | Black | 6 | ▀ half-block shadow for depth. |
