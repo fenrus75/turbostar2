@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "event_logger.h"
+#include "find_dialog.h"
 #include <ncurses.h>
 
 editor::editor(bool debug_mode, const std::string& debug_string, const std::string& filename)
@@ -266,8 +267,8 @@ void editor::dispatch(const editor_event& ev)
 	}
 
 	if (ev.type == event_type::find) {
-		logger.log("Dispatching find event (dialog).");
-		active_dialog_ = std::make_unique<input_dialog>("Find Text", "Enter text to find:", current_search_.query);
+		logger.log("Dispatching find event (advanced dialog).");
+		active_dialog_ = std::make_unique<find_dialog>("Find", current_search_);
 		active_dialog_mode_ = dialog_mode::search;
 		set_focus(focus_target::dialog, "menu_find");
 		return;
@@ -330,15 +331,17 @@ void editor::dispatch(const editor_event& ev)
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res == dialog_result::confirmed) {
-				std::string result = active_dialog_->get_result();
 				auto doc = documents_[0];
 				if (active_dialog_mode_ == dialog_mode::load) {
-					doc->load_from_file(result);
+					doc->load_from_file(active_dialog_->get_result());
 				} else if (active_dialog_mode_ == dialog_mode::save) {
-					doc->save_to_file(result);
+					doc->save_to_file(active_dialog_->get_result());
 				} else if (active_dialog_mode_ == dialog_mode::search) {
-					current_search_.query = result;
-					doc->find_next(current_search_);
+					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
+					if (f_dialog) {
+						current_search_ = f_dialog->get_search_params();
+						doc->find_next(current_search_);
+					}
 				}
 				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;

@@ -136,6 +136,12 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_advanced_search', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_advanced_search.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_tabs', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_tabs.py')],
     env: e2e_env,

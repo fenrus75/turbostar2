@@ -55,10 +55,13 @@ int main(int argc, char** argv)
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);  // Desktop pattern (Darker)
 	init_pair(10, COLOR_WHITE, COLOR_GREEN); // Buttons (White on Green)
 	init_pair(11, COLOR_WHITE + 8, COLOR_WHITE); // Dialog borders (Bright White on Gray)
+	init_pair(16, COLOR_YELLOW + 8, COLOR_WHITE); // Dialog Hotkeys (Bright Yellow on Gray)
 	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
 	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
 	init_pair(14, COLOR_BLACK, COLOR_GREEN);     // Selected Menu Item
 	init_pair(15, COLOR_RED, COLOR_GREEN);       // Hotkey on Selected Menu
+	init_pair(17, COLOR_BLACK, COLOR_CYAN);      // Dialog Group Box Content
+	init_pair(18, COLOR_YELLOW + 8, COLOR_CYAN); // Dialog Group Box Hotkeys
 
 	if (can_change_color()) {
 	        // Red, Green, Blue values are on a scale of 0 to 1000

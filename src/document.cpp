@@ -809,44 +809,128 @@ bool document::find_next(const search_params& params)
 	
 	std::unique_lock lock(mutex_);
 	int start_y = cursor_y_;
-	int start_x = cursor_x_ + 1; // Start from next character
-	
-	std::string search_query = params.query;
-	if (params.ignore_case) {
-		std::transform(search_query.begin(), search_query.end(), search_query.begin(), ::tolower);
+	int start_x = cursor_x_;
+
+	int scope_sy = 0, scope_sx = 0, scope_ey = static_cast<int>(lines_.size()) - 1, scope_ex = static_cast<int>(lines_.back()->length_in_chars());
+	if (params.selected_text_only && selection_start_y_ != -1) {
+		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
 	}
 
-	for (size_t y = start_y; y < lines_.size(); ++y) {
+	if (!params.from_cursor) {
+		if (params.backward) {
+			start_y = scope_ey;
+			start_x = scope_ex;
+		} else {
+			start_y = scope_sy;
+			start_x = scope_sx;
+		}
+	} else {
+		if (params.backward) {
+			// No change to start_x/y, start exactly here
+		} else {
+			// No change to start_x/y
+		}
+		// Clamp to scope
+		if (start_y < scope_sy || (start_y == scope_sy && start_x < scope_sx)) {
+			start_y = scope_sy; start_x = scope_sx;
+		}
+		if (start_y > scope_ey || (start_y == scope_ey && start_x > scope_ex)) {
+			start_y = scope_ey; start_x = scope_ex;
+		}
+	}
+	
+	auto check_line = [&](int y, int x_limit) -> int {
 		std::string line_text = lines_[y]->get_text();
 		std::string original_line_text = line_text;
 		
-		if (params.ignore_case) {
-			std::transform(line_text.begin(), line_text.end(), line_text.begin(), ::tolower);
+		std::regex_constants::syntax_option_type flags = std::regex::ECMAScript;
+		if (params.ignore_case) flags |= std::regex::icase;
+
+		std::string pattern = params.query;
+		if (params.whole_words && !params.regex) {
+			pattern = "\\b" + pattern + "\\b";
 		}
 
-		int char_idx = (y == (size_t)start_y) ? start_x : 0;
-		size_t byte_offset = lines_[y]->char_to_byte_offset(char_idx);
-		if (byte_offset >= line_text.length()) continue;
+		try {
+			std::regex re(pattern, flags);
+			auto words_begin = std::sregex_iterator(line_text.begin(), line_text.end(), re);
+			auto words_end = std::sregex_iterator();
 
-		size_t pos = line_text.find(search_query, byte_offset);
-		if (pos != std::string::npos) {
-			int found_char_idx = 0;
-			size_t current_byte = 0;
-			while (current_byte < pos && current_byte < original_line_text.length()) {
-				unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-				if (c < 0x80) current_byte += 1;
-				else if ((c & 0xE0) == 0xC0) current_byte += 2;
-				else if ((c & 0xE0) == 0xE0) current_byte += 3;
-				else if ((c & 0xF0) == 0xF0) current_byte += 4;
-				else current_byte += 1;
-				found_char_idx++;
-			}
+			int best_found_char_idx = -1;
+			size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
 			
-			cursor_y_ = static_cast<int>(y);
-			cursor_x_ = found_char_idx;
-			lock.unlock();
-			log_state();
-			return true;
+			size_t line_scope_start_byte = 0;
+			size_t line_scope_end_byte = line_text.length();
+			if (params.selected_text_only) {
+				if (y == scope_sy) line_scope_start_byte = lines_[y]->char_to_byte_offset(scope_sx);
+				if (y == scope_ey) line_scope_end_byte = lines_[y]->char_to_byte_offset(scope_ex);
+			}
+
+			for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+				std::smatch match = *i;
+				size_t byte_pos = match.position();
+
+				if (params.backward) {
+					if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
+						int found_char_idx = 0;
+						size_t current_byte = 0;
+						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
+							if (c < 0x80) current_byte += 1;
+							else if ((c & 0xE0) == 0xC0) current_byte += 2;
+							else if ((c & 0xE0) == 0xE0) current_byte += 3;
+							else if ((c & 0xF0) == 0xF0) current_byte += 4;
+							else current_byte += 1;
+							found_char_idx++;
+						}
+						best_found_char_idx = found_char_idx;
+					}
+				} else {
+					if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
+						int found_char_idx = 0;
+						size_t current_byte = 0;
+						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
+							if (c < 0x80) current_byte += 1;
+							else if ((c & 0xE0) == 0xC0) current_byte += 2;
+							else if ((c & 0xE0) == 0xE0) current_byte += 3;
+							else if ((c & 0xF0) == 0xF0) current_byte += 4;
+							else current_byte += 1;
+							found_char_idx++;
+						}
+						return found_char_idx;
+					}
+				}
+			}
+			return best_found_char_idx;
+		} catch (...) {
+			return -1;
+		}
+	};
+
+	if (params.backward) {
+		for (int y = start_y; y >= scope_sy; --y) {
+			int x_lim = (y == start_y) ? start_x : static_cast<int>(lines_[y]->length_in_chars());
+			int found_x = check_line(y, x_lim);
+			if (found_x != -1) {
+				cursor_y_ = y;
+				cursor_x_ = found_x;
+				lock.unlock();
+				log_state();
+				return true;
+			}
+		}
+	} else {
+		for (int y = start_y; y <= scope_ey; ++y) {
+			int x_lim = (y == start_y) ? start_x : 0;
+			int found_x = check_line(y, x_lim);
+			if (found_x != -1) {
+				cursor_y_ = y;
+				cursor_x_ = found_x;
+				lock.unlock();
+				log_state();
+				return true;
+			}
 		}
 	}
 	

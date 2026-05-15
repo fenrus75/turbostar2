@@ -15,8 +15,14 @@
  */
 struct search_params {
 	std::string query;
-	bool ignore_case{false};
+	bool ignore_case{true};
+	bool whole_words{false};
+	bool regex{false};
+	bool backward{false};
+	bool selected_text_only{false};
+	bool from_cursor{true};
 };
+
 
 class document {
 public:
