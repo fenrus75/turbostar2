@@ -3,7 +3,10 @@
 #include "event_queue.h"
 #include "menu_bar.h"
 #include "status_bar.h"
+#include "window.h"
 #include <string>
+#include <vector>
+#include <memory>
 
 class editor {
 public:
@@ -19,6 +22,8 @@ private:
 	event_queue global_queue_;
 	menu_bar top_menu_;
 	status_bar bottom_status_;
+	
+	std::vector<std::unique_ptr<window>> windows_;
 
 	bool is_running_{true};
 	bool debug_mode_{false};

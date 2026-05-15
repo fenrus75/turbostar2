@@ -40,6 +40,8 @@ int main(int argc, char** argv)
 	init_pair(1, COLOR_BLACK, COLOR_WHITE); // Menu/Status bar
 	init_pair(2, COLOR_RED, COLOR_WHITE);   // Hotkeys
 	init_pair(3, COLOR_WHITE, COLOR_BLUE);  // Desktop/Window
+	init_pair(4, COLOR_CYAN, COLOR_BLUE);   // Scrollbars
+	init_pair(5, COLOR_GREEN, COLOR_BLUE);  // Window widgets
 
 	cbreak();
 	noecho();

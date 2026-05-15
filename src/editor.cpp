@@ -62,6 +62,10 @@ void editor::render()
 	}
 	attroff(COLOR_PAIR(3));
 
+	for (const auto& w : windows_) {
+		w->draw();
+	}
+
 	top_menu_.draw();
 
 	std::string debug_out;

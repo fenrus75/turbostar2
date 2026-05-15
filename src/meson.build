@@ -5,4 +5,5 @@ turbostar_sources = files(
   'status_bar.cpp',
   'event_queue.cpp',
   'editor.cpp',
+  'window.cpp',
 )
