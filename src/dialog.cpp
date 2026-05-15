@@ -33,7 +33,8 @@ void dialog::draw() const
 		}
 	}
 
-	// Double line border
+	// Double line border with A_BOLD
+	attron(A_BOLD);
 	mvaddstr(y_, x_, "╔");
 	for (int i = 1; i < width_ - 1; ++i) addstr("═");
 	addstr("╗");
@@ -53,6 +54,7 @@ void dialog::draw() const
 		int title_x = x_ + (width_ - displayed_title.length()) / 2;
 		mvaddstr(y_, title_x, displayed_title.c_str());
 	}
+	attroff(A_BOLD);
 	attroff(COLOR_PAIR(1));
 }
 

@@ -13,14 +13,15 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Status Hotkeys** | Red | Light Gray | 2 | e.g., the 'F1' in 'F1 Help'. |
 | **Selected Hotkey** | Red | Black | 7 | Hotkey when item is selected (reversed). |
 | **Selection Highlight** | White | Cyan | 8 | The range between Begin and End markers. |
+| **Desktop Pattern** | Cyan | Dark Blue | 9 | The dithered `▒` background. |
 
 ## Editor Windows
 
 | Element | Foreground | Background | Pair | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **Window Background** | Yellow/White | Dark Blue | 3 | Main text content. |
-| **Window Borders** | White | Dark Blue | 3 | Double-line box drawing characters. |
-| **Window Title** | White | Dark Blue | 3 | Centered on the top border. |
+| **Window Background** | Yellow | Dark Blue | 3 | Main text content. |
+| **Window Borders** | White | Dark Blue | 5 | Double-line box drawing characters. |
+| **Window Title** | White | Dark Blue | 5 | Centered on the top border. |
 | **Scrollbar Track** | Cyan | Dark Blue | 4 | Dithered/shaded block characters. |
 | **Scrollbar Arrows** | Cyan | Dark Blue | 4 | Scroll indicators. |
 | **Window Widgets** | Green | Dark Blue | 5 | e.g., the `[■]` close button inner square. |

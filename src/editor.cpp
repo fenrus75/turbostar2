@@ -313,15 +313,15 @@ void editor::dispatch(const editor_event& ev)
 
 void editor::render()
 {
-	// Paint desktop background
-	attron(COLOR_PAIR(3));
+	// Paint desktop background with dithered pattern
+	attron(COLOR_PAIR(9));
 	for (int y = 1; y < LINES - 1; ++y) {
 		move(y, 0);
 		for (int x = 0; x < COLS; ++x) {
-			addch(' ');
+			addstr("▒");
 		}
 	}
-	attroff(COLOR_PAIR(3));
+	attroff(COLOR_PAIR(9));
 
 	for (const auto& w : windows_) {
 		w->draw();
