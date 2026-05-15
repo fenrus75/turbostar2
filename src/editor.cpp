@@ -6,7 +6,7 @@ editor::editor(bool debug_mode, const std::string& debug_string, const std::stri
 	: debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	// Create an initial document
-	auto doc = std::make_shared<document>(filename);
+	auto doc = std::make_shared<document>(global_queue_, filename);
 	documents_.push_back(doc);
 
 	// Create an initial window and attach the document
@@ -212,6 +212,10 @@ void editor::dispatch(const editor_event& ev)
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
 		is_running_ = false;
+		return;
+	}
+
+	if (ev.type == event_type::redraw) {
 		return;
 	}
 

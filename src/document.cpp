@@ -4,15 +4,16 @@
 #include <fstream>
 #include <regex>
 
-document::document()
+document::document(event_queue& global_queue)
+	: global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	log_state();
 }
 
-document::document(const std::string& filename)
-	: filename_(filename)
+document::document(event_queue& global_queue, const std::string& filename)
+	: filename_(filename), global_queue_(global_queue)
 {
 	if (filename.empty() || !load_from_file(filename)) {
 		if (lines_.empty()) lines_.push_back(std::make_shared<line>(""));
@@ -810,6 +811,16 @@ void document::highlighter_thread_loop()
 		}
 		if (l) {
 			process_line_highlight(l);
+			
+			// If no more lines in queue, request a redraw
+			{
+				std::lock_guard lock(dirty_mutex_);
+				if (dirty_lines_.empty()) {
+					editor_event ev;
+					ev.type = event_type::redraw;
+					global_queue_.push(ev);
+				}
+			}
 		}
 	}
 }

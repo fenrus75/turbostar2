@@ -4,6 +4,7 @@
 #include <vector>
 #include <shared_mutex>
 #include "line.h"
+#include "event_queue.h"
 #include <thread>
 #include <queue>
 #include <condition_variable>
@@ -11,8 +12,8 @@
 
 class document {
 public:
-	document();
-	explicit document(const std::string& filename);
+	document(event_queue& global_queue);
+	document(event_queue& global_queue, const std::string& filename);
 	~document();
 
 	bool load_from_file(const std::string& filename);
@@ -91,6 +92,7 @@ private:
 	int selection_end_y_{-1};
 
 	// Threading for highlighting
+	event_queue& global_queue_;
 	std::queue<std::shared_ptr<line>> dirty_lines_;
 	std::mutex dirty_mutex_;
 	std::condition_variable dirty_cv_;
