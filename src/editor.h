@@ -11,7 +11,7 @@
 
 class editor {
 public:
-	editor(bool debug_mode, const std::string& debug_string);
+	editor(bool debug_mode, const std::string& debug_string, const std::string& filename);
 	~editor() = default;
 
 	void run();

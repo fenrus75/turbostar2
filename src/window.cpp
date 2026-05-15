@@ -1,4 +1,5 @@
 #include "window.h"
+#include "event_logger.h"
 #include <ncurses.h>
 
 window::window(int id, int x, int y, int width, int height, const std::string& title)
@@ -28,6 +29,69 @@ void window::attach_document(std::shared_ptr<document> doc)
 	if (doc_ && title_.empty()) {
 		title_ = doc_->get_filename();
 	}
+}
+
+void window::set_cursor_position() const
+{
+	if (doc_) {
+		int screen_y = y_ + 1 + doc_->get_cursor_y() - top_line_;
+		int screen_x = x_ + 1 + doc_->get_cursor_x() - left_column_;
+		move(screen_y, screen_x);
+	}
+}
+
+bool window::process_events()
+{
+	bool needs_render = false;
+	while (auto ev = window_queue_.pop()) {
+		event_logger::get_instance().log("Window " + std::to_string(id_) + " processing key: " + std::to_string(ev->key_code));
+		if (ev->type == event_type::key_press && doc_) {
+			if (ev->key_code == KEY_UP) {
+				doc_->move_cursor(0, -1);
+				needs_render = true;
+			} else if (ev->key_code == KEY_DOWN) {
+				doc_->move_cursor(0, 1);
+				event_logger::get_instance().log("Cursor moved to: " + std::to_string(doc_->get_cursor_y()));
+				needs_render = true;
+			} else if (ev->key_code == KEY_LEFT) {
+				doc_->move_cursor(-1, 0);
+				needs_render = true;
+			} else if (ev->key_code == KEY_RIGHT) {
+				doc_->move_cursor(1, 0);
+				needs_render = true;
+			}
+		}
+	}
+	
+	// Adjust viewport if cursor goes out of bounds
+	if (doc_ && needs_render) {
+		int cx = doc_->get_cursor_x();
+		int cy = doc_->get_cursor_y();
+		
+		if (cy < top_line_) {
+			top_line_ = cy;
+		} else if (cy >= top_line_ + height_ - 2) {
+			top_line_ = cy - (height_ - 2) + 1;
+		}
+		
+		if (cx < left_column_) {
+			left_column_ = cx;
+		} else if (cx >= left_column_ + width_ - 2) {
+			left_column_ = cx - (width_ - 2) + 1;
+		}
+	}
+	
+	return needs_render;
+}
+
+int window::get_cursor_x() const
+{
+	return doc_ ? doc_->get_cursor_x() : -1;
+}
+
+int window::get_cursor_y() const
+{
+	return doc_ ? doc_->get_cursor_y() : -1;
 }
 
 void window::draw() const
@@ -98,9 +162,6 @@ void window::draw_border() const
 	
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
-	
-	// Draw cursor pos footer
-	mvprintw(y_ + height_ - 1, x_ + 2, " 1:1 ");
 	
 	attroff(COLOR_PAIR(3));
 	

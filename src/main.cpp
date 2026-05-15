@@ -28,8 +28,11 @@ int main(int argc, char** argv)
 	}
 
 	auto& logger = event_logger::get_instance();
+	if (!log_file.empty()) {
+		logger.set_log_file(log_file);
+	}
 	logger.log("Application started.");
-	
+
 	if (debug_mode) {
 		logger.log("Debug mode enabled. Filter string: '" + debug_string + "'");
 	}
@@ -57,11 +60,7 @@ int main(int argc, char** argv)
 	editor main_editor(debug_mode, debug_string, filename);
 	main_editor.run();
 
-	if (!log_file.empty()) {
-		logger.write_to_file(log_file);
-	}
 	logger.log("Exiting application loop.");
-	logger.write_to_file(log_file);
 
 	endwin();
 

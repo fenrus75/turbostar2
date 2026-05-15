@@ -5,8 +5,8 @@ def test_startup_and_quit():
     try:
         runner.start()
         
-        # Send the 'q' key to quit
-        runner.send_keys('q')
+        # Send Ctrl-C to trigger fallback quit since 'q' is no longer hardcoded
+        runner.send_keys('\x03')
         
         # Wait for the process to exit
         runner.wait(timeout=2)
@@ -16,6 +16,7 @@ def test_startup_and_quit():
 
         assert "Application started." in log_contents
         assert "UI initialized." in log_contents
+        assert "Dispatching key_press event: 3" in log_contents # 3 is Ctrl-C
         assert "Dispatching quit event." in log_contents
         assert "Exiting application loop." in log_contents
 

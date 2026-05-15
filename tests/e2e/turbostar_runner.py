@@ -18,10 +18,14 @@ class TurbostarRunner:
         self.screen = pyte.Screen(cols, lines)
         self.stream = pyte.Stream(self.screen)
 
-    def start(self):
+    def start(self, filename=None):
         exe_path = os.path.join(os.environ.get('MESON_BUILD_ROOT', '.'), 'turbostar')
         if not os.path.exists(exe_path):
             exe_path = './turbostar'
+
+        cmd = [exe_path, '--log', self.log_path]
+        if filename:
+            cmd.append(filename)
 
         self.master_fd, self.slave_fd = pty.openpty()
 
@@ -32,7 +36,7 @@ class TurbostarRunner:
         env['LINES'] = str(self.lines)
 
         self.proc = subprocess.Popen(
-            [exe_path, '--log', self.log_path],
+            cmd,
             stdin=self.slave_fd,
             stdout=self.slave_fd,
             stderr=self.slave_fd,
@@ -78,6 +82,30 @@ class TurbostarRunner:
             with open(self.log_path, 'r') as f:
                 return f.read()
         return ""
+
+    def get_cursor_position(self):
+        self._read_output()
+        # The cursor position is in the status bar at the bottom, row = self.lines - 1
+        # It starts at index 1 (after a space)
+        # We need to extract the string "Y:X" from row[1:]
+        status_bar_row = self.screen.display[self.lines - 1]
+        # Look for the part like " Y:X "
+        import re
+        match = re.search(r"(\d+):(\d+)", status_bar_row)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        return -1, -1
+
+    def assert_cursor_position(self, expected_y, expected_x, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            actual_y, actual_x = self.get_cursor_position()
+            if (actual_y, actual_x) == (expected_y, expected_x):
+                return
+            time.sleep(0.1)
+        
+        actual_y, actual_x = self.get_cursor_position()
+        raise AssertionError(f"Cursor position mismatch! Expected ({expected_y}, {expected_x}), got ({actual_y}, {actual_x}) after timeout")
 
     def assert_text_on_screen(self, text):
         self._read_output()

@@ -17,6 +17,11 @@ public:
 	void attach_document(std::shared_ptr<document> doc);
 	event_queue& get_queue();
 
+	bool process_events();
+	void set_cursor_position() const;
+	int get_cursor_x() const;
+	int get_cursor_y() const;
+
 private:
 	void draw_border() const;
 	void draw_content() const;
