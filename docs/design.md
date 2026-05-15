@@ -73,23 +73,28 @@ The window class is a "View" that renders a portion of a `Document`.
 - **Interaction**: Handles coordinate translation between screen space and document space.
 - **Event Handling**: Processes events from its own **Per-Window Event Queue**, which are dispatched by the central `Editor`.
 
+## Event Queue and Logging
+
+- **`event_queue`**: A thread-safe queue holding `editor_event` objects (e.g., `key_press`, `quit`). Used to safely pass events between threads or into the main dispatcher.
+- **`event_logger`**: A singleton class responsible for capturing internal application state and writing it to a file or displaying it via the `--debug` flag.
+
 ## Editor class (Manager)
 
 The central controller that manages the overall application state.
 
 - **Documents**: Owns a list of all open `Document` objects.
-- **Windows**: Manages the layout and lifecycle of `Window` objects on the screen, mimicking the Turbo Pascal environment.
-- **Input Loop**: The primary thread that reads from `ncurses`, translates keybindings (using a keymap derived from `docs/joe-keys.md`), and pushes them into the **Global Event Queue**.
-- **Central Dispatcher**: Pulls events from the **Global Event Queue** (e.g., menu actions, global shortcuts) and dispatches them to the relevant **Per-Window/Document Queues**.
-- **Status Bar / Menu**: Manages the Turbo Pascal-style chrome (menus, status lines).
+- **Windows**: Manages the layout and lifecycle of `Window` objects on the screen.
+- **UI Components**: Owns and coordinates the rendering of the `menu_bar` and `status_bar`.
+- **Input Loop**: Drives the primary thread using a non-blocking `getch` loop (`timeout(50)`). It reads keybindings, wraps them into `editor_event` objects, and pushes them into the **Global Event Queue**.
+- **Central Dispatcher**: Immediately pulls events from the **Global Event Queue** and dispatches them to update the UI or target specific **Per-Window/Document Queues**.
 
 ## UI Elements and Structure
 
-Based on the Turbo Pascal interface, Turbostar will implement the following core UI components, coordinated by the Editor (Manager):
+Based on the Turbo Pascal interface, Turbostar implements the following core UI components:
 
 - **Desktop Layout**:
-  - **Menu Bar (Top)**: A horizontal strip containing dropdown menus (File, Edit, Search, etc.).
-  - **Status Bar (Bottom)**: A horizontal strip showing contextual hotkeys (e.g., `F1 Help`) and system messages.
+  - **`menu_bar`**: A class responsible for rendering the horizontal strip containing dropdown menus (File, Edit, Search, etc.) at the top.
+  - **`status_bar`**: A class handling the horizontal strip at the bottom showing contextual hotkeys (e.g., `F1 Help`) and diagnostic `--debug` messages.
   - **Workspace**: The central area where editor windows and dialogs are rendered over a dark blue background.
 - **Editor Window**:
   - **Border**: Double-line box drawing characters.
