@@ -182,6 +182,11 @@ bool editor::handle_k_block_key(int key)
 				quit_ev.type = event_type::quit;
 				global_queue_.push(quit_ev);
 				return true;
+			} else if (c == 'f') {
+				logger.log("K-block: Find (Status Bar Prompt)");
+				is_searching_prompt_ = true;
+				search_input_buffer_ = "";
+				return true;
 			} else if (c == 'u') {
 				logger.log("K-block: Top of File");
 				doc->move_to_top();
@@ -260,9 +265,45 @@ void editor::dispatch(const editor_event& ev)
 		return;
 	}
 
+	if (ev.type == event_type::find) {
+		logger.log("Dispatching find event (dialog).");
+		active_dialog_ = std::make_unique<input_dialog>("Find Text", "Enter text to find:", current_search_.query);
+		active_dialog_mode_ = dialog_mode::search;
+		set_focus(focus_target::dialog, "menu_find");
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 		
+		if (is_searching_prompt_) {
+			if (ev.key_code == 27) { // ESC
+				is_searching_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				current_search_.query = search_input_buffer_;
+				documents_[0]->find_next(current_search_);
+				is_searching_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
+				if (!search_input_buffer_.empty()) search_input_buffer_.pop_back();
+				return;
+			}
+			if (!ev.utf8_char.empty() && ev.key_code >= 32) {
+				search_input_buffer_ += ev.utf8_char;
+				return;
+			}
+			return; // Consume all keys in prompt mode
+		}
+
+		if (ev.key_code == 12) { // Ctrl-L
+			logger.log("Repeating last search.");
+			documents_[0]->find_next(current_search_);
+			return;
+		}
+
 		if (k_block_mode_) {
 			if (handle_k_block_key(ev.key_code)) {
 				k_block_mode_ = false;
@@ -289,12 +330,15 @@ void editor::dispatch(const editor_event& ev)
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res == dialog_result::confirmed) {
-				std::string path = active_dialog_->get_result();
+				std::string result = active_dialog_->get_result();
 				auto doc = documents_[0];
 				if (active_dialog_mode_ == dialog_mode::load) {
-					doc->load_from_file(path);
+					doc->load_from_file(result);
 				} else if (active_dialog_mode_ == dialog_mode::save) {
-					doc->save_to_file(path);
+					doc->save_to_file(result);
+				} else if (active_dialog_mode_ == dialog_mode::search) {
+					current_search_.query = result;
+					doc->find_next(current_search_);
 				}
 				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;
@@ -373,7 +417,9 @@ void editor::render()
 
 	std::string status_help = debug_out;
 	if (k_block_mode_) {
-		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top V:End Q:Quit X:SaveExit";
+		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top V:End Q:Quit X:SaveExit F:Find";
+	} else if (is_searching_prompt_) {
+		status_help = "Search for: " + search_input_buffer_ + "_";
 	}
 
 	bottom_status_.draw(status_help, cur_x, cur_y);

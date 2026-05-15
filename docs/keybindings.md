@@ -88,4 +88,11 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
 | `^K H` | Hide/Clear Selection | Removes both start and end markers. |
 
+## Search Commands
+
+| Key Combination | Action | Notes |
+| :--- | :--- | :--- |
+| `^K F` | Find Text (Prompt) | Low-friction search prompt in the status bar. |
+| `^L` | Find Next | Repeats the last search operation. |
+
 

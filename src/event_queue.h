@@ -15,7 +15,8 @@ enum class event_type {
 	save,       ///< Request to save a file (triggers dialog)
 	new_doc,    ///< Request to clear current document
 	about,      ///< Request to show About dialog
-	redraw      ///< Request a global UI re-render
+	redraw,     ///< Request a global UI re-render
+	find        ///< Request to find text (triggers dialog)
 };
 
 /**

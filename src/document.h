@@ -10,6 +10,14 @@
 #include <condition_variable>
 #include <atomic>
 
+/**
+ * @brief Parameters for document search operations.
+ */
+struct search_params {
+	std::string query;
+	bool ignore_case{false};
+};
+
 class document {
 public:
 	document(event_queue& global_queue);
@@ -61,6 +69,8 @@ public:
 	void get_selection_range(int& start_x, int& start_y, int& end_x, int& end_y) const;
 
 	void log_state() const;
+
+	bool find_next(const search_params& params);
 
 private:
 	std::vector<line> get_selection_block() const;

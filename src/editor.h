@@ -60,10 +60,14 @@ private:
 	focus_target current_focus_{focus_target::window};
 	bool k_block_mode_{false};
 	
-	enum class dialog_mode { none, load, save };
+	enum class dialog_mode { none, load, save, search };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 
+	search_params current_search_;
+	bool is_searching_prompt_{false};
+	std::string search_input_buffer_;
+	
 	bool is_running_{true};
 	bool debug_mode_{false};
 	std::string debug_string_;

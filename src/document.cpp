@@ -803,6 +803,58 @@ void document::adjust_selection_for_line_delete(int y)
 	adjust(selection_end_x_, selection_end_y_);
 }
 
+bool document::find_next(const search_params& params)
+{
+	if (params.query.empty()) return false;
+	
+	std::unique_lock lock(mutex_);
+	int start_y = cursor_y_;
+	int start_x = cursor_x_ + 1; // Start from next character
+	
+	std::string search_query = params.query;
+	if (params.ignore_case) {
+		std::transform(search_query.begin(), search_query.end(), search_query.begin(), ::tolower);
+	}
+
+	for (size_t y = start_y; y < lines_.size(); ++y) {
+		std::string line_text = lines_[y]->get_text();
+		std::string original_line_text = line_text;
+		
+		if (params.ignore_case) {
+			std::transform(line_text.begin(), line_text.end(), line_text.begin(), ::tolower);
+		}
+
+		int char_idx = (y == (size_t)start_y) ? start_x : 0;
+		size_t byte_offset = lines_[y]->char_to_byte_offset(char_idx);
+		if (byte_offset >= line_text.length()) continue;
+
+		size_t pos = line_text.find(search_query, byte_offset);
+		if (pos != std::string::npos) {
+			int found_char_idx = 0;
+			size_t current_byte = 0;
+			while (current_byte < pos && current_byte < original_line_text.length()) {
+				unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
+				if (c < 0x80) current_byte += 1;
+				else if ((c & 0xE0) == 0xC0) current_byte += 2;
+				else if ((c & 0xE0) == 0xE0) current_byte += 3;
+				else if ((c & 0xF0) == 0xF0) current_byte += 4;
+				else current_byte += 1;
+				found_char_idx++;
+			}
+			
+			cursor_y_ = static_cast<int>(y);
+			cursor_x_ = found_char_idx;
+			lock.unlock();
+			log_state();
+			return true;
+		}
+	}
+	
+	lock.unlock();
+	log_state();
+	return false;
+}
+
 void document::mark_line_dirty(std::shared_ptr<line> l)
 {
 	std::lock_guard lock(dirty_mutex_);

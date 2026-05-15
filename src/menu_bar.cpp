@@ -20,7 +20,10 @@ menu_bar::menu_bar()
 			{"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
 			{"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
 		}},
-		{"Search", 's', {}},
+		{"Search", 's', {
+			{"Find...", event_type::find, 'f', "^KF", false},
+			{"Find next", event_type::key_press, 12, 'l', "^L", false}
+		}},
 		{"Help", 'h', {
 			{"About...", event_type::about, 'a', "", false}
 		}}
