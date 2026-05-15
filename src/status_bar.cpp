@@ -1,7 +1,7 @@
 #include "status_bar.h"
 #include <ncurses.h>
 
-void status_bar::draw(const std::string& debug_message, int cursor_x, int cursor_y) const
+void status_bar::draw(const std::string& mode_help, int cursor_x, int cursor_y) const
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -16,8 +16,11 @@ void status_bar::draw(const std::string& debug_message, int cursor_x, int cursor
 
 	move(max_y - 1, 0);
 
-	if (!debug_message.empty()) {
-		printw(" %s ", debug_message.c_str());
+	if (!mode_help.empty()) {
+		attron(COLOR_PAIR(2)); // Hotkey style
+		printw(" %s ", mode_help.c_str());
+		attroff(COLOR_PAIR(2));
+		attron(COLOR_PAIR(1));
 	} else {
 		// Cursor position
 		if (cursor_x >= 0 && cursor_y >= 0) {

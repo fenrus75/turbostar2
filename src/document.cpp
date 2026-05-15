@@ -23,6 +23,7 @@ bool document::load_from_file(const std::string& filename)
 	std::unique_lock lock(mutex_);
 	std::ifstream file(filename);
 	if (!file.is_open()) {
+		event_logger::get_instance().log("Load failed: Could not open file " + filename);
 		return false;
 	}
 
@@ -37,6 +38,14 @@ bool document::load_from_file(const std::string& filename)
 	
 	filename_ = filename;
 	modified_ = false;
+	cursor_x_ = 0;
+	cursor_y_ = 0;
+	selection_start_x_ = selection_start_y_ = -1;
+	selection_end_x_ = selection_end_y_ = -1;
+	
+	event_logger::get_instance().log("Document loaded from: " + filename + " (" + std::to_string(lines_.size()) + " lines)");
+	lock.unlock();
+	log_state();
 	return true;
 }
 

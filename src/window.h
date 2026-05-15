@@ -32,6 +32,7 @@ public:
 	int get_content_height() const { return height_ - 2; }
 
 private:
+	void update_viewport() const;
 	void draw_border() const;
 	void draw_content() const;
 
@@ -40,8 +41,8 @@ private:
 	std::string title_;
 	bool is_active_{false};
 
-	int top_line_{0};
-	int left_column_{0};
+	mutable int top_line_{0};
+	mutable int left_column_{0};
 
 	std::shared_ptr<document> doc_;
 	event_queue window_queue_;

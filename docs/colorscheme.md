@@ -12,6 +12,7 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Status Bar (Bottom)** | Black | Light Gray | 1 | |
 | **Status Hotkeys** | Red | Light Gray | 2 | e.g., the 'F1' in 'F1 Help'. |
 | **Selected Hotkey** | Red | Black | 7 | Hotkey when item is selected (reversed). |
+| **Selection Highlight** | White | Cyan | 8 | The range between Begin and End markers. |
 
 ## Editor Windows
 

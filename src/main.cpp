@@ -51,8 +51,10 @@ int main(int argc, char** argv)
 	init_pair(5, COLOR_GREEN, COLOR_BLUE);  // Window widgets
 	init_pair(6, COLOR_BLACK, COLOR_BLACK); // Drop shadows
 	init_pair(7, COLOR_RED, COLOR_BLACK);   // Hotkeys on selected background
+	init_pair(8, COLOR_WHITE, COLOR_CYAN);  // Selection highlight
 
 	raw();
+
 	nonl();
 	noecho();
 	keypad(stdscr, TRUE);

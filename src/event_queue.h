@@ -10,7 +10,9 @@
  */
 enum class event_type {
 	key_press,  ///< A keyboard input event
-	quit        ///< An application exit event
+	quit,       ///< An application exit event
+	load,       ///< Request to load a file (triggers dialog)
+	save        ///< Request to save a file (triggers dialog)
 };
 
 /**

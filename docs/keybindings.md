@@ -79,6 +79,8 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K K` | Set Selection End | Sets the end marker at the current cursor position. |
 | `^K C` | Copy Block | Copies selection to the current cursor position. |
 | `^K M` | Move Block | Moves selection to the current cursor position. |
+| `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
+| `^K W` | Write / Save As | Prompts for a filename to save the current document. |
 | `^K Q` | Quit / Abort | Exits the application without saving. |
 | `^K X` | Save & Exit | Saves the current document and exits. |
 | `^K U` | Top of File | Moves cursor to the beginning of the document. |

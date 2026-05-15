@@ -142,6 +142,18 @@ bool editor::handle_k_block_key(int key)
 				logger.log("K-block: Move Block");
 				doc->move_selection();
 				return true;
+			} else if (c == 'e') {
+				logger.log("K-block: Edit (Load File)");
+				active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", doc->get_filename());
+				active_dialog_mode_ = dialog_mode::load;
+				set_focus(focus_target::dialog, "k_block");
+				return true;
+			} else if (c == 'w') {
+				logger.log("K-block: Write (Save As)");
+				active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", doc->get_filename());
+				active_dialog_mode_ = dialog_mode::save;
+				set_focus(focus_target::dialog, "k_block");
+				return true;
 			} else if (c == 'q') {
 				logger.log("K-block: Quit (Abort)");
 				editor_event quit_ev;
@@ -188,6 +200,24 @@ void editor::dispatch(const editor_event& ev)
 		return;
 	}
 
+	if (ev.type == event_type::load) {
+		logger.log("Dispatching load event.");
+		auto doc = documents_[0];
+		active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", doc->get_filename());
+		active_dialog_mode_ = dialog_mode::load;
+		set_focus(focus_target::dialog, "menu_load");
+		return;
+	}
+
+	if (ev.type == event_type::save) {
+		logger.log("Dispatching save event.");
+		auto doc = documents_[0];
+		active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", doc->get_filename());
+		active_dialog_mode_ = dialog_mode::save;
+		set_focus(focus_target::dialog, "menu_save");
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 		
@@ -214,6 +244,27 @@ void editor::dispatch(const editor_event& ev)
 		}
 
 		// Route based on focus
+		if (current_focus_ == focus_target::dialog && active_dialog_) {
+			dialog_result res = active_dialog_->handle_key(ev.key_code);
+			if (res == dialog_result::confirmed) {
+				std::string path = active_dialog_->get_result();
+				auto doc = documents_[0];
+				if (active_dialog_mode_ == dialog_mode::load) {
+					doc->load_from_file(path);
+				} else if (active_dialog_mode_ == dialog_mode::save) {
+					doc->save_to_file(path);
+				}
+				active_dialog_.reset();
+				active_dialog_mode_ = dialog_mode::none;
+				set_focus(focus_target::window, "dialog_close");
+			} else if (res == dialog_result::cancelled) {
+				active_dialog_.reset();
+				active_dialog_mode_ = dialog_mode::none;
+				set_focus(focus_target::window, "dialog_cancel");
+			}
+			return;
+		}
+
 		if (current_focus_ == focus_target::menu_bar) {
 			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
 				if (!top_menu_.is_open()) {
@@ -276,16 +327,27 @@ void editor::render()
 		}
 	}
 
-	bottom_status_.draw(debug_out, cur_x, cur_y);
-	
-	// Position hardware cursor
-	for (const auto& w : windows_) {
-		if (w->is_active()) {
-			w->set_cursor_position();
-			break;
-		}
+	std::string status_help = debug_out;
+	if (k_block_mode_) {
+		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top V:End Q:Quit X:SaveExit";
 	}
-	curs_set(1); // Ensure cursor is visible
-	
+
+	bottom_status_.draw(status_help, cur_x, cur_y);
+
+	if (active_dialog_) {
+		active_dialog_->draw();
+		curs_set(0); // Hide cursor when dialog is up
+	} else {
+		// Position hardware cursor
+		for (const auto& w : windows_) {
+			if (w->is_active()) {
+				w->set_cursor_position();
+				break;
+			}
+		}
+		curs_set(1); // Ensure cursor is visible
+	}
+
 	refresh();
-}
+	}
+

@@ -108,24 +108,6 @@ bool window::process_events()
 		}
 	}
 	
-	// Adjust viewport if cursor goes out of bounds
-	if (doc_ && needs_render) {
-		int cx = doc_->get_cursor_x();
-		int cy = doc_->get_cursor_y();
-		
-		if (cy < top_line_) {
-			top_line_ = cy;
-		} else if (cy >= top_line_ + height_ - 2) {
-			top_line_ = cy - (height_ - 2) + 1;
-		}
-		
-		if (cx < left_column_) {
-			left_column_ = cx;
-		} else if (cx >= left_column_ + width_ - 2) {
-			left_column_ = cx - (width_ - 2) + 1;
-		}
-	}
-	
 	return needs_render;
 }
 
@@ -141,8 +123,29 @@ int window::get_cursor_y() const
 
 void window::draw() const
 {
+	update_viewport();
 	draw_content();
 	draw_border();
+}
+
+void window::update_viewport() const
+{
+	if (!doc_) return;
+	
+	int cx = doc_->get_cursor_x();
+	int cy = doc_->get_cursor_y();
+	
+	if (cy < top_line_) {
+		top_line_ = cy;
+	} else if (cy >= top_line_ + height_ - 2) {
+		top_line_ = cy - (height_ - 2) + 1;
+	}
+	
+	if (cx < left_column_) {
+		left_column_ = cx;
+	} else if (cx >= left_column_ + width_ - 2) {
+		left_column_ = cx - (width_ - 2) + 1;
+	}
 }
 
 void window::draw_content() const
@@ -175,15 +178,18 @@ void window::draw_content() const
 				if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
 					in_selection = true;
 				} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-					in_selection = (text_col >= sel_start_x && text_col < sel_end_x);
+					in_selection = (text_col >= sel_start_x && text_col <= sel_end_x);
 				} else if (doc_line_idx == sel_start_y) {
 					in_selection = (text_col >= sel_start_x);
 				} else if (doc_line_idx == sel_end_y) {
-					in_selection = (text_col < sel_end_x);
+					in_selection = (text_col <= sel_end_x);
 				}
 			}
 
-			if (in_selection) attron(A_REVERSE);
+			if (in_selection) {
+				attroff(COLOR_PAIR(3));
+				attron(COLOR_PAIR(8));
+			}
 			
 			if (text_col < static_cast<int>(line_text.length())) {
 				addch(line_text[text_col]);
@@ -191,7 +197,10 @@ void window::draw_content() const
 				addch(' ');
 			}
 			
-			if (in_selection) attroff(A_REVERSE);
+			if (in_selection) {
+				attroff(COLOR_PAIR(8));
+				attron(COLOR_PAIR(3));
+			}
 		}
 	}
 	attroff(COLOR_PAIR(3));
@@ -200,31 +209,40 @@ void window::draw_content() const
 void window::draw_border() const
 {
 	attron(COLOR_PAIR(3));
-	
+
+	std::string current_title = title_;
+	if (doc_) {
+		current_title = doc_->get_filename();
+		if (current_title.empty()) current_title = "untitled";
+		size_t last_slash = current_title.find_last_of("/\\");
+		if (last_slash != std::string::npos) {
+			current_title = current_title.substr(last_slash + 1);
+		}
+	}
+
 	// Draw top and bottom borders
 	for (int i = 1; i < width_ - 1; ++i) {
 		mvaddstr(y_, x_ + i, "═");
 		mvaddstr(y_ + height_ - 1, x_ + i, "═");
 	}
-	
+
 	// Draw left and right borders
 	for (int i = 1; i < height_ - 1; ++i) {
 		mvaddstr(y_ + i, x_, "║");
 		mvaddstr(y_ + i, x_ + width_ - 1, "║");
 	}
-	
+
 	// Draw corners
 	mvaddstr(y_, x_, "╔");
 	mvaddstr(y_, x_ + width_ - 1, "╗");
 	mvaddstr(y_ + height_ - 1, x_, "╚");
 	mvaddstr(y_ + height_ - 1, x_ + width_ - 1, "╝");
-	
+
 	// Draw title
-	if (!title_.empty()) {
-		int title_x = x_ + (width_ - title_.length()) / 2;
-		mvprintw(y_, title_x - 1, " %s ", title_.c_str());
+	if (!current_title.empty()) {
+		int title_x = x_ + (width_ - current_title.length()) / 2;
+		mvprintw(y_, title_x - 1, " %s ", current_title.c_str());
 	}
-	
 	// Draw close widget
 	mvaddstr(y_, x_ + 2, "[");
 	attron(COLOR_PAIR(5));

@@ -8,9 +8,9 @@ menu_bar::menu_bar()
 	categories_ = {
 		{"File", 'f', {
 			menu_item("New", event_type::key_press, 'n', "", false),
-			{"Open...", event_type::key_press, 'o', "F3", false},
-			{"Save", event_type::key_press, 's', "F2", false},
-			{"Save as...", event_type::key_press, 'a', "", false},
+			{"Open...", event_type::load, 'o', "F3", false},
+			{"Save", event_type::save, 's', "F2", false},
+			{"Save as...", event_type::save, 'a', "", false},
 			{"Save all", event_type::key_press, 'l', "", false},
 			{"", event_type::key_press, 0, "", true},
 			{"Change dir...", event_type::key_press, 'c', "", false},

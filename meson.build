@@ -109,6 +109,24 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_dialogs', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_dialogs.py')],
+    env: [
+      'MESON_BUILD_ROOT=' + meson.project_build_root(),
+      'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e')
+    ],
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+  test('e2e_menu_dialogs', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_dialogs.py')],
+    env: [
+      'MESON_BUILD_ROOT=' + meson.project_build_root(),
+      'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e')
+    ],
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_extra_keys', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_extra_keys.py')],
     env: [
