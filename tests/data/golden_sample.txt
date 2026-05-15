@@ -1,0 +1,4 @@
+Golden Data:
+Selection, Load, Save.
+Full UTF-8: €¢£¥
+End of data.

@@ -122,6 +122,46 @@ class TurbostarRunner:
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' not found on screen. Screen content:\n{display_str}")
 
+    def assert_content_is(self, reference_file_path):
+        import tempfile
+        import filecmp
+        
+        # 1. Generate a temporary path for saving
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
+            save_path = tmp.name
+        
+        try:
+            # 2. Trigger Save As via keys (^KW)
+            self.send_keys('\x0b' + 'w')
+            # 3. Clear pre-filled and type path
+            self.send_keys('\x7f' * 50) 
+            self.send_keys(save_path + '\n')
+            time.sleep(0.5)
+            
+            # 4. Compare files
+            if not os.path.exists(save_path):
+                raise AssertionError(f"Save failed during assert_content_is. {save_path} not found.")
+                
+            # If path is relative to project root, find it
+            ref_path = reference_file_path
+            if not os.path.isabs(ref_path):
+                project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+                ref_path = os.path.join(project_root, ref_path)
+                
+            if not os.path.exists(ref_path):
+                raise FileNotFoundError(f"Reference file not found: {ref_path}")
+                
+            with open(save_path, 'r') as f1, open(ref_path, 'r') as f2:
+                c1 = f1.read().strip()
+                c2 = f2.read().strip()
+                if c1 != c2:
+                    # Detailed error
+                    print(f"Content Mismatch!\nActual (saved):\n'{c1}'\nExpected (ref):\n'{c2}'")
+                    assert c1 == c2
+        finally:
+            if os.path.exists(save_path):
+                os.remove(save_path)
+
     def cleanup(self):
         if self.slave_fd is not None:
             os.close(self.slave_fd)
