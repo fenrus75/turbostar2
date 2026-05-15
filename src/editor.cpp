@@ -216,6 +216,7 @@ void editor::dispatch(const editor_event& ev)
 	}
 
 	if (ev.type == event_type::redraw) {
+		logger.log("Dispatching redraw event.");
 		return;
 	}
 

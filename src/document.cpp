@@ -831,42 +831,34 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 	size_t char_count = l->length_in_chars();
 	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
 
-	// Simple C++ keyword highlighting
-	static const std::vector<std::string> keywords = {
-		"void", "int", "char", "const", "bool", "class", "struct", "enum", "virtual", "override", "return", "if", "else", "for", "while"
-	};
+	// Pre-compiled combined regex for efficiency
+	static const std::regex kw_regex("\\b(void|int|char|const|bool|class|struct|enum|virtual|override|return|if|else|for|while)\\b");
 
-	// Use regex to find whole words
-	// Since we are UTF-8, this is a bit rough but works for ASCII keywords
-	for (const auto& kw : keywords) {
-		std::regex kw_regex("\\b" + kw + "\\b");
-		auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
-		auto words_end = std::sregex_iterator();
+	auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
+	auto words_end = std::sregex_iterator();
 
-		for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-			std::smatch match = *i;
-			size_t byte_pos = match.position();
-			size_t byte_len = match.length();
+	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+		std::smatch match = *i;
+		size_t byte_pos = match.position();
+		size_t byte_len = match.length();
 
-			// Convert byte pos to char pos
-			int char_pos = 0;
-			size_t current_byte = 0;
-			while (current_byte < byte_pos && char_pos < static_cast<int>(char_count)) {
-				unsigned char c = static_cast<unsigned char>(text[current_byte]);
-				if (c < 0x80) current_byte += 1;
-				else if ((c & 0xE0) == 0xC0) current_byte += 2;
-				else if ((c & 0xE0) == 0xE0) current_byte += 3;
-				else if ((c & 0xF0) == 0xF0) current_byte += 4;
-				else current_byte += 1;
-				char_pos++;
-			}
+		// Convert byte pos to char pos
+		int char_pos = 0;
+		size_t current_byte = 0;
+		while (current_byte < byte_pos && char_pos < static_cast<int>(char_count)) {
+			unsigned char c = static_cast<unsigned char>(text[current_byte]);
+			if (c < 0x80) current_byte += 1;
+			else if ((c & 0xE0) == 0xC0) current_byte += 2;
+			else if ((c & 0xE0) == 0xE0) current_byte += 3;
+			else if ((c & 0xF0) == 0xF0) current_byte += 4;
+			else current_byte += 1;
+			char_pos++;
+		}
 
-			// Mark as keyword
-			// Simple assumes ASCII keywords (no multi-byte chars IN the keyword)
-			for (size_t j = 0; j < byte_len; ++j) {
-				if (char_pos + j < attrs.size()) {
-					attrs[char_pos + j] = syntax_attribute::keyword;
-				}
+		// Mark as keyword
+		for (size_t j = 0; j < byte_len; ++j) {
+			if (char_pos + j < attrs.size()) {
+				attrs[char_pos + j] = syntax_attribute::keyword;
 			}
 		}
 	}
