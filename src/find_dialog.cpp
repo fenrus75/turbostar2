@@ -9,32 +9,18 @@ find_dialog::find_dialog(const std::string& title, const search_params& initial_
 
 void find_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string& gtitle) const
 {
-	// Fill background first
+	// Fill background
 	attrset(COLOR_PAIR(17));
-	for (int i = 1; i < gh - 1; ++i) {
-		move(y_ + gy + i, x_ + gx + 1);
-		for (int j = 1; j < gw - 1; ++j) addch(' ');
+	for (int i = 1; i < gh; ++i) {
+		move(y_ + gy + i, x_ + gx);
+		for (int j = 0; j < gw; ++j) addch(' ');
 	}
-
-	attron(COLOR_PAIR(1));
-	// Borders
-	mvaddstr(y_ + gy, x_ + gx, "┌");
-	for (int i = 1; i < gw - 1; ++i) addstr("─");
-	addstr("┐");
-
-	for (int i = 1; i < gh - 1; ++i) {
-		mvaddstr(y_ + gy + i, x_ + gx, "│");
-		mvaddstr(y_ + gy + i, x_ + gx + gw - 1, "│");
-	}
-
-	mvaddstr(y_ + gy + gh - 1, x_ + gx, "└");
-	for (int i = 1; i < gw - 1; ++i) addstr("─");
-	addstr("┘");
 
 	if (!gtitle.empty()) {
-		mvprintw(y_ + gy, x_ + gx + 2, " %s ", gtitle.c_str());
+		attrset(COLOR_PAIR(1));
+		mvaddstr(y_ + gy, x_ + gx, gtitle.c_str());
 	}
-	attroff(COLOR_PAIR(1));
+	attrset(0);
 }
 
 void find_dialog::draw_labeled_text(int ly, int lx, const std::string& text, char hotkey) const
@@ -171,7 +157,9 @@ void find_dialog::draw() const
 		// Shadow
 		attrset(COLOR_PAIR(1));
 		mvaddstr(y_ + by, x_ + bx + btext.length(), "▄");
-		mvaddstr(y_ + by + 1, x_ + bx + 1, "▀▀▀▀▀▀"); 
+		for (size_t i = 0; i < btext.length(); ++i) {
+			mvaddstr(y_ + by + 1, x_ + bx + 1 + i, "▀");
+		}
 		
 		// Surface
 		move(y_ + by, x_ + bx);
@@ -180,8 +168,7 @@ void find_dialog::draw() const
 		
 		for (size_t i = 0; i < btext.length(); ++i) {
 			if (std::tolower(btext[i]) == std::tolower(bhot)) {
-				if (focused) attrset(COLOR_PAIR(15)); // Red on Green
-				else attrset(COLOR_PAIR(15)); // Red on Green
+				attrset(COLOR_PAIR(15)); // Red on Green
 				addch(btext[i]);
 				if (focused) attrset(COLOR_PAIR(14));
 				else attrset(COLOR_PAIR(10));
@@ -189,11 +176,11 @@ void find_dialog::draw() const
 				addch(btext[i]);
 			}
 		}
-		attrset(COLOR_PAIR(1));
+		attrset(0);
 	};
 
-	draw_btn(14, 20, "  OK  ", 'o', focus_idx_ == 10);
-	draw_btn(14, 30, " Cancel ", 'c', false);
+	draw_btn(14, 18, "  OK  ", 'o', focus_idx_ == 10);
+	draw_btn(14, 28, " Cancel ", 'c', focus_idx_ == 11);
 	draw_btn(14, 42, " Help ", 'h', false);
 
 	attrset(0);
@@ -202,11 +189,14 @@ void find_dialog::draw() const
 dialog_result find_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
-	if (key == 13 || key == 10 || key == KEY_ENTER) return dialog_result::confirmed;
+	if (key == 13 || key == 10 || key == KEY_ENTER) {
+		if (focus_idx_ == 11) return dialog_result::cancelled;
+		return dialog_result::confirmed;
+	}
 	
 	if (key == '\t' || key == KEY_BTAB) {
-		if (key == '\t') focus_idx_ = (focus_idx_ + 1) % 11;
-		else focus_idx_ = (focus_idx_ - 1 + 11) % 11;
+		if (key == '\t') focus_idx_ = (focus_idx_ + 1) % 12;
+		else focus_idx_ = (focus_idx_ - 1 + 12) % 12;
 		return dialog_result::pending;
 	}
 
@@ -228,6 +218,7 @@ dialog_result find_dialog::handle_key(int key)
 			case 8: params_.from_cursor = true; break;
 			case 9: params_.from_cursor = false; break;
 			case 10: return dialog_result::confirmed;
+			case 11: return dialog_result::cancelled;
 		}
 	}
 	
