@@ -9,12 +9,6 @@ menu_bar::menu_bar()
 		{"File", 'f', {{"Exit", event_type::quit}}},
 		{"Edit", 'e', {}},
 		{"Search", 's', {}},
-		{"Run", 'r', {}},
-		{"Compile", 'c', {}},
-		{"Debug", 'd', {}},
-		{"Tools", 't', {}},
-		{"Options", 'o', {}},
-		{"Window", 'w', {}},
 		{"Help", 'h', {}}
 	};
 }
