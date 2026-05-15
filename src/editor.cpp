@@ -277,6 +277,34 @@ void editor::dispatch(const editor_event& ev)
 	if (ev.type == event_type::key_press) {
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 		
+		// 1. Modal Dialogs have highest priority
+		if (current_focus_ == focus_target::dialog && active_dialog_) {
+			dialog_result res = active_dialog_->handle_key(ev.key_code);
+			if (res == dialog_result::confirmed) {
+				auto doc = documents_[0];
+				if (active_dialog_mode_ == dialog_mode::load) {
+					doc->load_from_file(active_dialog_->get_result());
+				} else if (active_dialog_mode_ == dialog_mode::save) {
+					doc->save_to_file(active_dialog_->get_result());
+				} else if (active_dialog_mode_ == dialog_mode::search) {
+					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
+					if (f_dialog) {
+						current_search_ = f_dialog->get_search_params();
+						doc->find_next(current_search_);
+					}
+				}
+				active_dialog_.reset();
+				active_dialog_mode_ = dialog_mode::none;
+				set_focus(focus_target::window, "dialog_close");
+			} else if (res == dialog_result::cancelled) {
+				active_dialog_.reset();
+				active_dialog_mode_ = dialog_mode::none;
+				set_focus(focus_target::window, "dialog_cancel");
+			}
+			return;
+		}
+
+		// 2. Status Bar Search Prompt
 		if (is_searching_prompt_) {
 			if (ev.key_code == 27) { // ESC
 				is_searching_prompt_ = false;
@@ -327,33 +355,7 @@ void editor::dispatch(const editor_event& ev)
 			}
 		}
 
-		// Route based on focus
-		if (current_focus_ == focus_target::dialog && active_dialog_) {
-			dialog_result res = active_dialog_->handle_key(ev.key_code);
-			if (res == dialog_result::confirmed) {
-				auto doc = documents_[0];
-				if (active_dialog_mode_ == dialog_mode::load) {
-					doc->load_from_file(active_dialog_->get_result());
-				} else if (active_dialog_mode_ == dialog_mode::save) {
-					doc->save_to_file(active_dialog_->get_result());
-				} else if (active_dialog_mode_ == dialog_mode::search) {
-					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
-					if (f_dialog) {
-						current_search_ = f_dialog->get_search_params();
-						doc->find_next(current_search_);
-					}
-				}
-				active_dialog_.reset();
-				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window, "dialog_close");
-			} else if (res == dialog_result::cancelled) {
-				active_dialog_.reset();
-				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window, "dialog_cancel");
-			}
-			return;
-		}
-
+		// Route based on focus (Windows/Menu Bar)
 		if (current_focus_ == focus_target::menu_bar) {
 			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
 				if (!top_menu_.is_open()) {
