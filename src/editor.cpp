@@ -4,10 +4,12 @@
 #include "event_logger.h"
 #include "file_dialog.h"
 #include "find_dialog.h"
+#include "history_manager.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename, bool exit_immediately)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
+	history_manager::get_instance().load();
 	new_window(filename);
 }
 
@@ -189,6 +191,9 @@ void editor::run()
 			render();
 		}
 	}
+
+	// Save history on exit
+	history_manager::get_instance().save();
 }
 
 bool editor::handle_q_block_key(int key)
@@ -367,6 +372,7 @@ void editor::dispatch(const editor_event &ev)
 
 		if (active_doc && active_doc->has_nondefault_filename()) {
 			active_doc->save();
+			history_manager::get_instance().add_file(active_doc->get_filename());
 			// Update window title and menu to clear dirty flag
 			for (auto &w : windows_) {
 				if (w->get_document() == active_doc) {
@@ -450,9 +456,13 @@ void editor::dispatch(const editor_event &ev)
 					doc = documents_[0]; // Default fallback
 
 				if (active_dialog_mode_ == dialog_mode::load) {
-					new_window(active_dialog_->get_result());
+					std::string result_path = active_dialog_->get_result();
+					new_window(result_path);
+					history_manager::get_instance().add_file(result_path);
 				} else if (active_dialog_mode_ == dialog_mode::save) {
-					doc->save_to_file(active_dialog_->get_result());
+					std::string result_path = active_dialog_->get_result();
+					doc->save_to_file(result_path);
+					history_manager::get_instance().add_file(result_path);
 					// Update window title
 					for (auto &w : windows_) {
 						if (w->get_document() == doc) {
@@ -465,6 +475,7 @@ void editor::dispatch(const editor_event &ev)
 					auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
 					if (f_dialog) {
 						current_search_ = f_dialog->get_search_params();
+						history_manager::get_instance().add_search(current_search_.query);
 						if (doc->find_next(current_search_)) {
 							editor_event redraw_ev;
 							redraw_ev.type = event_type::redraw;
@@ -495,6 +506,8 @@ void editor::dispatch(const editor_event &ev)
 				current_search_.backward = false;
 				current_search_.selected_text_only = false;
 				current_search_.from_cursor = true;
+				
+				history_manager::get_instance().add_search(current_search_.query);
 
 				std::shared_ptr<document> active_doc = get_active_doc();
 

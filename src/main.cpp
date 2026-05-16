@@ -1,3 +1,5 @@
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <locale.h>
 #include <ncurses.h>
@@ -5,6 +7,16 @@
 #include "CLI11.hpp"
 #include "editor.h"
 #include "event_logger.h"
+
+namespace fs = std::filesystem;
+
+std::string get_home_dir()
+{
+	const char *home = getenv("HOME");
+	if (home)
+		return std::string(home);
+	return ".";
+}
 
 int main(int argc, char **argv)
 {
@@ -22,6 +34,25 @@ int main(int argc, char **argv)
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filename", filename, "File to edit");
 	app.set_version_flag("--version", TURBOSTAR_VERSION);
+
+	std::string config_path = get_home_dir() + "/.turbostar";
+	app.set_config("--config", config_path, "Read an ini file", false);
+
+	// Ensure default config file exists
+	// Policy: If ~/.turbostar does not exist, we write out a default one.
+	// Currently we have no default configuration settings, but this establishes
+	// the pattern for when we add them (e.g., tab width, theme).
+	if (!fs::exists(config_path)) {
+		try {
+			std::ofstream default_config(config_path);
+			if (default_config.is_open()) {
+				default_config << "# Turbostar Configuration File\n";
+				default_config << "# Currently no default settings are applied, but this file is ready for future options.\n";
+			}
+		} catch (...) {
+			// Ignore errors creating default config
+		}
+	}
 
 	CLI11_PARSE(app, argc, argv);
 
