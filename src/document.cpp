@@ -8,6 +8,7 @@
 #include <regex>
 #include "event_logger.h"
 #include "config_manager.h"
+#include "git_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -72,6 +73,7 @@ bool document::load_from_file(const std::string &filename)
 	event_logger::get_instance().log("Document loaded from: " + filename + " (" +
 					 std::to_string(line_count_unlocked()) + " lines)");
 	lock.unlock();
+	git_manager::get_instance().request_status(filename);
 	notify_cursor_changed();
 	return true;
 }
@@ -150,6 +152,7 @@ bool document::save_to_file(const std::string &filename)
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
+	git_manager::get_instance().request_status(filename);
 	notify_cursor_changed();
 	return true;
 }
