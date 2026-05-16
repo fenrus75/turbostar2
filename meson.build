@@ -5,6 +5,7 @@ project('turbostar', 'cpp',
 add_project_arguments('-DTURBOSTAR_VERSION="' + meson.project_version() + '"', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
+git_prog = find_program('git', required: false)
 ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
   ncurses_dep = cc.find_library('ncursesw', required : true)
@@ -165,12 +166,14 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
-  test('e2e_git', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_git.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60
-  )
+  if git_prog.found()
+    test('e2e_git', python,
+      args: [join_paths(meson.project_source_root(), 'tests/e2e/test_git.py')],
+      env: e2e_env,
+      workdir: meson.project_build_root(),
+      timeout: 60
+    )
+  endif
 
   test('e2e_block_copy_move', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_block_copy_move.py')],
