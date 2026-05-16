@@ -1,4 +1,5 @@
 #include "event_queue.h"
+#include "event_logger.h"
 
 void event_queue::push(const editor_event &ev)
 {

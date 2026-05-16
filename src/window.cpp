@@ -329,6 +329,12 @@ void window::draw_border() const
 		if (last_slash != std::string::npos) {
 			current_title = current_title.substr(last_slash + 1);
 		}
+
+		std::string branch = doc_->get_git_branch();
+		if (!branch.empty() && branch != "main" && branch != "master") {
+			current_title += " (" + branch + ")";
+		}
+
 		if (doc_->is_modified()) {
 			current_title += "*";
 		}
@@ -372,14 +378,14 @@ void window::draw_border() const
 
 	// Draw Git Status
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
-		git_status status = git_manager::get_instance().get_cached_status(doc_->get_filename());
+		git_info info = git_manager::get_instance().get_cached_info(doc_->get_filename());
 		std::string indicator = "[?]";
 		int pair = 5;
 
-		if (status == git_status::clean) {
+		if (info.status == git_status::clean) {
 			indicator = "[✔]";
 			pair = 20;
-		} else if (status == git_status::dirty) {
+		} else if (info.status == git_status::dirty) {
 			indicator = "[✎]";
 			pair = 21;
 		}

@@ -127,21 +127,33 @@ class TurbostarRunner:
         actual_y, actual_x = self.get_cursor_position()
         raise AssertionError(f"Cursor position mismatch! Expected ({expected_y}, {expected_x}), got ({actual_y}, {actual_x}) after timeout")
 
-    def assert_text_on_screen(self, text):
-        self._read_output()
-        for line in self.screen.display:
-            if text in line:
-                return
+    def assert_text_on_screen(self, text, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._read_output()
+            for line in self.screen.display:
+                if text in line:
+                    return
+            time.sleep(0.1)
         
         display_str = "\n".join(self.screen.display)
-        raise AssertionError(f"Text '{text}' not found on screen. Screen content:\n{display_str}")
+        raise AssertionError(f"Text '{text}' not found on screen after {timeout}s. Screen content:\n{display_str}")
 
-    def assert_text_not_on_screen(self, text):
-        self._read_output()
-        for line in self.screen.display:
-            if text in line:
-                display_str = "\n".join(self.screen.display)
-                raise AssertionError(f"Text '{text}' found on screen, but should not be. Screen content:\n{display_str}")
+    def assert_text_not_on_screen(self, text, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._read_output()
+            found = False
+            for line in self.screen.display:
+                if text in line:
+                    found = True
+                    break
+            if not found:
+                return
+            time.sleep(0.1)
+
+        display_str = "\n".join(self.screen.display)
+        raise AssertionError(f"Text '{text}' found on screen after {timeout}s, but should not be. Screen content:\n{display_str}")
 
     def assert_selection_is(self, start_y, start_x, end_y, end_x, timeout=1.0):
         """

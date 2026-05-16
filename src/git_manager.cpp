@@ -55,14 +55,14 @@ void git_manager::git_add(const std::string &filepath)
 	cv_.notify_one();
 }
 
-git_status git_manager::get_cached_status(const std::string &filepath) const
+git_info git_manager::get_cached_info(const std::string &filepath) const
 {
 	std::unique_lock lock(cache_mutex_);
 	auto it = status_cache_.find(filepath);
 	if (it != status_cache_.end()) {
 		return it->second;
 	}
-	return git_status::unknown;
+	return {};
 }
 
 void git_manager::worker_loop()
@@ -79,13 +79,13 @@ void git_manager::worker_loop()
 		}
 
 		if (req.type == request_type::status) {
-			git_status status = run_git_status_cmd(req.filepath);
+			git_info info = run_git_status_cmd(req.filepath);
 
 			bool changed = false;
 			{
 				std::unique_lock lock(cache_mutex_);
-				if (status_cache_[req.filepath] != status) {
-					status_cache_[req.filepath] = status;
+				if (status_cache_[req.filepath].status != info.status || status_cache_[req.filepath].branch != info.branch) {
+					status_cache_[req.filepath] = info;
 					changed = true;
 				}
 			}
@@ -112,13 +112,15 @@ void git_manager::run_git_add_cmd(const std::string &filepath)
 		dir = ".";
 
 	std::string cmd = "git -C " + dir + " add " + file + " 2>/dev/null";
-	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
 }
 
-git_status git_manager::run_git_status_cmd(const std::string &filepath)
+git_info git_manager::run_git_status_cmd(const std::string &filepath)
 {
+	git_info info;
+
 	if (!fs::exists(filepath))
-		return git_status::unknown;
+		return info;
 
 	fs::path p(filepath);
 	std::string dir = p.parent_path().string();
@@ -126,12 +128,25 @@ git_status git_manager::run_git_status_cmd(const std::string &filepath)
 	if (dir.empty())
 		dir = ".";
 
+	// Fetch branch
+	std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
+	std::unique_ptr<FILE, int (*)(FILE *)> branch_pipe(popen(branch_cmd.c_str(), "r"), pclose);
+	if (branch_pipe) {
+		std::array<char, 128> buf;
+		if (fgets(buf.data(), buf.size(), branch_pipe.get()) != nullptr) {
+			info.branch = buf.data();
+			if (!info.branch.empty() && info.branch.back() == '\n')
+				info.branch.pop_back();
+		}
+	}
+	event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + filepath);
+
 	// Use -C to run git from the file's directory, so it correctly finds the repo.
 	std::string cmd = "git -C " + dir + " status --porcelain -u " + file + " 2>/dev/null";
-	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
 
 	if (!pipe) {
-		return git_status::unknown;
+		return info;
 	}
 
 	std::array<char, 128> buffer;
@@ -140,34 +155,24 @@ git_status git_manager::run_git_status_cmd(const std::string &filepath)
 		result += buffer.data();
 	}
 
-	// If result is empty, it could be clean or not a repo.
-	// But we redirected stderr, so we can't easily distinguish via output.
-	// However, if it's clean and in a repo, exit code is 0.
-	// If it's NOT a repo, exit code is 128.
-	// popen/pclose return wait() status.
-	
-	// Wait, I can't easily get the exit code from popen on all platforms 
-	// without WEXITSTATUS macro, which works on POSIX.
-	
-	// Let's check the result first.
 	if (!result.empty()) {
 		if (result.substr(0, 2) == "??") {
-			return git_status::untracked;
+			info.status = git_status::untracked;
+		} else {
+			info.status = git_status::dirty;
 		}
-		// Any other porcelain prefix means dirty (M, A, D, R, C, U)
-		return git_status::dirty;
+	} else {
+		// Result is empty. Check if we are in a git repo.
+		std::string check_cmd = "git -C " + dir + " rev-parse --is-inside-work-tree 2>/dev/null";
+		std::unique_ptr<FILE, int (*)(FILE *)> check_pipe(popen(check_cmd.c_str(), "r"), pclose);
+		std::array<char, 64> check_buffer;
+		if (check_pipe && fgets(check_buffer.data(), check_buffer.size(), check_pipe.get()) != nullptr) {
+			std::string check_res = check_buffer.data();
+			if (check_res.find("true") != std::string::npos) {
+				info.status = git_status::clean;
+			}
+		}
 	}
 
-	// Result is empty. Check if we are in a git repo.
-	std::string check_cmd = "git -C " + dir + " rev-parse --is-inside-work-tree 2>/dev/null";
-	std::unique_ptr<FILE, decltype(&pclose)> check_pipe(popen(check_cmd.c_str(), "r"), pclose);
-	std::array<char, 64> check_buffer;
-	if (check_pipe && fgets(check_buffer.data(), check_buffer.size(), check_pipe.get()) != nullptr) {
-		std::string check_res = check_buffer.data();
-		if (check_res.find("true") != std::string::npos) {
-			return git_status::clean;
-		}
-	}
-
-	return git_status::unknown;
+	return info;
 }

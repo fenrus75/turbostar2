@@ -23,6 +23,7 @@ enum class event_type {
 	settings,     ///< Request to show settings dialog
 	git_status_updated, ///< Notification that git status has changed
 	git_add,      ///< Request to git-add current file
+	git_refresh,  ///< Request to refresh git status manually
 	select_window ///< Request to switch active window (key_code is index)
 };
 

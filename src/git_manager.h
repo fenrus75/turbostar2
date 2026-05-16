@@ -16,6 +16,11 @@ enum class git_status {
 	untracked
 };
 
+struct git_info {
+	git_status status{git_status::unknown};
+	std::string branch;
+};
+
 /**
  * @brief Manages Git status checks asynchronously using child processes.
  */
@@ -40,14 +45,14 @@ class git_manager
 	/**
 	 * @brief Synchronously returns the last known status of a file.
 	 */
-	git_status get_cached_status(const std::string &filepath) const;
+	git_info get_cached_info(const std::string &filepath) const;
 
       private:
 	git_manager() = default;
 	~git_manager();
 
 	void worker_loop();
-	git_status run_git_status_cmd(const std::string &filepath);
+	git_info run_git_status_cmd(const std::string &filepath);
 	void run_git_add_cmd(const std::string &filepath);
 
 	enum class request_type { status, add };
@@ -63,6 +68,6 @@ class git_manager
 	std::atomic<bool> stop_thread_{false};
 
 	mutable std::mutex cache_mutex_;
-	std::unordered_map<std::string, git_status> status_cache_;
+	std::unordered_map<std::string, git_info> status_cache_;
 	event_queue *global_queue_{nullptr};
 };

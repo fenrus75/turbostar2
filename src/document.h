@@ -65,6 +65,8 @@ class document
 	const std::string &get_filename() const;
 	bool has_nondefault_filename() const;
 	bool is_modified() const;
+	std::string get_git_branch() const;
+	void set_git_branch(const std::string &branch);
 
 	// Basic accessors for now
 	int line_count() const;
@@ -139,6 +141,7 @@ class document
 	mutable std::shared_mutex mutex_;
 
 	std::string filename_;
+	std::string git_branch_;
 	bool modified_{false};
 
 	int cursor_x_{0};

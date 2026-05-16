@@ -2,14 +2,27 @@
 
 # mid term items
 
+- support for LSP servers
+   - will need to be some per document thread? or will this be a global thread? need arch analysis
+   - avoids needing to use tree-sitter, which is a mess in reality
+   - seems https://github.com/leon-bckl/lsp-framework is the better C++ framework
+       - decision needed: do we want to make this a git submodule? Or do we build our own instead?
+       - other options seem to pull in boost and other nightmares
+   - we'd use clangd exclusively, which is fine in practice
+   - first feature would be "hover" information  that we can put live in the status bar
+
+   - this should get us on the road to better syntax highlighting, but we still need the general syntax highlighting improvements first
+
 - improve syntax highlighting
    - multiple languages support (first one: markdown)
    - we will need an abstraction between the syntax highlighting thread and the language, one class per language most likely
    - each class should have a method for "is this filename for me" that returns a bool - the first one to say "yes" wins 
    - need to reevaluate this on "Save As" as the filename changes 
    - need to standardize between languages what the attributes mean, some sort of C++ enum equivalent
+   - need to build it so that we can, over time, get to the LSP server approach
 
 # long term items
+   
 
 - add a compile output window somehow
    - meson first, maybe later cmake and autoconf
@@ -19,8 +32,6 @@
 
 
 # done items (items move here on completion)
-
-- top level "Git" menu with "Git add" as first operation
 
 - better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
    - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
