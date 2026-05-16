@@ -11,6 +11,7 @@
 - code cleanup
     - window.cpp lines 54-106 is a chain of if statements that could
     	be a switch()
+
 - src/dialog.cpp uses A_REVERSE
      - needs to get explicit colors instead
 
@@ -31,6 +32,12 @@
 
 - we should extend the default test timeout to 60 seconds as we do many delays
 
+- add ^KL for "go to line" - ask the line number in the status bar and then move the Y cursor to that line
+
+- our testing framework struggles with finding the turbostar binary as we
+  can use different buildroot -- can we teach meson to copy the result to
+  our testrun directory?
+
 # mid term items
 
 - improve syntax highlighting
@@ -48,6 +55,10 @@
 
 
 # done items (items move here on completion)
+
+- our testing framework struggles with finding the turbostar binary as we
+  can use different buildroot -- can we teach meson to copy the result to
+  our testrun directory?
 
 - code cleanup
     - window.cpp lines 54-106 is a chain of if statements that could

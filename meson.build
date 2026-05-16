@@ -13,11 +13,20 @@ endif
 
 subdir('src')
 
-executable('turbostar',
+turbostar_exe = executable('turbostar',
   turbostar_sources,
   dependencies : [ncurses_dep],
   include_directories: include_directories('include'),
   install : true)
+
+# --- Automated binary deployment to testrun/ ---
+# This ensures that E2E tests always use the latest built binary.
+custom_target('copy_to_testrun',
+  input: turbostar_exe,
+  output: 'turbostar_deploy_dummy',
+  command: ['cp', '@INPUT@', join_paths(meson.project_source_root(), 'testrun/turbostar')],
+  build_by_default: true
+)
 
 # --- Tests ---
 # Unit tests
@@ -51,6 +60,12 @@ if python.found()
   )
   test('e2e_cursor', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 10
+  )
+  test('e2e_cursor_wrap', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor_wrap.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
     timeout: 10

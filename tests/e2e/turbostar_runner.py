@@ -23,11 +23,8 @@ class TurbostarRunner:
         testrun_dir = os.path.join(project_root, 'testrun')
         os.makedirs(testrun_dir, exist_ok=True)
 
-        exe_path = os.path.join(os.environ.get('MESON_BUILD_ROOT', project_root), 'turbostar')
-        if not os.path.exists(exe_path):
-            exe_path = os.path.join(project_root, 'turbostar')
-        
-        exe_path = os.path.abspath(exe_path)
+        # Binary is now automatically copied to testrun/ by the build system
+        exe_path = './turbostar'
         log_path_abs = os.path.abspath(self.log_path)
 
         cmd = [exe_path, '--log', log_path_abs]
@@ -82,9 +79,10 @@ class TurbostarRunner:
     def send_raw_keys(self, keys):
         if isinstance(keys, str):
             keys = keys.encode('utf-8')
-        time.sleep(0.1)
-        os.write(self.master_fd, keys)
-        time.sleep(0.1)
+        for char_byte in keys:
+            time.sleep(0.01)
+            os.write(self.master_fd, bytes([char_byte]))
+            time.sleep(0.01)
         self._read_output()
 
     def wait(self, timeout=2):
