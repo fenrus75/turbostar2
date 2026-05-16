@@ -101,6 +101,7 @@ class document
 	// Selection management
 	void set_selection_start();
 	void set_selection_end();
+	void set_selection(int start_y, int start_x, int end_y, int end_x);
 	void clear_selection();
 	void delete_selection();
 	void copy_selection();

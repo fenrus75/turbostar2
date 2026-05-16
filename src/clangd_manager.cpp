@@ -205,6 +205,46 @@ void clangd_manager::request_document_highlight(const std::string &filepath, int
 	} catch (...) {}
 }
 
+void clangd_manager::request_selection_range(const std::string &filepath, int line, int character)
+{
+	if (!is_running_) return;
+
+	try {
+		auto selectionParams = lsp::requests::TextDocument_SelectionRange::Params();
+		selectionParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		selectionParams.positions.push_back({static_cast<unsigned int>(line), static_cast<unsigned int>(character)});
+
+		message_handler_->sendRequest<lsp::requests::TextDocument_SelectionRange>(
+			std::move(selectionParams),
+			[this](const lsp::requests::TextDocument_SelectionRange::Result& result) {
+				if (!result.isNull() && !result.value().empty()) {
+					if (global_queue_) {
+						editor_event ev;
+						ev.type = event_type::lsp_selection_range_result;
+						
+						// We traverse the tree from innermost to outermost
+						const lsp::SelectionRange* current = &result.value()[0];
+						while (current) {
+							ev.highlight_ranges.push_back({
+								static_cast<int>(current->range.start.line),
+								static_cast<int>(current->range.start.character),
+								static_cast<int>(current->range.end.line),
+								static_cast<int>(current->range.end.character)
+							});
+							current = current->parent.get();
+						}
+						
+						global_queue_->push(ev);
+					}
+				}
+			},
+			[](const lsp::ResponseError& error) {
+				event_logger::get_instance().log(std::string("clangd selection range error: ") + error.message());
+			}
+		);
+	} catch (...) {}
+}
+
 void clangd_manager::message_loop()
 {
 	try {

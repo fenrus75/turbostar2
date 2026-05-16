@@ -26,7 +26,8 @@ enum class event_type {
 	git_refresh,  ///< Request to refresh git status manually
 	select_window, ///< Request to switch active window (key_code is index)
 	lsp_hover_result, ///< Notification that LSP hover information is available
-	lsp_highlight_result ///< Notification that LSP document highlight is available
+	lsp_highlight_result, ///< Notification that LSP document highlight is available
+	lsp_selection_range_result ///< Notification that LSP selection range is available
 };
 
 struct text_range {

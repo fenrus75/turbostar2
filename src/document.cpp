@@ -898,6 +898,17 @@ void document::set_selection_end()
 	notify_cursor_changed();
 }
 
+void document::set_selection(int start_y, int start_x, int end_y, int end_x)
+{
+	std::unique_lock lock(mutex_);
+	selection_start_y_ = start_y;
+	selection_start_x_ = start_x;
+	selection_end_y_ = end_y;
+	selection_end_x_ = end_x;
+	lock.unlock();
+	notify_cursor_changed();
+}
+
 void document::clear_selection()
 {
 	std::unique_lock lock(mutex_);

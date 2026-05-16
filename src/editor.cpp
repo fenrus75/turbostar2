@@ -351,6 +351,16 @@ bool editor::handle_k_block_key(int key)
 			active_doc->format_paragraph();
 		}
 		return true;
+	} else if (c == ']') {
+		logger.log("K-block: Expand Selection (LSP)");
+		if (active_doc && !active_doc->get_filename().empty()) {
+			clangd_manager::get_instance().request_selection_range(
+				active_doc->get_filename(),
+				active_doc->get_cursor_y(),
+				active_doc->get_cursor_x()
+			);
+		}
+		return true;
 	} else if (c == '[' || c == '{') {
 		logger.log("K-block: Select Scope");
 		std::shared_ptr<document> active_doc = get_active_doc();
@@ -572,6 +582,41 @@ void editor::dispatch(const editor_event &ev)
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
 			active_doc->set_lsp_highlights(ev.highlight_ranges);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::lsp_selection_range_result) {
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc && !ev.highlight_ranges.empty()) {
+			int sel_start_x = -1, sel_start_y = -1, sel_end_x = -1, sel_end_y = -1;
+			bool has_sel = active_doc->has_selection();
+			if (has_sel) {
+				active_doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+			}
+
+			// We traverse from innermost to outermost to find the first range strictly larger than the current selection.
+			// Or if no selection exists, we pick the innermost one (the first element).
+			for (const auto& range : ev.highlight_ranges) {
+				if (!has_sel) {
+					active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+					break;
+				} else {
+					// Check if this range is strictly larger than the current selection
+					if (range.start_y < sel_start_y || 
+					    (range.start_y == sel_start_y && range.start_x < sel_start_x) ||
+					    range.end_y > sel_end_y ||
+					    (range.end_y == sel_end_y && range.end_x > sel_end_x)) {
+					    
+					    active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+					    break;
+					}
+				}
+			}
+			
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 		}
 		return;
 	}
