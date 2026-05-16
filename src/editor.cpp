@@ -150,7 +150,7 @@ void editor::run()
 			} else {
 				// Character or ESC sequence
 				if (wch == 27) { // ESC sequence
-					nodelay(stdscr, TRUE);
+					timeout(0); // Non-blocking for sequence check
 					wint_t next_wch;
 					int next_res = get_wch(&next_wch);
 					if (next_res != ERR && next_res != KEY_CODE_YES && next_wch == '[') {
@@ -188,7 +188,7 @@ void editor::run()
 						ev.key_code = 27; // Bare ESC
 						global_queue_.push(ev);
 					}
-					nodelay(stdscr, FALSE);
+					timeout(50); // Restore 50ms timeout
 				} else {
 					// Printable character or UTF-8 sequence
 					ev.type = event_type::key_press;
@@ -518,6 +518,10 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::git_status_updated) {
 		logger.log("Dispatching git_status_updated event.");
+		for (auto &doc : documents_) {
+			git_info info = git_manager::get_instance().get_cached_info(doc->get_filename());
+			doc->set_git_branch(info.branch);
+		}
 		for (auto &win : windows_) {
 			win->invalidate();
 		}
@@ -529,6 +533,15 @@ void editor::dispatch(const editor_event &ev)
 		std::shared_ptr<document> doc = get_active_doc();
 		if (doc && !doc->get_filename().empty()) {
 			git_manager::get_instance().git_add(doc->get_filename());
+		}
+		return;
+	}
+
+	if (ev.type == event_type::git_refresh) {
+		logger.log("Dispatching git_refresh event.");
+		std::shared_ptr<document> doc = get_active_doc();
+		if (doc && !doc->get_filename().empty()) {
+			git_manager::get_instance().request_status(doc->get_filename());
 		}
 		return;
 	}

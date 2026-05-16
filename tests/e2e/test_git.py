@@ -30,29 +30,45 @@ def test_git_integration():
         time.sleep(1.0)
         
         # 3. Verify [✔] (Clean) is shown
-        runner.assert_text_on_screen("[✔]")
-        
+        runner.assert_text_on_screen("[✔]", timeout=2.0)
+
         # 4. Modify the file in the editor
         runner.send_keys("Modifying...")
-        time.sleep(0.5)
-        
+
         # 5. Save the file
         runner.send_keys('\x0b' + 's') # ^K S (Save)
-        time.sleep(1.0) # Wait for git status thread
+
         # 6. Verify [✎] (Dirty) is shown
-        runner.assert_text_on_screen("[✎]")
+        runner.assert_text_on_screen("[✎]", timeout=2.0)
 
         # 7. Use "Git add" via menu
         # Alt+G for Git menu, then 'a' for Add
         runner.send_keys('\x1b' + 'g')
         time.sleep(0.5)
         runner.send_keys('a')
-        time.sleep(1.0)
 
         # Verify it staged the file
-        res = subprocess.run(['git', 'status', '--porcelain', 'test.txt'], cwd=repo_dir, capture_output=True, text=True)
-        # Staged change starts with 'M ' (not ' M')
-        assert res.stdout.startswith('M ')
+        # Wait a bit for the async command
+        start_t = time.time()
+        staged = False
+        while time.time() - start_t < 3.0:
+            res = subprocess.run(['git', 'status', '--porcelain', 'test.txt'], cwd=repo_dir, capture_output=True, text=True)
+            if res.stdout.startswith('M '):
+                staged = True
+                break
+            time.sleep(0.1)
+        assert staged
+
+        # 8. Create a new branch and verify it's shown in the UI
+        subprocess.run(['git', 'checkout', '-b', 'feature-x'], cwd=repo_dir, capture_output=True)
+        # Trigger refresh by saving
+        runner.send_keys('\x0b' + 's')
+        try:
+            runner.assert_text_on_screen("(feature-x)", timeout=5.0)
+
+        except AssertionError as e:
+            print(f"Log contents:\n{runner.get_log()}")
+            raise e
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
 

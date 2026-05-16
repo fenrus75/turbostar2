@@ -108,12 +108,19 @@ bool document::save()
 {
 	std::shared_lock lock(mutex_);
 	std::string fname = filename_;
+	bool modified = modified_;
 	lock.unlock();
 
 	if (fname.empty()) {
 		event_logger::get_instance().log("Save failed: No filename specified.");
 		return false;
 	}
+
+	if (!modified) {
+		git_manager::get_instance().request_status(fname);
+		return true;
+	}
+
 	return save_to_file(fname);
 }
 
@@ -199,16 +206,28 @@ bool document::is_modified() const
 	return modified_;
 }
 
-size_t document::get_line_count() const
+std::string document::get_git_branch() const
 {
 	std::shared_lock lock(mutex_);
-	return line_count_unlocked();
+	return git_branch_;
+}
+
+void document::set_git_branch(const std::string &branch)
+{
+	std::unique_lock lock(mutex_);
+	git_branch_ = branch;
 }
 
 int document::line_count() const
 {
 	std::shared_lock lock(mutex_);
 	return line_count_unlocked();
+}
+
+size_t document::get_line_count() const
+{
+	std::shared_lock lock(mutex_);
+	return static_cast<size_t>(line_count_unlocked());
 }
 
 int document::line_count_unlocked() const
