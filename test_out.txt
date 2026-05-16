@@ -1,0 +1,34 @@
+Traceback (most recent call last):
+  File "/home/arjanvandeven/git/turbostar/tests/e2e/test_undo_redo.py", line 47, in <module>
+    test_undo_redo()
+    ~~~~~~~~~~~~~~^^
+  File "/home/arjanvandeven/git/turbostar/tests/e2e/test_undo_redo.py", line 33, in test_undo_redo
+    runner.assert_text_on_screen("Hello ")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/home/arjanvandeven/git/turbostar/tests/e2e/turbostar_runner.py", line 131, in assert_text_on_screen
+    raise AssertionError(f"Text '{text}' not found on screen. Screen content:\n{display_str}")
+AssertionError: Text 'Hello ' not found on screen. Screen content:
+  File  Edit  Search  Window  Help                                              
+╔═[■]════════════════════════════ unknown.txt* ═══════════════════════════=1=══╗
+║Hellod                                                                        ▲
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▒
+║                                                                              ▼
+╚◄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒►╝
+ 1:6   F1 Help                                                                  

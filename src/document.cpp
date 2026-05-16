@@ -132,6 +132,12 @@ void document::clear()
 	cursor_y_ = 0;
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
+	
+	undo_stack_.clear();
+	redo_stack_.clear();
+	current_action_group_.actions.clear();
+	edit_group_depth_ = 0;
+
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -228,11 +234,14 @@ void document::insert_char(const std::string &utf8_char)
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->insert_at(cursor_x_, utf8_char);
 		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_++;
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -242,15 +251,22 @@ void document::backspace()
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_x_ > 0) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_ - 1, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_ - 1);
 		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_--;
 		set_modified();
+		end_edit_group();
 	} else if (cursor_y_ > 0) {
 		// Join with previous line
 		int prev_line_idx = cursor_y_ - 1;
 		int prev_line_char_len = lines_[prev_line_idx]->length_in_chars();
+
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, prev_line_idx, lines_[prev_line_idx]);
+		record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
 
 		adjust_selection_for_join(cursor_y_, cursor_x_);
 
@@ -261,6 +277,7 @@ void document::backspace()
 		cursor_y_ = prev_line_idx;
 		cursor_x_ = prev_line_char_len;
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -271,18 +288,25 @@ void document::delete_char()
 	std::unique_lock lock(mutex_);
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < line_char_len) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_);
 		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
+		end_edit_group();
 	} else if (cursor_y_ < line_count_unlocked() - 1) {
 		// Join next line into this one
 		int next_line_idx = cursor_y_ + 1;
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+		record_action(edit_action::action_type::delete_line, next_line_idx, lines_[next_line_idx]);
 		adjust_selection_for_join(next_line_idx, 0);
 		lines_[cursor_y_]->merge(*lines_[next_line_idx]);
 		mark_line_dirty(lines_[cursor_y_]);
 		lines_.erase(lines_.begin() + next_line_idx);
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -294,12 +318,15 @@ void document::delete_to_eol()
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
 		for (int i = 0; i < count; ++i) {
 			lines_[cursor_y_]->remove_at(cursor_x_);
 		}
 		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -310,6 +337,8 @@ void document::delete_to_bol()
 	std::unique_lock lock(mutex_);
 	int count = cursor_x_;
 	if (count > 0) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, 0, count);
 		for (int i = 0; i < count; ++i) {
 			lines_[cursor_y_]->remove_at(0);
@@ -317,6 +346,7 @@ void document::delete_to_bol()
 		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_ = 0;
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -340,12 +370,15 @@ void document::delete_word_forward()
 
 	int count = i - cursor_x_;
 	if (count > 0) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
 		for (int j = 0; j < count; ++j) {
 			lines_[cursor_y_]->remove_at(cursor_x_);
 		}
 		mark_line_dirty(lines_[cursor_y_]);
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -368,6 +401,8 @@ void document::delete_word_backward()
 
 	int count = cursor_x_ - i;
 	if (count > 0) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, i, count);
 		for (int j = 0; j < count; ++j) {
 			lines_[cursor_y_]->remove_at(i);
@@ -375,6 +410,7 @@ void document::delete_word_backward()
 		mark_line_dirty(lines_[cursor_y_]);
 		cursor_x_ = i;
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -384,15 +420,22 @@ void document::split_line()
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+		
 		adjust_selection_for_split(cursor_y_, cursor_x_);
 		auto new_l = std::make_shared<line>("");
 		lines_[cursor_y_]->split_at(cursor_x_, *new_l);
 		mark_line_dirty(lines_[cursor_y_]);
 		mark_line_dirty(new_l);
 		lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
+		
+		record_action(edit_action::action_type::insert_line, cursor_y_ + 1, nullptr);
+		
 		cursor_y_++;
 		cursor_x_ = 0;
 		set_modified();
+		end_edit_group();
 	}
 	lock.unlock();
 	notify_cursor_changed();
@@ -523,6 +566,8 @@ void document::delete_line()
 {
 	std::unique_lock lock(mutex_);
 	if (line_count_unlocked() <= 1) {
+		begin_edit_group();
+		record_action(edit_action::action_type::replace_line, 0, lines_[0]);
 		lines_[0]->set_text("");
 		mark_line_dirty(lines_[0]);
 		selection_start_x_ = selection_start_y_ = -1;
@@ -530,11 +575,14 @@ void document::delete_line()
 		cursor_x_ = 0;
 		cursor_y_ = 0;
 		set_modified();
+		end_edit_group();
 		lock.unlock();
 		notify_cursor_changed();
 		return;
 	}
 
+	begin_edit_group();
+	record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
 	adjust_selection_for_line_delete(cursor_y_);
 	lines_.erase(lines_.begin() + cursor_y_);
 	if (cursor_y_ >= line_count_unlocked()) {
@@ -543,6 +591,7 @@ void document::delete_line()
 
 	cursor_x_ = 0;
 	set_modified();
+	end_edit_group();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -630,11 +679,19 @@ void document::delete_selection()
 		ey = selection_start_y_;
 	}
 
+	begin_edit_group();
+
 	if (sy == ey) {
+		record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
 		for (int i = 0; i < (ex - sx); ++i)
 			lines_[sy]->remove_at(sx);
 		mark_line_dirty(lines_[sy]);
 	} else {
+		record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
+		for (int i = sy + 1; i <= ey; ++i) {
+			record_action(edit_action::action_type::delete_line, i, lines_[i]);
+		}
+		
 		line tail_line("");
 		lines_[ey]->split_at(ex, tail_line);
 		line throwaway("");
@@ -643,6 +700,8 @@ void document::delete_selection()
 		mark_line_dirty(lines_[sy]);
 		lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
 	}
+
+	end_edit_group();
 
 	cursor_x_ = sx;
 	cursor_y_ = sy;
@@ -665,7 +724,10 @@ void document::copy_selection()
 	std::vector<line> block = get_selection_block();
 	int tx = cursor_x_;
 	int ty = cursor_y_;
+	
+	begin_edit_group();
 	insert_block(block);
+	end_edit_group();
 
 	selection_start_x_ = tx;
 	selection_start_y_ = ty;
@@ -693,6 +755,8 @@ void document::move_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
+	begin_edit_group();
+
 	lock.unlock();
 	delete_selection();
 	lock.lock();
@@ -708,6 +772,8 @@ void document::move_selection()
 	int fx = cursor_x_;
 	int fy = cursor_y_;
 	insert_block(block);
+
+	end_edit_group();
 
 	selection_start_x_ = fx;
 	selection_start_y_ = fy;
@@ -726,6 +792,10 @@ void document::insert_block(const std::vector<line> &block)
 {
 	if (block.empty())
 		return;
+	
+	begin_edit_group();
+	record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+	
 	line tail("");
 	lines_[cursor_y_]->split_at(cursor_x_, tail);
 	lines_[cursor_y_]->merge(block[0]);
@@ -734,8 +804,11 @@ void document::insert_block(const std::vector<line> &block)
 		for (size_t i = 1; i < block.size(); ++i) {
 			auto nl = std::make_shared<line>(block[i]);
 			lines_.insert(lines_.begin() + cursor_y_ + i, nl);
+			record_action(edit_action::action_type::insert_line, cursor_y_ + i, nullptr);
 			mark_line_dirty(nl);
 		}
+		
+		record_action(edit_action::action_type::replace_line, cursor_y_ + block.size() - 1, lines_[cursor_y_ + block.size() - 1]);
 		lines_[cursor_y_ + block.size() - 1]->merge(tail);
 		mark_line_dirty(lines_[cursor_y_ + block.size() - 1]);
 	} else {
@@ -747,6 +820,8 @@ void document::insert_block(const std::vector<line> &block)
 		cursor_x_ += block[0].length_in_chars();
 	else
 		cursor_x_ = block.back().length_in_chars();
+		
+	end_edit_group();
 }
 
 bool document::has_selection() const
@@ -1134,4 +1209,153 @@ bool document::is_space_at_unlocked(int y, int x) const
 		return std::isspace(static_cast<unsigned char>(text[offset]));
 	}
 	return false;
+}
+
+void document::begin_edit_group()
+{
+	if (!is_recording_actions_)
+		return;
+	if (edit_group_depth_ == 0) {
+		current_action_group_.actions.clear();
+		current_action_group_.cursor_y_before = cursor_y_;
+		current_action_group_.cursor_x_before = cursor_x_;
+	}
+	edit_group_depth_++;
+}
+
+void document::end_edit_group()
+{
+	if (!is_recording_actions_)
+		return;
+	edit_group_depth_--;
+	if (edit_group_depth_ == 0 && !current_action_group_.empty()) {
+		current_action_group_.cursor_y_after = cursor_y_;
+		current_action_group_.cursor_x_after = cursor_x_;
+		undo_stack_.push_back(current_action_group_);
+		if (undo_stack_.size() > max_undo_steps_) {
+			undo_stack_.pop_front();
+		}
+		redo_stack_.clear();
+		current_action_group_.actions.clear();
+	}
+}
+
+void document::record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line)
+{
+	if (!is_recording_actions_)
+		return;
+
+	edit_action act;
+	act.type = type;
+	act.y = y;
+	if (saved_line) {
+		act.saved_line = std::make_shared<line>(*saved_line);
+	}
+
+	current_action_group_.actions.push_back(act);
+}
+
+void document::undo()
+{
+	std::unique_lock lock(mutex_);
+	if (undo_stack_.empty())
+		return;
+
+	is_recording_actions_ = false;
+	action_group group = undo_stack_.back();
+	undo_stack_.pop_back();
+
+	action_group inverse_group;
+	inverse_group.cursor_y_before = group.cursor_y_after;
+	inverse_group.cursor_x_before = group.cursor_x_after;
+	inverse_group.cursor_y_after = group.cursor_y_before;
+	inverse_group.cursor_x_after = group.cursor_x_before;
+
+	// Process actions in reverse order
+	for (auto it = group.actions.rbegin(); it != group.actions.rend(); ++it) {
+		const auto &act = *it;
+		edit_action inverse_act;
+		inverse_act.y = act.y;
+
+		if (act.type == edit_action::action_type::replace_line) {
+			inverse_act.type = edit_action::action_type::replace_line;
+			inverse_act.saved_line = std::make_shared<line>(*lines_[act.y]);
+			lines_[act.y] = std::make_shared<line>(*act.saved_line);
+			mark_line_dirty(lines_[act.y]);
+		} else if (act.type == edit_action::action_type::insert_line) {
+			inverse_act.type = edit_action::action_type::delete_line;
+			inverse_act.saved_line = std::make_shared<line>(*lines_[act.y]);
+			lines_.erase(lines_.begin() + act.y);
+			adjust_selection_for_line_delete(act.y);
+		} else if (act.type == edit_action::action_type::delete_line) {
+			inverse_act.type = edit_action::action_type::insert_line;
+			lines_.insert(lines_.begin() + act.y, std::make_shared<line>(*act.saved_line));
+			mark_line_dirty(lines_[act.y]);
+		}
+
+		inverse_group.actions.push_back(inverse_act);
+	}
+
+	cursor_y_ = group.cursor_y_before;
+	cursor_x_ = group.cursor_x_before;
+
+	std::reverse(inverse_group.actions.begin(), inverse_group.actions.end());
+	redo_stack_.push_back(inverse_group);
+	
+	set_modified();
+	is_recording_actions_ = true;
+	lock.unlock();
+	notify_cursor_changed();
+}
+
+void document::redo()
+{
+	std::unique_lock lock(mutex_);
+	if (redo_stack_.empty())
+		return;
+
+	is_recording_actions_ = false;
+	action_group group = redo_stack_.back();
+	redo_stack_.pop_back();
+
+	action_group inverse_group;
+	inverse_group.cursor_y_before = group.cursor_y_after;
+	inverse_group.cursor_x_before = group.cursor_x_after;
+	inverse_group.cursor_y_after = group.cursor_y_before;
+	inverse_group.cursor_x_after = group.cursor_x_before;
+
+	for (auto it = group.actions.rbegin(); it != group.actions.rend(); ++it) {
+		const auto &act = *it;
+		edit_action inverse_act;
+		inverse_act.y = act.y;
+
+		if (act.type == edit_action::action_type::replace_line) {
+			inverse_act.type = edit_action::action_type::replace_line;
+			inverse_act.saved_line = std::make_shared<line>(*lines_[act.y]);
+			lines_[act.y] = std::make_shared<line>(*act.saved_line);
+			mark_line_dirty(lines_[act.y]);
+		} else if (act.type == edit_action::action_type::insert_line) {
+			inverse_act.type = edit_action::action_type::delete_line;
+			inverse_act.saved_line = std::make_shared<line>(*lines_[act.y]);
+			lines_.erase(lines_.begin() + act.y);
+			adjust_selection_for_line_delete(act.y);
+		} else if (act.type == edit_action::action_type::delete_line) {
+			inverse_act.type = edit_action::action_type::insert_line;
+			lines_.insert(lines_.begin() + act.y, std::make_shared<line>(*act.saved_line));
+			mark_line_dirty(lines_[act.y]);
+		}
+
+		inverse_group.actions.push_back(inverse_act);
+	}
+
+	cursor_y_ = group.cursor_y_before;
+	cursor_x_ = group.cursor_x_before;
+
+	std::reverse(inverse_group.actions.begin(), inverse_group.actions.end());
+	undo_stack_.push_back(inverse_group);
+
+	set_modified();
+	is_recording_actions_ = true;
+	lock.unlock();
+	notify_cursor_changed();
 }

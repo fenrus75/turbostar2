@@ -4,17 +4,8 @@
 - Unimplemented Joe key sequences to add:
     - `^K/` Filter
     - `^G` Matching `(`
-    - `^KJ` Paragraph format
-    - `^KA` Center line
-    - `^K Space` Status
-    - `Esc N` Spell Word
-    - `Esc L` Spell File
-    - `Esc .` Spell Next
-    - `Esc ,` Spell Prev
-    - `^_` Undo
-    - `^^` Redo
+    - `^KJ` Paragraph format  --- this one we need to parse out to clang-format! So we may want to do the mid item first
     - `^KR` Insert file
-    - `^K\`` Revert file
 
 # mid term items
 
@@ -37,6 +28,10 @@
 
 
 # done items (items move here on completion)
+
+- implement an undo/redo mechanism
+    - `^_` Undo
+    - `^^` Redo
 
 - search via ^K F could use some autocompletion (similar to file dialog),
      but based on past searches as source for autocomplete. this means we

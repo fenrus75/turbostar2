@@ -28,7 +28,11 @@ def test_menu_save_load():
         time.sleep(0.5)
         
         # 4. Verify file exists
-        assert os.path.exists(test_file)
+        try:
+            assert os.path.exists(test_file)
+        except AssertionError as e:
+            print(f"Log contents:\n{runner.get_log()}")
+            raise e
         with open(test_file, 'r') as f:
             content = f.read()
             assert unique_text in content

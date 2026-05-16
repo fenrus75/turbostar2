@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
+#include <deque>
 #include <queue>
 #include <shared_mutex>
 #include <string>
@@ -10,6 +11,29 @@
 #include <vector>
 #include "event_queue.h"
 #include "line.h"
+
+// Represents a single, atomic line modification
+struct edit_action {
+	enum class action_type {
+		replace_line,
+		insert_line,
+		delete_line
+	};
+
+	action_type type;
+	int y;
+	std::shared_ptr<line> saved_line;
+};
+
+struct action_group {
+	std::vector<edit_action> actions;
+	int cursor_y_before{0};
+	int cursor_x_before{0};
+	int cursor_y_after{0};
+	int cursor_x_after{0};
+
+	bool empty() const { return actions.empty(); }
+};
 
 /**
  * @brief Parameters for document search operations.
@@ -83,6 +107,9 @@ class document
 
 	bool find_next(const search_params &params, bool is_repeat = false);
 
+	void undo();
+	void redo();
+
       private:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
@@ -114,6 +141,18 @@ class document
 	int selection_start_y_{-1};
 	int selection_end_x_{-1};
 	int selection_end_y_{-1};
+
+	// Undo/Redo logic
+	void begin_edit_group();
+	void end_edit_group();
+	void record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line);
+
+	std::deque<action_group> undo_stack_;
+	std::deque<action_group> redo_stack_;
+	action_group current_action_group_;
+	bool is_recording_actions_{true};
+	int edit_group_depth_{0};
+	const size_t max_undo_steps_{1000};
 
 	// Threading for highlighting
 	event_queue &global_queue_;

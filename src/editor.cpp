@@ -687,6 +687,24 @@ void editor::dispatch(const editor_event &ev)
 			return;
 		}
 
+		if (ev.key_code == 31) { // Ctrl-_ (Undo)
+			logger.log("Undo requested.");
+			std::shared_ptr<document> active_doc = get_active_doc();
+			if (active_doc) {
+				active_doc->undo();
+			}
+			return;
+		}
+
+		if (ev.key_code == 30) { // Ctrl-^ (Redo)
+			logger.log("Redo requested.");
+			std::shared_ptr<document> active_doc = get_active_doc();
+			if (active_doc) {
+				active_doc->redo();
+			}
+			return;
+		}
+
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
 			if (c >= '0' && c <= '9') {
