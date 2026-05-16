@@ -36,3 +36,5 @@ PowerTOP uses the C++ 20 language standard
 - [ ] Follow industry best practies for C++ for any new code
     flag any existing code as a "nit" if not covered already by other review
     rules
+
+- [ ] prefer "range for" loops over explicit counter loops when possible

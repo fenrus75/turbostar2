@@ -1,4 +1,5 @@
 #include "document.h"
+#include <algorithm>
 #include <fstream>
 #include <mutex>
 #include <regex>
@@ -172,17 +173,10 @@ void document::move_cursor(int dx, int dy)
 	cursor_x_ += dx;
 	cursor_y_ += dy;
 
-	if (cursor_y_ < 0)
-		cursor_y_ = 0;
-	if (cursor_y_ >= line_count_unlocked()) {
-		cursor_y_ = line_count_unlocked() - 1;
-	}
+	cursor_y_ = std::clamp(cursor_y_, 0, std::max(0, line_count_unlocked() - 1));
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
-	if (cursor_x_ < 0)
-		cursor_x_ = 0;
-	if (cursor_x_ > line_char_len)
-		cursor_x_ = line_char_len;
+	cursor_x_ = std::clamp(cursor_x_, 0, line_char_len);
 
 	event_logger::get_instance().log("Cursor moved to: " + std::to_string(cursor_y_) + ":" + std::to_string(cursor_x_));
 	lock.unlock();
@@ -419,8 +413,7 @@ void document::move_page_up(int page_height)
 {
 	std::unique_lock lock(mutex_);
 	cursor_y_ -= page_height;
-	if (cursor_y_ < 0)
-		cursor_y_ = 0;
+	cursor_y_ = std::max(0, cursor_y_);
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
