@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filename", filename, "File to edit");
-	app.set_version_flag("--version", "0.1");
+	app.set_version_flag("--version", TURBOSTAR_VERSION);
 
 	CLI11_PARSE(app, argc, argv);
 
