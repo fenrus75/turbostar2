@@ -4,6 +4,8 @@
 - Unimplemented Joe key sequences to add:
     - `^K/` Filter
 
+- Add a `^K` command to select the current `{}` scope (using the new bracket matching logic)
+
 # mid term items
 
 - better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
