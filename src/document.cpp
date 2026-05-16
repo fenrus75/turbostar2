@@ -8,7 +8,7 @@ document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
-	log_state();
+	notify_cursor_changed();
 }
 
 document::document(event_queue &global_queue, const std::string &filename) : filename_(filename), global_queue_(global_queue)
@@ -18,7 +18,7 @@ document::document(event_queue &global_queue, const std::string &filename) : fil
 			lines_.push_back(std::make_shared<line>(""));
 	}
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
-	log_state();
+	notify_cursor_changed();
 }
 
 document::~document()
@@ -59,7 +59,7 @@ bool document::load_from_file(const std::string &filename)
 
 	event_logger::get_instance().log("Document loaded from: " + filename + " (" + std::to_string(line_count_unlocked()) + " lines)");
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 	return true;
 }
 
@@ -96,7 +96,7 @@ bool document::save_to_file(const std::string &filename)
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 	return true;
 }
 
@@ -114,7 +114,7 @@ void document::clear()
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 const std::string &document::get_filename() const
@@ -186,7 +186,7 @@ void document::move_cursor(int dx, int dy)
 
 	event_logger::get_instance().log("Cursor moved to: " + std::to_string(cursor_y_) + ":" + std::to_string(cursor_x_));
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::insert_char(const std::string &utf8_char)
@@ -200,7 +200,7 @@ void document::insert_char(const std::string &utf8_char)
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::backspace()
@@ -228,7 +228,7 @@ void document::backspace()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_char()
@@ -250,7 +250,7 @@ void document::delete_char()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_to_eol()
@@ -267,7 +267,7 @@ void document::delete_to_eol()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_to_bol()
@@ -284,7 +284,7 @@ void document::delete_to_bol()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_word_forward()
@@ -293,7 +293,7 @@ void document::delete_word_forward()
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -321,7 +321,7 @@ void document::delete_word_forward()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_word_backward()
@@ -329,7 +329,7 @@ void document::delete_word_backward()
 	std::unique_lock lock(mutex_);
 	if (cursor_x_ == 0) {
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -358,7 +358,7 @@ void document::delete_word_backward()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::split_line()
@@ -376,7 +376,7 @@ void document::split_line()
 		set_modified();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_to_bol()
@@ -384,7 +384,7 @@ void document::move_to_bol()
 	std::unique_lock lock(mutex_);
 	cursor_x_ = 0;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_to_eol()
@@ -394,7 +394,7 @@ void document::move_to_eol()
 		cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	}
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_to_top()
@@ -403,7 +403,7 @@ void document::move_to_top()
 	cursor_x_ = 0;
 	cursor_y_ = 0;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_to_bottom()
@@ -412,7 +412,7 @@ void document::move_to_bottom()
 	cursor_y_ = line_count_unlocked() - 1;
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_page_up(int page_height)
@@ -426,7 +426,7 @@ void document::move_page_up(int page_height)
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_page_down(int page_height)
@@ -441,7 +441,7 @@ void document::move_page_down(int page_height)
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_next_word()
@@ -456,7 +456,7 @@ void document::move_next_word()
 			cursor_x_ = 0;
 		}
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -481,7 +481,7 @@ void document::move_next_word()
 	}
 
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_prev_word()
@@ -493,7 +493,7 @@ void document::move_prev_word()
 			cursor_x_ = lines_[cursor_y_]->length_in_chars();
 		}
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -513,7 +513,7 @@ void document::move_prev_word()
 
 	cursor_x_ = i;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::delete_line()
@@ -528,7 +528,7 @@ void document::delete_line()
 		cursor_y_ = 0;
 		set_modified();
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -541,7 +541,7 @@ void document::delete_line()
 	cursor_x_ = 0;
 	set_modified();
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::set_selection_start()
@@ -550,7 +550,7 @@ void document::set_selection_start()
 	selection_start_x_ = cursor_x_;
 	selection_start_y_ = cursor_y_;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::set_selection_end()
@@ -559,7 +559,7 @@ void document::set_selection_end()
 	selection_end_x_ = cursor_x_;
 	selection_end_y_ = cursor_y_;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::clear_selection()
@@ -568,7 +568,7 @@ void document::clear_selection()
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 std::vector<line> document::get_selection_block() const
@@ -610,7 +610,7 @@ void document::delete_selection()
 	std::unique_lock lock(mutex_);
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -647,7 +647,7 @@ void document::delete_selection()
 	selection_end_x_ = selection_end_y_ = -1;
 	set_modified();
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::copy_selection()
@@ -655,7 +655,7 @@ void document::copy_selection()
 	std::unique_lock lock(mutex_);
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -674,7 +674,7 @@ void document::copy_selection()
 
 	set_modified();
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::move_selection()
@@ -682,7 +682,7 @@ void document::move_selection()
 	std::unique_lock lock(mutex_);
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
 		lock.unlock();
-		log_state();
+		notify_cursor_changed();
 		return;
 	}
 
@@ -716,7 +716,7 @@ void document::move_selection()
 
 	set_modified();
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 }
 
 void document::insert_block(const std::vector<line> &block)
@@ -768,7 +768,7 @@ void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &
 	}
 }
 
-void document::log_state() const
+void document::notify_cursor_changed() const
 {
 	std::shared_lock lock(mutex_);
 	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
@@ -1007,7 +1007,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 				cursor_y_ = y;
 				cursor_x_ = found_x;
 				lock.unlock();
-				log_state();
+				notify_cursor_changed();
 				return true;
 			}
 		}
@@ -1024,14 +1024,14 @@ bool document::find_next(const search_params &params, bool is_repeat)
 				cursor_y_ = y;
 				cursor_x_ = found_x;
 				lock.unlock();
-				log_state();
+				notify_cursor_changed();
 				return true;
 			}
 		}
 	}
 
 	lock.unlock();
-	log_state();
+	notify_cursor_changed();
 	return false;
 }
 

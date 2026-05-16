@@ -78,7 +78,7 @@ class document
 
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 
-	void log_state() const;
+	void notify_cursor_changed() const;
 
 	bool find_next(const search_params &params, bool is_repeat = false);
 
