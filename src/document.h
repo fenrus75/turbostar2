@@ -76,6 +76,7 @@ class document
 
 	int get_cursor_x() const;
 	int get_cursor_y() const;
+	std::string get_text_all() const;
 	void move_cursor(int dx, int dy);
 	void insert_char(const std::string &utf8_char);
 	void backspace();

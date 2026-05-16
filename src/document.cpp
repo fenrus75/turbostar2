@@ -10,6 +10,7 @@
 #include "config_manager.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
+#include "clangd_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -78,6 +79,7 @@ bool document::load_from_file(const std::string &filename)
 					 std::to_string(line_count_unlocked()) + " lines)");
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
+	clangd_manager::get_instance().open_document(filename, get_text_all());
 	notify_cursor_changed();
 	return true;
 }
@@ -165,6 +167,7 @@ bool document::save_to_file(const std::string &filename)
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
+	clangd_manager::get_instance().update_document(filename, get_text_all());
 	notify_cursor_changed();
 	return true;
 }
@@ -259,6 +262,19 @@ int document::get_cursor_y() const
 {
 	std::shared_lock lock(mutex_);
 	return cursor_y_;
+}
+
+std::string document::get_text_all() const
+{
+	std::shared_lock lock(mutex_);
+	std::string full_text;
+	for (size_t i = 0; i < lines_.size(); ++i) {
+		full_text += lines_[i]->get_text();
+		if (i < lines_.size() - 1) {
+			full_text += "\n";
+		}
+	}
+	return full_text;
 }
 
 void document::move_cursor(int dx, int dy)
@@ -1057,9 +1073,12 @@ void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &
 		end_y = selection_start_y_;
 	}
 }
-
 void document::notify_cursor_changed() const
 {
+	if (!filename_.empty() && filename_ != "unknown.txt") {
+		clangd_manager::get_instance().request_hover(filename_, cursor_y_, cursor_x_);
+	}
+
 	std::shared_lock lock(mutex_);
 	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
 	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cur_disp_x + 1);
@@ -1080,7 +1099,6 @@ void document::notify_cursor_changed() const
 
 	event_logger::get_instance().log(msg);
 }
-
 void document::set_modified()
 {
 	modified_ = true;

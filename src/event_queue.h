@@ -24,7 +24,8 @@ enum class event_type {
 	git_status_updated, ///< Notification that git status has changed
 	git_add,      ///< Request to git-add current file
 	git_refresh,  ///< Request to refresh git status manually
-	select_window ///< Request to switch active window (key_code is index)
+	select_window, ///< Request to switch active window (key_code is index)
+	lsp_hover_result ///< Notification that LSP hover information is available
 };
 
 /**
@@ -41,6 +42,7 @@ struct editor_event {
 	event_type type;
 	int key_code{0};       ///< NCurses key code or ASCII value
 	std::string utf8_char; ///< UTF-8 character sequence for typing
+	std::string payload;   ///< General payload for complex events (like LSP results)
 };
 
 /**

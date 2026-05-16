@@ -8,12 +8,14 @@
 #include "config_manager.h"
 #include "settings_dialog.h"
 #include "git_manager.h"
+#include "clangd_manager.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
+	clangd_manager::get_instance().start(global_queue_);
 
 	if (filenames.empty()) {
 		new_window("");
@@ -118,6 +120,7 @@ std::string editor::get_search_autocomplete() const
 
 editor::~editor()
 {
+	clangd_manager::get_instance().stop();
 	git_manager::get_instance().stop();
 }
 
@@ -555,7 +558,18 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::lsp_hover_result) {
+		std::string text = ev.payload;
+		std::replace(text.begin(), text.end(), '\n', ' ');
+		if (text.length() > static_cast<size_t>(COLS - 20)) {
+			text = text.substr(0, COLS - 20) + "...";
+		}
+		hover_text_ = text;
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
+		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
 		// 1. Modal Dialogs have highest priority
@@ -911,6 +925,8 @@ void editor::render()
 		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
 	} else if (is_going_to_line_prompt_) {
 		status_help = "Go to line: " + line_input_buffer_ + "_";
+	} else if (!hover_text_.empty()) {
+		status_help = hover_text_;
 	}
 
 	bottom_status_.draw(status_help, cur_x, cur_y);

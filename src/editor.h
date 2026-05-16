@@ -78,6 +78,8 @@ class editor
 
 	bool is_going_to_line_prompt_{false};
 	std::string line_input_buffer_;
+	
+	std::string hover_text_;
 
 	std::string get_search_autocomplete() const;
 
