@@ -1,14 +1,14 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <shared_mutex>
-#include "line.h"
-#include "event_queue.h"
-#include <thread>
-#include <queue>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
+#include <queue>
+#include <shared_mutex>
+#include <string>
+#include <thread>
+#include <vector>
+#include "event_queue.h"
+#include "line.h"
 
 /**
  * @brief Parameters for document search operations.
@@ -25,20 +25,20 @@ struct search_params {
 	bool from_cursor{true};
 };
 
-
-class document {
-public:
-	document(event_queue& global_queue);
-	document(event_queue& global_queue, const std::string& filename);
+class document
+{
+      public:
+	document(event_queue &global_queue);
+	document(event_queue &global_queue, const std::string &filename);
 	~document();
 
-	bool load_from_file(const std::string& filename);
+	bool load_from_file(const std::string &filename);
 	bool save();
-	bool save_to_file(const std::string& filename);
+	bool save_to_file(const std::string &filename);
 	void clear();
-	const std::string& get_filename() const;
+	const std::string &get_filename() const;
 	bool is_modified() const;
-	
+
 	// Basic accessors for now
 	size_t get_line_count() const;
 	std::shared_ptr<line> get_line(size_t index) const;
@@ -46,7 +46,7 @@ public:
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 	void move_cursor(int dx, int dy);
-	void insert_char(const std::string& utf8_char);
+	void insert_char(const std::string &utf8_char);
 	void backspace();
 	void delete_char();
 	void delete_word_forward();
@@ -74,15 +74,16 @@ public:
 	void move_selection();
 	bool has_selection() const;
 
-	void get_selection_range(int& start_x, int& start_y, int& end_x, int& end_y) const;
+	void get_selection_range(int &start_x, int &start_y, int &end_x,
+				 int &end_y) const;
 
 	void log_state() const;
 
-	bool find_next(const search_params& params, bool is_repeat = false);
+	bool find_next(const search_params &params, bool is_repeat = false);
 
-private:
+      private:
 	std::vector<line> get_selection_block() const;
-	void insert_block(const std::vector<line>& block);
+	void insert_block(const std::vector<line> &block);
 	void set_modified();
 	void adjust_selection_for_insert(int y, int x, int count);
 	void adjust_selection_for_delete(int y, int x, int count);
@@ -97,20 +98,20 @@ private:
 
 	std::vector<std::shared_ptr<line>> lines_;
 	mutable std::shared_mutex mutex_;
-	
+
 	std::string filename_;
 	bool modified_{false};
-	
+
 	int cursor_x_{0};
 	int cursor_y_{0};
-	
+
 	int selection_start_x_{-1};
 	int selection_start_y_{-1};
 	int selection_end_x_{-1};
 	int selection_end_y_{-1};
 
 	// Threading for highlighting
-	event_queue& global_queue_;
+	event_queue &global_queue_;
 	std::queue<std::shared_ptr<line>> dirty_lines_;
 	std::mutex dirty_mutex_;
 	std::condition_variable dirty_cv_;

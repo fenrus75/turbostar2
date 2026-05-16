@@ -1,13 +1,15 @@
 #pragma once
 
-#include <string>
 #include <memory>
-#include "event_queue.h"
+#include <string>
 #include "document.h"
+#include "event_queue.h"
 
-class window {
-public:
-	window(int id, int x, int y, int width, int height, const std::string& title);
+class window
+{
+      public:
+	window(int id, int x, int y, int width, int height,
+	       const std::string &title);
 	~window() = default;
 
 	void draw() const;
@@ -18,7 +20,7 @@ public:
 	/**
 	 * @brief Returns the window's local event queue.
 	 */
-	event_queue& get_queue();
+	event_queue &get_queue();
 
 	/**
 	 * @brief Processes all pending events in the window's local queue.
@@ -29,13 +31,25 @@ public:
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 
-	std::string get_title() const { return title_; }
-	void set_title(const std::string& t) { title_ = t; }
-	std::shared_ptr<document> get_document() const { return doc_; }
+	std::string get_title() const
+	{
+		return title_;
+	}
+	void set_title(const std::string &t)
+	{
+		title_ = t;
+	}
+	std::shared_ptr<document> get_document() const
+	{
+		return doc_;
+	}
 
-	int get_content_height() const { return height_ - 2; }
+	int get_content_height() const
+	{
+		return height_ - 2;
+	}
 
-private:
+      private:
 	void update_viewport() const;
 	void draw_border() const;
 	void draw_content() const;

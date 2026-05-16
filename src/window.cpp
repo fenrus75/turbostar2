@@ -1,9 +1,10 @@
 #include "window.h"
-#include "event_logger.h"
 #include <ncurses.h>
+#include "event_logger.h"
 
-window::window(int id, int x, int y, int width, int height, const std::string& title)
-	: id_(id), x_(x), y_(y), width_(width), height_(height), title_(title)
+window::window(int id, int x, int y, int width, int height,
+	       const std::string &title)
+    : id_(id), x_(x), y_(y), width_(width), height_(height), title_(title)
 {
 }
 
@@ -17,7 +18,7 @@ bool window::is_active() const
 	return is_active_;
 }
 
-event_queue& window::get_queue()
+event_queue &window::get_queue()
 {
 	return window_queue_;
 }
@@ -36,11 +37,12 @@ void window::set_cursor_position() const
 	if (doc_) {
 		auto l = doc_->get_line(doc_->get_cursor_y());
 		int display_col;
-	if (l) {
-		display_col = l->char_to_display_col(doc_->get_cursor_x());
-	} else {
-		display_col = 0;
-	}
+		if (l) {
+			display_col =
+			    l->char_to_display_col(doc_->get_cursor_x());
+		} else {
+			display_col = 0;
+		}
 		int screen_y = y_ + 1 + doc_->get_cursor_y() - top_line_;
 		int screen_x = x_ + 1 + display_col - left_column_;
 		move(screen_y, screen_x);
@@ -51,14 +53,18 @@ bool window::process_events()
 {
 	bool needs_render = false;
 	while (auto ev = window_queue_.pop()) {
-		event_logger::get_instance().log("Window " + std::to_string(id_) + " processing key: " + std::to_string(ev->key_code));
+		event_logger::get_instance().log(
+		    "Window " + std::to_string(id_) +
+		    " processing key: " + std::to_string(ev->key_code));
 		if (ev->type == event_type::key_press && doc_) {
 			if (ev->key_code == KEY_UP) {
 				doc_->move_cursor(0, -1);
 				needs_render = true;
 			} else if (ev->key_code == KEY_DOWN) {
 				doc_->move_cursor(0, 1);
-				event_logger::get_instance().log("Cursor moved to: " + std::to_string(doc_->get_cursor_y()));
+				event_logger::get_instance().log(
+				    "Cursor moved to: " +
+				    std::to_string(doc_->get_cursor_y()));
 				needs_render = true;
 			} else if (ev->key_code == KEY_LEFT) {
 				doc_->move_cursor(-1, 0);
@@ -66,19 +72,24 @@ bool window::process_events()
 			} else if (ev->key_code == KEY_RIGHT) {
 				doc_->move_cursor(1, 0);
 				needs_render = true;
-			} else if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
+			} else if (!ev->utf8_char.empty() &&
+				   (ev->key_code >= 32 || ev->key_code == 9) &&
+				   ev->key_code != 127) {
 				doc_->insert_char(ev->utf8_char);
 				needs_render = true;
-			} else if (ev->key_code == KEY_BACKSPACE || ev->key_code == 127 || ev->key_code == 8) {
+			} else if (ev->key_code == KEY_BACKSPACE ||
+				   ev->key_code == 127 || ev->key_code == 8) {
 				doc_->backspace();
 				needs_render = true;
-			} else if (ev->key_code == 13 || ev->key_code == KEY_ENTER) {
+			} else if (ev->key_code == 13 ||
+				   ev->key_code == KEY_ENTER) {
 				doc_->split_line();
 				needs_render = true;
 			} else if (ev->key_code == 10) { // Ctrl-J
 				doc_->delete_to_eol();
 				needs_render = true;
-			} else if (ev->key_code == -111 || ev->key_code == -79) { // Alt-O
+			} else if (ev->key_code == -111 ||
+				   ev->key_code == -79) { // Alt-O
 				doc_->delete_to_bol();
 				needs_render = true;
 			} else if (ev->key_code == 25) { // Ctrl-Y
@@ -114,13 +125,14 @@ bool window::process_events()
 			}
 		}
 	}
-	
+
 	return needs_render;
 }
 
 int window::get_cursor_x() const
 {
-	if (!doc_) return -1;
+	if (!doc_)
+		return -1;
 	auto l = doc_->get_line(doc_->get_cursor_y());
 	return l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
 }
@@ -145,8 +157,9 @@ void window::draw() const
 
 void window::update_viewport() const
 {
-	if (!doc_) return;
-	
+	if (!doc_)
+		return;
+
 	auto l = doc_->get_line(doc_->get_cursor_y());
 	int display_col;
 	if (l) {
@@ -155,13 +168,13 @@ void window::update_viewport() const
 		display_col = 0;
 	}
 	int cy = doc_->get_cursor_y();
-	
+
 	if (cy < top_line_) {
 		top_line_ = cy;
 	} else if (cy >= top_line_ + height_ - 2) {
 		top_line_ = cy - (height_ - 2) + 1;
 	}
-	
+
 	if (display_col < left_column_) {
 		left_column_ = display_col;
 	} else if (display_col >= left_column_ + width_ - 2) {
@@ -174,72 +187,106 @@ void window::draw_content() const
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
 	bool has_sel = false;
 	if (doc_ && doc_->has_selection()) {
-		doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+		doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x,
+					  sel_end_y);
 		has_sel = true;
 	}
 
 	for (int i = 1; i < height_ - 1; ++i) {
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
-		
+
 		// Clear line background
 		attrset(COLOR_PAIR(3));
-		for (int k = 0; k < width_ - 2; ++k) addch(' ');
+		for (int k = 0; k < width_ - 2; ++k)
+			addch(' ');
 
-		if (!doc_ || doc_line_idx >= static_cast<int>(doc_->get_line_count())) {
+		if (!doc_ ||
+		    doc_line_idx >= static_cast<int>(doc_->get_line_count())) {
 			continue;
 		}
 
 		auto current_l = doc_->get_line(doc_line_idx);
-		if (!current_l) continue;
-		
+		if (!current_l)
+			continue;
+
 		std::string line_text = current_l->get_text();
 		size_t char_count = current_l->length_in_chars();
 		int current_display_col = 0;
 
 		for (size_t char_idx = 0; char_idx < char_count; ++char_idx) {
 			int start_col = current_display_col;
-			
+
 			// Determine character width and content
 			std::string utf8_char;
-			size_t byte_off = current_l->char_to_byte_offset(char_idx);
-			size_t next_byte_off = current_l->char_to_byte_offset(char_idx + 1);
-			utf8_char = line_text.substr(byte_off, next_byte_off - byte_off);
-			
+			size_t byte_off =
+			    current_l->char_to_byte_offset(char_idx);
+			size_t next_byte_off =
+			    current_l->char_to_byte_offset(char_idx + 1);
+			utf8_char = line_text.substr(byte_off,
+						     next_byte_off - byte_off);
+
 			int char_width = 1;
 			if (utf8_char == "\t") {
 				char_width = 8 - (start_col % 8);
 			}
-			
+
 			int end_col = start_col + char_width;
 			current_display_col = end_col;
 
-			// Check if any part of character is within horizontal viewport
+			// Check if any part of character is within horizontal
+			// viewport
 			for (int col = start_col; col < end_col; ++col) {
-				if (col >= left_column_ && col < left_column_ + width_ - 2) {
-					int screen_x_offset = col - left_column_;
+				if (col >= left_column_ &&
+				    col < left_column_ + width_ - 2) {
+					int screen_x_offset =
+					    col - left_column_;
 					move(y_ + i, x_ + 1 + screen_x_offset);
 
 					bool in_selection = false;
 					if (has_sel) {
-						if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
+						if (doc_line_idx >
+							sel_start_y &&
+						    doc_line_idx < sel_end_y) {
 							in_selection = true;
-						} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-							in_selection = (static_cast<int>(char_idx) >= sel_start_x && static_cast<int>(char_idx) < sel_end_x);
-						} else if (doc_line_idx == sel_start_y) {
-							in_selection = (static_cast<int>(char_idx) >= sel_start_x);
-						} else if (doc_line_idx == sel_end_y) {
-							in_selection = (static_cast<int>(char_idx) < sel_end_x);
+						} else if (doc_line_idx ==
+							       sel_start_y &&
+							   doc_line_idx ==
+							       sel_end_y) {
+							in_selection =
+							    (static_cast<int>(
+								 char_idx) >=
+								 sel_start_x &&
+							     static_cast<int>(
+								 char_idx) <
+								 sel_end_x);
+						} else if (doc_line_idx ==
+							   sel_start_y) {
+							in_selection =
+							    (static_cast<int>(
+								 char_idx) >=
+							     sel_start_x);
+						} else if (doc_line_idx ==
+							   sel_end_y) {
+							in_selection =
+							    (static_cast<int>(
+								 char_idx) <
+							     sel_end_x);
 						}
 					}
 
-					syntax_attribute attr = current_l->get_attribute(char_idx);
+					syntax_attribute attr =
+					    current_l->get_attribute(char_idx);
 					int pair = 3;
 					if (in_selection) {
 						pair = 8;
-						if (attr == syntax_attribute::keyword) pair = 13;
+						if (attr ==
+						    syntax_attribute::keyword)
+							pair = 13;
 					} else {
-						if (attr == syntax_attribute::keyword) pair = 12;
+						if (attr ==
+						    syntax_attribute::keyword)
+							pair = 12;
 					}
 
 					attrset(COLOR_PAIR(pair));
@@ -262,7 +309,8 @@ void window::draw_border() const
 	std::string current_title = title_;
 	if (doc_) {
 		current_title = doc_->get_filename();
-		if (current_title.empty()) current_title = "untitled";
+		if (current_title.empty())
+			current_title = "untitled";
 		size_t last_slash = current_title.find_last_of("/\\");
 		if (last_slash != std::string::npos) {
 			current_title = current_title.substr(last_slash + 1);
@@ -313,7 +361,7 @@ void window::draw_border() const
 	for (int i = 1; i < width_ - 1; ++i) {
 		mvaddstr(y_ + height_ - 1, x_ + i, "▒");
 	}
-	
+
 	// Scroll arrows
 	mvaddstr(y_ + 1, x_ + width_ - 1, "▲");
 	mvaddstr(y_ + height_ - 2, x_ + width_ - 1, "▼");

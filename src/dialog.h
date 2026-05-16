@@ -7,19 +7,20 @@
  * @brief Possible results of a modal dialog interaction.
  */
 enum class dialog_result {
-	pending,    ///< Interaction still in progress
-	confirmed,  ///< User accepted (e.g., Enter)
-	cancelled   ///< User aborted (e.g., Esc)
+	pending,   ///< Interaction still in progress
+	confirmed, ///< User accepted (e.g., Enter)
+	cancelled  ///< User aborted (e.g., Esc)
 };
 
 /**
  * @brief Abstract base class for modal dialog boxes.
- * 
+ *
  * Handles layout, borders, and shadows.
  */
-class dialog {
-public:
-	dialog(const std::string& title, int width, int height);
+class dialog
+{
+      public:
+	dialog(const std::string &title, int width, int height);
 	virtual ~dialog() = default;
 
 	/**
@@ -35,11 +36,15 @@ public:
 	virtual dialog_result handle_key(int key) = 0;
 
 	/**
-	 * @brief Returns the primary result string of the dialog (if applicable).
+	 * @brief Returns the primary result string of the dialog (if
+	 * applicable).
 	 */
-	virtual std::string get_result() const { return ""; }
+	virtual std::string get_result() const
+	{
+		return "";
+	}
 
-protected:
+      protected:
 	std::string title_;
 	int width_, height_;
 	int x_, y_;
@@ -48,16 +53,18 @@ protected:
 /**
  * @brief A dialog box for capturing a single line of text input.
  */
-class input_dialog : public dialog {
-public:
-	input_dialog(const std::string& title, const std::string& prompt, const std::string& initial_value = "");
+class input_dialog : public dialog
+{
+      public:
+	input_dialog(const std::string &title, const std::string &prompt,
+		     const std::string &initial_value = "");
 	~input_dialog() override = default;
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;
 	std::string get_result() const override;
 
-private:
+      private:
 	std::string prompt_;
 	std::string buffer_;
 };
@@ -65,14 +72,16 @@ private:
 /**
  * @brief A dialog box for displaying multiple lines of text with an OK button.
  */
-class message_dialog : public dialog {
-public:
-	message_dialog(const std::string& title, const std::vector<std::string>& lines);
+class message_dialog : public dialog
+{
+      public:
+	message_dialog(const std::string &title,
+		       const std::vector<std::string> &lines);
 	~message_dialog() override = default;
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;
 
-private:
+      private:
 	std::vector<std::string> lines_;
 };

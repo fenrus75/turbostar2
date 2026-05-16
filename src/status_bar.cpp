@@ -1,7 +1,8 @@
 #include "status_bar.h"
 #include <ncurses.h>
 
-void status_bar::draw(const std::string& mode_help, int cursor_x, int cursor_y) const
+void status_bar::draw(const std::string &mode_help, int cursor_x,
+		      int cursor_y) const
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -26,7 +27,7 @@ void status_bar::draw(const std::string& mode_help, int cursor_x, int cursor_y) 
 		if (cursor_x >= 0 && cursor_y >= 0) {
 			printw(" %d:%d ", cursor_y + 1, cursor_x + 1);
 		}
-		
+
 		// Default status bar content like "F1 Help"
 		printw("  F1 Help");
 	}

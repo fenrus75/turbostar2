@@ -1,6 +1,6 @@
 #include "event_queue.h"
 
-void event_queue::push(const editor_event& ev)
+void event_queue::push(const editor_event &ev)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	queue_.push(ev);
