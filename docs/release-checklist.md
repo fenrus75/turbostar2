@@ -31,6 +31,7 @@ The following Meson configuration options are used for the release validation bu
 | **ASAN/Gcov**| `meson setup --wipe -Denable-tests=true -Db_sanitize=address build_acov` |
 | **Gcov** | `meson setup --wipe -Denable-tests=true build_cov` |
 | **UBSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=undefined build_ubsan` |
+| **TSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=thread build-tsan` |
 
 ## Release automation & validation
 - [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types (Standard, Release, Debug, ASAN/Gcov, UBSAN).
