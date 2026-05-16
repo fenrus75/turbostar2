@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- Add a `^K` command to select the current `{}` scope (using the new bracket matching logic)
-
 - allow multiple filenames on the command line and just open them all as separate documents/windows
 
 # mid term items
@@ -26,6 +24,9 @@
 
 
 # done items (items move here on completion)
+
+- Add a `^K` command to select the current `{}` scope (using the new bracket matching logic)
+    - `^K[` and `^K{` implemented
 
 - `^G` Matching bracket navigation and visual highlighting
 
