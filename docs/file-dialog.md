@@ -2,6 +2,9 @@
 
 A Turbo-Pascal for DOS style file dialog
 
+It is mandatory to load the `Tut5.png` file to see this code in action,
+and to map the descriptions below to what you observe in this screenshot.
+
 # Window Title
 
 Since we use the same dialog for File Open and Save operations, we need the
@@ -18,6 +21,8 @@ the entry box.
 
 # The filename entry box element
 
+When the dialog opens, the initial focus (cursor) should always be in this filename entry box.
+
 This is where the user can type a filename, but also, if the user navigates
 through the filesystem view, this field should auto-update with the filename
 under the cursor.
@@ -30,10 +35,14 @@ provide a suggested completion for the file, in a gray ("white without
 bold") color. When multiple completions are possible, the one with the
 newest modification date is used.
 
+## History Dropdown Button
+
+Immediately to the right of the filename entry box is a small green button with a 'v' (down arrow). This button is meant to provide a history dropdown of previously opened or typed filenames.
+
 # The Ok button
 
 The Ok button is on the same horizontal level as the filename entry box
-(see `button-recipie.md` for how to make buttons), with the "O" being the
+(see `button-recipe.md` for how to make buttons), with the "O" being the
 hotkey. 
 
 # one horizontal open line
@@ -45,13 +54,17 @@ the filesystem view. Alt-F is the hotkey.
 
 # The Filesystem view
 
-The filesystem view has a Cyan background and consists of two columns,
-separated by a blue vertical line. There is a horizonal scrollbar at the
+The filesystem view has a Cyan background and consists of two columns of equal width,
+separated by a blue vertical line exactly in the middle. There is a horizonal scrollbar at the
 bottom in turbo pascal style (same as the main edit window)
 
 The filesystem view has files and directories listed, initially from the
 current directory but navigation by going into directories, or following
 ".." to go to the parent is possible.
+
+**Sorting and Display:**
+* Directories are listed first, followed by files. Within each category, items are sorted alphabetically.
+* Directories must have a trailing slash (`/`) appended to their names (e.g., `old/`, `../`) to visually distinguish them from files.
 
 Files are normally black in color.
 
@@ -73,12 +86,8 @@ level as the top line of the filesystem view
 
 The 2 lowest lines of the dialog box are Bright Blue on Dark Blue, and
 contain information about the "current file".
-The first line will contain the full name of the currently shown directory
+The first line will contain the full name of the currently shown directory (just the directory path, without any file filtering expressions).
 The second line will show the filename, file size and file modification
 times of the currently active file. When the entry box is active, the active
 file is whatever the user is typing in that box, while if the filesystem
 view is active, the cursor in that view determines the active file.
-
-
-
-

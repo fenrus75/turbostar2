@@ -294,7 +294,7 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
-		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, ".");
+		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, true, ".");
 		active_dialog_mode_ = dialog_mode::load;
 		set_focus(focus_target::dialog, "menu_load");
 		return;
@@ -305,7 +305,7 @@ void editor::dispatch(const editor_event& ev)
 		std::shared_ptr<document> active_doc;
 		for (auto& w : windows_) if (w->is_active()) active_doc = w->get_document();
 		
-		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, active_doc ? active_doc->get_filename() : ".");
+		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, false, active_doc ? active_doc->get_filename() : ".");
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;
