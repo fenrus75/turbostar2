@@ -1,0 +1,31 @@
+---
+Language: Cpp
+# Based on the PowerTOP Coding Style Guide
+
+# 1.1 Indentation
+IndentWidth: 8
+UseTab: Always
+TabWidth: 8
+
+# 1.2 Braces and Control Flow
+# K&R Style (Linux Kernel Variant)
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+ColumnLimit: 140
+
+
+# 1.3 Switch Statements
+IndentCaseLabels: true
+
+# 3.2 Comments
+# (General adherence, standard settings apply)
+
+# 4.4 Includes
+SortIncludes: true
+IncludeCategories:
+  - Regex:           '^<.*'
+    Priority:        1
+  - Regex:           '.*'
+    Priority:        2

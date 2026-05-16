@@ -82,12 +82,12 @@ size_t line::char_to_byte_offset(int char_pos) const
 	return offset;
 }
 
-size_t line::length_in_chars() const
+int line::length_in_chars() const
 {
 	std::shared_lock lock(mutex_);
-	size_t offset = 0;
-	size_t chars = 0;
-	while (offset < text_.length()) {
+	int offset = 0;
+	int chars = 0;
+	while (offset < static_cast<int>(text_.length())) {
 		unsigned char c = static_cast<unsigned char>(text_[offset]);
 		if (c < 0x80)
 			offset += 1;

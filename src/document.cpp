@@ -178,7 +178,7 @@ void document::move_cursor(int dx, int dy)
 		cursor_y_ = line_count_unlocked() - 1;
 	}
 
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < 0)
 		cursor_x_ = 0;
 	if (cursor_x_ > line_char_len)
@@ -215,7 +215,7 @@ void document::backspace()
 	} else if (cursor_y_ > 0) {
 		// Join with previous line
 		int prev_line_idx = cursor_y_ - 1;
-		int prev_line_char_len = static_cast<int>(lines_[prev_line_idx]->length_in_chars());
+		int prev_line_char_len = lines_[prev_line_idx]->length_in_chars();
 
 		adjust_selection_for_join(cursor_y_, cursor_x_);
 
@@ -234,7 +234,7 @@ void document::backspace()
 void document::delete_char()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < line_char_len) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_);
@@ -256,7 +256,7 @@ void document::delete_char()
 void document::delete_to_eol()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
@@ -290,7 +290,7 @@ void document::delete_to_bol()
 void document::delete_word_forward()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
 		log_state();
@@ -391,7 +391,7 @@ void document::move_to_eol()
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
-		cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+		cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	}
 	lock.unlock();
 	log_state();
@@ -410,7 +410,7 @@ void document::move_to_bottom()
 {
 	std::unique_lock lock(mutex_);
 	cursor_y_ = line_count_unlocked() - 1;
-	cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	lock.unlock();
 	log_state();
 }
@@ -422,7 +422,7 @@ void document::move_page_up(int page_height)
 	if (cursor_y_ < 0)
 		cursor_y_ = 0;
 
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
@@ -437,7 +437,7 @@ void document::move_page_down(int page_height)
 		cursor_y_ = line_count_unlocked() - 1;
 	}
 
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
@@ -448,7 +448,7 @@ void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
 	std::string text = lines_[cursor_y_]->get_text();
-	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
 
 	if (cursor_x_ >= line_char_len) {
 		if (cursor_y_ < line_count_unlocked() - 1) {
@@ -490,7 +490,7 @@ void document::move_prev_word()
 	if (cursor_x_ == 0) {
 		if (cursor_y_ > 0) {
 			cursor_y_--;
-			cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
+			cursor_x_ = lines_[cursor_y_]->length_in_chars();
 		}
 		lock.unlock();
 		log_state();
@@ -839,7 +839,7 @@ void document::adjust_selection_for_split(int y, int x)
 void document::adjust_selection_for_join(int y, int x)
 {
 	(void)x;
-	int prev_line_char_len = static_cast<int>(lines_[y - 1]->length_in_chars());
+	int prev_line_char_len = lines_[y - 1]->length_in_chars();
 	auto adjust = [&](int &sx, int &sy) {
 		if (sy == y) {
 			sy--;
@@ -859,7 +859,7 @@ void document::adjust_selection_for_line_delete(int y)
 			sx = 0;
 			if (y >= line_count_unlocked() - 1) {
 				sy = y - 1;
-				sx = static_cast<int>(lines_[sy]->length_in_chars());
+				sx = lines_[sy]->length_in_chars();
 			}
 		} else if (sy > y) {
 			sy--;
@@ -878,7 +878,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	int start_y = cursor_y_;
 	int start_x = cursor_x_;
 
-	int scope_sy = 0, scope_sx = 0, scope_ey = line_count_unlocked() - 1, scope_ex = static_cast<int>(lines_.back()->length_in_chars());
+	int scope_sy = 0, scope_sx = 0, scope_ey = line_count_unlocked() - 1, scope_ex = lines_.back()->length_in_chars();
 	if (params.selected_text_only && selection_start_y_ != -1) {
 		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
 	}
@@ -898,11 +898,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 				start_x--;
 			else if (start_y > scope_sy) {
 				start_y--;
-				start_x = static_cast<int>(lines_[start_y]->length_in_chars());
+				start_x = lines_[start_y]->length_in_chars();
 			} else
 				return false;
 		} else {
-			if (start_x < static_cast<int>(lines_[start_y]->length_in_chars()))
+			if (start_x < lines_[start_y]->length_in_chars())
 				start_x++;
 			else if (start_y < scope_ey) {
 				start_y++;
@@ -1000,7 +1000,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			if (y == start_y) {
 				x_lim = start_x;
 			} else {
-				x_lim = static_cast<int>(lines_[y]->length_in_chars());
+				x_lim = lines_[y]->length_in_chars();
 			}
 			int found_x = check_line(y, x_lim);
 			if (found_x != -1) {

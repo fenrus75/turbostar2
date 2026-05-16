@@ -30,7 +30,7 @@ class line
 	void split_at(int char_pos, line &new_line);
 	void merge(const line &other_line);
 
-	size_t length_in_chars() const;
+	int length_in_chars() const;
 	size_t char_to_byte_offset(int char_pos) const;
 	int char_to_display_col(int char_pos) const;
 
