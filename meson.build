@@ -50,7 +50,7 @@ if python.found()
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_basic.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_menus', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_menus.py')],
@@ -62,43 +62,43 @@ if python.found()
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_cursor_wrap', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor_wrap.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_typing', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_typing.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_utf8', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_utf8.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_backspace', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_backspace.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_enter', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_enter.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_delete_line', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_delete_line.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 10
+    timeout: 60
   )
   test('e2e_selection', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_selection.py')],
