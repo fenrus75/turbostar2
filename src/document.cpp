@@ -1438,6 +1438,54 @@ void document::record_action(edit_action::action_type type, int y, std::shared_p
 	current_action_group_.actions.push_back(act);
 }
 
+std::optional<std::pair<int, int>> document::find_matching_bracket(int start_y, int start_x) const
+{
+	std::shared_lock lock(mutex_);
+	if (start_y < 0 || start_y >= line_count_unlocked())
+		return std::nullopt;
+
+	std::string text = lines_[start_y]->get_text();
+	if (start_x < 0 || start_x >= static_cast<int>(text.length()))
+		return std::nullopt;
+
+	char start_char = text[start_x];
+	char target_char = 0;
+	bool forward = true;
+
+	if (start_char == '(') { target_char = ')'; forward = true; }
+	else if (start_char == '[') { target_char = ']'; forward = true; }
+	else if (start_char == '{') { target_char = '}'; forward = true; }
+	else if (start_char == ')') { target_char = '('; forward = false; }
+	else if (start_char == ']') { target_char = '['; forward = false; }
+	else if (start_char == '}') { target_char = '{'; forward = false; }
+	else return std::nullopt;
+
+	int depth = 0;
+	if (forward) {
+		for (int y = start_y; y < line_count_unlocked(); ++y) {
+			std::string l_text = lines_[y]->get_text();
+			for (int x = (y == start_y ? start_x : 0); x < static_cast<int>(l_text.length()); ++x) {
+				if (l_text[x] == start_char) depth++;
+				else if (l_text[x] == target_char) depth--;
+				
+				if (depth == 0) return std::make_pair(y, x);
+			}
+		}
+	} else {
+		for (int y = start_y; y >= 0; --y) {
+			std::string l_text = lines_[y]->get_text();
+			for (int x = (y == start_y ? start_x : static_cast<int>(l_text.length()) - 1); x >= 0; --x) {
+				if (l_text[x] == start_char) depth++;
+				else if (l_text[x] == target_char) depth--;
+				
+				if (depth == 0) return std::make_pair(y, x);
+			}
+		}
+	}
+
+	return std::nullopt;
+}
+
 void document::undo()
 {
 	std::unique_lock lock(mutex_);

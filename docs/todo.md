@@ -3,10 +3,6 @@
 
 - Unimplemented Joe key sequences to add:
     - `^K/` Filter
-    - `^G` Matching `(`
-    - `^KJ` Paragraph format  (implemented for whole document via clang-format)
-
-- syntax highlighting: highlight the matching bracket ( vs ), { vs } and [ vs ]
 
 # mid term items
 
@@ -26,6 +22,12 @@
 
 
 # done items (items move here on completion)
+
+- `^G` Matching bracket navigation and visual highlighting
+
+- CI fails because "testrun/" does not exist - the custom meson blurb that copies our binary there should just mkdir -p that directory always
+
+- `^KJ` Paragraph format (implemented using clang-format on the current block of text)
 
 - a settings dialog box (and data backend that uses the ~/.turbostar file)
   the first setting would be prefered coding style (which maps to the clang-format predefined types, and has a "~/.clang-format file" as additional option. If a .clang-format file exists in the project that should always win

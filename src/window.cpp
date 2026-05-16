@@ -135,6 +135,14 @@ bool window::process_events()
 					doc_->delete_word_backward();
 					invalidate();
 					break;
+				case 7: { // Ctrl-G (Matching bracket)
+					auto match = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
+					if (match) {
+						doc_->move_cursor(match->second - doc_->get_cursor_x(), match->first - doc_->get_cursor_y());
+						invalidate();
+					}
+					break;
+				}
 				default:
 					if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
 						doc_->insert_char(ev->utf8_char);
@@ -210,6 +218,11 @@ void window::draw_content() const
 		has_sel = true;
 	}
 
+	std::optional<std::pair<int, int>> match_pos;
+	if (doc_) {
+		match_pos = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
+	}
+
 	for (int i = 1; i < height_ - 1; ++i) {
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
@@ -248,8 +261,7 @@ void window::draw_content() const
 			int end_col = start_col + char_width;
 			current_display_col = end_col;
 
-			// Check if any part of character is within horizontal
-			// viewport
+			// Check if any part of character is within horizontal viewport
 			for (int col = start_col; col < end_col; ++col) {
 				if (col >= left_column_ && col < left_column_ + width_ - 2) {
 					int screen_x_offset = col - left_column_;
@@ -269,9 +281,19 @@ void window::draw_content() const
 						}
 					}
 
+					bool is_match = false;
+					if (match_pos) {
+						if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
+						    (doc_line_idx == doc_->get_cursor_y() && static_cast<int>(char_idx) == doc_->get_cursor_x())) {
+							is_match = true;
+						}
+					}
+
 					syntax_attribute attr = current_l->get_attribute(char_idx);
 					int pair = 3;
-					if (in_selection) {
+					if (is_match) {
+						pair = 13; // Bright Yellow on Cyan
+					} else if (in_selection) {
 						pair = 8;
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
