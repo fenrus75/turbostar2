@@ -16,50 +16,21 @@ checks below to ensure a smooth experience for our users.
 - [ ] Update the version in `meson.build` (`version:` field)
 - [ ] Verify the version appears correctly in `turbostar --version` output
 
-## Build checks (all must compile with zero errors and zero warnings)
-
-Each build must be a **clean build** (`meson setup --wipe`), not incremental.
-Warnings are an **absolute zero** requirement — pre-existing warnings must be
-fixed before release, not excused.
-
-Only ninja compiler output counts; `meson setup` warnings (e.g. netrc
-permissions) are not compiler warnings and can be ignored.
-
-- [ ] Standard build: `meson setup --wipe -build`
-- [ ] Release build:  `meson setup --wipe --buildtype=release build_release`
-- [ ] Debug build:    `meson setup --wipe --buildtype=debug   build_debug`
-- [ ] ASAN build:     `meson setup --wipe -Denable-tests=true -Db_sanitize=address build_acov`
-- [ ] gcov build:     `meson setup --wipe -Denable-tests=true build_cov`
-
-Check each with: `ninja -C <dir>` and read the full output directly.
-**Do not pipe ninja through grep** — grep returns exit code 1 when it finds
-no matches, making a clean build falsely appear to fail.
-
-## Tests (all five build types, all must pass with no failures)
-
-- [ ] Standard build: `ninja -C build test`
-- [ ] Release build:  `ninja -C build_release test`
-- [ ] Debug build:    `ninja -C build_debug test`
-- [ ] ASAN build:     `ninja -C build_acov test`
-- [ ] gcov build:     `ninja -C build_cov test`
-
-The ASAN build may have fewer total tests as the valgrind tests do not run
-in that build; this is expected.
+## Release automation & validation
+- [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types (Standard, Release, Debug, ASAN/Gcov, UBSAN).
+- [ ] Ensure all builds and tests pass within the automation script.
 
 ## Memory leak check
 
 - [ ] Valgrind full leak check (use the uninstrumented standard build):
       ```
-      sudo valgrind --leak-check=full --show-leak-kinds=all build/turbostar --html --time=3
+      valgrind --leak-check=full --show-leak-kinds=all build/turbostar --exit-immediately
       ```
-      Only the two known library-internal leaks are acceptable (see `local.md`):
-      - 20 bytes: libtracefs internal strdup
-      - 21 bytes: libpci `pci_lookup_name` buffer (libpci bug)
       Any new leaks must be fixed before release.
 
 - [ ] ASAN leak check (confirms the same with sanitizer instrumentation):
       ```
-      ASAN_OPTIONS=detect_leaks=1 sudo -E build_acov/turbostar --once --time=3 2>&1 | grep -i "leak\|SUMMARY"
+      ASAN_OPTIONS=detect_leaks=1 sudo -E build_acov/turbostar --exit-immediately 2>&1 | grep -i "leak\|SUMMARY"
       ```
       Only the known 21-byte libpci leak is acceptable.
 
@@ -117,4 +88,3 @@ create a new section.  The final stable tag just renames the heading (e.g., `## 
 - [ ] Confirm with the user that all checks passed and they approve tagging
 - [ ] `git tag -a vX.Y -m "Release vX.Y"`
 - [ ] `git push origin vX.Y`
-
