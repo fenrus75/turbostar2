@@ -2,7 +2,7 @@
 set -e
 
 # Define build types
-builds=("build" "build_release" "build_debug" "build_acov" "build_cov" "build_ubsan" "build-tsan")
+builds=("build" "build_release" "build_debug" "build_acov" "build_cov" "build_ubsan" "build_msan" "build-tsan")
 
 echo "Starting release build verification..."
 
@@ -28,6 +28,9 @@ for b in "${builds[@]}"; do
             ;;
         "build_ubsan")
             meson setup --wipe -Denable-tests=true -Db_sanitize=undefined $b
+            ;;
+        "build_msan")
+            meson setup --wipe -Denable-tests=true -Db_sanitize=memory $b
             ;;
         "build-tsan")
             meson setup --wipe -Denable-tests=true -Db_sanitize=thread $b
