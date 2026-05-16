@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "event_logger.h"
+#include "file_dialog.h"
 #include "find_dialog.h"
 #include <ncurses.h>
 
@@ -293,7 +294,7 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
-		active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", "");
+		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, ".");
 		active_dialog_mode_ = dialog_mode::load;
 		set_focus(focus_target::dialog, "menu_load");
 		return;
@@ -301,11 +302,10 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::save) {
 		logger.log("Dispatching save event.");
-		// Find active doc
 		std::shared_ptr<document> active_doc;
 		for (auto& w : windows_) if (w->is_active()) active_doc = w->get_document();
 		
-		active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", active_doc ? active_doc->get_filename() : "");
+		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, active_doc ? active_doc->get_filename() : ".");
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;

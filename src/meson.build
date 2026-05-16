@@ -9,6 +9,7 @@ turbostar_sources = files(
   'line.cpp',
   'document.cpp',
   'dialog.cpp',
-  'find_dialog.cpp'
+  'find_dialog.cpp',
+  'file_dialog.cpp'
 )
 
