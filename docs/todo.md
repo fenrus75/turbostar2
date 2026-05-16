@@ -1,11 +1,6 @@
 
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- search via ^K F could use some autocompletion (similar to file dialog),
-     but based on past searches as source for autocomplete. this means we
-     need a global list of past search strings, populated both from ^KF and the
-     dialog box option 
-
 # mid term items
 
 - improve syntax highlighting
@@ -23,6 +18,11 @@
 
 
 # done items (items move here on completion)
+
+- search via ^K F could use some autocompletion (similar to file dialog),
+     but based on past searches as source for autocomplete. this means we
+     need a global list of past search strings, populated both from ^KF and the
+     dialog box option 
 
 - run a test coverage analysis to see if whole areas are not covered by the
     test suite
