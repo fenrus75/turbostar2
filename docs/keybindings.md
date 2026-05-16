@@ -80,11 +80,13 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K C` | Copy Block | Copies selection to the current cursor position. |
 | `^K M` | Move Block | Moves selection to the current cursor position. |
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
+| `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
 | `^K W` | Write / Save As | Prompts for a filename to save the current document. |
 | `^K Q` | Quit / Abort | Exits the application without saving. |
 | `^K X` | Save & Exit | Saves the current document and exits. |
 | `^K U` | Top of File | Moves cursor to the beginning of the document. |
 | `^K V` | End of File | Moves cursor to the end of the document. |
+| `^K L` | Go To Line | Prompts for a line number in the status bar to jump to. |
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
 | `^K H` | Hide/Clear Selection | Removes both start and end markers. |
 

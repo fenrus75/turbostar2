@@ -6,14 +6,8 @@
      need a global list of past search strings, populated both from ^KF and the
      dialog box option 
 
-- we need to update docs/colorscheme.md based on recent additions to
-     main.cpp and the file dialog
-
 - run a test coverage analysis to see if whole areas are not covered by the
     test suite
-
-- need to sync the key mapping document in docs/ with recent keyboard
-  shortcut additions
 
 # mid term items
 
@@ -32,6 +26,12 @@
 
 
 # done items (items move here on completion)
+
+- need to sync the key mapping document in docs/ with recent keyboard
+  shortcut additions
+
+- we need to update docs/colorscheme.md based on recent additions to
+     main.cpp and the file dialog
 
 - on making the backup ~ file we should use a move/rename style operation
   rather than writing out a new copy; if the disk is full the rename will

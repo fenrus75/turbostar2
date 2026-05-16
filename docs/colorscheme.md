@@ -12,6 +12,8 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Status Bar (Bottom)** | Black | Light Gray | 1 | |
 | **Status Hotkeys** | Red | Light Gray | 2 | e.g., the 'F1' in 'F1 Help'. |
 | **Selected Hotkey** | Red | Black | 7 | Hotkey when item is selected (reversed). |
+| **Selected Menu Item** | Black | Green | 14 | Background for the active menu option. |
+| **Sel. Menu Hotkey** | Red | Green | 15 | Hotkey on the active menu option. |
 | **Selection Highlight** | White | Cyan | 8 | The range between Begin and End markers. |
 | **Desktop Pattern** | Cyan | Dark Blue | 9 | The dithered `▒` background. |
 | **Syntax: Keyword** | Bright White | Dark Blue | 12 | C++ keywords like `void`, `int`, etc. |
@@ -35,6 +37,11 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Dialog Background** | Black | Light Gray | 1 | Main dialog content area. |
 | **Dialog Borders** | Bright White | Light Gray | 11 | Double-line high-contrast borders. |
 | **Dialog Title** | Black | Light Gray | 1 | Centered on the top border. |
+| **Dialog Hotkeys** | Bright Yellow | Light Gray | 16 | Hotkeys for dialog elements. |
+| **Dialog Group Box** | Black | Cyan | 17 | Content within a group box. |
+| **Dialog Group Hotkey** | Bright Yellow | Cyan | 18 | Hotkeys within a group box. |
+| **Dialog Input Field** | Bright White | Dark Blue | 5 | Text entry boxes. |
+| **Focused Widget** | Black | Green | 19 | Highlight for focused radio buttons/checkboxes. |
 | **Dialog Shadow** | Black | Black | 6 | Offset right and down for depth. |
 | **Primary Button** | Black | Green | 10 | The signature Borland green button. |
 | **Button Shadow** | Black | Black | 6 | ▀ half-block shadow for depth. |
