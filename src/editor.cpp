@@ -310,6 +310,12 @@ bool editor::handle_k_block_key(int key)
 		ev.type = event_type::load;
 		global_queue_.push(ev);
 		return true;
+	} else if (c == 'r') {
+		logger.log("K-block: Insert File");
+		active_dialog_ = std::make_unique<file_dialog>("Insert File", file_dialog_mode::open, false, ".");
+		active_dialog_mode_ = dialog_mode::insert_file;
+		set_focus(focus_target::dialog, "menu_insert_file");
+		return true;
 	} else if (c == 'd' || c == 's') {
 		logger.log("K-block: Save File");
 		editor_event ev;
@@ -496,6 +502,11 @@ void editor::dispatch(const editor_event &ev)
 							redraw_ev.type = event_type::redraw;
 							global_queue_.push(redraw_ev);
 						}
+					}
+				} else if (active_dialog_mode_ == dialog_mode::insert_file) {
+					std::string result_path = active_dialog_->get_result();
+					if (doc) {
+						doc->insert_file(result_path);
 					}
 				}
 				active_dialog_.reset();

@@ -58,6 +58,7 @@ class document
 	~document();
 
 	bool load_from_file(const std::string &filename);
+	void insert_file(const std::string &filename);
 	bool save();
 	bool save_to_file(const std::string &filename);
 	void clear();

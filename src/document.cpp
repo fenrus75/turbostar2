@@ -61,10 +61,42 @@ bool document::load_from_file(const std::string &filename)
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 
-	event_logger::get_instance().log("Document loaded from: " + filename + " (" + std::to_string(line_count_unlocked()) + " lines)");
+	undo_stack_.clear();
+	redo_stack_.clear();
+	current_action_group_.actions.clear();
+	edit_group_depth_ = 0;
+
+	event_logger::get_instance().log("Document loaded from: " + filename + " (" +
+					 std::to_string(line_count_unlocked()) + " lines)");
 	lock.unlock();
 	notify_cursor_changed();
 	return true;
+}
+
+void document::insert_file(const std::string &filename)
+{
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Insert File failed: Could not open file " + filename);
+		return;
+	}
+
+	std::vector<line> block;
+	std::string line_text;
+	while (std::getline(file, line_text)) {
+		block.emplace_back(line_text);
+	}
+
+	if (block.empty())
+		return;
+
+	std::unique_lock lock(mutex_);
+	begin_edit_group();
+	insert_block(block);
+	end_edit_group();
+	set_modified();
+	lock.unlock();
+	notify_cursor_changed();
 }
 
 bool document::save()

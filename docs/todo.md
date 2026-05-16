@@ -5,7 +5,8 @@
     - `^K/` Filter
     - `^G` Matching `(`
     - `^KJ` Paragraph format  --- this one we need to parse out to clang-format! So we may want to do the mid item first
-    - `^KR` Insert file
+
+- syntax highlighting: highlight the matching bracket ( vs ), { vs } and [ vs ]
 
 # mid term items
 
@@ -28,6 +29,8 @@
 
 
 # done items (items move here on completion)
+
+- `^KR` Insert file
 
 - implement an undo/redo mechanism
     - `^_` Undo
