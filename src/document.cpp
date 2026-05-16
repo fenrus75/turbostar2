@@ -135,6 +135,17 @@ size_t document::get_line_count() const
 	return lines_.size();
 }
 
+int document::line_count() const
+{
+	std::shared_lock lock(mutex_);
+	return line_count_unlocked();
+}
+
+int document::line_count_unlocked() const
+{
+	return static_cast<int>(lines_.size());
+}
+
 std::shared_ptr<line> document::get_line(size_t index) const
 {
 	std::shared_lock lock(mutex_);

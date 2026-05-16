@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
 #include <condition_variable>
 #include <queue>
 #include <shared_mutex>
@@ -40,6 +41,7 @@ class document
 	bool is_modified() const;
 
 	// Basic accessors for now
+	int line_count() const;
 	size_t get_line_count() const;
 	std::shared_ptr<line> get_line(size_t index) const;
 
@@ -84,6 +86,7 @@ class document
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
 	void set_modified();
+	int line_count_unlocked() const;
 	void adjust_selection_for_insert(int y, int x, int count);
 	void adjust_selection_for_delete(int y, int x, int count);
 	void adjust_selection_for_split(int y, int x);
