@@ -35,6 +35,11 @@ test_event_logger = executable('test_event_logger',
   include_directories: 'src')
 test('unit_event_logger', test_event_logger)
 
+test_history_manager = executable('test_history_manager',
+  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp'],
+  include_directories: 'src')
+test('unit_history_manager', test_history_manager)
+
 # E2E tests (run via python)
 pymod = import('python')
 python = pymod.find_installation('python3', required: false)
@@ -156,6 +161,12 @@ if python.found()
   )
   test('e2e_search', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_search.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+  test('e2e_search_autocomplete', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_search_autocomplete.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
     timeout: 60
