@@ -22,6 +22,7 @@ enum class event_type {
 	format_doc,   ///< Request to format document/range
 	settings,     ///< Request to show settings dialog
 	git_status_updated, ///< Notification that git status has changed
+	git_add,      ///< Request to git-add current file
 	select_window ///< Request to switch active window (key_code is index)
 };
 

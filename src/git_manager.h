@@ -33,6 +33,11 @@ class git_manager
 	void request_status(const std::string &filepath);
 
 	/**
+	 * @brief Non-blocking request to git-add a file.
+	 */
+	void git_add(const std::string &filepath);
+
+	/**
 	 * @brief Synchronously returns the last known status of a file.
 	 */
 	git_status get_cached_status(const std::string &filepath) const;
@@ -43,11 +48,18 @@ class git_manager
 
 	void worker_loop();
 	git_status run_git_status_cmd(const std::string &filepath);
+	void run_git_add_cmd(const std::string &filepath);
+
+	enum class request_type { status, add };
+	struct git_request {
+		request_type type;
+		std::string filepath;
+	};
 
 	std::thread worker_thread_;
 	std::mutex queue_mutex_;
 	std::condition_variable cv_;
-	std::queue<std::string> pending_requests_;
+	std::queue<git_request> pending_requests_;
 	std::atomic<bool> stop_thread_{false};
 
 	mutable std::mutex cache_mutex_;

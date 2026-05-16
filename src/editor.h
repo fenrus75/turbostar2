@@ -25,7 +25,7 @@ class editor
 {
       public:
 	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately);
-	~editor() = default;
+	~editor();
 
 	/**
 	 * @brief Main execution loop.

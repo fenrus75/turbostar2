@@ -20,6 +20,8 @@
 
 # done items (items move here on completion)
 
+- top level "Git" menu with "Git add" as first operation
+
 - better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
    - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
      (implemented using background thread and /usr/bin/git)

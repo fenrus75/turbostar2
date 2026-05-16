@@ -31,6 +31,9 @@ menu_bar::menu_bar()
 		       {"Options",
 			'p',
 			{{"Preferences...", event_type::settings, 'p', "", false}}},
+		       {"Git",
+			'g',
+			{{"Git add", event_type::git_add, 'a', "", false}}},
 		       {"Window", 'w', {}},
 		       {"Help", 'h', {{"About...", event_type::about, 'a', "", false}}}};
 }

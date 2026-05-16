@@ -41,7 +41,17 @@ void git_manager::request_status(const std::string &filepath)
 		return;
 
 	std::unique_lock lock(queue_mutex_);
-	pending_requests_.push(filepath);
+	pending_requests_.push({request_type::status, filepath});
+	cv_.notify_one();
+}
+
+void git_manager::git_add(const std::string &filepath)
+{
+	if (filepath.empty() || filepath == "unknown.txt")
+		return;
+
+	std::unique_lock lock(queue_mutex_);
+	pending_requests_.push({request_type::add, filepath});
 	cv_.notify_one();
 }
 
@@ -58,33 +68,51 @@ git_status git_manager::get_cached_status(const std::string &filepath) const
 void git_manager::worker_loop()
 {
 	while (!stop_thread_) {
-		std::string filepath;
+		git_request req;
 		{
 			std::unique_lock lock(queue_mutex_);
 			cv_.wait(lock, [this] { return !pending_requests_.empty() || stop_thread_; });
 			if (stop_thread_)
 				break;
-			filepath = pending_requests_.front();
+			req = pending_requests_.front();
 			pending_requests_.pop();
 		}
 
-		git_status status = run_git_status_cmd(filepath);
+		if (req.type == request_type::status) {
+			git_status status = run_git_status_cmd(req.filepath);
 
-		bool changed = false;
-		{
-			std::unique_lock lock(cache_mutex_);
-			if (status_cache_[filepath] != status) {
-				status_cache_[filepath] = status;
-				changed = true;
+			bool changed = false;
+			{
+				std::unique_lock lock(cache_mutex_);
+				if (status_cache_[req.filepath] != status) {
+					status_cache_[req.filepath] = status;
+					changed = true;
+				}
 			}
-		}
 
-		if (changed && global_queue_) {
-			editor_event ev;
-			ev.type = event_type::git_status_updated;
-			global_queue_->push(ev);
+			if (changed && global_queue_) {
+				editor_event ev;
+				ev.type = event_type::git_status_updated;
+				global_queue_->push(ev);
+			}
+		} else if (req.type == request_type::add) {
+			run_git_add_cmd(req.filepath);
+			// After add, refresh status
+			request_status(req.filepath);
 		}
 	}
+}
+
+void git_manager::run_git_add_cmd(const std::string &filepath)
+{
+	fs::path p(filepath);
+	std::string dir = p.parent_path().string();
+	std::string file = p.filename().string();
+	if (dir.empty())
+		dir = ".";
+
+	std::string cmd = "git -C " + dir + " add " + file + " 2>/dev/null";
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
 }
 
 git_status git_manager::run_git_status_cmd(const std::string &filepath)

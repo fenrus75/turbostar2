@@ -524,6 +524,15 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::git_add) {
+		logger.log("Dispatching git_add event.");
+		std::shared_ptr<document> doc = get_active_doc();
+		if (doc && !doc->get_filename().empty()) {
+			git_manager::get_instance().git_add(doc->get_filename());
+		}
+		return;
+	}
+
 	if (ev.type == event_type::format_doc) {
 		logger.log("Dispatching format_doc event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
