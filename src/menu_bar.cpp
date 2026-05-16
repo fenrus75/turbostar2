@@ -20,6 +20,8 @@ menu_bar::menu_bar()
 			    {"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
 			    {"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
 			    {"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
+			    {"", event_type::key_press, 0, "", true},
+			    {"Format Document", event_type::format_doc, 'f', "^KJ", false},
 			}},
 		       {"Search",
 			's',

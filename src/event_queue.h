@@ -19,6 +19,7 @@ enum class event_type {
 	redraw,	      ///< Request a global UI re-render
 	find,	      ///< Request to find text (triggers dialog)
 	replace,      ///< Request to replace text (triggers dialog)
+	format_doc,   ///< Request to format document/range
 	select_window ///< Request to switch active window (key_code is index)
 };
 

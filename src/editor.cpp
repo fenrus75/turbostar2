@@ -316,6 +316,12 @@ bool editor::handle_k_block_key(int key)
 		active_dialog_mode_ = dialog_mode::insert_file;
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
+	} else if (c == 'j') {
+		logger.log("K-block: Format Document");
+		editor_event ev;
+		ev.type = event_type::format_doc;
+		global_queue_.push(ev);
+		return true;
 	} else if (c == 'd' || c == 's') {
 		logger.log("K-block: Save File");
 		editor_event ev;
@@ -462,6 +468,15 @@ void editor::dispatch(const editor_event &ev)
 		active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
 		active_dialog_mode_ = dialog_mode::replace;
 		set_focus(focus_target::dialog, "menu_replace");
+		return;
+	}
+
+	if (ev.type == event_type::format_doc) {
+		logger.log("Dispatching format_doc event.");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->format_range(0, active_doc->line_count() - 1);
+		}
 		return;
 	}
 

@@ -10,13 +10,14 @@ class TurbostarRunner:
     def __init__(self, cols=80, lines=24):
         with tempfile.NamedTemporaryFile(delete=False) as log_file:
             self.log_path = log_file.name
-        self.master_fd = None
-        self.slave_fd = None
-        self.proc = None
+        
         self.cols = cols
         self.lines = lines
         self.screen = pyte.Screen(cols, lines)
         self.stream = pyte.Stream(self.screen)
+        self.proc = None
+        self.master_fd = None
+        self.slave_fd = None
 
     def start(self, filename=None):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
@@ -57,12 +58,13 @@ class TurbostarRunner:
     def _read_output(self):
         if self.master_fd is None:
             return
+        
         while True:
-            r, _, _ = select.select([self.master_fd], [], [], 0)
+            r, _, _ = select.select([self.master_fd], [], [], 0.01)
             if not r:
                 break
             try:
-                data = os.read(self.master_fd, 4096)
+                data = os.read(self.master_fd, 1024)
                 if not data:
                     break
                 self.stream.feed(data.decode('utf-8', errors='replace'))
@@ -98,8 +100,7 @@ class TurbostarRunner:
 
     def get_cursor_position(self):
         self._read_output()
-        # The cursor position is in the status bar at the bottom, row = self.lines - 1
-        # It starts at index 1 (after a space)
+        # The status bar is on the last row
         # We need to extract the string "Y:X" from row[1:]
         status_bar_row = self.screen.display[self.lines - 1]
         # Look for the part like " Y:X "
@@ -114,10 +115,10 @@ class TurbostarRunner:
         start_time = time.time()
         while time.time() - start_time < timeout:
             actual_y, actual_x = self.get_cursor_position()
-            if (actual_y, actual_x) == (expected_y, expected_x):
+            if actual_y == expected_y and actual_x == expected_x:
                 return
             time.sleep(0.1)
-        
+
         actual_y, actual_x = self.get_cursor_position()
         raise AssertionError(f"Cursor position mismatch! Expected ({expected_y}, {expected_x}), got ({actual_y}, {actual_x}) after timeout")
 
@@ -133,39 +134,51 @@ class TurbostarRunner:
     def assert_content_is(self, reference_file_path):
         import tempfile
         import filecmp
-        
+        import difflib
+
         # 1. Generate a temporary path for saving
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
             save_path = tmp.name
-        
+
         try:
             # 2. Trigger Save As via keys (^KW)
             self.send_keys('\x0b' + 'w')
             time.sleep(0.5) # Wait for dialog
             # 3. Clear pre-filled and type path
-            self.send_keys('\x7f', count=50) 
+            self.send_keys('\x7f', count=50)
             self.send_keys(save_path + '\n')
             time.sleep(0.5)
-            
+
             # 4. Compare files
             if not os.path.exists(save_path):
                 raise AssertionError(f"Save failed during assert_content_is. {save_path} not found.")
-                
+
             # If path is relative to project root, find it
             ref_path = reference_file_path
             if not os.path.isabs(ref_path):
                 project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
                 ref_path = os.path.join(project_root, ref_path)
-                
+
             if not os.path.exists(ref_path):
                 raise FileNotFoundError(f"Reference file not found: {ref_path}")
-                
+
             with open(save_path, 'r') as f1, open(ref_path, 'r') as f2:
-                c1 = f1.read().strip()
-                c2 = f2.read().strip()
+                lines1 = f1.readlines()
+                lines2 = f2.readlines()
+                
+                c1 = "".join(lines1).strip()
+                c2 = "".join(lines2).strip()
+                
                 if c1 != c2:
-                    # Detailed error
-                    print(f"Content Mismatch!\nActual (saved):\n'{c1}'\nExpected (ref):\n'{c2}'")
+                    print(f"\nContent Mismatch for {reference_file_path}:")
+                    diff = difflib.unified_diff(
+                        lines2, lines1, 
+                        fromfile='Expected (reference)', 
+                        tofile='Actual (saved)'
+                    )
+                    for line in diff:
+                        print(line, end='')
+                    print("\n")
                     assert c1 == c2
         finally:
             if os.path.exists(save_path):
@@ -178,12 +191,13 @@ class TurbostarRunner:
         if self.master_fd is not None:
             # Try to quit gracefully via ^KQ
             try:
-                self.send_keys('\x0b' + 'q')
-                time.sleep(0.2)
+                os.write(self.master_fd, b'\x0b' + b'q')
+                time.sleep(0.1)
             except:
                 pass
             os.close(self.master_fd)
             self.master_fd = None
+            
         if self.proc is not None and self.proc.poll() is None:
             self.proc.terminate()
             self.proc.wait()

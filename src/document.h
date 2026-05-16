@@ -108,6 +108,8 @@ class document
 
 	bool find_next(const search_params &params, bool is_repeat = false);
 
+	void format_range(int start_y, int end_y);
+
 	void undo();
 	void redo();
 
