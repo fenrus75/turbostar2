@@ -12,6 +12,8 @@
 - run a test coverage analysis to see if whole areas are not covered by the
     test suite
 
+- need to sync the key mapping document in docs/ with recent keyboard
+  shortcut additions
 
 # mid term items
 
@@ -30,6 +32,11 @@
 
 
 # done items (items move here on completion)
+
+- on making the backup ~ file we should use a move/rename style operation
+  rather than writing out a new copy; if the disk is full the rename will
+  succeed but not the new writeout - the new writeout would thus lead
+  to data corruption.
 
 - add ^KL for "go to line" - ask the line number in the status bar and then move the Y cursor to that line
 

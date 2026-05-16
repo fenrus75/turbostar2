@@ -86,7 +86,13 @@ bool document::save_to_file(const std::string &filename)
 
 	if (fs::exists(filename)) {
 		try {
-			fs::copy_file(filename, filename + "~", fs::copy_options::overwrite_existing);
+			std::error_code ec;
+			fs::rename(filename, filename + "~", ec);
+			if (ec) {
+				event_logger::get_instance().log("Backup rename failed: " + ec.message());
+				// Fallback to copy if rename fails (e.g., cross-device, though unlikely here)
+				fs::copy_file(filename, filename + "~", fs::copy_options::overwrite_existing);
+			}
 		} catch (const std::exception &e) {
 			event_logger::get_instance().log("Backup failed: " + std::string(e.what()));
 		}
@@ -139,6 +145,7 @@ const std::string &document::get_filename() const
 bool document::has_nondefault_filename() const
 {
 	std::shared_lock lock(mutex_);
+	event_logger::get_instance().log("has_nondefault_filename: current='" + filename_ + "'");
 	return !filename_.empty() && filename_ != "unknown.txt";
 }
 
