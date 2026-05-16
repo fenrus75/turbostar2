@@ -7,12 +7,14 @@
 #include "history_manager.h"
 #include "config_manager.h"
 #include "settings_dialog.h"
+#include "git_manager.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
-	
+	git_manager::get_instance().start(global_queue_);
+
 	if (filenames.empty()) {
 		new_window("");
 	} else {
@@ -112,6 +114,11 @@ std::string editor::get_search_autocomplete() const
 		}
 	}
 	return "";
+}
+
+editor::~editor()
+{
+	git_manager::get_instance().stop();
 }
 
 void editor::run()
@@ -506,6 +513,14 @@ void editor::dispatch(const editor_event &ev)
 		active_dialog_ = std::make_unique<settings_dialog>();
 		active_dialog_mode_ = dialog_mode::settings;
 		set_focus(focus_target::dialog, "menu_settings");
+		return;
+	}
+
+	if (ev.type == event_type::git_status_updated) {
+		logger.log("Dispatching git_status_updated event.");
+		for (auto &win : windows_) {
+			win->invalidate();
+		}
 		return;
 	}
 

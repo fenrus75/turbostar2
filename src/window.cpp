@@ -1,6 +1,7 @@
 #include "window.h"
 #include <ncurses.h>
 #include "event_logger.h"
+#include "git_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
     : id_(id), x_(x), y_(y), width_(width), height_(height), title_(title)
@@ -351,7 +352,8 @@ void window::draw_border() const
 	mvaddstr(y_ + height_ - 1, x_, "╚");
 	mvaddstr(y_ + height_ - 1, x_ + width_ - 1, "╝");
 
-	// Draw title
+	// Title
+
 	if (!current_title.empty()) {
 		int title_x = x_ + (width_ - current_title.length()) / 2;
 		mvprintw(y_, title_x - 1, " %s ", current_title.c_str());
@@ -367,6 +369,25 @@ void window::draw_border() const
 
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
+
+	// Draw Git Status
+	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
+		git_status status = git_manager::get_instance().get_cached_status(doc_->get_filename());
+		std::string indicator = "[?]";
+		int pair = 5;
+
+		if (status == git_status::clean) {
+			indicator = "[✔]";
+			pair = 20;
+		} else if (status == git_status::dirty) {
+			indicator = "[✎]";
+			pair = 21;
+		}
+
+		attron(COLOR_PAIR(pair));
+		mvaddstr(y_, x_ + width_ - 10, indicator.c_str());
+		attroff(COLOR_PAIR(pair));
+	}
 
 	attroff(COLOR_PAIR(5));
 	// Draw scrollbars

@@ -2,10 +2,6 @@
 
 # mid term items
 
-- better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
-   - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
-     (need to discuss which indicators to use)
-
 - improve syntax highlighting
    - multiple languages support (first one: markdown)
    - we will need an abstraction between the syntax highlighting thread and the language, one class per language most likely
@@ -23,6 +19,10 @@
 
 
 # done items (items move here on completion)
+
+- better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
+   - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
+     (implemented using background thread and /usr/bin/git)
 
 - allow multiple filenames on the command line and just open them all as separate documents/windows
 

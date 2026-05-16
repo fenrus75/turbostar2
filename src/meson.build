@@ -13,6 +13,7 @@ turbostar_sources = files(
   'file_dialog.cpp',
   'history_manager.cpp',
   'config_manager.cpp',
-  'settings_dialog.cpp'
+  'settings_dialog.cpp',
+  'git_manager.cpp'
 )
 

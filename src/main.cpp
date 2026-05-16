@@ -101,6 +101,8 @@ int main(int argc, char **argv)
 	init_pair(17, COLOR_BLACK, COLOR_CYAN);	     // Dialog Group Box Content
 	init_pair(18, COLOR_YELLOW + 8, COLOR_CYAN); // Dialog Group Box Hotkeys
 	init_pair(19, COLOR_BLACK, COLOR_GREEN);     // Focused Widget
+	init_pair(20, COLOR_GREEN + 8, COLOR_BLUE);  // Git Clean (Green on Blue)
+	init_pair(21, COLOR_YELLOW + 8, COLOR_BLUE); // Git Dirty (Yellow on Blue)
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000
