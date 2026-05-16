@@ -5,9 +5,6 @@
      but based on past searches as source for autocomplete. this means we
      need a global list of past search strings, populated both from ^KF and the
      dialog box option 
-- code cleanup
-    - window.cpp lines 54-106 is a chain of if statements that could
-    	be a switch()
 
 - we need to update docs/colorscheme.md based on recent additions to
      main.cpp and the file dialog
@@ -15,19 +12,6 @@
 - run a test coverage analysis to see if whole areas are not covered by the
     test suite
 
-- add ^K S as a shortcut for save (not save-as, so use existing filename)
-
-- needs_render = true should become a method so that we can add hooks/etc into
-    it centrally later
-
-- File->Save acts as File-Save As in that it asks for a filename - only Save As should ask for a filename
-    unless no current filename exists
-
-- On saving over an existing file we should make a filename~ style backup file
-
-- we should extend the default test timeout to 60 seconds as we do many delays
-
-- add ^KL for "go to line" - ask the line number in the status bar and then move the Y cursor to that line
 
 # mid term items
 
@@ -46,6 +30,15 @@
 
 
 # done items (items move here on completion)
+
+- add ^KL for "go to line" - ask the line number in the status bar and then move the Y cursor to that line
+
+- On saving over an existing file we should make a filename~ style backup file
+
+- File->Save acts as File-Save As in that it asks for a filename - only Save As should ask for a filename
+    unless no current filename exists
+
+- we should extend the default test timeout to 60 seconds as we do many delays
 
 - add ^K S as a shortcut for save (not save-as, so use existing filename)
 

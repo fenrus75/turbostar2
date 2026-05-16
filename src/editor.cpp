@@ -320,6 +320,11 @@ bool editor::handle_k_block_key(int key)
 		is_searching_prompt_ = true;
 		search_input_buffer_ = "";
 		return true;
+	} else if (c == 'l') {
+		logger.log("K-block: Go to Line (Status Bar Prompt)");
+		is_going_to_line_prompt_ = true;
+		line_input_buffer_ = "";
+		return true;
 	} else if (c == 'u') {
 		logger.log("K-block: Top of File");
 		active_doc->move_to_top();
@@ -513,6 +518,40 @@ void editor::dispatch(const editor_event &ev)
 			return; // Consume all keys in prompt mode
 		}
 
+		// 3. Status Bar Go to Line Prompt
+		if (is_going_to_line_prompt_) {
+			if (ev.key_code == 27) { // ESC
+				is_going_to_line_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				try {
+					if (!line_input_buffer_.empty()) {
+						int line_num = std::stoi(line_input_buffer_);
+						std::shared_ptr<document> active_doc = get_active_doc();
+						if (active_doc) {
+							// Move to line (convert 1-based to 0-based)
+							active_doc->move_cursor(0, (line_num - 1) - active_doc->get_cursor_y());
+						}
+					}
+				} catch (...) {
+					// Ignore invalid input
+				}
+				is_going_to_line_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
+				if (!line_input_buffer_.empty())
+					line_input_buffer_.pop_back();
+				return;
+			}
+			if (ev.key_code >= '0' && ev.key_code <= '9') {
+				line_input_buffer_ += static_cast<char>(ev.key_code);
+				return;
+			}
+			return; // Consume all keys in prompt mode
+		}
+
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -647,6 +686,8 @@ void editor::render()
 		status_help = "Q-Block: F:Find A:Replace";
 	} else if (is_searching_prompt_) {
 		status_help = "Search for: " + search_input_buffer_ + "_";
+	} else if (is_going_to_line_prompt_) {
+		status_help = "Go to line: " + line_input_buffer_ + "_";
 	}
 
 	bottom_status_.draw(status_help, cur_x, cur_y);

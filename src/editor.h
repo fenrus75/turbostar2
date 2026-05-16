@@ -73,6 +73,9 @@ class editor
 	bool is_searching_prompt_{false};
 	std::string search_input_buffer_;
 
+	bool is_going_to_line_prompt_{false};
+	std::string line_input_buffer_;
+
 	bool is_running_{true};
 	bool exit_immediately_{false};
 	bool debug_mode_{false};
