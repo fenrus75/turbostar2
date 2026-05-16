@@ -4,7 +4,6 @@
 - Unimplemented Joe key sequences to add:
     - `^K/` Filter
     - `^G` Matching `(`
-    - `^KJ` Paragraph format  (implemented for whole document via clang-format)
 
 - syntax highlighting: highlight the matching bracket ( vs ), { vs } and [ vs ]
 
@@ -29,6 +28,8 @@
 
 
 # done items (items move here on completion)
+
+- `^KJ` Paragraph format (implemented using clang-format on the current block of text)
 
 - a way to call clang-format on the current file
    - needs to save, run the command, then reload, as one nice operation
