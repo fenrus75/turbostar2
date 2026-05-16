@@ -8,11 +8,18 @@
 #include "config_manager.h"
 #include "settings_dialog.h"
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename, bool exit_immediately)
+editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
-	new_window(filename);
+	
+	if (filenames.empty()) {
+		new_window("");
+	} else {
+		for (const auto &f : filenames) {
+			new_window(f);
+		}
+	}
 }
 
 void editor::new_window(const std::string &filename)

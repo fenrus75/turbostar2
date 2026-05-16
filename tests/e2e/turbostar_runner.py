@@ -33,7 +33,8 @@ class TurbostarRunner:
 
         cmd = [exe_path, '--log', log_path_abs]
         if filename:
-            cmd.append(filename)
+            # Handle multiple filenames if provided as space-separated string
+            cmd.extend(filename.split())
 
         self.master_fd, self.slave_fd = pty.openpty()
 
