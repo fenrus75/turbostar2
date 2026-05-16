@@ -305,7 +305,13 @@ void editor::dispatch(const editor_event& ev)
 		std::shared_ptr<document> active_doc;
 		for (auto& w : windows_) if (w->is_active()) active_doc = w->get_document();
 		
-		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, false, active_doc ? active_doc->get_filename() : ".");
+		std::string filename_arg;
+	if (active_doc) {
+		filename_arg = active_doc->get_filename();
+	} else {
+		filename_arg = ".";
+	}
+	active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, false, filename_arg);
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;
@@ -479,7 +485,12 @@ void editor::dispatch(const editor_event& ev)
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
 			if (c >= '0' && c <= '9') {
-				int target_idx = (c == '0') ? 9 : (c - '1');
+				int target_idx;
+				if (c == '0') {
+					target_idx = 9;
+				} else {
+					target_idx = (c - '1');
+				}
 				activate_window(static_cast<size_t>(target_idx));
 				return;
 			}

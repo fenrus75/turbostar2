@@ -48,7 +48,11 @@ void file_dialog::populate_files()
 				struct stat attr;
 				if (stat(entry.path().string().c_str(), &attr) == 0) {
 					fe.mtime = std::chrono::system_clock::from_time_t(attr.st_mtime);
-					fe.size = fe.is_dir ? 0 : attr.st_size;
+					if (fe.is_dir) {
+						fe.size = 0;
+					} else {
+						fe.size = attr.st_size;
+					}
 				} else {
 					fe.mtime = std::chrono::system_clock::now();
 					fe.size = 0;
@@ -113,12 +117,20 @@ void file_dialog::draw_button(int by, int bx, const std::string& btext, char bho
 	attroff(COLOR_PAIR(1));
 
 	move(by, bx);
-	attrset(focused ? COLOR_PAIR(14) : COLOR_PAIR(10));
+	if (focused) {
+		attrset(COLOR_PAIR(14));
+	} else {
+		attrset(COLOR_PAIR(10));
+	}
 	for (size_t i = 0; i < btext.length(); ++i) {
 		if (std::tolower(btext[i]) == std::tolower(bhot)) {
 			attrset(COLOR_PAIR(15)); 
 			addch(btext[i]); 
-			attrset(focused ? COLOR_PAIR(14) : COLOR_PAIR(10));
+			if (focused) {
+		attrset(COLOR_PAIR(14));
+	} else {
+		attrset(COLOR_PAIR(10));
+	}
 		} else addch(btext[i]);
 	}
 }
@@ -157,7 +169,11 @@ void file_dialog::draw() const
 
 	// History Button
 	bool hist_focus = focus_ == focus_element::history_btn;
-	attrset(hist_focus ? COLOR_PAIR(14) : COLOR_PAIR(10)); // Green
+	if (hist_focus) {
+		attrset(COLOR_PAIR(14));
+	} else {
+		attrset(COLOR_PAIR(10));
+	} // Green
 	mvaddch(y_ + 2, x_ + 49, 'v');
 
 	// Files Label
@@ -197,7 +213,12 @@ void file_dialog::draw() const
 				if (is_sel && in_view) attrset(COLOR_PAIR(18)); // Bright Yellow on Cyan
 				else attrset(COLOR_PAIR(17));
 				
-				int draw_col_width = (col == 0) ? col_width : (list_box_w - col_width - 1);
+				int draw_col_width;
+				if (col == 0) {
+					draw_col_width = col_width;
+				} else {
+					draw_col_width = (list_box_w - col_width - 1);
+				}
 				std::string name = files_[file_idx].display_name;
 				if (name.length() > (size_t)draw_col_width) {
 					name = name.substr(0, draw_col_width);
@@ -225,7 +246,12 @@ void file_dialog::draw() const
 	}
 
 	// Buttons
-	std::string primary_btn_text = (mode_ == file_dialog_mode::open) ? "   Ok   " : "   Ok   "; 
+	std::string primary_btn_text;
+	if (mode_ == file_dialog_mode::open) {
+		primary_btn_text = "   Ok   ";
+	} else {
+		primary_btn_text = "   Ok   ";
+	} 
 	draw_button(y_ + 2, x_ + 53, primary_btn_text, 'o', focus_ == focus_element::ok_btn);
 	draw_button(y_ + 5, x_ + 53, " Cancel ", 'c', focus_ == focus_element::cancel_btn);
 
@@ -279,7 +305,11 @@ void file_dialog::draw() const
 		
 		for (int i = 0; i < drop_h; ++i) {
 			move(drop_y + i, drop_x);
-			attrset(i == history_sel_idx_ ? COLOR_PAIR(19) : COLOR_PAIR(1));
+			if (i == history_sel_idx_) {
+				attrset(COLOR_PAIR(19));
+			} else {
+				attrset(COLOR_PAIR(1));
+			}
 			for (int j = 0; j < drop_w; ++j) addch(' ');
 			std::string h_str = file_history_[i];
 			if (h_str.length() > (size_t)drop_w - 1) h_str = h_str.substr(0, drop_w - 1);

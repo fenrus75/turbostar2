@@ -912,7 +912,12 @@ bool document::find_next(const search_params& params, bool is_repeat)
 
 	if (params.backward) {
 		for (int y = start_y; y >= scope_sy; --y) {
-			int x_lim = (y == start_y) ? start_x : static_cast<int>(lines_[y]->length_in_chars());
+			int x_lim;
+			if (y == start_y) {
+				x_lim = start_x;
+			} else {
+				x_lim = static_cast<int>(lines_[y]->length_in_chars());
+			}
 			int found_x = check_line(y, x_lim);
 			if (found_x != -1) {
 				cursor_y_ = y;
@@ -924,7 +929,12 @@ bool document::find_next(const search_params& params, bool is_repeat)
 		}
 	} else {
 		for (int y = start_y; y <= scope_ey; ++y) {
-			int x_lim = (y == start_y) ? start_x : 0;
+			int x_lim;
+			if (y == start_y) {
+				x_lim = start_x;
+			} else {
+				x_lim = 0;
+			}
 			int found_x = check_line(y, x_lim);
 			if (found_x != -1) {
 				cursor_y_ = y;

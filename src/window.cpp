@@ -35,7 +35,12 @@ void window::set_cursor_position() const
 {
 	if (doc_) {
 		auto l = doc_->get_line(doc_->get_cursor_y());
-		int display_col = l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
+		int display_col;
+	if (l) {
+		display_col = l->char_to_display_col(doc_->get_cursor_x());
+	} else {
+		display_col = 0;
+	}
 		int screen_y = y_ + 1 + doc_->get_cursor_y() - top_line_;
 		int screen_x = x_ + 1 + display_col - left_column_;
 		move(screen_y, screen_x);
@@ -122,7 +127,13 @@ int window::get_cursor_x() const
 
 int window::get_cursor_y() const
 {
-	return doc_ ? doc_->get_cursor_y() : -1;
+	int result;
+	if (doc_) {
+		result = doc_->get_cursor_y();
+	} else {
+		result = -1;
+	}
+	return result;
 }
 
 void window::draw() const
@@ -137,7 +148,12 @@ void window::update_viewport() const
 	if (!doc_) return;
 	
 	auto l = doc_->get_line(doc_->get_cursor_y());
-	int display_col = l ? l->char_to_display_col(doc_->get_cursor_x()) : 0;
+	int display_col;
+	if (l) {
+		display_col = l->char_to_display_col(doc_->get_cursor_x());
+	} else {
+		display_col = 0;
+	}
 	int cy = doc_->get_cursor_y();
 	
 	if (cy < top_line_) {
