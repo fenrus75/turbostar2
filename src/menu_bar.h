@@ -14,10 +14,8 @@ struct menu_item {
 	    : name(n), action(a), hotkey(h), shortcut(s), is_separator(sep)
 	{
 	}
-	menu_item(std::string n, event_type a, int ak, char h, std::string s,
-		  bool sep)
-	    : name(n), action(a), action_key_code(ak), hotkey(h), shortcut(s),
-	      is_separator(sep)
+	menu_item(std::string n, event_type a, int ak, char h, std::string s, bool sep)
+	    : name(n), action(a), action_key_code(ak), hotkey(h), shortcut(s), is_separator(sep)
 	{
 	}
 	bool is_separator{false};
@@ -41,8 +39,7 @@ class menu_bar
 	bool is_open() const;
 	void close_menu();
 
-	void set_category_items(const std::string &name,
-				const std::vector<menu_item> &items);
+	void set_category_items(const std::string &name, const std::vector<menu_item> &items);
 
       private:
 	void find_next_item();

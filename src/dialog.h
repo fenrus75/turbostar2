@@ -56,8 +56,7 @@ class dialog
 class input_dialog : public dialog
 {
       public:
-	input_dialog(const std::string &title, const std::string &prompt,
-		     const std::string &initial_value = "");
+	input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value = "");
 	~input_dialog() override = default;
 
 	void draw() const override;
@@ -75,8 +74,7 @@ class input_dialog : public dialog
 class message_dialog : public dialog
 {
       public:
-	message_dialog(const std::string &title,
-		       const std::vector<std::string> &lines);
+	message_dialog(const std::string &title, const std::vector<std::string> &lines);
 	~message_dialog() override = default;
 
 	void draw() const override;

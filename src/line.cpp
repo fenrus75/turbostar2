@@ -127,8 +127,7 @@ void line::insert_at(int char_pos, const std::string &utf8_char)
 	if (offset <= text_.length()) {
 		text_.insert(offset, utf8_char);
 		if (char_pos <= static_cast<int>(attributes_.size())) {
-			attributes_.insert(attributes_.begin() + char_pos,
-					   syntax_attribute::normal);
+			attributes_.insert(attributes_.begin() + char_pos, syntax_attribute::normal);
 		} else {
 			attributes_.push_back(syntax_attribute::normal);
 		}
@@ -201,11 +200,9 @@ void line::split_at(int char_pos, line &new_line)
 		text_.erase(offset);
 
 		if (char_pos < static_cast<int>(attributes_.size())) {
-			std::vector<syntax_attribute> new_attrs(
-			    attributes_.begin() + char_pos, attributes_.end());
+			std::vector<syntax_attribute> new_attrs(attributes_.begin() + char_pos, attributes_.end());
 			new_line.set_attributes(new_attrs);
-			attributes_.erase(attributes_.begin() + char_pos,
-					  attributes_.end());
+			attributes_.erase(attributes_.begin() + char_pos, attributes_.end());
 		}
 	}
 }
@@ -228,8 +225,7 @@ int line::char_to_display_col(int char_pos) const
 	size_t byte_offset = 0;
 
 	while (current_char < char_pos && byte_offset < text_.length()) {
-		unsigned char c =
-		    static_cast<unsigned char>(text_[byte_offset]);
+		unsigned char c = static_cast<unsigned char>(text_[byte_offset]);
 		int char_bytes = 1;
 
 		if (c < 0x80) {

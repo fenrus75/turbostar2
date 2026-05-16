@@ -8,8 +8,7 @@
 class window
 {
       public:
-	window(int id, int x, int y, int width, int height,
-	       const std::string &title);
+	window(int id, int x, int y, int width, int height, const std::string &title);
 	~window() = default;
 
 	void draw() const;

@@ -7,20 +7,17 @@
 document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
-	highlighter_thread_ =
-	    std::thread(&document::highlighter_thread_loop, this);
+	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	log_state();
 }
 
-document::document(event_queue &global_queue, const std::string &filename)
-    : filename_(filename), global_queue_(global_queue)
+document::document(event_queue &global_queue, const std::string &filename) : filename_(filename), global_queue_(global_queue)
 {
 	if (filename.empty() || !load_from_file(filename)) {
 		if (lines_.empty())
 			lines_.push_back(std::make_shared<line>(""));
 	}
-	highlighter_thread_ =
-	    std::thread(&document::highlighter_thread_loop, this);
+	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	log_state();
 }
 
@@ -38,8 +35,7 @@ bool document::load_from_file(const std::string &filename)
 	std::unique_lock lock(mutex_);
 	std::ifstream file(filename);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(
-		    "Load failed: Could not open file " + filename);
+		event_logger::get_instance().log("Load failed: Could not open file " + filename);
 		return false;
 	}
 
@@ -61,9 +57,7 @@ bool document::load_from_file(const std::string &filename)
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 
-	event_logger::get_instance().log("Document loaded from: " + filename +
-					 " (" + std::to_string(lines_.size()) +
-					 " lines)");
+	event_logger::get_instance().log("Document loaded from: " + filename + " (" + std::to_string(lines_.size()) + " lines)");
 	lock.unlock();
 	log_state();
 	return true;
@@ -76,8 +70,7 @@ bool document::save()
 	lock.unlock();
 
 	if (fname.empty()) {
-		event_logger::get_instance().log(
-		    "Save failed: No filename specified.");
+		event_logger::get_instance().log("Save failed: No filename specified.");
 		return false;
 	}
 	return save_to_file(fname);
@@ -88,8 +81,7 @@ bool document::save_to_file(const std::string &filename)
 	std::unique_lock lock(mutex_);
 	std::ofstream file(filename);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(
-		    "Save failed: Could not open file " + filename);
+		event_logger::get_instance().log("Save failed: Could not open file " + filename);
 		return false;
 	}
 
@@ -175,16 +167,13 @@ void document::move_cursor(int dx, int dy)
 		cursor_y_ = static_cast<int>(lines_.size()) - 1;
 	}
 
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ < 0)
 		cursor_x_ = 0;
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 
-	event_logger::get_instance().log(
-	    "Cursor moved to: " + std::to_string(cursor_y_) + ":" +
-	    std::to_string(cursor_x_));
+	event_logger::get_instance().log("Cursor moved to: " + std::to_string(cursor_y_) + ":" + std::to_string(cursor_x_));
 	lock.unlock();
 	log_state();
 }
@@ -215,8 +204,7 @@ void document::backspace()
 	} else if (cursor_y_ > 0) {
 		// Join with previous line
 		int prev_line_idx = cursor_y_ - 1;
-		int prev_line_char_len =
-		    static_cast<int>(lines_[prev_line_idx]->length_in_chars());
+		int prev_line_char_len = static_cast<int>(lines_[prev_line_idx]->length_in_chars());
 
 		adjust_selection_for_join(cursor_y_, cursor_x_);
 
@@ -235,8 +223,7 @@ void document::backspace()
 void document::delete_char()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ < line_char_len) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_);
@@ -258,8 +245,7 @@ void document::delete_char()
 void document::delete_to_eol()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
 		adjust_selection_for_delete(cursor_y_, cursor_x_, count);
@@ -293,8 +279,7 @@ void document::delete_to_bol()
 void document::delete_word_forward()
 {
 	std::unique_lock lock(mutex_);
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
 		log_state();
@@ -310,11 +295,9 @@ void document::delete_word_forward()
 	};
 
 	int i = cursor_x_;
-	while (i < line_char_len &&
-	       !std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i++;
-	while (i < line_char_len &&
-	       std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i++;
 
 	int count = i - cursor_x_;
@@ -348,11 +331,9 @@ void document::delete_word_backward()
 	};
 
 	int i = cursor_x_ - 1;
-	while (i > 0 &&
-	       std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i--;
-	while (i > 0 &&
-	       !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
+	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
 		i--;
 
 	int count = cursor_x_ - i;
@@ -399,8 +380,7 @@ void document::move_to_eol()
 {
 	std::unique_lock lock(mutex_);
 	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
-		cursor_x_ =
-		    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+		cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	}
 	lock.unlock();
 	log_state();
@@ -431,8 +411,7 @@ void document::move_page_up(int page_height)
 	if (cursor_y_ < 0)
 		cursor_y_ = 0;
 
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
@@ -447,8 +426,7 @@ void document::move_page_down(int page_height)
 		cursor_y_ = static_cast<int>(lines_.size()) - 1;
 	}
 
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 	if (cursor_x_ > line_char_len)
 		cursor_x_ = line_char_len;
 	lock.unlock();
@@ -459,8 +437,7 @@ void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
 	std::string text = lines_[cursor_y_]->get_text();
-	int line_char_len =
-	    static_cast<int>(lines_[cursor_y_]->length_in_chars());
+	int line_char_len = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 
 	if (cursor_x_ >= line_char_len) {
 		if (cursor_y_ < static_cast<int>(lines_.size()) - 1) {
@@ -480,15 +457,12 @@ void document::move_next_word()
 	};
 
 	int i = cursor_x_;
-	while (i < line_char_len &&
-	       !std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i++;
-	while (i < line_char_len &&
-	       std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i++;
 
-	if (i >= line_char_len &&
-	    cursor_y_ < static_cast<int>(lines_.size()) - 1) {
+	if (i >= line_char_len && cursor_y_ < static_cast<int>(lines_.size()) - 1) {
 		cursor_y_++;
 		cursor_x_ = 0;
 	} else {
@@ -505,8 +479,7 @@ void document::move_prev_word()
 	if (cursor_x_ == 0) {
 		if (cursor_y_ > 0) {
 			cursor_y_--;
-			cursor_x_ = static_cast<int>(
-			    lines_[cursor_y_]->length_in_chars());
+			cursor_x_ = static_cast<int>(lines_[cursor_y_]->length_in_chars());
 		}
 		lock.unlock();
 		log_state();
@@ -522,11 +495,9 @@ void document::move_prev_word()
 	};
 
 	int i = cursor_x_ - 1;
-	while (i > 0 &&
-	       std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i))))
 		i--;
-	while (i > 0 &&
-	       !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
+	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
 		i--;
 
 	cursor_x_ = i;
@@ -595,9 +566,7 @@ std::vector<line> document::get_selection_block() const
 		return {};
 
 	int sx, sy, ex, ey;
-	if (selection_start_y_ < selection_end_y_ ||
-	    (selection_start_y_ == selection_end_y_ &&
-	     selection_start_x_ <= selection_end_x_)) {
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
 		sx = selection_start_x_;
 		sy = selection_start_y_;
 		ex = selection_end_x_;
@@ -611,19 +580,15 @@ std::vector<line> document::get_selection_block() const
 
 	std::vector<line> block;
 	if (sy == ey) {
-		line l(lines_[sy]->get_text().substr(
-		    lines_[sy]->char_to_byte_offset(sx),
-		    lines_[sy]->char_to_byte_offset(ex) -
-			lines_[sy]->char_to_byte_offset(sx)));
+		line l(lines_[sy]->get_text().substr(lines_[sy]->char_to_byte_offset(sx),
+						     lines_[sy]->char_to_byte_offset(ex) - lines_[sy]->char_to_byte_offset(sx)));
 		block.push_back(std::move(l));
 	} else {
-		line l1(lines_[sy]->get_text().substr(
-		    lines_[sy]->char_to_byte_offset(sx)));
+		line l1(lines_[sy]->get_text().substr(lines_[sy]->char_to_byte_offset(sx)));
 		block.push_back(std::move(l1));
 		for (int i = sy + 1; i < ey; ++i)
 			block.push_back(*lines_[i]);
-		line ln(lines_[ey]->get_text().substr(
-		    0, lines_[ey]->char_to_byte_offset(ex)));
+		line ln(lines_[ey]->get_text().substr(0, lines_[ey]->char_to_byte_offset(ex)));
 		block.push_back(std::move(ln));
 	}
 	return block;
@@ -639,9 +604,7 @@ void document::delete_selection()
 	}
 
 	int sx, sy, ex, ey;
-	if (selection_start_y_ < selection_end_y_ ||
-	    (selection_start_y_ == selection_end_y_ &&
-	     selection_start_x_ <= selection_end_x_)) {
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
 		sx = selection_start_x_;
 		sy = selection_start_y_;
 		ex = selection_end_x_;
@@ -778,13 +741,10 @@ bool document::has_selection() const
 	return selection_start_y_ != -1 && selection_end_y_ != -1;
 }
 
-void document::get_selection_range(int &start_x, int &start_y, int &end_x,
-				   int &end_y) const
+void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const
 {
 	std::shared_lock lock(mutex_);
-	if (selection_start_y_ < selection_end_y_ ||
-	    (selection_start_y_ == selection_end_y_ &&
-	     selection_start_x_ <= selection_end_x_)) {
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
 		start_x = selection_start_x_;
 		start_y = selection_start_y_;
 		end_x = selection_end_x_;
@@ -801,25 +761,18 @@ void document::log_state() const
 {
 	std::shared_lock lock(mutex_);
 	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
-	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" +
-			  std::to_string(cur_disp_x + 1);
+	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cur_disp_x + 1);
 
 	if (selection_start_y_ != -1) {
-		int sel_start_disp_x =
-		    lines_[selection_start_y_]->char_to_display_col(
-			selection_start_x_);
-		msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" +
-		       std::to_string(sel_start_disp_x + 1);
+		int sel_start_disp_x = lines_[selection_start_y_]->char_to_display_col(selection_start_x_);
+		msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" + std::to_string(sel_start_disp_x + 1);
 	} else {
 		msg += " S=none";
 	}
 
 	if (selection_end_y_ != -1) {
-		int sel_end_disp_x =
-		    lines_[selection_end_y_]->char_to_display_col(
-			selection_end_x_);
-		msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" +
-		       std::to_string(sel_end_disp_x + 1);
+		int sel_end_disp_x = lines_[selection_end_y_]->char_to_display_col(selection_end_x_);
+		msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" + std::to_string(sel_end_disp_x + 1);
 	} else {
 		msg += " E=none";
 	}
@@ -875,8 +828,7 @@ void document::adjust_selection_for_split(int y, int x)
 void document::adjust_selection_for_join(int y, int x)
 {
 	(void)x;
-	int prev_line_char_len =
-	    static_cast<int>(lines_[y - 1]->length_in_chars());
+	int prev_line_char_len = static_cast<int>(lines_[y - 1]->length_in_chars());
 	auto adjust = [&](int &sx, int &sy) {
 		if (sy == y) {
 			sy--;
@@ -896,8 +848,7 @@ void document::adjust_selection_for_line_delete(int y)
 			sx = 0;
 			if (y >= static_cast<int>(lines_.size()) - 1) {
 				sy = y - 1;
-				sx = static_cast<int>(
-				    lines_[sy]->length_in_chars());
+				sx = static_cast<int>(lines_[sy]->length_in_chars());
 			}
 		} else if (sy > y) {
 			sy--;
@@ -916,8 +867,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	int start_y = cursor_y_;
 	int start_x = cursor_x_;
 
-	int scope_sy = 0, scope_sx = 0,
-	    scope_ey = static_cast<int>(lines_.size()) - 1,
+	int scope_sy = 0, scope_sx = 0, scope_ey = static_cast<int>(lines_.size()) - 1,
 	    scope_ex = static_cast<int>(lines_.back()->length_in_chars());
 	if (params.selected_text_only && selection_start_y_ != -1) {
 		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
@@ -938,13 +888,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 				start_x--;
 			else if (start_y > scope_sy) {
 				start_y--;
-				start_x = static_cast<int>(
-				    lines_[start_y]->length_in_chars());
+				start_x = static_cast<int>(lines_[start_y]->length_in_chars());
 			} else
 				return false;
 		} else {
-			if (start_x < static_cast<int>(
-					  lines_[start_y]->length_in_chars()))
+			if (start_x < static_cast<int>(lines_[start_y]->length_in_chars()))
 				start_x++;
 			else if (start_y < scope_ey) {
 				start_y++;
@@ -958,8 +906,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		std::string line_text = lines_[y]->get_text();
 		std::string original_line_text = line_text;
 
-		std::regex_constants::syntax_option_type flags =
-		    std::regex::ECMAScript;
+		std::regex_constants::syntax_option_type flags = std::regex::ECMAScript;
 		if (params.ignore_case)
 			flags |= std::regex::icase;
 
@@ -970,101 +917,61 @@ bool document::find_next(const search_params &params, bool is_repeat)
 
 		try {
 			std::regex re(pattern, flags);
-			auto words_begin = std::sregex_iterator(
-			    line_text.begin(), line_text.end(), re);
+			auto words_begin = std::sregex_iterator(line_text.begin(), line_text.end(), re);
 			auto words_end = std::sregex_iterator();
 
 			int best_found_char_idx = -1;
-			size_t byte_limit =
-			    lines_[y]->char_to_byte_offset(x_limit);
+			size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
 
 			size_t line_scope_start_byte = 0;
 			size_t line_scope_end_byte = line_text.length();
 			if (params.selected_text_only) {
 				if (y == scope_sy)
-					line_scope_start_byte =
-					    lines_[y]->char_to_byte_offset(
-						scope_sx);
+					line_scope_start_byte = lines_[y]->char_to_byte_offset(scope_sx);
 				if (y == scope_ey)
-					line_scope_end_byte =
-					    lines_[y]->char_to_byte_offset(
-						scope_ex);
+					line_scope_end_byte = lines_[y]->char_to_byte_offset(scope_ex);
 			}
 
-			for (std::sregex_iterator i = words_begin;
-			     i != words_end; ++i) {
+			for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
 				std::smatch match = *i;
 				size_t byte_pos = match.position();
 
 				if (params.backward) {
-					if (byte_pos >= line_scope_start_byte &&
-					    byte_pos <= byte_limit) {
+					if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
 						int found_char_idx = 0;
 						size_t current_byte = 0;
-						while (current_byte <
-							   byte_pos &&
-						       current_byte <
-							   original_line_text
-							       .length()) {
-							unsigned char c = static_cast<
-							    unsigned char>(
-							    original_line_text
-								[current_byte]);
+						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
 							if (c < 0x80)
-								current_byte +=
-								    1;
-							else if ((c & 0xE0) ==
-								 0xC0)
-								current_byte +=
-								    2;
-							else if ((c & 0xE0) ==
-								 0xE0)
-								current_byte +=
-								    3;
-							else if ((c & 0xF0) ==
-								 0xF0)
-								current_byte +=
-								    4;
+								current_byte += 1;
+							else if ((c & 0xE0) == 0xC0)
+								current_byte += 2;
+							else if ((c & 0xE0) == 0xE0)
+								current_byte += 3;
+							else if ((c & 0xF0) == 0xF0)
+								current_byte += 4;
 							else
-								current_byte +=
-								    1;
+								current_byte += 1;
 							found_char_idx++;
 						}
-						best_found_char_idx =
-						    found_char_idx;
+						best_found_char_idx = found_char_idx;
 					}
 				} else {
-					if (byte_pos >= byte_limit &&
-					    byte_pos < line_scope_end_byte) {
+					if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
 						int found_char_idx = 0;
 						size_t current_byte = 0;
-						while (current_byte <
-							   byte_pos &&
-						       current_byte <
-							   original_line_text
-							       .length()) {
-							unsigned char c = static_cast<
-							    unsigned char>(
-							    original_line_text
-								[current_byte]);
+						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
 							if (c < 0x80)
-								current_byte +=
-								    1;
-							else if ((c & 0xE0) ==
-								 0xC0)
-								current_byte +=
-								    2;
-							else if ((c & 0xE0) ==
-								 0xE0)
-								current_byte +=
-								    3;
-							else if ((c & 0xF0) ==
-								 0xF0)
-								current_byte +=
-								    4;
+								current_byte += 1;
+							else if ((c & 0xE0) == 0xC0)
+								current_byte += 2;
+							else if ((c & 0xE0) == 0xE0)
+								current_byte += 3;
+							else if ((c & 0xF0) == 0xF0)
+								current_byte += 4;
 							else
-								current_byte +=
-								    1;
+								current_byte += 1;
 							found_char_idx++;
 						}
 						return found_char_idx;
@@ -1083,8 +990,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			if (y == start_y) {
 				x_lim = start_x;
 			} else {
-				x_lim = static_cast<int>(
-				    lines_[y]->length_in_chars());
+				x_lim = static_cast<int>(lines_[y]->length_in_chars());
 			}
 			int found_x = check_line(y, x_lim);
 			if (found_x != -1) {
@@ -1132,9 +1038,7 @@ void document::highlighter_thread_loop()
 		std::shared_ptr<line> l;
 		{
 			std::unique_lock lock(dirty_mutex_);
-			dirty_cv_.wait(lock, [&] {
-				return !dirty_lines_.empty() || stop_thread_;
-			});
+			dirty_cv_.wait(lock, [&] { return !dirty_lines_.empty() || stop_thread_; });
 			if (stop_thread_)
 				break;
 			l = dirty_lines_.front();
@@ -1160,16 +1064,13 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();
 	size_t char_count = l->length_in_chars();
-	std::vector<syntax_attribute> attrs(char_count,
-					    syntax_attribute::normal);
+	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
 
 	// Pre-compiled combined regex for efficiency
-	static const std::regex kw_regex(
-	    "\\b(void|int|char|const|bool|class|struct|enum|virtual|override|"
-	    "return|if|else|for|while)\\b");
+	static const std::regex kw_regex("\\b(void|int|char|const|bool|class|struct|enum|virtual|override|"
+					 "return|if|else|for|while)\\b");
 
-	auto words_begin =
-	    std::sregex_iterator(text.begin(), text.end(), kw_regex);
+	auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
 	auto words_end = std::sregex_iterator();
 
 	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
@@ -1180,10 +1081,8 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 		// Convert byte pos to char pos
 		int char_pos = 0;
 		size_t current_byte = 0;
-		while (current_byte < byte_pos &&
-		       char_pos < static_cast<int>(char_count)) {
-			unsigned char c =
-			    static_cast<unsigned char>(text[current_byte]);
+		while (current_byte < byte_pos && char_pos < static_cast<int>(char_count)) {
+			unsigned char c = static_cast<unsigned char>(text[current_byte]);
 			if (c < 0x80)
 				current_byte += 1;
 			else if ((c & 0xE0) == 0xC0)

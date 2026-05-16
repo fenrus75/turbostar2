@@ -5,15 +5,13 @@
 #include <sys/stat.h>
 #include "event_logger.h"
 
-file_dialog::file_dialog(const std::string &title, file_dialog_mode mode,
-			 bool autocomplete, const std::string &initial_path)
+file_dialog::file_dialog(const std::string &title, file_dialog_mode mode, bool autocomplete, const std::string &initial_path)
     : dialog(title, 68, 17), mode_(mode), autocomplete_(autocomplete)
 {
 	if (fs::is_directory(initial_path)) {
 		current_path_ = fs::absolute(initial_path);
 	} else {
-		current_path_ =
-		    fs::absolute(fs::path(initial_path).parent_path());
+		current_path_ = fs::absolute(fs::path(initial_path).parent_path());
 		filename_buffer_ = fs::path(initial_path).filename().string();
 	}
 	populate_files();
@@ -26,8 +24,7 @@ void file_dialog::populate_files()
 	scroll_top_ = 0;
 
 	try {
-		if (fs::exists(current_path_) &&
-		    fs::is_directory(current_path_)) {
+		if (fs::exists(current_path_) && fs::is_directory(current_path_)) {
 			if (current_path_.has_parent_path()) {
 				file_entry p;
 				p.path = current_path_.parent_path();
@@ -41,12 +38,8 @@ void file_dialog::populate_files()
 			std::vector<file_entry> directories;
 			std::vector<file_entry> files;
 
-			for (const auto &entry :
-			     fs::directory_iterator(current_path_)) {
-				if (entry.path()
-					.filename()
-					.string()
-					.starts_with("."))
+			for (const auto &entry : fs::directory_iterator(current_path_)) {
+				if (entry.path().filename().string().starts_with("."))
 					continue;
 
 				file_entry fe;
@@ -54,51 +47,36 @@ void file_dialog::populate_files()
 				fe.is_dir = entry.is_directory();
 
 				struct stat attr;
-				if (stat(entry.path().string().c_str(),
-					 &attr) == 0) {
-					fe.mtime = std::chrono::system_clock::
-					    from_time_t(attr.st_mtime);
+				if (stat(entry.path().string().c_str(), &attr) == 0) {
+					fe.mtime = std::chrono::system_clock::from_time_t(attr.st_mtime);
 					if (fe.is_dir) {
 						fe.size = 0;
 					} else {
 						fe.size = attr.st_size;
 					}
 				} else {
-					fe.mtime =
-					    std::chrono::system_clock::now();
+					fe.mtime = std::chrono::system_clock::now();
 					fe.size = 0;
 				}
 
 				if (fe.is_dir) {
-					fe.display_name =
-					    entry.path().filename().string() +
-					    "/";
+					fe.display_name = entry.path().filename().string() + "/";
 					directories.push_back(fe);
 				} else {
-					fe.display_name =
-					    entry.path().filename().string();
+					fe.display_name = entry.path().filename().string();
 					files.push_back(fe);
 				}
 			}
 
 			std::sort(directories.begin(), directories.end(),
-				  [](const auto &a, const auto &b) {
-					  return a.display_name <
-						 b.display_name;
-				  });
-			std::sort(files.begin(), files.end(),
-				  [](const auto &a, const auto &b) {
-					  return a.display_name <
-						 b.display_name;
-				  });
+				  [](const auto &a, const auto &b) { return a.display_name < b.display_name; });
+			std::sort(files.begin(), files.end(), [](const auto &a, const auto &b) { return a.display_name < b.display_name; });
 
-			files_.insert(files_.end(), directories.begin(),
-				      directories.end());
+			files_.insert(files_.end(), directories.begin(), directories.end());
 			files_.insert(files_.end(), files.begin(), files.end());
 		}
 	} catch (const fs::filesystem_error &e) {
-		event_logger::get_instance().log("Filesystem error: " +
-						 std::string(e.what()));
+		event_logger::get_instance().log("Filesystem error: " + std::string(e.what()));
 	}
 }
 
@@ -119,8 +97,7 @@ std::string file_dialog::get_autocomplete_suggestion() const
 	}
 
 	std::string suggestion = "";
-	std::chrono::system_clock::time_point newest_mtime =
-	    std::chrono::system_clock::time_point::min();
+	std::chrono::system_clock::time_point newest_mtime = std::chrono::system_clock::time_point::min();
 	for (const auto &fe : files_) {
 		if (!fe.is_dir) {
 			if (fe.display_name.starts_with(filename_buffer_)) {
@@ -134,8 +111,7 @@ std::string file_dialog::get_autocomplete_suggestion() const
 	return suggestion;
 }
 
-void file_dialog::draw_button(int by, int bx, const std::string &btext,
-			      char bhot, bool focused) const
+void file_dialog::draw_button(int by, int bx, const std::string &btext, char bhot, bool focused) const
 {
 	attron(COLOR_PAIR(1));
 	mvaddstr(by, bx + btext.length(), "▄");
@@ -190,13 +166,9 @@ void file_dialog::draw() const
 	// Autocomplete suggestion
 	if (focus_ == focus_element::entry_box) {
 		std::string suggestion = get_autocomplete_suggestion();
-		if (!suggestion.empty() &&
-		    suggestion.length() > filename_buffer_.length()) {
-			attrset(COLOR_PAIR(
-			    4)); // Cyan on Blue as fallback for "gray on blue"
-			mvaddstr(y_ + 2, x_ + 8 + filename_buffer_.length(),
-				 suggestion.c_str() +
-				     filename_buffer_.length());
+		if (!suggestion.empty() && suggestion.length() > filename_buffer_.length()) {
+			attrset(COLOR_PAIR(4)); // Cyan on Blue as fallback for "gray on blue"
+			mvaddstr(y_ + 2, x_ + 8 + filename_buffer_.length(), suggestion.c_str() + filename_buffer_.length());
 		}
 	}
 
@@ -242,12 +214,10 @@ void file_dialog::draw() const
 			int file_idx = scroll_top_ + i + (col * files_height);
 			if (file_idx < static_cast<int>(files_.size())) {
 				bool is_sel = (file_idx == selected_index_);
-				bool in_view =
-				    (focus_ == focus_element::file_view);
+				bool in_view = (focus_ == focus_element::file_view);
 
 				if (is_sel && in_view)
-					attrset(COLOR_PAIR(
-					    18)); // Bright Yellow on Cyan
+					attrset(COLOR_PAIR(18)); // Bright Yellow on Cyan
 				else
 					attrset(COLOR_PAIR(17));
 
@@ -255,11 +225,9 @@ void file_dialog::draw() const
 				if (col == 0) {
 					draw_col_width = col_width;
 				} else {
-					draw_col_width =
-					    (list_box_w - col_width - 1);
+					draw_col_width = (list_box_w - col_width - 1);
 				}
-				std::string name =
-				    files_[file_idx].display_name;
+				std::string name = files_[file_idx].display_name;
 				if (name.length() > (size_t)draw_col_width) {
 					name = name.substr(0, draw_col_width);
 				}
@@ -277,12 +245,10 @@ void file_dialog::draw() const
 		addstr("░");
 	addstr("►");
 	if (!files_.empty()) {
-		int max_scroll = std::max(1, static_cast<int>(files_.size()) -
-						 files_height * 2);
+		int max_scroll = std::max(1, static_cast<int>(files_.size()) - files_height * 2);
 		int thumb_pos = 1;
 		if (max_scroll > 0) {
-			thumb_pos =
-			    1 + (scroll_top_ * (list_box_w - 3)) / max_scroll;
+			thumb_pos = 1 + (scroll_top_ * (list_box_w - 3)) / max_scroll;
 		}
 		if (thumb_pos >= list_box_w - 1)
 			thumb_pos = list_box_w - 2;
@@ -296,15 +262,12 @@ void file_dialog::draw() const
 	} else {
 		primary_btn_text = "   Ok   ";
 	}
-	draw_button(y_ + 2, x_ + 53, primary_btn_text, 'o',
-		    focus_ == focus_element::ok_btn);
-	draw_button(y_ + 5, x_ + 53, " Cancel ", 'c',
-		    focus_ == focus_element::cancel_btn);
+	draw_button(y_ + 2, x_ + 53, primary_btn_text, 'o', focus_ == focus_element::ok_btn);
+	draw_button(y_ + 5, x_ + 53, " Cancel ", 'c', focus_ == focus_element::cancel_btn);
 
 	// Info Section
 	int info_y = y_ + height_ - 3;
-	attrset(COLOR_PAIR(
-	    5)); // Bright White on Blue (or Bright Blue on Dark Blue)
+	attrset(COLOR_PAIR(5)); // Bright White on Blue (or Bright Blue on Dark Blue)
 	for (int i = 0; i < 2; ++i) {
 		move(info_y + i, x_ + 1);
 		for (int j = 0; j < width_ - 2; ++j)
@@ -323,27 +286,20 @@ void file_dialog::draw() const
 		if (!suggestion.empty()) {
 			active_name = suggestion;
 		}
-	} else if (focus_ == focus_element::file_view &&
-		   selected_index_ < static_cast<int>(files_.size())) {
+	} else if (focus_ == focus_element::file_view && selected_index_ < static_cast<int>(files_.size())) {
 		active_name = files_[selected_index_].display_name;
 	}
 	if (!active_name.empty()) {
 		std::string info_str = active_name;
 		for (const auto &fe : files_) {
 			if (fe.display_name == active_name ||
-			    (fe.display_name.substr(
-				 0, fe.display_name.length() - 1) ==
-				 active_name &&
-			     fe.is_dir)) {
+			    (fe.display_name.substr(0, fe.display_name.length() - 1) == active_name && fe.is_dir)) {
 				info_str += "  " + std::to_string(fe.size);
 
-				std::time_t t =
-				    std::chrono::system_clock::to_time_t(
-					fe.mtime);
+				std::time_t t = std::chrono::system_clock::to_time_t(fe.mtime);
 				std::tm *tm = std::localtime(&t);
 				char time_buf[64];
-				std::strftime(time_buf, sizeof(time_buf),
-					      "%b %e, %Y %I:%M%p", tm);
+				std::strftime(time_buf, sizeof(time_buf), "%b %e, %Y %I:%M%p", tm);
 				info_str += "  ";
 				info_str += time_buf;
 				break;
@@ -357,8 +313,7 @@ void file_dialog::draw() const
 		int drop_y = y_ + 3;
 		int drop_x = x_ + 8;
 		int drop_w = 40;
-		int drop_h =
-		    std::min(5, static_cast<int>(file_history_.size()));
+		int drop_h = std::min(5, static_cast<int>(file_history_.size()));
 
 		for (int i = 0; i < drop_h; ++i) {
 			move(drop_y + i, drop_x);
@@ -400,16 +355,11 @@ dialog_result file_dialog::handle_key(int key)
 	if (history_dropdown_open_) {
 		if (key == KEY_UP && history_sel_idx_ > 0)
 			history_sel_idx_--;
-		else if (key == KEY_DOWN &&
-			 history_sel_idx_ <
-			     static_cast<int>(file_history_.size()) - 1)
+		else if (key == KEY_DOWN && history_sel_idx_ < static_cast<int>(file_history_.size()) - 1)
 			history_sel_idx_++;
 		else if (key == KEY_ENTER || key == 10 || key == 13) {
-			if (!file_history_.empty() && history_sel_idx_ >= 0 &&
-			    history_sel_idx_ <
-				static_cast<int>(file_history_.size())) {
-				filename_buffer_ =
-				    file_history_[history_sel_idx_];
+			if (!file_history_.empty() && history_sel_idx_ >= 0 && history_sel_idx_ < static_cast<int>(file_history_.size())) {
+				filename_buffer_ = file_history_[history_sel_idx_];
 			}
 			history_dropdown_open_ = false;
 			focus_ = focus_element::entry_box;
@@ -449,21 +399,14 @@ dialog_result file_dialog::handle_key(int key)
 				filename_buffer_ = suggestion;
 			}
 
-			fs::path entered_path =
-			    current_path_ / filename_buffer_;
-			if (fs::exists(entered_path) &&
-			    fs::is_directory(entered_path)) {
+			fs::path entered_path = current_path_ / filename_buffer_;
+			if (fs::exists(entered_path) && fs::is_directory(entered_path)) {
 				current_path_ = fs::canonical(entered_path);
 				populate_files();
 				filename_buffer_.clear();
 			} else {
-				if (std::find(file_history_.begin(),
-					      file_history_.end(),
-					      filename_buffer_) ==
-				    file_history_.end()) {
-					file_history_.insert(
-					    file_history_.begin(),
-					    filename_buffer_);
+				if (std::find(file_history_.begin(), file_history_.end(), filename_buffer_) == file_history_.end()) {
+					file_history_.insert(file_history_.begin(), filename_buffer_);
 				}
 				return dialog_result::confirmed;
 			}
@@ -487,8 +430,7 @@ dialog_result file_dialog::handle_key(int key)
 					selected_index_--;
 				break;
 			case KEY_DOWN:
-				if (selected_index_ <
-				    static_cast<int>(files_.size()) - 1)
+				if (selected_index_ < static_cast<int>(files_.size()) - 1)
 					selected_index_++;
 				break;
 			case KEY_LEFT:
@@ -496,30 +438,23 @@ dialog_result file_dialog::handle_key(int key)
 					selected_index_ -= files_height;
 				break;
 			case KEY_RIGHT:
-				if (selected_index_ + files_height <
-				    static_cast<int>(files_.size()))
+				if (selected_index_ + files_height < static_cast<int>(files_.size()))
 					selected_index_ += files_height;
 				else
-					selected_index_ =
-					    static_cast<int>(files_.size()) - 1;
+					selected_index_ = static_cast<int>(files_.size()) - 1;
 				break;
 			case KEY_ENTER:
 			case 10:
 			case 13:
-				if (selected_index_ <
-				    static_cast<int>(files_.size())) {
-					const auto &entry =
-					    files_[selected_index_];
+				if (selected_index_ < static_cast<int>(files_.size())) {
+					const auto &entry = files_[selected_index_];
 					if (entry.is_dir) {
-						current_path_ =
-						    fs::canonical(entry.path);
+						current_path_ = fs::canonical(entry.path);
 						populate_files();
 						filename_buffer_.clear();
 					} else {
-						filename_buffer_ =
-						    entry.display_name;
-						focus_ =
-						    focus_element::entry_box;
+						filename_buffer_ = entry.display_name;
+						focus_ = focus_element::entry_box;
 					}
 				}
 				break;
@@ -538,11 +473,9 @@ dialog_result file_dialog::handle_key(int key)
 	} else if (focus_ == focus_element::ok_btn) {
 		if (key == ' ' || key == KEY_ENTER || key == 10 || key == 13) {
 			if (!filename_buffer_.empty()) {
-				fs::path entered_path =
-				    current_path_ / filename_buffer_;
+				fs::path entered_path = current_path_ / filename_buffer_;
 				if (fs::is_directory(entered_path)) {
-					current_path_ =
-					    fs::canonical(entered_path);
+					current_path_ = fs::canonical(entered_path);
 					populate_files();
 					filename_buffer_.clear();
 					focus_ = focus_element::entry_box;

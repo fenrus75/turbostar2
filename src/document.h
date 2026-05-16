@@ -74,8 +74,7 @@ class document
 	void move_selection();
 	bool has_selection() const;
 
-	void get_selection_range(int &start_x, int &start_y, int &end_x,
-				 int &end_y) const;
+	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 
 	void log_state() const;
 

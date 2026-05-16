@@ -2,10 +2,8 @@
 #include <cctype>
 #include <ncurses.h>
 
-find_dialog::find_dialog(const std::string &title,
-			 const search_params &initial_params, bool is_replace)
-    : dialog(title, 64, get_height(is_replace)), params_(initial_params),
-      is_replace_(is_replace)
+find_dialog::find_dialog(const std::string &title, const search_params &initial_params, bool is_replace)
+    : dialog(title, 64, get_height(is_replace)), params_(initial_params), is_replace_(is_replace)
 {
 }
 
@@ -16,8 +14,7 @@ int find_dialog::get_height(bool is_replace)
 	return 16;
 }
 
-void find_dialog::draw_group_box(int gy, int gx, int gw, int gh,
-				 const std::string &gtitle) const
+void find_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
 {
 	// Fill background
 	attrset(COLOR_PAIR(17));
@@ -34,8 +31,7 @@ void find_dialog::draw_group_box(int gy, int gx, int gw, int gh,
 	attrset(0);
 }
 
-void find_dialog::draw_labeled_text(int ly, int lx, const std::string &text,
-				    char hotkey) const
+void find_dialog::draw_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
 {
 	std::string lower_text = text;
 	for (char &c : lower_text)
@@ -54,9 +50,7 @@ void find_dialog::draw_labeled_text(int ly, int lx, const std::string &text,
 	}
 }
 
-void find_dialog::draw_group_labeled_text(int ly, int lx,
-					  const std::string &text,
-					  char hotkey) const
+void find_dialog::draw_group_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
 {
 	std::string lower_text = text;
 	for (char &c : lower_text)
@@ -192,17 +186,14 @@ void find_dialog::draw() const
 	}
 
 	// Options content
-	draw_checkbox(6 + y_off, 4, !params_.ignore_case,
-		      focus_idx_ == 1 + f_off);
+	draw_checkbox(6 + y_off, 4, !params_.ignore_case, focus_idx_ == 1 + f_off);
 	draw_group_labeled_text(6 + y_off, 8, "Case sensitive", 'c');
-	draw_checkbox(7 + y_off, 4, params_.whole_words,
-		      focus_idx_ == 2 + f_off);
+	draw_checkbox(7 + y_off, 4, params_.whole_words, focus_idx_ == 2 + f_off);
 	draw_group_labeled_text(7 + y_off, 8, "Whole words only", 'w');
 	draw_checkbox(8 + y_off, 4, params_.regex, focus_idx_ == 3 + f_off);
 	draw_group_labeled_text(8 + y_off, 8, "Regular expression", 'r');
 	if (is_replace_) {
-		draw_checkbox(9 + y_off, 4, params_.prompt_on_replace,
-			      focus_idx_ == 5);
+		draw_checkbox(9 + y_off, 4, params_.prompt_on_replace, focus_idx_ == 5);
 		draw_group_labeled_text(9 + y_off, 8, "Prompt on replace", 'p');
 	}
 
@@ -229,8 +220,7 @@ void find_dialog::draw() const
 	} else {
 		idx2 = 6;
 	}
-	draw_radio(11 + y_off, 4, !params_.selected_text_only,
-		   focus_idx_ == idx2);
+	draw_radio(11 + y_off, 4, !params_.selected_text_only, focus_idx_ == idx2);
 	draw_group_labeled_text(11 + y_off, 8, "Global", 'g');
 	int idx3;
 	if (is_replace_) {
@@ -238,8 +228,7 @@ void find_dialog::draw() const
 	} else {
 		idx3 = 7;
 	}
-	draw_radio(12 + y_off, 4, params_.selected_text_only,
-		   focus_idx_ == idx3);
+	draw_radio(12 + y_off, 4, params_.selected_text_only, focus_idx_ == idx3);
 	draw_group_labeled_text(12 + y_off, 8, "Selected text", 's');
 
 	// Origin content
@@ -261,8 +250,7 @@ void find_dialog::draw() const
 	draw_group_labeled_text(12 + y_off, 39, "Entire scope", 'e');
 
 	// Buttons
-	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot,
-			    bool focused) {
+	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot, bool focused) {
 		attrset(COLOR_PAIR(1));
 		mvaddstr(y_ + by, x_ + bx + btext.length(), "▄");
 		for (size_t i = 0; i < btext.length(); ++i)
@@ -342,8 +330,7 @@ dialog_result find_dialog::handle_key(int key)
 	if (!is_replace_)
 		groups = {{0}, {1, 2, 3}, {4, 5}, {6, 7}, {8, 9}, {10, 11}};
 	else
-		groups = {{0},	  {1},	    {2, 3, 4, 5}, {6, 7},
-			  {8, 9}, {10, 11}, {12, 13, 14}};
+		groups = {{0}, {1}, {2, 3, 4, 5}, {6, 7}, {8, 9}, {10, 11}, {12, 13, 14}};
 
 	auto get_group_of = [&](int idx) -> int {
 		for (size_t i = 0; i < groups.size(); ++i) {
@@ -371,8 +358,7 @@ dialog_result find_dialog::handle_key(int key)
 		return dialog_result::pending;
 	}
 
-	if (key == KEY_DOWN || key == KEY_RIGHT || key == KEY_UP ||
-	    key == KEY_LEFT) {
+	if (key == KEY_DOWN || key == KEY_RIGHT || key == KEY_UP || key == KEY_LEFT) {
 		int g = get_group_of(focus_idx_);
 		int i = get_item_idx_in_group(focus_idx_, g);
 		if (key == KEY_DOWN || key == KEY_RIGHT)
@@ -401,12 +387,10 @@ dialog_result find_dialog::handle_key(int key)
 		if (!is_replace_) {
 			switch (focus_idx_) {
 				case 1:
-					params_.ignore_case =
-					    !params_.ignore_case;
+					params_.ignore_case = !params_.ignore_case;
 					break;
 				case 2:
-					params_.whole_words =
-					    !params_.whole_words;
+					params_.whole_words = !params_.whole_words;
 					break;
 				case 3:
 					params_.regex = !params_.regex;
@@ -437,19 +421,16 @@ dialog_result find_dialog::handle_key(int key)
 		} else {
 			switch (focus_idx_) {
 				case 2:
-					params_.ignore_case =
-					    !params_.ignore_case;
+					params_.ignore_case = !params_.ignore_case;
 					break;
 				case 3:
-					params_.whole_words =
-					    !params_.whole_words;
+					params_.whole_words = !params_.whole_words;
 					break;
 				case 4:
 					params_.regex = !params_.regex;
 					break;
 				case 5:
-					params_.prompt_on_replace =
-					    !params_.prompt_on_replace;
+					params_.prompt_on_replace = !params_.prompt_on_replace;
 					break;
 				case 6:
 					params_.backward = false;

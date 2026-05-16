@@ -10,13 +10,7 @@ namespace fs = std::filesystem;
 
 enum class file_dialog_mode { open, save };
 
-enum class focus_element {
-	entry_box,
-	history_btn,
-	file_view,
-	ok_btn,
-	cancel_btn
-};
+enum class focus_element { entry_box, history_btn, file_view, ok_btn, cancel_btn };
 
 struct file_entry {
 	fs::path path;
@@ -29,8 +23,7 @@ struct file_entry {
 class file_dialog : public dialog
 {
       public:
-	file_dialog(const std::string &title, file_dialog_mode mode,
-		    bool autocomplete, const std::string &initial_path);
+	file_dialog(const std::string &title, file_dialog_mode mode, bool autocomplete, const std::string &initial_path);
 	~file_dialog() override = default;
 
 	void draw() const override;
@@ -40,8 +33,7 @@ class file_dialog : public dialog
       private:
 	void populate_files();
 	std::string get_autocomplete_suggestion() const;
-	void draw_button(int y, int x, const std::string &text, char hotkey,
-			 bool focused) const;
+	void draw_button(int y, int x, const std::string &text, char hotkey, bool focused) const;
 
 	file_dialog_mode mode_;
 	bool autocomplete_;

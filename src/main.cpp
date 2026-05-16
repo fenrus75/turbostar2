@@ -34,8 +34,7 @@ int main(int argc, char **argv)
 	logger.log("Application started.");
 
 	if (debug_mode) {
-		logger.log("Debug mode enabled. Filter string: '" +
-			   debug_string + "'");
+		logger.log("Debug mode enabled. Filter string: '" + debug_string + "'");
 	}
 
 	// Initialize ncurses
@@ -49,20 +48,20 @@ int main(int argc, char **argv)
 	init_pair(1, COLOR_BLACK, COLOR_WHITE); // Menu/Status bar
 	init_pair(2, COLOR_RED, COLOR_WHITE);	// Hotkeys
 	init_pair(3, COLOR_YELLOW + 8,
-		  COLOR_BLUE); // Window Text (Bright Yellow on Blue)
+		  COLOR_BLUE);		      // Window Text (Bright Yellow on Blue)
 	init_pair(4, COLOR_CYAN, COLOR_BLUE); // Scrollbars
 	init_pair(5, COLOR_WHITE + 8,
-		  COLOR_BLUE); // Window borders/widgets (Bright White on Blue)
+		  COLOR_BLUE);			// Window borders/widgets (Bright White on Blue)
 	init_pair(6, COLOR_BLACK, COLOR_BLACK); // Drop shadows
-	init_pair(7, COLOR_RED, COLOR_BLACK); // Hotkeys on selected background
+	init_pair(7, COLOR_RED, COLOR_BLACK);	// Hotkeys on selected background
 	init_pair(8, COLOR_WHITE + 8,
-		  COLOR_CYAN); // Selection highlight (Bright White)
+		  COLOR_CYAN);			 // Selection highlight (Bright White)
 	init_pair(9, COLOR_BLUE, COLOR_BLACK);	 // Desktop pattern (Darker)
 	init_pair(10, COLOR_WHITE, COLOR_GREEN); // Buttons (White on Green)
 	init_pair(11, COLOR_WHITE + 8,
 		  COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(16, COLOR_YELLOW + 8,
-		  COLOR_WHITE); // Dialog Hotkeys (Bright Yellow on Gray)
+		  COLOR_WHITE);			     // Dialog Hotkeys (Bright Yellow on Gray)
 	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
 	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
 	init_pair(14, COLOR_BLACK, COLOR_GREEN);     // Selected Menu Item

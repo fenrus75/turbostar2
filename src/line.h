@@ -7,12 +7,7 @@
 /**
  * @brief Categorization of characters for syntax highlighting.
  */
-enum class syntax_attribute : uint8_t {
-	normal = 0,
-	keyword = 1,
-	comment = 2,
-	string_literal = 3
-};
+enum class syntax_attribute : uint8_t { normal = 0, keyword = 1, comment = 2, string_literal = 3 };
 
 class line
 {

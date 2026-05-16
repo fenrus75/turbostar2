@@ -4,8 +4,7 @@
 #include "file_dialog.h"
 #include "find_dialog.h"
 
-editor::editor(bool debug_mode, const std::string &debug_string,
-	       const std::string &filename)
+editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename)
     : debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	new_window(filename);
@@ -18,9 +17,7 @@ void editor::new_window(const std::string &filename)
 	documents_.push_back(doc);
 
 	// Create window
-	auto win =
-	    std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0,
-				     1, COLS, LINES - 2, filename);
+	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
 	win->attach_document(doc);
 
 	windows_.push_back(std::move(win));
@@ -46,8 +43,7 @@ void editor::update_window_menu()
 		if (filename.empty())
 			filename = "noname.txt";
 
-		std::string name =
-		    std::to_string((i + 1) % 10) + " " + filename;
+		std::string name = std::to_string((i + 1) % 10) + " " + filename;
 
 		std::string shortcut = "";
 		char hotkey = 0;
@@ -57,12 +53,9 @@ void editor::update_window_menu()
 			hotkey = static_cast<char>('0' + num);
 		}
 
-		items.push_back(menu_item(name, event_type::select_window,
-					  static_cast<int>(i), hotkey, shortcut,
-					  false));
+		items.push_back(menu_item(name, event_type::select_window, static_cast<int>(i), hotkey, shortcut, false));
 	}
-	event_logger::get_instance().log(
-	    "update_window_menu: " + std::to_string(items.size()) + " items");
+	event_logger::get_instance().log("update_window_menu: " + std::to_string(items.size()) + " items");
 	top_menu_.set_category_items("Window", items);
 }
 
@@ -90,48 +83,35 @@ void editor::run()
 					nodelay(stdscr, TRUE);
 					wint_t next_wch;
 					int next_res = get_wch(&next_wch);
-					if (next_res != ERR &&
-					    next_res != KEY_CODE_YES &&
-					    next_wch == '[') {
+					if (next_res != ERR && next_res != KEY_CODE_YES && next_wch == '[') {
 						wint_t arrow_wch;
-						int arrow_res =
-						    get_wch(&arrow_wch);
-						if (arrow_res != ERR &&
-						    arrow_res != KEY_CODE_YES) {
+						int arrow_res = get_wch(&arrow_wch);
+						if (arrow_res != ERR && arrow_res != KEY_CODE_YES) {
 							int key = 0;
 							switch (arrow_wch) {
 								case 'A':
-									key =
-									    KEY_UP;
+									key = KEY_UP;
 									break;
 								case 'B':
-									key =
-									    KEY_DOWN;
+									key = KEY_DOWN;
 									break;
 								case 'C':
-									key =
-									    KEY_RIGHT;
+									key = KEY_RIGHT;
 									break;
 								case 'D':
-									key =
-									    KEY_LEFT;
+									key = KEY_LEFT;
 									break;
 							}
 							if (key != 0) {
-								ev.type =
-								    event_type::
-									key_press;
-								ev.key_code =
-								    key;
-								global_queue_
-								    .push(ev);
+								ev.type = event_type::key_press;
+								ev.key_code = key;
+								global_queue_.push(ev);
 							}
 						}
 					} else if (next_res != ERR) {
 						// Alt + key
 						ev.type = event_type::key_press;
-						ev.key_code =
-						    -static_cast<int>(next_wch);
+						ev.key_code = -static_cast<int>(next_wch);
 						global_queue_.push(ev);
 					} else {
 						ev.type = event_type::key_press;
@@ -210,8 +190,7 @@ void editor::set_focus(focus_target target, const std::string &source)
 			break;
 	}
 
-	event_logger::get_instance().log("Focus change: " + source + " -> " +
-					 target_name);
+	event_logger::get_instance().log("Focus change: " + source + " -> " + target_name);
 	current_focus_ = target;
 }
 
@@ -334,8 +313,7 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
-		active_dialog_ = std::make_unique<file_dialog>(
-		    "Open File", file_dialog_mode::open, true, ".");
+		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, true, ".");
 		active_dialog_mode_ = dialog_mode::load;
 		set_focus(focus_target::dialog, "menu_load");
 		return;
@@ -354,9 +332,7 @@ void editor::dispatch(const editor_event &ev)
 		} else {
 			filename_arg = ".";
 		}
-		active_dialog_ = std::make_unique<file_dialog>(
-		    "Save File As", file_dialog_mode::save, false,
-		    filename_arg);
+		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, false, filename_arg);
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;
@@ -376,24 +352,16 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::about) {
 		logger.log("Dispatching about event.");
-		std::vector<std::string> about_lines = {
-		    "TurboStar Editor",
-		    "Version 0.1.0",
-		    "",
-		    "A nostalgia inspired TUI editor",
-		    "",
-		    "Copyright (c) 2026",
-		    "Arjan van de Ven"};
-		active_dialog_ = std::make_unique<message_dialog>(
-		    "About TurboStar", about_lines);
+		std::vector<std::string> about_lines = {"TurboStar Editor",   "Version 0.1.0",	 "", "A nostalgia inspired TUI editor", "",
+							"Copyright (c) 2026", "Arjan van de Ven"};
+		active_dialog_ = std::make_unique<message_dialog>("About TurboStar", about_lines);
 		set_focus(focus_target::dialog, "menu_about");
 		return;
 	}
 
 	if (ev.type == event_type::find) {
 		logger.log("Dispatching find event (advanced dialog).");
-		active_dialog_ = std::make_unique<find_dialog>(
-		    "Find", current_search_, false);
+		active_dialog_ = std::make_unique<find_dialog>("Find", current_search_, false);
 		active_dialog_mode_ = dialog_mode::search;
 		set_focus(focus_target::dialog, "menu_find");
 		return;
@@ -401,21 +369,18 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::replace) {
 		logger.log("Dispatching replace event (advanced dialog).");
-		active_dialog_ = std::make_unique<find_dialog>(
-		    "Replace", current_search_, true);
+		active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
 		active_dialog_mode_ = dialog_mode::replace;
 		set_focus(focus_target::dialog, "menu_replace");
 		return;
 	}
 
 	if (ev.type == event_type::key_press) {
-		logger.log("Dispatching key_press event: " +
-			   std::to_string(ev.key_code));
+		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
 		// 1. Modal Dialogs have highest priority
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
-			dialog_result res =
-			    active_dialog_->handle_key(ev.key_code);
+			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res == dialog_result::confirmed) {
 				auto doc = documents_[0]; // Default fallback
 				for (auto &w : windows_)
@@ -423,39 +388,25 @@ void editor::dispatch(const editor_event &ev)
 						doc = w->get_document();
 
 				if (active_dialog_mode_ == dialog_mode::load) {
-					new_window(
-					    active_dialog_->get_result());
-				} else if (active_dialog_mode_ ==
-					   dialog_mode::save) {
-					doc->save_to_file(
-					    active_dialog_->get_result());
+					new_window(active_dialog_->get_result());
+				} else if (active_dialog_mode_ == dialog_mode::save) {
+					doc->save_to_file(active_dialog_->get_result());
 					// Update window title
 					for (auto &w : windows_) {
 						if (w->get_document() == doc) {
-							w->set_title(
-							    doc->get_filename());
+							w->set_title(doc->get_filename());
 							break;
 						}
 					}
 					update_window_menu();
-				} else if (active_dialog_mode_ ==
-					       dialog_mode::search ||
-					   active_dialog_mode_ ==
-					       dialog_mode::replace) {
-					auto f_dialog =
-					    dynamic_cast<find_dialog *>(
-						active_dialog_.get());
+				} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
+					auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
 					if (f_dialog) {
-						current_search_ =
-						    f_dialog
-							->get_search_params();
-						if (doc->find_next(
-							current_search_)) {
+						current_search_ = f_dialog->get_search_params();
+						if (doc->find_next(current_search_)) {
 							editor_event redraw_ev;
-							redraw_ev.type =
-							    event_type::redraw;
-							global_queue_.push(
-							    redraw_ev);
+							redraw_ev.type = event_type::redraw;
+							global_queue_.push(redraw_ev);
 						}
 					}
 				}
@@ -465,8 +416,7 @@ void editor::dispatch(const editor_event &ev)
 			} else if (res == dialog_result::cancelled) {
 				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window,
-					  "dialog_cancel");
+				set_focus(focus_target::window, "dialog_cancel");
 			}
 			return;
 		}
@@ -477,8 +427,7 @@ void editor::dispatch(const editor_event &ev)
 				is_searching_prompt_ = false;
 				return;
 			}
-			if (ev.key_code == 13 || ev.key_code == 10 ||
-			    ev.key_code == KEY_ENTER) {
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				current_search_.query = search_input_buffer_;
 				if (documents_[0]->find_next(current_search_)) {
 					editor_event redraw_ev;
@@ -488,8 +437,7 @@ void editor::dispatch(const editor_event &ev)
 				is_searching_prompt_ = false;
 				return;
 			}
-			if (ev.key_code == KEY_BACKSPACE ||
-			    ev.key_code == 127 || ev.key_code == 8) {
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
 				if (!search_input_buffer_.empty())
 					search_input_buffer_.pop_back();
 				return;
@@ -511,14 +459,10 @@ void editor::dispatch(const editor_event &ev)
 				}
 			}
 			if (active_doc) {
-				logger.log(
-				    "Active doc found for ^L. query=" +
-				    current_search_.query + " backward=" +
-				    std::to_string(current_search_.backward));
-				bool found = active_doc->find_next(
-				    current_search_, true);
-				logger.log("find_next returned: " +
-					   std::to_string(found));
+				logger.log("Active doc found for ^L. query=" + current_search_.query +
+					   " backward=" + std::to_string(current_search_.backward));
+				bool found = active_doc->find_next(current_search_, true);
+				logger.log("find_next returned: " + std::to_string(found));
 				if (found) {
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
@@ -565,8 +509,7 @@ void editor::dispatch(const editor_event &ev)
 				} else {
 					target_idx = (c - '1');
 				}
-				activate_window(
-				    static_cast<size_t>(target_idx));
+				activate_window(static_cast<size_t>(target_idx));
 				return;
 			}
 			if (top_menu_.handle_alt_key(c, global_queue_)) {
@@ -579,8 +522,7 @@ void editor::dispatch(const editor_event &ev)
 		if (current_focus_ == focus_target::menu_bar) {
 			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
 				if (!top_menu_.is_open()) {
-					set_focus(focus_target::window,
-						  "menu_close");
+					set_focus(focus_target::window, "menu_close");
 				}
 				return;
 			}
@@ -663,8 +605,7 @@ void editor::render()
 	}
 
 	// Only show cursor if we are in window focus and NOT in a modal state
-	if (current_focus_ == focus_target::window && !active_dialog_ &&
-	    !k_block_mode_) {
+	if (current_focus_ == focus_target::window && !active_dialog_ && !k_block_mode_) {
 		for (const auto &w : windows_) {
 			if (w->is_active()) {
 				w->set_cursor_position();

@@ -3,8 +3,7 @@
 #include <ncurses.h>
 #include "event_logger.h"
 
-dialog::dialog(const std::string &title, int width, int height)
-    : title_(title), width_(width), height_(height)
+dialog::dialog(const std::string &title, int width, int height) : title_(title), width_(width), height_(height)
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -62,8 +61,7 @@ void dialog::draw() const
 	attroff(COLOR_PAIR(1));
 }
 
-input_dialog::input_dialog(const std::string &title, const std::string &prompt,
-			   const std::string &initial_value)
+input_dialog::input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
     : dialog(title, 50, 7), prompt_(prompt), buffer_(initial_value)
 {
 }
@@ -89,8 +87,7 @@ void input_dialog::draw() const
 
 dialog_result input_dialog::handle_key(int key)
 {
-	event_logger::get_instance().log("Dialog handling key: " +
-					 std::to_string(key));
+	event_logger::get_instance().log("Dialog handling key: " + std::to_string(key));
 	if (key == 27)
 		return dialog_result::cancelled;
 	if (key == 10 || key == 13 || key == KEY_ENTER)
@@ -116,8 +113,7 @@ std::string input_dialog::get_result() const
 	return buffer_;
 }
 
-message_dialog::message_dialog(const std::string &title,
-			       const std::vector<std::string> &lines)
+message_dialog::message_dialog(const std::string &title, const std::vector<std::string> &lines)
     : dialog(title, 40, static_cast<int>(lines.size()) + 6), lines_(lines)
 {
 	// Adjust width if any line is too long
@@ -139,8 +135,7 @@ void message_dialog::draw() const
 	attron(COLOR_PAIR(1));
 
 	for (size_t i = 0; i < lines_.size(); ++i) {
-		int text_x =
-		    x_ + (width_ - static_cast<int>(lines_[i].length())) / 2;
+		int text_x = x_ + (width_ - static_cast<int>(lines_[i].length())) / 2;
 		mvaddstr(y_ + 2 + i, text_x, lines_[i].c_str());
 	}
 
@@ -171,8 +166,7 @@ void message_dialog::draw() const
 dialog_result message_dialog::handle_key(int key)
 {
 	// Any of these keys close the dialog
-	if (key == 27 || key == 10 || key == 13 || key == KEY_ENTER ||
-	    key == 32) {
+	if (key == 27 || key == 10 || key == 13 || key == KEY_ENTER || key == 32) {
 		return dialog_result::confirmed;
 	}
 	return dialog_result::pending;

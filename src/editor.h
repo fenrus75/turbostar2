@@ -24,8 +24,7 @@ enum class focus_target { menu_bar, window, dialog };
 class editor
 {
       public:
-	editor(bool debug_mode, const std::string &debug_string,
-	       const std::string &filename);
+	editor(bool debug_mode, const std::string &debug_string, const std::string &filename);
 	~editor() = default;
 
 	/**
@@ -38,8 +37,7 @@ class editor
 	 * @param target The new component to focus.
 	 * @param source Optional name of the component initiating the change.
 	 */
-	void set_focus(focus_target target,
-		       const std::string &source = "unknown");
+	void set_focus(focus_target target, const std::string &source = "unknown");
 
       private:
 	void new_window(const std::string &filename);

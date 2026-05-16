@@ -29,13 +29,11 @@ void event_logger::log(const std::string &message)
 	}
 }
 
-std::optional<std::string>
-event_logger::get_latest_matching_message(const std::string &substring) const
+std::optional<std::string> event_logger::get_latest_matching_message(const std::string &substring) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto it = events.rbegin(); it != events.rend(); ++it) {
-		if (substring.empty() ||
-		    it->find(substring) != std::string::npos) {
+		if (substring.empty() || it->find(substring) != std::string::npos) {
 			return *it;
 		}
 	}

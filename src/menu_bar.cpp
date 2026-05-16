@@ -5,32 +5,29 @@
 
 menu_bar::menu_bar()
 {
-	categories_ = {
-	    {"File",
-	     'f',
-	     {{"New", event_type::new_doc, 'n', "^KN", false},
-	      {"Open...", event_type::load, 'o', "F3,^KE", false},
-	      {"Save", event_type::save, 's', "F2,^KD", false},
-	      {"Save as...", event_type::save, 'a', "^KW", false},
-	      {"", event_type::key_press, 0, "", true},
-	      menu_item("Exit", event_type::quit, 'x', "Alt+X,^KX", false)}},
-	    {"Edit",
-	     'e',
-	     {
-		 {"Delete Line", event_type::key_press, 25, 'y', "^Y", false},
-		 {"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
-		 {"Delete Word Forward", event_type::key_press, 23, 'w', "^W",
-		  false},
-		 {"Delete Word Backward", event_type::key_press, 15, 'o', "^O",
-		  false},
-	     }},
-	    {"Search",
-	     's',
-	     {{"Find...", event_type::find, 'f', "^KF", false},
-	      {"Replace...", event_type::replace, 'r', "^QA", false},
-	      {"Find next", event_type::key_press, 12, 'l', "^L", false}}},
-	    {"Window", 'w', {}},
-	    {"Help", 'h', {{"About...", event_type::about, 'a', "", false}}}};
+	categories_ = {{"File",
+			'f',
+			{{"New", event_type::new_doc, 'n', "^KN", false},
+			 {"Open...", event_type::load, 'o', "F3,^KE", false},
+			 {"Save", event_type::save, 's', "F2,^KD", false},
+			 {"Save as...", event_type::save, 'a', "^KW", false},
+			 {"", event_type::key_press, 0, "", true},
+			 menu_item("Exit", event_type::quit, 'x', "Alt+X,^KX", false)}},
+		       {"Edit",
+			'e',
+			{
+			    {"Delete Line", event_type::key_press, 25, 'y', "^Y", false},
+			    {"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
+			    {"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
+			    {"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
+			}},
+		       {"Search",
+			's',
+			{{"Find...", event_type::find, 'f', "^KF", false},
+			 {"Replace...", event_type::replace, 'r', "^QA", false},
+			 {"Find next", event_type::key_press, 12, 'l', "^L", false}}},
+		       {"Window", 'w', {}},
+		       {"Help", 'h', {{"About...", event_type::about, 'a', "", false}}}};
 }
 
 bool menu_bar::handle_alt_key(char c, event_queue &queue)
@@ -41,14 +38,10 @@ bool menu_bar::handle_alt_key(char c, event_queue &queue)
 		if (categories_[i].hotkey == c) {
 			active_category_ = static_cast<int>(i);
 			selected_item_ = 0;
-			if (!categories_[active_category_].items.empty() &&
-			    categories_[active_category_]
-				.items[0]
-				.is_separator) {
+			if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 				find_next_item();
 			}
-			event_logger::get_instance().log("Menu activated: " +
-							 categories_[i].name);
+			event_logger::get_instance().log("Menu activated: " + categories_[i].name);
 			return true;
 		}
 	}
@@ -65,8 +58,7 @@ void menu_bar::close_menu()
 	active_category_ = -1;
 }
 
-void menu_bar::set_category_items(const std::string &name,
-				  const std::vector<menu_item> &items)
+void menu_bar::set_category_items(const std::string &name, const std::vector<menu_item> &items)
 {
 	for (auto &cat : categories_) {
 		if (cat.name == name) {
@@ -80,8 +72,7 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 {
 	if (!is_open())
 		return false;
-	event_logger::get_instance().log("Menu handle_key: " +
-					 std::to_string(key));
+	event_logger::get_instance().log("Menu handle_key: " + std::to_string(key));
 
 	if (key == 27) { // ESC
 		close_menu();
@@ -97,38 +88,28 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 	} else if (key == KEY_RIGHT) {
 		active_category_ = (active_category_ + 1) % categories_.size();
 		selected_item_ = 0;
-		if (!categories_[active_category_].items.empty() &&
-		    categories_[active_category_].items[0].is_separator) {
+		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 			find_next_item();
 		}
-		event_logger::get_instance().log(
-		    "Menu activated: " + categories_[active_category_].name);
-		event_logger::get_instance().log("Menu key: " +
-						 std::to_string(key));
+		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
+		event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
 	} else if (key == KEY_LEFT) {
-		active_category_ = (active_category_ - 1 + categories_.size()) %
-				   categories_.size();
+		active_category_ = (active_category_ - 1 + categories_.size()) % categories_.size();
 		selected_item_ = 0;
-		if (!categories_[active_category_].items.empty() &&
-		    categories_[active_category_].items[0].is_separator) {
+		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 			find_next_item();
 		}
-		event_logger::get_instance().log(
-		    "Menu activated: " + categories_[active_category_].name);
-		event_logger::get_instance().log("Menu key: " +
-						 std::to_string(key));
+		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
+		event_logger::get_instance().log("Menu key: " + std::to_string(key));
 		return true;
 	} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 		if (!categories_[active_category_].items.empty()) {
 			editor_event ev;
-			const auto &item =
-			    categories_[active_category_].items[selected_item_];
+			const auto &item = categories_[active_category_].items[selected_item_];
 			ev.type = item.action;
 			ev.key_code = item.action_key_code;
-			event_logger::get_instance().log(
-			    "Menu pushing event: " +
-			    std::to_string(static_cast<int>(ev.type)));
+			event_logger::get_instance().log("Menu pushing event: " + std::to_string(static_cast<int>(ev.type)));
 			queue.push(ev);
 		}
 		close_menu();
@@ -137,15 +118,12 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		char c = std::tolower(static_cast<char>(key));
 		const auto &items = categories_[active_category_].items;
 		for (size_t i = 0; i < items.size(); ++i) {
-			if (!items[i].is_separator &&
-			    std::tolower(items[i].hotkey) == c) {
+			if (!items[i].is_separator && std::tolower(items[i].hotkey) == c) {
 				editor_event ev;
 				ev.type = items[i].action;
 				ev.key_code = items[i].action_key_code;
-				event_logger::get_instance().log(
-				    "Menu hotkey " + std::string(1, c) +
-				    " pushing event: " +
-				    std::to_string(static_cast<int>(ev.type)));
+				event_logger::get_instance().log("Menu hotkey " + std::string(1, c) +
+								 " pushing event: " + std::to_string(static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();
 				return true;
@@ -184,8 +162,7 @@ void menu_bar::draw() const
 		std::string lower_name = categories_[i].name;
 		for (char &c : lower_name)
 			c = std::tolower(c);
-		hotkey_pos =
-		    lower_name.find(std::tolower(categories_[i].hotkey));
+		hotkey_pos = lower_name.find(std::tolower(categories_[i].hotkey));
 
 		for (size_t j = 0; j < categories_[i].name.length(); ++j) {
 			if (j == hotkey_pos) {
@@ -247,8 +224,7 @@ void menu_bar::draw() const
 					addstr("─");
 				addstr("┤");
 			} else {
-				bool selected =
-				    (static_cast<int>(i) == selected_item_);
+				bool selected = (static_cast<int>(i) == selected_item_);
 				mvaddstr(2 + i, drop_col, "│");
 				if (selected)
 					attrset(COLOR_PAIR(14));
@@ -266,13 +242,11 @@ void menu_bar::draw() const
 					std::string lower_name = item.name;
 					for (char &c : lower_name)
 						c = std::tolower(c);
-					hotkey_pos = lower_name.find(
-					    std::tolower(item.hotkey));
+					hotkey_pos = lower_name.find(std::tolower(item.hotkey));
 				}
 
 				// Draw name with hotkey
-				for (size_t j = 0; j < item.name.length();
-				     ++j) {
+				for (size_t j = 0; j < item.name.length(); ++j) {
 					if (j == hotkey_pos) {
 						if (selected)
 							attron(COLOR_PAIR(15));
@@ -292,11 +266,8 @@ void menu_bar::draw() const
 
 				// Draw shortcut right-aligned
 				if (!item.shortcut.empty()) {
-					int shortcut_x =
-					    drop_col + drop_width - 1 -
-					    item.shortcut.length() - 1;
-					mvaddstr(2 + i, shortcut_x,
-						 item.shortcut.c_str());
+					int shortcut_x = drop_col + drop_width - 1 - item.shortcut.length() - 1;
+					mvaddstr(2 + i, shortcut_x, item.shortcut.c_str());
 				}
 
 				attrset(COLOR_PAIR(1));
@@ -314,29 +285,21 @@ void menu_bar::draw() const
 
 void menu_bar::find_next_item()
 {
-	if (active_category_ == -1 ||
-	    categories_[active_category_].items.empty())
+	if (active_category_ == -1 || categories_[active_category_].items.empty())
 		return;
 	int start_item = selected_item_;
 	do {
-		selected_item_ = (selected_item_ + 1) %
-				 categories_[active_category_].items.size();
-	} while (
-	    categories_[active_category_].items[selected_item_].is_separator &&
-	    selected_item_ != start_item);
+		selected_item_ = (selected_item_ + 1) % categories_[active_category_].items.size();
+	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
 }
 
 void menu_bar::find_prev_item()
 {
-	if (active_category_ == -1 ||
-	    categories_[active_category_].items.empty())
+	if (active_category_ == -1 || categories_[active_category_].items.empty())
 		return;
 	int start_item = selected_item_;
 	do {
-		selected_item_ = (selected_item_ - 1 +
-				  categories_[active_category_].items.size()) %
-				 categories_[active_category_].items.size();
-	} while (
-	    categories_[active_category_].items[selected_item_].is_separator &&
-	    selected_item_ != start_item);
+		selected_item_ =
+		    (selected_item_ - 1 + categories_[active_category_].items.size()) % categories_[active_category_].items.size();
+	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
 }

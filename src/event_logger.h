@@ -12,8 +12,7 @@ class event_logger
 
 	void set_log_file(const std::string &filename);
 	void log(const std::string &message);
-	std::optional<std::string>
-	get_latest_matching_message(const std::string &substring) const;
+	std::optional<std::string> get_latest_matching_message(const std::string &substring) const;
 
       private:
 	event_logger() = default;

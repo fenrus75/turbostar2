@@ -1,8 +1,7 @@
 #include "status_bar.h"
 #include <ncurses.h>
 
-void status_bar::draw(const std::string &mode_help, int cursor_x,
-		      int cursor_y) const
+void status_bar::draw(const std::string &mode_help, int cursor_x, int cursor_y) const
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
