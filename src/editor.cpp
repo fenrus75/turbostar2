@@ -1,11 +1,12 @@
 #include "editor.h"
+#include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
 #include "file_dialog.h"
 #include "find_dialog.h"
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename)
-    : debug_mode_(debug_mode), debug_string_(debug_string)
+editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename, bool exit_immediately)
+    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	new_window(filename);
 }
@@ -66,8 +67,16 @@ void editor::run()
 	// Set ncurses getch timeout to 50ms to allow background events to
 	// process
 	timeout(50);
+	auto start_time = std::chrono::steady_clock::now();
 
 	while (is_running_) {
+		if (exit_immediately_) {
+			auto now = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > 1000) {
+				is_running_ = false;
+			}
+		}
+
 		wint_t wch;
 		int res = get_wch(&wch);
 		if (res != ERR) {

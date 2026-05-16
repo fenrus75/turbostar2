@@ -12,11 +12,13 @@ int main(int argc, char **argv)
 
 	std::string log_file;
 	bool debug_mode = false;
+	bool exit_immediately = false;
 	std::string debug_string;
 	std::string filename = "unknown.txt";
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
+	app.add_flag("--exit-immediately", exit_immediately, "Exit after 1 second");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filename", filename, "File to edit");
 	app.set_version_flag("--version", TURBOSTAR_VERSION);
@@ -80,7 +82,7 @@ int main(int argc, char **argv)
 
 	logger.log("UI initialized.");
 
-	editor main_editor(debug_mode, debug_string, filename);
+	editor main_editor(debug_mode, debug_string, filename, exit_immediately);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");

@@ -24,7 +24,7 @@ enum class focus_target { menu_bar, window, dialog };
 class editor
 {
       public:
-	editor(bool debug_mode, const std::string &debug_string, const std::string &filename);
+	editor(bool debug_mode, const std::string &debug_string, const std::string &filename, bool exit_immediately);
 	~editor() = default;
 
 	/**
@@ -72,6 +72,7 @@ class editor
 	std::string search_input_buffer_;
 
 	bool is_running_{true};
+	bool exit_immediately_{false};
 	bool debug_mode_{false};
 	std::string debug_string_;
 };
