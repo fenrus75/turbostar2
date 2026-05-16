@@ -34,6 +34,8 @@ public:
 	bool is_open() const;
 	void close_menu();
 
+	void set_category_items(const std::string& name, const std::vector<menu_item>& items);
+
 private:
 	void find_next_item();
 	void find_prev_item();

@@ -6,16 +6,46 @@
 editor::editor(bool debug_mode, const std::string& debug_string, const std::string& filename)
 	: debug_mode_(debug_mode), debug_string_(debug_string)
 {
-	// Create an initial document
+	new_window(filename);
+}
+
+void editor::new_window(const std::string& filename)
+{
+	// Create document
 	auto doc = std::make_shared<document>(global_queue_, filename);
 	documents_.push_back(doc);
 
-	// Create an initial window and attach the document
-	// Full screen: x=0, y=1 (below menu), width=COLS, height=LINES-2 (above status bar)
-	auto win = std::make_unique<window>(1, 0, 1, COLS, LINES - 2, filename);
+	// Create window
+	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
 	win->attach_document(doc);
-	win->set_active(true);
+	
 	windows_.push_back(std::move(win));
+	activate_window(windows_.size() - 1);
+}
+
+void editor::activate_window(size_t index)
+{
+	if (index >= windows_.size()) return;
+	
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		windows_[i]->set_active(i == index);
+	}
+	update_window_menu();
+}
+
+void editor::update_window_menu()
+{
+	std::vector<menu_item> items;
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		std::string name = windows_[i]->get_title();
+		if (name.empty()) name = "noname.txt";
+		
+		std::string shortcut = "";
+		if (i < 10) shortcut = "Alt-" + std::to_string(i);
+
+		items.push_back(menu_item(name, event_type::select_window, static_cast<int>(i), shortcut, false));
+	}
+	top_menu_.set_category_items("Window", items);
 }
 
 void editor::run()
@@ -249,8 +279,7 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
-		auto doc = documents_[0];
-		active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", doc->get_filename());
+		active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", "");
 		active_dialog_mode_ = dialog_mode::load;
 		set_focus(focus_target::dialog, "menu_load");
 		return;
@@ -258,8 +287,11 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::save) {
 		logger.log("Dispatching save event.");
-		auto doc = documents_[0];
-		active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", doc->get_filename());
+		// Find active doc
+		std::shared_ptr<document> active_doc;
+		for (auto& w : windows_) if (w->is_active()) active_doc = w->get_document();
+		
+		active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", active_doc ? active_doc->get_filename() : "");
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;
@@ -267,7 +299,13 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::new_doc) {
 		logger.log("Dispatching new_doc event.");
-		documents_[0]->clear();
+		new_window("");
+		return;
+	}
+
+	if (ev.type == event_type::select_window) {
+		logger.log("Selecting window: " + std::to_string(ev.key_code));
+		activate_window(static_cast<size_t>(ev.key_code));
 		return;
 	}
 
@@ -310,11 +348,21 @@ void editor::dispatch(const editor_event& ev)
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res == dialog_result::confirmed) {
-				auto doc = documents_[0];
+				auto doc = documents_[0]; // Default fallback
+				for (auto& w : windows_) if (w->is_active()) doc = w->get_document();
+
 				if (active_dialog_mode_ == dialog_mode::load) {
-					doc->load_from_file(active_dialog_->get_result());
+					new_window(active_dialog_->get_result());
 				} else if (active_dialog_mode_ == dialog_mode::save) {
 					doc->save_to_file(active_dialog_->get_result());
+					// Update window title
+					for (auto& w : windows_) {
+						if (w->get_document() == doc) {
+							w->set_title(doc->get_filename());
+							break;
+						}
+					}
+					update_window_menu();
 				} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
 					if (f_dialog) {
@@ -391,7 +439,12 @@ void editor::dispatch(const editor_event& ev)
 		}
 
 		if (ev.key_code < 0) { // Alt + key
-			if (top_menu_.handle_alt_key(static_cast<char>(-ev.key_code), global_queue_)) {
+			char c = static_cast<char>(-ev.key_code);
+			if (c >= '0' && c <= '9') {
+				activate_window(static_cast<size_t>(c - '0'));
+				return;
+			}
+			if (top_menu_.handle_alt_key(c, global_queue_)) {
 				set_focus(focus_target::menu_bar, "alt_key");
 				return;
 			}
@@ -437,8 +490,12 @@ void editor::render()
 	}
 	attroff(COLOR_PAIR(9));
 
+	// 2. Windows (Foreground Only)
 	for (const auto& w : windows_) {
-		w->draw();
+		if (w->is_active()) {
+			w->draw();
+			break;
+		}
 	}
 
 	top_menu_.draw();

@@ -43,6 +43,10 @@ public:
 	void set_focus(focus_target target, const std::string& source = "unknown");
 
 private:
+	void new_window(const std::string& filename);
+	void activate_window(size_t index);
+	void update_window_menu();
+
 	/**
 	 * @brief Routes events from the global queue to the focused component.
 	 */

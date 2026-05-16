@@ -25,6 +25,7 @@ menu_bar::menu_bar()
 			{"Replace...", event_type::replace, 'r', "^QA", false},
 			{"Find next", event_type::key_press, 12, 'l', "^L", false}
 		}},
+		{"Window", 'w', {}},
 		{"Help", 'h', {
 			{"About...", event_type::about, 'a', "", false}
 		}}
@@ -57,6 +58,16 @@ bool menu_bar::is_open() const
 void menu_bar::close_menu()
 {
 	active_category_ = -1;
+}
+
+void menu_bar::set_category_items(const std::string& name, const std::vector<menu_item>& items)
+{
+	for (auto& cat : categories_) {
+		if (cat.name == name) {
+			cat.items = items;
+			return;
+		}
+	}
 }
 
 bool menu_bar::handle_key(int key, event_queue& queue)

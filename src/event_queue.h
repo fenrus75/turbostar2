@@ -17,7 +17,8 @@ enum class event_type {
 	about,      ///< Request to show About dialog
 	redraw,     ///< Request a global UI re-render
 	find,       ///< Request to find text (triggers dialog)
-	replace     ///< Request to replace text (triggers dialog)
+	replace,    ///< Request to replace text (triggers dialog)
+	select_window ///< Request to switch active window (key_code is index)
 };
 
 /**
