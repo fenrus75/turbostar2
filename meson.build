@@ -14,6 +14,7 @@ subdir('src')
 executable('turbostar',
   turbostar_sources,
   dependencies : [ncurses_dep],
+  include_directories: include_directories('include'),
   install : true)
 
 # --- Tests ---

@@ -12,3 +12,6 @@ Top design documentation: `docs/design.md`
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
 
+# Dependencies
+- CLI11 (header-only) for command-line parsing.
+

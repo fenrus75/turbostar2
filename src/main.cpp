@@ -2,30 +2,26 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <string>
+#include "CLI11.hpp"
 #include "editor.h"
 #include "event_logger.h"
 
 int main(int argc, char **argv)
 {
+	CLI::App app{"Turbostar Editor"};
+
 	std::string log_file;
 	bool debug_mode = false;
 	std::string debug_string;
 	std::string filename = "unknown.txt";
 
-	// Basic argument parsing
-	for (int i = 1; i < argc; ++i) {
-		std::string arg = argv[i];
-		if (arg == "--log" && i + 1 < argc) {
-			log_file = argv[++i];
-		} else if (arg == "--debug") {
-			debug_mode = true;
-			if (i + 1 < argc && argv[i + 1][0] != '-') {
-				debug_string = argv[++i];
-			}
-		} else if (arg[0] != '-') {
-			filename = arg;
-		}
-	}
+	app.add_option("--log", log_file, "Path to log file");
+	app.add_flag("--debug", debug_mode, "Enable debug mode");
+	app.add_option("--debug-filter", debug_string, "Debug filter string");
+	app.add_option("filename", filename, "File to edit");
+	app.set_version_flag("--version", "0.1");
+
+	CLI11_PARSE(app, argc, argv);
 
 	auto &logger = event_logger::get_instance();
 	if (!log_file.empty()) {
