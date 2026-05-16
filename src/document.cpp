@@ -83,6 +83,15 @@ bool document::save()
 bool document::save_to_file(const std::string &filename)
 {
 	std::unique_lock lock(mutex_);
+
+	if (fs::exists(filename)) {
+		try {
+			fs::copy_file(filename, filename + "~", fs::copy_options::overwrite_existing);
+		} catch (const std::exception &e) {
+			event_logger::get_instance().log("Backup failed: " + std::string(e.what()));
+		}
+	}
+
 	std::ofstream file(filename);
 	if (!file.is_open()) {
 		event_logger::get_instance().log("Save failed: Could not open file " + filename);
