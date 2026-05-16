@@ -33,6 +33,7 @@ class line
 	int length_in_chars() const;
 	size_t char_to_byte_offset(int char_pos) const;
 	int char_to_display_col(int char_pos) const;
+	unsigned char byte_at(int offset) const;
 
 	// Syntax highlighting
 	void set_attributes(const std::vector<syntax_attribute> &attrs);
