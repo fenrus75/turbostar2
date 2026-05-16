@@ -27,8 +27,8 @@ void clangd_manager::start(event_queue &queue)
 	global_queue_ = &queue;
 	
 	try {
-		// Launch clangd
-		process_ = std::make_unique<lsp::Process>("clangd", std::vector<std::string>{});
+		// Launch clangd with error logging only to prevent stderr leakage onto the ncurses screen
+		process_ = std::make_unique<lsp::Process>("clangd", std::vector<std::string>{"-log=error"});
 		connection_ = std::make_unique<lsp::Connection>(process_->stdIO());
 		message_handler_ = std::make_unique<lsp::MessageHandler>(*connection_);
 		
