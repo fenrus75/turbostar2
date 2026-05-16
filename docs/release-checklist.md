@@ -35,8 +35,9 @@ The following Meson configuration options are used for the release validation bu
 | **TSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=thread build-tsan` |
 
 ## Release automation & validation
-- [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types (Standard, Release, Debug, ASAN/Gcov, UBSAN, MSAN, TSAN).
+- [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types.
 - [ ] Ensure all builds and tests pass within the automation script.
+      > **Policy**: There is an **absolute zero** tolerance for test failures for any release (including release candidates). If the script fails, inspect the detailed logs in `build*/meson-logs/testlog.txt` to identify and resolve the root cause before proceeding.
 
 ## Memory leak check
 
