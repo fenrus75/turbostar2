@@ -16,6 +16,9 @@ checks below to ensure a smooth experience for our users.
 - [ ] Update the version in `meson.build` (`version:` field)
 - [ ] Verify the version appears correctly in `turbostar --version` output
 
+## Dependency verification
+- [ ] Run `scripts/check_dependencies.sh` to verify all required dependencies (e.g., `include/CLI11.hpp`) are present and meet version requirements.
+
 ## Release automation & validation
 - [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types (Standard, Release, Debug, ASAN/Gcov, UBSAN).
 - [ ] Ensure all builds and tests pass within the automation script.
