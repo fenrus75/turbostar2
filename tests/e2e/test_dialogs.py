@@ -4,7 +4,8 @@ import os
 
 def test_dialog_save_load():
     runner = TurbostarRunner()
-    test_file = "test_dialog_output.txt"
+    project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+    test_file = os.path.join(project_root, 'testrun', "test_dialog_output.txt")
     if os.path.exists(test_file):
         os.remove(test_file)
         
@@ -19,12 +20,13 @@ def test_dialog_save_load():
         
         # 2. Open Save As dialog (^KW)
         runner.send_keys('\x0b' + 'w')
+        time.sleep(0.5)
         
         # 3. Type filename and press Enter
         # Clear pre-filled "unknown.txt"
-        runner.send_keys('\x7f' * 15) 
+        runner.send_keys('\x7f', count=25) 
         runner.send_keys(test_file + '\n')
-        time.sleep(0.5)
+        time.sleep(1.0)
         
         # 4. Verify file exists and has correct content
         if not os.path.exists(test_file):
@@ -40,12 +42,11 @@ def test_dialog_save_load():
                 assert unique_text in content
             
         # 5. Clear document
-        for _ in range(5):
-            runner.send_keys('\x19') 
+        runner.send_keys('\x19', count=5) 
             
         # 6. Open Load dialog (^KE)
         runner.send_keys('\x0b' + 'e')
-        runner.send_keys('\x7f' * 25) # Clear again
+        runner.send_keys('\x7f', count=25) # Clear again
         runner.send_keys(test_file + '\n')
         time.sleep(0.5)
         

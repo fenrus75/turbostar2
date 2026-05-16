@@ -51,7 +51,7 @@ def test_search_functionality():
         
         # Dialog is open, pre-filled with "Beta"
         # Clear and type "Gamma"
-        runner.send_keys('\x7f' * 10)
+        runner.send_keys('\x7f', count=10)
         runner.send_keys("Gamma\n")
         time.sleep(0.5)
         

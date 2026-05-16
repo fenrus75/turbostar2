@@ -17,6 +17,7 @@ def test_assert_content():
         runner.send_keys("End of data.")
         
         # 2. Assert content matches
+        time.sleep(0.5)
         runner.assert_content_is(ref_file)
         
         runner.send_keys('\x0b' + 'q')

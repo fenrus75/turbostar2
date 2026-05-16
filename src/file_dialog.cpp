@@ -454,7 +454,7 @@ dialog_result file_dialog::handle_key(int key)
 						filename_buffer_.clear();
 					} else {
 						filename_buffer_ = entry.display_name;
-						focus_ = focus_element::entry_box;
+						return dialog_result::confirmed;
 					}
 				}
 				break;

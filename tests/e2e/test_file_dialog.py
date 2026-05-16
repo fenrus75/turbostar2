@@ -4,14 +4,18 @@ from turbostar_runner import TurbostarRunner
 
 def test_file_dialog():
     runner = TurbostarRunner()
-    test_dir = "test_dir"
+    project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+    testrun_dir = os.path.join(project_root, 'testrun')
+    test_dir = "test_dialog_dir"
     test_file = "test_file.txt"
     test_subdir = "subdir"
     
+    test_dir_abs = os.path.join(testrun_dir, test_dir)
+    
     try:
-        # Setup test directory and file
-        os.makedirs(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_subdir), exist_ok=True)
-        with open(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_file), "w") as f:
+        # Setup test directory and file in testrun/
+        os.makedirs(os.path.join(test_dir_abs, test_subdir), exist_ok=True)
+        with open(os.path.join(test_dir_abs, test_file), "w") as f:
             f.write("hello")
 
         runner.start()
@@ -34,7 +38,7 @@ def test_file_dialog():
         log = runner.get_log()
         try:
             assert "Document loaded from" in log
-            full_path = os.path.join(os.getcwd(), test_dir, test_file)
+            full_path = os.path.join(testrun_dir, test_dir, test_file)
             assert full_path in log
         except AssertionError:
             print("Assertion failed. Log content:")
@@ -44,18 +48,25 @@ def test_file_dialog():
     finally:
         runner.cleanup()
         # Clean up test directory
-        os.remove(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_file))
-        os.rmdir(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_subdir))
-        os.rmdir(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir))
+        if os.path.exists(os.path.join(test_dir_abs, test_file)):
+            os.remove(os.path.join(test_dir_abs, test_file))
+        if os.path.exists(os.path.join(test_dir_abs, test_subdir)):
+            os.rmdir(os.path.join(test_dir_abs, test_subdir))
+        if os.path.exists(test_dir_abs):
+            os.rmdir(test_dir_abs)
 
 def test_file_dialog_autocomplete():
     runner = TurbostarRunner()
+    project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+    testrun_dir = os.path.join(project_root, 'testrun')
     test_dir = "test_dir_auto"
     test_file = "foobar.txt"
     
+    test_dir_abs = os.path.join(testrun_dir, test_dir)
+    
     try:
-        os.makedirs(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir), exist_ok=True)
-        with open(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_file), "w") as f:
+        os.makedirs(test_dir_abs, exist_ok=True)
+        with open(os.path.join(test_dir_abs, test_file), "w") as f:
             f.write("hello foobar")
 
         runner.start()
@@ -74,7 +85,7 @@ def test_file_dialog_autocomplete():
 
         log = runner.get_log()
         try:
-            full_path = os.path.join(os.getcwd(), test_dir, test_file)
+            full_path = os.path.join(testrun_dir, test_dir, test_file)
             assert full_path in log
         except AssertionError:
             print("Assertion failed. Log content:")
@@ -83,8 +94,10 @@ def test_file_dialog_autocomplete():
         
     finally:
         runner.cleanup()
-        os.remove(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir, test_file))
-        os.rmdir(os.path.join(os.environ.get('PROJECT_ROOT', os.getcwd()), test_dir))
+        if os.path.exists(os.path.join(test_dir_abs, test_file)):
+            os.remove(os.path.join(test_dir_abs, test_file))
+        if os.path.exists(test_dir_abs):
+            os.rmdir(test_dir_abs)
 
 if __name__ == "__main__":
     test_file_dialog()

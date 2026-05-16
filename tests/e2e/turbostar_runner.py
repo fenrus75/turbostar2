@@ -19,11 +19,18 @@ class TurbostarRunner:
         self.stream = pyte.Stream(self.screen)
 
     def start(self, filename=None):
-        exe_path = os.path.join(os.environ.get('MESON_BUILD_ROOT', '.'), 'turbostar')
-        if not os.path.exists(exe_path):
-            exe_path = './turbostar'
+        project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+        testrun_dir = os.path.join(project_root, 'testrun')
+        os.makedirs(testrun_dir, exist_ok=True)
 
-        cmd = [exe_path, '--log', self.log_path]
+        exe_path = os.path.join(os.environ.get('MESON_BUILD_ROOT', project_root), 'turbostar')
+        if not os.path.exists(exe_path):
+            exe_path = os.path.join(project_root, 'turbostar')
+        
+        exe_path = os.path.abspath(exe_path)
+        log_path_abs = os.path.abspath(self.log_path)
+
+        cmd = [exe_path, '--log', log_path_abs]
         if filename:
             cmd.append(filename)
 
@@ -40,7 +47,8 @@ class TurbostarRunner:
             stdin=self.slave_fd,
             stdout=self.slave_fd,
             stderr=self.slave_fd,
-            env=env
+            env=env,
+            cwd=testrun_dir
         )
         os.close(self.slave_fd)
         self.slave_fd = None
@@ -64,18 +72,19 @@ class TurbostarRunner:
             except OSError:
                 break
 
-    def send_keys(self, keys):
+    def send_keys(self, keys, count=1):
         if isinstance(keys, str):
             # Convert \n to \r because we use nonl() in the editor
             keys = keys.replace('\n', '\r')
-        self.send_raw_keys(keys)
+        for _ in range(count):
+            self.send_raw_keys(keys)
 
     def send_raw_keys(self, keys):
         if isinstance(keys, str):
             keys = keys.encode('utf-8')
-        time.sleep(0.2)
+        time.sleep(0.1)
         os.write(self.master_fd, keys)
-        time.sleep(0.2)
+        time.sleep(0.1)
         self._read_output()
 
     def wait(self, timeout=2):
@@ -133,8 +142,9 @@ class TurbostarRunner:
         try:
             # 2. Trigger Save As via keys (^KW)
             self.send_keys('\x0b' + 'w')
+            time.sleep(0.5) # Wait for dialog
             # 3. Clear pre-filled and type path
-            self.send_keys('\x7f' * 50) 
+            self.send_keys('\x7f', count=50) 
             self.send_keys(save_path + '\n')
             time.sleep(0.5)
             

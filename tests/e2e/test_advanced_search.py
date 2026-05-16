@@ -18,15 +18,14 @@ def test_advanced_search():
         time.sleep(0.5)
         
         # Dialog open. Input "Apple".
-        runner.send_keys('\x7f' * 10)
+        runner.send_keys('\x7f', count=10)
         runner.send_keys("Apple")
         # Tab to "Case sensitive" (focus 1)
         runner.send_keys('\t')
         # Space to toggle ON (X)
         runner.send_keys(' ')
         # Tab to OK (focus 10)
-        for _ in range(9):
-            runner.send_keys('\t')
+        runner.send_keys('\t', count=9)
         runner.send_keys('\n')
         
         # Should find "Apple" at 1:1
@@ -72,7 +71,7 @@ def test_advanced_search():
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         # Input "App"
-        runner.send_keys('\x7f' * 10)
+        runner.send_keys('\x7f', count=10)
         runner.send_keys("App")
         # Tab 1 time to "Options" group (focus 1 = Case sensitive)
         runner.send_keys('\t')
@@ -81,7 +80,7 @@ def test_advanced_search():
         runner.send_keys(' ')  # Toggle ON
         
         # Tab 4 more times to "Buttons" group (focus 10 = OK)
-        runner.send_keys('\t\t\t\t')
+        runner.send_keys('\t', count=4)
         runner.send_keys('\n')
         
         # Should NOT find "App" in "Apple"

@@ -14,6 +14,8 @@
 - we need to update docs/colorscheme.md based on recent additions to
      main.cpp and the file dialog
 
+- run a test coverage analysis to see if whole areas are not covered by the
+    test suite
 
 # mid term items
 
@@ -37,3 +39,8 @@
 - test suite failures need to be fixed; 
    - likely the search item above will fix at least some failures
 - show dirty/clean state of the windows in the window title bar somehow, and in the window list menu
+- test suite running environment definition
+   - currently a bit of a mess, we should make a testrun/ directory and make
+     that the directory tests ALWAYS run from as CWD.. This impacts data
+     directory paths, where to find the turbostat binary etc etc but at
+     least it will be a predictable place.
