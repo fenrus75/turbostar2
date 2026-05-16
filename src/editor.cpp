@@ -925,11 +925,9 @@ void editor::render()
 		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
 	} else if (is_going_to_line_prompt_) {
 		status_help = "Go to line: " + line_input_buffer_ + "_";
-	} else if (!hover_text_.empty()) {
-		status_help = hover_text_;
 	}
 
-	bottom_status_.draw(status_help, cur_x, cur_y);
+	bottom_status_.draw(status_help, hover_text_, cur_x, cur_y);
 
 	if (active_dialog_) {
 		active_dialog_->draw();

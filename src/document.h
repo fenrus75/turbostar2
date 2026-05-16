@@ -77,6 +77,7 @@ class document
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 	std::string get_text_all() const;
+	std::string get_word_under_cursor() const;
 	void move_cursor(int dx, int dy);
 	void insert_char(const std::string &utf8_char);
 	void backspace();
@@ -149,6 +150,9 @@ class document
 
 	int cursor_x_{0};
 	int cursor_y_{0};
+	int target_cursor_x_{0}; // "Ghost X" for vertical navigation across short lines
+
+	mutable std::string last_hover_word_;
 
 	int selection_start_x_{-1};
 	int selection_start_y_{-1};

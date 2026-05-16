@@ -106,6 +106,7 @@ void document::insert_file(const std::string &filename)
 	insert_block(block);
 	end_edit_group();
 	set_modified();
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -277,22 +278,61 @@ std::string document::get_text_all() const
 	return full_text;
 }
 
+std::string document::get_word_under_cursor() const
+{
+	std::shared_lock lock(mutex_);
+	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size())) return "";
+	std::string text = lines_[cursor_y_]->get_text();
+	if (text.empty() || cursor_x_ < 0 || cursor_x_ > static_cast<int>(text.length())) return "";
+
+	int start = cursor_x_;
+	while (start > 0) {
+		char c = text[start - 1];
+		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+			start--;
+		} else {
+			break;
+		}
+	}
+
+	int end = cursor_x_;
+	while (end < static_cast<int>(text.length())) {
+		char c = text[end];
+		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+			end++;
+		} else {
+			break;
+		}
+	}
+
+	if (start < end) {
+		return text.substr(start, end - start);
+	}
+	return "";
+}
+
 void document::move_cursor(int dx, int dy)
 {
 	std::unique_lock lock(mutex_);
 
-	if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
-		cursor_y_--;
-		cursor_x_ = lines_[cursor_y_]->length_in_chars();
-	} else if (dx > 0 && cursor_x_ >= lines_[cursor_y_]->length_in_chars() &&
-		   cursor_y_ < line_count_unlocked() - 1) {
-		cursor_y_++;
-		cursor_x_ = 0;
-	} else {
-		cursor_x_ += dx;
+	if (dx != 0) {
+		if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
+			cursor_y_--;
+			cursor_x_ = lines_[cursor_y_]->length_in_chars();
+		} else if (dx > 0 && cursor_x_ >= lines_[cursor_y_]->length_in_chars() &&
+			   cursor_y_ < line_count_unlocked() - 1) {
+			cursor_y_++;
+			cursor_x_ = 0;
+		} else {
+			cursor_x_ += dx;
+		}
+		target_cursor_x_ = cursor_x_;
 	}
 
-	cursor_y_ += dy;
+	if (dy != 0) {
+		cursor_y_ += dy;
+		cursor_x_ = target_cursor_x_; // Attempt to use target X when moving vertically
+	}
 
 	if (cursor_y_ < 0)
 		cursor_y_ = 0;
@@ -322,6 +362,7 @@ void document::insert_char(const std::string &utf8_char)
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -358,6 +399,7 @@ void document::backspace()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -387,6 +429,7 @@ void document::delete_char()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -407,6 +450,7 @@ void document::delete_to_eol()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -427,6 +471,7 @@ void document::delete_to_bol()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -459,6 +504,7 @@ void document::delete_word_forward()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -491,6 +537,7 @@ void document::delete_word_backward()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -516,6 +563,7 @@ void document::split_line()
 		set_modified();
 		end_edit_group();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -524,6 +572,7 @@ void document::move_to_bol()
 {
 	std::unique_lock lock(mutex_);
 	cursor_x_ = 0;
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -543,6 +592,7 @@ void document::move_to_top()
 	std::unique_lock lock(mutex_);
 	cursor_x_ = 0;
 	cursor_y_ = 0;
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -552,6 +602,7 @@ void document::move_to_bottom()
 	std::unique_lock lock(mutex_);
 	cursor_y_ = line_count_unlocked() - 1;
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -561,6 +612,7 @@ void document::move_page_up(int page_height)
 	std::unique_lock lock(mutex_);
 	cursor_y_ -= page_height;
 	cursor_y_ = std::max(0, cursor_y_);
+	cursor_x_ = target_cursor_x_;
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
@@ -576,6 +628,7 @@ void document::move_page_down(int page_height)
 	if (cursor_y_ >= line_count_unlocked()) {
 		cursor_y_ = line_count_unlocked() - 1;
 	}
+	cursor_x_ = target_cursor_x_;
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
@@ -613,6 +666,7 @@ void document::move_next_word()
 		cursor_x_ = i;
 	}
 
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -637,6 +691,7 @@ void document::move_prev_word()
 		i--;
 
 	cursor_x_ = i;
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -671,6 +726,7 @@ void document::delete_line()
 	cursor_x_ = 0;
 	set_modified();
 	end_edit_group();
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -788,6 +844,7 @@ void document::format_range(int start_y, int end_y)
 	
 	end_edit_group();
 	set_modified();
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -936,6 +993,7 @@ void document::delete_selection()
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 	set_modified();
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -1075,8 +1133,12 @@ void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &
 }
 void document::notify_cursor_changed() const
 {
-	if (!filename_.empty() && filename_ != "unknown.txt") {
-		clangd_manager::get_instance().request_hover(filename_, cursor_y_, cursor_x_);
+	std::string word = get_word_under_cursor();
+	if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
+		last_hover_word_ = word;
+		if (!word.empty()) {
+			clangd_manager::get_instance().request_hover(filename_, cursor_y_, cursor_x_);
+		}
 	}
 
 	std::shared_lock lock(mutex_);
@@ -1589,6 +1651,7 @@ void document::undo()
 	
 	set_modified();
 	is_recording_actions_ = true;
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -1641,6 +1704,7 @@ void document::redo()
 
 	set_modified();
 	is_recording_actions_ = true;
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
