@@ -19,6 +19,19 @@ checks below to ensure a smooth experience for our users.
 ## Dependency verification
 - [ ] Run `scripts/check_dependencies.sh` to verify all required dependencies (e.g., `include/CLI11.hpp`) are present and meet version requirements.
 
+## Build configurations
+
+The following Meson configuration options are used for the release validation builds:
+
+| Build Type | Configuration Command |
+| :--- | :--- |
+| **Standard** | `meson setup --wipe build` |
+| **Release** | `meson setup --wipe --buildtype=release build_release` |
+| **Debug** | `meson setup --wipe --buildtype=debug build_debug` |
+| **ASAN/Gcov**| `meson setup --wipe -Denable-tests=true -Db_sanitize=address build_acov` |
+| **Gcov** | `meson setup --wipe -Denable-tests=true build_cov` |
+| **UBSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=undefined build_ubsan` |
+
 ## Release automation & validation
 - [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types (Standard, Release, Debug, ASAN/Gcov, UBSAN).
 - [ ] Ensure all builds and tests pass within the automation script.
