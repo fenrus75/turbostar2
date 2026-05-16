@@ -97,6 +97,8 @@ class document
 	void mark_line_dirty(std::shared_ptr<line> l);
 	void highlighter_thread_loop();
 	void process_line_highlight(std::shared_ptr<line> l);
+	bool is_space_at(int y, int x) const;
+	bool is_space_at_unlocked(int y, int x) const;
 
 	std::vector<std::shared_ptr<line>> lines_;
 	mutable std::shared_mutex mutex_;

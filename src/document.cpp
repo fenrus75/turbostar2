@@ -306,9 +306,9 @@ void document::delete_word_forward()
 	};
 
 	int i = cursor_x_;
-	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
 		i++;
-	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
 		i++;
 
 	int count = i - cursor_x_;
@@ -342,9 +342,9 @@ void document::delete_word_backward()
 	};
 
 	int i = cursor_x_ - 1;
-	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
 		i--;
-	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
+	while (i > 0 && !is_space_at_unlocked(cursor_y_, i - 1))
 		i--;
 
 	int count = cursor_x_ - i;
@@ -468,9 +468,9 @@ void document::move_next_word()
 	};
 
 	int i = cursor_x_;
-	while (i < line_char_len && !std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
 		i++;
-	while (i < line_char_len && std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
 		i++;
 
 	if (i >= line_char_len && cursor_y_ < line_count_unlocked() - 1) {
@@ -506,9 +506,9 @@ void document::move_prev_word()
 	};
 
 	int i = cursor_x_ - 1;
-	while (i > 0 && std::isspace(static_cast<unsigned char>(get_char_at(i))))
+	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
 		i--;
-	while (i > 0 && !std::isspace(static_cast<unsigned char>(get_char_at(i - 1))))
+	while (i > 0 && !is_space_at_unlocked(cursor_y_, i - 1))
 		i--;
 
 	cursor_x_ = i;
@@ -1115,4 +1115,20 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 	}
 
 	l->set_attributes(attrs);
+}
+
+bool document::is_space_at(int y, int x) const
+{
+	std::shared_lock lock(mutex_);
+	return is_space_at_unlocked(y, x);
+}
+
+bool document::is_space_at_unlocked(int y, int x) const
+{
+	std::string text = lines_[y]->get_text();
+	size_t offset = lines_[y]->char_to_byte_offset(x);
+	if (offset < text.length()) {
+		return std::isspace(static_cast<unsigned char>(text[offset]));
+	}
+	return false;
 }
