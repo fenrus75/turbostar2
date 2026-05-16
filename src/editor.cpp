@@ -438,7 +438,20 @@ void editor::dispatch(const editor_event &ev)
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				current_search_.query = search_input_buffer_;
-				if (documents_[0]->find_next(current_search_)) {
+				// Reset some defaults for simple prompt search
+				current_search_.backward = false;
+				current_search_.selected_text_only = false;
+				current_search_.from_cursor = true;
+
+				std::shared_ptr<document> active_doc;
+				for (auto &w : windows_) {
+					if (w->is_active()) {
+						active_doc = w->get_document();
+						break;
+					}
+				}
+
+				if (active_doc && active_doc->find_next(current_search_)) {
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
