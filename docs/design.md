@@ -21,7 +21,7 @@ sections updated as enhancements are made to the project.
 
 # Git policy
 
-After making a change, create a git commit for the change.
+After making a change, create a git commit for the change. Before committing, ensure the code is formatted by running `clang-format -i src/*.cpp src/*.h`.
 
 # Technical decisions
 

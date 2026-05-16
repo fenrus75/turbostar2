@@ -8,6 +8,7 @@ This document outlines the coding style and conventions used in the PowerTOP pro
 *   **Tabs only**: Use tabs for indentation.
 *   **Tab Width**: Tabs should be treated as 8 spaces wide.
 *   **No trailing whitespace**: Lines should not end with whitespace.
+*   **Automated Formatting**: Project formatting rules are encoded in the `.clang-format` file in the root directory. Developers should use `clang-format` to maintain consistency.
 
 ### 1.2 Braces and Control Flow
 *   **K&R Style (Linux Kernel Variant)**:
