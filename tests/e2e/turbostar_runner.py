@@ -106,6 +106,7 @@ class TurbostarRunner:
         import re
         match = re.search(r"(\d+):(\d+)", status_bar_row)
         if match:
+            print(f"DEBUG: Status bar: '{status_bar_row}' -> {match.group(1)}:{match.group(2)}")
             return int(match.group(1)), int(match.group(2))
         return -1, -1
 
@@ -189,3 +190,10 @@ class TurbostarRunner:
             self.proc = None
         if os.path.exists(self.log_path):
             os.remove(self.log_path)
+            
+        # Clean up default file to prevent state leak across tests
+        project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+        testrun_dir = os.path.join(project_root, 'testrun')
+        default_file = os.path.join(testrun_dir, 'unknown.txt')
+        if os.path.exists(default_file):
+            os.remove(default_file)
