@@ -1,7 +1,20 @@
 
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- check for any remaining unimplemented joe key sequences
+- Unimplemented Joe key sequences to add:
+    - `^K/` Filter
+    - `^G` Matching `(`
+    - `^KJ` Paragraph format
+    - `^KA` Center line
+    - `^K Space` Status
+    - `Esc N` Spell Word
+    - `Esc L` Spell File
+    - `Esc .` Spell Next
+    - `Esc ,` Spell Prev
+    - `^_` Undo
+    - `^^` Redo
+    - `^KR` Insert file
+    - `^K\`` Revert file
 
 # mid term items
 
@@ -24,10 +37,6 @@
 
 
 # done items (items move here on completion)
-
-- ^KF search should get a second question (joe style)
-     Joe offers "(I)gnore (R)eplace (B)ackwards Bloc(K) (^K H for help)" as
-     second question. "K" is "within selection" "I" is ignore case
 
 - search via ^K F could use some autocompletion (similar to file dialog),
      but based on past searches as source for autocomplete. this means we
