@@ -60,6 +60,26 @@ void editor::update_window_menu()
 	top_menu_.set_category_items("Window", items);
 }
 
+std::shared_ptr<document> editor::get_active_doc() const
+{
+	for (auto &w : windows_) {
+		if (w->is_active()) {
+			return w->get_document();
+		}
+	}
+	return nullptr;
+}
+
+window *editor::get_active_window() const
+{
+	for (auto &w : windows_) {
+		if (w->is_active()) {
+			return w.get();
+		}
+	}
+	return nullptr;
+}
+
 void editor::run()
 {
 	render();
@@ -219,13 +239,7 @@ bool editor::handle_k_block_key(int key)
 		return false;
 
 	// Find active window/doc
-	std::shared_ptr<document> active_doc;
-	for (auto &w : windows_) {
-		if (w->is_active()) {
-			active_doc = w->get_document();
-			break;
-		}
-	}
+	std::shared_ptr<document> active_doc = get_active_doc();
 
 	if (!active_doc)
 		return false;
@@ -330,10 +344,7 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::save) {
 		logger.log("Dispatching save event.");
-		std::shared_ptr<document> active_doc;
-		for (auto &w : windows_)
-			if (w->is_active())
-				active_doc = w->get_document();
+		std::shared_ptr<document> active_doc = get_active_doc();
 
 		std::string filename_arg;
 		if (active_doc) {
@@ -391,10 +402,9 @@ void editor::dispatch(const editor_event &ev)
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res == dialog_result::confirmed) {
-				auto doc = documents_[0]; // Default fallback
-				for (auto &w : windows_)
-					if (w->is_active())
-						doc = w->get_document();
+				auto doc = get_active_doc();
+				if (!doc)
+					doc = documents_[0]; // Default fallback
 
 				if (active_dialog_mode_ == dialog_mode::load) {
 					new_window(active_dialog_->get_result());
@@ -443,13 +453,7 @@ void editor::dispatch(const editor_event &ev)
 				current_search_.selected_text_only = false;
 				current_search_.from_cursor = true;
 
-				std::shared_ptr<document> active_doc;
-				for (auto &w : windows_) {
-					if (w->is_active()) {
-						active_doc = w->get_document();
-						break;
-					}
-				}
+				std::shared_ptr<document> active_doc = get_active_doc();
 
 				if (active_doc && active_doc->find_next(current_search_)) {
 					editor_event redraw_ev;
@@ -473,13 +477,7 @@ void editor::dispatch(const editor_event &ev)
 
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
-			std::shared_ptr<document> active_doc;
-			for (auto &w : windows_) {
-				if (w->is_active()) {
-					active_doc = w->get_document();
-					break;
-				}
-			}
+			std::shared_ptr<document> active_doc = get_active_doc();
 			if (active_doc) {
 				logger.log("Active doc found for ^L. query=" + current_search_.query +
 					   " backward=" + std::to_string(current_search_.backward));
@@ -557,11 +555,9 @@ void editor::dispatch(const editor_event &ev)
 			}
 
 			// Route to active window
-			for (auto &w : windows_) {
-				if (w->is_active()) {
-					w->get_queue().push(ev);
-					break;
-				}
+			window *active_win = get_active_window();
+			if (active_win) {
+				active_win->get_queue().push(ev);
 			}
 		}
 	}
@@ -582,11 +578,9 @@ void editor::render()
 	attroff(COLOR_PAIR(9));
 
 	// 2. Windows (Foreground Only)
-	for (const auto &w : windows_) {
-		if (w->is_active()) {
-			w->draw();
-			break;
-		}
+	window *active_win = get_active_window();
+	if (active_win) {
+		active_win->draw();
 	}
 
 	top_menu_.draw();
@@ -602,12 +596,9 @@ void editor::render()
 		}
 	}
 
-	for (const auto &w : windows_) {
-		if (w->is_active()) {
-			cur_x = w->get_cursor_x();
-			cur_y = w->get_cursor_y();
-			break;
-		}
+	if (active_win) {
+		cur_x = active_win->get_cursor_x();
+		cur_y = active_win->get_cursor_y();
 	}
 
 	std::string status_help = debug_out;
@@ -628,12 +619,9 @@ void editor::render()
 
 	// Only show cursor if we are in window focus and NOT in a modal state
 	if (current_focus_ == focus_target::window && !active_dialog_ && !k_block_mode_) {
-		for (const auto &w : windows_) {
-			if (w->is_active()) {
-				w->set_cursor_position();
-				curs_set(1);
-				break;
-			}
+		if (active_win) {
+			active_win->set_cursor_position();
+			curs_set(1);
 		}
 	}
 

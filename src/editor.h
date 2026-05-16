@@ -43,6 +43,8 @@ class editor
 	void new_window(const std::string &filename);
 	void activate_window(size_t index);
 	void update_window_menu();
+	std::shared_ptr<document> get_active_doc() const;
+	window *get_active_window() const;
 
 	/**
 	 * @brief Routes events from the global queue to the focused component.

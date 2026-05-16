@@ -7,13 +7,26 @@
 - test suite failures need to be fixed; 
    - likely the search item above will fix at least some failures
 - show dirty/clean state of the windows in the window title bar somehow, and in the window list menu
-
+- search via ^K F could use some autocompletion (similar to file dialog),
+     but based on past searches as source for autocomplete. this means we
+     need a global list of past search strings, populated both from ^KF and the
+     dialog box option 
+- code cleanup
+    - window.cpp lines 54-106 is a chain of if statements that could
+    	be a switch()
 
 # mid term items
 
 - improve syntax highlighting
+- ^KF search should get a second question (joe style)
+     Joe offers "(I)gnore (R)eplace (B)ackwards Bloc(K) (^K H for help)" as
+     second question. "K" is "within selection" "I" is ignore case
 
 # long term items
 
 - add a compile output window somehow
 - LLM connection window?
+
+
+
+# done items (items move here on completion)
