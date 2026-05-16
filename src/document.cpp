@@ -9,12 +9,14 @@
 #include "event_logger.h"
 #include "config_manager.h"
 #include "git_manager.h"
+#include "highlighter_registry.h"
 
 namespace fs = std::filesystem;
 
 document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file("");
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	notify_cursor_changed();
 }
@@ -25,6 +27,7 @@ document::document(event_queue &global_queue, const std::string &filename) : fil
 		if (lines_.empty())
 			lines_.push_back(std::make_shared<line>(""));
 	}
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	notify_cursor_changed();
 }
@@ -59,6 +62,7 @@ bool document::load_from_file(const std::string &filename)
 	}
 
 	filename_ = filename;
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
 	modified_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
@@ -156,6 +160,7 @@ bool document::save_to_file(const std::string &filename)
 	}
 
 	filename_ = filename;
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
@@ -172,6 +177,7 @@ void document::clear()
 	lines_.push_back(l);
 	mark_line_dirty(l);
 	filename_ = "";
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file("");
 	modified_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
@@ -1356,49 +1362,9 @@ void document::highlighter_thread_loop()
 
 void document::process_line_highlight(std::shared_ptr<line> l)
 {
-	std::string text = l->get_text();
-	size_t char_count = l->length_in_chars();
-	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
-
-	// Pre-compiled combined regex for efficiency
-	static const std::regex kw_regex("\\b(void|int|char|const|bool|class|struct|enum|virtual|override|"
-					 "return|if|else|for|while)\\b");
-
-	auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
-	auto words_end = std::sregex_iterator();
-
-	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-		std::smatch match = *i;
-		size_t byte_pos = match.position();
-		size_t byte_len = match.length();
-
-		// Convert byte pos to char pos
-		int char_pos = 0;
-		size_t current_byte = 0;
-		while (current_byte < byte_pos && char_pos < static_cast<int>(char_count)) {
-			unsigned char c = static_cast<unsigned char>(text[current_byte]);
-			if (c < 0x80)
-				current_byte += 1;
-			else if ((c & 0xE0) == 0xC0)
-				current_byte += 2;
-			else if ((c & 0xE0) == 0xE0)
-				current_byte += 3;
-			else if ((c & 0xF0) == 0xF0)
-				current_byte += 4;
-			else
-				current_byte += 1;
-			char_pos++;
-		}
-
-		// Mark as keyword
-		for (size_t j = 0; j < byte_len; ++j) {
-			if (char_pos + j < attrs.size()) {
-				attrs[char_pos + j] = syntax_attribute::keyword;
-			}
-		}
+	if (active_highlighter_) {
+		active_highlighter_->highlight(l);
 	}
-
-	l->set_attributes(attrs);
 }
 
 bool document::is_space_at(int y, int x) const

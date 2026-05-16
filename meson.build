@@ -253,6 +253,12 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_syntax_markdown', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_syntax_markdown.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_ctrl_sequences', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_ctrl_sequences.py')],
     env: e2e_env,

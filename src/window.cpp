@@ -301,6 +301,12 @@ void window::draw_content() const
 					} else {
 						if (attr == syntax_attribute::keyword)
 							pair = 12;
+						else if (attr == syntax_attribute::heading)
+							pair = 22;
+						else if (attr == syntax_attribute::bold)
+							pair = 23;
+						else if (attr == syntax_attribute::list_item)
+							pair = 24;
 					}
 
 					attrset(COLOR_PAIR(pair));

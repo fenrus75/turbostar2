@@ -11,6 +11,7 @@
 #include <vector>
 #include "event_queue.h"
 #include "line.h"
+#include "syntax_highlighter.h"
 
 // Represents a single, atomic line modification
 struct edit_action {
@@ -171,4 +172,5 @@ class document
 	std::condition_variable dirty_cv_;
 	std::thread highlighter_thread_;
 	std::atomic<bool> stop_thread_{false};
+	std::shared_ptr<syntax_highlighter> active_highlighter_;
 };

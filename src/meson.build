@@ -14,6 +14,9 @@ turbostar_sources = files(
   'history_manager.cpp',
   'config_manager.cpp',
   'settings_dialog.cpp',
-  'git_manager.cpp'
+  'git_manager.cpp',
+  'cpp_highlighter.cpp',
+  'markdown_highlighter.cpp',
+  'highlighter_registry.cpp'
 )
 

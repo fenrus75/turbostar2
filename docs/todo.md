@@ -13,14 +13,6 @@
 
    - this should get us on the road to better syntax highlighting, but we still need the general syntax highlighting improvements first
 
-- improve syntax highlighting
-   - multiple languages support (first one: markdown)
-   - we will need an abstraction between the syntax highlighting thread and the language, one class per language most likely
-   - each class should have a method for "is this filename for me" that returns a bool - the first one to say "yes" wins 
-   - need to reevaluate this on "Save As" as the filename changes 
-   - need to standardize between languages what the attributes mean, some sort of C++ enum equivalent
-   - need to build it so that we can, over time, get to the LSP server approach
-
 # long term items
    
 
@@ -32,6 +24,14 @@
 
 
 # done items (items move here on completion)
+
+- improve syntax highlighting
+   - multiple languages support (first one: markdown)
+   - we will need an abstraction between the syntax highlighting thread and the language, one class per language most likely
+   - each class should have a method for "is this filename for me" that returns a bool - the first one to say "yes" wins 
+   - need to reevaluate this on "Save As" as the filename changes 
+   - need to standardize between languages what the attributes mean, some sort of C++ enum equivalent
+   - need to build it so that we can, over time, get to the LSP server approach
 
 - better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
    - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
