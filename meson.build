@@ -24,7 +24,7 @@ turbostar_exe = executable('turbostar',
 custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
-  command: ['cp', '@INPUT@', join_paths(meson.project_source_root(), 'testrun/turbostar')],
+  command: ['sh', '-c', 'mkdir -p ' + join_paths(meson.project_source_root(), 'testrun') + ' && cp @INPUT@ ' + join_paths(meson.project_source_root(), 'testrun/turbostar')],
   build_by_default: true
 )
 
