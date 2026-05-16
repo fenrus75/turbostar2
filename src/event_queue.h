@@ -16,7 +16,8 @@ enum class event_type {
 	new_doc,    ///< Request to clear current document
 	about,      ///< Request to show About dialog
 	redraw,     ///< Request a global UI re-render
-	find        ///< Request to find text (triggers dialog)
+	find,       ///< Request to find text (triggers dialog)
+	replace     ///< Request to replace text (triggers dialog)
 };
 
 /**

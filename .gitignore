@@ -1,6 +1,5 @@
 build/
 *.o
 *~
-screenshots/
 
 __pycache__/

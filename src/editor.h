@@ -48,6 +48,7 @@ private:
 	 */
 	void dispatch(const editor_event& ev);
 	bool handle_k_block_key(int key);
+	bool handle_q_block_key(int key);
 	void render();
 
 	event_queue global_queue_;
@@ -59,8 +60,9 @@ private:
 
 	focus_target current_focus_{focus_target::window};
 	bool k_block_mode_{false};
+	bool q_block_mode_{false};
 	
-	enum class dialog_mode { none, load, save, search };
+	enum class dialog_mode { none, load, save, search, replace };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 

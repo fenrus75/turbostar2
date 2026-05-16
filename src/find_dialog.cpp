@@ -110,7 +110,7 @@ void find_dialog::draw() const
 		addch('[');
 		if (val) {
 			if (focused) attrset(COLOR_PAIR(19));
-			else attrset(COLOR_PAIR(11)); 
+			else attrset(COLOR_PAIR(17)); 
 			addch('X');
 			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
 		} else addch(' ');
@@ -125,7 +125,7 @@ void find_dialog::draw() const
 		addch('(');
 		if (val) {
 			if (focused) attrset(COLOR_PAIR(19));
-			else attrset(COLOR_PAIR(11));
+			else attrset(COLOR_PAIR(17));
 			addstr("•");
 			attrset(focused ? COLOR_PAIR(19) : COLOR_PAIR(17));
 		} else addch(' ');

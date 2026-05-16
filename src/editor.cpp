@@ -104,6 +104,27 @@ void editor::run()
 	}
 }
 
+bool editor::handle_q_block_key(int key)
+{
+	auto& logger = event_logger::get_instance();
+	int c = std::tolower(key);
+
+	if (c == 'f') {
+		logger.log("Q-block: Find Text");
+		editor_event ev;
+		ev.type = event_type::find;
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'a') {
+		logger.log("Q-block: Replace Text");
+		editor_event ev;
+		ev.type = event_type::replace;
+		global_queue_.push(ev);
+		return true;
+	}
+	return false;
+}
+
 void editor::set_focus(focus_target target, const std::string& source)
 {
 	std::string target_name;
@@ -268,9 +289,17 @@ void editor::dispatch(const editor_event& ev)
 
 	if (ev.type == event_type::find) {
 		logger.log("Dispatching find event (advanced dialog).");
-		active_dialog_ = std::make_unique<find_dialog>("Find", current_search_);
+		active_dialog_ = std::make_unique<find_dialog>("Find", current_search_, false);
 		active_dialog_mode_ = dialog_mode::search;
 		set_focus(focus_target::dialog, "menu_find");
+		return;
+	}
+
+	if (ev.type == event_type::replace) {
+		logger.log("Dispatching replace event (advanced dialog).");
+		active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
+		active_dialog_mode_ = dialog_mode::replace;
+		set_focus(focus_target::dialog, "menu_replace");
 		return;
 	}
 
@@ -286,7 +315,7 @@ void editor::dispatch(const editor_event& ev)
 					doc->load_from_file(active_dialog_->get_result());
 				} else if (active_dialog_mode_ == dialog_mode::save) {
 					doc->save_to_file(active_dialog_->get_result());
-				} else if (active_dialog_mode_ == dialog_mode::search) {
+				} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
 					if (f_dialog) {
 						current_search_ = f_dialog->get_search_params();
@@ -339,12 +368,25 @@ void editor::dispatch(const editor_event& ev)
 				return;
 			}
 			k_block_mode_ = false;
-			// Fall through if not handled, though typically K-block consumes or cancels
+		}
+
+		if (q_block_mode_) {
+			if (handle_q_block_key(ev.key_code)) {
+				q_block_mode_ = false;
+				return;
+			}
+			q_block_mode_ = false;
 		}
 
 		if (ev.key_code == 11) { // Ctrl-K
 			logger.log("Entering K-block mode.");
 			k_block_mode_ = true;
+			return;
+		}
+
+		if (ev.key_code == 17) { // Ctrl-Q
+			logger.log("Entering Q-block mode.");
+			q_block_mode_ = true;
 			return;
 		}
 
@@ -423,6 +465,8 @@ void editor::render()
 	std::string status_help = debug_out;
 	if (k_block_mode_) {
 		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top V:End Q:Quit X:SaveExit F:Find";
+	} else if (q_block_mode_) {
+		status_help = "Q-Block: F:Find A:Replace";
 	} else if (is_searching_prompt_) {
 		status_help = "Search for: " + search_input_buffer_ + "_";
 	}
