@@ -9,9 +9,12 @@ These keys are handled by the central dispatcher regardless of focus (unless ove
 | Key Combination | Action | Notes |
 | :--- | :--- | :--- |
 | `Alt+F` | Open File Menu | |
-| `Alt+E` | Open Edit Menu | (Menu exists, content TBD) |
-| `Alt+S` | Open Search Menu | (Menu exists, content TBD) |
-| `Alt+H` | Open Help Menu | (Menu exists, content TBD) |
+| `Alt+E` | Open Edit Menu | |
+| `Alt+S` | Open Search Menu | |
+| `Alt+P` | Open Options Menu | Preferences and settings. |
+| `Alt+G` | Open Git Menu | Git integration commands. |
+| `Alt+H` | Open Help Menu | |
+| `Alt+1...9` | Switch Window | Directly activates the corresponding numbered window. |
 
 ## Menu Navigation
 
@@ -51,6 +54,7 @@ Active when an editor window has focus.
 | `Ctrl+V` | Page Down | Moves cursor down by one page. |
 | `Ctrl+X` | Next Word | Moves cursor to the start of the next word. |
 | `Ctrl+Z` | Previous Word | Moves cursor to the start of the previous word. |
+| `Ctrl+G` | Matching Bracket | Jumps between matching `()`, `[]`, or `{}`. |
 
 ## Editor Editing
 
@@ -66,8 +70,9 @@ Active when an editor window has focus.
 | `Ctrl+J` | Delete to EOL | Deletes from cursor to end of the current line. |
 | `Alt+O` | Delete to BOL | Deletes from start of line to the cursor. |
 | `Enter` | Split Line | Splits the current line and moves cursor to the next line. |
-
 | `Ctrl+Y` | Delete Line | Removes the entire current line. |
+| `Ctrl+_` | Undo | Reverts the last logical edit operation. |
+| `Ctrl+^` | Redo | Re-applies the last undone operation. |
 
 ## Block / Selection Commands (Ctrl+K Prefix)
 
@@ -82,11 +87,14 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
 | `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
 | `^K W` | Write / Save As | Prompts for a filename to save the current document. |
+| `^K R` | Insert File | Prompts for a filename to insert at the cursor position. |
 | `^K Q` | Quit / Abort | Exits the application without saving. |
 | `^K X` | Save & Exit | Saves the current document and exits. |
 | `^K U` | Top of File | Moves cursor to the beginning of the document. |
 | `^K V` | End of File | Moves cursor to the end of the document. |
 | `^K L` | Go To Line | Prompts for a line number in the status bar to jump to. |
+| `^K J` | Format Paragraph | Runs `clang-format` on the current block of text. |
+| `^K [` / `^K {` | Select Scope | Automatically selects the current enclosing `{}` block. |
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
 | `^K H` | Hide/Clear Selection | Removes both start and end markers. |
 
