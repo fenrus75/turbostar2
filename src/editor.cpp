@@ -5,6 +5,8 @@
 #include "file_dialog.h"
 #include "find_dialog.h"
 #include "history_manager.h"
+#include "config_manager.h"
+#include "settings_dialog.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::string &filename, bool exit_immediately)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
@@ -473,6 +475,14 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::settings) {
+		logger.log("Dispatching settings event.");
+		active_dialog_ = std::make_unique<settings_dialog>();
+		active_dialog_mode_ = dialog_mode::settings;
+		set_focus(focus_target::dialog, "menu_settings");
+		return;
+	}
+
 	if (ev.type == event_type::format_doc) {
 		logger.log("Dispatching format_doc event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
@@ -524,6 +534,12 @@ void editor::dispatch(const editor_event &ev)
 					std::string result_path = active_dialog_->get_result();
 					if (doc) {
 						doc->insert_file(result_path);
+					}
+				} else if (active_dialog_mode_ == dialog_mode::settings) {
+					auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
+					if (s_dialog) {
+						config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
+						config_manager::get_instance().save();
 					}
 				}
 				active_dialog_.reset();

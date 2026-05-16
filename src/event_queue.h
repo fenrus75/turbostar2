@@ -20,6 +20,7 @@ enum class event_type {
 	find,	      ///< Request to find text (triggers dialog)
 	replace,      ///< Request to replace text (triggers dialog)
 	format_doc,   ///< Request to format document/range
+	settings,     ///< Request to show settings dialog
 	select_window ///< Request to switch active window (key_code is index)
 };
 

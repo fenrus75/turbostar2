@@ -7,6 +7,7 @@
 #include <mutex>
 #include <regex>
 #include "event_logger.h"
+#include "config_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -656,8 +657,33 @@ void document::format_range(int start_y, int end_y)
 	}
 	tmp_file.close();
 
+	// Determine style
+	std::string style = config_manager::get_instance().get_clang_format_style();
+	
+	// Check if a .clang-format file exists in the project. 
+	// Policy: If a .clang-format file exists in the file's directory or any parent, it always wins.
+	bool force_file = false;
+	fs::path search_path;
+	if (!filename_.empty() && filename_ != "unknown.txt") {
+		search_path = fs::absolute(filename_).parent_path();
+	} else {
+		search_path = fs::current_path();
+	}
+
+	while (true) {
+		if (fs::exists(search_path / ".clang-format")) {
+			force_file = true;
+			break;
+		}
+		if (!search_path.has_parent_path() || search_path == search_path.parent_path())
+			break;
+		search_path = search_path.parent_path();
+	}
+
+	std::string style_arg = "--style=" + (force_file ? "file" : style);
+
 	// Run clang-format
-	std::string cmd = "clang-format -i " + temp_path;
+	std::string cmd = "clang-format " + style_arg + " -i " + temp_path;
 	if (std::system(cmd.c_str()) != 0) {
 		event_logger::get_instance().log("Format failed: clang-format returned error.");
 		return;

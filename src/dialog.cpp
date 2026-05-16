@@ -48,6 +48,16 @@ void dialog::draw() const
 	for (int i = 1; i < width_ - 1; ++i)
 		addstr("═");
 	addstr("╝");
+	
+	// Close button [■]
+	attron(COLOR_PAIR(14)); // Black on Green
+	mvaddstr(y_, x_ + 2, "[");
+	attron(COLOR_PAIR(14) | A_BOLD);
+	addstr("■");
+	attron(COLOR_PAIR(14));
+	addstr("]");
+	attroff(COLOR_PAIR(14));
+	
 	attroff(COLOR_PAIR(11));
 
 	// Title

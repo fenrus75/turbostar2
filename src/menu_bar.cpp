@@ -28,6 +28,9 @@ menu_bar::menu_bar()
 			{{"Find...", event_type::find, 'f', "^KF", false},
 			 {"Replace...", event_type::replace, 'r', "^QA", false},
 			 {"Find next", event_type::key_press, 12, 'l', "^L", false}}},
+		       {"Options",
+			'p',
+			{{"Preferences...", event_type::settings, 'p', "", false}}},
 		       {"Window", 'w', {}},
 		       {"Help", 'h', {{"About...", event_type::about, 'a', "", false}}}};
 }

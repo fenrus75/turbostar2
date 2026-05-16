@@ -4,11 +4,9 @@
 - Unimplemented Joe key sequences to add:
     - `^K/` Filter
     - `^G` Matching `(`
+    - `^KJ` Paragraph format  (implemented for whole document via clang-format)
 
 - syntax highlighting: highlight the matching bracket ( vs ), { vs } and [ vs ]
-
-- a settings dialog box (and data backend that uses the ~/.turbostar file)
-  the first setting would be prefered coding style (which maps to the clang-format predefined types, and has a "~/.clang-format file" as additional option. If a .clang-format file exists in the project that should always win
 
 # mid term items
 
@@ -29,7 +27,8 @@
 
 # done items (items move here on completion)
 
-- `^KJ` Paragraph format (implemented using clang-format on the current block of text)
+- a settings dialog box (and data backend that uses the ~/.turbostar file)
+  the first setting would be prefered coding style (which maps to the clang-format predefined types, and has a "~/.clang-format file" as additional option. If a .clang-format file exists in the project that should always win
 
 - a way to call clang-format on the current file
    - needs to save, run the command, then reload, as one nice operation

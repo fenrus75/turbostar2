@@ -7,6 +7,7 @@
 #include "CLI11.hpp"
 #include "editor.h"
 #include "event_logger.h"
+#include "config_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -55,6 +56,8 @@ int main(int argc, char **argv)
 	}
 
 	CLI11_PARSE(app, argc, argv);
+
+	config_manager::get_instance().load();
 
 	auto &logger = event_logger::get_instance();
 	if (!log_file.empty()) {

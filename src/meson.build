@@ -11,6 +11,8 @@ turbostar_sources = files(
   'dialog.cpp',
   'find_dialog.cpp',
   'file_dialog.cpp',
-  'history_manager.cpp'
+  'history_manager.cpp',
+  'config_manager.cpp',
+  'settings_dialog.cpp'
 )
 
