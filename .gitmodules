@@ -1,0 +1,3 @@
+[submodule "subprojects/lsp-framework"]
+	path = subprojects/lsp-framework
+	url = https://github.com/fenrus75/lsp-framework.git
