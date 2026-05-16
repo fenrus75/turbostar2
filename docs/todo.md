@@ -6,9 +6,6 @@
      need a global list of past search strings, populated both from ^KF and the
      dialog box option 
 
-- run a test coverage analysis to see if whole areas are not covered by the
-    test suite
-
 # mid term items
 
 - improve syntax highlighting
@@ -26,6 +23,9 @@
 
 
 # done items (items move here on completion)
+
+- run a test coverage analysis to see if whole areas are not covered by the
+    test suite
 
 - need to sync the key mapping document in docs/ with recent keyboard
   shortcut additions
