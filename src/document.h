@@ -135,6 +135,7 @@ class document
 	void mark_line_dirty(std::shared_ptr<line> l);
 	void highlighter_thread_loop();
 	void process_line_highlight(std::shared_ptr<line> l);
+	void refresh_highlighter();
 	bool is_space_at(int y, int x) const;
 	bool is_space_at_unlocked(int y, int x) const;
 

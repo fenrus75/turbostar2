@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
-	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file("");
+	refresh_highlighter();
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	notify_cursor_changed();
 }
@@ -27,7 +27,7 @@ document::document(event_queue &global_queue, const std::string &filename) : fil
 		if (lines_.empty())
 			lines_.push_back(std::make_shared<line>(""));
 	}
-	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
+	refresh_highlighter();
 	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
 	notify_cursor_changed();
 }
@@ -62,7 +62,7 @@ bool document::load_from_file(const std::string &filename)
 	}
 
 	filename_ = filename;
-	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
+	refresh_highlighter();
 	modified_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
@@ -160,7 +160,7 @@ bool document::save_to_file(const std::string &filename)
 	}
 
 	filename_ = filename;
-	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
+	refresh_highlighter();
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
@@ -177,7 +177,7 @@ void document::clear()
 	lines_.push_back(l);
 	mark_line_dirty(l);
 	filename_ = "";
-	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file("");
+	refresh_highlighter();
 	modified_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
@@ -1358,6 +1358,11 @@ void document::highlighter_thread_loop()
 			}
 		}
 	}
+}
+
+void document::refresh_highlighter()
+{
+	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
 }
 
 void document::process_line_highlight(std::shared_ptr<line> l)
