@@ -26,6 +26,7 @@ class window
 	 * @return true if an event was processed that requires a re-render.
 	 */
 	bool process_events();
+	void invalidate();
 	void set_cursor_position() const;
 	int get_cursor_x() const;
 	int get_cursor_y() const;
@@ -61,6 +62,7 @@ class window
 	mutable int top_line_{0};
 	mutable int left_column_{0};
 
+	bool needs_render_{false};
 	std::shared_ptr<document> doc_;
 	event_queue window_queue_;
 };
