@@ -722,6 +722,37 @@ void document::format_range(int start_y, int end_y)
 	notify_cursor_changed();
 }
 
+void document::format_paragraph()
+{
+	std::shared_lock lock(mutex_);
+	if (lines_.empty())
+		return;
+
+	auto is_empty = [&](int y) {
+		std::string t = lines_[y]->get_text();
+		return std::all_of(t.begin(), t.end(), [](unsigned char ch) { return std::isspace(ch); });
+	};
+
+	int sy = cursor_y_;
+	int ey = cursor_y_;
+
+	// If we are on an empty line, do nothing or just that line (which is a no-op)
+	if (is_empty(cursor_y_)) {
+		lock.unlock();
+		return;
+	}
+
+	while (sy > 0 && !is_empty(sy - 1)) {
+		sy--;
+	}
+	while (ey < line_count_unlocked() - 1 && !is_empty(ey + 1)) {
+		ey++;
+	}
+	lock.unlock();
+
+	format_range(sy, ey);
+}
+
 void document::set_selection_start()
 {
 	std::unique_lock lock(mutex_);

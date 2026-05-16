@@ -135,6 +135,12 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_format_paragraph', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_format_paragraph.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
 
   test('e2e_block_copy_move', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_block_copy_move.py')],

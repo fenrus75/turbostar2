@@ -146,3 +146,11 @@ To ensure reliability, Turbostar incorporates testing and diagnostic infrastruct
 - **Command Line Options**:
   - `--log <filename>`: Writes the complete event log to the specified file upon application exit, enabling test cases to verify internal behavior.
   - `--debug [optional_string]`: Modifies the UI to show the most recent event log message in the bottom Status Bar. The message is wrapped in clear markers (e.g., `»message«` or `>>message<<`) to make it easily extractable by the E2E test framework. If `optional_string` is provided, the Status Bar only displays the most recent event message that contains the given string as a substring.
+
+## Preferred Testing Patterns
+
+For end-to-end (E2E) tests that involve complex content manipulation (e.g., block operations, formatting, search and replace), the preferred verification pattern is:
+
+1.  **`assert_content_is(reference_file)`**: This primitive triggers a "Save As" operation within the editor to a temporary file and compares the resulting disk content against a "golden" reference file in `tests/data/`.
+2.  **Why**: Comparing whole-file content on disk is significantly more robust than screen-scraping, as it is immune to scrolling issues, viewport limitations, and TUI rendering artifacts.
+3.  **Diff Diagnostics**: If a mismatch occurs, the testing framework automatically prints a `diff -u` style output to the console to facilitate rapid debugging.

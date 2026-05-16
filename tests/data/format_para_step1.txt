@@ -1,0 +1,6 @@
+void p1()
+{
+	int a = 1;
+}
+
+void p2(){int b=2;}

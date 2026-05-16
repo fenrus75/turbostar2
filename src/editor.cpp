@@ -317,12 +317,14 @@ bool editor::handle_k_block_key(int key)
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
 	} else if (c == 'j') {
-		logger.log("K-block: Format Document");
-		editor_event ev;
-		ev.type = event_type::format_doc;
-		global_queue_.push(ev);
+		logger.log("K-block: Format Paragraph");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->format_paragraph();
+		}
 		return true;
 	} else if (c == 'd' || c == 's') {
+
 		logger.log("K-block: Save File");
 		editor_event ev;
 		ev.type = event_type::save;
