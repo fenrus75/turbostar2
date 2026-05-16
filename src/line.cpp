@@ -66,7 +66,7 @@ size_t line::char_to_byte_offset(int char_pos) const
 	size_t offset = 0;
 	int chars = 0;
 	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -88,7 +88,7 @@ int line::length_in_chars() const
 	int offset = 0;
 	int chars = 0;
 	while (offset < static_cast<int>(text_.length())) {
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -110,7 +110,7 @@ void line::insert_at(int char_pos, const std::string &utf8_char)
 	size_t offset = 0;
 	int chars = 0;
 	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -140,7 +140,7 @@ void line::remove_at(int char_pos)
 	size_t offset = 0;
 	int chars = 0;
 	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -156,7 +156,7 @@ void line::remove_at(int char_pos)
 
 	if (offset < text_.length()) {
 		size_t next_offset = offset;
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			next_offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -181,7 +181,7 @@ void line::split_at(int char_pos, line &new_line)
 	size_t offset = 0;
 	int chars = 0;
 	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at(offset);
+		unsigned char c = byte_at_unlocked(offset);
 		if (c < 0x80)
 			offset += 1;
 		else if ((c & 0xE0) == 0xC0)
@@ -257,6 +257,11 @@ int line::char_to_display_col(int char_pos) const
 unsigned char line::byte_at(int offset) const
 {
 	std::shared_lock lock(mutex_);
+	return byte_at_unlocked(offset);
+}
+
+unsigned char line::byte_at_unlocked(int offset) const
+{
 	if (offset >= 0 && offset < static_cast<int>(text_.length())) {
 		return static_cast<unsigned char>(text_[offset]);
 	}
