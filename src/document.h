@@ -38,6 +38,7 @@ class document
 	bool save_to_file(const std::string &filename);
 	void clear();
 	const std::string &get_filename() const;
+	bool has_nondefault_filename() const;
 	bool is_modified() const;
 
 	// Basic accessors for now

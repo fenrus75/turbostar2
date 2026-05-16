@@ -292,27 +292,14 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'd' || c == 's') {
 		logger.log("K-block: Save File");
-		if (active_doc->get_filename().empty()) {
-			logger.log("No filename, triggering Save As instead.");
-			editor_event save_ev;
-			save_ev.type = event_type::save;
-			global_queue_.push(save_ev);
-		} else {
-			active_doc->save();
-			// Update window title and menu to clear dirty flag
-			for (auto &w : windows_) {
-				if (w->get_document() == active_doc) {
-					w->set_title(active_doc->get_filename());
-					break;
-				}
-			}
-			update_window_menu();
-		}
+		editor_event ev;
+		ev.type = event_type::save;
+		global_queue_.push(ev);
 		return true;
 	} else if (c == 'w') {
 		logger.log("K-block: Write (Save As)");
 		editor_event ev;
-		ev.type = event_type::save;
+		ev.type = event_type::save_as;
 		global_queue_.push(ev);
 		return true;
 	} else if (c == 'q') {
@@ -370,7 +357,31 @@ void editor::dispatch(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::save) {
-		logger.log("Dispatching save event.");
+		logger.log("Dispatching save event (Smart Save).");
+		std::shared_ptr<document> active_doc = get_active_doc();
+
+		if (active_doc && active_doc->has_nondefault_filename()) {
+			active_doc->save();
+			// Update window title and menu to clear dirty flag
+			for (auto &w : windows_) {
+				if (w->get_document() == active_doc) {
+					w->set_title(active_doc->get_filename());
+					break;
+				}
+			}
+			update_window_menu();
+			return;
+		}
+
+		// Fallback to Save As logic
+		editor_event save_as_ev;
+		save_as_ev.type = event_type::save_as;
+		dispatch(save_as_ev);
+		return;
+	}
+
+	if (ev.type == event_type::save_as) {
+		logger.log("Dispatching save_as event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
 
 		std::string filename_arg;

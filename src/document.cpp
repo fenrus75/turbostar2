@@ -1,9 +1,12 @@
 #include "document.h"
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <regex>
 #include "event_logger.h"
+
+namespace fs = std::filesystem;
 
 document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
@@ -122,6 +125,12 @@ const std::string &document::get_filename() const
 {
 	std::shared_lock lock(mutex_);
 	return filename_;
+}
+
+bool document::has_nondefault_filename() const
+{
+	std::shared_lock lock(mutex_);
+	return !filename_.empty() && filename_ != "unknown.txt";
 }
 
 bool document::is_modified() const

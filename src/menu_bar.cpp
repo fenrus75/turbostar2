@@ -10,7 +10,7 @@ menu_bar::menu_bar()
 			{{"New", event_type::new_doc, 'n', "^KN", false},
 			 {"Open...", event_type::load, 'o', "F3,^KE", false},
 			 {"Save", event_type::save, 's', "F2,^KD", false},
-			 {"Save as...", event_type::save, 'a', "^KW", false},
+			 {"Save as...", event_type::save_as, 'a', "^KW", false},
 			 {"", event_type::key_press, 0, "", true},
 			 menu_item("Exit", event_type::quit, 'x', "Alt+X,^KX", false)}},
 		       {"Edit",

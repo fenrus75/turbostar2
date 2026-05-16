@@ -12,7 +12,8 @@ enum class event_type {
 	key_press,    ///< A keyboard input event
 	quit,	      ///< An application exit event
 	load,	      ///< Request to load a file (triggers dialog)
-	save,	      ///< Request to save a file (triggers dialog)
+	save,	      ///< Request to save a file (smart save)
+	save_as,      ///< Request to save as (always triggers dialog)
 	new_doc,      ///< Request to clear current document
 	about,	      ///< Request to show About dialog
 	redraw,	      ///< Request a global UI re-render
