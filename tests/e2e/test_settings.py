@@ -4,14 +4,9 @@ from turbostar_runner import TurbostarRunner
 
 def test_settings_dialog():
     runner = TurbostarRunner()
-    project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
-    config_path = os.path.join(os.environ.get('HOME', '.'), '.turbostar')
-    
-    if os.path.exists(config_path):
-        os.remove(config_path)
-
     try:
         runner.start()
+        config_path = os.path.join(runner.temp_home, '.turbostar')
         time.sleep(0.5)
         
         # 1. Open Settings Dialog via Alt+P -> P
@@ -44,8 +39,6 @@ def test_settings_dialog():
             
     finally:
         runner.cleanup()
-        if os.path.exists(config_path):
-            os.remove(config_path)
 
 if __name__ == "__main__":
     test_settings_dialog()

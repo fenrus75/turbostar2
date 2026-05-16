@@ -871,7 +871,8 @@ void document::delete_selection()
 		mark_line_dirty(lines_[sy]);
 	} else {
 		record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
-		for (int i = sy + 1; i <= ey; ++i) {
+		// Record deletions in reverse order so undo (which reverses) inserts them correctly
+		for (int i = ey; i > sy; --i) {
 			record_action(edit_action::action_type::delete_line, i, lines_[i]);
 		}
 		
@@ -1484,6 +1485,48 @@ std::optional<std::pair<int, int>> document::find_matching_bracket(int start_y, 
 	}
 
 	return std::nullopt;
+}
+
+void document::select_enclosing_scope()
+{
+	std::shared_lock lock(mutex_);
+	int sy = cursor_y_;
+	int sx = cursor_x_;
+
+	while (sy >= 0) {
+		std::string text = lines_[sy]->get_text();
+		int start_x = (sy == cursor_y_) ? std::min(sx, static_cast<int>(text.length()) - 1) : static_cast<int>(text.length()) - 1;
+		
+		for (int x = start_x; x >= 0; --x) {
+			if (text[x] == '{') {
+				// Potential start. Find match.
+				lock.unlock();
+				auto match = find_matching_bracket(sy, x);
+				lock.lock();
+
+				if (match) {
+					// Check if cursor is inside (or on the boundaries)
+					bool is_inside = false;
+					if (match->first > cursor_y_ || (match->first == cursor_y_ && match->second >= cursor_x_)) {
+						is_inside = true;
+					}
+
+					if (is_inside) {
+						lock.unlock();
+						std::unique_lock ulock(mutex_);
+						selection_start_y_ = sy;
+						selection_start_x_ = x;
+						selection_end_y_ = match->first;
+						selection_end_x_ = match->second + 1; // Include the closing brace
+						ulock.unlock();
+						notify_cursor_changed();
+						return;
+					}
+				}
+			}
+		}
+		sy--;
+	}
 }
 
 void document::undo()

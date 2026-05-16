@@ -24,6 +24,9 @@ class TurbostarRunner:
         testrun_dir = os.path.join(project_root, 'testrun')
         os.makedirs(testrun_dir, exist_ok=True)
 
+        # Create a unique temporary directory for this test's HOME
+        self.temp_home = tempfile.mkdtemp(prefix="turbostar_test_home_")
+
         # Binary is now automatically copied to testrun/ by the build system
         exe_path = './turbostar'
         log_path_abs = os.path.abspath(self.log_path)
@@ -39,6 +42,7 @@ class TurbostarRunner:
             env['TERM'] = 'xterm-256color'
         env['COLUMNS'] = str(self.cols)
         env['LINES'] = str(self.lines)
+        env['HOME'] = self.temp_home # Isolate config/history
 
         self.proc = subprocess.Popen(
             cmd,
@@ -131,6 +135,42 @@ class TurbostarRunner:
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' not found on screen. Screen content:\n{display_str}")
 
+    def assert_text_not_on_screen(self, text):
+        self._read_output()
+        for line in self.screen.display:
+            if text in line:
+                display_str = "\n".join(self.screen.display)
+                raise AssertionError(f"Text '{text}' found on screen, but should not be. Screen content:\n{display_str}")
+
+    def assert_selection_is(self, start_y, start_x, end_y, end_x, timeout=1.0):
+        """
+        Asserts that the selection markers are at the specified positions (1-based).
+        Pass None for y/x if no selection is expected (S=none E=none).
+        """
+        import re
+        start_time = time.time()
+        
+        expected_s = f"{start_y}:{start_x}" if start_y is not None else "none"
+        expected_e = f"{end_y}:{end_x}" if end_y is not None else "none"
+
+        while time.time() - start_time < timeout:
+            log = self.get_log()
+            # Find the latest "State:" line
+            matches = list(re.finditer(r"State:.*?S=(\S+).*?E=(\S+)", log))
+            if matches:
+                last_match = matches[-1]
+                actual_s = last_match.group(1)
+                actual_e = last_match.group(2)
+                
+                if actual_s == expected_s and actual_e == expected_e:
+                    return
+            time.sleep(0.1)
+
+        log = self.get_log()
+        matches = list(re.finditer(r"State:.*?S=(\S+).*?E=(\S+)", log))
+        actual_state = matches[-1].group(0) if matches else "Unknown"
+        raise AssertionError(f"Selection mismatch! Expected S={expected_s} E={expected_e}. Latest state: {actual_state}")
+
     def assert_content_is(self, reference_file_path):
         import tempfile
         import filecmp
@@ -211,3 +251,7 @@ class TurbostarRunner:
         default_file = os.path.join(testrun_dir, 'unknown.txt')
         if os.path.exists(default_file):
             os.remove(default_file)
+            
+        import shutil
+        if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
+            shutil.rmtree(self.temp_home)

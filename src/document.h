@@ -112,6 +112,7 @@ class document
 	void format_paragraph();
 
 	std::optional<std::pair<int, int>> find_matching_bracket(int y, int x) const;
+	void select_enclosing_scope();
 
 	void undo();
 	void redo();

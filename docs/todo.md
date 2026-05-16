@@ -1,18 +1,20 @@
-
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- Unimplemented Joe key sequences to add:
-    - `^K/` Filter
-
 - Add a `^K` command to select the current `{}` scope (using the new bracket matching logic)
+
+- allow multiple filenames on the command line and just open them all as separate documents/windows
 
 # mid term items
 
 - better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
-   - showing git dirty status in window somehow
+   - showing git dirty status (clean, dirty, not-in-git) in window somehow as first usage of git integration
+     (need to discuss which indicators to use)
 
 - improve syntax highlighting
    - multiple languages support (first one: markdown)
+   - we will need an abstraction between the syntax highlighting thread and the language, one class per language most likely
+   - each class should have a method for "is this filename for me" that returns a bool - the first one to say "yes" wins 
+   - need to reevaluate this on "Save As" as the filename changes 
 
 # long term items
 

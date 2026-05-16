@@ -293,14 +293,23 @@ bool editor::handle_k_block_key(int key)
 	} else if (c == 'y') {
 		logger.log("K-block: Delete Block");
 		active_doc->delete_selection();
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
 		return true;
 	} else if (c == 'c') {
 		logger.log("K-block: Copy Block");
 		active_doc->copy_selection();
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
 		return true;
 	} else if (c == 'm') {
 		logger.log("K-block: Move Block");
 		active_doc->move_selection();
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
 		return true;
 	} else if (c == 'n') {
 		logger.log("K-block: New Window");
@@ -323,6 +332,16 @@ bool editor::handle_k_block_key(int key)
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
 			active_doc->format_paragraph();
+		}
+		return true;
+	} else if (c == '[' || c == '{') {
+		logger.log("K-block: Select Scope");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->select_enclosing_scope();
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 		}
 		return true;
 	} else if (c == 'd' || c == 's') {
@@ -794,6 +813,7 @@ void editor::dispatch(const editor_event &ev)
 
 void editor::render()
 {
+	clear();
 	curs_set(0); // Default to hidden
 
 	// Paint desktop background with dithered pattern
