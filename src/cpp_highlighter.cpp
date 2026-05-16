@@ -17,8 +17,29 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
 
 	// Pre-compiled combined regex for efficiency
-	static const std::regex kw_regex("\\b(void|int|char|const|bool|class|struct|enum|virtual|override|"
-					 "return|if|else|for|while|namespace|std|auto|size_t|std::string)\\b");
+	static const std::regex kw_regex(
+	    "\\b("
+	    // Types
+	    "int|char|bool|float|double|void|auto|size_t|ssize_t|wchar_t|char8_t|char16_t|char32_t|"
+	    "int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t|"
+	    "std|string|string_view|vector|map|unordered_map|set|unordered_set|optional|variant|any|tuple|pair|unique_ptr|shared_ptr|weak_ptr|"
+	    // Qualifiers & Specifiers
+	    "const|constexpr|consteval|constinit|volatile|mutable|static|extern|inline|virtual|override|final|explicit|friend|"
+	    "public|protected|private|"
+	    "signed|unsigned|short|long|"
+	    // Control Flow
+	    "if|else|switch|case|default|for|while|do|break|continue|return|goto|"
+	    // Exceptions
+	    "try|catch|throw|noexcept|"
+	    // Structure & Memory
+	    "class|struct|union|enum|namespace|template|typename|concept|requires|typedef|using|"
+	    "new|delete|sizeof|decltype|alignof|alignas|typeid|"
+	    // Operators/Keywords
+	    "and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|xor|xor_eq|"
+	    "this|true|false|nullptr|static_assert|static_cast|dynamic_cast|const_cast|reinterpret_cast|"
+	    // C++20/23 Modules & Coroutines
+	    "import|module|export|co_await|co_return|co_yield"
+	    ")\\b");
 
 	auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
 	auto words_end = std::sregex_iterator();
