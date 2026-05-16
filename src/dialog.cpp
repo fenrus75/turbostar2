@@ -75,12 +75,12 @@ void input_dialog::draw() const
 	mvaddstr(y_ + 2, x_ + 2, prompt_.c_str());
 
 	// Input field box
-	attron(A_REVERSE);
+	attron(COLOR_PAIR(5));
 	move(y_ + 4, x_ + 2);
 	for (int i = 0; i < width_ - 4; ++i)
 		addch(' ');
 	mvaddstr(y_ + 4, x_ + 2, buffer_.c_str());
-	attroff(A_REVERSE);
+	attroff(COLOR_PAIR(5));
 
 	attroff(COLOR_PAIR(1));
 }

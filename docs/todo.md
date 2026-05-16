@@ -1,9 +1,6 @@
 
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- we broke cursor navigation. if the cursor is on the left most character of a line, it does not
-    go to the end of the previous line on using the cursor-left key
-
 - search via ^K F could use some autocompletion (similar to file dialog),
      but based on past searches as source for autocomplete. this means we
      need a global list of past search strings, populated both from ^KF and the
@@ -11,9 +8,6 @@
 - code cleanup
     - window.cpp lines 54-106 is a chain of if statements that could
     	be a switch()
-
-- src/dialog.cpp uses A_REVERSE
-     - needs to get explicit colors instead
 
 - we need to update docs/colorscheme.md based on recent additions to
      main.cpp and the file dialog
@@ -26,7 +20,8 @@
 - needs_render = true should become a method so that we can add hooks/etc into
     it centrally later
 
-- File->Save acts as File-Save As in that it asks for a filename
+- File->Save acts as File-Save As in that it asks for a filename - only Save As should ask for a filename
+    unless no current filename exists
 
 - On saving over an existing file we should make a filename~ style backup file
 
@@ -51,6 +46,9 @@
 
 
 # done items (items move here on completion)
+
+- src/dialog.cpp uses A_REVERSE
+     - needs to get explicit colors instead
 
 - we broke cursor navigation. if the cursor is on the left most character of a line, it does not
     go to the end of the previous line on using the cursor-left key
