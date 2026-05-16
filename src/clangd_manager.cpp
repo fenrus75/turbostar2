@@ -162,6 +162,49 @@ void clangd_manager::request_hover(const std::string &filepath, int line, int ch
 	} catch (...) {}
 }
 
+void clangd_manager::request_document_highlight(const std::string &filepath, int line, int character)
+{
+	if (!is_running_) return;
+
+	try {
+		auto highlightParams = lsp::requests::TextDocument_DocumentHighlight::Params();
+		highlightParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		highlightParams.position = {static_cast<unsigned int>(line), static_cast<unsigned int>(character)};
+
+		message_handler_->sendRequest<lsp::requests::TextDocument_DocumentHighlight>(
+			std::move(highlightParams),
+			[this](const lsp::requests::TextDocument_DocumentHighlight::Result& result) {
+				if (!result.isNull()) {
+					if (global_queue_) {
+						editor_event ev;
+						ev.type = event_type::lsp_highlight_result;
+						for (const auto& hl : result.value()) {
+							ev.highlight_ranges.push_back({
+								static_cast<int>(hl.range.start.line),
+								static_cast<int>(hl.range.start.character),
+								static_cast<int>(hl.range.end.line),
+								static_cast<int>(hl.range.end.character)
+							});
+						}
+						global_queue_->push(ev);
+					}
+				} else {
+					// Clear highlights if result is null (e.g., cursor not on a symbol)
+					if (global_queue_) {
+						editor_event ev;
+						ev.type = event_type::lsp_highlight_result;
+						// empty highlight_ranges
+						global_queue_->push(ev);
+					}
+				}
+			},
+			[](const lsp::ResponseError& error) {
+				event_logger::get_instance().log(std::string("clangd highlight error: ") + error.message());
+			}
+		);
+	} catch (...) {}
+}
+
 void clangd_manager::message_loop()
 {
 	try {

@@ -25,7 +25,15 @@ enum class event_type {
 	git_add,      ///< Request to git-add current file
 	git_refresh,  ///< Request to refresh git status manually
 	select_window, ///< Request to switch active window (key_code is index)
-	lsp_hover_result ///< Notification that LSP hover information is available
+	lsp_hover_result, ///< Notification that LSP hover information is available
+	lsp_highlight_result ///< Notification that LSP document highlight is available
+};
+
+struct text_range {
+	int start_y;
+	int start_x;
+	int end_y;
+	int end_x;
 };
 
 /**
@@ -43,6 +51,7 @@ struct editor_event {
 	int key_code{0};       ///< NCurses key code or ASCII value
 	std::string utf8_char; ///< UTF-8 character sequence for typing
 	std::string payload;   ///< General payload for complex events (like LSP results)
+	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
 };
 
 /**

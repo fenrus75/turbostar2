@@ -122,6 +122,12 @@ class document
 	void undo();
 	void redo();
 
+	void set_lsp_highlights(const std::vector<text_range> &highlights) {
+		std::unique_lock lock(mutex_);
+		lsp_highlights_ = highlights;
+	}
+	const std::vector<text_range>& get_lsp_highlights() const { return lsp_highlights_; }
+
       private:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
@@ -179,4 +185,6 @@ class document
 	std::thread highlighter_thread_;
 	std::atomic<bool> stop_thread_{false};
 	std::shared_ptr<syntax_highlighter> active_highlighter_;
+
+	mutable std::vector<text_range> lsp_highlights_;
 };

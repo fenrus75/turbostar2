@@ -1138,6 +1138,16 @@ void document::notify_cursor_changed() const
 		last_hover_word_ = word;
 		if (!word.empty()) {
 			clangd_manager::get_instance().request_hover(filename_, cursor_y_, cursor_x_);
+			clangd_manager::get_instance().request_document_highlight(filename_, cursor_y_, cursor_x_);
+		} else {
+			// Clear highlights if we moved off a word
+			std::unique_lock lock2(mutex_);
+			lsp_highlights_.clear();
+			lock2.unlock();
+			
+			editor_event ev;
+			ev.type = event_type::redraw;
+			global_queue_.push(ev);
 		}
 	}
 

@@ -1,5 +1,10 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- LSP: similar to how we highlight the matching {}[](), we could highlight the definition of a variable/etc if the
+  cursor is on a use of the variable.
+
+  
+
 # mid term items
 
 - support for LSP servers

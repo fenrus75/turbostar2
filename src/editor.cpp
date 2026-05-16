@@ -568,6 +568,14 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::lsp_highlight_result) {
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->set_lsp_highlights(ev.highlight_ranges);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));

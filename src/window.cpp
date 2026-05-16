@@ -290,6 +290,31 @@ void window::draw_content() const
 						}
 					}
 
+					bool is_lsp_highlight = false;
+					if (doc_) {
+						for (const auto& hl : doc_->get_lsp_highlights()) {
+							if (doc_line_idx > hl.start_y && doc_line_idx < hl.end_y) {
+								is_lsp_highlight = true;
+								break;
+							} else if (doc_line_idx == hl.start_y && doc_line_idx == hl.end_y) {
+								if (static_cast<int>(char_idx) >= hl.start_x && static_cast<int>(char_idx) < hl.end_x) {
+									is_lsp_highlight = true;
+									break;
+								}
+							} else if (doc_line_idx == hl.start_y) {
+								if (static_cast<int>(char_idx) >= hl.start_x) {
+									is_lsp_highlight = true;
+									break;
+								}
+							} else if (doc_line_idx == hl.end_y) {
+								if (static_cast<int>(char_idx) < hl.end_x) {
+									is_lsp_highlight = true;
+									break;
+								}
+							}
+						}
+					}
+
 					syntax_attribute attr = current_l->get_attribute(char_idx);
 					int pair = 3;
 					if (is_match) {
@@ -298,6 +323,10 @@ void window::draw_content() const
 						pair = 8;
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
+					} else if (is_lsp_highlight) {
+						pair = 25; // Normal on Magenta
+						if (attr == syntax_attribute::keyword)
+							pair = 26; // Keyword on Magenta
 					} else {
 						if (attr == syntax_attribute::keyword)
 							pair = 12;
