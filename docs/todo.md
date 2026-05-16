@@ -47,6 +47,11 @@
 
 # done items (items move here on completion)
 
+- add ^K S as a shortcut for save (not save-as, so use existing filename)
+
+- needs_render = true should become a method so that we can add hooks/etc into
+    it centrally later
+
 - src/dialog.cpp uses A_REVERSE
      - needs to get explicit colors instead
 

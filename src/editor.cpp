@@ -290,9 +290,24 @@ bool editor::handle_k_block_key(int key)
 		ev.type = event_type::load;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'd') {
+	} else if (c == 'd' || c == 's') {
 		logger.log("K-block: Save File");
-		active_doc->save();
+		if (active_doc->get_filename().empty()) {
+			logger.log("No filename, triggering Save As instead.");
+			editor_event save_ev;
+			save_ev.type = event_type::save;
+			global_queue_.push(save_ev);
+		} else {
+			active_doc->save();
+			// Update window title and menu to clear dirty flag
+			for (auto &w : windows_) {
+				if (w->get_document() == active_doc) {
+					w->set_title(active_doc->get_filename());
+					break;
+				}
+			}
+			update_window_menu();
+		}
 		return true;
 	} else if (c == 'w') {
 		logger.log("K-block: Write (Save As)");
