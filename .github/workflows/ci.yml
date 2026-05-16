@@ -1,0 +1,15 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y meson ninja-build libncursesw5-dev python3
+      - name: Build
+        run: meson setup build && ninja -C build
+      - name: Test
+        run: meson test -C build
