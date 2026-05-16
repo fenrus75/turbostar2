@@ -53,64 +53,90 @@ bool window::process_events()
 	while (auto ev = window_queue_.pop()) {
 		event_logger::get_instance().log("Window " + std::to_string(id_) + " processing key: " + std::to_string(ev->key_code));
 		if (ev->type == event_type::key_press && doc_) {
-			if (ev->key_code == KEY_UP) {
-				doc_->move_cursor(0, -1);
-				needs_render = true;
-			} else if (ev->key_code == KEY_DOWN) {
-				doc_->move_cursor(0, 1);
-				event_logger::get_instance().log("Cursor moved to: " + std::to_string(doc_->get_cursor_y()));
-				needs_render = true;
-			} else if (ev->key_code == KEY_LEFT) {
-				doc_->move_cursor(-1, 0);
-				needs_render = true;
-			} else if (ev->key_code == KEY_RIGHT) {
-				doc_->move_cursor(1, 0);
-				needs_render = true;
-			} else if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
-				doc_->insert_char(ev->utf8_char);
-				needs_render = true;
-			} else if (ev->key_code == KEY_BACKSPACE || ev->key_code == 127 || ev->key_code == 8) {
-				doc_->backspace();
-				needs_render = true;
-			} else if (ev->key_code == 13 || ev->key_code == KEY_ENTER) {
-				doc_->split_line();
-				needs_render = true;
-			} else if (ev->key_code == 10) { // Ctrl-J
-				doc_->delete_to_eol();
-				needs_render = true;
-			} else if (ev->key_code == -111 || ev->key_code == -79) { // Alt-O
-				doc_->delete_to_bol();
-				needs_render = true;
-			} else if (ev->key_code == 25) { // Ctrl-Y
-				doc_->delete_line();
-				needs_render = true;
-			} else if (ev->key_code == 1) { // Ctrl-A
-				doc_->move_to_bol();
-				needs_render = true;
-			} else if (ev->key_code == 5) { // Ctrl-E
-				doc_->move_to_eol();
-				needs_render = true;
-			} else if (ev->key_code == 4) { // Ctrl-D
-				doc_->delete_char();
-				needs_render = true;
-			} else if (ev->key_code == 21) { // Ctrl-U
-				doc_->move_page_up(get_content_height());
-				needs_render = true;
-			} else if (ev->key_code == 22) { // Ctrl-V
-				doc_->move_page_down(get_content_height());
-				needs_render = true;
-			} else if (ev->key_code == 24) { // Ctrl-X
-				doc_->move_next_word();
-				needs_render = true;
-			} else if (ev->key_code == 26) { // Ctrl-Z
-				doc_->move_prev_word();
-				needs_render = true;
-			} else if (ev->key_code == 23) { // Ctrl-W
-				doc_->delete_word_forward();
-				needs_render = true;
-			} else if (ev->key_code == 15) { // Ctrl-O
-				doc_->delete_word_backward();
-				needs_render = true;
+			switch (ev->key_code) {
+				case KEY_UP:
+					doc_->move_cursor(0, -1);
+					needs_render = true;
+					break;
+				case KEY_DOWN:
+					doc_->move_cursor(0, 1);
+					event_logger::get_instance().log("Cursor moved to: " + std::to_string(doc_->get_cursor_y()));
+					needs_render = true;
+					break;
+				case KEY_LEFT:
+					doc_->move_cursor(-1, 0);
+					needs_render = true;
+					break;
+				case KEY_RIGHT:
+					doc_->move_cursor(1, 0);
+					needs_render = true;
+					break;
+				case KEY_BACKSPACE:
+				case 127:
+				case 8:
+					doc_->backspace();
+					needs_render = true;
+					break;
+				case 13:
+				case KEY_ENTER:
+					doc_->split_line();
+					needs_render = true;
+					break;
+				case 10: // Ctrl-J
+					doc_->delete_to_eol();
+					needs_render = true;
+					break;
+				case -111:
+				case -79: // Alt-O
+					doc_->delete_to_bol();
+					needs_render = true;
+					break;
+				case 25: // Ctrl-Y
+					doc_->delete_line();
+					needs_render = true;
+					break;
+				case 1: // Ctrl-A
+					doc_->move_to_bol();
+					needs_render = true;
+					break;
+				case 5: // Ctrl-E
+					doc_->move_to_eol();
+					needs_render = true;
+					break;
+				case 4: // Ctrl-D
+					doc_->delete_char();
+					needs_render = true;
+					break;
+				case 21: // Ctrl-U
+					doc_->move_page_up(get_content_height());
+					needs_render = true;
+					break;
+				case 22: // Ctrl-V
+					doc_->move_page_down(get_content_height());
+					needs_render = true;
+					break;
+				case 24: // Ctrl-X
+					doc_->move_next_word();
+					needs_render = true;
+					break;
+				case 26: // Ctrl-Z
+					doc_->move_prev_word();
+					needs_render = true;
+					break;
+				case 23: // Ctrl-W
+					doc_->delete_word_forward();
+					needs_render = true;
+					break;
+				case 15: // Ctrl-O
+					doc_->delete_word_backward();
+					needs_render = true;
+					break;
+				default:
+					if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
+						doc_->insert_char(ev->utf8_char);
+						needs_render = true;
+					}
+					break;
 			}
 		}
 	}

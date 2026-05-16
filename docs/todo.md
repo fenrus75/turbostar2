@@ -1,6 +1,9 @@
 
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- we broke cursor navigation. if the cursor is on the left most character of a line, it does not
+    go to the end of the previous line on using the cursor-left key
+
 - search via ^K F could use some autocompletion (similar to file dialog),
      but based on past searches as source for autocomplete. this means we
      need a global list of past search strings, populated both from ^KF and the
@@ -17,6 +20,17 @@
 - run a test coverage analysis to see if whole areas are not covered by the
     test suite
 
+- add ^K S as a shortcut for save (not save-as, so use existing filename)
+
+- needs_render = true should become a method so that we can add hooks/etc into
+    it centrally later
+
+- File->Save acts as File-Save As in that it asks for a filename
+
+- On saving over an existing file we should make a filename~ style backup file
+
+- we should extend the default test timeout to 60 seconds as we do many delays
+
 # mid term items
 
 - improve syntax highlighting
@@ -27,11 +41,17 @@
 # long term items
 
 - add a compile output window somehow
+   - meson first, maybe later cmake and autoconf
 - LLM connection window?
-
+   - chat only first
+   - needs libcurl
 
 
 # done items (items move here on completion)
+
+- code cleanup
+    - window.cpp lines 54-106 is a chain of if statements that could
+    	be a switch()
 
 - fix search via ^K-F . When done via key bindings (thus status bar), the operation does not actually search. A consecutive ^L does search and to the found item
 - file dialog: File Open case. when you navigate (in the file listing section) to some file and hit Enter, you don't go directly to the editor with the file,
