@@ -44,6 +44,11 @@ void editor::update_window_menu()
 		if (filename.empty())
 			filename = "noname.txt";
 
+		auto doc = windows_[i]->get_document();
+		if (doc && doc->is_modified()) {
+			filename += "*";
+		}
+
 		std::string name = std::to_string((i + 1) % 10) + " " + filename;
 
 		std::string shortcut = "";
@@ -66,6 +71,9 @@ std::shared_ptr<document> editor::get_active_doc() const
 		if (w->is_active()) {
 			return w->get_document();
 		}
+	}
+	if (!documents_.empty()) {
+		return documents_[0];
 	}
 	return nullptr;
 }
@@ -221,6 +229,10 @@ void editor::set_focus(focus_target target, const std::string &source)
 
 	event_logger::get_instance().log("Focus change: " + source + " -> " + target_name);
 	current_focus_ = target;
+
+	if (target == focus_target::menu_bar) {
+		update_window_menu();
+	}
 }
 
 bool editor::handle_k_block_key(int key)

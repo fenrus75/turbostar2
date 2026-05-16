@@ -276,6 +276,9 @@ void window::draw_border() const
 		if (last_slash != std::string::npos) {
 			current_title = current_title.substr(last_slash + 1);
 		}
+		if (doc_->is_modified()) {
+			current_title += "*";
+		}
 	}
 
 	// Draw top and bottom borders
