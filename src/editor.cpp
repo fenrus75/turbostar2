@@ -90,6 +90,21 @@ window *editor::get_active_window() const
 	return nullptr;
 }
 
+std::string editor::get_search_autocomplete() const
+{
+	if (search_input_buffer_.empty())
+		return "";
+
+	const auto &history = history_manager::get_instance().get_searches();
+	for (const auto &item : history) {
+		if (item.length() >= search_input_buffer_.length() &&
+		    item.substr(0, search_input_buffer_.length()) == search_input_buffer_) {
+			return item;
+		}
+	}
+	return "";
+}
+
 void editor::run()
 {
 	render();
@@ -500,23 +515,26 @@ void editor::dispatch(const editor_event &ev)
 				is_searching_prompt_ = false;
 				return;
 			}
-			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
-				current_search_.query = search_input_buffer_;
-				// Reset some defaults for simple prompt search
-				current_search_.backward = false;
-				current_search_.selected_text_only = false;
-				current_search_.from_cursor = true;
-				
-				history_manager::get_instance().add_search(current_search_.query);
-
-				std::shared_ptr<document> active_doc = get_active_doc();
-
-				if (active_doc && active_doc->find_next(current_search_)) {
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+			std::string suggestion = get_search_autocomplete();
+			
+			if (ev.key_code == 9) { // TAB
+				if (!suggestion.empty()) {
+					search_input_buffer_ = suggestion;
 				}
+				return;
+			}
+
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				if (!suggestion.empty() && search_input_buffer_ != suggestion) {
+					search_input_buffer_ = suggestion;
+					return;
+				}
+				
+				current_search_.query = search_input_buffer_;
+				
 				is_searching_prompt_ = false;
+				is_search_options_prompt_ = true;
+				search_options_buffer_ = "";
 				return;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
@@ -526,6 +544,65 @@ void editor::dispatch(const editor_event &ev)
 			}
 			if (!ev.utf8_char.empty() && ev.key_code >= 32) {
 				search_input_buffer_ += ev.utf8_char;
+				return;
+			}
+			return; // Consume all keys in prompt mode
+		}
+
+		// 2.5 Status Bar Search Options Prompt
+		if (is_search_options_prompt_) {
+			if (ev.key_code == 27) { // ESC
+				is_search_options_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				// Parse options
+				current_search_.backward = false;
+				current_search_.selected_text_only = false;
+				current_search_.ignore_case = false;
+				current_search_.from_cursor = true;
+				
+				bool is_replace = false;
+				for (char c : search_options_buffer_) {
+					char lc = std::tolower(c);
+					if (lc == 'b') current_search_.backward = true;
+					if (lc == 'k') current_search_.selected_text_only = true;
+					if (lc == 'i') current_search_.ignore_case = true;
+					if (lc == 'r') is_replace = true;
+				}
+				
+				history_manager::get_instance().add_search(current_search_.query);
+
+				if (is_replace) {
+					is_search_options_prompt_ = false;
+					active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
+					active_dialog_mode_ = dialog_mode::replace;
+					set_focus(focus_target::dialog, "menu_replace");
+					return;
+				}
+
+				std::shared_ptr<document> active_doc = get_active_doc();
+
+				if (active_doc && active_doc->find_next(current_search_)) {
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+				is_search_options_prompt_ = false;
+				return;
+			}
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
+				if (!search_options_buffer_.empty())
+					search_options_buffer_.pop_back();
+				return;
+			}
+			if (!ev.utf8_char.empty() && ev.key_code >= 32) {
+				char c = std::tolower(ev.utf8_char[0]);
+				if (c == 'i' || c == 'r' || c == 'b' || c == 'k') {
+					if (search_options_buffer_.find(c) == std::string::npos && search_options_buffer_.find(std::toupper(c)) == std::string::npos) {
+						search_options_buffer_ += static_cast<char>(std::toupper(c));
+					}
+				}
 				return;
 			}
 			return; // Consume all keys in prompt mode
@@ -698,7 +775,14 @@ void editor::render()
 	} else if (q_block_mode_) {
 		status_help = "Q-Block: F:Find A:Replace";
 	} else if (is_searching_prompt_) {
-		status_help = "Search for: " + search_input_buffer_ + "_";
+		std::string suggestion = get_search_autocomplete();
+		if (!suggestion.empty() && suggestion != search_input_buffer_) {
+			status_help = "Search for: " + search_input_buffer_ + "[" + suggestion.substr(search_input_buffer_.length()) + "]";
+		} else {
+			status_help = "Search for: " + search_input_buffer_ + "_";
+		}
+	} else if (is_search_options_prompt_) {
+		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
 	} else if (is_going_to_line_prompt_) {
 		status_help = "Go to line: " + line_input_buffer_ + "_";
 	}

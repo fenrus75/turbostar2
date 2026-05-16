@@ -1,12 +1,18 @@
 
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- check for any remaining unimplemented joe key sequences
+
 # mid term items
 
+- better git integration: key decision: libgit(2) or exec to git? instinct is to use libgit/libgit2 if we can
+   - showing git dirty status in window somehow
+
 - improve syntax highlighting
-- ^KF search should get a second question (joe style)
-     Joe offers "(I)gnore (R)eplace (B)ackwards Bloc(K) (^K H for help)" as
-     second question. "K" is "within selection" "I" is ignore case
+   - multiple languages support (first one: markdown)
+
+- a way to call clang-format on the current file
+   - needs to save, run the command, then reload, as one nice operation
 
 # long term items
 
@@ -18,6 +24,10 @@
 
 
 # done items (items move here on completion)
+
+- ^KF search should get a second question (joe style)
+     Joe offers "(I)gnore (R)eplace (B)ackwards Bloc(K) (^K H for help)" as
+     second question. "K" is "within selection" "I" is ignore case
 
 - search via ^K F could use some autocompletion (similar to file dialog),
      but based on past searches as source for autocomplete. this means we

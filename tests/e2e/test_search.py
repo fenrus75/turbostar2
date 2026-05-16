@@ -19,7 +19,7 @@ def test_search_functionality():
         
         # Start search for "Beta"
         runner.send_keys('\x0b' + 'f')
-        runner.send_keys("Beta\n")
+        runner.send_keys("Beta\n\n")
         time.sleep(0.5)
         
         # Should be at start of "Beta" (2:8)
@@ -28,7 +28,7 @@ def test_search_functionality():
         # 3. Test ^L (Repeat Search)
         # First, search for "Search" to set it as current
         runner.send_keys('\x0b' + 'f')
-        runner.send_keys("Search\n")
+        runner.send_keys("Search\n\n")
         time.sleep(0.5)
         # Found at 1:1? No, find_next starts from cursor+1.
         # If we were at 2:8, it starts at 2:9.
