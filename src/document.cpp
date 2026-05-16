@@ -86,7 +86,7 @@ bool document::save_to_file(const std::string &filename)
 		return false;
 	}
 
-	for (size_t i = 0; i < line_count_unlocked(); ++i) {
+	for (int i = 0; i < line_count_unlocked(); ++i) {
 		file << lines_[i]->get_text();
 		if (i < line_count_unlocked() - 1) {
 			file << "\n";
@@ -147,10 +147,10 @@ int document::line_count_unlocked() const
 	return static_cast<int>(lines_.size());
 }
 
-std::shared_ptr<line> document::get_line(size_t index) const
+std::shared_ptr<line> document::get_line(int index) const
 {
 	std::shared_lock lock(mutex_);
-	if (index < line_count_unlocked())
+	if (index >= 0 && index < line_count_unlocked())
 		return lines_[index];
 	return nullptr;
 }
@@ -291,14 +291,6 @@ void document::delete_word_forward()
 		return;
 	}
 
-	std::string text = lines_[cursor_y_]->get_text();
-	auto get_char_at = [&](int idx) -> char {
-		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
-		if (offset < text.length())
-			return text[offset];
-		return 0;
-	};
-
 	int i = cursor_x_;
 	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
 		i++;
@@ -326,14 +318,6 @@ void document::delete_word_backward()
 		notify_cursor_changed();
 		return;
 	}
-
-	std::string text = lines_[cursor_y_]->get_text();
-	auto get_char_at = [&](int idx) -> char {
-		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
-		if (offset < text.length())
-			return text[offset];
-		return 0;
-	};
 
 	int i = cursor_x_ - 1;
 	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
@@ -453,13 +437,6 @@ void document::move_next_word()
 		return;
 	}
 
-	auto get_char_at = [&](int idx) -> char {
-		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
-		if (offset < text.length())
-			return text[offset];
-		return 0;
-	};
-
 	int i = cursor_x_;
 	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
 		i++;
@@ -489,14 +466,6 @@ void document::move_prev_word()
 		notify_cursor_changed();
 		return;
 	}
-
-	std::string text = lines_[cursor_y_]->get_text();
-	auto get_char_at = [&](int idx) -> char {
-		size_t offset = lines_[cursor_y_]->char_to_byte_offset(idx);
-		if (offset < text.length())
-			return text[offset];
-		return 0;
-	};
 
 	int i = cursor_x_ - 1;
 	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
