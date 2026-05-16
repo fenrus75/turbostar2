@@ -378,10 +378,10 @@ dialog_result find_dialog::handle_key(int key)
 		}
 		std::string &buf_ref = *buf;
 		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-			if (!buf.empty())
-				buf.pop_back();
+			if (!buf_ref.empty())
+				buf_ref.pop_back();
 		} else if (key >= 32 && key <= 126) {
-			buf += static_cast<char>(key);
+			buf_ref += static_cast<char>(key);
 		}
 	} else if (key == ' ') {
 		if (!is_replace_) {

@@ -38,3 +38,5 @@ PowerTOP uses the C++ 20 language standard
     rules
 
 - [ ] prefer "range for" loops over explicit counter loops when possible
+
+- [ ] use std::max and std::clamp for readability
