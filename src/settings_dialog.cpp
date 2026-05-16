@@ -96,7 +96,7 @@ void settings_dialog::draw() const
 	dialog::draw();
 	
 	// Clang Format Style group
-	draw_group_box(2, 4, 30, 10, " Clang Format Style ");
+	draw_group_box(2, 4, 30, 9, " Clang Format Style ");
 	
 	std::vector<std::pair<std::string, char>> style_labels = {
 		{"LLVM", 'L'},
