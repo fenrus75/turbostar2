@@ -16,8 +16,7 @@ def test_block_delete():
         # 2. Mark Selection: Start of "B" to Start of "C"
         # Move to line 2, start
         runner.send_keys('\x1b[A') # Up (to line 2)
-        for _ in range(7):
-            runner.send_keys('\x1b[D') # Left
+        runner.send_keys('\x01')    # Ctrl-A (Move to BOL)
         runner.assert_cursor_position(2, 1)
         runner.send_keys('\x0b' + 'b') # ^KB
         

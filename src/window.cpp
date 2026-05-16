@@ -60,7 +60,6 @@ bool window::process_events()
 					break;
 				case KEY_DOWN:
 					doc_->move_cursor(0, 1);
-					event_logger::get_instance().log("Cursor moved to: " + std::to_string(doc_->get_cursor_y()));
 					needs_render = true;
 					break;
 				case KEY_LEFT:

@@ -8,13 +8,22 @@
 file_dialog::file_dialog(const std::string &title, file_dialog_mode mode, bool autocomplete, const std::string &initial_path)
     : dialog(title, 68, 17), mode_(mode), autocomplete_(autocomplete)
 {
-	if (fs::is_directory(initial_path)) {
-		current_path_ = fs::absolute(initial_path);
-	} else {
-		current_path_ = fs::absolute(fs::path(initial_path).parent_path());
-		filename_buffer_ = fs::path(initial_path).filename().string();
+	try {
+		if (!initial_path.empty() && fs::is_directory(initial_path)) {
+			current_path_ = fs::absolute(initial_path);
+		} else if (!initial_path.empty()) {
+			current_path_ = fs::absolute(fs::path(initial_path).parent_path());
+			if (current_path_.empty())
+				current_path_ = fs::current_path();
+			filename_buffer_ = fs::path(initial_path).filename().string();
+		} else {
+			current_path_ = fs::current_path();
+		}
+		populate_files();
+	} catch (const std::exception &e) {
+		current_path_ = fs::current_path();
+		populate_files();
 	}
-	populate_files();
 }
 
 void file_dialog::populate_files()

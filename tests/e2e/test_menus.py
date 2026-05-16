@@ -8,6 +8,7 @@ def check_menu(key, expected_menu_name):
         runner.start()
         runner.send_keys(f'\x1b{key}') # ESC + key = Alt+key
         runner.send_keys('\x1b')       # ESC to close menu
+        time.sleep(0.5)
         runner.send_keys('\x0b' + 'q')       # Ctrl-C to quit
         try:
             runner.wait(timeout=2)

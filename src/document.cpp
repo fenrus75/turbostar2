@@ -170,15 +170,31 @@ int document::get_cursor_y() const
 void document::move_cursor(int dx, int dy)
 {
 	std::unique_lock lock(mutex_);
-	cursor_x_ += dx;
+
+	if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
+		cursor_y_--;
+		cursor_x_ = lines_[cursor_y_]->length_in_chars();
+	} else if (dx > 0 && cursor_x_ >= lines_[cursor_y_]->length_in_chars() &&
+		   cursor_y_ < line_count_unlocked() - 1) {
+		cursor_y_++;
+		cursor_x_ = 0;
+	} else {
+		cursor_x_ += dx;
+	}
+
 	cursor_y_ += dy;
 
-	cursor_y_ = std::clamp(cursor_y_, 0, std::max(0, line_count_unlocked() - 1));
+	if (cursor_y_ < 0)
+		cursor_y_ = 0;
+	if (cursor_y_ >= line_count_unlocked())
+		cursor_y_ = line_count_unlocked() - 1;
 
-	int line_char_len = lines_[cursor_y_]->length_in_chars();
-	cursor_x_ = std::clamp(cursor_x_, 0, line_char_len);
+	int line_len = lines_[cursor_y_]->length_in_chars();
+	if (cursor_x_ < 0)
+		cursor_x_ = 0;
+	if (cursor_x_ > line_len)
+		cursor_x_ = line_len;
 
-	event_logger::get_instance().log("Cursor moved to: " + std::to_string(cursor_y_) + ":" + std::to_string(cursor_x_));
 	lock.unlock();
 	notify_cursor_changed();
 }
