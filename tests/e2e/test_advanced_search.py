@@ -40,21 +40,31 @@ def test_advanced_search():
         runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
-        # Tab to "Backward" (focus 5)
-        for _ in range(5):
-            runner.send_keys('\t')
-        runner.send_keys(' ') # Select Backward
-        # Enter OK
-        for _ in range(5):
-            runner.send_keys('\t')
+        # Tab 2 times to "Direction" group (focus 4 = Forward)
+        runner.send_keys('\t\t')
+        # Down arrow to "Backward" (focus 5)
+        runner.send_keys('\x1b[B')
+        runner.send_keys(' ') # Toggle Backward ON
+        
+        # Tab 3 more times to "Buttons" group (focus 10 = OK)
+        runner.send_keys('\t\t\t')
         runner.send_keys('\n')
         
         # From 3:1, searching backward for "Apple" (case sensitive ON)
-        # Should find "Apple" at 1:1
+        # Since it does not step over initially, it finds the "Apple" at 3:1 again
+        try:
+            runner.assert_cursor_position(3, 1)
+        except Exception as e:
+            print(f"FAILED Backward search (dialog). Log:\n{runner.get_log()}")
+            raise e
+            
+        # Now use Find Next (^L) to actually step back to the previous one
+        runner.send_keys('\x0c') # ^L
+        time.sleep(0.5)
         try:
             runner.assert_cursor_position(1, 1)
         except Exception as e:
-            print(f"FAILED Backward search. Log:\n{runner.get_log()}")
+            print(f"FAILED Backward search (^L). Log:\n{runner.get_log()}")
             raise e
         
         # 4. Test Whole Words
@@ -64,13 +74,14 @@ def test_advanced_search():
         # Input "App"
         runner.send_keys('\x7f' * 10)
         runner.send_keys("App")
-        # Tab to "Whole words only" (focus 2)
-        runner.send_keys('\t') # focus 1
-        runner.send_keys('\t') # focus 2
+        # Tab 1 time to "Options" group (focus 1 = Case sensitive)
+        runner.send_keys('\t')
+        # Down arrow to "Whole words only" (focus 2)
+        runner.send_keys('\x1b[B')
         runner.send_keys(' ')  # Toggle ON
-        # OK
-        for _ in range(8):
-            runner.send_keys('\t')
+        
+        # Tab 4 more times to "Buttons" group (focus 10 = OK)
+        runner.send_keys('\t\t\t\t')
         runner.send_keys('\n')
         
         # Should NOT find "App" in "Apple"

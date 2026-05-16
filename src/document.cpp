@@ -803,7 +803,7 @@ void document::adjust_selection_for_line_delete(int y)
 	adjust(selection_end_x_, selection_end_y_);
 }
 
-bool document::find_next(const search_params& params)
+bool document::find_next(const search_params& params, bool is_repeat)
 {
 	if (params.query.empty()) return false;
 	
@@ -824,18 +824,20 @@ bool document::find_next(const search_params& params)
 			start_y = scope_sy;
 			start_x = scope_sx;
 		}
-	} else {
+	} else if (is_repeat) {
+		// Step over current char
 		if (params.backward) {
-			// No change to start_x/y, start exactly here
+			if (start_x > 0) start_x--;
+			else if (start_y > scope_sy) {
+				start_y--;
+				start_x = static_cast<int>(lines_[start_y]->length_in_chars());
+			} else return false;
 		} else {
-			// No change to start_x/y
-		}
-		// Clamp to scope
-		if (start_y < scope_sy || (start_y == scope_sy && start_x < scope_sx)) {
-			start_y = scope_sy; start_x = scope_sx;
-		}
-		if (start_y > scope_ey || (start_y == scope_ey && start_x > scope_ex)) {
-			start_y = scope_ey; start_x = scope_ex;
+			if (start_x < static_cast<int>(lines_[start_y]->length_in_chars())) start_x++;
+			else if (start_y < scope_ey) {
+				start_y++;
+				start_x = 0;
+			} else return false;
 		}
 	}
 	

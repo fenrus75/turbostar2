@@ -37,14 +37,22 @@ void editor::update_window_menu()
 {
 	std::vector<menu_item> items;
 	for (size_t i = 0; i < windows_.size(); ++i) {
-		std::string name = windows_[i]->get_title();
-		if (name.empty()) name = "noname.txt";
+		std::string filename = windows_[i]->get_title();
+		if (filename.empty()) filename = "noname.txt";
+		
+		std::string name = std::to_string((i + 1) % 10) + " " + filename;
 		
 		std::string shortcut = "";
-		if (i < 10) shortcut = "Alt-" + std::to_string(i);
+		char hotkey = 0;
+		if (i < 10) {
+			int num = static_cast<int>((i + 1) % 10);
+			shortcut = "Alt-" + std::to_string(num);
+			hotkey = static_cast<char>('0' + num);
+		}
 
-		items.push_back(menu_item(name, event_type::select_window, static_cast<int>(i), shortcut, false));
+		items.push_back(menu_item(name, event_type::select_window, static_cast<int>(i), hotkey, shortcut, false));
 	}
+	event_logger::get_instance().log("update_window_menu: " + std::to_string(items.size()) + " items");
 	top_menu_.set_category_items("Window", items);
 }
 
@@ -182,81 +190,87 @@ bool editor::handle_k_block_key(int key)
 	
 	if (c == 0) return false;
 
+	// Find active window/doc
+	std::shared_ptr<document> active_doc;
 	for (auto& w : windows_) {
 		if (w->is_active()) {
-			auto doc = documents_[0]; // Simplified for now, should find doc from window
-			if (c == 'b') {
-				logger.log("K-block: Set Selection Begin");
-				doc->set_selection_start();
-				return true;
-			} else if (c == 'k') {
-				logger.log("K-block: Set Selection End");
-				doc->set_selection_end();
-				return true;
-			} else if (c == 'n') {
-				logger.log("K-block: New File");
-				doc->clear();
-				return true;
-			} else if (c == 'd') {
-				logger.log("K-block: Save File");
-				doc->save();
-				return true;
-			} else if (c == 'c') {
-				logger.log("K-block: Copy Block");
-				doc->copy_selection();
-				return true;
-			} else if (c == 'm') {
-				logger.log("K-block: Move Block");
-				doc->move_selection();
-				return true;
-			} else if (c == 'e') {
-				logger.log("K-block: Edit (Load File)");
-				active_dialog_ = std::make_unique<input_dialog>("Load File", "Enter filename to load:", doc->get_filename());
-				active_dialog_mode_ = dialog_mode::load;
-				set_focus(focus_target::dialog, "k_block");
-				return true;
-			} else if (c == 'w') {
-				logger.log("K-block: Write (Save As)");
-				active_dialog_ = std::make_unique<input_dialog>("Save File As", "Enter filename to save:", doc->get_filename());
-				active_dialog_mode_ = dialog_mode::save;
-				set_focus(focus_target::dialog, "k_block");
-				return true;
-			} else if (c == 'q') {
-				logger.log("K-block: Quit (Abort)");
-				editor_event quit_ev;
-				quit_ev.type = event_type::quit;
-				global_queue_.push(quit_ev);
-				return true;
-			} else if (c == 'x') {
-				logger.log("K-block: Save & Exit");
-				doc->save();
-				editor_event quit_ev;
-				quit_ev.type = event_type::quit;
-				global_queue_.push(quit_ev);
-				return true;
-			} else if (c == 'f') {
-				logger.log("K-block: Find (Status Bar Prompt)");
-				is_searching_prompt_ = true;
-				search_input_buffer_ = "";
-				return true;
-			} else if (c == 'u') {
-				logger.log("K-block: Top of File");
-				doc->move_to_top();
-				return true;
-			} else if (c == 'v') {
-				logger.log("K-block: End of File");
-				doc->move_to_bottom();
-				return true;
-			} else if (c == 'y') {
-				logger.log("K-block: Delete Block");
-				doc->delete_selection();
-				return true;
-			} else if (c == 'h') {
-				logger.log("K-block: Clear Selection");
-				doc->clear_selection();
-				return true;
-			}
+			active_doc = w->get_document();
+			break;
 		}
+	}
+
+	if (!active_doc) return false;
+
+	if (c == 'b') {
+		logger.log("K-block: Set Selection Begin");
+		active_doc->set_selection_start();
+		return true;
+	} else if (c == 'k') {
+		logger.log("K-block: Set Selection End");
+		active_doc->set_selection_end();
+		return true;
+	} else if (c == 'h') {
+		logger.log("K-block: Clear Selection");
+		active_doc->clear_selection();
+		return true;
+	} else if (c == 'y') {
+		logger.log("K-block: Delete Block");
+		active_doc->delete_selection();
+		return true;
+	} else if (c == 'c') {
+		logger.log("K-block: Copy Block");
+		active_doc->copy_selection();
+		return true;
+	} else if (c == 'm') {
+		logger.log("K-block: Move Block");
+		active_doc->move_selection();
+		return true;
+	} else if (c == 'n') {
+		logger.log("K-block: New Window");
+		new_window("");
+		return true;
+	} else if (c == 'e') {
+		logger.log("K-block: Edit (Open File)");
+		editor_event ev;
+		ev.type = event_type::load;
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'd') {
+		logger.log("K-block: Save File");
+		active_doc->save();
+		return true;
+	} else if (c == 'w') {
+		logger.log("K-block: Write (Save As)");
+		editor_event ev;
+		ev.type = event_type::save;
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'q') {
+		logger.log("K-block: Quit (Abort)");
+		editor_event quit_ev;
+		quit_ev.type = event_type::quit;
+		global_queue_.push(quit_ev);
+		return true;
+	} else if (c == 'x') {
+		logger.log("K-block: Save & Exit");
+		active_doc->save();
+		editor_event quit_ev;
+		quit_ev.type = event_type::quit;
+		global_queue_.push(quit_ev);
+		return true;
+	} else if (c == 'f') {
+		logger.log("K-block: Find (Status Bar Prompt)");
+		is_searching_prompt_ = true;
+		search_input_buffer_ = "";
+		return true;
+	} else if (c == 'u') {
+		logger.log("K-block: Top of File");
+		active_doc->move_to_top();
+		return true;
+	} else if (c == 'v') {
+		logger.log("K-block: End of File");
+		active_doc->move_to_bottom();
+		return true;
 	}
 	
 	return false;
@@ -367,7 +381,11 @@ void editor::dispatch(const editor_event& ev)
 					auto f_dialog = dynamic_cast<find_dialog*>(active_dialog_.get());
 					if (f_dialog) {
 						current_search_ = f_dialog->get_search_params();
-						doc->find_next(current_search_);
+						if (doc->find_next(current_search_)) {
+							editor_event redraw_ev;
+							redraw_ev.type = event_type::redraw;
+							global_queue_.push(redraw_ev);
+						}
 					}
 				}
 				active_dialog_.reset();
@@ -389,7 +407,11 @@ void editor::dispatch(const editor_event& ev)
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				current_search_.query = search_input_buffer_;
-				documents_[0]->find_next(current_search_);
+				if (documents_[0]->find_next(current_search_)) {
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
 				is_searching_prompt_ = false;
 				return;
 			}
@@ -406,7 +428,23 @@ void editor::dispatch(const editor_event& ev)
 
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
-			documents_[0]->find_next(current_search_);
+			std::shared_ptr<document> active_doc;
+			for (auto& w : windows_) {
+				if (w->is_active()) {
+					active_doc = w->get_document();
+					break;
+				}
+			}
+			if (active_doc) {
+				logger.log("Active doc found for ^L. query=" + current_search_.query + " backward=" + std::to_string(current_search_.backward));
+				bool found = active_doc->find_next(current_search_, true);
+				logger.log("find_next returned: " + std::to_string(found));
+				if (found) {
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+			}
 			return;
 		}
 
@@ -441,7 +479,8 @@ void editor::dispatch(const editor_event& ev)
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
 			if (c >= '0' && c <= '9') {
-				activate_window(static_cast<size_t>(c - '0'));
+				int target_idx = (c == '0') ? 9 : (c - '1');
+				activate_window(static_cast<size_t>(target_idx));
 				return;
 			}
 			if (top_menu_.handle_alt_key(c, global_queue_)) {

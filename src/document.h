@@ -78,7 +78,7 @@ public:
 
 	void log_state() const;
 
-	bool find_next(const search_params& params);
+	bool find_next(const search_params& params, bool is_repeat = false);
 
 private:
 	std::vector<line> get_selection_block() const;
