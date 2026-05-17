@@ -1,12 +1,18 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- option for "compile this file only"
-   - need to figure out how to do that in meson; most build systems do this by destination not source .cpp file and this can be tricky as a result
-   - maybe a prefernece for "compile-on-save" (off by default)
+- if you close the last window with the mouse a new untitled.txt window appears -- need to decide if this is the right behavior vs just a checkered background
 
-  
+- now that we have mouse support we can add magic buttons at the top title bar of windows
+    - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
+    - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
+
+- in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
+
+- we need to split up the event handling code at some point so that large
+  events become their own methods -- the function is getting unwieldy
 
 # mid term items
+
 
 
 # long term items   
@@ -18,9 +24,14 @@
 
 # done items (items move here on completion)
 
+- option for "compile this file only"
+   - Implemented using compile_commands.json database to execute exact compiler command.
+   - Added preference for "compile-on-save" (off by default) in settings.
+
 - mouse support
    - for the window close button thingy in the left top
    - for menus
+
 
 - Parse standard gcc/g++ error and warnings strings to feed back into our coloring, and add a "go to error" option (`F4` / `^K G`) that moves the cursor and view to the exact error.
    - Colored the whole horizontal line with an error red (and yellow for warning).
