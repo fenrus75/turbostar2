@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <chrono>
 #include "document.h"
 #include "event_queue.h"
 
@@ -20,6 +21,20 @@ class window
 	 * @brief Returns the window's local event queue.
 	 */
 	event_queue &get_queue();
+
+	uint64_t get_last_active_timestamp() const { return last_active_timestamp_; }
+	void update_last_active_timestamp();
+
+	int get_display_priority() const { return display_priority_; }
+	void set_display_priority(int priority) { display_priority_ = priority; }
+
+	bool is_visible() const { return is_visible_; }
+	void set_visible(bool visible) { is_visible_ = visible; }
+
+	int get_x() const { return x_; }
+	int get_y() const { return y_; }
+	int get_width() const { return width_; }
+	int get_height() const { return height_; }
 
 	/**
 	 * @brief Processes all pending events in the window's local queue.
@@ -58,6 +73,10 @@ class window
 	int x_, y_, width_, height_;
 	std::string title_;
 	bool is_active_{false};
+
+	uint64_t last_active_timestamp_{0};
+	int display_priority_{0};
+	bool is_visible_{true};
 
 	mutable int top_line_{0};
 	mutable int left_column_{0};

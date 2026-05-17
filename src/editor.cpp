@@ -1,4 +1,5 @@
 #include "editor.h"
+#include <algorithm>
 #include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
@@ -948,10 +949,52 @@ void editor::render()
 	}
 	attroff(COLOR_PAIR(9));
 
-	// 2. Windows (Foreground Only)
+	// 2. Windows (Z-Index Managed)
 	window *active_win = get_active_window();
-	if (active_win) {
-		active_win->draw();
+	
+	// Create a list of raw pointers to sort
+	std::vector<window*> sorted_windows;
+	for (auto& w : windows_) {
+		sorted_windows.push_back(w.get());
+	}
+
+	// Sort: highest priority first. If priority is equal, newest timestamp first.
+	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window* a, window* b) {
+		int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
+		int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
+		
+		if (priority_a != priority_b) {
+			return priority_a > priority_b;
+		}
+		return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+	});
+
+	// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
+	// For simplicity in this text editor (and since windows are mostly rectangles), 
+	// a window is fully occluded if it's completely inside another single window above it.
+	for (size_t i = 0; i < sorted_windows.size(); ++i) {
+		window* w = sorted_windows[i];
+		w->set_visible(true); // Default to visible
+		
+		// Check if fully covered by any single window above it
+		for (size_t j = 0; j < i; ++j) {
+			window* above = sorted_windows[j];
+			if (above->is_visible() && 
+			    w->get_x() >= above->get_x() && 
+			    w->get_y() >= above->get_y() &&
+			    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
+			    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
+				w->set_visible(false);
+				break;
+			}
+		}
+	}
+
+	// Draw backwards (lowest priority first, so highest priority is on top)
+	for (auto it = sorted_windows.rbegin(); it != sorted_windows.rend(); ++it) {
+		if ((*it)->is_visible()) {
+			(*it)->draw();
+		}
 	}
 
 	top_menu_.draw();

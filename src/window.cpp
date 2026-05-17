@@ -8,9 +8,18 @@ window::window(int id, int x, int y, int width, int height, const std::string &t
 {
 }
 
+void window::update_last_active_timestamp()
+{
+	auto now = std::chrono::steady_clock::now().time_since_epoch();
+	last_active_timestamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+}
+
 void window::set_active(bool active)
 {
 	is_active_ = active;
+	if (is_active_) {
+		update_last_active_timestamp();
+	}
 }
 
 bool window::is_active() const
