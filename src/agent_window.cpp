@@ -198,6 +198,20 @@ void agent_window::submit_prompt() {
 
                     std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
                     
+                    // Notify UI about the tool result (truncate to a single line preview)
+                    std::string result_preview = tool_result;
+                    size_t newline_pos = result_preview.find('\n');
+                    if (newline_pos != std::string::npos) {
+                        result_preview = result_preview.substr(0, newline_pos) + " ...";
+                    }
+                    if (result_preview.length() > 60) {
+                        result_preview = result_preview.substr(0, 57) + "...";
+                    }
+                    editor_event result_ev;
+                    result_ev.type = event_type::agent_tool_update;
+                    result_ev.payload = "↳ Result: " + result_preview;
+                    state->global_queue.push(result_ev);
+                    
                     message tool_msg;
                     tool_msg.role = "tool";
                     tool_msg.content = tool_result;
