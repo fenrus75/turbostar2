@@ -23,7 +23,7 @@ void gcc_log_parser::parse_line(const std::string &line, int output_line, std::v
 			std::string build_dir = config_manager::get_instance().get_build_directory();
 			p = fs_utils::safe_absolute(fs::path(build_dir) / p);
 		}
-		err.filepath = p.lexically_normal().string();
+		err.filepath = p.string();
 		
 		err.line = std::stoi(match[2].str()) - 1; // 1-based to 0-based
 		err.column = std::stoi(match[3].str()) - 1;
