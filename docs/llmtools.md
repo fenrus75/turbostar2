@@ -55,6 +55,12 @@ If a tool requires multiple parameters (e.g., `search_and_replace`), follow the 
 3. Your validator parses the JSON into this struct, validates the struct, and passes the struct into the `llm_tool`'s constructor.
 4. The `_entry.cpp` file remains completely free of JSON dependencies and operates strictly on the native C++ struct.
 
+## Schema Definition Convention
+
+When defining the schema for your tool (e.g., `get_name()`, `get_description()`, `get_parameter_name()`), **inline these simple string-returning methods directly in the class definition within your header file (`.h`)**. 
+
+This keeps the header file acting as built-in documentation for the tool's LLM interface and removes unnecessary boilerplate from the `.cpp` files. Use the `.cpp` files exclusively for the actual C++ validation and execution logic. (If a tool description requires a massive, multi-paragraph prompt, you may optionally move it to `_entry.cpp` using a raw string literal to keep the header clean).
+
 ## Security Feedback Loop
 
 If a tool fails validation at either Stage 1 or Stage 2, the framework catches the failure and returns the explicit rejection string directly to the LLM as the tool's result. This allows the LLM to learn why an action was denied and attempt a different approach, rather than simply failing silently or aborting the agent loop.
