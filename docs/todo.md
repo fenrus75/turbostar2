@@ -2,10 +2,6 @@
 
 - fix test suite flakiness: Some tests (like `test_tabs`, `test_ghost_x`) are failing due to timing issues when sending raw keys under heavy load. We need to investigate the ESCDELAY timeouts and how `send_keys` operates.
  
-- if you close the last window with the mouse a new untitled.txt window appears -- need to decide if this is the right behavior vs just a checkered background
-
-- when you use the mouse to go to a window, and then exit the menu by clicking outside the menu area, the cursor is now hidden
-
 - the menu key hints in the File menu should favor ^K over function keys or other shortcuts
 
 - we may need to split src/editor_events.cpp even further, it is still large
@@ -42,6 +38,9 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Fixed hidden cursor bug when closing a menu by clicking outside of it.
+- Fixed window close logic so closing the last window with the mouse correctly exits the app (or prompts) instead of spawning untitled.txt.
+- Separated standard quit and force quit (^KX) logic and added auto-closing countdown to the force quit dialog.
 - Reorganized the window title bar: Grouped Git branch and dirty status `[branch ✎]` on the left. Moved the popup menu button `[≡]` to the far right.
 - test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
    indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
