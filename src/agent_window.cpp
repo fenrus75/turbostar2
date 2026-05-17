@@ -5,10 +5,10 @@
 
 using namespace agentlib;
 
-agent_window::agent_window(int id, int x, int y, int width, int height, event_queue& global_queue)
+agent_window::agent_window(int id, int x, int y, int width, int height, event_queue& global_queue, agentlib::document_provider* doc_provider)
     : window(id, x, y, width, height, "Agent Chat")
 {
-    state_ = std::make_shared<agent_window_state>(global_queue);
+    state_ = std::make_shared<agent_window_state>(global_queue, doc_provider);
 
     // Create the document for the chat history
     chat_history_ = std::make_shared<document>(state_->global_queue);

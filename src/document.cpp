@@ -291,6 +291,16 @@ std::shared_ptr<line> document::get_line(int index) const
 	return nullptr;
 }
 
+std::vector<std::string> document::get_all_lines() const
+{
+	std::shared_lock lock(mutex_);
+	std::vector<std::string> result;
+	result.reserve(lines_.size());
+	for (const auto& l : lines_) {
+		result.push_back(l->get_text());
+	}
+	return result;
+}
 
 int document::get_cursor_x() const
 {

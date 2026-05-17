@@ -14,13 +14,14 @@ struct agent_window_state {
     std::vector<agentlib::message> conversation;
     std::unique_ptr<agentlib::llm_client> client;
     event_queue& global_queue;
+    agentlib::document_provider* doc_provider;
     
-    agent_window_state(event_queue& q) : global_queue(q) {}
+    agent_window_state(event_queue& q, agentlib::document_provider* provider) : global_queue(q), doc_provider(provider) {}
 };
 
 class agent_window : public window {
 public:
-    agent_window(int id, int x, int y, int width, int height, event_queue& global_queue);
+    agent_window(int id, int x, int y, int width, int height, event_queue& global_queue, agentlib::document_provider* doc_provider);
     ~agent_window();
     
     // Intercepts events from the window's local queue

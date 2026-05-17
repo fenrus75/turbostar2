@@ -6,5 +6,7 @@ tools_sources = files(
   'fs_list_dir/fs_list_dir_entry.cpp',
   'fs_list_dir/fs_list_dir_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
-  'fs_read_lines/fs_read_lines_security.cpp'
+  'fs_read_lines/fs_read_lines_security.cpp',
+  'fs_regexp_lines/fs_regexp_lines_entry.cpp',
+  'fs_regexp_lines/fs_regexp_lines_security.cpp'
 )

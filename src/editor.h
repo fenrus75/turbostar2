@@ -11,6 +11,7 @@
 #include "status_bar.h"
 #include "window.h"
 #include "process_runner.h"
+#include "agentlib/document_provider.h"
 
 /**
  * @brief UI components that can hold focus.
@@ -23,7 +24,7 @@ enum class focus_target { menu_bar, window, dialog, popup };
  * Manages the application lifecycle, UI components, and event dispatching.
  * Implements the focus-based event routing model.
  */
-class editor
+class editor : public agentlib::document_provider
 {
       public:
 	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp = false);
@@ -40,6 +41,9 @@ class editor
 	 * @param source Optional name of the component initiating the change.
 	 */
 	void set_focus(focus_target target, const std::string &source = "unknown");
+
+	// agentlib::document_provider implementation
+	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string& safe_path) const override;
 
       private:
 	void new_window(const std::string &filename);

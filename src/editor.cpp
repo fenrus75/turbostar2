@@ -56,7 +56,7 @@ void editor::new_window(const std::string &filename)
 
 void editor::new_agent_window()
 {
-	auto win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_);
+	auto win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, this);
 	
 	// Add its document to the global documents list so it gets saved on exit/etc if needed (though it shouldn't be saved)
 	documents_.push_back(win->get_document());
@@ -145,6 +145,38 @@ std::string editor::get_search_autocomplete() const
 		}
 	}
 	return "";
+}
+
+namespace {
+class editor_document_snapshot : public agentlib::document_snapshot {
+public:
+    explicit editor_document_snapshot(std::vector<std::string> lines) : lines_(std::move(lines)) {}
+    
+    size_t get_line_count() const override { return lines_.size(); }
+    std::string get_line_text(size_t index) const override {
+        if (index < lines_.size()) return lines_[index];
+        return "";
+    }
+private:
+    std::vector<std::string> lines_;
+};
+} // namespace
+
+std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string& safe_path) const {
+    for (const auto& doc : documents_) {
+        std::string doc_path = doc->get_filename();
+        if (doc_path.empty()) continue;
+        
+        try {
+            std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
+            if (p.string() == safe_path) {
+                return std::make_unique<editor_document_snapshot>(doc->get_all_lines());
+            }
+        } catch (...) {
+            // Ignore invalid paths
+        }
+    }
+    return nullptr;
 }
 
 editor::~editor()

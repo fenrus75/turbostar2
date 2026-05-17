@@ -74,6 +74,7 @@ class document
 	int line_count() const;
 	size_t get_line_count() const;
 	std::shared_ptr<line> get_line(int index) const;
+	std::vector<std::string> get_all_lines() const;
 
 	int get_cursor_x() const;
 	int get_cursor_y() const;
