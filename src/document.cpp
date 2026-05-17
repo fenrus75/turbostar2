@@ -1185,6 +1185,7 @@ void document::notify_cursor_changed() const
 void document::set_modified()
 {
 	modified_ = true;
+	lsp_diagnostics_.clear();
 }
 
 void document::adjust_selection_for_insert(int y, int x, int count)
