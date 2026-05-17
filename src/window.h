@@ -53,6 +53,7 @@ class window
 	{
 		return title_;
 	}
+	std::string get_displayed_title() const;
 	void set_title(const std::string &t)
 	{
 		title_ = t;

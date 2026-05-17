@@ -195,7 +195,47 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						global_queue_.push(close_ev);
 						return;
 					}
-	
+
+					// 1.5 Check for Git Status Button
+					// Drawn at (y_, x_ + width_ - 10) through (y_, x_ + width_ - 8)
+					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + w->get_width() - 10 && ev.mouse_x <= w->get_x() + w->get_width() - 8) {
+						logger.log("Mouse clicked git status button.");
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						editor_event git_ev;
+						git_ev.type = event_type::git_add;
+						global_queue_.push(git_ev);
+						return;
+					}
+
+					// 1.75 Check for Modified Indicator
+					auto doc = w->get_document();
+					if (doc && doc->is_modified()) {
+						std::string title = w->get_displayed_title();
+						if (!title.empty() && title.back() == '*') {
+							int title_x = w->get_x() + (w->get_width() - title.length()) / 2;
+							int star_x = title_x + static_cast<int>(title.length()) - 1;
+							
+							if (ev.mouse_y == w->get_y() && ev.mouse_x == star_x) {
+								logger.log("Mouse clicked modified indicator.");
+								for (size_t i = 0; i < windows_.size(); ++i) {
+									if (windows_[i].get() == w) {
+										activate_window(i);
+										break;
+									}
+								}
+								editor_event save_ev;
+								save_ev.type = event_type::save;
+								global_queue_.push(save_ev);
+								return;
+							}
+						}
+					}
+
 					// 2. Clicked inside the window content
 					for (size_t i = 0; i < windows_.size(); ++i) {
 						if (windows_[i].get() == w) {

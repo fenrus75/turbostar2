@@ -402,10 +402,8 @@ void window::draw_content() const
 	attrset(0);
 }
 
-void window::draw_border() const
+std::string window::get_displayed_title() const
 {
-	attrset(COLOR_PAIR(5));
-
 	std::string current_title = title_;
 	if (doc_) {
 		current_title = doc_->get_filename();
@@ -425,6 +423,14 @@ void window::draw_border() const
 			current_title += "*";
 		}
 	}
+	return current_title;
+}
+
+void window::draw_border() const
+{
+	attrset(COLOR_PAIR(5));
+
+	std::string current_title = get_displayed_title();
 
 	// Draw top and bottom borders
 	for (int i = 1; i < width_ - 1; ++i) {
