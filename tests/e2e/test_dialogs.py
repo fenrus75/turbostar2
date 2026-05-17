@@ -19,7 +19,7 @@ def test_dialog_save_load():
         runner.assert_text_on_screen(unique_text)
         
         # 2. Open Save As dialog (^KW)
-        runner.send_keys('\x0b' + 'w')
+        runner.send_ctrlk('w')
         time.sleep(0.5)
         
         # 3. Type filename and press Enter
@@ -45,7 +45,7 @@ def test_dialog_save_load():
         runner.send_keys('\x19', count=5) 
             
         # 6. Open Load dialog (^KE)
-        runner.send_keys('\x0b' + 'e')
+        runner.send_ctrlk('e')
         runner.send_keys('\x7f', count=25) # Clear again
         runner.send_keys(test_file + '\n')
         time.sleep(0.5)
@@ -58,7 +58,7 @@ def test_dialog_save_load():
             print(f"Log:\n{runner.get_log()}")
             raise e
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

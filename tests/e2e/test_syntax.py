@@ -26,7 +26,7 @@ def test_syntax_highlighting():
         time.sleep(0.5)
         runner.assert_text_on_screen("const bool active")
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

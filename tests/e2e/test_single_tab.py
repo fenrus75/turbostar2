@@ -20,7 +20,7 @@ def test_single_tab():
             print(f"FAILED. Log:\n{runner.get_log()}")
             raise e
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

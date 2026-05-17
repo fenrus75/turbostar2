@@ -22,7 +22,7 @@ def test_basic_typing():
         # 1:1 is start, so it should be at 1:16
         runner.assert_cursor_position(1, 16)
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C to quit
+        runner.send_ctrlk('q') # Ctrl-C to quit
         runner.wait(timeout=5)
         
     finally:

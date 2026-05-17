@@ -33,7 +33,7 @@ def test_delete_line():
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

@@ -47,7 +47,7 @@ def test_window_menu_switching():
         last_selecting = [line for line in log.splitlines() if "Selecting window:" in line][-1]
         assert "Selecting window: 0" in last_selecting
 
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

@@ -6,7 +6,7 @@ def test_startup_and_quit():
         runner.start()
         
         # Send Ctrl-C to trigger fallback quit since 'q' is no longer hardcoded
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         
         # Wait for the process to exit
         runner.wait(timeout=5)

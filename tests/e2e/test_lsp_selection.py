@@ -13,7 +13,7 @@ def test_lsp_selection():
         runner.send_keys("}")
         
         # 2. Wait for clangd to process
-        runner.send_keys('\x0b' + 's') # Save
+        runner.send_ctrlk('s') # Save
         time.sleep(1.0)
         
         # 3. Move cursor to inside 'x' (line 2, char 8)
@@ -22,17 +22,17 @@ def test_lsp_selection():
         runner.send_keys('\x1b[D', count=8) # Left to 'x'
         
         # 4. Expand Selection
-        runner.send_keys('\x0b' + ']')
+        runner.send_ctrlk(']')
         time.sleep(0.5)
         
         # 5. Expand again
-        runner.send_keys('\x0b' + ']')
+        runner.send_ctrlk(']')
         time.sleep(0.5)
 
         # 6. Delete block
-        runner.send_keys('\x0b' + 'y')
+        runner.send_ctrlk('y')
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

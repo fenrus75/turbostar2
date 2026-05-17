@@ -14,11 +14,11 @@ def test_search_functionality():
         
         # 2. Test ^KF (Status Bar Search)
         # Move to top
-        runner.send_keys('\x0b' + 'u')
+        runner.send_ctrlk('u')
         runner.assert_cursor_position(1, 1)
         
         # Start search for "Beta"
-        runner.send_keys('\x0b' + 'f')
+        runner.send_ctrlk('f')
         runner.send_keys("Beta\n\n")
         time.sleep(0.5)
         
@@ -27,7 +27,7 @@ def test_search_functionality():
         
         # 3. Test ^L (Repeat Search)
         # First, search for "Search" to set it as current
-        runner.send_keys('\x0b' + 'f')
+        runner.send_ctrlk('f')
         runner.send_keys("Search\n\n")
         time.sleep(0.5)
         # Found at 1:1? No, find_next starts from cursor+1.
@@ -36,7 +36,7 @@ def test_search_functionality():
         runner.assert_cursor_position(3, 1)
 
         # Go to top
-        runner.send_keys('\x0b' + 'u')
+        runner.send_ctrlk('u')
         # Now ^L should find "Search" at 2:1 (since it starts at 1:2)
         runner.send_keys('\x0c') # ^L (12)
         runner.assert_cursor_position(2, 1)
@@ -58,7 +58,7 @@ def test_search_functionality():
         # Should find "Gamma" at 3:8
         runner.assert_cursor_position(3, 8)
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

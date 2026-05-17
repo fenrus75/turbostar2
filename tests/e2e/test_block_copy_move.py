@@ -14,24 +14,24 @@ def test_block_copy_move():
         
         # 2. Mark Block around "[Block]" (line 3)
         # Move to line 3, start
-        runner.send_keys('\x0b' + 'u') # ^KU (top)
+        runner.send_ctrlk('u') # ^KU (top)
         runner.send_keys('\x16')       # ^V (page down, but small doc so just moves)
         # Wait, ^V moves by page height. Let's just use Down Down.
-        runner.send_keys('\x0b' + 'u')
+        runner.send_ctrlk('u')
         runner.send_keys('\x1b[B') # Down
         runner.send_keys('\x1b[B') # Down (line 3)
         runner.assert_cursor_position(3, 1)
-        runner.send_keys('\x0b' + 'b') # ^KB
+        runner.send_ctrlk('b') # ^KB
         runner.send_keys('\x05')       # ^E (end of line 3)
         runner.assert_cursor_position(3, 8)
-        runner.send_keys('\x0b' + 'k') # ^KK
+        runner.send_ctrlk('k') # ^KK
         
         # 3. Copy Block (^KC) to after "Target" (line 2)
         # Move to line 2, end
         runner.send_keys('\x1b[A') # Up (line 2)
         runner.send_keys('\x05')    # ^E
         runner.assert_cursor_position(2, 7)
-        runner.send_keys('\x0b' + 'c') # ^KC
+        runner.send_ctrlk('c') # ^KC
         
         time.sleep(0.5)
         # Screen should now have "[Block]" twice
@@ -47,7 +47,7 @@ def test_block_copy_move():
         runner.send_keys('\x1b[A') # Up (line 1)
         runner.send_keys('\x05')    # ^E
         runner.assert_cursor_position(1, 6)
-        runner.send_keys('\x0b' + 'm') # ^KM
+        runner.send_ctrlk('m') # ^KM
         
         time.sleep(0.5)
         # Result:
@@ -60,7 +60,7 @@ def test_block_copy_move():
         display = "\n".join(runner.screen.display)
         assert "Target[Block]" not in display
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

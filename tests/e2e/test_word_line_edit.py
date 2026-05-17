@@ -58,7 +58,7 @@ def test_word_line_editing():
         assert "One " not in display
         runner.assert_cursor_position(1, 1)
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

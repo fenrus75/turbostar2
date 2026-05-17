@@ -18,15 +18,15 @@ def test_block_delete():
         runner.send_keys('\x1b[A') # Up (to line 2)
         runner.send_keys('\x01')    # Ctrl-A (Move to BOL)
         runner.assert_cursor_position(2, 1)
-        runner.send_keys('\x0b' + 'b') # ^KB
+        runner.send_ctrlk('b') # ^KB
         
         # Move to line 3, start
         runner.send_keys('\x1b[B') # Down
         runner.assert_cursor_position(3, 1)
-        runner.send_keys('\x0b' + 'k') # ^KK
+        runner.send_ctrlk('k') # ^KK
         
         # 3. Delete Block (^KY)
-        runner.send_keys('\x0b' + 'y') # ^KY
+        runner.send_ctrlk('y') # ^KY
         
         time.sleep(0.5)
         
@@ -35,7 +35,7 @@ def test_block_delete():
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

@@ -42,7 +42,7 @@ def test_tabs_positioning():
             runner.send_keys('\x1b[D') # Left
         runner.assert_cursor_position(1, 1)
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

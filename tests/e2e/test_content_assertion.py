@@ -20,7 +20,7 @@ def test_assert_content():
         time.sleep(0.5)
         runner.assert_content_is(ref_file)
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

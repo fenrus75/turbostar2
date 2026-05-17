@@ -11,11 +11,11 @@ def test_search_autocomplete():
         runner.send_keys("The quick brown fox jumps over the lazy dog\n")
         
         # Ensure we are at the top before searching
-        runner.send_keys('\x0b' + 'u') # ^K U (Top of file)
+        runner.send_ctrlk('u') # ^K U (Top of file)
         runner.assert_cursor_position(1, 1)
 
         # 2. Perform initial search to populate history
-        runner.send_keys('\x0b' + 'f') # ^K F
+        runner.send_ctrlk('f') # ^K F
         runner.send_keys("fox\n\n")
         time.sleep(0.5)
         
@@ -26,7 +26,7 @@ def test_search_autocomplete():
             raise e
         
         # 3. Perform second search to trigger autocomplete
-        runner.send_keys('\x0b' + 'f') # ^K F
+        runner.send_ctrlk('f') # ^K F
         runner.send_keys("f")
         time.sleep(0.5)
         
@@ -42,7 +42,7 @@ def test_search_autocomplete():
         time.sleep(0.5)
         runner.assert_cursor_position(1, 17) # Cursor at start of 'fox'
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

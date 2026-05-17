@@ -23,7 +23,7 @@ def test_insert_file():
         runner.assert_text_on_screen("Start-")
         
         # 3. Trigger Insert File (^KR)
-        runner.send_keys('\x0b' + 'r')
+        runner.send_ctrlk('r')
         time.sleep(0.5) # Wait for dialog
         
         # 4. Type filename and confirm
@@ -43,7 +43,7 @@ def test_insert_file():
         screen = "\n".join(runner.screen.display)
         assert "INSERTED_TEXT" not in screen
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

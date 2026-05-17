@@ -28,7 +28,7 @@ def test_settings_dialog():
         time.sleep(0.5)
         
         # 4. Quit and verify config file
-        runner.send_keys('\x0b' + 'q') # ^K Q
+        runner.send_ctrlk('q') # ^K Q
         runner.wait(timeout=5)
         
         # Verify persistence

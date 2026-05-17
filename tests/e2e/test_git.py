@@ -36,7 +36,7 @@ def test_git_integration():
         runner.send_keys("Modifying...")
 
         # 5. Save the file
-        runner.send_keys('\x0b' + 's') # ^K S (Save)
+        runner.send_ctrlk('s') # ^K S (Save)
 
         # 6. Verify [✎] (Dirty) is shown
         runner.assert_text_on_screen("[✎]", timeout=5.0)
@@ -62,7 +62,7 @@ def test_git_integration():
         # 8. Create a new branch and verify it's shown in the UI
         subprocess.run(['git', 'checkout', '-b', 'feature-x'], cwd=repo_dir, capture_output=True)
         # Trigger refresh by saving
-        runner.send_keys('\x0b' + 's')
+        runner.send_ctrlk('s')
         try:
             runner.assert_text_on_screen("(feature-x)", timeout=5.0)
 
@@ -70,7 +70,7 @@ def test_git_integration():
             print(f"Log contents:\n{runner.get_log()}")
             raise e
 
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
 
         runner.wait(timeout=5)
         

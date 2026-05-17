@@ -18,7 +18,7 @@ def test_syntax_markdown():
         runner.assert_text_on_screen("**bold**")
         runner.assert_text_on_screen("- List item")
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

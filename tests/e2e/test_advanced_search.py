@@ -12,7 +12,7 @@ def test_advanced_search():
         runner.send_keys(content)
         
         # 2. Test Case Sensitivity (OFF by default in our params, let's toggle it)
-        runner.send_keys('\x0b' + 'u') # Top
+        runner.send_ctrlk('u') # Top
         runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
@@ -88,7 +88,7 @@ def test_advanced_search():
         # Let's assume it stays at 1:1
         runner.assert_cursor_position(1, 1)
         
-        runner.send_keys('\x0b' + 'q')
+        runner.send_ctrlk('q')
         runner.wait(timeout=5)
         
     finally:

@@ -29,7 +29,7 @@ def test_multiple_filenames():
         time.sleep(0.5)
         runner.assert_text_on_screen("file1.txt")
 
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

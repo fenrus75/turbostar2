@@ -16,7 +16,7 @@ def test_ghost_x():
         runner.send_keys("abcdefghijklmnopqrst\n")
         
         # 2. Move to top, X = 10
-        runner.send_keys('\x0b' + 'u') # ^K U (Top)
+        runner.send_ctrlk('u') # ^K U (Top)
         runner.send_keys('\x1b[C', count=10) # Right 10 times
         
         runner.assert_cursor_position(1, 11)
@@ -37,7 +37,7 @@ def test_ghost_x():
         runner.send_keys('\x1b[A', count=2) # Up 2 to line 1
         runner.assert_cursor_position(1, 12) # Should be 12 now
 
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:

@@ -16,7 +16,7 @@ def test_format_document():
         runner.send_keys("return 0;}")
         
         # 2. Trigger Format Document via ^KJ
-        runner.send_keys('\x0b' + 'j')
+        runner.send_ctrlk('j')
         time.sleep(1.0) # Give clang-format time
         
         # 3. Verify formatting using primitive
@@ -34,7 +34,7 @@ def test_format_document():
         screen_undone = "\n".join(runner.screen.display)
         assert "int x=5;" in screen_undone
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:
