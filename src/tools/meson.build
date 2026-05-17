@@ -12,5 +12,9 @@ tools_sources = files(
   'fs_compile_info/fs_compile_info_entry.cpp',
   'fs_compile_info/fs_compile_info_security.cpp',
   'fs_compile_summary/fs_compile_summary_entry.cpp',
-  'fs_compile_summary/fs_compile_summary_security.cpp'
+  'fs_compile_summary/fs_compile_summary_security.cpp',
+  'fs_compile_file/fs_compile_file_entry.cpp',
+  'fs_compile_file/fs_compile_file_security.cpp',
+  'fs_compile_project/fs_compile_project_entry.cpp',
+  'fs_compile_project/fs_compile_project_security.cpp'
 )

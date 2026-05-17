@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
 
     // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "Can you give me a summary of all compilation errors across the workspace using fs_compile_summary?";
+    prompt = (argc > 1) ? argv[1] : "Compile the entire project using fs_compile_project.";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_compile_summary tool to get a high level overview of workspace errors.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_compile_project tool to compile the project.";
     conversation.push_back(system_msg);
 
     message user_msg;
