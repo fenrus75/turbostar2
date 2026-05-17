@@ -1,5 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- Implement `fs_replace_lines` tool. This will allow the LLM to surgically replace lines of code in a file. Critically, it must coordinate with `document_provider` and the `event_queue` to apply these edits directly to the user's active, open `document` buffer (if the file is open), pushing the change onto the user's undo stack for collaborative, safe editing.
 - Update the LLM `tool_context` configuration in `agent_window.cpp` to dynamically determine the workspace root. It currently defaults to `std::filesystem::current_path()`, but it should query `git_manager` or similar to find the root of the active git tree if one exists.
 - Implement a security scan for regular expressions provided by the LLM (e.g., in `fs_regexp_lines`) to detect and block malicious patterns (ReDoS attacks) before compilation.
 
