@@ -1,3 +1,22 @@
+/**
+ * @file editor_events.cpp
+ * @brief Central event dispatching logic for the Turbostar editor.
+ * 
+ * NOTE: Due to its size, the event handling implementation has been split into logical sub-modules
+ * based on the `event_type` enum. If you are looking for specific event logic, please check
+ * the corresponding file:
+ * 
+ * - `editor_events_build.cpp`: Compilation and test running (event_type::compile, run_tests, etc.)
+ * - `editor_events_file.cpp`: File I/O operations (event_type::load, save, save_as, save_all)
+ * - `editor_events_git.cpp`: Git integration (event_type::git_add, git_refresh)
+ * - `editor_events_key.cpp`: Raw keyboard input (event_type::key_press)
+ * - `editor_events_lsp.cpp`: Language Server Protocol interactions (Expand Selection, etc.)
+ * - `editor_events_mouse.cpp`: Mouse clicks and dragging (event_type::mouse_click, etc.)
+ * - `editor_events_search.cpp`: Find and Replace dialogs (event_type::find, replace)
+ * - `editor_events_ui.cpp`: Global UI events (event_type::quit, force_quit, settings, redraw)
+ * - `editor_events_window.cpp`: Window management (event_type::close_window, next_window)
+ */
+
 #include "editor.h"
 #include <algorithm>
 #include <chrono>
