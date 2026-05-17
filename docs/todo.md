@@ -1,11 +1,19 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- fix test suite flakiness: Some tests (like `test_tabs`, `test_ghost_x`) are failing due to timing issues when sending raw keys under heavy load. We need to investigate the ESCDELAY timeouts and how `send_keys` operates.
+ 
 - if you close the last window with the mouse a new untitled.txt window appears -- need to decide if this is the right behavior vs just a checkered background
 
+- when you use the mouse to go to a window, and then exit the menu by clicking outside the menu area, the cursor is now hidden
+
+- the menu key hints in the File menu should favor ^K over function keys or other shortcuts
+
+- we may need to split src/editor_events.cpp even further, it is still large
 
 # mid term items
 
 - mouse support for the file dialog
+   - the "recent files" drop thingy is the first candidate
 
 - our tests use lots of standard keys (such as ESC) as 'x1b' hex, which is fine, but we should consider making a set of convenient names like KEY_ESC that
   that internally has the value of x1b, but is more descriptive/readable
@@ -13,11 +21,15 @@
 # long term items   
 
 - LLM agent connection window?
+   - all our llm agent work should go into src/agent/ and src/agentlib/ directories
+       - agentlib for all non-gui work, rule of thumb: agentlib should not include headers from the rest of the project
+         and be a lowest level of provider of infrastructure to the rest 
    - BIG TICKET item, need to break this down into smaller items
      which will still be major by themselves
    - chat only first
    - support function calls from the very start
-   - needs libcurl
+   - needs libcurl or cpp-httplib -- need evaluation between these two
+
 
 - a git specific submenu when you click on the branch name in the title bar?
   only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities
