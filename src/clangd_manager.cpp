@@ -127,7 +127,7 @@ void clangd_manager::stop()
 
 void clangd_manager::open_document(const std::string &filepath, const std::string &text)
 {
-	if (!is_running_) return;
+	if (!is_running_ || !is_supported_file(filepath)) return;
 	
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
@@ -147,7 +147,7 @@ void clangd_manager::open_document(const std::string &filepath, const std::strin
 
 void clangd_manager::update_document(const std::string &filepath, const std::string &text)
 {
-	if (!is_running_) return;
+	if (!is_running_ || !is_supported_file(filepath)) return;
 
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
@@ -168,7 +168,7 @@ void clangd_manager::update_document(const std::string &filepath, const std::str
 
 void clangd_manager::request_hover(const std::string &filepath, int line, int character)
 {
-	if (!is_running_) return;
+	if (!is_running_ || !is_supported_file(filepath)) return;
 	
 	try {
 		auto hoverParams = lsp::requests::TextDocument_Hover::Params();
@@ -201,7 +201,7 @@ void clangd_manager::request_hover(const std::string &filepath, int line, int ch
 
 void clangd_manager::request_document_highlight(const std::string &filepath, int line, int character)
 {
-	if (!is_running_) return;
+	if (!is_running_ || !is_supported_file(filepath)) return;
 
 	try {
 		auto highlightParams = lsp::requests::TextDocument_DocumentHighlight::Params();
@@ -244,7 +244,7 @@ void clangd_manager::request_document_highlight(const std::string &filepath, int
 
 void clangd_manager::request_selection_range(const std::string &filepath, int line, int character)
 {
-	if (!is_running_) return;
+	if (!is_running_ || !is_supported_file(filepath)) return;
 
 	try {
 		auto selectionParams = lsp::requests::TextDocument_SelectionRange::Params();
@@ -282,13 +282,22 @@ void clangd_manager::request_selection_range(const std::string &filepath, int li
 	} catch (...) {}
 }
 
+bool clangd_manager::is_supported_file(const std::string &filepath) const
+{
+	std::string ext = fs::path(filepath).extension().string();
+	// Convert to lowercase
+	for (auto &c : ext)
+		c = std::tolower(c);
+	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp");
+}
+
 void clangd_manager::message_loop()
 {
 	try {
 		while (is_running_) {
 			message_handler_->processIncomingMessages();
 		}
-	} catch (const std::exception& e) {
+	} catch (const std::exception &e) {
 		is_running_.store(false);
 		event_logger::get_instance().log("clangd message loop error: " + std::string(e.what()));
 	}

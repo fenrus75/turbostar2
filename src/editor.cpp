@@ -11,12 +11,14 @@
 #include "git_manager.h"
 #include "clangd_manager.h"
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately)
+editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
-	clangd_manager::get_instance().start(global_queue_);
+	if (!no_lsp) {
+		clangd_manager::get_instance().start(global_queue_);
+	}
 
 	if (filenames.empty()) {
 		new_window("");
@@ -635,6 +637,62 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::run_tests) {
+		logger.log("Dispatching run_tests event.");
+		
+		if (!current_build_process_ || !current_build_process_->is_running()) {
+			window* test_win = nullptr;
+			for (auto& w : windows_) {
+				if (w->get_title() == "Test Output") {
+					test_win = w.get();
+					break;
+				}
+			}
+
+			if (!test_win) {
+				int test_height = 10;
+				auto doc = std::make_shared<document>(global_queue_, "Test Output");
+				documents_.push_back(doc);
+				
+				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1, COLS, test_height, "Test Output");
+				win->attach_document(doc);
+				win->set_display_priority(10);
+				win->set_active(false);
+				
+				windows_.push_back(std::move(win));
+				test_win = windows_.back().get();
+			}
+
+			if (test_win) {
+				test_win->set_visible(true);
+				current_build_process_ = std::make_unique<process_runner>(test_win->get_document(), 1000);
+				
+				std::string build_system = config_manager::get_instance().get_build_system();
+				std::string build_dir = config_manager::get_instance().get_build_directory();
+				std::string cmd;
+				
+				if (build_system == "meson") {
+					cmd = "meson test -C " + build_dir;
+				} else if (build_system == "cmake") {
+					cmd = "ctest --test-dir " + build_dir;
+				} else if (build_system == "make") {
+					cmd = "make test -C " + build_dir;
+				} else {
+					cmd = build_system + " test " + build_dir; // Fallback
+				}
+				
+				current_build_process_->execute(cmd);
+			}
+		} else {
+			logger.log("Process already running.");
+		}
+		
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+		return;
+	}
+
 	if (ev.type == event_type::lsp_hover_result) {
 		std::string text = ev.payload;
 		std::replace(text.begin(), text.end(), '\n', ' ');
@@ -708,6 +766,12 @@ void editor::dispatch(const editor_event &ev)
 			editor_event compile_ev;
 			compile_ev.type = event_type::compile;
 			global_queue_.push(compile_ev);
+			return;
+		}
+		if (ev.key_code == KEY_F(8)) {
+			editor_event test_ev;
+			test_ev.type = event_type::run_tests;
+			global_queue_.push(test_ev);
 			return;
 		}
 

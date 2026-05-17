@@ -35,6 +35,7 @@ class clangd_manager
 	~clangd_manager();
 
 	void message_loop();
+	bool is_supported_file(const std::string &filepath) const;
 
 	std::unique_ptr<lsp::Process> process_;
 	std::unique_ptr<lsp::Connection> connection_;

@@ -19,7 +19,7 @@ class TurbostarRunner:
         self.master_fd = None
         self.slave_fd = None
 
-    def start(self, filename=None):
+    def start(self, filename=None, use_lsp=False):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         testrun_dir = os.path.join(project_root, 'testrun')
         os.makedirs(testrun_dir, exist_ok=True)
@@ -32,6 +32,9 @@ class TurbostarRunner:
         log_path_abs = os.path.abspath(self.log_path)
 
         cmd = [exe_path, '--log', log_path_abs]
+        if not use_lsp:
+            cmd.append('--no-lsp')
+
         if filename:
             # Handle multiple filenames if provided as space-separated string
             cmd.extend(filename.split())

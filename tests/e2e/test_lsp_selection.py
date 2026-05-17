@@ -4,7 +4,7 @@ from turbostar_runner import TurbostarRunner
 def test_lsp_selection():
     runner = TurbostarRunner()
     try:
-        runner.start(filename="test.cpp")
+        runner.start(filename="test.cpp", use_lsp=True)
         time.sleep(1.0)
         
         # 1. Type some code

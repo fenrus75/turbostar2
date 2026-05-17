@@ -25,12 +25,14 @@ int main(int argc, char **argv)
 
 	std::string log_file;
 	bool debug_mode = false;
+	bool no_lsp = false;
 	bool exit_immediately = false;
 	std::string debug_string;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
+	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--exit-immediately", exit_immediately, "Exit after 1 second");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filenames", filenames, "Files to edit");
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 
 	logger.log("UI initialized.");
 
-	editor main_editor(debug_mode, debug_string, filenames, exit_immediately);
+	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");

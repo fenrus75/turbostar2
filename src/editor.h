@@ -25,7 +25,7 @@ enum class focus_target { menu_bar, window, dialog };
 class editor
 {
       public:
-	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately);
+	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp = false);
 	~editor();
 
 	/**
