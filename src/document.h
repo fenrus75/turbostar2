@@ -79,6 +79,7 @@ class document
 	std::string get_text_all() const;
 	std::string get_word_under_cursor() const;
 	void move_cursor(int dx, int dy);
+	void request_redraw() const;
 	void insert_char(const std::string &utf8_char);
 	void backspace();
 	void delete_char();

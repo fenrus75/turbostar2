@@ -1213,9 +1213,7 @@ void document::notify_cursor_changed() const
 			lsp_highlights_.clear();
 			lock2.unlock();
 			
-			editor_event ev;
-			ev.type = event_type::redraw;
-			global_queue_.push(ev);
+			request_redraw();
 		}
 	}
 
@@ -1238,6 +1236,13 @@ void document::notify_cursor_changed() const
 	}
 
 	event_logger::get_instance().log(msg);
+}
+
+void document::request_redraw() const
+{
+	editor_event ev;
+	ev.type = event_type::redraw;
+	global_queue_.push(ev);
 }
 void document::set_modified()
 {

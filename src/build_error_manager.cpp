@@ -50,11 +50,11 @@ std::optional<build_error> build_error_manager::find_error_at(const std::string&
 	std::lock_guard lock(mutex_);
 	if (filepath.empty()) return std::nullopt;
 
-	std::string abs_path = fs_utils::safe_absolute(filepath).string();
+	std::string abs_path = fs_utils::safe_absolute(filepath).lexically_normal().string();
 	
 	for (const auto& err : errors_) {
 		if (err.line == line) {
-			if (!err.filepath.empty() && fs_utils::safe_absolute(err.filepath).string() == abs_path) {
+			if (!err.filepath.empty() && fs_utils::safe_absolute(err.filepath).lexically_normal().string() == abs_path) {
 				return err;
 			}
 			if (err.filepath == filepath) return err;

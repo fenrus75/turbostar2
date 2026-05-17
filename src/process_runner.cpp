@@ -114,4 +114,7 @@ void process_runner::worker_loop(std::string command)
 	}
 	
 	is_running_.store(false);
+
+	// Dispatch a redraw event so existing windows show the new errors
+	doc_->request_redraw();
 }
