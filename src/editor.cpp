@@ -10,6 +10,8 @@
 #include "settings_dialog.h"
 #include "git_manager.h"
 #include "clangd_manager.h"
+#include "gcc_log_parser.h"
+#include "build_error_manager.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
@@ -340,10 +342,22 @@ bool editor::handle_k_block_key(int key)
 		logger.log("K-block: New Window");
 		new_window("");
 		return true;
+	} else if (c == 'g') {
+		logger.log("K-block: Next Error");
+		editor_event err_ev;
+		err_ev.type = event_type::next_error;
+		global_queue_.push(err_ev);
+		return true;
 	} else if (c == 'e') {
 		logger.log("K-block: Edit (Open File)");
 		editor_event ev;
 		ev.type = event_type::load;
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'a') {
+		logger.log("K-block: Save All");
+		editor_event ev;
+		ev.type = event_type::save_all;
 		global_queue_.push(ev);
 		return true;
 	} else if (c == 'r') {
@@ -473,6 +487,24 @@ void editor::dispatch(const editor_event &ev)
 		editor_event save_as_ev;
 		save_as_ev.type = event_type::save_as;
 		dispatch(save_as_ev);
+		return;
+	}
+
+	if (ev.type == event_type::save_all) {
+		logger.log("Dispatching save_all event.");
+		for (auto &doc : documents_) {
+			if (doc && doc->is_modified() && doc->has_nondefault_filename()) {
+				doc->save();
+				history_manager::get_instance().add_file(doc->get_filename());
+				for (auto &w : windows_) {
+					if (w->get_document() == doc) {
+						w->set_title(doc->get_filename());
+						break;
+					}
+				}
+			}
+		}
+		update_window_menu();
 		return;
 	}
 
@@ -657,9 +689,9 @@ void editor::dispatch(const editor_event &ev)
 			window* compile_win = windows_[compile_win_idx].get();
 			compile_win->set_visible(true);
 			current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
+			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
 
-			std::string build_system = config_manager::get_instance().get_build_system();
-			std::string build_dir = config_manager::get_instance().get_build_directory();
+			std::string build_system = config_manager::get_instance().get_build_system();			std::string build_dir = config_manager::get_instance().get_build_directory();
 			std::string cmd;
 
 			if (build_system == "meson") {
@@ -712,9 +744,9 @@ void editor::dispatch(const editor_event &ev)
 			window* test_win = windows_[test_win_idx].get();
 			test_win->set_visible(true);
 			current_build_process_ = std::make_unique<process_runner>(test_win->get_document(), 1000);
+			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
 
-			std::string build_system = config_manager::get_instance().get_build_system();
-			std::string build_dir = config_manager::get_instance().get_build_directory();
+			std::string build_system = config_manager::get_instance().get_build_system();			std::string build_dir = config_manager::get_instance().get_build_directory();
 			std::string cmd;
 
 			if (build_system == "meson") {
@@ -737,6 +769,59 @@ void editor::dispatch(const editor_event &ev)
 		global_queue_.push(redraw_ev);
 		return;
 	}
+
+	if (ev.type == event_type::next_error) {
+		logger.log("Dispatching next_error event.");
+		auto err_opt = build_error_manager::get_instance().get_next_error();
+		if (err_opt) {
+			const auto& err = *err_opt;
+			bool auto_open = config_manager::get_instance().is_auto_open_error_files();
+
+			// 1. Find or open window for this file
+			size_t win_idx = static_cast<size_t>(-1);
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i]->get_document() && windows_[i]->get_document()->get_filename() == err.filepath) {
+					win_idx = i;
+					break;
+				}
+			}
+
+			if (win_idx == static_cast<size_t>(-1) && auto_open) {
+				new_window(err.filepath);
+				win_idx = windows_.size() - 1;
+			}
+
+			if (win_idx != static_cast<size_t>(-1)) {
+				activate_window(win_idx);
+				auto doc = windows_[win_idx]->get_document();
+				if (doc) {
+					// Jump to error
+					doc->move_to_top();
+					doc->move_cursor(err.column, err.line);
+				}
+
+				// 2. Auto-scroll compile window to the raw error text
+				for (auto& w : windows_) {
+					if (w->get_title() == "Compile Output" || w->get_title() == "Test Output") {
+						if (current_build_process_) {
+							current_build_process_->set_auto_scroll(false);
+						}
+						auto out_doc = w->get_document();
+						if (out_doc) {
+							out_doc->move_to_top();
+							out_doc->move_cursor(0, err.output_buffer_line);
+						}
+					}
+				}
+			}
+		}
+
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+		return;
+	}
+
 	if (ev.type == event_type::lsp_hover_result) {
 		std::string text = ev.payload;
 		std::replace(text.begin(), text.end(), '\n', ' ');
@@ -824,6 +909,12 @@ void editor::dispatch(const editor_event &ev)
 			global_queue_.push(load_ev);
 			return;
 		}
+		if (ev.key_code == KEY_F(4)) {
+			editor_event err_ev;
+			err_ev.type = event_type::next_error;
+			global_queue_.push(err_ev);
+			return;
+		}
 		if (ev.key_code == KEY_F(9)) {
 			editor_event compile_ev;
 			compile_ev.type = event_type::compile;
@@ -890,9 +981,11 @@ void editor::dispatch(const editor_event &ev)
 						config_manager::get_instance().set_build_system(s_dialog->get_build_system());
 						config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
 						config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
+						config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
 						config_manager::get_instance().save();
 					}
-				}				active_dialog_.reset();
+				}
+				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;
 				set_focus(focus_target::window, "dialog_close");
 			} else if (res == dialog_result::cancelled) {
@@ -1256,6 +1349,14 @@ void editor::render()
 				diag_text = diag.message; break;
 			} else if (cur_y == diag.range.end_y && cur_x <= diag.range.end_x) {
 				diag_text = diag.message; break;
+			}
+		}
+		
+		// If no LSP diagnostic, check for GCC build errors
+		if (diag_text.empty()) {
+			auto build_err = build_error_manager::get_instance().find_error_at(doc->get_filename(), cur_y);
+			if (build_err) {
+				diag_text = (build_err->is_warning ? "[Warning] " : "[Error] ") + build_err->message;
 			}
 		}
 	}
