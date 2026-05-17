@@ -38,6 +38,23 @@ Once instantiated by the validator (via `create_tool()`), the actual tool object
 - Validates the operation against the live `tool_context` (e.g., checking if the current document is in a state that allows editing).
 - If validation passes, `execute()` is called.
 
+## Dealing with JSON Dependencies
+
+To minimize compile times and prevent security bypasses, tool implementation logic (`_entry.cpp`) **must never** `#include <nlohmann/json.hpp>`. The tool's execution phase should only ever operate on native C++ types.
+
+### For Single-Parameter Tools (The Common Case)
+Most tools (e.g., `fs_read`, `compile_file`) take exactly one string parameter (like a file path). You should inherit your validator from `agentlib::single_string_tool_validator`. This base class entirely hides the JSON dependency.
+- You implement `validate_string_arg(const std::string& arg, ...)` instead of parsing JSON.
+- The execution logic (`llm_tool::execute`) is initialized with a native `std::string`.
+- No JSON headers are needed in either the `_entry.cpp` or `_security.cpp` files.
+
+### For Multi-Parameter Tools
+If a tool requires multiple parameters (e.g., `search_and_replace`), follow the **Marshal Convention**:
+1. Define a strongly-typed C++ `struct` for your arguments in the tool's header.
+2. In `_security.cpp` *only*, `#include <nlohmann/json.hpp>` and use the `NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE` macro to map the struct.
+3. Your validator parses the JSON into this struct, validates the struct, and passes the struct into the `llm_tool`'s constructor.
+4. The `_entry.cpp` file remains completely free of JSON dependencies and operates strictly on the native C++ struct.
+
 ## Security Feedback Loop
 
 If a tool fails validation at either Stage 1 or Stage 2, the framework catches the failure and returns the explicit rejection string directly to the LLM as the tool's result. This allows the LLM to learn why an action was denied and attempt a different approach, rather than simply failing silently or aborting the agent loop.

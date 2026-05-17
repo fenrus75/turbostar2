@@ -1,23 +1,30 @@
 #pragma once
+#include <string>
 #include "../../agentlib/llm_tool.h"
-#include "../../agentlib/tool_validator.h"
+#include "../../agentlib/single_string_tool_validator.h"
 
 namespace tools {
 
 class get_temperature_tool : public agentlib::llm_tool {
 public:
-    bool validate_runtime(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const override;
-    std::string execute(const nlohmann::json& args, agentlib::tool_context& ctx) override;
+    explicit get_temperature_tool(std::string location);
+
+    bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
+    std::string execute(agentlib::tool_context& ctx) override;
+
+private:
+    std::string location_;
 };
 
-class get_temperature_validator : public agentlib::tool_validator {
+class get_temperature_validator : public agentlib::single_string_tool_validator {
 public:
     std::string get_name() const override;
     std::string get_description() const override;
-    nlohmann::json get_parameters_schema() const override;
+    std::string get_parameter_name() const override;
+    std::string get_parameter_description() const override;
 
-    bool validate_args(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const override;
-    std::unique_ptr<agentlib::llm_tool> create_tool() const override;
+    bool validate_string_arg(const std::string& arg, const agentlib::tool_context& ctx, std::string& out_error) const override;
+    std::unique_ptr<agentlib::llm_tool> create_tool(const std::string& arg) const override;
 };
 
 } // namespace tools
