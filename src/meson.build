@@ -18,6 +18,7 @@ turbostar_sources = files(
   'cpp_highlighter.cpp',
   'markdown_highlighter.cpp',
   'highlighter_registry.cpp',
-  'clangd_manager.cpp'
+  'clangd_manager.cpp',
+  'process_runner.cpp'
 )
 

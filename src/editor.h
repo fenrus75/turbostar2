@@ -9,6 +9,7 @@
 #include "menu_bar.h"
 #include "status_bar.h"
 #include "window.h"
+#include "process_runner.h"
 
 /**
  * @brief UI components that can hold focus.
@@ -87,4 +88,6 @@ class editor
 	bool exit_immediately_{false};
 	bool debug_mode_{false};
 	std::string debug_string_;
+
+	std::unique_ptr<process_runner> current_build_process_;
 };

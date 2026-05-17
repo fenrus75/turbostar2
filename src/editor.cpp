@@ -569,6 +569,58 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::compile) {
+		logger.log("Dispatching compile event.");
+		
+		// If we don't have a build process or it's not running
+		if (!current_build_process_ || !current_build_process_->is_running()) {
+			// Find or create the compile output window
+			window* compile_win = nullptr;
+			for (auto& w : windows_) {
+				if (w->get_title() == "Compile Output") {
+					compile_win = w.get();
+					break;
+				}
+			}
+
+			if (!compile_win) {
+				// Make the main windows smaller if there's only one, or just overlay
+				int compile_height = 10;
+				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
+				documents_.push_back(doc);
+				
+				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
+				win->attach_document(doc);
+				win->set_display_priority(10); // Put it above normal windows
+				win->set_active(false); // Don't steal focus
+				
+				windows_.push_back(std::move(win));
+				compile_win = windows_.back().get();
+				
+				// Resize active window if it takes the full screen
+				window* active_win = get_active_window();
+				if (active_win && active_win->get_height() == LINES - 2) {
+					// We might need to add a resize method to window. For now it overlays via Z-index!
+					// Z-index will just draw it on top.
+				}
+			}
+
+			if (compile_win) {
+				compile_win->set_visible(true);
+				current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
+				// TODO: We could get the build command from config
+				current_build_process_->execute("meson compile -C build-lsp"); // Hardcoded for now
+			}
+		} else {
+			logger.log("Build already running.");
+		}
+		
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+		return;
+	}
+
 	if (ev.type == event_type::lsp_hover_result) {
 		std::string text = ev.payload;
 		std::replace(text.begin(), text.end(), '\n', ' ');
@@ -636,6 +688,14 @@ void editor::dispatch(const editor_event &ev)
 	if (ev.type == event_type::key_press) {
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
+
+		// Global shortcuts
+		if (ev.key_code == KEY_F(9)) {
+			editor_event compile_ev;
+			compile_ev.type = event_type::compile;
+			global_queue_.push(compile_ev);
+			return;
+		}
 
 		// 1. Modal Dialogs have highest priority
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
