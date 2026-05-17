@@ -7,7 +7,7 @@ def test_format_paragraph():
     step1_gold = "tests/data/format_para_step1.txt"
     step2_gold = "tests/data/format_para_step2.txt"
     try:
-        runner.start()
+        runner.start(use_lsp = True)
         # 1. Load two paragraphs of messy C++ code
         runner.insert_file('tests/data/format_para_start.txt')
         

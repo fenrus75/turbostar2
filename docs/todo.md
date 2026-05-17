@@ -1,11 +1,23 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- the ^KX dialog defaults to exit, but on hitting "enter" we should default to save-all
- 
 # mid term items
 
 - mouse support for the file dialog
    - the "recent files" drop thingy is the first candidate
+
+- build a basic src/agentlib/ for a basic src/agentcli that takes a command line argument, sends it to the LLM server and prints the response to cout
+  - phased plan
+       1. hardcoded URL, hardcoded message, print response
+       2. unhardcode the message
+       3. unhardcode the URL and get it from an env var
+       4. start building toolcall infrastructure and a "get_temperature" reference toolcall that always returns "42F"
+       5. Use "how cold is it outside" as hardcoded default prompt for testing
+       6. hook up tool calls into the request
+       7. detect toolcall request in the LLM response
+       8. dispatch our toolcall
+       9. integrate the response of the toolcall and reinject into the LLM with toolcall response
+
+
 
 # long term items   
 
@@ -13,11 +25,15 @@
    - all our llm agent work should go into src/agent/ and src/agentlib/ directories
        - agentlib for all non-gui work, rule of thumb: agentlib should not include headers from the rest of the project
          and be a lowest level of provider of infrastructure to the rest 
+
+   - lets build a semi standalone app first in src/agentcli/ so we can build out the infrastructure
+     outside turbostar initially -- over time we'll sunset this code
    - BIG TICKET item, need to break this down into smaller items
      which will still be major by themselves
    - chat only first
    - support function calls from the very start
    - decision: use cpp-httplib (has built-in SSE support and idiomatic C++ API)
+
 
 
 - a git specific submenu when you click on the branch name in the title bar?
@@ -31,6 +47,8 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Optimized LSP shutdown by removing the 550ms delay and using `SIGKILL` to ensure immediate process termination on exit.
+- the ^KX dialog defaults to exit, but on hitting "enter" we should default to save-all
 - Changed the default selection in the ^KX Force Quit dialog from "Exit" to "Save All" to prevent accidental data loss.
 - Updated the LSP `clangd_manager::stop()` sequence to send a graceful `Shutdown` request (with timeout) and an `Exit` notification before forcefully terminating the process.
 - Added standard key constants (e.g., `KEY_ESC`, `KEY_UP`, `KEY_CTRL_A`) to the test framework and refactored all E2E tests to use them instead of raw hex values for better readability.
