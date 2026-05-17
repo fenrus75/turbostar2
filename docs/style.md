@@ -47,6 +47,7 @@ default:
 
 ### 1.4 ternary operators
 Do not use ternary operators, use discrete if statements always.
+Exception: in C++ style << statements ternary operators are ok 
 
 ## 2. Naming Conventions
 
