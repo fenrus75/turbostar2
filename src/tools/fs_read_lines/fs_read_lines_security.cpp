@@ -19,7 +19,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_lines_raw_args, path, st
 class fs_read_lines_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_read_lines"; }
-    std::string get_description() const override { return "Reads a specific range of text lines from a file."; }
+    std::string get_description() const override { return "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {
@@ -35,7 +35,7 @@ public:
                 }},
                 {"end_line", {
                     {"type", "integer"},
-                    {"description", "The 1-based line number to end reading at (inclusive). Defaults to a large number if omitted."}
+                    {"description", "The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned."}
                 }}
             }},
             {"required", nlohmann::json::array({"path"})}
