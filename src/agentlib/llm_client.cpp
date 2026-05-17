@@ -21,15 +21,11 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
         json tools_json = registry->get_tools_json();
         if (!tools_json.empty()) {
             payload["tools"] = tools_json;
-            payload["tool_choice"] = json{
-                {"type", "function"},
-                {"function", {{"name", "get_temperature"}}}
-            };
+            payload["tool_choice"] = "auto";
         }
     }
 
     std::string body = payload.dump();
-    std::cout << "[DEBUG] Payload to LLM:\n" << payload.dump(2) << "\n";
 
     auto res = cli.Post("/v1/chat/completions", body, "application/json");
     
@@ -39,7 +35,6 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
     if (res && res->status == 200) {
         try {
             json response = json::parse(res->body);
-            std::cout << "[DEBUG] Raw response from LLM:\n" << response.dump(2) << "\n";
             if (response.contains("choices") && !response["choices"].empty()) {
                 auto msg_json = response["choices"][0]["message"];
                 return msg_json.get<message>();

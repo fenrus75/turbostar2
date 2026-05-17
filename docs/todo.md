@@ -36,7 +36,7 @@
 - Implemented `src/agentlib/` and `src/agentcli/` as the foundational LLM backend.
   - Phased plan 1-9 completed: Built an OpenAI-compatible client (`llm_client`) using `cpp-httplib` and `nlohmann_json`.
   - Implemented `tool_registry` for dynamic tool-call schemas and C++ callbacks.
-  - Note: The infrastructure correctly formats and parses the JSON payloads. The current test model (`SmolLM3-3B-GGUF`) struggles to output valid `tool_calls` JSON, but the C++ execution loop (Phases 7-9) is fully functional and ready for capable models.
+  - Note: The infrastructure correctly formats and parses the JSON payloads. With a capable model (like Qwen3.5-9B-GGUF), the LLM naturally elects to use the tool, the C++ backend executes the callback, and the result is seamlessly injected back into the conversation (Phases 7-9 fully validated).
 - Optimized LSP shutdown by removing the 550ms delay and using `SIGKILL` to ensure immediate process termination on exit.
 - the ^KX dialog defaults to exit, but on hitting "enter" we should default to save-all
 - Changed the default selection in the ^KX Force Quit dialog from "Exit" to "Save All" to prevent accidental data loss.
