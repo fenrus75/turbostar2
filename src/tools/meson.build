@@ -10,5 +10,7 @@ tools_sources = files(
   'fs_regexp_lines/fs_regexp_lines_entry.cpp',
   'fs_regexp_lines/fs_regexp_lines_security.cpp',
   'fs_compile_info/fs_compile_info_entry.cpp',
-  'fs_compile_info/fs_compile_info_security.cpp'
+  'fs_compile_info/fs_compile_info_security.cpp',
+  'fs_compile_summary/fs_compile_summary_entry.cpp',
+  'fs_compile_summary/fs_compile_summary_security.cpp'
 )

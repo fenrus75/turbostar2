@@ -150,17 +150,55 @@ std::string editor::get_search_autocomplete() const
 namespace {
 class editor_document_snapshot : public agentlib::document_snapshot {
 public:
-    explicit editor_document_snapshot(std::vector<std::string> lines) : lines_(std::move(lines)) {}
+    editor_document_snapshot(std::vector<std::string> lines, std::vector<diagnostic_info> diagnostics) 
+        : lines_(std::move(lines)) 
+    {
+        for (const auto& d : diagnostics) {
+            agentlib::diagnostic_snapshot ds;
+            ds.line = d.range.start_y;
+            ds.column = d.range.start_x;
+            ds.message = d.message;
+            ds.source = "LSP";
+            switch (d.severity) {
+                case 1: ds.severity = "Error"; break;
+                case 2: ds.severity = "Warning"; break;
+                case 3: ds.severity = "Information"; break;
+                case 4: ds.severity = "Hint"; break;
+                default: ds.severity = "Unknown"; break;
+            }
+            diagnostics_.push_back(ds);
+        }
+    }
     
     size_t get_line_count() const override { return lines_.size(); }
     std::string get_line_text(size_t index) const override {
         if (index < lines_.size()) return lines_[index];
         return "";
     }
+    std::vector<agentlib::diagnostic_snapshot> get_diagnostics() const override {
+        return diagnostics_;
+    }
 private:
     std::vector<std::string> lines_;
+    std::vector<agentlib::diagnostic_snapshot> diagnostics_;
 };
 } // namespace
+
+std::vector<std::string> editor::get_open_document_paths() const {
+    std::vector<std::string> paths;
+    for (const auto& doc : documents_) {
+        std::string doc_path = doc->get_filename();
+        if (doc_path.empty()) continue;
+        
+        try {
+            std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
+            paths.push_back(p.string());
+        } catch (...) {
+            // Ignore invalid paths
+        }
+    }
+    return paths;
+}
 
 std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string& safe_path) const {
     for (const auto& doc : documents_) {
@@ -170,7 +208,7 @@ std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std
         try {
             std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
             if (p.string() == safe_path) {
-                return std::make_unique<editor_document_snapshot>(doc->get_all_lines());
+                return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
             }
         } catch (...) {
             // Ignore invalid paths

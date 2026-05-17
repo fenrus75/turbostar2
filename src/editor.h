@@ -43,6 +43,7 @@ class editor : public agentlib::document_provider
 	void set_focus(focus_target target, const std::string &source = "unknown");
 
 	// agentlib::document_provider implementation
+	std::vector<std::string> get_open_document_paths() const override;
 	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string& safe_path) const override;
 
       private:

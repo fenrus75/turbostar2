@@ -21,6 +21,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `fs_compile_summary` tool. This zero-parameter tool aggregates workspace-wide diagnostics by querying `build_error_manager` and open documents via `document_provider`. It strictly reports only on files authorized by `file_security_manager` and returns a Markdown table showing counts of compiler and LSP errors/warnings per file.
 - Implemented `fs_regexp_lines` tool and integrated `document_provider`. The tool uses `std::regex` to search files and returns results in a Markdown table. It reads from active editor buffers if the file is open, otherwise falls back to a safe disk read.
 - Integrated LLM agent into the Turbostar UI. Created an `agent_window` (subclass of `window`) that features a multi-line input box and an auto-scrolling Markdown-highlighted `document` for chat history. LLM communication runs asynchronously on a background thread and synchronizes with the main UI via the central `event_queue`. Added "LLM URL" to the global settings dialog.
 - Implemented `fs_read_lines` tool to allow the LLM to selectively read portions of files. Built using the Marshal Convention, it queries `file_security_manager` explicitly to safely resolve and bounds-check the path. It features fallback logic to `std::ifstream` for files up to 50MB with instant binary-rejection, while leaving a `document_provider` hook ready for integration with Turbostar's active UI buffers.
