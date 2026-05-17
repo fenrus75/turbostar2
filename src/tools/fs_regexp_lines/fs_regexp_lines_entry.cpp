@@ -65,7 +65,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context& ctx) {
             }
             if (match_count == 0) return "No matches found.";
             if (match_count >= MAX_MATCHES) ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
-            return ss.str();
+            return "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
         }
     }
 
@@ -111,7 +111,9 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context& ctx) {
 
     if (match_count == 0) return "No matches found.";
     if (match_count >= MAX_MATCHES) ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
-    return ss.str();
+    
+    std::string final_output = "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
+    return final_output;
 }
 
 } // namespace tools
