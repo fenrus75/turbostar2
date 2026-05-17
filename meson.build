@@ -11,6 +11,9 @@ if not ncurses_dep.found()
   ncurses_dep = cc.find_library('ncursesw', required : true)
 endif
 
+httplib_dep = dependency('cpp-httplib', required : true)
+nlohmann_json_dep = dependency('nlohmann_json', required : true)
+thread_dep = dependency('threads')
 
 subdir('src')
 
@@ -22,6 +25,12 @@ turbostar_exe = executable('turbostar',
   dependencies : [ncurses_dep, lsp_dep],
   include_directories: include_directories('include'),
   install : true)
+
+agentcli_exe = executable('agentcli',
+  ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp'],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep],
+  include_directories: include_directories('include'),
+  install : false)
 
 # --- Automated binary deployment to testrun/ ---
 # This ensures that E2E tests always use the latest built binary.
