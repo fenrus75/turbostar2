@@ -33,6 +33,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `fs_read_lines` tool to allow the LLM to selectively read portions of files. Built using the Marshal Convention, it queries `file_security_manager` explicitly to safely resolve and bounds-check the path. It features fallback logic to `std::ifstream` for files up to 50MB with instant binary-rejection, while leaving a `document_provider` hook ready for integration with Turbostar's active UI buffers.
 - Implemented `fs_list_dir` tool which lists directory contents as a Markdown table (Type, Size, Lines, Permissions). It enforces read access via `file_security_manager` and utilizes memory mapping (`mmap`) with fast binary skipping for high-performance line counting.
 - Implemented `file_security_manager` and integrated it into `tool_context`. It automatically prevents directory traversal, resolves symlinks, enforces read/write permission tiers against allowed workspace roots, and filters paths using `.agentignore` patterns.
 - Implemented enhanced two-stage security infrastructure for LLM tools based on `docs/llmtools.md`. Tools now self-register and strictly separate argument validation (Stage 1 via `tool_validator`) from execution and runtime validation (Stage 2 via `llm_tool` and `tool_context`).
