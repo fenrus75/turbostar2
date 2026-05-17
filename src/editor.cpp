@@ -507,7 +507,7 @@ bool editor::handle_k_block_key(int key)
 	return false;
 }
 
-void editor::dispatch(const editor_event &ev)
+void editor::dispatch_event_mouse(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
 
@@ -524,14 +524,14 @@ void editor::dispatch(const editor_event &ev)
 				return;
 			}
 		}
-
+	
 		if (ev.mouse_y > 0) {
 			// Find window under click (Reverse Z-order)
 			std::vector<window*> sorted_windows;
 			for (auto& w : windows_) {
 				sorted_windows.push_back(w.get());
 			}
-
+	
 			window *active_win = get_active_window();
 			std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window* a, window* b) {
 				int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
@@ -542,11 +542,11 @@ void editor::dispatch(const editor_event &ev)
 				}
 				return a->get_last_active_timestamp() > b->get_last_active_timestamp();
 			});
-
+	
 			for (auto it = sorted_windows.begin(); it != sorted_windows.end(); ++it) {
 				window* w = *it;
 				if (!w->is_visible()) continue;
-
+	
 				if (ev.mouse_x >= w->get_x() && ev.mouse_x < w->get_x() + w->get_width() &&
 				    ev.mouse_y >= w->get_y() && ev.mouse_y < w->get_y() + w->get_height()) {
 					
@@ -568,7 +568,7 @@ void editor::dispatch(const editor_event &ev)
 						global_queue_.push(close_ev);
 						return;
 					}
-
+	
 					// 2. Clicked inside the window content
 					for (size_t i = 0; i < windows_.size(); ++i) {
 						if (windows_[i].get() == w) {
@@ -583,7 +583,7 @@ void editor::dispatch(const editor_event &ev)
 									// A simpler approach for now: just activate the window. Moving cursor accurately requires exposing the window's top_line_.
 								}
 							}
-
+	
 							editor_event redraw_ev;
 							redraw_ev.type = event_type::redraw;
 							global_queue_.push(redraw_ev);
@@ -594,6 +594,12 @@ void editor::dispatch(const editor_event &ev)
 			}
 		}
 	}
+
+}
+
+void editor::dispatch_event_ui(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
 
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
@@ -606,6 +612,29 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::about) {
+		logger.log("Dispatching about event.");
+		std::vector<std::string> about_lines = {"TurboStar Editor",   "Version 0.1.0",	 "", "A nostalgia inspired TUI editor", "",
+							"Copyright (c) 2026", "Arjan van de Ven"};
+		active_dialog_ = std::make_unique<message_dialog>("About TurboStar", about_lines);
+		set_focus(focus_target::dialog, "menu_about");
+		return;
+	}
+
+	if (ev.type == event_type::settings) {
+		logger.log("Dispatching settings event.");
+		active_dialog_ = std::make_unique<settings_dialog>();
+		active_dialog_mode_ = dialog_mode::settings;
+		set_focus(focus_target::dialog, "menu_settings");
+		return;
+	}
+
+}
+
+void editor::dispatch_event_file(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
+
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
 		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, true, ".");
@@ -617,7 +646,7 @@ void editor::dispatch(const editor_event &ev)
 	if (ev.type == event_type::save) {
 		logger.log("Dispatching save event (Smart Save).");
 		std::shared_ptr<document> active_doc = get_active_doc();
-
+	
 		if (active_doc && active_doc->has_nondefault_filename()) {
 			active_doc->save();
 			history_manager::get_instance().add_file(active_doc->get_filename());
@@ -636,7 +665,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return;
 		}
-
+	
 		// Fallback to Save As logic
 		editor_event save_as_ev;
 		save_as_ev.type = event_type::save_as;
@@ -674,7 +703,7 @@ void editor::dispatch(const editor_event &ev)
 	if (ev.type == event_type::save_as) {
 		logger.log("Dispatching save_as event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
-
+	
 		std::string filename_arg;
 		if (active_doc) {
 			filename_arg = active_doc->get_filename();
@@ -693,6 +722,21 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::format_doc) {
+		logger.log("Dispatching format_doc event.");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->format_range(0, active_doc->line_count() - 1);
+		}
+		return;
+	}
+
+}
+
+void editor::dispatch_event_window(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
+
 	if (ev.type == event_type::close_window) {
 		logger.log("Dispatching close_window event.");
 		size_t active_idx = static_cast<size_t>(-1);
@@ -702,7 +746,7 @@ void editor::dispatch(const editor_event &ev)
 				break;
 			}
 		}
-
+	
 		if (active_idx != static_cast<size_t>(-1)) {
 			// If it's a build process window, stop the process
 			if (current_build_process_ && 
@@ -710,7 +754,7 @@ void editor::dispatch(const editor_event &ev)
 			     windows_[active_idx]->get_title() == "Test Output")) {
 				current_build_process_->stop();
 			}
-
+	
 			std::shared_ptr<document> doc = windows_[active_idx]->get_document();
 			windows_.erase(windows_.begin() + active_idx);
 			
@@ -730,7 +774,7 @@ void editor::dispatch(const editor_event &ev)
 					}
 				}
 			}
-
+	
 			if (windows_.empty()) {
 				new_window("");
 			} else {
@@ -748,14 +792,11 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::about) {
-		logger.log("Dispatching about event.");
-		std::vector<std::string> about_lines = {"TurboStar Editor",   "Version 0.1.0",	 "", "A nostalgia inspired TUI editor", "",
-							"Copyright (c) 2026", "Arjan van de Ven"};
-		active_dialog_ = std::make_unique<message_dialog>("About TurboStar", about_lines);
-		set_focus(focus_target::dialog, "menu_about");
-		return;
-	}
+}
+
+void editor::dispatch_event_search(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
 
 	if (ev.type == event_type::find) {
 		logger.log("Dispatching find event (advanced dialog).");
@@ -773,13 +814,11 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::settings) {
-		logger.log("Dispatching settings event.");
-		active_dialog_ = std::make_unique<settings_dialog>();
-		active_dialog_mode_ = dialog_mode::settings;
-		set_focus(focus_target::dialog, "menu_settings");
-		return;
-	}
+}
+
+void editor::dispatch_event_git(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
 
 	if (ev.type == event_type::git_status_updated) {
 		logger.log("Dispatching git_status_updated event.");
@@ -811,18 +850,15 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::format_doc) {
-		logger.log("Dispatching format_doc event.");
-		std::shared_ptr<document> active_doc = get_active_doc();
-		if (active_doc) {
-			active_doc->format_range(0, active_doc->line_count() - 1);
-		}
-		return;
-	}
+}
+
+void editor::dispatch_event_build(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
 
 	if (ev.type == event_type::compile) {
 		logger.log("Dispatching compile event.");
-
+	
 		// If we don't have a build process or it's not running
 		if (!current_build_process_ || !current_build_process_->is_running()) {
 			// Find or create the compile output window
@@ -833,30 +869,30 @@ void editor::dispatch(const editor_event &ev)
 					break;
 				}
 			}
-
+	
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				// Make the main windows smaller if there's only one, or just overlay
 				int compile_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
 				documents_.push_back(doc);
-
+	
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
 				win->attach_document(doc);
 				win->set_display_priority(10); // Put it above normal windows
 				win->set_background_color_pair(29); // White on Black
-
+	
 				windows_.push_back(std::move(win));				compile_win_idx = windows_.size() - 1;
 			}
-
+	
 			activate_window(compile_win_idx);
 			window* compile_win = windows_[compile_win_idx].get();
 			compile_win->set_visible(true);
 			current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
 			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
-
+	
 			std::string build_system = config_manager::get_instance().get_build_system();			std::string build_dir = config_manager::get_instance().get_build_directory();
 			std::string cmd;
-
+	
 			if (build_system == "meson") {
 				cmd = "meson compile -C " + build_dir;
 			} else if (build_system == "cmake") {
@@ -866,12 +902,12 @@ void editor::dispatch(const editor_event &ev)
 			} else {
 				cmd = build_system + " " + build_dir; // Fallback
 			}
-
+	
 			current_build_process_->execute(cmd);
 		} else {
 			logger.log("Build already running.");
 		}
-
+	
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
@@ -886,7 +922,7 @@ void editor::dispatch(const editor_event &ev)
 			logger.log("No active file to compile.");
 			return;
 		}
-
+	
 		if (!current_build_process_ || !current_build_process_->is_running()) {
 			std::string cmd = get_compile_command_for_file(active_doc->get_filename());
 			if (cmd.empty()) {
@@ -894,7 +930,7 @@ void editor::dispatch(const editor_event &ev)
 				// Fallback to normal compile? Or just do nothing.
 				return;
 			}
-
+	
 			size_t compile_win_idx = static_cast<size_t>(-1);
 			for (size_t i = 0; i < windows_.size(); ++i) {
 				if (windows_[i]->get_title() == "Compile Output") {
@@ -902,7 +938,7 @@ void editor::dispatch(const editor_event &ev)
 					break;
 				}
 			}
-
+	
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
@@ -916,7 +952,7 @@ void editor::dispatch(const editor_event &ev)
 				windows_.push_back(std::move(win));
 				compile_win_idx = windows_.size() - 1;
 			}
-
+	
 			activate_window(compile_win_idx);
 			window* compile_win = windows_[compile_win_idx].get();
 			compile_win->set_visible(true);
@@ -936,7 +972,7 @@ void editor::dispatch(const editor_event &ev)
 
 	if (ev.type == event_type::run_tests) {
 		logger.log("Dispatching run_tests event.");
-
+	
 		if (!current_build_process_ || !current_build_process_->is_running()) {
 			size_t test_win_idx = static_cast<size_t>(-1);
 			for (size_t i = 0; i < windows_.size(); ++i) {
@@ -945,29 +981,29 @@ void editor::dispatch(const editor_event &ev)
 					break;
 				}
 			}
-
+	
 			if (test_win_idx == static_cast<size_t>(-1)) {
 				int test_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Test Output");
 				documents_.push_back(doc);
-
+	
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1, COLS, test_height, "Test Output");
 				win->attach_document(doc);
 				win->set_display_priority(10);
 				win->set_background_color_pair(29); // White on Black
-
+	
 				windows_.push_back(std::move(win));				test_win_idx = windows_.size() - 1;
 			}
-
+	
 			activate_window(test_win_idx);
 			window* test_win = windows_[test_win_idx].get();
 			test_win->set_visible(true);
 			current_build_process_ = std::make_unique<process_runner>(test_win->get_document(), 1000);
 			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
-
+	
 			std::string build_system = config_manager::get_instance().get_build_system();			std::string build_dir = config_manager::get_instance().get_build_directory();
 			std::string cmd;
-
+	
 			if (build_system == "meson") {
 				cmd = "meson test -C " + build_dir;
 			} else if (build_system == "cmake") {
@@ -977,12 +1013,12 @@ void editor::dispatch(const editor_event &ev)
 			} else {
 				cmd = build_system + " test " + build_dir; // Fallback
 			}
-
+	
 			current_build_process_->execute(cmd);
 		} else {
 			logger.log("Process already running.");
 		}
-
+	
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
@@ -995,7 +1031,7 @@ void editor::dispatch(const editor_event &ev)
 		if (err_opt) {
 			const auto& err = *err_opt;
 			bool auto_open = config_manager::get_instance().is_auto_open_error_files();
-
+	
 			// 1. Find or open window for this file
 			size_t win_idx = static_cast<size_t>(-1);
 			std::string err_abs = fs_utils::safe_absolute(err.filepath).string();
@@ -1008,12 +1044,12 @@ void editor::dispatch(const editor_event &ev)
 					}
 				}
 			}
-
+	
 			if (win_idx == static_cast<size_t>(-1) && auto_open) {
 				new_window(err.filepath);
 				win_idx = windows_.size() - 1;
 			}
-
+	
 			if (win_idx != static_cast<size_t>(-1)) {
 				activate_window(win_idx);
 				auto doc = windows_[win_idx]->get_document();
@@ -1022,7 +1058,7 @@ void editor::dispatch(const editor_event &ev)
 					doc->move_to_top();
 					doc->move_cursor(err.column, err.line);
 				}
-
+	
 				// 2. Auto-scroll compile window to the raw error text
 				for (auto& w : windows_) {
 					if (w->get_title() == "Compile Output" || w->get_title() == "Test Output") {
@@ -1038,12 +1074,17 @@ void editor::dispatch(const editor_event &ev)
 				}
 			}
 		}
-
+	
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
 		return;
 	}
+
+}
+
+void editor::dispatch_event_lsp(const editor_event &ev)
+{
 
 	if (ev.type == event_type::lsp_hover_result) {
 		std::string text = ev.payload;
@@ -1071,7 +1112,7 @@ void editor::dispatch(const editor_event &ev)
 			if (has_sel) {
 				active_doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
 			}
-
+	
 			// We traverse from innermost to outermost to find the first range strictly larger than the current selection.
 			// Or if no selection exists, we pick the innermost one (the first element).
 			for (const auto& range : ev.highlight_ranges) {
@@ -1109,10 +1150,16 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+}
+
+void editor::dispatch_event_key(const editor_event &ev)
+{
+	auto &logger = event_logger::get_instance();
+
 	if (ev.type == event_type::key_press) {
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
-
+	
 		// Global shortcuts
 		if (ev.key_code == KEY_F(1)) {
 			logger.log("Help shortcut pressed.");
@@ -1156,7 +1203,7 @@ void editor::dispatch(const editor_event &ev)
 			global_queue_.push(close_ev);
 			return;
 		}
-
+	
 		// 1. Modal Dialogs have highest priority
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
@@ -1164,7 +1211,7 @@ void editor::dispatch(const editor_event &ev)
 				auto doc = get_active_doc();
 				if (!doc)
 					doc = documents_[0]; // Default fallback
-
+	
 				if (active_dialog_mode_ == dialog_mode::load) {
 					std::string result_path = active_dialog_->get_result();
 					new_window(result_path);
@@ -1224,7 +1271,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return;
 		}
-
+	
 		// 2. Status Bar Search Prompt
 		if (is_searching_prompt_) {
 			if (ev.key_code == 27) { // ESC
@@ -1239,7 +1286,7 @@ void editor::dispatch(const editor_event &ev)
 				}
 				return;
 			}
-
+	
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				if (!suggestion.empty() && search_input_buffer_ != suggestion) {
 					search_input_buffer_ = suggestion;
@@ -1264,7 +1311,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
-
+	
 		// 2.5 Status Bar Search Options Prompt
 		if (is_search_options_prompt_) {
 			if (ev.key_code == 27) { // ESC
@@ -1288,7 +1335,7 @@ void editor::dispatch(const editor_event &ev)
 				}
 				
 				history_manager::get_instance().add_search(current_search_.query);
-
+	
 				if (is_replace) {
 					is_search_options_prompt_ = false;
 					active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
@@ -1296,9 +1343,9 @@ void editor::dispatch(const editor_event &ev)
 					set_focus(focus_target::dialog, "menu_replace");
 					return;
 				}
-
+	
 				std::shared_ptr<document> active_doc = get_active_doc();
-
+	
 				if (active_doc && active_doc->find_next(current_search_)) {
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
@@ -1323,7 +1370,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
-
+	
 		// 3. Status Bar Go to Line Prompt
 		if (is_going_to_line_prompt_) {
 			if (ev.key_code == 27) { // ESC
@@ -1357,7 +1404,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
-
+	
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -1374,7 +1421,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return;
 		}
-
+	
 		if (k_block_mode_) {
 			if (handle_k_block_key(ev.key_code)) {
 				k_block_mode_ = false;
@@ -1382,7 +1429,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			k_block_mode_ = false;
 		}
-
+	
 		if (q_block_mode_) {
 			if (handle_q_block_key(ev.key_code)) {
 				q_block_mode_ = false;
@@ -1390,19 +1437,19 @@ void editor::dispatch(const editor_event &ev)
 			}
 			q_block_mode_ = false;
 		}
-
+	
 		if (ev.key_code == 11) { // Ctrl-K
 			logger.log("Entering K-block mode.");
 			k_block_mode_ = true;
 			return;
 		}
-
+	
 		if (ev.key_code == 17) { // Ctrl-Q
 			logger.log("Entering Q-block mode.");
 			q_block_mode_ = true;
 			return;
 		}
-
+	
 		if (ev.key_code == 31) { // Ctrl-_ (Undo)
 			logger.log("Undo requested.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -1411,7 +1458,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return;
 		}
-
+	
 		if (ev.key_code == 30) { // Ctrl-^ (Redo)
 			logger.log("Redo requested.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -1420,7 +1467,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 			return;
 		}
-
+	
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
 			if (c >= '0' && c <= '9') {
@@ -1438,7 +1485,7 @@ void editor::dispatch(const editor_event &ev)
 				return;
 			}
 		}
-
+	
 		// Route based on focus (Windows/Menu Bar)
 		if (current_focus_ == focus_target::menu_bar) {
 			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
@@ -1454,13 +1501,67 @@ void editor::dispatch(const editor_event &ev)
 					   "quit, use ^KQ or ^KX)");
 				return;
 			}
-
+	
 			// Route to active window
 			window *active_win = get_active_window();
 			if (active_win) {
 				active_win->get_queue().push(ev);
 			}
 		}
+	}
+
+}
+
+void editor::dispatch(const editor_event &ev)
+{
+	switch (ev.type) {
+		case event_type::mouse_click:
+			dispatch_event_mouse(ev);
+			break;
+		case event_type::quit:
+		case event_type::redraw:
+		case event_type::about:
+		case event_type::settings:
+			dispatch_event_ui(ev);
+			break;
+		case event_type::load:
+		case event_type::save:
+		case event_type::save_all:
+		case event_type::save_as:
+		case event_type::new_doc:
+		case event_type::format_doc:
+			dispatch_event_file(ev);
+			break;
+		case event_type::close_window:
+		case event_type::select_window:
+			dispatch_event_window(ev);
+			break;
+		case event_type::find:
+		case event_type::replace:
+			dispatch_event_search(ev);
+			break;
+		case event_type::git_status_updated:
+		case event_type::git_add:
+		case event_type::git_refresh:
+			dispatch_event_git(ev);
+			break;
+		case event_type::compile:
+		case event_type::compile_file:
+		case event_type::run_tests:
+		case event_type::next_error:
+			dispatch_event_build(ev);
+			break;
+		case event_type::lsp_hover_result:
+		case event_type::lsp_highlight_result:
+		case event_type::lsp_selection_range_result:
+		case event_type::lsp_diagnostics_result:
+			dispatch_event_lsp(ev);
+			break;
+		case event_type::key_press:
+			dispatch_event_key(ev);
+			break;
+		default:
+			break;
 	}
 }
 

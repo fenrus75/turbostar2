@@ -51,6 +51,15 @@ class editor
 	 * @brief Routes events from the global queue to the focused component.
 	 */
 	void dispatch(const editor_event &ev);
+	void dispatch_event_mouse(const editor_event &ev);
+	void dispatch_event_ui(const editor_event &ev);
+	void dispatch_event_file(const editor_event &ev);
+	void dispatch_event_window(const editor_event &ev);
+	void dispatch_event_search(const editor_event &ev);
+	void dispatch_event_git(const editor_event &ev);
+	void dispatch_event_build(const editor_event &ev);
+	void dispatch_event_lsp(const editor_event &ev);
+	void dispatch_event_key(const editor_event &ev);
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
 	void render();

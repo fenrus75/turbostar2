@@ -8,9 +8,6 @@
 
 - in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
 
-- we need to split up the event handling code at some point so that large
-  events become their own methods -- the function is getting unwieldy
-
 # mid term items
 
 
@@ -22,8 +19,16 @@
    - needs libcurl
 
 
-# done items (items move here on completion)
+# done items (move items here on completion)
 
+## 17-05-2026
+- we need to split up the event handling code at some point so that large
+  events become their own methods -- the function is getting unwieldy
+  - Splitted `editor::dispatch` into specialized `dispatch_event_<name>` handlers.
+
+
+
+## 16-05-2026
 - option for "compile this file only"
    - Implemented using compile_commands.json database to execute exact compiler command.
    - Added preference for "compile-on-save" (off by default) in settings.
