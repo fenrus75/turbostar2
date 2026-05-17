@@ -11,18 +11,36 @@
 
 # mid term items
 
+- test runner refector: make a send_ctrlk(command) helper that internally sends the ctrl-K sequence followed by the command -- and make all tests use it when appropriate. 
+	Because we know that this is ctrl-k we can optimize the timing of this to not be worst case
+
+- tests: lets make sure that tests that verify content manipulation (as opposed to things like cursor movement/selection changes/etc) use the assert_content_is() kind
+  of structure rather than screen scraping - screen scraping is a lot more fragile
+
+- tests: some tests type in quite a bit of code, to then operate on that code. most of the time the typing part is not what is tested, just needed for the test later.
+   we should convert some of these to have a file in `tests/data` and use ^KR to just read the whole chunk into the file instantly
 
 
 # long term items   
 
-- LLM connection window?
+- LLM agent connection window?
+   - BIG TICKET item, need to break this down into smaller items
+     which will still be major by themselves
    - chat only first
+   - support function calls from the very start
    - needs libcurl
+
+
+- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
+   indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
+   likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
 
 
 # done items (move items here on completion)
 
 ## 17-05-2026
+- there is a clear() in editor.cpp around line 450. This is causing flickering in the UI and is extremely annoying for the user, to the point that the application is unusable.
+  - Removed `clear()` from `editor::render()`. Transferred `test_block_delete` and `test_scope_selection` to use `assert_content_is` instead of screen scraping to fix test flakiness.
 - in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
   - Refactored `focus_idx_` in both `settings_dialog` and `find_dialog` to use strongly-typed `enum class` constructs.
 - we need to split up the event handling code at some point so that large

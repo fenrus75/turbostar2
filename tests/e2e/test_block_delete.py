@@ -30,13 +30,7 @@ def test_block_delete():
         
         time.sleep(0.5)
         
-        # "Line B" should be gone. "Line C" should move up.
-        # Wait, if we delete [2:1 to 3:1), we delete "Line B\n".
-        # Screen should have "Line A" and "Line C".
-        runner.assert_text_on_screen("Line A")
-        runner.assert_text_on_screen("Line C")
-        display = "\n".join(runner.screen.display)
-        assert "Line B" not in display
+        runner.assert_content_is('tests/data/block_delete_golden.txt')
         
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)

@@ -37,13 +37,7 @@ def test_scope_selection():
         runner.send_keys('\x0b' + 'y') # ^K Y (Delete block)
         time.sleep(1.0) # Wait longer for UI update
         
-        try:
-            runner.assert_text_not_on_screen("inner_code")
-            runner.assert_text_on_screen("if (cond)")
-            runner.assert_text_on_screen("void outer()")
-        except AssertionError as e:
-            print(f"Log contents:\n{runner.get_log()}")
-            raise e
+        runner.assert_content_is('tests/data/scope_sel_1.txt')
 
         # 4. Undo and try ^K {
         runner.send_keys('\x1f') # Undo
@@ -66,14 +60,7 @@ def test_scope_selection():
         runner.send_keys('\x0b' + 'y') # Delete block
         time.sleep(0.5)
         
-        # Braces and content should be gone, but "void outer()" remains
-        try:
-            runner.assert_text_not_on_screen("{")
-            runner.assert_text_not_on_screen("inner_code")
-            runner.assert_text_on_screen("void outer()")
-        except AssertionError as e:
-            print(f"Log contents:\n{runner.get_log()}")
-            raise e
+        runner.assert_content_is('tests/data/scope_sel_2.txt')
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
         runner.wait(timeout=5)
