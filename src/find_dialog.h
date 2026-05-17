@@ -28,5 +28,22 @@ class find_dialog : public dialog
 
 	search_params params_;
 	bool is_replace_{false};
-	int focus_idx_{0};
+	enum class focus_item {
+		query,
+		replacement,
+		case_sensitive,
+		whole_words,
+		regex,
+		prompt_replace,
+		dir_forward,
+		dir_backward,
+		scope_global,
+		scope_selected,
+		origin_cursor,
+		origin_entire,
+		btn_ok,
+		btn_change_all,
+		btn_cancel
+	};
+	focus_item focus_idx_{focus_item::query};
 };

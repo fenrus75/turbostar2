@@ -91,7 +91,7 @@ void find_dialog::draw() const
 	for (int i = 0; i < 40; ++i)
 		addch(' ');
 	mvaddstr(y_ + 2, x_ + 16, params_.query.c_str());
-	if (focus_idx_ == 0) {
+	if (focus_idx_ == focus_item::query) {
 		move(y_ + 2, x_ + 16 + params_.query.length());
 		attrset(COLOR_PAIR(19));
 		addch(' ');
@@ -107,7 +107,7 @@ void find_dialog::draw() const
 		for (int i = 0; i < 40; ++i)
 			addch(' ');
 		mvaddstr(y_ + 4, x_ + 16, params_.replacement.c_str());
-		if (focus_idx_ == 1) {
+		if (focus_idx_ == focus_item::replacement) {
 			move(y_ + 4, x_ + 16 + params_.replacement.length());
 			attrset(COLOR_PAIR(19));
 			addch(' ');
@@ -178,75 +178,45 @@ void find_dialog::draw() const
 		attrset(0);
 	};
 
-	int f_off;
-	if (is_replace_) {
-		f_off = 1;
-	} else {
-		f_off = 0;
-	}
+	
 
 	// Options content
-	draw_checkbox(6 + y_off, 4, !params_.ignore_case, focus_idx_ == 1 + f_off);
+	draw_checkbox(6 + y_off, 4, !params_.ignore_case, focus_idx_ == focus_item::case_sensitive);
 	draw_group_labeled_text(6 + y_off, 8, "Case sensitive", 'c');
-	draw_checkbox(7 + y_off, 4, params_.whole_words, focus_idx_ == 2 + f_off);
+	draw_checkbox(7 + y_off, 4, params_.whole_words, focus_idx_ == focus_item::whole_words);
 	draw_group_labeled_text(7 + y_off, 8, "Whole words only", 'w');
-	draw_checkbox(8 + y_off, 4, params_.regex, focus_idx_ == 3 + f_off);
+	draw_checkbox(8 + y_off, 4, params_.regex, focus_idx_ == focus_item::regex);
 	draw_group_labeled_text(8 + y_off, 8, "Regular expression", 'r');
 	if (is_replace_) {
-		draw_checkbox(9 + y_off, 4, params_.prompt_on_replace, focus_idx_ == 5);
+		draw_checkbox(9 + y_off, 4, params_.prompt_on_replace, focus_idx_ == focus_item::prompt_replace);
 		draw_group_labeled_text(9 + y_off, 8, "Prompt on replace", 'p');
 	}
 
 	// Direction content
-	int idx;
-	if (is_replace_) {
-		idx = 6;
-	} else {
-		idx = 4;
-	}
-	draw_radio(6 + y_off, 35, !params_.backward, focus_idx_ == idx);
+	
+	draw_radio(6 + y_off, 35, !params_.backward, focus_idx_ == focus_item::dir_forward);
 	draw_group_labeled_text(6 + y_off, 39, "Forward", 'f');
 	if (is_replace_) {
-		draw_radio(7 + y_off, 35, params_.backward, focus_idx_ == 7);
+		draw_radio(7 + y_off, 35, params_.backward, focus_idx_ == focus_item::dir_backward);
 	} else {
-		draw_radio(7 + y_off, 35, params_.backward, focus_idx_ == 5);
+		draw_radio(7 + y_off, 35, params_.backward, focus_idx_ == focus_item::prompt_replace);
 	}
 	draw_group_labeled_text(7 + y_off, 39, "Backward", 'b');
 
 	// Scope content
-	int idx2;
-	if (is_replace_) {
-		idx2 = 8;
-	} else {
-		idx2 = 6;
-	}
-	draw_radio(11 + y_off, 4, !params_.selected_text_only, focus_idx_ == idx2);
+	
+	draw_radio(11 + y_off, 4, !params_.selected_text_only, focus_idx_ == focus_item::scope_global);
 	draw_group_labeled_text(11 + y_off, 8, "Global", 'g');
-	int idx3;
-	if (is_replace_) {
-		idx3 = 9;
-	} else {
-		idx3 = 7;
-	}
-	draw_radio(12 + y_off, 4, params_.selected_text_only, focus_idx_ == idx3);
+	
+	draw_radio(12 + y_off, 4, params_.selected_text_only, focus_idx_ == focus_item::scope_selected);
 	draw_group_labeled_text(12 + y_off, 8, "Selected text", 's');
 
 	// Origin content
-	int idx4;
-	if (is_replace_) {
-		idx4 = 10;
-	} else {
-		idx4 = 8;
-	}
-	draw_radio(11 + y_off, 35, params_.from_cursor, focus_idx_ == idx4);
+	
+	draw_radio(11 + y_off, 35, params_.from_cursor, focus_idx_ == focus_item::origin_cursor);
 	draw_group_labeled_text(11 + y_off, 39, "From cursor", 'o');
-	int idx5;
-	if (is_replace_) {
-		idx5 = 11;
-	} else {
-		idx5 = 9;
-	}
-	draw_radio(12 + y_off, 35, !params_.from_cursor, focus_idx_ == idx5);
+	
+	draw_radio(12 + y_off, 35, !params_.from_cursor, focus_idx_ == focus_item::origin_entire);
 	draw_group_labeled_text(12 + y_off, 39, "Entire scope", 'e');
 
 	// Buttons
@@ -277,28 +247,18 @@ void find_dialog::draw() const
 	};
 
 	int btn_y = 14 + y_off;
-	int idx6;
-	if (is_replace_) {
-		idx6 = 12;
-	} else {
-		idx6 = 10;
-	}
-	draw_btn(btn_y, 8, "  OK  ", 'o', focus_idx_ == idx6);
+	
+	draw_btn(btn_y, 8, "  OK  ", 'o', focus_idx_ == focus_item::btn_ok);
 	if (is_replace_)
-		draw_btn(btn_y, 18, " Change all ", 'a', focus_idx_ == 13);
+		draw_btn(btn_y, 18, " Change all ", 'a', focus_idx_ == focus_item::btn_change_all);
 	int bx_pos;
 	if (is_replace_) {
 		bx_pos = 34;
 	} else {
 		bx_pos = 28;
 	}
-	int idx7;
-	if (is_replace_) {
-		idx7 = 14;
-	} else {
-		idx7 = 11;
-	}
-	draw_btn(btn_y, bx_pos, " Cancel ", 'c', focus_idx_ == idx7);
+	
+	draw_btn(btn_y, bx_pos, " Cancel ", 'c', focus_idx_ == focus_item::btn_cancel);
 	int bx_pos2;
 	if (is_replace_) {
 		bx_pos2 = 46;
@@ -315,33 +275,28 @@ dialog_result find_dialog::handle_key(int key)
 	if (key == 27)
 		return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		int idx8;
-		if (is_replace_) {
-			idx8 = 14;
-		} else {
-			idx8 = 11;
-		}
-		if (focus_idx_ == idx8)
+		
+		if (focus_idx_ == focus_item::btn_cancel)
 			return dialog_result::cancelled;
 		return dialog_result::confirmed;
 	}
 
-	std::vector<std::vector<int>> groups;
+	std::vector<std::vector<focus_item>> groups;
 	if (!is_replace_)
-		groups = {{0}, {1, 2, 3}, {4, 5}, {6, 7}, {8, 9}, {10, 11}};
+		groups = {{focus_item::query}, {focus_item::case_sensitive, focus_item::whole_words, focus_item::regex}, {focus_item::dir_forward, focus_item::dir_backward}, {focus_item::scope_global, focus_item::scope_selected}, {focus_item::origin_cursor, focus_item::origin_entire}, {focus_item::btn_ok, focus_item::btn_cancel}};
 	else
-		groups = {{0}, {1}, {2, 3, 4, 5}, {6, 7}, {8, 9}, {10, 11}, {12, 13, 14}};
+		groups = {{focus_item::query}, {focus_item::replacement}, {focus_item::case_sensitive, focus_item::whole_words, focus_item::regex, focus_item::prompt_replace}, {focus_item::dir_forward, focus_item::dir_backward}, {focus_item::scope_global, focus_item::scope_selected}, {focus_item::origin_cursor, focus_item::origin_entire}, {focus_item::btn_ok, focus_item::btn_change_all, focus_item::btn_cancel}};
 
-	auto get_group_of = [&](int idx) -> int {
+	auto get_group_of = [&](focus_item idx) -> int {
 		for (size_t i = 0; i < groups.size(); ++i) {
-			for (int item : groups[i])
+			for (focus_item item : groups[i])
 				if (item == idx)
 					return static_cast<int>(i);
 		}
 		return 0;
 	};
 
-	auto get_item_idx_in_group = [&](int idx, int g) -> int {
+	auto get_item_idx_in_group = [&](focus_item idx, int g) -> int {
 		for (size_t i = 0; i < groups[g].size(); ++i)
 			if (groups[g][i] == idx)
 				return static_cast<int>(i);
@@ -369,9 +324,9 @@ dialog_result find_dialog::handle_key(int key)
 		return dialog_result::pending;
 	}
 
-	if (focus_idx_ == 0 || (is_replace_ && focus_idx_ == 1)) {
+	if (focus_idx_ == focus_item::query || (is_replace_ && focus_idx_ == focus_item::replacement)) {
 		std::string *buf;
-		if (focus_idx_ == 0) {
+		if (focus_idx_ == focus_item::query) {
 			buf = &params_.query;
 		} else {
 			buf = &params_.replacement;
@@ -383,80 +338,46 @@ dialog_result find_dialog::handle_key(int key)
 		} else if (key >= 32 && key <= 126) {
 			buf_ref += static_cast<char>(key);
 		}
+	
 	} else if (key == ' ') {
-		if (!is_replace_) {
-			switch (focus_idx_) {
-				case 1:
-					params_.ignore_case = !params_.ignore_case;
-					break;
-				case 2:
-					params_.whole_words = !params_.whole_words;
-					break;
-				case 3:
-					params_.regex = !params_.regex;
-					break;
-				case 4:
-					params_.backward = false;
-					break;
-				case 5:
-					params_.backward = true;
-					break;
-				case 6:
-					params_.selected_text_only = false;
-					break;
-				case 7:
-					params_.selected_text_only = true;
-					break;
-				case 8:
-					params_.from_cursor = true;
-					break;
-				case 9:
-					params_.from_cursor = false;
-					break;
-				case 10:
-					return dialog_result::confirmed;
-				case 11:
-					return dialog_result::cancelled;
-			}
-		} else {
-			switch (focus_idx_) {
-				case 2:
-					params_.ignore_case = !params_.ignore_case;
-					break;
-				case 3:
-					params_.whole_words = !params_.whole_words;
-					break;
-				case 4:
-					params_.regex = !params_.regex;
-					break;
-				case 5:
-					params_.prompt_on_replace = !params_.prompt_on_replace;
-					break;
-				case 6:
-					params_.backward = false;
-					break;
-				case 7:
-					params_.backward = true;
-					break;
-				case 8:
-					params_.selected_text_only = false;
-					break;
-				case 9:
-					params_.selected_text_only = true;
-					break;
-				case 10:
-					params_.from_cursor = true;
-					break;
-				case 11:
-					params_.from_cursor = false;
-					break;
-				case 12:
-					return dialog_result::confirmed;
-				case 13:
-					return dialog_result::confirmed;
-				case 14:
-					return dialog_result::cancelled;
-			}
+		switch (focus_idx_) {
+			case focus_item::case_sensitive:
+				params_.ignore_case = !params_.ignore_case;
+				break;
+			case focus_item::whole_words:
+				params_.whole_words = !params_.whole_words;
+				break;
+			case focus_item::regex:
+				params_.regex = !params_.regex;
+				break;
+			case focus_item::prompt_replace:
+				params_.prompt_on_replace = !params_.prompt_on_replace;
+				break;
+			case focus_item::dir_forward:
+				params_.backward = false;
+				break;
+			case focus_item::dir_backward:
+				params_.backward = true;
+				break;
+			case focus_item::scope_global:
+				params_.selected_text_only = false;
+				break;
+			case focus_item::scope_selected:
+				params_.selected_text_only = true;
+				break;
+			case focus_item::origin_cursor:
+				params_.from_cursor = true;
+				break;
+			case focus_item::origin_entire:
+				params_.from_cursor = false;
+				break;
+			case focus_item::btn_ok:
+			case focus_item::btn_change_all:
+				return dialog_result::confirmed;
+			case focus_item::btn_cancel:
+				return dialog_result::cancelled;
+			default:
+				break;
 		}
 	}
 

@@ -87,7 +87,7 @@ void settings_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::
 void settings_dialog::draw_radio_button(int gy, int gx, const std::string &label, bool selected, char hotkey) const
 {
 	move(y_ + gy, x_ + gx);
-	bool group_focused = (focus_idx_ == 0);
+	bool group_focused = (focus_idx_ == focus_group::styles);
 	
 	// Focus highlight for the selected item if group is focused
 	bool item_focused = group_focused && (selected_style_idx_ == (gy - 3)); // Heuristic for this specific dialog
@@ -131,9 +131,9 @@ void settings_dialog::draw_radio_button(int gy, int gx, const std::string &label
 void settings_dialog::draw_checkbox(int gy, int gx, const std::string &label, bool checked, char hotkey) const
 {
 	move(y_ + gy, x_ + gx);
-	bool is_focused = (focus_idx_ == 3 && hotkey == 'E') || 
-	                  (focus_idx_ == 4 && hotkey == 'u') ||
-					  (focus_idx_ == 5 && hotkey == 'i');
+	bool is_focused = (focus_idx_ == focus_group::lsp && hotkey == 'E') || 
+	                  (focus_idx_ == focus_group::auto_open && hotkey == 'u') ||
+					  (focus_idx_ == focus_group::compile_on_save && hotkey == 'i');
 	if (is_focused)
 		attrset(COLOR_PAIR(19));
 	else
@@ -230,7 +230,7 @@ void settings_dialog::draw() const
 	};
 
 	for (size_t i = 0; i < system_labels.size(); ++i) {
-		bool is_focused = (focus_idx_ == 1);
+		bool is_focused = (focus_idx_ == focus_group::build_system);
 		bool is_selected = (static_cast<int>(i) == selected_build_system_idx_);
 		int gy = 3 + static_cast<int>(i);
 		int gx = 38;
@@ -266,7 +266,7 @@ void settings_dialog::draw() const
 	}
 
 	// Build Directory Input
-	draw_text_input(13, 4, 52, "Build Directory:", build_directory_buffer_, focus_idx_ == 2);
+	draw_text_input(13, 4, 52, "Build Directory:", build_directory_buffer_, focus_idx_ == focus_group::build_dir);
 
 	// LSP toggle
 	draw_checkbox(15, 4, "Enable LSP (clangd)", lsp_enabled_, 'E');
@@ -298,9 +298,9 @@ void settings_dialog::draw() const
 		attrset(0);
 	};
 
-	draw_btn(19, 10, "  OK  ", 'o', focus_idx_ == 6);
-	draw_btn(19, 25, " Cancel ", 'c', focus_idx_ == 7);
-	draw_btn(19, 40, " Help ", 'h', focus_idx_ == 8);
+	draw_btn(19, 10, "  OK  ", 'o', focus_idx_ == focus_group::btn_ok);
+	draw_btn(19, 25, " Cancel ", 'c', focus_idx_ == focus_group::btn_cancel);
+	draw_btn(19, 40, " Help ", 'h', focus_idx_ == focus_group::btn_help);
 
 	attrset(0);
 }
@@ -309,33 +309,33 @@ dialog_result settings_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		if (focus_idx_ == 6) return dialog_result::confirmed;
-		if (focus_idx_ == 7) return dialog_result::cancelled;
-		if (focus_idx_ <= 5) return dialog_result::confirmed;
+		if (focus_idx_ == focus_group::btn_ok) return dialog_result::confirmed;
+		if (focus_idx_ == focus_group::btn_cancel) return dialog_result::cancelled;
+		if (static_cast<int>(focus_idx_) <= static_cast<int>(focus_group::compile_on_save)) return dialog_result::confirmed;
 	}
 
 	if (key == '\t') {
-		focus_idx_ = (focus_idx_ + 1) % 9;
+		focus_idx_ = static_cast<focus_group>((static_cast<int>(focus_idx_) + 1) % static_cast<int>(focus_group::count));
 		return dialog_result::pending;
 	}
 	if (key == KEY_BTAB) {
-		focus_idx_ = (focus_idx_ - 1 + 9) % 9;
+		focus_idx_ = static_cast<focus_group>((static_cast<int>(focus_idx_) - 1 + static_cast<int>(focus_group::count)) % static_cast<int>(focus_group::count));
 		return dialog_result::pending;
 	}
 
-	if (focus_idx_ == 0) {
+	if (focus_idx_ == focus_group::styles) {
 		if (key == KEY_UP) {
 			selected_style_idx_ = (selected_style_idx_ - 1 + static_cast<int>(styles_.size())) % static_cast<int>(styles_.size());
 		} else if (key == KEY_DOWN) {
 			selected_style_idx_ = (selected_style_idx_ + 1) % static_cast<int>(styles_.size());
 		}
-	} else if (focus_idx_ == 1) {
+	} else if (focus_idx_ == focus_group::build_system) {
 		if (key == KEY_UP) {
 			selected_build_system_idx_ = (selected_build_system_idx_ - 1 + static_cast<int>(build_systems_.size())) % static_cast<int>(build_systems_.size());
 		} else if (key == KEY_DOWN) {
 			selected_build_system_idx_ = (selected_build_system_idx_ + 1) % static_cast<int>(build_systems_.size());
 		}
-	} else if (focus_idx_ == 2) {
+	} else if (focus_idx_ == focus_group::build_dir) {
 		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
 			if (!build_directory_buffer_.empty()) build_directory_buffer_.pop_back();
 			return dialog_result::pending;
@@ -344,49 +344,49 @@ dialog_result settings_dialog::handle_key(int key)
 			build_directory_buffer_ += static_cast<char>(key);
 			return dialog_result::pending;
 		}
-	} else if (focus_idx_ == 3) {
+	} else if (focus_idx_ == focus_group::lsp) {
 		if (key == ' ') {
 			lsp_enabled_ = !lsp_enabled_;
 			return dialog_result::pending;
 		}
-	} else if (focus_idx_ == 4) {
+	} else if (focus_idx_ == focus_group::auto_open) {
 		if (key == ' ') {
 			auto_open_error_files_ = !auto_open_error_files_;
 			return dialog_result::pending;
 		}
-	} else if (focus_idx_ == 5) {
+	} else if (focus_idx_ == focus_group::compile_on_save) {
 		if (key == ' ') {
 			compile_on_save_ = !compile_on_save_;
 			return dialog_result::pending;
 		}
 	} else {
 		if (key == KEY_LEFT || key == KEY_RIGHT) {
-			if (focus_idx_ >= 6 && focus_idx_ <= 8) {
-				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 6 + 1) % 3) + 6;
-				else focus_idx_ = ((focus_idx_ - 6 + 2) % 3) + 6;
+			if (focus_idx_ >= focus_group::btn_ok && focus_idx_ <= focus_group::btn_help) {
+				if (key == KEY_RIGHT) focus_idx_ = static_cast<focus_group>(((static_cast<int>(focus_idx_) - static_cast<int>(focus_group::btn_ok) + 1) % 3) + static_cast<int>(focus_group::btn_ok));
+				else focus_idx_ = static_cast<focus_group>(((static_cast<int>(focus_idx_) - static_cast<int>(focus_group::btn_ok) + 2) % 3) + static_cast<int>(focus_group::btn_ok));
 			}
 		}
 	}
 
 	int k = std::tolower(key);
-	if (k == 'l') { selected_style_idx_ = 0; focus_idx_ = 0; }
-	else if (k == 'g') { selected_style_idx_ = 1; focus_idx_ = 0; }
+	if (k == 'l') { selected_style_idx_ = 0; focus_idx_ = focus_group::styles; }
+	else if (k == 'g') { selected_style_idx_ = 1; focus_idx_ = focus_group::styles; }
 	else if (k == 'c') { 
-		if (focus_idx_ != 7) { // Not Cancel hotkey
-			selected_style_idx_ = 2; focus_idx_ = 0; 
+		if (focus_idx_ != focus_group::btn_cancel) { // Not Cancel hotkey
+			selected_style_idx_ = 2; focus_idx_ = focus_group::styles; 
 		}
 	}
-	else if (k == 'm') { selected_style_idx_ = 3; focus_idx_ = 0; }
-	else if (k == 'w') { selected_style_idx_ = 4; focus_idx_ = 0; }
-	else if (k == 's') { selected_style_idx_ = 5; focus_idx_ = 0; }
-	else if (k == 'n') { selected_style_idx_ = 6; focus_idx_ = 0; }
-	else if (k == 'f') { selected_style_idx_ = 7; focus_idx_ = 0; }
-	else if (k == 'e') { lsp_enabled_ = !lsp_enabled_; focus_idx_ = 3; }
-	else if (k == 'u') { auto_open_error_files_ = !auto_open_error_files_; focus_idx_ = 4; }
-	else if (k == 'i') { compile_on_save_ = !compile_on_save_; focus_idx_ = 5; }
-	else if (k == 'k' && focus_idx_ != 3) { selected_build_system_idx_ = 1; focus_idx_ = 1; }
-	else if (k == 'a' && focus_idx_ != 3) { selected_build_system_idx_ = 2; focus_idx_ = 1; }
-	else if (k == 'o' && focus_idx_ >= 6) return dialog_result::confirmed;
+	else if (k == 'm') { selected_style_idx_ = 3; focus_idx_ = focus_group::styles; }
+	else if (k == 'w') { selected_style_idx_ = 4; focus_idx_ = focus_group::styles; }
+	else if (k == 's') { selected_style_idx_ = 5; focus_idx_ = focus_group::styles; }
+	else if (k == 'n') { selected_style_idx_ = 6; focus_idx_ = focus_group::styles; }
+	else if (k == 'f') { selected_style_idx_ = 7; focus_idx_ = focus_group::styles; }
+	else if (k == 'e') { lsp_enabled_ = !lsp_enabled_; focus_idx_ = focus_group::lsp; }
+	else if (k == 'u') { auto_open_error_files_ = !auto_open_error_files_; focus_idx_ = focus_group::auto_open; }
+	else if (k == 'i') { compile_on_save_ = !compile_on_save_; focus_idx_ = focus_group::compile_on_save; }
+	else if (k == 'k' && focus_idx_ != focus_group::lsp) { selected_build_system_idx_ = 1; focus_idx_ = focus_group::build_system; }
+	else if (k == 'a' && focus_idx_ != focus_group::lsp) { selected_build_system_idx_ = 2; focus_idx_ = focus_group::build_system; }
+	else if (k == 'o' && focus_idx_ >= focus_group::btn_ok) return dialog_result::confirmed;
 
 	return dialog_result::pending;
 }

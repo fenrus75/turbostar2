@@ -40,5 +40,17 @@ class settings_dialog : public dialog
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
 
-	int focus_idx_{0}; // 0 = Styles, 1 = Build System, 2 = Build Dir, 3 = LSP, 4 = Auto-open, 5 = Compile on Save, 6 = OK, 7 = Cancel, 8 = Help
+	enum class focus_group {
+		styles,
+		build_system,
+		build_dir,
+		lsp,
+		auto_open,
+		compile_on_save,
+		btn_ok,
+		btn_cancel,
+		btn_help,
+		count
+	};
+	focus_group focus_idx_{focus_group::styles};
 };

@@ -6,7 +6,8 @@
     - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
     - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
 
-- in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
+- src/document.cpp is very large, we may want to split this into a few files
+    for faster compilation
 
 # mid term items
 
@@ -22,6 +23,8 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
+  - Refactored `focus_idx_` in both `settings_dialog` and `find_dialog` to use strongly-typed `enum class` constructs.
 - we need to split up the event handling code at some point so that large
   events become their own methods -- the function is getting unwieldy
   - Splitted `editor::dispatch` into specialized `dispatch_event_<name>` handlers.
