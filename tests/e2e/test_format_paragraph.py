@@ -13,7 +13,7 @@ def test_format_paragraph():
         
         # 2. Move cursor back to Para 1
         runner.send_ctrlk('u') # ^K U (Top)
-        time.sleep(0.5)
+        runner.assert_cursor_position(1, 1, timeout = 0.5)
         
         # 3. Trigger Format Paragraph via ^KJ
         runner.send_ctrlk('j')

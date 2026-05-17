@@ -26,10 +26,9 @@ def test_search_autocomplete():
         # 3. Perform second search to trigger autocomplete
         runner.send_ctrlk('f') # ^K F
         runner.send_keys("f")
-        time.sleep(0.5)
-        
+
         # Verify autocomplete suggestion is displayed
-        runner.assert_text_on_screen("Search for: f[ox]")
+        runner.assert_text_on_screen("Search for: f[ox]", timeout=1.5)
         
         # 4. Accept autocomplete with Tab
         runner.send_keys('\t')
@@ -37,8 +36,8 @@ def test_search_autocomplete():
         
         # Execute search (requires two enters now, one for search term, one for options)
         runner.send_keys('\n\n')
-        time.sleep(0.5)
-        runner.assert_cursor_position(1, 17) # Cursor at start of 'fox'
+
+        runner.assert_cursor_position(1, 17, timeout=1.5) # Cursor at start of 'fox'
         
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

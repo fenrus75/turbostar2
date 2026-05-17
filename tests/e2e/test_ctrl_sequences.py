@@ -25,8 +25,8 @@ def test_doubled_ctrl_sequences():
         # 3. Verify ^K^H (Hide Selection)
         runner.send_ctrlk('\x08') # \x08 is ^H (Backspace usually, but let's see)
         # Actually ^H is 8.
-        time.sleep(0.5)
-        runner.assert_in_log("K-block: Clear Selection")
+
+        runner.assert_in_log("K-block: Clear Selection", timeout=1.5)
         
         runner.send_ctrlk('q')
         runner.wait(timeout=5)

@@ -9,10 +9,9 @@ def test_utf8_typing():
         utf8_char = "€"
         runner.send_keys(utf8_char)
         
-        time.sleep(0.5)
-        
+
         # 1. Verify character is on screen
-        runner.assert_text_on_screen(utf8_char)
+        runner.assert_text_on_screen(utf8_char, timeout=1.5)
         
         # 2. Verify cursor position (logical char pos)
         # It should be at 1:2 (moved 1 logical character)
@@ -25,7 +24,6 @@ def test_utf8_typing():
         
         # 4. Verify it's gone
         # Screen should be empty (or at least no '€')
-        display = "".join(runner.screen.display)
         runner.assert_text_not_on_screen(utf8_char)
         
         # 5. Verify cursor back at 1:1

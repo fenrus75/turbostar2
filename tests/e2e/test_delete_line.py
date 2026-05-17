@@ -18,10 +18,9 @@ def test_delete_line():
         # Press Ctrl-Y (ASCII 25)
         runner.send_keys('\x19') # \x19 is 25
         
-        time.sleep(0.5)
-        
+
         # "Line 2" should be gone, "Line 3" should move to line 2.
-        runner.assert_text_on_screen("Line 1")
+        runner.assert_text_on_screen("Line 1", timeout=1.5)
         runner.assert_text_on_screen("Line 3")
         
         # Verify "Line 2" is actually gone

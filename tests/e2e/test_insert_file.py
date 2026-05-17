@@ -28,15 +28,14 @@ def test_insert_file():
         # Clear default and type path
         runner.send_keys('\x7f', count=20)
         runner.send_keys(insert_filename + '\n')
-        time.sleep(0.5)
-        
+
         # 5. Verify text is inserted
-        runner.assert_text_on_screen("Start-INSERTED_TEXT")
+        runner.assert_text_on_screen("Start-INSERTED_TEXT", timeout=1.5)
         
         # 6. Test Undo of insert file
         runner.send_keys('\x1f') # Ctrl-_ (Undo)
-        time.sleep(0.5)
-        runner.assert_text_on_screen("Start-")
+
+        runner.assert_text_on_screen("Start-", timeout=1.5)
         # Ensure INSERTED_TEXT is GONE
         runner.assert_text_not_on_screen("INSERTED_TEXT")
         

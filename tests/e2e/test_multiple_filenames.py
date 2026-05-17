@@ -9,23 +9,21 @@ def test_multiple_filenames():
         # Verify both windows exist in the Window menu
         # Alt+W to open Window menu
         runner.send_keys('\x1b' + 'w')
-        time.sleep(0.5)
-        
+
         # Verify filenames are in the menu
-        runner.assert_text_on_screen("file1.txt")
+        runner.assert_text_on_screen("file1.txt", timeout=1.5)
         runner.assert_text_on_screen("file2.txt")
         
         # Close menu
         runner.send_keys('\x1b')
-        time.sleep(0.2)
-        
+
         # Verify we are in the second file (last opened)
-        runner.assert_text_on_screen("file2.txt")
+        runner.assert_text_on_screen("file2.txt", timeout=1.2)
         
         # Switch to first file using Alt+1
         runner.send_keys('\x1b' + '1')
-        time.sleep(0.5)
-        runner.assert_text_on_screen("file1.txt")
+
+        runner.assert_text_on_screen("file1.txt", timeout=1.5)
 
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

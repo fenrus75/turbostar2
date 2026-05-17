@@ -18,16 +18,16 @@ def test_bracket_matching():
         
         # Press ^G (Matching bracket)
         runner.send_keys('\x07') # Ctrl-G
-        time.sleep(0.5)
+
         # "if (a == (b + c)) {"
         #  12345678901234567
         # The matching ')' is at 17
-        runner.assert_cursor_position(1, 17)
+        runner.assert_cursor_position(1, 17, timeout=1.5)
         
         # Press ^G again to go back
         runner.send_keys('\x07')
-        time.sleep(0.5)
-        runner.assert_cursor_position(1, 4)
+
+        runner.assert_cursor_position(1, 4, timeout=1.5)
 
         # 3. Test matching []
         # Move to '[' at 2:6
@@ -39,9 +39,9 @@ def test_bracket_matching():
         runner.assert_cursor_position(2, 6)
         
         runner.send_keys('\x07')
-        time.sleep(0.5)
+
         # Should be at ']' at 2:8
-        runner.assert_cursor_position(2, 8)
+        runner.assert_cursor_position(2, 8, timeout=1.5)
         
         # 4. Test matching {}
         # Move to '{' at 2:12
@@ -51,9 +51,9 @@ def test_bracket_matching():
         runner.assert_cursor_position(2, 12)
         
         runner.send_keys('\x07')
-        time.sleep(0.5)
+
         # Should be at '}' at 2:20
-        runner.assert_cursor_position(2, 20)
+        runner.assert_cursor_position(2, 20, timeout=1.5)
         
         # 5. Test multi-line matching {}
         # Move to '{' at 1:19
@@ -63,9 +63,9 @@ def test_bracket_matching():
         runner.assert_cursor_position(1, 19)
         
         runner.send_keys('\x07')
-        time.sleep(0.5)
+
         # Should be at '}' at 3:1
-        runner.assert_cursor_position(3, 1)
+        runner.assert_cursor_position(3, 1, timeout=1.5)
 
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

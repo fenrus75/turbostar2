@@ -29,14 +29,14 @@ def test_scope_selection():
             raise e
         
         runner.send_ctrlk('y') # ^K Y (Delete block)
-        time.sleep(1.0) # Wait longer for UI update
+        time.sleep(0.3) # Wait longer for UI update
         
         runner.assert_content_is('tests/data/scope_sel_1.txt')
 
         # 4. Undo and try ^K {
         runner.send_keys('\x1f') # Undo
-        time.sleep(1.0)
-        runner.assert_text_on_screen("inner_code")
+
+        runner.assert_text_on_screen("inner_code", timeout=2.0)
         
         # Select outer scope
         # Move to line 5 "}"

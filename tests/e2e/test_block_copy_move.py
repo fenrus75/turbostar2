@@ -31,13 +31,13 @@ def test_block_copy_move():
         runner.assert_cursor_position(2, 7)
         runner.send_ctrlk('c') # ^KC
         
-        time.sleep(0.5)
+
         # Screen should now have "[Block]" twice
         # Line 1: Start
         # Line 2: Target[Block]
         # Line 3: [Block]
         # Line 4: End
-        runner.assert_text_on_screen("Target[Block]")
+        runner.assert_text_on_screen("Target[Block]", timeout=1.5)
         
         # 4. Move Block (^KM) to line 1, end
         # Current block is at line 2:7 to line 2:14 (since Target is 6 chars)
@@ -47,13 +47,13 @@ def test_block_copy_move():
         runner.assert_cursor_position(1, 6)
         runner.send_ctrlk('m') # ^KM
         
-        time.sleep(0.5)
+
         # Result:
         # Line 1: Start[Block]
         # Line 2: Target
         # Line 3: [Block]
         # Line 4: End
-        runner.assert_text_on_screen("Start[Block]")
+        runner.assert_text_on_screen("Start[Block]", timeout=1.5)
         # Verify it's gone from line 2
         runner.assert_text_not_on_screen("Target[Block]")
         

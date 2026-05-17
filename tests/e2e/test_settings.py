@@ -13,10 +13,9 @@ def test_settings_dialog():
         runner.send_keys('\x1b' + 'p') # Alt+P
         time.sleep(0.5)
         runner.send_keys('p')
-        time.sleep(0.5)
-        
+
         # Verify dialog is open
-        runner.assert_text_on_screen("Preferences")
+        runner.assert_text_on_screen("Preferences", timeout=1.5)
         runner.assert_text_on_screen("Clang Format Style")
         
         # 2. Select "Google" style (hotkey 'G')

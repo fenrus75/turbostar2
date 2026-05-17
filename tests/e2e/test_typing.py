@@ -13,10 +13,9 @@ def test_basic_typing():
         runner.send_keys(test_string)
         
         # Wait for processing
-        time.sleep(0.5)
-        
+
         # Verify text is on screen
-        runner.assert_text_on_screen(test_string)
+        runner.assert_text_on_screen(test_string, timeout=1.5)
         
         # Verify cursor position (it should have moved 15 chars)
         # 1:1 is start, so it should be at 1:16

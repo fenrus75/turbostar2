@@ -14,13 +14,13 @@ def test_undo_redo():
         # Wait, insert_char is NOT grouped. So each char is an undo step!
         # Let's test undoing the last char 'd'.
         runner.send_keys('\x1f') # Ctrl-_ (Undo)
-        time.sleep(0.5)
-        runner.assert_text_on_screen("Hello Worl")
+
+        runner.assert_text_on_screen("Hello Worl", timeout=1.5)
 
         # 3. Redo the text insertion
         runner.send_keys('\x1e') # Ctrl-^ (Redo)
-        time.sleep(0.5)
-        runner.assert_text_on_screen("Hello World")
+
+        runner.assert_text_on_screen("Hello World", timeout=1.5)
 
         # 4. Test deleting a block (which IS grouped)
         runner.send_ctrlk('b') # ^K B
@@ -36,8 +36,8 @@ def test_undo_redo():
         
         # 5. Undo block delete
         runner.send_keys('\x1f') # Ctrl-_
-        time.sleep(0.5)
-        runner.assert_text_on_screen("Hello World")
+
+        runner.assert_text_on_screen("Hello World", timeout=1.5)
 
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

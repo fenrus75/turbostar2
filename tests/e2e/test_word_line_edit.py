@@ -39,7 +39,6 @@ def test_word_line_editing():
         runner.send_raw_keys('\x0a') # ^J (10) deletes "Of Line"
         runner.assert_text_on_screen("One End ")
         # Verify "Of Line" is gone
-        display = "".join(runner.screen.display)
         runner.assert_text_not_on_screen("Of Line")
         
         # 4. Test Alt-O (Delete to BOL)
@@ -52,7 +51,6 @@ def test_word_line_editing():
         runner.send_keys('\x1bo') # Alt-o (Esc o)
         runner.assert_text_on_screen("End ")
         # Verify "One " is gone
-        display = "".join(runner.screen.display)
         runner.assert_text_not_on_screen("One ")
         runner.assert_cursor_position(1, 1)
         
