@@ -2,6 +2,8 @@
 #include "config_manager.h"
 #include "agentlib/httplib_transport.h"
 #include <ncurses.h>
+#include <nlohmann/json.hpp>
+#include <algorithm>
 
 using namespace agentlib;
 
@@ -159,10 +161,39 @@ void agent_window::submit_prompt() {
                 for (const auto& call : *response.tool_calls) {
                     if (state->is_closed) return;
 
+                    // Format arguments for UI
+                    std::string arg_preview;
+                    try {
+                        auto args_json = nlohmann::json::parse(call.function.arguments);
+                        if (args_json.is_object()) {
+                            bool first = true;
+                            for (const auto& item : args_json.items()) {
+                                if (!first) arg_preview += ", ";
+                                first = false;
+                                
+                                std::string val_str;
+                                if (item.value().is_string()) {
+                                    std::string s = item.value().get<std::string>();
+                                    std::replace(s.begin(), s.end(), '\n', ' ');
+                                    std::replace(s.begin(), s.end(), '\r', ' ');
+                                    if (s.length() > 20) s = s.substr(0, 17) + "...";
+                                    val_str = "\"" + s + "\"";
+                                } else {
+                                    std::string s = item.value().dump();
+                                    if (s.length() > 20) s = s.substr(0, 17) + "...";
+                                    val_str = s;
+                                }
+                                arg_preview += val_str;
+                            }
+                        }
+                    } catch (...) {
+                        arg_preview = "...";
+                    }
+
                     // Notify UI about the tool call
                     editor_event tool_ev;
                     tool_ev.type = event_type::agent_tool_update;
-                    tool_ev.payload = call.function.name;
+                    tool_ev.payload = call.function.name + "(" + arg_preview + ")";
                     state->global_queue.push(tool_ev);
 
                     std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
