@@ -16,9 +16,10 @@ def test_window_menu_switching():
         time.sleep(0.5)
         
         # Should have two "noname.txt" items (or similar)
+        # Plus "Close" and a separator at the top.
         # 3. Select the second item (index 1)
-        # Use Down key then Enter
-        runner.send_keys('\x1b[B') # Down
+        # Use Down key twice then Enter
+        runner.send_keys('\x1b[B', count=2) # Down x 2
         runner.send_keys('\n')
         
         time.sleep(0.5)
@@ -31,10 +32,11 @@ def test_window_menu_switching():
             # If it's the bug, it might say "Selecting window: 0"
             raise AssertionError("Window menu failed to select window 1")
 
-        # 5. Select the first item (index 0)
+        # 5. Select the first window item (index 0)
         runner.send_keys('\x1bw') # Alt-W
         time.sleep(0.5)
-        # It's at index 0, so just Enter
+        # Menu starts at "Close". Window 0 is one Down away (skipping separator).
+        runner.send_keys('\x1b[B') # Down x 1
         runner.send_keys('\n')
         time.sleep(0.5)
         

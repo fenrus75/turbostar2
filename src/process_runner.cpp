@@ -2,6 +2,8 @@
 #include <array>
 #include <cstdio>
 #include <iostream>
+#include <poll.h>
+#include <unistd.h>
 
 process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines)
     : doc_(output_doc), max_lines_(max_lines)
@@ -28,15 +30,11 @@ void process_runner::execute(const std::string &command)
 
 void process_runner::stop()
 {
-	if (is_running_) {
-		stop_requested_.store(true);
-		// Note: pclose blocks until the process exits. If it's a long running process,
-		// we might need a more aggressive kill via process groups, but for compiling
-		// this simple popen wrapper is usually sufficient.
-		if (worker_thread_.joinable()) {
-			worker_thread_.join();
-		}
+	stop_requested_.store(true);
+	if (worker_thread_.joinable()) {
+		worker_thread_.join();
 	}
+	is_running_.store(false);
 }
 
 void process_runner::worker_loop(std::string command)
@@ -51,10 +49,23 @@ void process_runner::worker_loop(std::string command)
 		return;
 	}
 
+	int fd = fileno(pipe);
 	std::array<char, 256> buffer;
 	std::string current_line;
 
-	while (!stop_requested_ && fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+	while (!stop_requested_) {
+		struct pollfd pfd;
+		pfd.fd = fd;
+		pfd.events = POLLIN;
+		
+		int ret = poll(&pfd, 1, 100); // 100ms timeout
+		if (ret < 0) break;
+		if (ret == 0) continue; // Timeout, check stop_requested_
+
+		if (fgets(buffer.data(), buffer.size(), pipe) == nullptr) {
+			break;
+		}
+		
 		current_line += buffer.data();
 		
 		// If we find a newline, flush it to the document

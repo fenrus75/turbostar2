@@ -57,6 +57,10 @@ void editor::activate_window(size_t index)
 void editor::update_window_menu()
 {
 	std::vector<menu_item> items;
+	
+	items.push_back(menu_item("Close", event_type::close_window, 0, 'c', "Alt+F3", false));
+	items.push_back(menu_item("", event_type::key_press, 0, 0, "", true)); // Separator
+
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		std::string filename = windows_[i]->get_title();
 		if (filename.empty())
@@ -493,6 +497,55 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::close_window) {
+		logger.log("Dispatching close_window event.");
+		size_t active_idx = static_cast<size_t>(-1);
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (windows_[i]->is_active()) {
+				active_idx = i;
+				break;
+			}
+		}
+
+		if (active_idx != static_cast<size_t>(-1)) {
+			// If it's a build process window, stop the process
+			if (current_build_process_ && 
+			    (windows_[active_idx]->get_title() == "Compile Output" || 
+			     windows_[active_idx]->get_title() == "Test Output")) {
+				current_build_process_->stop();
+			}
+
+			std::shared_ptr<document> doc = windows_[active_idx]->get_document();
+			windows_.erase(windows_.begin() + active_idx);
+			
+			// Remove document if no other window is using it
+			bool doc_used = false;
+			for (const auto& w : windows_) {
+				if (w->get_document() == doc) {
+					doc_used = true;
+					break;
+				}
+			}
+			if (!doc_used) {
+				for (auto it = documents_.begin(); it != documents_.end(); ++it) {
+					if (*it == doc) {
+						documents_.erase(it);
+						break;
+					}
+				}
+			}
+
+			if (windows_.empty()) {
+				new_window("");
+			} else {
+				size_t next_idx = (active_idx == 0) ? 0 : active_idx - 1;
+				if (next_idx >= windows_.size()) next_idx = windows_.size() - 1;
+				activate_window(next_idx);
+			}
+		}
+		return;
+	}
+
 	if (ev.type == event_type::select_window) {
 		logger.log("Selecting window: " + std::to_string(ev.key_code));
 		activate_window(static_cast<size_t>(ev.key_code));
@@ -762,6 +815,24 @@ void editor::dispatch(const editor_event &ev)
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
 		// Global shortcuts
+		if (ev.key_code == KEY_F(1)) {
+			logger.log("Help shortcut pressed.");
+			return;
+		}
+		if (ev.key_code == KEY_F(2)) {
+			logger.log("Save shortcut pressed.");
+			editor_event save_ev;
+			save_ev.type = event_type::save;
+			global_queue_.push(save_ev);
+			return;
+		}
+		if (ev.key_code == KEY_F(3)) {
+			logger.log("Open shortcut pressed.");
+			editor_event load_ev;
+			load_ev.type = event_type::load;
+			global_queue_.push(load_ev);
+			return;
+		}
 		if (ev.key_code == KEY_F(9)) {
 			editor_event compile_ev;
 			compile_ev.type = event_type::compile;
@@ -772,6 +843,12 @@ void editor::dispatch(const editor_event &ev)
 			editor_event test_ev;
 			test_ev.type = event_type::run_tests;
 			global_queue_.push(test_ev);
+			return;
+		}
+		if (ev.key_code == -static_cast<int>(KEY_F(3))) {
+			editor_event close_ev;
+			close_ev.type = event_type::close_window;
+			global_queue_.push(close_ev);
 			return;
 		}
 
