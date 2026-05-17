@@ -608,8 +608,22 @@ void editor::dispatch(const editor_event &ev)
 			if (compile_win) {
 				compile_win->set_visible(true);
 				current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
-				// TODO: We could get the build command from config
-				current_build_process_->execute("meson compile -C build-lsp"); // Hardcoded for now
+				
+				std::string build_system = config_manager::get_instance().get_build_system();
+				std::string build_dir = config_manager::get_instance().get_build_directory();
+				std::string cmd;
+				
+				if (build_system == "meson") {
+					cmd = "meson compile -C " + build_dir;
+				} else if (build_system == "cmake") {
+					cmd = "cmake --build " + build_dir;
+				} else if (build_system == "make") {
+					cmd = "make -C " + build_dir;
+				} else {
+					cmd = build_system + " " + build_dir; // Fallback
+				}
+				
+				current_build_process_->execute(cmd);
 			}
 		} else {
 			logger.log("Build already running.");
@@ -741,6 +755,8 @@ void editor::dispatch(const editor_event &ev)
 					auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
 					if (s_dialog) {
 						config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
+						config_manager::get_instance().set_build_system(s_dialog->get_build_system());
+						config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
 						config_manager::get_instance().save();
 					}
 				}

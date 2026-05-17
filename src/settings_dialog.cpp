@@ -5,7 +5,7 @@
 #include "config_manager.h"
 
 settings_dialog::settings_dialog()
-    : dialog("Preferences", 60, 16)
+    : dialog("Preferences", 60, 21)
 {
 	styles_ = {"LLVM", "Google", "Chromium", "Mozilla", "WebKit", "Microsoft", "GNU", "file"};
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
@@ -13,6 +13,25 @@ settings_dialog::settings_dialog()
 	if (it != styles_.end()) {
 		selected_style_idx_ = std::distance(styles_.begin(), it);
 	}
+	
+	build_systems_ = {"meson", "cmake", "make"};
+	std::string current_system = config_manager::get_instance().get_build_system();
+	auto it_sys = std::find(build_systems_.begin(), build_systems_.end(), current_system);
+	if (it_sys != build_systems_.end()) {
+		selected_build_system_idx_ = std::distance(build_systems_.begin(), it_sys);
+	}
+	
+	build_directory_buffer_ = config_manager::get_instance().get_build_directory();
+}
+
+std::string settings_dialog::get_build_system() const
+{
+	return build_systems_[selected_build_system_idx_];
+}
+
+std::string settings_dialog::get_build_directory() const
+{
+	return build_directory_buffer_;
 }
 
 void settings_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
@@ -91,6 +110,37 @@ void settings_dialog::draw_radio_button(int gy, int gx, const std::string &label
 	attrset(0);
 }
 
+void settings_dialog::draw_text_input(int gy, int gx, int gw, const std::string &label, const std::string &value, bool focused) const
+{
+	attrset(COLOR_PAIR(1));
+	mvaddstr(y_ + gy, x_ + gx, label.c_str());
+	
+	if (focused) {
+		attrset(COLOR_PAIR(19)); // Focused widget background
+	} else {
+		attrset(COLOR_PAIR(1)); // Normal
+	}
+
+	int input_x = gx + label.length() + 1;
+	int input_w = gw - label.length() - 1;
+	
+	move(y_ + gy, x_ + input_x);
+	for (int i = 0; i < input_w; ++i) addch(' ');
+	
+	std::string display_val = value;
+	if (display_val.length() > static_cast<size_t>(input_w - 1)) {
+		display_val = display_val.substr(display_val.length() - input_w + 1);
+	}
+	mvaddstr(y_ + gy, x_ + input_x, display_val.c_str());
+	
+	if (focused) {
+		// Draw a pseudo-cursor
+		attrset(COLOR_PAIR(1));
+		mvaddch(y_ + gy, x_ + input_x + display_val.length(), '_');
+	}
+	attrset(0);
+}
+
 void settings_dialog::draw() const
 {
 	dialog::draw();
@@ -112,6 +162,66 @@ void settings_dialog::draw() const
 	for (size_t i = 0; i < style_labels.size(); ++i) {
 		draw_radio_button(3 + static_cast<int>(i), 6, style_labels[i].first, static_cast<int>(i) == selected_style_idx_, style_labels[i].second);
 	}
+
+	// Build System group
+	draw_group_box(2, 36, 20, 5, " Build System ");
+	
+	std::vector<std::pair<std::string, char>> system_labels = {
+		{"meson", 'e'},
+		{"cmake", 'k'},
+		{"make", 'a'}
+	};
+
+	for (size_t i = 0; i < system_labels.size(); ++i) {
+		// Adjust focus heuristic for draw_radio_button
+		bool is_focused = (focus_idx_ == 1);
+		bool is_selected = (static_cast<int>(i) == selected_build_system_idx_);
+		int gy = 3 + static_cast<int>(i);
+		int gx = 38;
+		
+		move(y_ + gy, x_ + gx);
+		bool item_focused = is_focused && is_selected;
+
+		if (item_focused)
+			attrset(COLOR_PAIR(19)); // Black on Green
+		else
+			attrset(COLOR_PAIR(17)); // Black on Cyan
+
+		addch('(');
+		if (is_selected)
+			addstr("•");
+		else
+			addch(' ');
+		addch(')');
+		addch(' ');
+
+		// Draw label with hotkey
+		std::string label = system_labels[i].first;
+		char hotkey = system_labels[i].second;
+		std::string lower_label = label;
+		for (char &c : lower_label) c = std::tolower(c);
+		size_t hotkey_pos = lower_label.find(std::tolower(hotkey));
+
+		for (size_t j = 0; j < label.length(); ++j) {
+			if (j == hotkey_pos) {
+				if (item_focused)
+					attrset(COLOR_PAIR(19));
+				else
+					attrset(COLOR_PAIR(18)); // Bright Yellow on Cyan
+				addch(label[j]);
+				if (item_focused)
+					attrset(COLOR_PAIR(19));
+				else
+					attrset(COLOR_PAIR(17));
+			} else {
+				addch(label[j]);
+			}
+		}
+		attrset(0);
+	}
+
+	// Build Directory Input
+	draw_text_input(13, 4, 52, "Build Directory:", build_directory_buffer_, focus_idx_ == 2);
 
 	// Buttons
 	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot, bool focused) {
@@ -138,9 +248,9 @@ void settings_dialog::draw() const
 		attrset(0);
 	};
 
-	draw_btn(13, 10, "  OK  ", 'o', focus_idx_ == 1);
-	draw_btn(13, 25, " Cancel ", 'c', focus_idx_ == 2);
-	draw_btn(13, 40, " Help ", 'h', focus_idx_ == 3);
+	draw_btn(17, 10, "  OK  ", 'o', focus_idx_ == 3);
+	draw_btn(17, 25, " Cancel ", 'c', focus_idx_ == 4);
+	draw_btn(17, 40, " Help ", 'h', focus_idx_ == 5);
 
 	attrset(0);
 }
@@ -149,18 +259,18 @@ dialog_result settings_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		if (focus_idx_ == 1) return dialog_result::confirmed;
-		if (focus_idx_ == 2) return dialog_result::cancelled;
+		if (focus_idx_ == 3) return dialog_result::confirmed;
+		if (focus_idx_ == 4) return dialog_result::cancelled;
 		// Help is not implemented
-		if (focus_idx_ == 0) return dialog_result::confirmed; // Enter on radio group confirms
+		if (focus_idx_ == 0 || focus_idx_ == 1 || focus_idx_ == 2) return dialog_result::confirmed;
 	}
 
 	if (key == '\t') {
-		focus_idx_ = (focus_idx_ + 1) % 4;
+		focus_idx_ = (focus_idx_ + 1) % 6;
 		return dialog_result::pending;
 	}
 	if (key == KEY_BTAB) {
-		focus_idx_ = (focus_idx_ - 1 + 4) % 4;
+		focus_idx_ = (focus_idx_ - 1 + 6) % 6;
 		return dialog_result::pending;
 	}
 
@@ -170,11 +280,28 @@ dialog_result settings_dialog::handle_key(int key)
 		} else if (key == KEY_DOWN) {
 			selected_style_idx_ = (selected_style_idx_ + 1) % static_cast<int>(styles_.size());
 		}
+	} else if (focus_idx_ == 1) {
+		if (key == KEY_UP) {
+			selected_build_system_idx_ = (selected_build_system_idx_ - 1 + static_cast<int>(build_systems_.size())) % static_cast<int>(build_systems_.size());
+		} else if (key == KEY_DOWN) {
+			selected_build_system_idx_ = (selected_build_system_idx_ + 1) % static_cast<int>(build_systems_.size());
+		}
+	} else if (focus_idx_ == 2) {
+		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
+			if (!build_directory_buffer_.empty()) {
+				build_directory_buffer_.pop_back();
+			}
+			return dialog_result::pending;
+		}
+		if (key >= 32 && key <= 126) {
+			build_directory_buffer_ += static_cast<char>(key);
+			return dialog_result::pending;
+		}
 	} else {
 		if (key == KEY_LEFT || key == KEY_RIGHT) {
-			if (focus_idx_ >= 1 && focus_idx_ <= 3) {
-				if (key == KEY_RIGHT) focus_idx_ = (focus_idx_ % 3) + 1;
-				else focus_idx_ = ((focus_idx_ - 2 + 3) % 3) + 1;
+			if (focus_idx_ >= 3 && focus_idx_ <= 5) {
+				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 3 + 1) % 3) + 3;
+				else focus_idx_ = ((focus_idx_ - 3 + 2) % 3) + 3;
 			}
 		}
 	}
@@ -189,7 +316,12 @@ dialog_result settings_dialog::handle_key(int key)
 	else if (k == 's') { selected_style_idx_ = 5; focus_idx_ = 0; }
 	else if (k == 'n') { selected_style_idx_ = 6; focus_idx_ = 0; }
 	else if (k == 'f') { selected_style_idx_ = 7; focus_idx_ = 0; }
-	else if (k == 'o' && focus_idx_ != 0) return dialog_result::confirmed;
+	
+	else if (k == 'e') { selected_build_system_idx_ = 0; focus_idx_ = 1; }
+	else if (k == 'k') { selected_build_system_idx_ = 1; focus_idx_ = 1; }
+	else if (k == 'a') { selected_build_system_idx_ = 2; focus_idx_ = 1; }
+	
+	else if (k == 'o' && focus_idx_ != 2) return dialog_result::confirmed;
 
 	return dialog_result::pending;
 }

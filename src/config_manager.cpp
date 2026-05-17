@@ -48,6 +48,10 @@ void config_manager::load()
 
 		if (key == "clang_format_style") {
 			clang_format_style_ = value;
+		} else if (key == "build_system") {
+			build_system_ = value;
+		} else if (key == "build_directory") {
+			build_directory_ = value;
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -64,6 +68,8 @@ void config_manager::save()
 
 	file << "# Turbostar Configuration File\n";
 	file << "clang_format_style=" << clang_format_style_ << "\n";
+	file << "build_system=" << build_system_ << "\n";
+	file << "build_directory=" << build_directory_ << "\n";
 	
 	event_logger::get_instance().log("Configuration saved to " + path);
 }
