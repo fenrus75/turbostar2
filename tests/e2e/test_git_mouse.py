@@ -3,7 +3,7 @@ import os
 import subprocess
 from turbostar_runner import TurbostarRunner
 
-def test_git_integration():
+def test_git_mouse():
     runner = TurbostarRunner()
     # Create a unique temp home already handled by runner.start()
     
@@ -39,11 +39,9 @@ def test_git_integration():
         # 6. Verify [✎] (Dirty) is shown
         runner.assert_git_status("[✎]", timeout=5.0)
 
-        # 7. Use "Git add" via menu
-        # Alt+G for Git menu, then 'a' for Add
-        runner.send_keys('\x1b' + 'g')
-        time.sleep(0.5)
-        runner.send_keys('a')
+        # 7. Use "Git add" via the magic button in the title bar
+        # Title bar git status is drawn at y=1, x=width-10. Width is 80 by default. So x=70.
+        runner.send_mouse_click(70, 1)
 
         # Verify it staged the file
         # Wait a bit for the async command
@@ -58,7 +56,7 @@ def test_git_integration():
         
         # Verify using our custom assert helper pattern to avoid naked asserts
         if not staged:
-            raise AssertionError("Git add failed via menu. File not staged.")
+            raise AssertionError("Git add failed via magic button. File not staged.")
 
         # 8. Create a new branch and verify it's shown in the UI
         subprocess.run(['git', 'checkout', '-b', 'feature-x'], cwd=repo_dir, capture_output=True)
@@ -82,5 +80,5 @@ def test_git_integration():
             shutil.rmtree(repo_dir)
 
 if __name__ == "__main__":
-    test_git_integration()
-    print("test_git_integration passed!")
+    test_git_mouse()
+    print("test_git_mouse passed!")
