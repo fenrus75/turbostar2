@@ -8,16 +8,7 @@ namespace tools {
 fs_replace_lines_tool::fs_replace_lines_tool(fs_replace_args args) : args_(std::move(args)) {}
 
 bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
-    // 1. Open Document Check
-    if (ctx.doc_provider) {
-        auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-        if (doc_snapshot) {
-            out_error = "Error: This file is currently open in the user's editor. Live UI modification is not yet implemented. Please ask the user to close the file.";
-            return false;
-        }
-    }
-
-    // 2. Existence Check
+    // 1. Existence Check
     if (!std::filesystem::exists(args_.safe_path)) {
         out_error = "Error: File does not exist. fs_replace_lines can only edit existing files.";
         return false;
@@ -67,7 +58,22 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& ctx, 
     return true;
 }
 
-std::string fs_replace_lines_tool::execute(agentlib::tool_context& /*ctx*/) {
+std::string fs_replace_lines_tool::execute(agentlib::tool_context& ctx) {
+    if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+        // Create a JSON payload of the edits to send to the UI thread
+        nlohmann::json edits_json = nlohmann::json::array();
+        for (const auto& edit : args_.edits) {
+            nlohmann::json edit_json;
+            edit_json["line_number"] = edit.line_number;
+            edit_json["type"] = edit.type;
+            edit_json["original_text"] = edit.original_text;
+            edit_json["replace_with"] = edit.replace_with;
+            edits_json.push_back(edit_json);
+        }
+        
+        ctx.doc_provider->apply_live_edits(args_.safe_path, edits_json.dump());
+        return "Successfully dispatched " + std::to_string(args_.edits.size()) + " edits to the live editor buffer.";
+    }
     return execute_disk_fallback();
 }
 

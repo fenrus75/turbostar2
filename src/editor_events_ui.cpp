@@ -127,4 +127,35 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		return;
 	}
+
+	if (ev.type == event_type::apply_edits) {
+		logger.log("Dispatching apply_edits event.");
+		// Payload is safe_path + "\n" + json
+		size_t pos = ev.payload.find('\n');
+		if (pos != std::string::npos) {
+			std::string safe_path = ev.payload.substr(0, pos);
+			std::string json_str = ev.payload.substr(pos + 1);
+
+			// Find the document
+			std::shared_ptr<document> target_doc = nullptr;
+			for (const auto& doc : documents_) {
+				if (fs_utils::safe_absolute(doc->get_filename()).lexically_normal().string() == safe_path) {
+					target_doc = doc;
+					break;
+				}
+			}
+
+			if (target_doc) {
+				try {
+					auto j = nlohmann::json::parse(json_str);
+					if (j.is_array()) {
+						target_doc->apply_external_edits_json(json_str);
+					}
+				} catch (...) {
+					logger.log("Error parsing apply_edits json.");
+				}
+			}
+		}
+		return;
+	}
 }

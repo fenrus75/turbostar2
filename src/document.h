@@ -75,6 +75,7 @@ class document
 	size_t get_line_count() const;
 	std::shared_ptr<line> get_line(int index) const;
 	std::vector<std::string> get_all_lines() const;
+	std::vector<diagnostic_info> get_diagnostics() const;
 
 	int get_cursor_x() const;
 	int get_cursor_y() const;
@@ -129,6 +130,8 @@ class document
 
 	void undo();
 	void redo();
+	
+	void apply_external_edits_json(const std::string& json_str);
 
 	void set_lsp_highlights(const std::vector<text_range> &highlights) {
 		std::unique_lock lock(mutex_);

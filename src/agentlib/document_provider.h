@@ -36,6 +36,9 @@ public:
     // Returns a snapshot if the file is currently open in the editor, else nullptr.
     // The path provided here MUST be the absolute, canonicalized safe_path.
     virtual std::unique_ptr<document_snapshot> get_open_document(const std::string& safe_path) const = 0;
+
+    // Dispatches a batch of edits to the main UI thread to be applied to the live document.
+    virtual bool apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) = 0;
 };
 
 } // namespace agentlib

@@ -28,6 +28,7 @@
 #include "highlighter_registry.h"
 #include "clangd_manager.h"
 #include "fs_utils.h"
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 
@@ -302,6 +303,12 @@ std::vector<std::string> document::get_all_lines() const
 	return result;
 }
 
+std::vector<diagnostic_info> document::get_diagnostics() const
+{
+	std::shared_lock lock(mutex_);
+	return lsp_diagnostics_;
+}
+
 int document::get_cursor_x() const
 {
 	std::shared_lock lock(mutex_);
@@ -432,4 +439,81 @@ bool document::is_space_at_unlocked(int y, int x) const
 		return std::isspace(static_cast<unsigned char>(text[offset]));
 	}
 	return false;
+}
+
+void document::apply_external_edits_json(const std::string& json_str) {
+	try {
+		auto j = nlohmann::json::parse(json_str);
+		if (!j.is_array()) return;
+		
+		std::unique_lock lock(mutex_);
+		begin_edit_group();
+		
+		// The edits must be descending to avoid index shifts
+		for (const auto& edit : j) {
+			if (!edit.contains("line_number") || !edit.contains("type")) continue;
+			
+			int idx = edit["line_number"].get<int>() - 1;
+			std::string type = edit["type"].get<std::string>();
+			
+			if (idx < 0 || idx >= static_cast<int>(lines_.size())) continue;
+			
+			if (type == "remove") {
+				cursor_y_ = idx; cursor_x_ = 0;
+				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
+				lines_.erase(lines_.begin() + idx);
+			} else if (type == "add" && edit.contains("replace_with")) {
+				std::string newstring = edit["replace_with"].get<std::string>();
+				std::stringstream ss(newstring);
+				std::string part;
+				std::vector<std::shared_ptr<line>> new_lines;
+				if (newstring.empty()) {
+					new_lines.push_back(std::make_shared<line>(""));
+				} else {
+					while (std::getline(ss, part)) {
+						if (!part.empty() && part.back() == '\r') part.pop_back();
+						new_lines.push_back(std::make_shared<line>(part));
+					}
+				}
+				
+				cursor_y_ = idx; cursor_x_ = 0;
+				for (size_t i = 0; i < new_lines.size(); ++i) {
+					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
+					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
+					mark_line_dirty(new_lines[i]);
+				}
+			} else if (type == "replace" && edit.contains("replace_with")) {
+				cursor_y_ = idx; cursor_x_ = 0;
+				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
+				lines_.erase(lines_.begin() + idx);
+				
+				std::string newstring = edit["replace_with"].get<std::string>();
+				std::stringstream ss(newstring);
+				std::string part;
+				std::vector<std::shared_ptr<line>> new_lines;
+				if (newstring.empty()) {
+					new_lines.push_back(std::make_shared<line>(""));
+				} else {
+					while (std::getline(ss, part)) {
+						if (!part.empty() && part.back() == '\r') part.pop_back();
+						new_lines.push_back(std::make_shared<line>(part));
+					}
+				}
+				
+				for (size_t i = 0; i < new_lines.size(); ++i) {
+					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
+					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
+					mark_line_dirty(new_lines[i]);
+				}
+			}
+		}
+		
+		end_edit_group();
+		set_modified();
+		lock.unlock();
+		notify_cursor_changed();
+		request_redraw();
+	} catch (...) {
+		event_logger::get_instance().log("Failed to parse or apply external edits json");
+	}
 }

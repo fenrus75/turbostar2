@@ -702,3 +702,11 @@ void editor::render()
 
 	refresh();
 }
+
+bool editor::apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) {
+    editor_event ev;
+    ev.type = event_type::apply_edits;
+    ev.payload = safe_path + "\n" + edits_json_payload;
+    global_queue_.push(ev);
+    return true;
+}
