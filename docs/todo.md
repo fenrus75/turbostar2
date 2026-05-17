@@ -19,14 +19,11 @@
    - needs libcurl
 
 
-- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
-   indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
-   likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
-
-
 # done items (move items here on completion)
 
 ## 17-05-2026
+- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
+  - Implemented the "wait for event with timeout" pattern in `TurbostarRunner` (`assert_in_log`, `assert_text_on_screen`, etc.) and bulk-replaced all hardcoded `time.sleep()` calls across the E2E test suite, drastically speeding it up.
 - src/document.cpp is very large, we may want to split this into a few files
   - Split `src/document.cpp` into 7 smaller sub-modules (edit, format, highlight, nav, search, selection, undo).
 - Test Suite Improvements:
