@@ -157,10 +157,22 @@ void editor::run()
 		if (res != ERR) {
 			editor_event ev;
 			if (res == KEY_CODE_YES) {
-				// Functional keys
-				ev.type = event_type::key_press;
-				ev.key_code = static_cast<int>(wch);
-				global_queue_.push(ev);
+				if (wch == KEY_MOUSE) {
+					MEVENT event;
+					if (getmouse(&event) == OK) {
+						if (event.bstate & BUTTON1_PRESSED || event.bstate & BUTTON1_CLICKED) {
+							ev.type = event_type::mouse_click;
+							ev.mouse_x = event.x;
+							ev.mouse_y = event.y;
+							global_queue_.push(ev);
+						}
+					}
+				} else {
+					// Functional keys
+					ev.type = event_type::key_press;
+					ev.key_code = static_cast<int>(wch);
+					global_queue_.push(ev);
+				}
 			} else {
 				// Character or ESC sequence
 				if (wch == 27) { // ESC sequence
@@ -446,6 +458,90 @@ bool editor::handle_k_block_key(int key)
 void editor::dispatch(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
+
+	if (ev.type == event_type::mouse_click) {
+		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
+		
+		if (ev.mouse_y == 0 || top_menu_.is_open()) {
+			if (top_menu_.handle_mouse(ev.mouse_x, ev.mouse_y, global_queue_)) {
+				// Click was handled by the menu bar
+				set_focus(focus_target::menu_bar, "mouse_click");
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+		}
+
+		if (ev.mouse_y > 0) {
+			// Find window under click (Reverse Z-order)
+			std::vector<window*> sorted_windows;
+			for (auto& w : windows_) {
+				sorted_windows.push_back(w.get());
+			}
+
+			window *active_win = get_active_window();
+			std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window* a, window* b) {
+				int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
+				int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
+				
+				if (priority_a != priority_b) {
+					return priority_a > priority_b;
+				}
+				return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+			});
+
+			for (auto it = sorted_windows.begin(); it != sorted_windows.end(); ++it) {
+				window* w = *it;
+				if (!w->is_visible()) continue;
+
+				if (ev.mouse_x >= w->get_x() && ev.mouse_x < w->get_x() + w->get_width() &&
+				    ev.mouse_y >= w->get_y() && ev.mouse_y < w->get_y() + w->get_height()) {
+					
+					// Found the topmost window under the click
+					
+					// 1. Check for Close Button [■]
+					// The close button is drawn at (y_, x_ + 2) through (y_, x_ + 4)
+					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 2 && ev.mouse_x <= w->get_x() + 4) {
+						logger.log("Mouse clicked close button on window.");
+						// Activate the window first so close_window acts on it
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						editor_event close_ev;
+						close_ev.type = event_type::close_window;
+						global_queue_.push(close_ev);
+						return;
+					}
+
+					// 2. Clicked inside the window content
+					for (size_t i = 0; i < windows_.size(); ++i) {
+						if (windows_[i].get() == w) {
+							activate_window(i);
+							set_focus(focus_target::window, "mouse_click");
+							
+							// Optional: Move cursor to clicked text
+							if (ev.mouse_y >= w->get_y() + 1 && ev.mouse_y <= w->get_y() + w->get_height() - 2) {
+								auto doc = w->get_document();
+								if (doc) {
+									// int click_line_offset = ev.mouse_y - w->get_y() - 1;
+									// A simpler approach for now: just activate the window. Moving cursor accurately requires exposing the window's top_line_.
+								}
+							}
+
+							editor_event redraw_ev;
+							redraw_ev.type = event_type::redraw;
+							global_queue_.push(redraw_ev);
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
 
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");

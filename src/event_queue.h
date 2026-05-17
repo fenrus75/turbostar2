@@ -33,7 +33,8 @@ enum class event_type {
 	lsp_hover_result, ///< Notification that LSP hover information is available
 	lsp_highlight_result, ///< Notification that LSP document highlight is available
 	lsp_selection_range_result, ///< Notification that LSP selection range is available
-	lsp_diagnostics_result ///< Notification that LSP diagnostics are available
+	lsp_diagnostics_result, ///< Notification that LSP diagnostics are available
+	mouse_click ///< A mouse click event
 };
 
 struct text_range {
@@ -71,6 +72,8 @@ struct diagnostic_info {
 struct editor_event {
 	event_type type;
 	int key_code{0};       ///< NCurses key code or ASCII value
+	int mouse_x{-1};       ///< Mouse X coordinate (if type == mouse_click)
+	int mouse_y{-1};       ///< Mouse Y coordinate (if type == mouse_click)
 	std::string utf8_char; ///< UTF-8 character sequence for typing
 	std::string payload;   ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights

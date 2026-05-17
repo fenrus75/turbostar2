@@ -1,9 +1,19 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- option for "compile this file only"
+   - need to figure out how to do that in meson; most build systems do this by destination not source .cpp file and this can be tricky as a result
+   - maybe a prefernece for "compile-on-save" (off by default)
+
   
 
 # mid term items
-   
+
+mouse support
+   - for the window close button thingy in the left top
+   - for menus
+
+
+# long term items   
 
 - LLM connection window?
    - chat only first

@@ -317,3 +317,78 @@ void menu_bar::find_prev_item()
 		    (selected_item_ - 1 + categories_[active_category_].items.size()) % categories_[active_category_].items.size();
 	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
 }
+
+bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
+{
+	if (active_category_ != -1 && y > 0) {
+		const auto &cat = categories_[active_category_];
+		
+		int col = 1;
+		int drop_col = 1;
+		for (int i = 0; i < active_category_; ++i) {
+			col += 2 + categories_[i].name.length();
+		}
+		drop_col = col;
+
+		int drop_width = 0;
+		for (const auto &item : cat.items) {
+			int w = item.name.length() + item.shortcut.length() + 4;
+			if (w > drop_width)
+				drop_width = w;
+		}
+		if (drop_width < 15)
+			drop_width = 15;
+
+		if (y >= 2 && y < 2 + static_cast<int>(cat.items.size()) && x >= drop_col && x < drop_col + drop_width) {
+			int clicked_idx = y - 2;
+			if (!cat.items[clicked_idx].is_separator) {
+				selected_item_ = clicked_idx;
+				editor_event ev;
+				const auto &item = cat.items[selected_item_];
+				ev.type = item.action;
+				ev.key_code = item.action_key_code;
+				event_logger::get_instance().log("Menu (mouse) pushing event: " + std::to_string(static_cast<int>(ev.type)));
+				queue.push(ev);
+				close_menu();
+			}
+			return true;
+		} else {
+			// Clicked outside dropdown, close menu
+			close_menu();
+			// If it was on the menu bar itself, we fall through to let it open another category
+			if (y > 0) {
+				return true; // Consume the click that closed the menu
+			}
+		}
+	}
+
+	if (y == 0) {
+		int col = 1;
+		for (size_t i = 0; i < categories_.size(); ++i) {
+			int width = 2 + categories_[i].name.length();
+			if (x >= col && x < col + width) {
+				if (active_category_ == static_cast<int>(i)) {
+					// Toggle off
+					close_menu();
+				} else {
+					active_category_ = static_cast<int>(i);
+					selected_item_ = 0;
+					if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
+						find_next_item();
+					}
+					event_logger::get_instance().log("Menu activated (mouse): " + categories_[active_category_].name);
+				}
+				return true;
+			}
+			col += width;
+		}
+		
+		// Clicked on empty space in menu bar
+		if (active_category_ != -1) {
+			close_menu();
+			return true;
+		}
+	}
+
+	return false;
+}
