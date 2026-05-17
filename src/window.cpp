@@ -1,6 +1,7 @@
 #include "window.h"
 #include <ncurses.h>
 #include "event_logger.h"
+#include "build_error_manager.h"
 #include "git_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
@@ -237,8 +238,16 @@ void window::draw_content() const
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
 
+		int line_bg_pair = background_color_pair_;
+		if (doc_) {
+			auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
+			if (build_err) {
+				line_bg_pair = build_err->is_warning ? 28 : 27;
+			}
+		}
+
 		// Clear line background
-		attrset(COLOR_PAIR(background_color_pair_));
+		attrset(COLOR_PAIR(line_bg_pair));
 		for (int k = 0; k < width_ - 2; ++k)
 			addch(' ');
 
@@ -350,7 +359,7 @@ void window::draw_content() const
 					}
 
 					syntax_attribute attr = current_l->get_attribute(char_idx);
-					int pair = background_color_pair_;
+					int pair = line_bg_pair;
 					if (is_match) {
 						pair = 13; // Bright Yellow on Cyan
 					} else if (in_selection) {

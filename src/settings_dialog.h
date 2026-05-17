@@ -20,6 +20,7 @@ class settings_dialog : public dialog
 	std::string get_build_system() const;
 	std::string get_build_directory() const;
 	bool is_lsp_enabled() const;
+	bool is_auto_open_error_files() const;
 
       private:
 	void draw_group_box(int gy, int gx, int gw, int gh, const std::string &title) const;
@@ -35,6 +36,7 @@ class settings_dialog : public dialog
 	
 	std::string build_directory_buffer_;
 	bool lsp_enabled_{true};
+	bool auto_open_error_files_{true};
 
-	int focus_idx_{0}; // 0 = Styles, 1 = Build System, 2 = Build Dir, 3 = LSP, 4 = OK, 5 = Cancel, 6 = Help
+	int focus_idx_{0}; // 0 = Styles, 1 = Build System, 2 = Build Dir, 3 = LSP, 4 = Auto-open, 5 = OK, 6 = Cancel, 7 = Help
 };

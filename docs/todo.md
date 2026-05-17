@@ -2,7 +2,15 @@
 
 - can we parse standard gcc/g++ error and warnings strings to feed back into our coloring? Or maybe a "go to error" option of sorts
   that moves the cursor and view to the exact error
-  
+
+- with build errors, should we color the whole horizontal line with an error red (and yellow for warning) to make it visually very clear where these are
+
+- the error window must not "strip until N", it must have a "autoscroll to bottom" set that follows always to the bottom -- until F4 is hit (which must clear it)
+     - without this we cannot go back to the original compiler message
+
+- we need a "Save All" feature with a good global hotkey, likely a ^K one
+
+- we need a ctrl-K hotkey (ctrl-K N ?) for go-to-next-error  
 
 # mid term items
    

@@ -89,6 +89,9 @@ class document
 	void split_line();
 	void delete_line();
 
+	void append_line(const std::string &text);
+	void trim_top_lines(int max_lines);
+
 	void move_to_bol();
 	void move_to_eol();
 	void move_to_top();

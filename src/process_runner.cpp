@@ -4,6 +4,7 @@
 #include <iostream>
 #include <poll.h>
 #include <unistd.h>
+#include "build_error_manager.h"
 
 process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines)
     : doc_(output_doc), max_lines_(max_lines)
@@ -20,6 +21,7 @@ void process_runner::execute(const std::string &command)
 	stop(); // Ensure any previous process is stopped
 
 	doc_->clear();
+	build_error_manager::get_instance().clear();
 	doc_->append_line("Running: " + command);
 
 	is_running_.store(true);
@@ -79,10 +81,18 @@ void process_runner::worker_loop(std::string command)
 			}
 			
 			doc_->append_line(line);
-			doc_->trim_top_lines(max_lines_);
+
+			if (parser_) {
+				std::vector<build_error> errs;
+				parser_->parse_line(line, static_cast<int>(doc_->get_line_count()) - 1, errs);
+				for (const auto &e : errs) {
+					build_error_manager::get_instance().add_error(e);
+				}
+			}
 			
-			// Always scroll to bottom to tail the output
-			doc_->move_to_bottom();
+			if (auto_scroll_.load()) {
+				doc_->move_to_bottom();
+			}
 			
 			current_line = current_line.substr(pos + 1);
 		}
@@ -91,14 +101,17 @@ void process_runner::worker_loop(std::string command)
 	// Flush any remaining characters without a newline
 	if (!current_line.empty()) {
 		doc_->append_line(current_line);
-		doc_->trim_top_lines(max_lines_);
-		doc_->move_to_bottom();
+		if (auto_scroll_.load()) {
+			doc_->move_to_bottom();
+		}
 	}
 
 	int exit_code = pclose(pipe);
 	doc_->append_line("");
 	doc_->append_line("Process exited with code " + std::to_string(WEXITSTATUS(exit_code)));
-	doc_->move_to_bottom();
+	if (auto_scroll_.load()) {
+		doc_->move_to_bottom();
+	}
 	
 	is_running_.store(false);
 }

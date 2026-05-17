@@ -8,7 +8,9 @@ def test_window_menu_switching():
         time.sleep(0.5)
         
         # 1. Open a second window
-        runner.send_keys('\x0b' + 'n') # ^KN - New window
+        runner.send_keys('\x1bf') # Alt-F
+        time.sleep(0.2)
+        runner.send_keys('n') # New window
         time.sleep(0.5)
         
         # 2. Check "Window" menu content

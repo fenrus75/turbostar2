@@ -13,6 +13,7 @@ def test_startup_and_quit():
 
         # Read the log file and verify events
         log_contents = runner.get_log()
+        print(f"LOG:\n{log_contents}")
 
         assert "Application started." in log_contents
         assert "UI initialized." in log_contents

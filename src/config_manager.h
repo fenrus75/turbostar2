@@ -25,6 +25,9 @@ class config_manager
 	bool is_lsp_enabled() const { return lsp_enabled_; }
 	void set_lsp_enabled(bool enabled) { lsp_enabled_ = enabled; }
 
+	bool is_auto_open_error_files() const { return auto_open_error_files_; }
+	void set_auto_open_error_files(bool auto_open) { auto_open_error_files_ = auto_open; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -33,4 +36,5 @@ class config_manager
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
 	bool lsp_enabled_{true};
+	bool auto_open_error_files_{true};
 };

@@ -22,6 +22,8 @@ settings_dialog::settings_dialog()
 	}
 	
 	build_directory_buffer_ = config_manager::get_instance().get_build_directory();
+	lsp_enabled_ = config_manager::get_instance().is_lsp_enabled();
+	auto_open_error_files_ = config_manager::get_instance().is_auto_open_error_files();
 }
 
 std::string settings_dialog::get_build_system() const
@@ -37,6 +39,11 @@ std::string settings_dialog::get_build_directory() const
 bool settings_dialog::is_lsp_enabled() const
 {
 	return lsp_enabled_;
+}
+
+bool settings_dialog::is_auto_open_error_files() const
+{
+	return auto_open_error_files_;
 }
 
 void settings_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
@@ -118,7 +125,7 @@ void settings_dialog::draw_radio_button(int gy, int gx, const std::string &label
 void settings_dialog::draw_checkbox(int gy, int gx, const std::string &label, bool checked, char hotkey) const
 {
 	move(y_ + gy, x_ + gx);
-	bool is_focused = (focus_idx_ == 3);
+	bool is_focused = (focus_idx_ == 3 && hotkey == 'E') || (focus_idx_ == 4 && hotkey == 'u');
 	if (is_focused)
 		attrset(COLOR_PAIR(19));
 	else
@@ -255,6 +262,7 @@ void settings_dialog::draw() const
 
 	// LSP toggle
 	draw_checkbox(15, 4, "Enable LSP (clangd)", lsp_enabled_, 'E');
+	draw_checkbox(16, 4, "Auto-open files for build errors", auto_open_error_files_, 'u');
 
 	// Buttons
 	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot, bool focused) {
@@ -281,9 +289,9 @@ void settings_dialog::draw() const
 		attrset(0);
 	};
 
-	draw_btn(18, 10, "  OK  ", 'o', focus_idx_ == 4);
-	draw_btn(18, 25, " Cancel ", 'c', focus_idx_ == 5);
-	draw_btn(18, 40, " Help ", 'h', focus_idx_ == 6);
+	draw_btn(19, 10, "  OK  ", 'o', focus_idx_ == 5);
+	draw_btn(19, 25, " Cancel ", 'c', focus_idx_ == 6);
+	draw_btn(19, 40, " Help ", 'h', focus_idx_ == 7);
 
 	attrset(0);
 }
@@ -292,17 +300,17 @@ dialog_result settings_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		if (focus_idx_ == 4) return dialog_result::confirmed;
-		if (focus_idx_ == 5) return dialog_result::cancelled;
-		if (focus_idx_ <= 3) return dialog_result::confirmed;
+		if (focus_idx_ == 5) return dialog_result::confirmed;
+		if (focus_idx_ == 6) return dialog_result::cancelled;
+		if (focus_idx_ <= 4) return dialog_result::confirmed;
 	}
 
 	if (key == '\t') {
-		focus_idx_ = (focus_idx_ + 1) % 7;
+		focus_idx_ = (focus_idx_ + 1) % 8;
 		return dialog_result::pending;
 	}
 	if (key == KEY_BTAB) {
-		focus_idx_ = (focus_idx_ - 1 + 7) % 7;
+		focus_idx_ = (focus_idx_ - 1 + 8) % 8;
 		return dialog_result::pending;
 	}
 
@@ -332,11 +340,16 @@ dialog_result settings_dialog::handle_key(int key)
 			lsp_enabled_ = !lsp_enabled_;
 			return dialog_result::pending;
 		}
+	} else if (focus_idx_ == 4) {
+		if (key == ' ') {
+			auto_open_error_files_ = !auto_open_error_files_;
+			return dialog_result::pending;
+		}
 	} else {
 		if (key == KEY_LEFT || key == KEY_RIGHT) {
-			if (focus_idx_ >= 4 && focus_idx_ <= 6) {
-				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 4 + 1) % 3) + 4;
-				else focus_idx_ = ((focus_idx_ - 4 + 2) % 3) + 4;
+			if (focus_idx_ >= 5 && focus_idx_ <= 7) {
+				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 5 + 1) % 3) + 5;
+				else focus_idx_ = ((focus_idx_ - 5 + 2) % 3) + 5;
 			}
 		}
 	}
@@ -345,7 +358,7 @@ dialog_result settings_dialog::handle_key(int key)
 	if (k == 'l') { selected_style_idx_ = 0; focus_idx_ = 0; }
 	else if (k == 'g') { selected_style_idx_ = 1; focus_idx_ = 0; }
 	else if (k == 'c') { 
-		if (focus_idx_ != 5) { // Not Cancel hotkey
+		if (focus_idx_ != 6) { // Not Cancel hotkey
 			selected_style_idx_ = 2; focus_idx_ = 0; 
 		}
 	}
@@ -355,9 +368,10 @@ dialog_result settings_dialog::handle_key(int key)
 	else if (k == 'n') { selected_style_idx_ = 6; focus_idx_ = 0; }
 	else if (k == 'f') { selected_style_idx_ = 7; focus_idx_ = 0; }
 	else if (k == 'e') { lsp_enabled_ = !lsp_enabled_; focus_idx_ = 3; }
+	else if (k == 'u') { auto_open_error_files_ = !auto_open_error_files_; focus_idx_ = 4; }
 	else if (k == 'k' && focus_idx_ != 3) { selected_build_system_idx_ = 1; focus_idx_ = 1; }
 	else if (k == 'a' && focus_idx_ != 3) { selected_build_system_idx_ = 2; focus_idx_ = 1; }
-	else if (k == 'o' && focus_idx_ >= 4) return dialog_result::confirmed;
+	else if (k == 'o' && focus_idx_ >= 5) return dialog_result::confirmed;
 
 	return dialog_result::pending;
 }

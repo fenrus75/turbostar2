@@ -14,6 +14,7 @@ enum class event_type {
 	load,	      ///< Request to load a file (triggers dialog)
 	save,	      ///< Request to save a file (smart save)
 	save_as,      ///< Request to save as (always triggers dialog)
+	save_all,     ///< Request to save all modified documents
 	new_doc,      ///< Request to clear current document
 	about,	      ///< Request to show About dialog
 	redraw,	      ///< Request a global UI re-render
@@ -26,6 +27,7 @@ enum class event_type {
 	git_refresh,  ///< Request to refresh git status manually
 	compile,      ///< Request to run the compile command
 	run_tests,    ///< Request to run the test suite
+	next_error,   ///< Request to jump to the next build error (F4)
 	close_window, ///< Request to close the active window
 	select_window, ///< Request to switch active window (key_code is index)
 	lsp_hover_result, ///< Notification that LSP hover information is available
@@ -39,6 +41,15 @@ struct text_range {
 	int start_x;
 	int end_y;
 	int end_x;
+};
+
+struct build_error {
+	std::string filepath;
+	int line;
+	int column;
+	std::string message;
+	bool is_warning;
+	int output_buffer_line; // Line in the "Compile Output" doc where this error was found
 };
 
 struct diagnostic_info {
