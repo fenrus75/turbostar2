@@ -17,11 +17,21 @@ int main(int argc, char** argv) {
     std::string url = env_url ? env_url : "http://192.168.1.42:8080";
     
     // Set up the transport chain
+#if defined(LLM_TRANSPORT_REPLAY)
+    std::cout << "[Using Replay Transport]" << std::endl;
+    auto player = std::make_shared<replay_transport>("llm_debug_traffic.json");
+    llm_client client(player);
+#elif defined(LLM_TRANSPORT_RECORD)
+    std::cout << "[Using Recording Transport]" << std::endl;
     auto http_transport = std::make_shared<httplib_transport>(url);
     auto recorder = std::make_shared<recording_transport>(http_transport, "llm_debug_traffic.json");
-    // auto player = std::make_shared<replay_transport>("llm_debug_traffic.json");
-    
     llm_client client(recorder);
+#else
+    std::cout << "[Using Standard HTTP Transport]" << std::endl;
+    auto http_transport = std::make_shared<httplib_transport>(url);
+    llm_client client(http_transport);
+#endif
+    
     tool_registry registry;
 
     // Define a simple get_temperature tool
