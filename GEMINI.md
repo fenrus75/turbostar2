@@ -11,6 +11,7 @@ Top design documentation: `docs/design.md`
 - run the test suite before commit
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
+- when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
 
 ## `docs/todo.md` specific rules
 - This file is frequently edited by the human.
