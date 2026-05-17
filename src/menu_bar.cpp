@@ -32,6 +32,7 @@ menu_bar::menu_bar()
 		       {"Tools",
 			't',
 			{{"Compile", event_type::compile, 'c', "F9", false},
+			 {"Compile File", event_type::compile_file, 'p', "^KP", false},
 			 {"Run Tests", event_type::run_tests, 't', "F8", false}}},
 		       {"Options",
 			'p',

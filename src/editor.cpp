@@ -13,6 +13,52 @@
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
+#include <fstream>
+#include <sstream>
+#include <lsp/json/json.h>
+
+namespace fs = std::filesystem;
+
+static std::string get_compile_command_for_file(const std::string& filepath) {
+	std::string build_dir = config_manager::get_instance().get_build_directory();
+	fs::path cc_json = fs::path(build_dir) / "compile_commands.json";
+	if (!fs::exists(cc_json)) {
+		cc_json = fs::path("compile_commands.json");
+		if (!fs::exists(cc_json)) {
+			return "";
+		}
+	}
+	
+	std::ifstream f(cc_json);
+	if (!f.is_open()) return "";
+	std::stringstream buffer;
+	buffer << f.rdbuf();
+	std::string json_str = buffer.str();
+	
+	try {
+		lsp::json::Value val = lsp::json::parse(json_str);
+		if (val.isArray()) {
+			std::string target_abs = fs_utils::safe_absolute(filepath).lexically_normal().string();
+			for (auto& entry_val : val.array()) {
+				if (entry_val.isObject()) {
+					auto& obj = entry_val.object();
+					if (obj.contains("file") && obj.contains("command") && obj.contains("directory")) {
+						std::string dir = obj.get("directory").string();
+						std::string file = obj.get("file").string();
+						std::string abs_path = fs_utils::safe_absolute(fs::path(dir) / file).lexically_normal().string();
+						if (abs_path == target_abs) {
+							// Found it! Run the command in the directory specified
+							return "cd " + dir + " && " + obj.get("command").string();
+						}
+					}
+				}
+			}
+		}
+	} catch (...) {
+		return "";
+	}
+	return "";
+}
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
@@ -354,6 +400,12 @@ bool editor::handle_k_block_key(int key)
 	} else if (c == 'n') {
 		logger.log("K-block: New Window");
 		new_window("");
+		return true;
+	} else if (c == 'p') {
+		logger.log("K-block: Compile File");
+		editor_event ev;
+		ev.type = event_type::compile_file;
+		global_queue_.push(ev);
 		return true;
 	} else if (c == 'g') {
 		logger.log("K-block: Next Error");
@@ -806,6 +858,62 @@ void editor::dispatch(const editor_event &ev)
 			logger.log("Build already running.");
 		}
 
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+		return;
+	}
+
+	if (ev.type == event_type::compile_file) {
+		logger.log("Dispatching compile_file event.");
+		
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (!active_doc || active_doc->get_filename().empty()) {
+			logger.log("No active file to compile.");
+			return;
+		}
+
+		if (!current_build_process_ || !current_build_process_->is_running()) {
+			std::string cmd = get_compile_command_for_file(active_doc->get_filename());
+			if (cmd.empty()) {
+				logger.log("Could not find compile command for file: " + active_doc->get_filename());
+				// Fallback to normal compile? Or just do nothing.
+				return;
+			}
+
+			size_t compile_win_idx = static_cast<size_t>(-1);
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i]->get_title() == "Compile Output") {
+					compile_win_idx = i;
+					break;
+				}
+			}
+
+			if (compile_win_idx == static_cast<size_t>(-1)) {
+				int compile_height = 10;
+				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
+				documents_.push_back(doc);
+				
+				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
+				win->attach_document(doc);
+				win->set_display_priority(10);
+				win->set_background_color_pair(29);
+				
+				windows_.push_back(std::move(win));
+				compile_win_idx = windows_.size() - 1;
+			}
+
+			activate_window(compile_win_idx);
+			window* compile_win = windows_[compile_win_idx].get();
+			compile_win->set_visible(true);
+			current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
+			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
+			
+			current_build_process_->execute(cmd);
+		} else {
+			logger.log("Build already running.");
+		}
+		
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);

@@ -94,6 +94,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K C` | Copy Block | Copies selection to the current cursor position. |
 | `^K M` | Move Block | Moves selection to the current cursor position. |
 | `^K N` | New Window | Opens a new, empty window. |
+| `^K P` | Compile File | Compiles only the currently active file using compile_commands.json. |
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
 | `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
 | `^K A` | Save All | Saves all open, modified documents. |

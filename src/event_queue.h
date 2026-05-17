@@ -26,6 +26,7 @@ enum class event_type {
 	git_add,      ///< Request to git-add current file
 	git_refresh,  ///< Request to refresh git status manually
 	compile,      ///< Request to run the compile command
+	compile_file, ///< Request to compile only the active file
 	run_tests,    ///< Request to run the test suite
 	next_error,   ///< Request to jump to the next build error (F4)
 	close_window, ///< Request to close the active window
