@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
 
     // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "Write a short poem to tests/unit/poem.txt using fs_write_file.";
+    prompt = (argc > 1) ? argv[1] : "Replace line 2 of tests/unit/poem.txt with 'The birds are resting soft and still.'";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_write_file tool to write to files.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.";
     conversation.push_back(system_msg);
 
     message user_msg;

@@ -29,8 +29,8 @@ int main() {
             {
                 {"line_number", 2},
                 {"type", "replace"},
-                {"orgstring", "Line 2"},
-                {"newstring", "Replaced Line 2"}
+                {"original_text", "Line 2"},
+                {"replace_with", "Replaced Line 2"}
             }
         })}
     };

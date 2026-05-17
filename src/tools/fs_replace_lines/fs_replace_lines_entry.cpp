@@ -12,8 +12,6 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& ctx, 
     if (ctx.doc_provider) {
         auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
         if (doc_snapshot) {
-            // For this phase, we reject if the file is open.
-            // Phase 2 will implement live document modification.
             out_error = "Error: This file is currently open in the user's editor. Live UI modification is not yet implemented. Please ask the user to close the file.";
             return false;
         }
@@ -23,6 +21,47 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& ctx, 
     if (!std::filesystem::exists(args_.safe_path)) {
         out_error = "Error: File does not exist. fs_replace_lines can only edit existing files.";
         return false;
+    }
+
+    // 3. ATOMIC VERIFICATION: Verify ALL orgstrings before making any edits
+    std::vector<std::string> lines;
+    std::ifstream in(args_.safe_path);
+    if (!in.is_open()) {
+        out_error = "Error: Could not open file for reading during verification.";
+        return false;
+    }
+    
+    std::string line_content;
+    while (std::getline(in, line_content)) {
+        if (!line_content.empty() && line_content.back() == '\r') {
+            line_content.pop_back();
+        }
+        lines.push_back(line_content);
+    }
+    in.close();
+
+    for (const auto& edit : args_.edits) {
+        if (edit.type == "add") continue;
+
+        int idx = edit.line_number - 1;
+        if (idx < 0 || idx >= static_cast<int>(lines.size())) {
+            out_error = "Verification Error: line_number " + std::to_string(edit.line_number) + " is out of bounds.";
+            return false;
+        }
+
+        std::string actual_content = lines[idx];
+        std::string expected_prefix = edit.original_text;
+        
+        while (!expected_prefix.empty() && std::isspace(expected_prefix.back())) {
+            expected_prefix.pop_back();
+        }
+
+        if (actual_content.find(expected_prefix) != 0) {
+            out_error = "Verification Error at line " + std::to_string(edit.line_number) + 
+                   ". \nExpected starting with: '" + expected_prefix + 
+                   "'\nActual content: '" + actual_content + "'";
+            return false;
+        }
     }
 
     return true;
@@ -35,10 +74,10 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context& /*ctx*/) {
 std::string fs_replace_lines_tool::execute_disk_fallback() const {
     std::vector<std::string> lines;
     
-    // 1. Read file into memory
+    // 1. Read file into memory (we know it's valid from validate_runtime)
     std::ifstream in(args_.safe_path);
     if (!in.is_open()) {
-        return "Error: Could not open file for reading.";
+        return "Error: Could not open file for reading during execution.";
     }
     
     std::string line_content;
@@ -50,31 +89,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback() const {
     }
     in.close();
 
-    // 2. Verify orgstrings
-    for (const auto& edit : args_.edits) {
-        if (edit.type == "add") continue;
-
-        int idx = edit.line_number - 1;
-        if (idx < 0 || idx >= static_cast<int>(lines.size())) {
-            return "Verification Error: line_number " + std::to_string(edit.line_number) + " is out of bounds.";
-        }
-
-        std::string actual_content = lines[idx];
-        std::string expected_prefix = edit.orgstring;
-        
-        // Strip trailing whitespace from expected_prefix for loose matching
-        while (!expected_prefix.empty() && std::isspace(expected_prefix.back())) {
-            expected_prefix.pop_back();
-        }
-
-        if (actual_content.find(expected_prefix) != 0) {
-            return "Verification Error at line " + std::to_string(edit.line_number) + 
-                   ". \nExpected starting with: '" + expected_prefix + 
-                   "'\nActual content: '" + actual_content + "'";
-        }
-    }
-
-    // 3. Apply edits (Guaranteed descending order by validator)
+    // 2. Apply edits (Guaranteed descending order and verified by validator)
     for (const auto& edit : args_.edits) {
         int idx = edit.line_number - 1;
 
@@ -83,10 +98,10 @@ std::string fs_replace_lines_tool::execute_disk_fallback() const {
         } else if (edit.type == "add") {
             // Split newstring by newlines to support multiline insertions
             std::vector<std::string> new_parts;
-            if (edit.newstring.empty()) {
+            if (edit.replace_with.empty()) {
                 new_parts.push_back("");
             } else {
-                std::stringstream ss(edit.newstring);
+                std::stringstream ss(edit.replace_with);
                 std::string part;
                 while (std::getline(ss, part)) {
                     if (!part.empty() && part.back() == '\r') part.pop_back();
@@ -100,10 +115,10 @@ std::string fs_replace_lines_tool::execute_disk_fallback() const {
             lines.erase(lines.begin() + idx);
             
             std::vector<std::string> new_parts;
-            if (edit.newstring.empty()) {
+            if (edit.replace_with.empty()) {
                 new_parts.push_back("");
             } else {
-                std::stringstream ss(edit.newstring);
+                std::stringstream ss(edit.replace_with);
                 std::string part;
                 while (std::getline(ss, part)) {
                     if (!part.empty() && part.back() == '\r') part.pop_back();
