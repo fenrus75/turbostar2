@@ -56,6 +56,8 @@ void config_manager::load()
 			lsp_enabled_ = (value == "true" || value == "1");
 		} else if (key == "auto_open_error_files") {
 			auto_open_error_files_ = (value == "true" || value == "1");
+		} else if (key == "compile_on_save") {
+			compile_on_save_ = (value == "true" || value == "1");
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -76,6 +78,7 @@ void config_manager::save()
 	file << "build_directory=" << build_directory_ << "\n";
 	file << "lsp_enabled=" << (lsp_enabled_ ? "true" : "false") << "\n";
 	file << "auto_open_error_files=" << (auto_open_error_files_ ? "true" : "false") << "\n";
+	file << "compile_on_save=" << (compile_on_save_ ? "true" : "false") << "\n";
 	
 	event_logger::get_instance().log("Configuration saved to " + path);
 }

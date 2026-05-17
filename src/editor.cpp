@@ -629,6 +629,11 @@ void editor::dispatch(const editor_event &ev)
 				}
 			}
 			update_window_menu();
+			if (config_manager::get_instance().is_compile_on_save()) {
+				editor_event compile_ev;
+				compile_ev.type = event_type::compile_file;
+				global_queue_.push(compile_ev);
+			}
 			return;
 		}
 
@@ -649,6 +654,15 @@ void editor::dispatch(const editor_event &ev)
 					if (w->get_document() == doc) {
 						w->set_title(doc->get_filename());
 						break;
+					}
+				}
+				if (config_manager::get_instance().is_compile_on_save()) {
+					// We only compile the active document to avoid spawning too many processes.
+					// Or we could compile the one that was just saved. But active is safer.
+					if (doc == get_active_doc()) {
+						editor_event compile_ev;
+						compile_ev.type = event_type::compile_file;
+						global_queue_.push(compile_ev);
 					}
 				}
 			}
@@ -1167,6 +1181,11 @@ void editor::dispatch(const editor_event &ev)
 						}
 					}
 					update_window_menu();
+					if (config_manager::get_instance().is_compile_on_save()) {
+						editor_event compile_ev;
+						compile_ev.type = event_type::compile_file;
+						global_queue_.push(compile_ev);
+					}
 				} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 					auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
 					if (f_dialog) {
@@ -1191,6 +1210,7 @@ void editor::dispatch(const editor_event &ev)
 						config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
 						config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
 						config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
+						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
 						config_manager::get_instance().save();
 					}
 				}

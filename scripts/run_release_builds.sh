@@ -41,7 +41,7 @@ for b in "${builds[@]}"; do
     ninja -C $b
 
     # Test
-    meson test -C $b
+    meson test --num-processes 2 -C $b
     
     echo "$b verification passed."
 done
