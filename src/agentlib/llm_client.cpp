@@ -1,16 +1,13 @@
 #include "llm_client.h"
-#include <httplib.h>
 #include <iostream>
 
 using json = nlohmann::json;
 
 namespace agentlib {
 
-llm_client::llm_client(const std::string& base_url) : base_url_(base_url) {}
+llm_client::llm_client(std::shared_ptr<llm_transport> transport) : transport_(std::move(transport)) {}
 
 message llm_client::send_chat(const std::vector<message>& conversation, const tool_registry* registry) {
-    httplib::Client cli(base_url_);
-
     json payload = {
         {"model", "default-model"},
         {"messages", conversation},
@@ -27,14 +24,14 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
 
     std::string body = payload.dump();
 
-    auto res = cli.Post("/v1/chat/completions", body, "application/json");
+    auto res = transport_->post("/v1/chat/completions", body);
     
     message result_msg;
     result_msg.role = "assistant";
 
-    if (res && res->status == 200) {
+    if (res.status_code == 200) {
         try {
-            json response = json::parse(res->body);
+            json response = json::parse(res.body);
             if (response.contains("choices") && !response["choices"].empty()) {
                 auto msg_json = response["choices"][0]["message"];
                 return msg_json.get<message>();
@@ -45,7 +42,7 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
         }
     }
     
-    result_msg.content = "Error connecting to LLM server. Status: " + (res ? std::to_string(res->status) : "connection failed");
+    result_msg.content = "Error connecting to LLM server. Status: " + std::to_string(res.status_code);
     return result_msg;
 }
 

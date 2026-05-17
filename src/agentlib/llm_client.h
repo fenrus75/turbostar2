@@ -1,19 +1,21 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <memory>
 #include "llm_types.h"
 #include "tool_registry.h"
+#include "llm_transport.h"
 
 namespace agentlib {
 
 class llm_client {
 public:
-    explicit llm_client(const std::string& base_url);
+    explicit llm_client(std::shared_ptr<llm_transport> transport);
 
     message send_chat(const std::vector<message>& conversation, const tool_registry* registry = nullptr);
 
 private:
-    std::string base_url_;
+    std::shared_ptr<llm_transport> transport_;
 };
 
 } // namespace agentlib

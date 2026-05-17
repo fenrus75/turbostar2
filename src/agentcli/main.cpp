@@ -1,7 +1,11 @@
 #include <iostream>
 #include <cstdlib>
+#include <memory>
 #include "../agentlib/llm_client.h"
 #include "../agentlib/tool_registry.h"
+#include "../agentlib/httplib_transport.h"
+#include "../agentlib/recording_transport.h"
+#include "../agentlib/replay_transport.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -12,7 +16,12 @@ int main(int argc, char** argv) {
     const char* env_url = std::getenv("LLM_URL");
     std::string url = env_url ? env_url : "http://192.168.1.42:8080";
     
-    llm_client client(url);
+    // Set up the transport chain
+    auto http_transport = std::make_shared<httplib_transport>(url);
+    auto recorder = std::make_shared<recording_transport>(http_transport, "llm_debug_traffic.json");
+    // auto player = std::make_shared<replay_transport>("llm_debug_traffic.json");
+    
+    llm_client client(recorder);
     tool_registry registry;
 
     // Define a simple get_temperature tool

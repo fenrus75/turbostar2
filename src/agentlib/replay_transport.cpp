@@ -1,0 +1,48 @@
+#include "replay_transport.h"
+#include <fstream>
+#include <iostream>
+
+using json = nlohmann::json;
+
+namespace agentlib {
+
+replay_transport::replay_transport(const std::string& playback_file) {
+    std::ifstream in(playback_file);
+    if (in.is_open()) {
+        try {
+            json data;
+            in >> data;
+            if (data.is_array()) {
+                for (const auto& item : data) {
+                    log_array_.push_back(item);
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[replay_transport] Error parsing playback file: " << e.what() << std::endl;
+        }
+    } else {
+        std::cerr << "[replay_transport] Warning: Could not open playback file " << playback_file << std::endl;
+    }
+}
+
+transport_response replay_transport::post(const std::string& /*path*/, const std::string& /*json_body*/) {
+    transport_response res;
+    if (current_index_ < log_array_.size()) {
+        const auto& interaction = log_array_[current_index_++];
+        // We could verify that the path and request match, but for now simple sequential playback
+        res.status_code = interaction["response"].value("status_code", 200);
+        
+        auto body_json = interaction["response"]["body"];
+        if (body_json.is_string()) {
+            res.body = body_json.get<std::string>();
+        } else {
+            res.body = body_json.dump();
+        }
+    } else {
+        res.status_code = 404;
+        res.body = "{\"error\": \"End of playback file reached\"}";
+    }
+    return res;
+}
+
+} // namespace agentlib

@@ -27,7 +27,8 @@ turbostar_exe = executable('turbostar',
   install : true)
 
 agentcli_exe = executable('agentcli',
-  ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp'],
+  ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
+   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp'],
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep],
   include_directories: include_directories('include'),
   install : false)
