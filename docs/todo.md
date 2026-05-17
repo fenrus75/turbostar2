@@ -3,10 +3,6 @@
 - if you close the last window with the mouse a new untitled.txt window appears -- need to decide if this is the right behavior vs just a checkered background
 
 
-- the git information in the title bar is a bit disjoint, we have clean/dirty visually far away from the branch information
-    - we may need to move both to get them closer together in a logical place separate enough from other non-git things
-    - once we have that, we no longer need to filter out main/master branch names since now we have a good place for that info
-
 # mid term items
 
 - mouse support for the file dialog
@@ -23,12 +19,18 @@
    - support function calls from the very start
    - needs libcurl
 
+- a git specific submenu when you click on the branch name in the title bar?
+  only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities
+    - git add
+    - ...
+
 
 
 
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Reorganized the window title bar: Grouped Git branch and dirty status `[branch ✎]` on the left. Moved the popup menu button `[≡]` to the far right.
 - test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
    indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
    likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
