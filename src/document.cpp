@@ -240,6 +240,15 @@ bool document::is_modified() const
 }
 
 
+void document::clear_modified()
+{
+	std::unique_lock lock(mutex_);
+	modified_ = false;
+	lock.unlock();
+	notify_cursor_changed();
+}
+
+
 std::string document::get_git_branch() const
 {
 	std::shared_lock lock(mutex_);

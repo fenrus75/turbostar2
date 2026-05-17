@@ -66,6 +66,7 @@ class document
 	const std::string &get_filename() const;
 	bool has_nondefault_filename() const;
 	bool is_modified() const;
+	void clear_modified();
 	std::string get_git_branch() const;
 	void set_git_branch(const std::string &branch);
 
