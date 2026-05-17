@@ -7,21 +7,6 @@
 
 # long term items   
 
-- LLM agent connection window?
-   - all our llm agent work should go into src/agent/ and src/agentlib/ directories
-       - agentlib for all non-gui work, rule of thumb: agentlib should not include headers from the rest of the project
-         and be a lowest level of provider of infrastructure to the rest 
-
-   - lets build a semi standalone app first in src/agentcli/ so we can build out the infrastructure
-     outside turbostar initially -- over time we'll sunset this code
-   - BIG TICKET item, need to break this down into smaller items
-     which will still be major by themselves
-   - chat only first
-   - support function calls from the very start
-   - decision: use cpp-httplib (has built-in SSE support and idiomatic C++ API)
-
-
-
 - a git specific submenu when you click on the branch name in the title bar?
   only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities
     - git add
@@ -33,6 +18,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Integrated LLM agent into the Turbostar UI. Created an `agent_window` (subclass of `window`) that features a multi-line input box and an auto-scrolling Markdown-highlighted `document` for chat history. LLM communication runs asynchronously on a background thread and synchronizes with the main UI via the central `event_queue`. Added "LLM URL" to the global settings dialog.
 - Implemented `fs_read_lines` tool to allow the LLM to selectively read portions of files. Built using the Marshal Convention, it queries `file_security_manager` explicitly to safely resolve and bounds-check the path. It features fallback logic to `std::ifstream` for files up to 50MB with instant binary-rejection, while leaving a `document_provider` hook ready for integration with Turbostar's active UI buffers.
 - Implemented `fs_list_dir` tool which lists directory contents as a Markdown table (Type, Size, Lines, Permissions). It enforces read access via `file_security_manager` and utilizes memory mapping (`mmap`) with fast binary skipping for high-performance line counting.
 - Implemented `file_security_manager` and integrated it into `tool_context`. It automatically prevents directory traversal, resolves symlinks, enforces read/write permission tiers against allowed workspace roots, and filters paths using `.agentignore` patterns.
