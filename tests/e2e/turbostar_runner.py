@@ -97,16 +97,19 @@ class TurbostarRunner:
 
     def send_ctrlk(self, cmd_char):
         self.send_raw_keys(b'\x0b')
-        time.sleep(0.05)
+        # Wait for the K-block prompt to appear on the status bar to ensure editor readiness
+        self.assert_text_on_screen("K-Block:", timeout=2.0)
         self.send_raw_keys(cmd_char.encode('utf-8'))
 
     def insert_file(self, rel_path):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         abs_path = os.path.join(project_root, rel_path)
         self.send_ctrlk('r')
-        time.sleep(0.5)
+        # Wait for the Insert File dialog to appear
+        self.assert_text_on_screen("Insert File", timeout=2.0)
         self.send_keys(abs_path + '\n')
-        time.sleep(0.5)
+        # Wait for the dialog to close and the insertion to finish
+        self.assert_text_not_on_screen("Insert File", timeout=2.0)
 
     def wait(self, timeout=5):
         if self.proc:
@@ -211,12 +214,12 @@ class TurbostarRunner:
 
         try:
             # 2. Trigger Save As via keys (^KW)
-            self.send_keys('\x0b' + 'w')
-            time.sleep(0.5) # Wait for dialog
+            self.send_ctrlk('w')
+            self.assert_text_on_screen("Save File As", timeout=2.0)
             # 3. Clear pre-filled and type path
             self.send_keys('\x7f', count=50)
             self.send_keys(save_path + '\n')
-            time.sleep(0.5)
+            self.assert_text_not_on_screen("Save File As", timeout=2.0)
 
             # 4. Compare files
             if not os.path.exists(save_path):
