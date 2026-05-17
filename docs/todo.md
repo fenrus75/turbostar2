@@ -3,8 +3,6 @@
 - fix test suite flakiness: Some tests (like `test_tabs`, `test_ghost_x`) are failing due to timing issues when sending raw keys under heavy load. We need to investigate the ESCDELAY timeouts and how `send_keys` operates.
     - these flakey tests also should be marked for non-parallel execution (just in case)
  
-- we may need to split src/editor_events.cpp even further, it is still large
-
 # mid term items
 
 - mouse support for the file dialog
@@ -37,6 +35,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Split `src/editor_events.cpp` into 9 specialized event handlers based on event_type to improve maintainability and compile times.
 - Updated File menu hints to display native Turbostar ^K shortcuts (e.g., ^KS for Save) instead of function keys.
 - Fixed hidden cursor bug when closing a menu by clicking outside of it.
 - Fixed window close logic so closing the last window with the mouse correctly exits the app (or prompts) instead of spawning untitled.txt.
