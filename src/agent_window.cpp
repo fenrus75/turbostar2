@@ -92,6 +92,12 @@ void agent_window::append_response(const std::string& response_text) {
     invalidate();
 }
 
+void agent_window::append_tool_update(const std::string& tool_text) {
+    chat_history_->append_line("*Executing tool: " + tool_text + "*");
+    chat_history_->move_to_bottom();
+    invalidate();
+}
+
 void agent_window::submit_prompt() {
     std::string prompt = input_buffer_;
     input_buffer_.clear();
@@ -140,6 +146,12 @@ void agent_window::submit_prompt() {
                 convo_copy.push_back(response);
 
                 for (const auto& call : *response.tool_calls) {
+                    // Notify UI about the tool call
+                    editor_event tool_ev;
+                    tool_ev.type = event_type::agent_tool_update;
+                    tool_ev.payload = call.function.name;
+                    global_queue_.push(tool_ev);
+
                     std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
                     
                     message tool_msg;

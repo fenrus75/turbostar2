@@ -39,6 +39,7 @@ enum class event_type {
 	lsp_diagnostics_result, ///< Notification that LSP diagnostics are available
 	mouse_click, ///< A mouse click event
 	agent_response, ///< Notification that LLM has responded
+	agent_tool_update, ///< Notification that LLM is executing a tool
 	open_agent ///< Request to open the LLM agent chat window
 };
 

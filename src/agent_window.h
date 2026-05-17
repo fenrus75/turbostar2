@@ -18,6 +18,9 @@ public:
     // Called when the main loop dispatches the 'agent_response' event
     void append_response(const std::string& response_text);
 
+    // Called when the main loop dispatches the 'agent_tool_update' event
+    void append_tool_update(const std::string& tool_text);
+
     // Override to draw the input box at the bottom
     void draw_content() const; // Will need to make draw_content virtual in window.h
 

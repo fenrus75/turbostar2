@@ -115,4 +115,16 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		return;
 	}
+
+	if (ev.type == event_type::agent_tool_update) {
+		logger.log("Dispatching agent_tool_update event.");
+		// Find the active agent window
+		for (auto& win : windows_) {
+			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
+				agent_win->append_tool_update(ev.payload);
+				break;
+			}
+		}
+		return;
+	}
 }
