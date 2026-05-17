@@ -7,6 +7,7 @@
 #include "document.h"
 #include "event_queue.h"
 #include "menu_bar.h"
+#include "popup_menu.h"
 #include "status_bar.h"
 #include "window.h"
 #include "process_runner.h"
@@ -14,7 +15,7 @@
 /**
  * @brief UI components that can hold focus.
  */
-enum class focus_target { menu_bar, window, dialog };
+enum class focus_target { menu_bar, window, dialog, popup };
 
 /**
  * @brief Central controller for the Turbostar editor.
@@ -78,6 +79,7 @@ class editor
 	enum class dialog_mode { none, load, save, search, replace, insert_file, settings };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
+	std::unique_ptr<popup_menu> active_popup_;
 
 	search_params current_search_;
 	bool is_searching_prompt_{false};

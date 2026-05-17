@@ -271,6 +271,9 @@ void editor::set_focus(focus_target target, const std::string &source)
 		case focus_target::dialog:
 			target_name = "dialog";
 			break;
+		case focus_target::popup:
+			target_name = "popup";
+			break;
 	}
 
 	event_logger::get_instance().log("Focus change: " + source + " -> " + target_name);
@@ -582,8 +585,12 @@ void editor::render()
 		active_dialog_->draw();
 	}
 
+	if (active_popup_) {
+		active_popup_->draw();
+	}
+
 	// Only show cursor if we are in window focus and NOT in a modal state
-	if (current_focus_ == focus_target::window && !active_dialog_ && !k_block_mode_) {
+	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !k_block_mode_) {
 		if (active_win) {
 			active_win->set_cursor_position();
 			curs_set(1);

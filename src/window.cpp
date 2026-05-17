@@ -465,6 +465,14 @@ void window::draw_border() const
 	attron(COLOR_PAIR(5));
 	addstr("]");
 
+	// Draw popup menu widget
+	mvaddstr(y_, x_ + 6, "[");
+	attron(COLOR_PAIR(3)); // Bright Yellow
+	addstr("≡");
+	attroff(COLOR_PAIR(3));
+	attron(COLOR_PAIR(5));
+	addstr("]");
+
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
 

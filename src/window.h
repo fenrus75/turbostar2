@@ -35,6 +35,7 @@ class window
 	int get_y() const { return y_; }
 	int get_width() const { return width_; }
 	int get_height() const { return height_; }
+	int get_popup_button_x() const { return x_ + 6; }
 
 	int get_background_color_pair() const { return background_color_pair_; }
 	void set_background_color_pair(int pair) { background_color_pair_ = pair; }

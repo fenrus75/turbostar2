@@ -6,8 +6,13 @@
     - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
     - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
 
+- the git information in the title bar is a bit disjoint, we have clean/dirty visually far away from the branch information
+    - we may need to move both to get them closer together in a logical place separate enough from other non-git things
+    - once we have that, we no longer need to filter out main/master branch names since now we have a good place for that info
+
 # mid term items
 
+- mouse support for the file dialog
 
 # long term items   
 
@@ -19,11 +24,14 @@
    - needs libcurl
 
 
+- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
+   indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
+   likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
+
+
 # done items (move items here on completion)
 
 ## 17-05-2026
-- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
-  - Implemented the "wait for event with timeout" pattern in `TurbostarRunner` (`assert_in_log`, `assert_text_on_screen`, etc.) and bulk-replaced all hardcoded `time.sleep()` calls across the E2E test suite, drastically speeding it up.
 - src/document.cpp is very large, we may want to split this into a few files
   - Split `src/document.cpp` into 7 smaller sub-modules (edit, format, highlight, nav, search, selection, undo).
 - Test Suite Improvements:

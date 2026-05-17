@@ -16,6 +16,7 @@ turbostar_sources = files(
   'document_search.cpp',
   'document_selection.cpp',
   'document_undo.cpp',
+  'popup_menu.cpp',
   'dialog.cpp',
   'find_dialog.cpp',
   'file_dialog.cpp',

@@ -141,6 +141,26 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 	if (ev.type == event_type::mouse_click) {
 		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
 		
+		if (active_popup_) {
+			auto res = active_popup_->handle_mouse(ev.mouse_x, ev.mouse_y);
+			if (res.has_value()) {
+				int id = res.value();
+				active_popup_.reset();
+				set_focus(focus_target::window, "popup_close");
+				
+				if (id != popup_menu::cancel_id) {
+					editor_event action_ev;
+					action_ev.type = static_cast<event_type>(id);
+					global_queue_.push(action_ev);
+				}
+				
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+		}
+
 		if (ev.mouse_y == 0 || top_menu_.is_open()) {
 			if (top_menu_.handle_mouse(ev.mouse_x, ev.mouse_y, global_queue_)) {
 				// Click was handled by the menu bar
@@ -193,6 +213,33 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						editor_event close_ev;
 						close_ev.type = event_type::close_window;
 						global_queue_.push(close_ev);
+						return;
+					}
+
+					// 1.25 Check for Popup Menu Button [≡]
+					// Drawn at (y_, x_ + 6) through (y_, x_ + 8)
+					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 6 && ev.mouse_x <= w->get_x() + 8) {
+						logger.log("Mouse clicked popup menu button on window.");
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						
+						std::vector<popup_menu_item> items;
+						items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
+						items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
+						items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+						items.push_back({0, "", 0, true});
+						items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+						
+						active_popup_ = std::make_unique<popup_menu>(w->get_popup_button_x(), w->get_y() + 1, items);
+						set_focus(focus_target::popup, "mouse_click");
+						
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
 						return;
 					}
 
@@ -1137,6 +1184,28 @@ void editor::dispatch_event_key(const editor_event &ev)
 	
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
+			
+			if (c == '=') {
+				logger.log("Alt-= pressed. Spawning popup menu.");
+				window *active_win = get_active_window();
+				if (active_win) {
+					std::vector<popup_menu_item> items;
+					items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
+					items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
+					items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+					items.push_back({0, "", 0, true});
+					items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+					
+					active_popup_ = std::make_unique<popup_menu>(active_win->get_popup_button_x(), active_win->get_y() + 1, items);
+					set_focus(focus_target::popup, "alt_equal");
+					
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+				return;
+			}
+			
 			if (c >= '0' && c <= '9') {
 				int target_idx;
 				if (c == '0') {
@@ -1153,8 +1222,26 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 		}
 	
-		// Route based on focus (Windows/Menu Bar)
-		if (current_focus_ == focus_target::menu_bar) {
+		// Route based on focus (Windows/Menu Bar/Popup)
+		if (current_focus_ == focus_target::popup && active_popup_) {
+			auto res = active_popup_->handle_key(ev.key_code);
+			if (res.has_value()) {
+				int id = res.value();
+				active_popup_.reset();
+				set_focus(focus_target::window, "popup_close");
+				
+				if (id != popup_menu::cancel_id) {
+					editor_event action_ev;
+					action_ev.type = static_cast<event_type>(id);
+					global_queue_.push(action_ev);
+				}
+				
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			}
+			return; // Consume all keys when popup is focused
+		} else if (current_focus_ == focus_target::menu_bar) {
 			if (top_menu_.handle_key(ev.key_code, global_queue_)) {
 				if (!top_menu_.is_open()) {
 					set_focus(focus_target::window, "menu_close");
