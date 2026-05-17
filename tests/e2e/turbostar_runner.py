@@ -95,6 +95,19 @@ class TurbostarRunner:
             time.sleep(0.01)
         self._read_output()
 
+    def send_ctrlk(self, cmd_char):
+        self.send_raw_keys(b'\x0b')
+        time.sleep(0.05)
+        self.send_raw_keys(cmd_char.encode('utf-8'))
+
+    def insert_file(self, rel_path):
+        project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
+        abs_path = os.path.join(project_root, rel_path)
+        self.send_ctrlk('r')
+        time.sleep(0.5)
+        self.send_keys(abs_path + '\n')
+        time.sleep(0.5)
+
     def wait(self, timeout=5):
         if self.proc:
             self.proc.wait(timeout=timeout)

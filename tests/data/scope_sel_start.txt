@@ -1,0 +1,5 @@
+void outer() {
+    if (cond) {
+        inner_code();
+    }
+}

@@ -7,18 +7,15 @@ def test_power_navigation():
         runner.start()
         time.sleep(0.5)
         
-        # 1. Fill document with multiple lines
-        # Create 30 lines: "Line 1", "Line 2", ...
-        content = "\n".join([f"WordA WordB Line{i}" for i in range(1, 31)])
-        runner.send_keys(content)
-        # Final cursor at 30:17 (approx)
+        # 1. Load document with multiple lines
+        runner.insert_file('tests/data/power_nav_start.txt')
         
         # 2. Test ^KU (Top of File)
-        runner.send_keys('\x0b' + 'u') # ^KU
+        runner.send_ctrlk('u') # ^KU
         runner.assert_cursor_position(1, 1)
         
         # 3. Test ^KV (End of File)
-        runner.send_keys('\x0b' + 'v') # ^KV
+        runner.send_ctrlk('v') # ^KV
         runner.assert_cursor_position(30, 19) # "WordA WordB Line30" is 18 chars, so pos 19
         
         # 4. Test ^U (Page Up)
@@ -32,7 +29,7 @@ def test_power_navigation():
         
         # 6. Test ^X (Next Word)
         # Move to top first
-        runner.send_keys('\x0b' + 'u')
+        runner.send_ctrlk('u')
         runner.assert_cursor_position(1, 1)
         
         runner.send_keys('\x18') # ^X
@@ -53,7 +50,7 @@ def test_power_navigation():
         # Back to "WordA" (pos 1)
         runner.assert_cursor_position(1, 1)
         
-        runner.send_keys('\x0b' + 'q') # Ctrl-C
+        runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)
         
     finally:
