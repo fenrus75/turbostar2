@@ -32,27 +32,12 @@ int main(int argc, char** argv) {
     llm_client client(http_transport);
 #endif
     
-    tool_registry registry;
+    // 1. We no longer explicitly define tools here; they self-register!
+    tool_registry& registry = tool_registry::get_instance();
+    tool_context ctx;
 
-    // Define a simple get_temperature tool
-    json get_temp_schema = {
-        {"type", "object"},
-        {"properties", {
-            {"location", {
-                {"type", "string"},
-                {"description", "The city and state, e.g., San Francisco, CA"}
-            }}
-        }},
-        {"required", json::array({"location"})}
-    };
-
-    registry.add_tool("get_temperature", "Get the current temperature in a given location", get_temp_schema, 
-        [](const json& args) -> std::string {
-            std::cout << "\n[Tool Execution] get_temperature called with args: " << args.dump() << "\n";
-            return "42F";
-        }
-    );
-
+    // 2. We ask a question that triggers the artificial security violation
+    prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -78,8 +63,12 @@ int main(int argc, char** argv) {
 
             for (const auto& call : *response.tool_calls) {
                 std::cout << "Executing tool: " << call.function.name << std::endl;
-                std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments);
                 
+                // 3. We now pass the tool_context down to the execution layer
+                std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
+                
+                std::cout << "[Tool Result] " << tool_result << std::endl;
+
                 message tool_msg;
                 tool_msg.role = "tool";
                 tool_msg.content = tool_result;

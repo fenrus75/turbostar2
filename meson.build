@@ -16,6 +16,7 @@ nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
 
 subdir('src')
+subdir('src/tools')
 
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
@@ -27,7 +28,7 @@ turbostar_exe = executable('turbostar',
   install : true)
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
-   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp']
+   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
