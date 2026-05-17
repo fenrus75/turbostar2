@@ -6,19 +6,26 @@
 using namespace agentlib;
 
 agent_window::agent_window(int id, int x, int y, int width, int height, event_queue& global_queue)
-    : window(id, x, y, width, height, "Agent Chat"), global_queue_(global_queue) 
+    : window(id, x, y, width, height, "Agent Chat")
 {
+    state_ = std::make_shared<agent_window_state>(global_queue);
+
     // Create the document for the chat history
-    chat_history_ = std::make_shared<document>(global_queue_);
+    chat_history_ = std::make_shared<document>(state_->global_queue);
     attach_document(chat_history_);
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 
     std::string url = config_manager::get_instance().get_llm_url();
     auto http_transport = std::make_shared<httplib_transport>(url);
-    client_ = std::make_unique<llm_client>(http_transport);
+    state_->client = std::make_unique<llm_client>(http_transport);
 }
 
-agent_window::~agent_window() = default;
+agent_window::~agent_window() {
+    state_->is_closed = true;
+    // We could call state_->client->cancel() if supported by the transport,
+    // but the shared state ensures the thread will safely exit and drop the result
+    // even if it finishes after this window is destroyed.
+}
 
 bool agent_window::process_events() {
     bool needs_render = false;
@@ -111,20 +118,20 @@ void agent_window::submit_prompt() {
 
     // Add to conversation state
     {
-        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        std::lock_guard<std::mutex> lock(state_->conversation_mutex);
         message user_msg;
         user_msg.role = "user";
         user_msg.content = prompt;
-        conversation_.push_back(user_msg);
+        state_->conversation.push_back(user_msg);
     }
 
     // Spawn thread
-    std::thread([this]() {
+    std::thread([state = state_]() {
         // Copy conversation to avoid race conditions with the UI thread
         std::vector<message> convo_copy;
         {
-            std::lock_guard<std::mutex> lock(conversation_mutex_);
-            convo_copy = conversation_;
+            std::lock_guard<std::mutex> lock(state->conversation_mutex);
+            convo_copy = state->conversation;
         }
         
         // Use the global registry for tools
@@ -139,18 +146,24 @@ void agent_window::submit_prompt() {
         std::string final_response;
 
         while (true) {
+            if (state->is_closed) return;
+
             // Send request (blocks thread, UI stays responsive)
-            message response = client_->send_chat(convo_copy, &registry);
+            message response = state->client->send_chat(convo_copy, &registry);
             
+            if (state->is_closed) return;
+
             if (response.tool_calls && !response.tool_calls->empty()) {
                 convo_copy.push_back(response);
 
                 for (const auto& call : *response.tool_calls) {
+                    if (state->is_closed) return;
+
                     // Notify UI about the tool call
                     editor_event tool_ev;
                     tool_ev.type = event_type::agent_tool_update;
                     tool_ev.payload = call.function.name;
-                    global_queue_.push(tool_ev);
+                    state->global_queue.push(tool_ev);
 
                     std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
                     
@@ -169,17 +182,19 @@ void agent_window::submit_prompt() {
             }
         }
         
+        if (state->is_closed) return;
+
         // Update the main thread's conversation history
         {
-            std::lock_guard<std::mutex> lock(conversation_mutex_);
-            conversation_ = convo_copy;
+            std::lock_guard<std::mutex> lock(state->conversation_mutex);
+            state->conversation = convo_copy;
         }
         
         // Push result to UI queue
         editor_event ev;
         ev.type = event_type::agent_response;
         ev.payload = final_response;
-        global_queue_.push(ev);
+        state->global_queue.push(ev);
 
     }).detach();
 }

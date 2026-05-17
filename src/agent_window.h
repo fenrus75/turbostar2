@@ -4,8 +4,19 @@
 #include "agentlib/tool_registry.h"
 #include <vector>
 #include <thread>
-
 #include <mutex>
+#include <atomic>
+#include <memory>
+
+struct agent_window_state {
+    std::atomic<bool> is_closed{false};
+    std::mutex conversation_mutex;
+    std::vector<agentlib::message> conversation;
+    std::unique_ptr<agentlib::llm_client> client;
+    event_queue& global_queue;
+    
+    agent_window_state(event_queue& q) : global_queue(q) {}
+};
 
 class agent_window : public window {
 public:
@@ -31,11 +42,8 @@ private:
     std::shared_ptr<document> chat_history_;
     std::string input_buffer_;
     
-    // Agent state
-    std::unique_ptr<agentlib::llm_client> client_;
-    std::vector<agentlib::message> conversation_;
-    mutable std::mutex conversation_mutex_;
+    // Shared state between UI and background thread
+    std::shared_ptr<agent_window_state> state_;
     
-    event_queue& global_queue_;
     bool is_waiting_for_llm_{false};
 };

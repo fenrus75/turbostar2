@@ -15,6 +15,9 @@ public:
     
     // Abstract POST request
     virtual transport_response post(const std::string& path, const std::string& json_body) = 0;
+
+    // Cancels an ongoing request (if supported by the transport)
+    virtual void cancel() {}
 };
 
 } // namespace agentlib
