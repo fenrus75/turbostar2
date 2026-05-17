@@ -23,21 +23,16 @@ Using `runner.send_keys("void foo() {\n ...")` adds significant artificial execu
 
 When a test requires a substantial starting document:
 1. Place the starting text in a file under `tests/data/`.
-2. Use the `^KR` (Insert File) command to load the file into the editor instantly.
+2. Use the `runner.insert_file(path)` helper to load the file into the editor instantly. This helper automatically handles the dialog polling.
    ```python
-   # Wait for the file dialog
-   runner.send_keys('\x0b' + 'r') 
-   time.sleep(0.5)
-   
-   # Type the path to your data file
-   runner.send_keys('tests/data/my_starting_file.txt\n')
-   time.sleep(0.5)
+   runner.insert_file('tests/data/my_starting_file.txt')
    ```
 
 ## 3. Avoid Hardcoded `time.sleep()` Where Possible
 
-Minimize the use of `time.sleep()`. While it is currently necessary for certain UI dialog transitions, prefer waiting for specific deterministic state changes.
-- The `assert_cursor_position()` and `assert_selection_is()` helpers have built-in timeout loops that automatically poll for the desired state and return early as soon as the state is reached.
+Minimize the use of `time.sleep()`. While it is occasionally necessary, prefer waiting for specific deterministic state changes.
+- **Never use `time.sleep()` just to wait for the cursor to move.** The `assert_cursor_position()` helper (which practically acts as a `wait_for_cursor_position()`) has a built-in timeout loop that automatically polls for the new coordinate and returns instantly once reached.
+- The same applies to `assert_selection_is()`, `assert_text_on_screen()`, and `assert_content_is()`; they all poll state intelligently.
 
 ## 4. Test Concurrency and LSP Isolation
 
