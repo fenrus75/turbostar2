@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- we should consider giving the compiler window a different background color to make clear that the user cannot type there
+
   
 
 # mid term items
@@ -13,6 +15,7 @@
 # done items (items move here on completion)
 
 - add a compile output window (implemented generic process_runner and split screen window)
+   - Auto-activate (foreground) the output window when a build or test starts.
 
 - support for LSP servers (clangd)
    - Integrated leon-bckl/lsp-framework as a Meson subproject
@@ -20,6 +23,9 @@
    - Implemented Expand Selection (^K]) using selectionRange
    - Implemented live diagnostics highlighting (errors in red, warnings in yellow)
    - Implemented documentHighlight to show all occurrences of the variable/symbol under cursor
+   - Restricted clangd to C/C++ file extensions (.cpp, .c, .h, .hpp)
+   - Added `--no-lsp` command line flag and updated E2E test runner to use it by default.
+   - Added persistent "Enable LSP" toggle in the Preferences dialog.
 
 - improve syntax highlighting
    - multiple languages support (first one: markdown)
