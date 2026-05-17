@@ -24,8 +24,6 @@ def test_settings_dialog():
         runner.send_keys('\n')
         
         # 4. Quit and verify config file
-        runner.send_ctrlk('q') # ^K Q
-        runner.wait(timeout=5)
         
         # Verify persistence
         runner.assert_file_exists(config_path, timeout=2.0)

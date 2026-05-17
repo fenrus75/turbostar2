@@ -198,6 +198,20 @@ if python.found()
     timeout: 60
   )
 
+  test('e2e_close_dirty', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_close_dirty.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+
+  test('e2e_force_quit', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_force_quit.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+
   test('e2e_block_copy_move', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_block_copy_move.py')],
     env: e2e_env,

@@ -25,8 +25,6 @@ def test_multiple_filenames():
 
         runner.assert_text_on_screen("file1.txt", timeout=1.5)
 
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

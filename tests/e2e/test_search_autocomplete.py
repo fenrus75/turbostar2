@@ -39,8 +39,6 @@ def test_search_autocomplete():
 
         runner.assert_cursor_position(1, 17, timeout=1.5) # Cursor at start of 'fox'
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

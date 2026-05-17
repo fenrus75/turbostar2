@@ -105,29 +105,24 @@ void clangd_manager::stop()
 	if (!is_running_) return;
 
 	try {
-		message_handler_->sendRequest<lsp::requests::Shutdown>(
-			[this](const lsp::requests::Shutdown::Result&) {
-				message_handler_->sendNotification<lsp::notifications::Exit>();
-				is_running_.store(false);
-			},
-			[this](const lsp::ResponseError& error) {
-				event_logger::get_instance().log(std::string("clangd shutdown error: ") + error.message());
-				is_running_.store(false);
-			}
-		);
-	} catch (...) {
-		is_running_.store(false);
-	}
+		// Send Exit notification directly (skipping async Shutdown request)
+		message_handler_->sendNotification<lsp::notifications::Exit>();
+		// Forcefully terminate to ensure the pipe breaks and message_thread unblocks
+		if (process_) {
+			process_->terminate();
+		}
+	} catch (...) {}
+
+	is_running_.store(false);
 
 	if (message_thread_.joinable()) {
 		message_thread_.join();
 	}
-	
+
 	message_handler_.reset();
 	connection_.reset();
 	process_.reset();
 }
-
 void clangd_manager::open_document(const std::string &filepath, const std::string &text)
 {
 	if (!is_running_ || !is_supported_file(filepath)) return;

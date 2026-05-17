@@ -30,8 +30,6 @@ def test_lsp_selection():
         # 6. Delete block
         runner.send_ctrlk('y')
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

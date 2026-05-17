@@ -42,8 +42,6 @@ def test_enter_split():
         runner.assert_text_on_screen("Hello")
         runner.assert_text_on_screen("World")
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

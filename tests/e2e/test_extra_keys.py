@@ -35,8 +35,6 @@ def test_extra_shortcuts():
         runner.assert_text_on_screen("elloWorld")
         runner.assert_cursor_position(1, 5) # Cursor stays at join point
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

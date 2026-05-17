@@ -29,8 +29,6 @@ def test_delete_line():
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

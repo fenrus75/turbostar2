@@ -49,8 +49,6 @@ def test_selection_maintenance():
         # Verify with log or visual check if possible (visual check is hard for colors)
         # Let's verify character positions via insert/delete
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

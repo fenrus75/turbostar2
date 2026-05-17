@@ -39,8 +39,6 @@ def test_insert_file():
         # Ensure INSERTED_TEXT is GONE
         runner.assert_text_not_on_screen("INSERTED_TEXT")
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

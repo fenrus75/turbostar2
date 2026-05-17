@@ -32,8 +32,6 @@ def test_format_paragraph():
         # 6. Verify both are formatted
         runner.assert_content_is(step2_gold)
 
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

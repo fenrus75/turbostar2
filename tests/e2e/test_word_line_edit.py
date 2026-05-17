@@ -54,8 +54,6 @@ def test_word_line_editing():
         runner.assert_text_not_on_screen("One ")
         runner.assert_cursor_position(1, 1)
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

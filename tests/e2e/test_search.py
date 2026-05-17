@@ -54,8 +54,6 @@ def test_search_functionality():
         # Should find "Gamma" at 3:8
         runner.assert_cursor_position(3, 8, timeout=1.5)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

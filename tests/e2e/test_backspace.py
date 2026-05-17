@@ -28,8 +28,6 @@ def test_backspace():
         runner.assert_text_on_screen("HelloWorld")
         runner.assert_cursor_position(1, 6) # Cursor should be after "Hello"
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

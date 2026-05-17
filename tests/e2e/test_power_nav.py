@@ -48,8 +48,6 @@ def test_power_navigation():
         # Back to "WordA" (pos 1)
         runner.assert_cursor_position(1, 1)
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

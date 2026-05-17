@@ -67,8 +67,6 @@ def test_bracket_matching():
         # Should be at '}' at 3:1
         runner.assert_cursor_position(3, 1, timeout=1.5)
 
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

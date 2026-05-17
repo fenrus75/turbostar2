@@ -23,8 +23,7 @@ def test_tabs_positioning():
         # 3. Move back to before 'Text'
         # Currently at index 8 (col 13).
         # T e x t (4 chars)
-        for _ in range(4):
-            runner.send_keys('\x1b[D') # Left
+        runner.send_keys('\x1b[D', count=4) # Left
         # Should be at index 4 (after \t)
         # Col: T(1), a(2), b(3), \t(4-8) -> next char at 9.
         runner.assert_cursor_position(1, 9)
@@ -36,12 +35,9 @@ def test_tabs_positioning():
         runner.assert_cursor_position(1, 4)
         
         # 5. Move to start
-        for _ in range(3):
-            runner.send_keys('\x1b[D') # Left
+        runner.send_keys('\x1b[D', count=3) # Left
         runner.assert_cursor_position(1, 1)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

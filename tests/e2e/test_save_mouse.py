@@ -30,8 +30,6 @@ def test_save_mouse():
         # Wait for * to disappear
         runner.assert_text_not_on_screen("test_save.txt*", timeout=2.0)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

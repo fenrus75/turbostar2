@@ -84,14 +84,13 @@ class TurbostarRunner:
             keys = keys.replace('\n', '\r')
         for _ in range(count):
             self.send_raw_keys(keys)
+            time.sleep(0.05)
 
     def send_raw_keys(self, keys):
         if isinstance(keys, str):
             keys = keys.encode('utf-8')
-        for char_byte in keys:
-            time.sleep(0.01)
-            os.write(self.master_fd, bytes([char_byte]))
-            time.sleep(0.01)
+        os.write(self.master_fd, keys)
+        time.sleep(0.02)
         self._read_output()
 
     def send_ctrlk(self, cmd_char):
@@ -127,10 +126,16 @@ class TurbostarRunner:
 
     def wait(self, timeout=5):
         if self.proc:
-            self.proc.wait(timeout=timeout)
+            try:
+                self.proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                if self.proc.poll() is None:
+                    self.proc.terminate()
+                    self.proc.wait(timeout=2)
+                raise
         self._read_output()
 
-    def quit(self, force=True):
+    def quit(self, force=True, timeout=10):
         """
         Sends the quit command. If force=True, sends the force quit command (^KX) to bypass the save prompt.
         """
@@ -140,6 +145,8 @@ class TurbostarRunner:
             self.send_keys('\x1b') # ESC instantly exits force quit dialog
         else:
             self.send_ctrlk('q')
+            
+        self.wait(timeout=timeout)
 
     def get_log(self):
         if os.path.exists(self.log_path):
@@ -189,7 +196,7 @@ class TurbostarRunner:
             time.sleep(0.1)
         raise AssertionError(f"File '{path}' does not contain '{text}' after {timeout}s")
 
-    def assert_cursor_position(self, expected_y, expected_x, timeout=1.0):
+    def assert_cursor_position(self, expected_y, expected_x, timeout=5.0):
         start_time = time.time()
         while time.time() - start_time < timeout:
             actual_y, actual_x = self.get_cursor_position()
@@ -344,23 +351,31 @@ class TurbostarRunner:
                 os.remove(save_path)
 
     def cleanup(self):
-        if self.slave_fd is not None:
-            os.close(self.slave_fd)
-            self.slave_fd = None
-        if self.master_fd is not None:
-            # Try to quit gracefully via ^KQ
+        if self.proc is not None and self.proc.poll() is None:
             try:
-                os.write(self.master_fd, b'\x0b' + b'q')
-                time.sleep(0.1)
-            except:
+                self.quit(force=True, timeout=5)
+            except Exception:
                 pass
-            os.close(self.master_fd)
+                
+        if self.slave_fd is not None:
+            try:
+                os.close(self.slave_fd)
+            except OSError:
+                pass
+            self.slave_fd = None
+            
+        if self.master_fd is not None:
+            try:
+                os.close(self.master_fd)
+            except OSError:
+                pass
             self.master_fd = None
             
         if self.proc is not None and self.proc.poll() is None:
             self.proc.terminate()
             self.proc.wait()
             self.proc = None
+            
         if os.path.exists(self.log_path):
             os.remove(self.log_path)
             

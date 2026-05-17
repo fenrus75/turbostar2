@@ -43,8 +43,6 @@ def test_block_move_down():
         # 4. Verify content matches golden
         runner.assert_content_is('tests/data/block_move_golden.txt')
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=2)
         
     finally:
         runner.cleanup()

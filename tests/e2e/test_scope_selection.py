@@ -54,8 +54,6 @@ def test_scope_selection():
         runner.send_ctrlk('y') # Delete block
         runner.assert_content_is('tests/data/scope_sel_2.txt')
 
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

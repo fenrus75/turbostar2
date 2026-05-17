@@ -57,8 +57,6 @@ def test_block_copy_move():
         # Verify it's gone from line 2
         runner.assert_text_not_on_screen("Target[Block]")
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

@@ -29,8 +29,6 @@ def test_utf8_typing():
         # 5. Verify cursor back at 1:1
         runner.assert_cursor_position(1, 1)
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

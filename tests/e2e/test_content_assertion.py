@@ -17,8 +17,6 @@ def test_assert_content():
         # 2. Assert content matches
         runner.assert_content_is(ref_file)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

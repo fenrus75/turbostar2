@@ -13,13 +13,14 @@ def test_block_delete():
         
         # 2. Mark Selection: Start of "B" to Start of "C"
         # Move to line 2, start
-        runner.send_keys('\x1b[A') # Up (to line 2)
+        runner.move_cursor_to_line(2)
         runner.send_keys('\x01')    # Ctrl-A (Move to BOL)
         runner.assert_cursor_position(2, 1)
         runner.send_ctrlk('b') # ^KB
         
         # Move to line 3, start
-        runner.send_keys('\x1b[B') # Down
+        runner.move_cursor_to_line(3)
+        runner.send_keys('\x01')    # Ctrl-A (Move to BOL)
         runner.assert_cursor_position(3, 1)
         runner.send_ctrlk('k') # ^KK
         
@@ -31,8 +32,6 @@ def test_block_delete():
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

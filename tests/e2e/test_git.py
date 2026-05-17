@@ -71,9 +71,7 @@ def test_git_integration():
             print(f"Log contents:\n{runner.get_log()}")
             raise e
 
-        runner.send_ctrlk('q') # Ctrl-C
 
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

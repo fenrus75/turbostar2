@@ -32,8 +32,6 @@ def test_format_document():
         screen_undone = "\n".join(runner.screen.display)
         runner.assert_text_on_screen("int x=5;")
         
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

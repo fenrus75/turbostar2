@@ -29,8 +29,6 @@ def test_window_popup_menu():
         # Cancel Save As (using Esc to cancel dialog)
         runner.send_keys('\x1b')
         runner.assert_text_not_on_screen("Save File As", timeout=2.0)
-        runner.send_ctrlk('q')
-        runner.wait(timeout=2)
         runner.cleanup()
 
         # 3. Test Mouse Activation
@@ -58,8 +56,6 @@ def test_window_popup_menu():
         # But let's just assert "Compile File" disappears
         runner.assert_text_not_on_screen("Compile File", timeout=2.0)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
 
     finally:
         runner.cleanup()

@@ -35,8 +35,6 @@ def test_ghost_x():
         runner.send_keys('\x1b[A', count=2) # Up 2 to line 1
         runner.assert_cursor_position(1, 12) # Should be 12 now
 
-        runner.send_ctrlk('q') # Ctrl-C
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

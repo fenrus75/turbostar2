@@ -165,7 +165,11 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		if (ev.mouse_y == 0 || top_menu_.is_open()) {
 			if (top_menu_.handle_mouse(ev.mouse_x, ev.mouse_y, global_queue_)) {
 				// Click was handled by the menu bar
-				set_focus(focus_target::menu_bar, "mouse_click");
+				if (top_menu_.is_open()) {
+					set_focus(focus_target::menu_bar, "mouse_click");
+				} else {
+					set_focus(focus_target::window, "menu_close");
+				}
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
@@ -1110,11 +1114,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 						// Do nothing, abort close
 					}
 					return;
-				} else {
-					active_dialog_.reset();
-					active_dialog_mode_ = dialog_mode::none;
-					set_focus(focus_target::window, "dialog_close");
 				}
+
+				active_dialog_.reset();
+				active_dialog_mode_ = dialog_mode::none;
+				set_focus(focus_target::window, "dialog_close");
 
 			} else if (res == dialog_result::cancelled) {
 				active_dialog_.reset();

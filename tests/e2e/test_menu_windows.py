@@ -32,8 +32,6 @@ def test_window_menu_switching():
         
         runner.assert_in_log("Selecting window: 0", timeout=2.0)
 
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

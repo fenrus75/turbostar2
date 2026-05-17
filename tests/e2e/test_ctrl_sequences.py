@@ -28,8 +28,6 @@ def test_doubled_ctrl_sequences():
 
         runner.assert_in_log("K-block: Clear Selection", timeout=1.5)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

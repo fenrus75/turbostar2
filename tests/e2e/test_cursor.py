@@ -33,8 +33,6 @@ def test_cursor_movement():
         runner.assert_cursor_position(1, 3)
         
         # Quit
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
     except Exception as e:
         print(f"FAILED. Log contents:\n{runner.get_log()}")
         raise e

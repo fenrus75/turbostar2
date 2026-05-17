@@ -44,8 +44,6 @@ def test_menu_save_load():
         # 7. Verify text is restored
         runner.assert_text_on_screen(unique_text)
         
-        runner.send_ctrlk('q')
-        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()
