@@ -5,14 +5,14 @@
 # mid term items
    
 
-- add a compile output window somehow
-   - meson first, maybe later cmake and autoconf
 - LLM connection window?
    - chat only first
    - needs libcurl
 
 
 # done items (items move here on completion)
+
+- add a compile output window (implemented generic process_runner and split screen window)
 
 - support for LSP servers (clangd)
    - Integrated leon-bckl/lsp-framework as a Meson subproject
