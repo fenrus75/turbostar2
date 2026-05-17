@@ -28,7 +28,7 @@ def test_git_integration():
         # 2. Start Turbostar with the file
         runner.start(filename="git_test_repo/test.txt")
         # 3. Verify [✔] (Clean) is shown
-        runner.assert_text_on_screen("[✔]", timeout=5.0)
+        runner.assert_git_status("[✔]", timeout=5.0)
 
         # 4. Modify the file in the editor
         runner.send_keys("Modifying...")
@@ -37,13 +37,11 @@ def test_git_integration():
         runner.send_ctrlk('s') # ^K S (Save)
 
         # 6. Verify [✎] (Dirty) is shown
-        runner.assert_text_on_screen("[✎]", timeout=5.0)
+        runner.assert_git_status("[✎]", timeout=5.0)
 
-        # 7. Use "Git add" via menu
-        # Alt+G for Git menu, then 'a' for Add
-        runner.send_keys('\x1b' + 'g')
-        time.sleep(0.5)
-        runner.send_keys('a')
+        # 7. Use "Git add" via the magic button in the title bar
+        # Title bar git status is drawn at y=1, x=width-10. Width is 80 by default. So x=70.
+        runner.send_mouse_click(70, 1)
 
         # Verify it staged the file
         # Wait a bit for the async command
@@ -55,7 +53,10 @@ def test_git_integration():
                 staged = True
                 break
             time.sleep(0.1)
-        assert staged
+        
+        # Verify using our custom assert helper pattern to avoid naked asserts
+        if not staged:
+            raise AssertionError("Git add failed via magic button. File not staged.")
 
         # 8. Create a new branch and verify it's shown in the UI
         subprocess.run(['git', 'checkout', '-b', 'feature-x'], cwd=repo_dir, capture_output=True)

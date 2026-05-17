@@ -100,6 +100,13 @@ class TurbostarRunner:
         self.assert_text_on_screen("K-Block:", timeout=2.0)
         self.send_raw_keys(cmd_char.encode('utf-8'))
 
+    def send_mouse_click(self, x, y):
+        """Send a left mouse click at the given 0-based terminal coordinates."""
+        seq_down = f"\x1b[<0;{x+1};{y+1}M"
+        seq_up   = f"\x1b[<0;{x+1};{y+1}m"
+        self.send_keys(seq_down)
+        self.send_keys(seq_up)
+
     def insert_file(self, rel_path):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         abs_path = os.path.join(project_root, rel_path)
@@ -201,6 +208,23 @@ class TurbostarRunner:
 
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' found on screen after {timeout}s, but should not be. Screen content:\n{display_str}")
+
+    def assert_git_status(self, expected_status, timeout=1.0):
+        """
+        Asserts that the git status indicator in the title bar matches the expected status.
+        expected_status is typically '[✔]', '[✎]', or '[?]'.
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._read_output()
+            # Title bar is typically on line index 1
+            title_line = self.screen.display[1] if len(self.screen.display) > 1 else ""
+            if expected_status in title_line:
+                return
+            time.sleep(0.1)
+        
+        title_line = self.screen.display[1] if len(self.screen.display) > 1 else ""
+        raise AssertionError(f"Git status '{expected_status}' not found in title bar after {timeout}s. Title line:\n{title_line}")
 
     def assert_selection_is(self, start_y, start_x, end_y, end_x, timeout=1.0):
         """
