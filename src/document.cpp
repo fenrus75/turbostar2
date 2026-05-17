@@ -1,3 +1,19 @@
+/**
+ * @file document.cpp
+ * @brief Core document management and file I/O for Turbostar.
+ * 
+ * NOTE: Due to its size, the document implementation has been split into logical sub-modules.
+ * If you are looking for specific functionality, please check the corresponding file:
+ * 
+ * - `document_edit.cpp`: Text modification (insert, delete, split, append lines)
+ * - `document_format.cpp`: Code formatting (clang-format integration)
+ * - `document_highlight.cpp`: Syntax highlighting and background thread processing
+ * - `document_nav.cpp`: Cursor movement and viewport navigation
+ * - `document_search.cpp`: Text search, matching brackets, and scope selection
+ * - `document_selection.cpp`: Selection marking, copying, moving, and deleting blocks
+ * - `document_undo.cpp`: Undo/Redo history and action group management
+ */
+
 #include "document.h"
 #include <algorithm>
 #include <cstdlib>
