@@ -33,6 +33,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `file_security_manager` and integrated it into `tool_context`. It automatically prevents directory traversal, resolves symlinks, enforces read/write permission tiers against allowed workspace roots, and filters paths using `.agentignore` patterns.
 - Implemented enhanced two-stage security infrastructure for LLM tools based on `docs/llmtools.md`. Tools now self-register and strictly separate argument validation (Stage 1 via `tool_validator`) from execution and runtime validation (Stage 2 via `llm_tool` and `tool_context`).
 - Implemented `llm_transport` abstraction for the LLM client, allowing seamless injection of `httplib_transport` (real network), `recording_transport` (traffic logging), and `replay_transport` (deterministic, network-less testing).
 - Implemented `src/agentlib/` and `src/agentcli/` as the foundational LLM backend.

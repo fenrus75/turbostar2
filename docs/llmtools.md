@@ -38,6 +38,23 @@ Once instantiated by the validator (via `create_tool()`), the actual tool object
 - Validates the operation against the live `tool_context` (e.g., checking if the current document is in a state that allows editing).
 - If validation passes, `execute()` is called.
 
+### File Security Manager
+Any tool that accesses the filesystem (e.g., read, write, compile) **must** use the `file_security_manager` provided inside the `tool_context` during its Stage 2 `validate_runtime` step.
+
+```cpp
+bool my_file_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
+    std::string canonical_path;
+    // Strictly validate that the LLM-provided path is allowed for reading
+    if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, canonical_path, out_error)) {
+        return false;
+    }
+    // Store the safe, resolved canonical path for execute() to use
+    safe_path_ = canonical_path; 
+    return true;
+}
+```
+The manager automatically handles `../` directory traversal attacks, resolves symbolic links, enforces workspace root boundaries, and checks against `.agentignore` patterns. Never use a raw path string from the LLM directly in a system call.
+
 ## Dealing with JSON Dependencies
 
 To minimize compile times and prevent security bypasses, tool implementation logic (`_entry.cpp`) **must never** `#include <nlohmann/json.hpp>`. The tool's execution phase should only ever operate on native C++ types.
