@@ -22,6 +22,9 @@ class config_manager
 	std::string get_build_directory() const { return build_directory_; }
 	void set_build_directory(const std::string &dir) { build_directory_ = dir; }
 
+	bool is_lsp_enabled() const { return lsp_enabled_; }
+	void set_lsp_enabled(bool enabled) { lsp_enabled_ = enabled; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -29,4 +32,5 @@ class config_manager
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
+	bool lsp_enabled_{true};
 };

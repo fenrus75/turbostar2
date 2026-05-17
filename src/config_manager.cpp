@@ -52,6 +52,8 @@ void config_manager::load()
 			build_system_ = value;
 		} else if (key == "build_directory") {
 			build_directory_ = value;
+		} else if (key == "lsp_enabled") {
+			lsp_enabled_ = (value == "true" || value == "1");
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -70,6 +72,7 @@ void config_manager::save()
 	file << "clang_format_style=" << clang_format_style_ << "\n";
 	file << "build_system=" << build_system_ << "\n";
 	file << "build_directory=" << build_directory_ << "\n";
+	file << "lsp_enabled=" << (lsp_enabled_ ? "true" : "false") << "\n";
 	
 	event_logger::get_instance().log("Configuration saved to " + path);
 }

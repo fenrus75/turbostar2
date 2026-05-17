@@ -34,6 +34,11 @@ std::string settings_dialog::get_build_directory() const
 	return build_directory_buffer_;
 }
 
+bool settings_dialog::is_lsp_enabled() const
+{
+	return lsp_enabled_;
+}
+
 void settings_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
 {
 	// Fill background (Cyan)
@@ -110,6 +115,43 @@ void settings_dialog::draw_radio_button(int gy, int gx, const std::string &label
 	attrset(0);
 }
 
+void settings_dialog::draw_checkbox(int gy, int gx, const std::string &label, bool checked, char hotkey) const
+{
+	move(y_ + gy, x_ + gx);
+	bool is_focused = (focus_idx_ == 3);
+	if (is_focused)
+		attrset(COLOR_PAIR(19));
+	else
+		attrset(COLOR_PAIR(17));
+
+	addch('[');
+	if (checked)
+		addstr("X");
+	else
+		addch(' ');
+	addch(']');
+	addch(' ');
+
+	// Hotkey handling
+	std::string lower_label = label;
+	for (char &c : lower_label) c = std::tolower(c);
+	size_t hotkey_pos = lower_label.find(std::tolower(hotkey));
+
+	for (size_t i = 0; i < label.length(); ++i) {
+		if (i == hotkey_pos) {
+			if (is_focused)
+				attrset(COLOR_PAIR(19));
+			else
+				attrset(COLOR_PAIR(18));
+			addch(label[i]);
+			if (is_focused) attrset(COLOR_PAIR(19)); else attrset(COLOR_PAIR(17));
+		} else {
+			addch(label[i]);
+		}
+	}
+	attrset(0);
+}
+
 void settings_dialog::draw_text_input(int gy, int gx, int gw, const std::string &label, const std::string &value, bool focused) const
 {
 	attrset(COLOR_PAIR(1));
@@ -167,13 +209,12 @@ void settings_dialog::draw() const
 	draw_group_box(2, 36, 20, 5, " Build System ");
 	
 	std::vector<std::pair<std::string, char>> system_labels = {
-		{"meson", 'e'},
+		{"meson", 'm'},
 		{"cmake", 'k'},
 		{"make", 'a'}
 	};
 
 	for (size_t i = 0; i < system_labels.size(); ++i) {
-		// Adjust focus heuristic for draw_radio_button
 		bool is_focused = (focus_idx_ == 1);
 		bool is_selected = (static_cast<int>(i) == selected_build_system_idx_);
 		int gy = 3 + static_cast<int>(i);
@@ -183,36 +224,25 @@ void settings_dialog::draw() const
 		bool item_focused = is_focused && is_selected;
 
 		if (item_focused)
-			attrset(COLOR_PAIR(19)); // Black on Green
+			attrset(COLOR_PAIR(19));
 		else
-			attrset(COLOR_PAIR(17)); // Black on Cyan
+			attrset(COLOR_PAIR(17));
 
 		addch('(');
-		if (is_selected)
-			addstr("•");
-		else
-			addch(' ');
+		if (is_selected) addstr("•"); else addch(' ');
 		addch(')');
 		addch(' ');
 
-		// Draw label with hotkey
 		std::string label = system_labels[i].first;
 		char hotkey = system_labels[i].second;
-		std::string lower_label = label;
-		for (char &c : lower_label) c = std::tolower(c);
-		size_t hotkey_pos = lower_label.find(std::tolower(hotkey));
+		size_t hotkey_pos = label.find(std::tolower(hotkey));
 
 		for (size_t j = 0; j < label.length(); ++j) {
 			if (j == hotkey_pos) {
-				if (item_focused)
-					attrset(COLOR_PAIR(19));
-				else
-					attrset(COLOR_PAIR(18)); // Bright Yellow on Cyan
+				attron(COLOR_PAIR(item_focused ? 19 : 18));
 				addch(label[j]);
-				if (item_focused)
-					attrset(COLOR_PAIR(19));
-				else
-					attrset(COLOR_PAIR(17));
+				attroff(COLOR_PAIR(item_focused ? 19 : 18));
+				attron(COLOR_PAIR(item_focused ? 19 : 17));
 			} else {
 				addch(label[j]);
 			}
@@ -223,6 +253,9 @@ void settings_dialog::draw() const
 	// Build Directory Input
 	draw_text_input(13, 4, 52, "Build Directory:", build_directory_buffer_, focus_idx_ == 2);
 
+	// LSP toggle
+	draw_checkbox(15, 4, "Enable LSP (clangd)", lsp_enabled_, 'E');
+
 	// Buttons
 	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot, bool focused) {
 		attrset(COLOR_PAIR(1));
@@ -232,13 +265,13 @@ void settings_dialog::draw() const
 		
 		move(y_ + by, x_ + bx);
 		if (focused)
-			attrset(COLOR_PAIR(14)); // Black on Green
+			attrset(COLOR_PAIR(14));
 		else
-			attrset(COLOR_PAIR(10)); // White on Green
+			attrset(COLOR_PAIR(10));
 			
 		for (size_t i = 0; i < btext.length(); ++i) {
 			if (std::tolower(btext[i]) == std::tolower(bhot)) {
-				attrset(COLOR_PAIR(15)); // Red on Green (Hotkey)
+				attrset(COLOR_PAIR(15));
 				addch(btext[i]);
 				if (focused) attrset(COLOR_PAIR(14)); else attrset(COLOR_PAIR(10));
 			} else {
@@ -248,9 +281,9 @@ void settings_dialog::draw() const
 		attrset(0);
 	};
 
-	draw_btn(17, 10, "  OK  ", 'o', focus_idx_ == 3);
-	draw_btn(17, 25, " Cancel ", 'c', focus_idx_ == 4);
-	draw_btn(17, 40, " Help ", 'h', focus_idx_ == 5);
+	draw_btn(18, 10, "  OK  ", 'o', focus_idx_ == 4);
+	draw_btn(18, 25, " Cancel ", 'c', focus_idx_ == 5);
+	draw_btn(18, 40, " Help ", 'h', focus_idx_ == 6);
 
 	attrset(0);
 }
@@ -259,18 +292,17 @@ dialog_result settings_dialog::handle_key(int key)
 {
 	if (key == 27) return dialog_result::cancelled;
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
-		if (focus_idx_ == 3) return dialog_result::confirmed;
-		if (focus_idx_ == 4) return dialog_result::cancelled;
-		// Help is not implemented
-		if (focus_idx_ == 0 || focus_idx_ == 1 || focus_idx_ == 2) return dialog_result::confirmed;
+		if (focus_idx_ == 4) return dialog_result::confirmed;
+		if (focus_idx_ == 5) return dialog_result::cancelled;
+		if (focus_idx_ <= 3) return dialog_result::confirmed;
 	}
 
 	if (key == '\t') {
-		focus_idx_ = (focus_idx_ + 1) % 6;
+		focus_idx_ = (focus_idx_ + 1) % 7;
 		return dialog_result::pending;
 	}
 	if (key == KEY_BTAB) {
-		focus_idx_ = (focus_idx_ - 1 + 6) % 6;
+		focus_idx_ = (focus_idx_ - 1 + 7) % 7;
 		return dialog_result::pending;
 	}
 
@@ -288,40 +320,44 @@ dialog_result settings_dialog::handle_key(int key)
 		}
 	} else if (focus_idx_ == 2) {
 		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-			if (!build_directory_buffer_.empty()) {
-				build_directory_buffer_.pop_back();
-			}
+			if (!build_directory_buffer_.empty()) build_directory_buffer_.pop_back();
 			return dialog_result::pending;
 		}
 		if (key >= 32 && key <= 126) {
 			build_directory_buffer_ += static_cast<char>(key);
 			return dialog_result::pending;
 		}
+	} else if (focus_idx_ == 3) {
+		if (key == ' ') {
+			lsp_enabled_ = !lsp_enabled_;
+			return dialog_result::pending;
+		}
 	} else {
 		if (key == KEY_LEFT || key == KEY_RIGHT) {
-			if (focus_idx_ >= 3 && focus_idx_ <= 5) {
-				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 3 + 1) % 3) + 3;
-				else focus_idx_ = ((focus_idx_ - 3 + 2) % 3) + 3;
+			if (focus_idx_ >= 4 && focus_idx_ <= 6) {
+				if (key == KEY_RIGHT) focus_idx_ = ((focus_idx_ - 4 + 1) % 3) + 4;
+				else focus_idx_ = ((focus_idx_ - 4 + 2) % 3) + 4;
 			}
 		}
 	}
 
-	// Hotkeys
 	int k = std::tolower(key);
 	if (k == 'l') { selected_style_idx_ = 0; focus_idx_ = 0; }
 	else if (k == 'g') { selected_style_idx_ = 1; focus_idx_ = 0; }
-	else if (k == 'c') { selected_style_idx_ = 2; focus_idx_ = 0; }
+	else if (k == 'c') { 
+		if (focus_idx_ != 5) { // Not Cancel hotkey
+			selected_style_idx_ = 2; focus_idx_ = 0; 
+		}
+	}
 	else if (k == 'm') { selected_style_idx_ = 3; focus_idx_ = 0; }
 	else if (k == 'w') { selected_style_idx_ = 4; focus_idx_ = 0; }
 	else if (k == 's') { selected_style_idx_ = 5; focus_idx_ = 0; }
 	else if (k == 'n') { selected_style_idx_ = 6; focus_idx_ = 0; }
 	else if (k == 'f') { selected_style_idx_ = 7; focus_idx_ = 0; }
-	
-	else if (k == 'e') { selected_build_system_idx_ = 0; focus_idx_ = 1; }
-	else if (k == 'k') { selected_build_system_idx_ = 1; focus_idx_ = 1; }
-	else if (k == 'a') { selected_build_system_idx_ = 2; focus_idx_ = 1; }
-	
-	else if (k == 'o' && focus_idx_ != 2) return dialog_result::confirmed;
+	else if (k == 'e') { lsp_enabled_ = !lsp_enabled_; focus_idx_ = 3; }
+	else if (k == 'k' && focus_idx_ != 3) { selected_build_system_idx_ = 1; focus_idx_ = 1; }
+	else if (k == 'a' && focus_idx_ != 3) { selected_build_system_idx_ = 2; focus_idx_ = 1; }
+	else if (k == 'o' && focus_idx_ >= 4) return dialog_result::confirmed;
 
 	return dialog_result::pending;
 }
