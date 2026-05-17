@@ -33,6 +33,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented enhanced two-stage security infrastructure for LLM tools based on `docs/llmtools.md`. Tools now self-register and strictly separate argument validation (Stage 1 via `tool_validator`) from execution and runtime validation (Stage 2 via `llm_tool` and `tool_context`).
 - Implemented `llm_transport` abstraction for the LLM client, allowing seamless injection of `httplib_transport` (real network), `recording_transport` (traffic logging), and `replay_transport` (deterministic, network-less testing).
 - Implemented `src/agentlib/` and `src/agentcli/` as the foundational LLM backend.
   - Phased plan 1-9 completed: Built an OpenAI-compatible client (`llm_client`) using `cpp-httplib` and `nlohmann_json`.
