@@ -23,7 +23,7 @@
      which will still be major by themselves
    - chat only first
    - support function calls from the very start
-   - needs libcurl or cpp-httplib -- need evaluation between these two
+   - decision: use cpp-httplib (has built-in SSE support and idiomatic C++ API)
 
 
 - a git specific submenu when you click on the branch name in the title bar?
