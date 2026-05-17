@@ -7,11 +7,10 @@ def test_settings_dialog():
     try:
         runner.start()
         config_path = os.path.join(runner.temp_home, '.turbostar')
-        time.sleep(0.5)
         
         # 1. Open Settings Dialog via Alt+P -> P
         runner.send_keys('\x1b' + 'p') # Alt+P
-        time.sleep(0.5)
+        runner.assert_menu_active(timeout=2.0)
         runner.send_keys('p')
 
         # Verify dialog is open
@@ -20,21 +19,19 @@ def test_settings_dialog():
         
         # 2. Select "Google" style (hotkey 'G')
         runner.send_keys('g')
-        time.sleep(0.2)
         
         # 3. Confirm with Enter
         runner.send_keys('\n')
-        time.sleep(0.5)
         
         # 4. Quit and verify config file
         runner.send_ctrlk('q') # ^K Q
         runner.wait(timeout=5)
         
         # Verify persistence
-        runner.assert_file_exists(config_path)
+        runner.assert_file_exists(config_path, timeout=2.0)
         with open(config_path, 'r') as f:
             content = f.read()
-            runner.assert_file_contains(config_path, "clang_format_style=Google")
+            runner.assert_file_contains(config_path, "clang_format_style=Google", timeout=2.0)
             
     finally:
         runner.cleanup()
