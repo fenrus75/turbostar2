@@ -53,6 +53,43 @@ void clangd_manager::start(event_queue &queue)
 		auto initializeResult = initializeRequest.result.get();
 
 		message_handler_->sendNotification<lsp::notifications::Initialized>({});
+		
+		message_handler_->add<lsp::notifications::TextDocument_PublishDiagnostics>([this](const lsp::notifications::TextDocument_PublishDiagnostics::Params& params) {
+			if (global_queue_) {
+				std::vector<diagnostic_info> diagnostics;
+				for (const auto& diag : params.diagnostics) {
+					diagnostic_info info;
+					info.range = {
+						static_cast<int>(diag.range.start.line),
+						static_cast<int>(diag.range.start.character),
+						static_cast<int>(diag.range.end.line),
+						static_cast<int>(diag.range.end.character)
+					};
+					info.severity = diag.severity.value_or(lsp::DiagnosticSeverity::Error);
+					info.message = diag.message;
+					diagnostics.push_back(info);
+				}
+				
+				// Sort diagnostics to find the first one (lowest line, then lowest character)
+				std::sort(diagnostics.begin(), diagnostics.end(), [](const diagnostic_info& a, const diagnostic_info& b) {
+					if (a.range.start_y != b.range.start_y) {
+						return a.range.start_y < b.range.start_y;
+					}
+					return a.range.start_x < b.range.start_x;
+				});
+
+				// Only keep the first one
+				if (diagnostics.size() > 1) {
+					diagnostics.resize(1);
+				}
+
+				editor_event ev;
+				ev.type = event_type::lsp_diagnostics_result;
+				ev.diagnostics = diagnostics;
+				global_queue_->push(ev);
+			}
+		});
+
 		event_logger::get_instance().log("clangd started and initialized successfully.");
 	} catch (const std::exception& e) {
 		event_logger::get_instance().log("Failed to start clangd: " + std::string(e.what()));

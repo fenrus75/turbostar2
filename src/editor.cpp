@@ -621,6 +621,17 @@ void editor::dispatch(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::lsp_diagnostics_result) {
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			active_doc->set_lsp_diagnostics(ev.diagnostics);
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::key_press) {
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
@@ -980,7 +991,31 @@ void editor::render()
 		status_help = "Go to line: " + line_input_buffer_ + "_";
 	}
 
-	bottom_status_.draw(status_help, hover_text_, cur_x, cur_y);
+	std::string diag_text = "";
+	if (active_win && active_win->get_document()) {
+		auto doc = active_win->get_document();
+		for (const auto& diag : doc->get_lsp_diagnostics()) {
+			if (cur_y > diag.range.start_y && cur_y < diag.range.end_y) {
+				diag_text = diag.message; break;
+			} else if (cur_y == diag.range.start_y && cur_y == diag.range.end_y) {
+				if (cur_x >= diag.range.start_x && cur_x <= diag.range.end_x) {
+					diag_text = diag.message; break;
+				}
+			} else if (cur_y == diag.range.start_y && cur_x >= diag.range.start_x) {
+				diag_text = diag.message; break;
+			} else if (cur_y == diag.range.end_y && cur_x <= diag.range.end_x) {
+				diag_text = diag.message; break;
+			}
+		}
+	}
+
+	std::string combined_hover = hover_text_;
+	if (!diag_text.empty()) {
+		if (!combined_hover.empty()) combined_hover += " | ";
+		combined_hover += diag_text;
+	}
+
+	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y);
 
 	if (active_dialog_) {
 		active_dialog_->draw();

@@ -27,7 +27,8 @@ enum class event_type {
 	select_window, ///< Request to switch active window (key_code is index)
 	lsp_hover_result, ///< Notification that LSP hover information is available
 	lsp_highlight_result, ///< Notification that LSP document highlight is available
-	lsp_selection_range_result ///< Notification that LSP selection range is available
+	lsp_selection_range_result, ///< Notification that LSP selection range is available
+	lsp_diagnostics_result ///< Notification that LSP diagnostics are available
 };
 
 struct text_range {
@@ -35,6 +36,12 @@ struct text_range {
 	int start_x;
 	int end_y;
 	int end_x;
+};
+
+struct diagnostic_info {
+	text_range range;
+	int severity; // 1: Error, 2: Warning, 3: Info, 4: Hint
+	std::string message;
 };
 
 /**
@@ -53,6 +60,7 @@ struct editor_event {
 	std::string utf8_char; ///< UTF-8 character sequence for typing
 	std::string payload;   ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
+	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
 };
 
 /**

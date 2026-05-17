@@ -129,6 +129,12 @@ class document
 	}
 	const std::vector<text_range>& get_lsp_highlights() const { return lsp_highlights_; }
 
+	void set_lsp_diagnostics(const std::vector<diagnostic_info> &diagnostics) {
+		std::unique_lock lock(mutex_);
+		lsp_diagnostics_ = diagnostics;
+	}
+	const std::vector<diagnostic_info>& get_lsp_diagnostics() const { return lsp_diagnostics_; }
+
       private:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
@@ -188,4 +194,5 @@ class document
 	std::shared_ptr<syntax_highlighter> active_highlighter_;
 
 	mutable std::vector<text_range> lsp_highlights_;
+	mutable std::vector<diagnostic_info> lsp_diagnostics_;
 };

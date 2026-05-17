@@ -315,6 +315,31 @@ void window::draw_content() const
 						}
 					}
 
+					int diagnostic_severity = 0;
+					if (doc_) {
+						for (const auto& diag : doc_->get_lsp_diagnostics()) {
+							if (doc_line_idx > diag.range.start_y && doc_line_idx < diag.range.end_y) {
+								diagnostic_severity = diag.severity;
+								break;
+							} else if (doc_line_idx == diag.range.start_y && doc_line_idx == diag.range.end_y) {
+								if (static_cast<int>(char_idx) >= diag.range.start_x && static_cast<int>(char_idx) < diag.range.end_x) {
+									diagnostic_severity = diag.severity;
+									break;
+								}
+							} else if (doc_line_idx == diag.range.start_y) {
+								if (static_cast<int>(char_idx) >= diag.range.start_x) {
+									diagnostic_severity = diag.severity;
+									break;
+								}
+							} else if (doc_line_idx == diag.range.end_y) {
+								if (static_cast<int>(char_idx) < diag.range.end_x) {
+									diagnostic_severity = diag.severity;
+									break;
+								}
+							}
+						}
+					}
+
 					syntax_attribute attr = current_l->get_attribute(char_idx);
 					int pair = 3;
 					if (is_match) {
@@ -323,6 +348,10 @@ void window::draw_content() const
 						pair = 8;
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
+					} else if (diagnostic_severity == 1) { // Error
+						pair = 27; // White on Red
+					} else if (diagnostic_severity == 2) { // Warning
+						pair = 28; // Black on Yellow
 					} else if (is_lsp_highlight) {
 						pair = 25; // Normal on Magenta
 						if (attr == syntax_attribute::keyword)

@@ -108,6 +108,8 @@ int main(int argc, char **argv)
 	init_pair(24, COLOR_GREEN + 8, COLOR_BLUE);  // Syntax: List Item
 	init_pair(25, COLOR_YELLOW + 8, COLOR_MAGENTA); // LSP Highlight (Normal)
 	init_pair(26, COLOR_WHITE + 8, COLOR_MAGENTA);  // LSP Highlight (Keyword)
+	init_pair(27, COLOR_WHITE + 8, COLOR_RED);      // LSP Error (White on Red)
+	init_pair(28, COLOR_BLACK, COLOR_YELLOW);       // LSP Warning (Black on Yellow)
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000
