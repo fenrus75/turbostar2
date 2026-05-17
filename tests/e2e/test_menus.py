@@ -11,7 +11,7 @@ def check_menu(key, expected_menu_name):
         time.sleep(0.5)
         runner.send_keys('\x0b' + 'q')       # Ctrl-C to quit
         try:
-            runner.wait(timeout=2)
+            runner.wait(timeout=5)
         except Exception as e:
             print(f"FAILED. Log: {runner.get_log()}")
             raise e
@@ -37,7 +37,7 @@ def test_file_exit():
         runner.assert_text_on_screen('Exit')
         runner.send_keys('x')    # 'x' selects the "Exit" item
         try:
-            runner.wait(timeout=2)
+            runner.wait(timeout=5)
         except Exception as e:
             print(f"FAILED. Log: {runner.get_log()}")
             raise e

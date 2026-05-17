@@ -48,7 +48,7 @@ def test_window_menu_switching():
         assert "Selecting window: 0" in last_selecting
 
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

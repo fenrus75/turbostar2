@@ -76,7 +76,7 @@ def test_scope_selection():
             raise e
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

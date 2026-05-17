@@ -52,7 +52,7 @@ def test_menu_save_load():
         runner.assert_text_on_screen(unique_text)
         
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

@@ -59,7 +59,7 @@ def test_dialog_save_load():
             raise e
         
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

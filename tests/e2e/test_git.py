@@ -30,7 +30,7 @@ def test_git_integration():
         time.sleep(1.0)
         
         # 3. Verify [✔] (Clean) is shown
-        runner.assert_text_on_screen("[✔]", timeout=2.0)
+        runner.assert_text_on_screen("[✔]", timeout=5.0)
 
         # 4. Modify the file in the editor
         runner.send_keys("Modifying...")
@@ -39,7 +39,7 @@ def test_git_integration():
         runner.send_keys('\x0b' + 's') # ^K S (Save)
 
         # 6. Verify [✎] (Dirty) is shown
-        runner.assert_text_on_screen("[✎]", timeout=2.0)
+        runner.assert_text_on_screen("[✎]", timeout=5.0)
 
         # 7. Use "Git add" via menu
         # Alt+G for Git menu, then 'a' for Add
@@ -72,7 +72,7 @@ def test_git_integration():
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
 
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

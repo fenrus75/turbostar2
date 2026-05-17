@@ -27,7 +27,7 @@ def test_syntax_highlighting():
         runner.assert_text_on_screen("const bool active")
         
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

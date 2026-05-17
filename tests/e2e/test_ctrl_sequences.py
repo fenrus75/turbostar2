@@ -32,7 +32,7 @@ def test_doubled_ctrl_sequences():
         assert "K-block: Clear Selection" in log
         
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

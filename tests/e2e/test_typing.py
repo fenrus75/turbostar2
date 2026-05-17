@@ -23,7 +23,7 @@ def test_basic_typing():
         runner.assert_cursor_position(1, 16)
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C to quit
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

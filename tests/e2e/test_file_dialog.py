@@ -38,7 +38,7 @@ def test_file_dialog():
         log = runner.get_log()
         try:
             assert "Document loaded from" in log
-            full_path = os.path.join(testrun_dir, test_dir, test_file)
+            full_path = os.path.abspath(os.path.join(testrun_dir, test_dir, test_file))
             assert full_path in log
         except AssertionError:
             print("Assertion failed. Log content:")
@@ -85,7 +85,7 @@ def test_file_dialog_autocomplete():
 
         log = runner.get_log()
         try:
-            full_path = os.path.join(testrun_dir, test_dir, test_file)
+            full_path = os.path.abspath(os.path.join(testrun_dir, test_dir, test_file))
             assert full_path in log
         except AssertionError:
             print("Assertion failed. Log content:")

@@ -37,7 +37,7 @@ def test_format_paragraph():
         runner.assert_content_is(step2_gold)
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

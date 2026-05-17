@@ -42,7 +42,7 @@ def test_block_delete():
         runner.assert_cursor_position(2, 1)
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

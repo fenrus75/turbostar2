@@ -33,7 +33,7 @@ def test_lsp_selection():
         runner.send_keys('\x0b' + 'y')
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

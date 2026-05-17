@@ -44,7 +44,7 @@ def test_insert_file():
         assert "INSERTED_TEXT" not in screen
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

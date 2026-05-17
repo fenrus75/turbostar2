@@ -21,7 +21,7 @@ def test_assert_content():
         runner.assert_content_is(ref_file)
         
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

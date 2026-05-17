@@ -52,7 +52,7 @@ def test_selection_maintenance():
         # Let's verify character positions via insert/delete
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

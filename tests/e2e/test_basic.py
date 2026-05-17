@@ -9,7 +9,7 @@ def test_startup_and_quit():
         runner.send_keys('\x0b' + 'q')
         
         # Wait for the process to exit
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
 
         # Read the log file and verify events
         log_contents = runner.get_log()

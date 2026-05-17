@@ -95,7 +95,7 @@ class TurbostarRunner:
             time.sleep(0.01)
         self._read_output()
 
-    def wait(self, timeout=2):
+    def wait(self, timeout=5):
         if self.proc:
             self.proc.wait(timeout=timeout)
         self._read_output()

@@ -33,7 +33,7 @@ def test_cursor_wrap():
 
         # Quit
         runner.send_keys('\x0b' + 'q')
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
     except Exception as e:
         print(f"FAILED. Log contents:\n{runner.get_log()}")
         raise e

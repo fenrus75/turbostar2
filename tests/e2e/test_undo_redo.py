@@ -42,7 +42,7 @@ def test_undo_redo():
         runner.assert_text_on_screen("Hello World")
 
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

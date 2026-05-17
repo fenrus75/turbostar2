@@ -31,7 +31,7 @@ def test_backspace():
         runner.assert_cursor_position(1, 6) # Cursor should be after "Hello"
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()

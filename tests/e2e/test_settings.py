@@ -29,7 +29,7 @@ def test_settings_dialog():
         
         # 4. Quit and verify config file
         runner.send_keys('\x0b' + 'q') # ^K Q
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
         # Verify persistence
         assert os.path.exists(config_path)

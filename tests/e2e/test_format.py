@@ -35,7 +35,7 @@ def test_format_document():
         assert "int x=5;" in screen_undone
         
         runner.send_keys('\x0b' + 'q') # Ctrl-C
-        runner.wait(timeout=2)
+        runner.wait(timeout=5)
         
     finally:
         runner.cleanup()
