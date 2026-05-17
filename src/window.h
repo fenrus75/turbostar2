@@ -36,6 +36,9 @@ class window
 	int get_width() const { return width_; }
 	int get_height() const { return height_; }
 
+	int get_background_color_pair() const { return background_color_pair_; }
+	void set_background_color_pair(int pair) { background_color_pair_ = pair; }
+
 	/**
 	 * @brief Processes all pending events in the window's local queue.
 	 * @return true if an event was processed that requires a re-render.
@@ -77,6 +80,8 @@ class window
 	uint64_t last_active_timestamp_{0};
 	int display_priority_{0};
 	bool is_visible_{true};
+
+	int background_color_pair_{3};
 
 	mutable int top_line_{0};
 	mutable int left_column_{0};

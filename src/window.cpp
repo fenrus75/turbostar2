@@ -238,7 +238,7 @@ void window::draw_content() const
 		move(y_ + i, x_ + 1);
 
 		// Clear line background
-		attrset(COLOR_PAIR(3));
+		attrset(COLOR_PAIR(background_color_pair_));
 		for (int k = 0; k < width_ - 2; ++k)
 			addch(' ');
 
@@ -350,7 +350,7 @@ void window::draw_content() const
 					}
 
 					syntax_attribute attr = current_l->get_attribute(char_idx);
-					int pair = 3;
+					int pair = background_color_pair_;
 					if (is_match) {
 						pair = 13; // Bright Yellow on Cyan
 					} else if (in_selection) {

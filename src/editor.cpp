@@ -648,9 +648,9 @@ void editor::dispatch(const editor_event &ev)
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
 				win->attach_document(doc);
 				win->set_display_priority(10); // Put it above normal windows
+				win->set_background_color_pair(29); // White on Black
 
-				windows_.push_back(std::move(win));
-				compile_win_idx = windows_.size() - 1;
+				windows_.push_back(std::move(win));				compile_win_idx = windows_.size() - 1;
 			}
 
 			activate_window(compile_win_idx);
@@ -703,9 +703,9 @@ void editor::dispatch(const editor_event &ev)
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1, COLS, test_height, "Test Output");
 				win->attach_document(doc);
 				win->set_display_priority(10);
+				win->set_background_color_pair(29); // White on Black
 
-				windows_.push_back(std::move(win));
-				test_win_idx = windows_.size() - 1;
+				windows_.push_back(std::move(win));				test_win_idx = windows_.size() - 1;
 			}
 
 			activate_window(test_win_idx);
