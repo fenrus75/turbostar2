@@ -19,6 +19,7 @@ sections updated as enhancements are made to the project.
 | `docs/colorscheme.md`  | Color scheme documentation |
 | `docs/buttonrecipe.md` | How to make UI buttons     |
 | `docs/test-guidelines.md` | End-to-End test guidelines |
+| `docs/llmtools.md`     | LLM Tool Infrastructure    |
 
 # Git policy
 
