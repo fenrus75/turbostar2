@@ -28,7 +28,7 @@ def test_git_mouse():
         # 2. Start Turbostar with the file
         runner.start(filename="git_test_repo/test.txt")
         # 3. Verify [✔] (Clean) is shown
-        runner.assert_git_status("[✔]", timeout=5.0)
+        runner.assert_git_status("✔]", timeout=5.0)
 
         # 4. Modify the file in the editor
         runner.send_keys("Modifying...")
@@ -37,11 +37,11 @@ def test_git_mouse():
         runner.send_ctrlk('s') # ^K S (Save)
 
         # 6. Verify [✎] (Dirty) is shown
-        runner.assert_git_status("[✎]", timeout=5.0)
+        runner.assert_git_status("✎]", timeout=5.0)
 
         # 7. Use "Git add" via the magic button in the title bar
         # Title bar git status is drawn at y=1, x=width-10. Width is 80 by default. So x=70.
-        runner.send_mouse_click(70, 1)
+        runner.send_mouse_click(8, 1)
 
         # Verify it staged the file
         # Wait a bit for the async command
@@ -63,7 +63,7 @@ def test_git_mouse():
         # Trigger refresh by saving
         runner.send_ctrlk('s')
         try:
-            runner.assert_text_on_screen("(feature-x)", timeout=5.0)
+            runner.assert_text_on_screen("feature-x", timeout=5.0)
 
         except AssertionError as e:
             print(f"Log contents:\n{runner.get_log()}")

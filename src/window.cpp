@@ -414,11 +414,6 @@ std::string window::get_displayed_title() const
 			current_title = current_title.substr(last_slash + 1);
 		}
 
-		std::string branch = doc_->get_git_branch();
-		if (!branch.empty() && branch != "main" && branch != "master") {
-			current_title += " (" + branch + ")";
-		}
-
 		if (doc_->is_modified()) {
 			current_title += "*";
 		}
@@ -465,8 +460,35 @@ void window::draw_border() const
 	attron(COLOR_PAIR(5));
 	addstr("]");
 
+	// Draw Git Status and Branch
+	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
+		git_info info = git_manager::get_instance().get_cached_info(doc_->get_filename());
+		std::string branch = doc_->get_git_branch();
+		if (branch.empty()) branch = "unknown";
+		
+		std::string indicator = "?";
+		int pair = 5;
+		if (info.status == git_status::clean) {
+			indicator = "✔";
+			pair = 20;
+		} else if (info.status == git_status::dirty) {
+			indicator = "✎";
+			pair = 21;
+		}
+		
+		mvaddstr(y_, x_ + 6, "[");
+		attron(COLOR_PAIR(5));
+		addstr(branch.c_str());
+		addch(' ');
+		attron(COLOR_PAIR(pair));
+		addstr(indicator.c_str());
+		attroff(COLOR_PAIR(pair));
+		attron(COLOR_PAIR(5));
+		addstr("]");
+	}
+
 	// Draw popup menu widget
-	mvaddstr(y_, x_ + 6, "[");
+	mvaddstr(y_, x_ + width_ - 10, "[");
 	attron(COLOR_PAIR(3)); // Bright Yellow
 	addstr("≡");
 	attroff(COLOR_PAIR(3));
@@ -475,25 +497,6 @@ void window::draw_border() const
 
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
-
-	// Draw Git Status
-	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
-		git_info info = git_manager::get_instance().get_cached_info(doc_->get_filename());
-		std::string indicator = "[?]";
-		int pair = 5;
-
-		if (info.status == git_status::clean) {
-			indicator = "[✔]";
-			pair = 20;
-		} else if (info.status == git_status::dirty) {
-			indicator = "[✎]";
-			pair = 21;
-		}
-
-		attron(COLOR_PAIR(pair));
-		mvaddstr(y_, x_ + width_ - 10, indicator.c_str());
-		attroff(COLOR_PAIR(pair));
-	}
 
 	attroff(COLOR_PAIR(5));
 	// Draw scrollbars
@@ -511,4 +514,13 @@ void window::draw_border() const
 	mvaddstr(y_ + height_ - 1, x_ + 1, "◄");
 	mvaddstr(y_ + height_ - 1, x_ + width_ - 2, "►");
 	attroff(COLOR_PAIR(4));
+}
+
+int window::get_git_button_width() const {
+	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
+		std::string branch = doc_->get_git_branch();
+		if (branch.empty()) branch = "unknown";
+		return branch.length() + 4;
+	}
+	return 0;
 }

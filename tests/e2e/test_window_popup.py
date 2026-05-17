@@ -41,7 +41,7 @@ def test_window_popup_menu():
         # Window is at x=0, button is at x=6, so 0-based x is 6.
         # Window y=1, button y=1. 0-based y=1.
         # Actually it draws at x_+6, so x=6.
-        runner.send_mouse_click(6, 1)
+        runner.send_mouse_click(70, 1)
         
         runner.assert_text_on_screen("Compile File", timeout=2.0)
         

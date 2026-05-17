@@ -28,7 +28,7 @@ def test_git_integration():
         # 2. Start Turbostar with the file
         runner.start(filename="git_test_repo/test.txt")
         # 3. Verify [✔] (Clean) is shown
-        runner.assert_git_status("[✔]", timeout=5.0)
+        runner.assert_git_status("✔]", timeout=5.0)
 
         # 4. Modify the file in the editor
         runner.send_keys("Modifying...")
@@ -37,7 +37,7 @@ def test_git_integration():
         runner.send_ctrlk('s') # ^K S (Save)
 
         # 6. Verify [✎] (Dirty) is shown
-        runner.assert_git_status("[✎]", timeout=5.0)
+        runner.assert_git_status("✎]", timeout=5.0)
 
         # 7. Use "Git add" via menu
         # Alt+G for Git menu, then 'a' for Add
@@ -65,7 +65,7 @@ def test_git_integration():
         # Trigger refresh by saving
         runner.send_ctrlk('s')
         try:
-            runner.assert_text_on_screen("(feature-x)", timeout=5.0)
+            runner.assert_text_on_screen("feature-x", timeout=5.0)
 
         except AssertionError as e:
             print(f"Log contents:\n{runner.get_log()}")

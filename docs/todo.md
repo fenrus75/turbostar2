@@ -2,9 +2,6 @@
 
 - if you close the last window with the mouse a new untitled.txt window appears -- need to decide if this is the right behavior vs just a checkered background
 
-- now that we have mouse support we can add magic buttons at the top title bar of windows
-    - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
-    - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
 
 - the git information in the title bar is a bit disjoint, we have clean/dirty visually far away from the branch information
     - we may need to move both to get them closer together in a logical place separate enough from other non-git things
@@ -13,6 +10,9 @@
 # mid term items
 
 - mouse support for the file dialog
+
+- our tests use lots of standard keys (such as ESC) as 'x1b' hex, which is fine, but we should consider making a set of convenient names like KEY_ESC that
+  that internally has the value of x1b, but is more descriptive/readable
 
 # long term items   
 
@@ -24,14 +24,17 @@
    - needs libcurl
 
 
-- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
-   indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
-   likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
 
 
 # done items (move items here on completion)
 
 ## 17-05-2026
+- test suite performance. We have lots of sleeps in the test suite and framework to let the editor keep up -- we could consider having turbostar give some
+   indicator in the output for it being done with event processing -- that way we could short-circuit those sleeps.
+   likewise, some "sleep + wait for event" patterns could become "wait for event with timeout" patterns (this is a simpler step than the feedback one)
+- now that we have mouse support we can add magic buttons at the top title bar of windows
+    - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
+    - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
 - src/document.cpp is very large, we may want to split this into a few files
   - Split `src/document.cpp` into 7 smaller sub-modules (edit, format, highlight, nav, search, selection, undo).
 - Test Suite Improvements:

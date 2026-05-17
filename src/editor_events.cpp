@@ -217,8 +217,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					}
 
 					// 1.25 Check for Popup Menu Button [≡]
-					// Drawn at (y_, x_ + 6) through (y_, x_ + 8)
-					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 6 && ev.mouse_x <= w->get_x() + 8) {
+					// Drawn at (y_, x_ + width_ - 10) through (y_, x_ + width_ - 8)
+					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + w->get_width() - 10 && ev.mouse_x <= w->get_x() + w->get_width() - 8) {
 						logger.log("Mouse clicked popup menu button on window.");
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
@@ -244,8 +244,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					}
 
 					// 1.5 Check for Git Status Button
-					// Drawn at (y_, x_ + width_ - 10) through (y_, x_ + width_ - 8)
-					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + w->get_width() - 10 && ev.mouse_x <= w->get_x() + w->get_width() - 8) {
+					// Drawn at x_ + 6
+					int git_w = w->get_git_button_width();
+					if (git_w > 0 && ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 6 && ev.mouse_x < w->get_x() + 6 + git_w) {
 						logger.log("Mouse clicked git status button.");
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {

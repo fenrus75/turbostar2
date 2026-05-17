@@ -17,6 +17,14 @@ popup_menu::popup_menu(int x, int y, const std::vector<popup_menu_item>& items)
 	while (selected_idx_ < static_cast<int>(items_.size()) && items_[selected_idx_].is_separator) {
 		selected_idx_++;
 	}
+
+	// Clamp to screen edges (account for shadow width + 1)
+	if (x_ + width_ + 1 > COLS) {
+		x_ = COLS - width_ - 1;
+	}
+	if (x_ < 0) {
+		x_ = 0;
+	}
 }
 
 void popup_menu::draw() const
