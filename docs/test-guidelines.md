@@ -31,8 +31,8 @@ When a test requires a substantial starting document:
 ## 3. Avoid Hardcoded `time.sleep()` Where Possible
 
 Minimize the use of `time.sleep()`. While it is occasionally necessary, prefer waiting for specific deterministic state changes.
-- **Never use `time.sleep()` just to wait for the cursor to move.** The `assert_cursor_position()` helper (which practically acts as a `wait_for_cursor_position()`) has a built-in timeout loop that automatically polls for the new coordinate and returns instantly once reached.
-- The same applies to `assert_selection_is()`, `assert_text_on_screen()`, and `assert_content_is()`; they all poll state intelligently.
+- **Never use `time.sleep()` just to wait for the cursor to move or text to appear.** The assertion helpers (e.g., `assert_cursor_position()`, `assert_text_on_screen()`, `assert_selection_is()`) have built-in timeout loops that automatically poll for the new state and return instantly once reached.
+- **Fold sleeps into timeouts:** If an operation takes longer than the default 1.0s timeout of a helper, do not prepend it with `time.sleep()`. Instead, pass a larger explicit `timeout=` parameter to the assertion helper (e.g., `runner.assert_text_on_screen("Success", timeout=2.5)`).
 
 ## 4. Test Concurrency and LSP Isolation
 
