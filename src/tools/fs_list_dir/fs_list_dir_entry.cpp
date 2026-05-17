@@ -128,7 +128,17 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context& ctx) {
 
             auto p = entry.status().permissions();
             perms += (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none ? "R" : "-";
-            perms += (p & std::filesystem::perms::owner_write) != std::filesystem::perms::none ? "W" : "-";
+            
+            // Only report Write if the OS allows it AND the security manager allows it
+            bool os_can_write = (p & std::filesystem::perms::owner_write) != std::filesystem::perms::none;
+            bool agent_can_write = false;
+            if (os_can_write) {
+                std::string dump_path;
+                std::string dump_err;
+                agent_can_write = ctx.fs_security.validate_access(path_str, agentlib::access_type::write, dump_path, dump_err);
+            }
+            perms += agent_can_write ? "W" : "-";
+            
             perms += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 
             ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms << " |\n";
