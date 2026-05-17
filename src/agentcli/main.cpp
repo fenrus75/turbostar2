@@ -36,9 +36,10 @@ int main(int argc, char** argv) {
     tool_context ctx;
     ctx.fs_security.set_working_directory(std::filesystem::current_path());
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
+    ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
 
     // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "Compile the entire project using fs_compile_project.";
+    prompt = (argc > 1) ? argv[1] : "Write a short poem to tests/unit/poem.txt using fs_write_file.";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_compile_project tool to compile the project.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_write_file tool to write to files.";
     conversation.push_back(system_msg);
 
     message user_msg;

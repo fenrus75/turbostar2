@@ -22,6 +22,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `fs_write_file` tool to allow the LLM to create new files or completely overwrite existing ones. The tool takes a `force_overwrite` parameter (default false) to prevent accidental data loss. Furthermore, it explicitly queries the `document_provider` and will categorically reject any attempt to overwrite a file that the user currently has open in a live Turbostar buffer, avoiding race conditions and lost edits.
 - Implemented `fs_compile_file` and `fs_compile_project` tools. These tools execute compilation commands synchronously (`popen`), cap the output at 10,000 characters to protect the LLM context window, and feed the output lines directly into `gcc_log_parser` and `build_error_manager` so the main UI workspace error list remains perfectly synchronized with the LLM's compilation attempts.
 - Implemented `fs_compile_summary` tool. This zero-parameter tool aggregates workspace-wide diagnostics by querying `build_error_manager` and open documents via `document_provider`. It strictly reports only on files authorized by `file_security_manager` and returns a Markdown table showing counts of compiler and LSP errors/warnings per file.
 - Implemented `fs_regexp_lines` tool and integrated `document_provider`. The tool uses `std::regex` to search files and returns results in a Markdown table. It reads from active editor buffers if the file is open, otherwise falls back to a safe disk read.
