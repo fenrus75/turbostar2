@@ -33,6 +33,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `llm_transport` abstraction for the LLM client, allowing seamless injection of `httplib_transport` (real network), `recording_transport` (traffic logging), and `replay_transport` (deterministic, network-less testing).
 - Implemented `src/agentlib/` and `src/agentcli/` as the foundational LLM backend.
   - Phased plan 1-9 completed: Built an OpenAI-compatible client (`llm_client`) using `cpp-httplib` and `nlohmann_json`.
   - Implemented `tool_registry` for dynamic tool-call schemas and C++ callbacks.
