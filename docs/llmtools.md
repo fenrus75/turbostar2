@@ -59,11 +59,17 @@ The manager automatically handles `../` directory traversal attacks, resolves sy
 
 To minimize compile times and prevent security bypasses, tool implementation logic (`_entry.cpp`) **must never** `#include <nlohmann/json.hpp>`. The tool's execution phase should only ever operate on native C++ types.
 
-### For Single-Parameter Tools (The Common Case)
-Most tools (e.g., `fs_read`, `compile_file`) take exactly one string parameter (like a file path). You should inherit your validator from `agentlib::single_string_tool_validator`. This base class entirely hides the JSON dependency.
+### For Single-File Tools (The Most Common Case)
+Most tools (e.g., `fs_read`, `fs_write`, `compile_file`) take exactly one path parameter. You should inherit your validator from `agentlib::single_file_tool_validator`. This base class entirely hides the JSON dependency **and** automatically performs the `file_security_manager` checks during Stage 1.
+- You implement `get_required_permission()` to specify if the tool needs read or write access.
+- The base class automatically parses the JSON, resolves the path, checks for directory traversal, verifies workspace permissions, and rejects ignores.
+- If safe, the execution logic (`llm_tool::execute`) is initialized with a perfectly safe, absolute `std::string safe_path`.
+- No JSON headers or explicit security manager checks are needed in either the `_entry.cpp` or `_security.cpp` files.
+
+### For Single-String Tools (Non-File)
+For tools taking a single string that is not a file path, inherit from `agentlib::single_string_tool_validator`.
 - You implement `validate_string_arg(const std::string& arg, ...)` instead of parsing JSON.
-- The execution logic (`llm_tool::execute`) is initialized with a native `std::string`.
-- No JSON headers are needed in either the `_entry.cpp` or `_security.cpp` files.
+- The execution logic is initialized with a native `std::string`.
 
 ### For Multi-Parameter Tools
 If a tool requires multiple parameters (e.g., `search_and_replace`), follow the **Marshal Convention**:

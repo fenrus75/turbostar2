@@ -32,12 +32,13 @@ int main(int argc, char** argv) {
     llm_client client(http_transport);
 #endif
     
-    // 1. We no longer explicitly define tools here; they self-register!
     tool_registry& registry = tool_registry::get_instance();
     tool_context ctx;
+    ctx.fs_security.set_working_directory(std::filesystem::current_path());
+    ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
 
-    // 2. We ask a question that triggers the artificial security violation
-    prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
+    // 2. We ask a question that triggers the tool
+    prompt = (argc > 1) ? argv[1] : "What is the size of the file src/agentcli/main.cpp in bytes?";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -45,7 +46,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided get_temperature tool to find out the current temperature if the user asks.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_file_size tool to find out the file size if the user asks.";
     conversation.push_back(system_msg);
 
     message user_msg;
