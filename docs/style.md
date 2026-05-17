@@ -47,7 +47,13 @@ default:
 
 ### 1.4 ternary operators
 Do not use ternary operators, use discrete if statements always.
-Exception: in C++ style << statements ternary operators are ok 
+Exception: in C++ style << statements ternary operators are ok as otherwise
+it may get unwieldy
+
+Example of the exception (allowed case):
+```c++
+cout << (auto_open_error_files_ ? "true" : "false") << "\n";
+```
 
 ## 2. Naming Conventions
 
