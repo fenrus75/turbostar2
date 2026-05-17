@@ -105,9 +105,21 @@ void clangd_manager::stop()
 	if (!is_running_) return;
 
 	try {
-		// Send Exit notification directly (skipping async Shutdown request)
+		// 1. Try a graceful Shutdown request with a short timeout
+		auto shutdown_req = message_handler_->sendRequest<lsp::requests::Shutdown>();
+		shutdown_req.result.wait_for(std::chrono::milliseconds(500));
+	} catch (...) {}
+
+	try {
+		// 2. Always send the Exit notification, even if Shutdown timed out
 		message_handler_->sendNotification<lsp::notifications::Exit>();
-		// Forcefully terminate to ensure the pipe breaks and message_thread unblocks
+	} catch (...) {}
+
+	// Give clangd a tiny moment to flush and exit on its own
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+	try {
+		// 3. Forcefully terminate to ensure the pipe breaks and message_thread unblocks
 		if (process_) {
 			process_->terminate();
 		}

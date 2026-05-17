@@ -119,8 +119,8 @@ class force_quit_dialog : public dialog
 	bool tick();
 
       private:
-	int focus_idx_{0}; // 0 = Exit, 1 = Save All, 2 = Cancel
-	
+	int focus_idx_{1}; // 0 = Exit, 1 = Save All, 2 = Cancel
+
 	bool countdown_active_{true};
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	int remaining_seconds_{5};

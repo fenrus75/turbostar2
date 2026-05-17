@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- we should check if our LSP server handing sends a shutdown message before termination
-
 - the ^KX dialog defaults to exit, but on hitting "enter" we should default to save-all
  
 # mid term items
@@ -33,6 +31,8 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Changed the default selection in the ^KX Force Quit dialog from "Exit" to "Save All" to prevent accidental data loss.
+- Updated the LSP `clangd_manager::stop()` sequence to send a graceful `Shutdown` request (with timeout) and an `Exit` notification before forcefully terminating the process.
 - Added standard key constants (e.g., `KEY_ESC`, `KEY_UP`, `KEY_CTRL_A`) to the test framework and refactored all E2E tests to use them instead of raw hex values for better readability.
 - Fixed test suite flakiness by configuring heavy LSP tests (`test_lsp_selection` and `test_format_paragraph`) to run sequentially (`is_parallel: false`) and adding proper teardown delays to let `clangd` exit gracefully without impacting subsequent tests.
 - Split `src/editor_events.cpp` into 9 specialized event handlers based on event_type to improve maintainability and compile times.
