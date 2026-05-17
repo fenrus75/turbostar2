@@ -32,6 +32,7 @@ def test_format_paragraph():
         # 6. Verify both are formatted
         runner.assert_content_is(step2_gold)
 
+        time.sleep(8.0) # Let clangd clean up
         
     finally:
         runner.cleanup()

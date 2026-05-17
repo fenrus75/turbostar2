@@ -139,12 +139,6 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
-  test('e2e_format_paragraph', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_format_paragraph.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60
-  )
   test('e2e_settings', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_settings.py')],
     env: e2e_env,
@@ -286,13 +280,6 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
-  test('e2e_lsp_selection', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false
-  )
   test('e2e_ghost_x', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_ghost_x.py')],
     env: e2e_env,
@@ -328,5 +315,19 @@ if python.found()
     env: e2e_env,
     workdir: meson.project_build_root(),
     timeout: 60
+  )
+  test('e2e_format_paragraph', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_format_paragraph.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
+  test('e2e_lsp_selection', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
   )
 endif

@@ -1,7 +1,4 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
-
-- fix test suite flakiness: Some tests (like `test_tabs`, `test_ghost_x`) are failing due to timing issues when sending raw keys under heavy load. We need to investigate the ESCDELAY timeouts and how `send_keys` operates.
-    - these flakey tests also should be marked for non-parallel execution (just in case)
  
 # mid term items
 
@@ -35,6 +32,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Fixed test suite flakiness by configuring heavy LSP tests (`test_lsp_selection` and `test_format_paragraph`) to run sequentially (`is_parallel: false`) and adding proper teardown delays to let `clangd` exit gracefully without impacting subsequent tests.
 - Split `src/editor_events.cpp` into 9 specialized event handlers based on event_type to improve maintainability and compile times.
 - Updated File menu hints to display native Turbostar ^K shortcuts (e.g., ^KS for Save) instead of function keys.
 - Fixed hidden cursor bug when closing a menu by clicking outside of it.
