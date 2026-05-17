@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 
 /**
  * @brief Possible results of a modal dialog interaction.
@@ -82,4 +83,45 @@ class message_dialog : public dialog
 
       private:
 	std::vector<std::string> lines_;
+};
+
+/**
+ * @brief A dialog box asking to save a modified document before closing.
+ */
+class save_prompt_dialog : public dialog
+{
+      public:
+	save_prompt_dialog(const std::string &filename);
+	~save_prompt_dialog() override = default;
+
+	void draw() const override;
+	dialog_result handle_key(int key) override;
+	std::string get_result() const override;
+
+      private:
+	std::string filename_;
+	int focus_idx_{0}; // 0 = Save, 1 = Discard, 2 = Cancel
+	
+};
+
+/**
+ * @brief A dialog box asking to save all or exit when force quitting.
+ */
+class force_quit_dialog : public dialog
+{
+      public:
+	force_quit_dialog();
+	~force_quit_dialog() override = default;
+
+	void draw() const override;
+	dialog_result handle_key(int key) override;
+	std::string get_result() const override;
+	bool tick();
+
+      private:
+	int focus_idx_{0}; // 0 = Exit, 1 = Save All, 2 = Cancel
+	
+	bool countdown_active_{true};
+	std::chrono::time_point<std::chrono::steady_clock> start_time_;
+	int remaining_seconds_{5};
 };

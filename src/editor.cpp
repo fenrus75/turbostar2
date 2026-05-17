@@ -159,6 +159,21 @@ void editor::run()
 
 		wint_t wch;
 		int res = get_wch(&wch);
+
+		// Handle dialog tick (auto-countdown)
+		if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
+			auto s_dialog = dynamic_cast<force_quit_dialog*>(active_dialog_.get());
+			if (s_dialog && s_dialog->tick()) {
+				// Countdown expired, force quit
+				editor_event quit_ev;
+				quit_ev.type = event_type::force_quit;
+				global_queue_.push(quit_ev);
+			} else {
+				// Re-render to show updated countdown
+				render();
+			}
+		}
+
 		if (res != ERR) {
 			editor_event ev;
 			if (res == KEY_CODE_YES) {
@@ -372,6 +387,12 @@ bool editor::handle_k_block_key(int key)
 		active_dialog_mode_ = dialog_mode::insert_file;
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
+	} else if (c == 't') {
+		logger.log("K-block: Revert");
+		editor_event ev;
+		ev.type = event_type::revert;
+		global_queue_.push(ev);
+		return true;
 	} else if (c == 'j') {
 		logger.log("K-block: Format Paragraph");
 		std::shared_ptr<document> active_doc = get_active_doc();
@@ -419,10 +440,9 @@ bool editor::handle_k_block_key(int key)
 		global_queue_.push(quit_ev);
 		return true;
 	} else if (c == 'x') {
-		logger.log("K-block: Save & Exit");
-		active_doc->save();
+		logger.log("K-block: Force Exit");
 		editor_event quit_ev;
-		quit_ev.type = event_type::quit;
+		quit_ev.type = event_type::force_quit;
 		global_queue_.push(quit_ev);
 		return true;
 	} else if (c == 'f') {

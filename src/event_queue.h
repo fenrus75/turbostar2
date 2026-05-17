@@ -10,12 +10,14 @@
  */
 enum class event_type {
 	key_press,    ///< A keyboard input event
-	quit,	      ///< An application exit event
+	quit,	      ///< An application exit event (with prompts)
+	force_quit,   ///< An immediate application exit event
 	load,	      ///< Request to load a file (triggers dialog)
 	save,	      ///< Request to save a file (smart save)
 	save_as,      ///< Request to save as (always triggers dialog)
 	save_all,     ///< Request to save all modified documents
 	new_doc,      ///< Request to clear current document
+	revert,       ///< Request to revert current document to saved state or clean dirty flag
 	about,	      ///< Request to show About dialog
 	redraw,	      ///< Request a global UI re-render
 	find,	      ///< Request to find text (triggers dialog)

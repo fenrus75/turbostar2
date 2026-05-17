@@ -76,7 +76,7 @@ class editor
 	bool k_block_mode_{false};
 	bool q_block_mode_{false};
 
-	enum class dialog_mode { none, load, save, search, replace, insert_file, settings };
+	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;

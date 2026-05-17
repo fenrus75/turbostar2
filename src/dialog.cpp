@@ -181,3 +181,171 @@ dialog_result message_dialog::handle_key(int key)
 	}
 	return dialog_result::pending;
 }
+
+save_prompt_dialog::save_prompt_dialog(const std::string &filename)
+    : dialog("Unsaved Changes", 50, 8), filename_(filename)
+{
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	x_ = (max_x - width_) / 2;
+	y_ = (max_y - height_) / 2;
+}
+
+void save_prompt_dialog::draw() const
+{
+	dialog::draw();
+	attron(COLOR_PAIR(1));
+
+	std::string msg = "Save changes to " + filename_ + "?";
+	int text_x = x_ + (width_ - static_cast<int>(msg.length())) / 2;
+	mvaddstr(y_ + 2, text_x, msg.c_str());
+
+
+	auto draw_btn = [&](int bx, const std::string &text, char hotkey, bool focused) {
+		int by = y_ + height_ - 3;
+		
+		attron(COLOR_PAIR(1));
+		mvaddstr(by, bx + text.length(), "▄");
+		std::string shadow_str;
+		for (size_t i = 0; i < text.length(); ++i) shadow_str += "▀";
+		mvaddstr(by + 1, bx + 1, shadow_str.c_str());
+		
+		if (focused) attrset(COLOR_PAIR(10));
+		else attrset(COLOR_PAIR(8));
+		
+		mvaddstr(by, bx, text.c_str());
+		
+		size_t hk_pos = text.find(hotkey);
+		if (hk_pos != std::string::npos) {
+			if (focused) attron(COLOR_PAIR(12));
+			else attron(COLOR_PAIR(11));
+			mvaddch(by, bx + hk_pos, text[hk_pos]);
+		}
+		attrset(COLOR_PAIR(1));
+	};
+
+	draw_btn(x_ + 4, "  Save  ", 'S', focus_idx_ == 0);
+	draw_btn(x_ + 18, " Discard ", 'D', focus_idx_ == 1);
+	draw_btn(x_ + 34, " Cancel ", 'C', focus_idx_ == 2);
+}
+
+dialog_result save_prompt_dialog::handle_key(int key)
+{
+	if (key == 27) { // ESC
+		return dialog_result::cancelled;
+	} else if (key == KEY_LEFT) {
+		focus_idx_ = (focus_idx_ - 1 + 3) % 3;
+	} else if (key == KEY_RIGHT) {
+		focus_idx_ = (focus_idx_ + 1) % 3;
+	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		return dialog_result::confirmed;
+	} else {
+		char c = std::tolower(static_cast<char>(key));
+		if (c == 's') { focus_idx_ = 0; return dialog_result::confirmed; }
+		if (c == 'd') { focus_idx_ = 1; return dialog_result::confirmed; }
+		if (c == 'c') { focus_idx_ = 2; return dialog_result::confirmed; }
+	}
+	return dialog_result::pending;
+}
+
+std::string save_prompt_dialog::get_result() const
+{
+	if (focus_idx_ == 0) return "save";
+	if (focus_idx_ == 1) return "discard";
+	return "cancel";
+}
+
+force_quit_dialog::force_quit_dialog()
+    : dialog("Force Quit", 50, 9)
+{
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	x_ = (max_x - width_) / 2;
+	y_ = (max_y - height_) / 2;
+	start_time_ = std::chrono::steady_clock::now();
+}
+
+bool force_quit_dialog::tick()
+{
+	if (countdown_active_) {
+		auto now = std::chrono::steady_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count();
+		int new_remaining = 5 - static_cast<int>(elapsed);
+		if (new_remaining <= 0) {
+			return true; // Expired
+		}
+		remaining_seconds_ = new_remaining;
+	}
+	return false;
+}
+
+void force_quit_dialog::draw() const
+{
+	dialog::draw();
+	attron(COLOR_PAIR(1));
+
+	std::string msg = "Unsaved changes! Quit anyway?";
+	int text_x = x_ + (width_ - static_cast<int>(msg.length())) / 2;
+	mvaddstr(y_ + 2, text_x, msg.c_str());
+
+	if (countdown_active_) {
+		std::string count_msg = "(Auto-closing in " + std::to_string(remaining_seconds_) + "s)";
+		int count_x = x_ + (width_ - static_cast<int>(count_msg.length())) / 2;
+		mvaddstr(y_ + 4, count_x, count_msg.c_str());
+	}
+
+	auto draw_btn = [&](int bx, const std::string &text, char hotkey, bool focused) {
+		int by = y_ + height_ - 3;
+		
+		attron(COLOR_PAIR(1));
+		mvaddstr(by, bx + text.length(), "▄");
+		std::string shadow_str;
+		for (size_t i = 0; i < text.length(); ++i) shadow_str += "▀";
+		mvaddstr(by + 1, bx + 1, shadow_str.c_str());
+		
+		if (focused) attrset(COLOR_PAIR(10));
+		else attrset(COLOR_PAIR(8));
+		
+		mvaddstr(by, bx, text.c_str());
+		
+		size_t hk_pos = text.find(hotkey);
+		if (hk_pos != std::string::npos) {
+			if (focused) attron(COLOR_PAIR(12));
+			else attron(COLOR_PAIR(11));
+			mvaddch(by, bx + hk_pos, text[hk_pos]);
+		}
+		attrset(COLOR_PAIR(1));
+	};
+
+	draw_btn(x_ + 4, "  Exit  ", 'E', focus_idx_ == 0);
+	draw_btn(x_ + 16, " Save All ", 'S', focus_idx_ == 1);
+	draw_btn(x_ + 32, " Cancel ", 'C', focus_idx_ == 2);
+}
+
+dialog_result force_quit_dialog::handle_key(int key)
+{
+	countdown_active_ = false; // Any key press stops the countdown
+	if (key == 27) { // ESC instantly exits per user request
+		focus_idx_ = 0; // Exit
+		return dialog_result::confirmed;
+	} else if (key == KEY_LEFT) {
+		focus_idx_ = (focus_idx_ - 1 + 3) % 3;
+	} else if (key == KEY_RIGHT) {
+		focus_idx_ = (focus_idx_ + 1) % 3;
+	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		return dialog_result::confirmed;
+	} else {
+		char c = std::tolower(static_cast<char>(key));
+		if (c == 'e' || c == 'x') { focus_idx_ = 0; return dialog_result::confirmed; }
+		if (c == 's') { focus_idx_ = 1; return dialog_result::confirmed; }
+		if (c == 'c') { focus_idx_ = 2; return dialog_result::confirmed; }
+	}
+	return dialog_result::pending;
+}
+
+std::string force_quit_dialog::get_result() const
+{
+	if (focus_idx_ == 0) return "exit";
+	if (focus_idx_ == 1) return "save_all";
+	return "cancel";
+}

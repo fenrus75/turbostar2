@@ -88,6 +88,7 @@ void editor::dispatch(const editor_event &ev)
 			dispatch_event_mouse(ev);
 			break;
 		case event_type::quit:
+		case event_type::force_quit:
 		case event_type::redraw:
 		case event_type::about:
 		case event_type::settings:
@@ -316,9 +317,55 @@ void editor::dispatch_event_ui(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
 
+	if (ev.type == event_type::force_quit) {
+		logger.log("Dispatching force_quit event.");
+		
+		bool any_dirty = false;
+		for (const auto& doc : documents_) {
+			if (doc->is_modified()) {
+				any_dirty = true;
+				break;
+			}
+		}
+		
+		if (any_dirty) {
+			active_dialog_ = std::make_unique<force_quit_dialog>();
+			active_dialog_mode_ = dialog_mode::force_quit_prompt;
+			set_focus(focus_target::dialog, "force_quit");
+			return;
+		}
+		
+		is_running_ = false;
+		return;
+	}
+
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
-		is_running_ = false;
+		
+		// If no windows, just exit
+		if (windows_.empty()) {
+			is_running_ = false;
+			return;
+		}
+
+		// Otherwise, attempt to close the active window.
+		// Since closing the last window triggers a quit, this will cascade.
+		// But wait, if they have 5 windows, quit should close ALL of them.
+		// If we just push 5 close_window events?
+		// Actually, let's just use the active window. The user can press quit again.
+		// Wait, a standard quit closes everything.
+		// If we just push a close_window event, and if it succeeds, push another quit?
+		// Yes! 
+		editor_event close_ev;
+		close_ev.type = event_type::close_window;
+		global_queue_.push(close_ev);
+		
+		if (windows_.size() > 1) {
+			editor_event quit_ev;
+			quit_ev.type = event_type::quit;
+			global_queue_.push(quit_ev);
+		}
+		
 		return;
 	}
 
@@ -437,6 +484,22 @@ void editor::dispatch_event_file(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::revert) {
+		logger.log("Dispatching revert event.");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc) {
+			if (active_doc->has_nondefault_filename()) {
+				active_doc->load_from_file(active_doc->get_filename());
+			} else {
+				active_doc->clear_modified();
+			}
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::format_doc) {
 		logger.log("Dispatching format_doc event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
@@ -463,6 +526,25 @@ void editor::dispatch_event_window(const editor_event &ev)
 		}
 	
 		if (active_idx != static_cast<size_t>(-1)) {
+			std::shared_ptr<document> doc = windows_[active_idx]->get_document();
+			
+			// Check if we need to prompt for save
+			if (doc && doc->is_modified() && ev.key_code != 1) {
+				int doc_users = 0;
+				for (const auto& w : windows_) {
+					if (w->get_document() == doc) doc_users++;
+				}
+				if (doc_users == 1) {
+					// This is the last window for a modified document. Prompt!
+					std::string fname = doc->get_filename();
+					if (fname.empty()) fname = "untitled.txt";
+					active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
+					active_dialog_mode_ = dialog_mode::save_prompt;
+					set_focus(focus_target::dialog, "close_window");
+					return; // Stop the close process until dialog resolves
+				}
+			}
+
 			// If it's a build process window, stop the process
 			if (current_build_process_ && 
 			    (windows_[active_idx]->get_title() == "Compile Output" || 
@@ -470,7 +552,6 @@ void editor::dispatch_event_window(const editor_event &ev)
 				current_build_process_->stop();
 			}
 	
-			std::shared_ptr<document> doc = windows_[active_idx]->get_document();
 			windows_.erase(windows_.begin() + active_idx);
 			
 			// Remove document if no other window is using it
@@ -491,7 +572,9 @@ void editor::dispatch_event_window(const editor_event &ev)
 			}
 	
 			if (windows_.empty()) {
-				new_window("");
+				editor_event quit_ev;
+				quit_ev.type = event_type::quit;
+				global_queue_.push(quit_ev);
 			} else {
 				size_t next_idx = (active_idx == 0) ? 0 : active_idx - 1;
 				if (next_idx >= windows_.size()) next_idx = windows_.size() - 1;
@@ -975,10 +1058,64 @@ void editor::dispatch_event_key(const editor_event &ev)
 						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
 						config_manager::get_instance().save();
 					}
+				} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
+					std::string res = active_dialog_->get_result();
+					if (res == "exit") {
+						is_running_ = false;
+					} else if (res == "save_all") {
+						editor_event save_all_ev;
+						save_all_ev.type = event_type::save_all;
+						global_queue_.push(save_all_ev);
+						
+						// Push another force_quit to retry exiting after saving
+						editor_event quit_ev;
+						quit_ev.type = event_type::force_quit;
+						global_queue_.push(quit_ev);
+					}
+					
+					active_dialog_.reset();
+					active_dialog_mode_ = dialog_mode::none;
+					if (res == "cancel") {
+						set_focus(focus_target::window, "dialog_close");
+					}
+					return;
+				} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
+					std::string res = active_dialog_->get_result();
+					active_dialog_.reset();
+					active_dialog_mode_ = dialog_mode::none;
+					set_focus(focus_target::window, "dialog_close");
+					
+					if (res == "save") {
+						if (doc->get_filename().empty()) {
+							// Needs Save As
+							editor_event save_as_ev;
+							save_as_ev.type = event_type::save_as;
+							global_queue_.push(save_as_ev);
+							// Re-queue the close event to happen after save_as
+							editor_event close_ev;
+							close_ev.type = event_type::close_window;
+							global_queue_.push(close_ev);
+						} else {
+							doc->save();
+							editor_event close_ev;
+							close_ev.type = event_type::close_window;
+							global_queue_.push(close_ev);
+						}
+					} else if (res == "discard") {
+						editor_event close_ev;
+						close_ev.type = event_type::close_window;
+						close_ev.key_code = 1; // Force close
+						global_queue_.push(close_ev);
+					} else if (res == "cancel") {
+						// Do nothing, abort close
+					}
+					return;
+				} else {
+					active_dialog_.reset();
+					active_dialog_mode_ = dialog_mode::none;
+					set_focus(focus_target::window, "dialog_close");
 				}
-				active_dialog_.reset();
-				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window, "dialog_close");
+
 			} else if (res == dialog_result::cancelled) {
 				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;

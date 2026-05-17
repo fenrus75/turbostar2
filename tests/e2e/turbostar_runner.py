@@ -130,6 +130,17 @@ class TurbostarRunner:
             self.proc.wait(timeout=timeout)
         self._read_output()
 
+    def quit(self, force=True):
+        """
+        Sends the quit command. If force=True, sends the force quit command (^KX) to bypass the save prompt.
+        """
+        if force:
+            self.send_ctrlk('x')
+            time.sleep(0.1)
+            self.send_keys('\x1b') # ESC instantly exits force quit dialog
+        else:
+            self.send_ctrlk('q')
+
     def get_log(self):
         if os.path.exists(self.log_path):
             with open(self.log_path, 'r') as f:
@@ -362,4 +373,4 @@ class TurbostarRunner:
             
         import shutil
         if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
-            shutil.rmtree(self.temp_home)
+            shutil.rmtree(self.temp_home, ignore_errors=True)
