@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_ghost_x():
     runner = TurbostarRunner()
@@ -15,24 +15,24 @@ def test_ghost_x():
         
         # 2. Move to top, X = 10
         runner.send_ctrlk('u') # ^K U (Top)
-        runner.send_keys('\x1b[C', count=10) # Right 10 times
+        runner.send_keys(KEY_RIGHT, count=10) # Right 10 times
         
         runner.assert_cursor_position(1, 11)
         
         # 3. Move down to empty line
-        runner.send_keys('\x1b[B') # Down
+        runner.send_keys(KEY_DOWN) # Down
         runner.assert_cursor_position(2, 1) # Display col 1, index 0
         
         # 4. Move down again to line 3
-        runner.send_keys('\x1b[B') # Down
+        runner.send_keys(KEY_DOWN) # Down
         # Should be at X=10 (display col 11)
         runner.assert_cursor_position(3, 11)
         
         # 5. Move right, it should reset the target
-        runner.send_keys('\x1b[C') # Right
+        runner.send_keys(KEY_RIGHT) # Right
         runner.assert_cursor_position(3, 12)
         
-        runner.send_keys('\x1b[A', count=2) # Up 2 to line 1
+        runner.send_keys(KEY_UP, count=2) # Up 2 to line 1
         runner.assert_cursor_position(1, 12) # Should be 12 now
 
         

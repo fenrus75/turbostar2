@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_undo_redo():
     runner = TurbostarRunner()
@@ -13,7 +13,7 @@ def test_undo_redo():
         # but our implementation currently records each char insertion individually unless grouped.
         # Wait, insert_char is NOT grouped. So each char is an undo step!
         # Let's test undoing the last char 'd'.
-        runner.send_keys('\x1f') # Ctrl-_ (Undo)
+        runner.send_keys(KEY_CTRL_UNDERSCORE) # Ctrl-_ (Undo)
 
         runner.assert_text_on_screen("Hello Worl", timeout=1.5)
 
@@ -24,7 +24,7 @@ def test_undo_redo():
 
         # 4. Test deleting a block (which IS grouped)
         runner.send_ctrlk('b') # ^K B
-        runner.send_keys('\x1b[D', count=5) # Left 5 times (before 'World')
+        runner.send_keys(KEY_LEFT, count=5) # Left 5 times (before 'World')
         runner.send_ctrlk('k') # ^K K
         runner.send_ctrlk('y') # ^K Y (Delete block)
         time.sleep(0.5)
@@ -35,7 +35,7 @@ def test_undo_redo():
             raise e
         
         # 5. Undo block delete
-        runner.send_keys('\x1f') # Ctrl-_
+        runner.send_keys(KEY_CTRL_UNDERSCORE) # Ctrl-_
 
         runner.assert_text_on_screen("Hello World", timeout=1.5)
 

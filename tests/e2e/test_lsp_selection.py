@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_lsp_selection():
     runner = TurbostarRunner()
@@ -15,9 +15,9 @@ def test_lsp_selection():
         time.sleep(1.0)
         
         # 3. Move cursor to inside 'x' (line 2, char 8)
-        runner.send_keys('\x1b[A') # Up
-        runner.send_keys('\x05') # EOL
-        runner.send_keys('\x1b[D', count=8) # Left to 'x'
+        runner.send_keys(KEY_UP) # Up
+        runner.send_keys(KEY_CTRL_E) # EOL
+        runner.send_keys(KEY_LEFT, count=8) # Left to 'x'
         
         # 4. Expand Selection
         runner.send_ctrlk(']')

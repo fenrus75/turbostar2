@@ -1,6 +1,6 @@
 import time
 import os
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_insert_file():
     runner = TurbostarRunner()
@@ -26,14 +26,14 @@ def test_insert_file():
         
         # 4. Type filename and confirm
         # Clear default and type path
-        runner.send_keys('\x7f', count=20)
+        runner.send_keys(KEY_BACKSPACE, count=20)
         runner.send_keys(insert_filename + '\n')
 
         # 5. Verify text is inserted
         runner.assert_text_on_screen("Start-INSERTED_TEXT", timeout=1.5)
         
         # 6. Test Undo of insert file
-        runner.send_keys('\x1f') # Ctrl-_ (Undo)
+        runner.send_keys(KEY_CTRL_UNDERSCORE) # Ctrl-_ (Undo)
 
         runner.assert_text_on_screen("Start-", timeout=1.5)
         # Ensure INSERTED_TEXT is GONE

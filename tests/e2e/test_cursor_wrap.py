@@ -1,7 +1,7 @@
 import time
 import os
 import tempfile
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_cursor_wrap():
     # Create a temporary file with content
@@ -20,15 +20,15 @@ def test_cursor_wrap():
         runner.assert_cursor_position(1, 1)
         
         # Move Right 3 times: 1:4 (after C)
-        runner.send_keys('\x1b[C', count=3)
+        runner.send_keys(KEY_RIGHT, count=3)
         runner.assert_cursor_position(1, 4)
         
         # Move Right once more: should wrap to 2:1 (D)
-        runner.send_keys('\x1b[C')
+        runner.send_keys(KEY_RIGHT)
         runner.assert_cursor_position(2, 1)
         
         # Move Left once: should wrap back to 1:4 (after C)
-        runner.send_keys('\x1b[D')
+        runner.send_keys(KEY_LEFT)
         runner.assert_cursor_position(1, 4)
 
         # Quit

@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_advanced_search():
@@ -11,12 +11,12 @@ def test_advanced_search():
         
         # 2. Test Case Sensitivity (OFF by default in our params, let's toggle it)
         runner.send_ctrlk('u') # Top
-        runner.send_keys('\x1b' + 's') # Alt-S
+        runner.send_keys(KEY_ESC + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         
         # Dialog open. Input "Apple".
-        runner.send_keys('\x7f', count=10)
+        runner.send_keys(KEY_BACKSPACE, count=10)
         runner.send_keys("Apple")
         # Tab to "Case sensitive" (focus 1)
         runner.send_keys('\t')
@@ -30,17 +30,17 @@ def test_advanced_search():
         runner.assert_cursor_position(1, 1)
         
         # Find next (^L) - should find "Apple" at 3:1 (skipping lowercase "apple")
-        runner.send_keys('\x0c')
+        runner.send_keys(KEY_CTRL_L)
         runner.assert_cursor_position(3, 1)
         
         # 3. Test Backward Search
-        runner.send_keys('\x1b' + 's') # Alt-S
+        runner.send_keys(KEY_ESC + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         # Tab 2 times to "Direction" group (focus 4 = Forward)
         runner.send_keys('\t\t')
         # Down arrow to "Backward" (focus 5)
-        runner.send_keys('\x1b[B')
+        runner.send_keys(KEY_DOWN)
         runner.send_keys(' ') # Toggle Backward ON
         
         # Tab 3 more times to "Buttons" group (focus 10 = OK)
@@ -56,7 +56,7 @@ def test_advanced_search():
             raise e
             
         # Now use Find Next (^L) to actually step back to the previous one
-        runner.send_keys('\x0c') # ^L
+        runner.send_keys(KEY_CTRL_L) # ^L
         time.sleep(0.5)
         try:
             runner.assert_cursor_position(1, 1)
@@ -65,16 +65,16 @@ def test_advanced_search():
             raise e
         
         # 4. Test Whole Words
-        runner.send_keys('\x1b' + 's') # Alt-S
+        runner.send_keys(KEY_ESC + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         # Input "App"
-        runner.send_keys('\x7f', count=10)
+        runner.send_keys(KEY_BACKSPACE, count=10)
         runner.send_keys("App")
         # Tab 1 time to "Options" group (focus 1 = Case sensitive)
         runner.send_keys('\t')
         # Down arrow to "Whole words only" (focus 2)
-        runner.send_keys('\x1b[B')
+        runner.send_keys(KEY_DOWN)
         runner.send_keys(' ')  # Toggle ON
         
         # Tab 4 more times to "Buttons" group (focus 10 = OK)

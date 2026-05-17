@@ -6,6 +6,28 @@ import time
 import select
 import pyte
 
+
+# Key Constants
+KEY_UP = '\x1b[A'
+KEY_DOWN = '\x1b[B'
+KEY_RIGHT = '\x1b[C'
+KEY_LEFT = '\x1b[D'
+KEY_ESC = '\x1b'
+KEY_BACKSPACE = '\x7f'
+KEY_CTRL_Y = '\x19'
+KEY_CTRL_A = '\x01'
+KEY_CTRL_E = '\x05'
+KEY_CTRL_D = '\x04'
+KEY_CTRL_L = '\x0c'
+KEY_CTRL_G = '\x07'
+KEY_CTRL_U = '\x15'
+KEY_CTRL_V = '\x16'
+KEY_CTRL_X = '\x18'
+KEY_CTRL_UNDERSCORE = '\x1f'
+KEY_CTRL_H = '\x08'
+KEY_CTRL_Z = '\x1a'
+KEY_CTRL_O = '\x0f'
+
 class TurbostarRunner:
     def __init__(self, cols=80, lines=24):
         with tempfile.NamedTemporaryFile(delete=False) as log_file:
@@ -142,7 +164,7 @@ class TurbostarRunner:
         if force:
             self.send_ctrlk('x')
             time.sleep(0.1)
-            self.send_keys('\x1b') # ESC instantly exits force quit dialog
+            self.send_keys(KEY_ESC) # ESC instantly exits force quit dialog
         else:
             self.send_ctrlk('q')
             

@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_tabs_positioning():
@@ -23,19 +23,19 @@ def test_tabs_positioning():
         # 3. Move back to before 'Text'
         # Currently at index 8 (col 13).
         # T e x t (4 chars)
-        runner.send_keys('\x1b[D', count=4) # Left
+        runner.send_keys(KEY_LEFT, count=4) # Left
         # Should be at index 4 (after \t)
         # Col: T(1), a(2), b(3), \t(4-8) -> next char at 9.
         runner.assert_cursor_position(1, 9)
         
         # 4. Move to before \t
-        runner.send_keys('\x1b[D') # Left
+        runner.send_keys(KEY_LEFT) # Left
         # Should be at index 3 (after 'b')
         # Col: T(1), a(2), b(3) -> next char at 4.
         runner.assert_cursor_position(1, 4)
         
         # 5. Move to start
-        runner.send_keys('\x1b[D', count=3) # Left
+        runner.send_keys(KEY_LEFT, count=3) # Left
         runner.assert_cursor_position(1, 1)
         
         

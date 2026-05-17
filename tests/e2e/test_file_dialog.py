@@ -1,6 +1,6 @@
 import time
 import os
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_file_dialog():
     runner = TurbostarRunner()
@@ -20,7 +20,7 @@ def test_file_dialog():
 
         runner.start()
         # 1. Open File Dialog
-        runner.send_keys('\x1b' + 'f') # Alt-F
+        runner.send_keys(KEY_ESC + 'f') # Alt-F
         runner.send_keys('o') # Open
         time.sleep(0.5)
 
@@ -68,7 +68,7 @@ def test_file_dialog_autocomplete():
             f.write("hello foobar")
 
         runner.start()
-        runner.send_keys('\x1b' + 'f') # Alt-F
+        runner.send_keys(KEY_ESC + 'f') # Alt-F
         runner.send_keys('o') # Open
         time.sleep(0.5)
 

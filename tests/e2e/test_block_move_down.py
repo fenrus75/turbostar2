@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_block_move_down():
     runner = TurbostarRunner()
@@ -21,11 +21,11 @@ def test_block_move_down():
         # We want to move Line 2 and Line 3 down to be between # and ##.
         # This means selecting from 2:1 up to (but not including) 4:1.
         runner.move_cursor_to_line(2)
-        runner.send_keys('\x01') # Ctrl-A (Home)
+        runner.send_keys(KEY_CTRL_A) # Ctrl-A (Home)
         runner.send_ctrlk('b') # Selection begin
         
         runner.move_cursor_to_line(4)
-        runner.send_keys('\x01') # Ctrl-A (Home)
+        runner.send_keys(KEY_CTRL_A) # Ctrl-A (Home)
         runner.send_ctrlk('k') # Selection end
         
         runner.assert_selection_is(2, 1, 4, 1, timeout=2.0)
@@ -35,7 +35,7 @@ def test_block_move_down():
         # In a normal editor, pasting/moving at line 6 puts the content BEFORE line 6.
         # So we move cursor to line 6 (the "##" line).
         runner.move_cursor_to_line(6)
-        runner.send_keys('\x01') # Ctrl-A (Home)
+        runner.send_keys(KEY_CTRL_A) # Ctrl-A (Home)
         
         # 3. Trigger Block Move (^KM)
         runner.send_ctrlk('m')

@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_selection_maintenance():
@@ -12,20 +12,20 @@ def test_selection_maintenance():
         # 2. Set Selection Start at "World" (pos 1:7)
         # Cursor is currently at 1:12. Move to 1:7.
         for _ in range(5):
-            runner.send_keys('\x1b[D') # Left
+            runner.send_keys(KEY_LEFT) # Left
         runner.assert_cursor_position(1, 7)
         runner.send_ctrlk('b') # Ctrl-K, b
         
         # 3. Set Selection End at end of "World" (pos 1:12)
         for _ in range(5):
-            runner.send_keys('\x1b[C') # Right
+            runner.send_keys(KEY_RIGHT) # Right
         runner.assert_cursor_position(1, 12)
         runner.send_ctrlk('k') # Ctrl-K, k
         
         # 4. Insert text BEFORE selection
         # Move to 1:1
         for _ in range(11):
-            runner.send_keys('\x1b[D') # Left
+            runner.send_keys(KEY_LEFT) # Left
         runner.assert_cursor_position(1, 1)
         
         runner.send_keys("Fixed ") # 6 chars
@@ -39,7 +39,7 @@ def test_selection_maintenance():
         # Selection was [7, 12], it moved by 6 to [13, 18]
         # Move to middle of "World" (now at 1:13-17). Let's move to 1:15.
         for _ in range(8):
-            runner.send_keys('\x1b[C') # Right
+            runner.send_keys(KEY_RIGHT) # Right
         runner.assert_cursor_position(1, 15)
         
         runner.send_keys("X")

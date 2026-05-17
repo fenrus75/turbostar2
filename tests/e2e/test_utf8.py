@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_utf8_typing():
@@ -18,7 +18,7 @@ def test_utf8_typing():
         runner.assert_cursor_position(1, 2)
         
         # 3. Backspace it
-        runner.send_keys('\x7f')
+        runner.send_keys(KEY_BACKSPACE)
         
         time.sleep(0.5)
         

@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 import os
 
@@ -22,7 +22,7 @@ def test_menu_save_load():
         runner.assert_text_on_screen('Save File As', timeout=2.0)
         
         # 3. Type filename in dialog and press Enter
-        runner.send_keys('\x7f', count=15) # Clear "unknown.txt"
+        runner.send_keys(KEY_BACKSPACE, count=15) # Clear "unknown.txt"
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
@@ -30,14 +30,14 @@ def test_menu_save_load():
         runner.assert_file_contains(test_file, unique_text)
             
         # 5. Clear document using Ctrl-Y
-        runner.send_keys('\x19', count=5) 
+        runner.send_keys(KEY_CTRL_Y, count=5) 
             
         # 6. Open File -> Open via menu
         runner.send_keys('\x1bf') # Alt-F
         runner.send_keys('o')    # 'o' for Open
         runner.assert_text_on_screen('Open File', timeout=2.0)
         
-        runner.send_keys('\x7f', count=25) # Clear
+        runner.send_keys(KEY_BACKSPACE, count=25) # Clear
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         

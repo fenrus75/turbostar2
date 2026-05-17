@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_delete_line():
@@ -12,11 +12,11 @@ def test_delete_line():
         runner.assert_text_on_screen("Line 3")
         
         # Currently at 3:7. Move up to line 2.
-        runner.send_keys('\x1b[A') # Up
+        runner.send_keys(KEY_UP) # Up
         runner.assert_cursor_position(2, 7)
         
         # Press Ctrl-Y (ASCII 25)
-        runner.send_keys('\x19') # \x19 is 25
+        runner.send_keys(KEY_CTRL_Y) # \x19 is 25
         
 
         # "Line 2" should be gone, "Line 3" should move to line 2.

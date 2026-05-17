@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_force_quit():
     runner = TurbostarRunner()
@@ -16,7 +16,7 @@ def test_force_quit():
         # But runner.quit(force=True) does use ^KX. We can use it.
         runner.send_ctrlk('x')
         runner.assert_text_on_screen("Unsaved changes! Quit anyway?", timeout=2.0)
-        runner.send_keys('\x1b') # ESC to instantly exit
+        runner.send_keys(KEY_ESC) # ESC to instantly exit
         
         # 3. Assert app quits immediately
         runner.wait(timeout=10)

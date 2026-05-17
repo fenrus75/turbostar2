@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_scope_selection():
     runner = TurbostarRunner()
@@ -11,8 +11,8 @@ def test_scope_selection():
         # 2. Move to middle of inner code
         # "        inner_code();" (Line 3)
         runner.send_ctrlk('u') # Top
-        runner.send_keys('\x1b[B', count=2) # Down 2 to line 3
-        runner.send_keys('\x1b[C', count=10) # Right
+        runner.send_keys(KEY_DOWN, count=2) # Down 2 to line 3
+        runner.send_keys(KEY_RIGHT, count=10) # Right
         runner.assert_cursor_position(3, 11)
         
         # 3. Select inner scope via ^K [
@@ -34,14 +34,14 @@ def test_scope_selection():
         runner.assert_content_is('tests/data/scope_sel_1.txt')
 
         # 4. Undo and try ^K {
-        runner.send_keys('\x1f') # Undo
+        runner.send_keys(KEY_CTRL_UNDERSCORE) # Undo
 
         runner.assert_text_on_screen("inner_code", timeout=2.0)
         
         # Select outer scope
         # Move to line 5 "}"
         runner.send_ctrlk('v') # Bottom
-        runner.send_keys('\x1b[D')   # Be ON the }
+        runner.send_keys(KEY_LEFT)   # Be ON the }
         runner.send_ctrlk('{')
         time.sleep(0.5)
         # Outer scope: 1:14 to 5:2

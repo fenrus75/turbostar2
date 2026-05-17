@@ -1,6 +1,6 @@
 import time
 import os
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_settings_dialog():
     runner = TurbostarRunner()
@@ -9,7 +9,7 @@ def test_settings_dialog():
         config_path = os.path.join(runner.temp_home, '.turbostar')
         
         # 1. Open Settings Dialog via Alt+P -> P
-        runner.send_keys('\x1b' + 'p') # Alt+P
+        runner.send_keys(KEY_ESC + 'p') # Alt+P
         runner.assert_menu_active(timeout=2.0)
         runner.send_keys('p')
 

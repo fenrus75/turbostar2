@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_enter_split():
@@ -24,13 +24,13 @@ def test_enter_split():
         runner.assert_cursor_position(2, 6)
         
         # Go back to line 1, end of "Hello"
-        runner.send_keys('\x1b[A') # Up
+        runner.send_keys(KEY_UP) # Up
         runner.assert_cursor_position(1, 6)
         
         # Insert "Beautiful " in the middle of split
         # Move to 1:1
         for _ in range(5):
-            runner.send_keys('\x1b[D') # Left
+            runner.send_keys(KEY_LEFT) # Left
         runner.assert_cursor_position(1, 1)
         
         runner.send_keys("Beautiful ")

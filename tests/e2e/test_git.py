@@ -1,7 +1,7 @@
 import time
 import os
 import subprocess
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_git_integration():
     runner = TurbostarRunner()
@@ -41,7 +41,7 @@ def test_git_integration():
 
         # 7. Use "Git add" via menu
         # Alt+G for Git menu, then 'a' for Add
-        runner.send_keys('\x1b' + 'g')
+        runner.send_keys(KEY_ESC + 'g')
         runner.assert_menu_active(timeout=2.0)
         runner.send_keys('a')
 

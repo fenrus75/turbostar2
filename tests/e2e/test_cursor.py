@@ -1,7 +1,7 @@
 import time
 import os
 import tempfile
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_cursor_movement():
     # Create a temporary file with content
@@ -17,19 +17,19 @@ def test_cursor_movement():
         runner.assert_cursor_position(1, 1)
         
         # Move Down
-        runner.send_keys('\x1b[B')
+        runner.send_keys(KEY_DOWN)
         runner.assert_cursor_position(2, 1)
         
         # Move Right
-        runner.send_keys('\x1b[C')
+        runner.send_keys(KEY_RIGHT)
         runner.assert_cursor_position(2, 2)
         
         # Move Right
-        runner.send_keys('\x1b[C')
+        runner.send_keys(KEY_RIGHT)
         runner.assert_cursor_position(2, 3)
 
         # Move Up
-        runner.send_keys('\x1b[A')
+        runner.send_keys(KEY_UP)
         runner.assert_cursor_position(1, 3)
         
         # Quit

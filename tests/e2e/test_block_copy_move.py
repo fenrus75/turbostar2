@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_block_copy_move():
@@ -13,21 +13,21 @@ def test_block_copy_move():
         # 2. Mark Block around "[Block]" (line 3)
         # Move to line 3, start
         runner.send_ctrlk('u') # ^KU (top)
-        runner.send_keys('\x16')       # ^V (page down, but small doc so just moves)
+        runner.send_keys(KEY_CTRL_V)       # ^V (page down, but small doc so just moves)
         # Wait, ^V moves by page height. Let's just use Down Down.
         runner.send_ctrlk('u')
-        runner.send_keys('\x1b[B') # Down
-        runner.send_keys('\x1b[B') # Down (line 3)
+        runner.send_keys(KEY_DOWN) # Down
+        runner.send_keys(KEY_DOWN) # Down (line 3)
         runner.assert_cursor_position(3, 1)
         runner.send_ctrlk('b') # ^KB
-        runner.send_keys('\x05')       # ^E (end of line 3)
+        runner.send_keys(KEY_CTRL_E)       # ^E (end of line 3)
         runner.assert_cursor_position(3, 8)
         runner.send_ctrlk('k') # ^KK
         
         # 3. Copy Block (^KC) to after "Target" (line 2)
         # Move to line 2, end
-        runner.send_keys('\x1b[A') # Up (line 2)
-        runner.send_keys('\x05')    # ^E
+        runner.send_keys(KEY_UP) # Up (line 2)
+        runner.send_keys(KEY_CTRL_E)    # ^E
         runner.assert_cursor_position(2, 7)
         runner.send_ctrlk('c') # ^KC
         
@@ -42,8 +42,8 @@ def test_block_copy_move():
         # 4. Move Block (^KM) to line 1, end
         # Current block is at line 2:7 to line 2:14 (since Target is 6 chars)
         # Move cursor to line 1, end
-        runner.send_keys('\x1b[A') # Up (line 1)
-        runner.send_keys('\x05')    # ^E
+        runner.send_keys(KEY_UP) # Up (line 1)
+        runner.send_keys(KEY_CTRL_E)    # ^E
         runner.assert_cursor_position(1, 6)
         runner.send_ctrlk('m') # ^KM
         

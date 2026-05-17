@@ -1,6 +1,6 @@
 import time
 import os
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_format_paragraph():
     runner = TurbostarRunner()
@@ -25,7 +25,7 @@ def test_format_paragraph():
         # 5. Move to Para 2 and format it
         # Para 1 became 4 lines + 1 blank line = 5 lines.
         # Cursor was at 1:1, move down 5 times to 6:1 (Para 2)
-        runner.send_keys('\x1b[B', count=5) 
+        runner.send_keys(KEY_DOWN, count=5) 
         runner.send_ctrlk('j')
         time.sleep(1.0)
         

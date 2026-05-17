@@ -1,5 +1,5 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_window_popup_menu():
     runner = TurbostarRunner()
@@ -27,7 +27,7 @@ def test_window_popup_menu():
         runner.assert_text_on_screen("Save File As", timeout=2.0)
         
         # Cancel Save As (using Esc to cancel dialog)
-        runner.send_keys('\x1b')
+        runner.send_keys(KEY_ESC)
         runner.assert_text_not_on_screen("Save File As", timeout=2.0)
         runner.cleanup()
 

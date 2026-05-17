@@ -1,4 +1,4 @@
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 import time
 
 def test_search_functionality():
@@ -35,20 +35,20 @@ def test_search_functionality():
         # Go to top
         runner.send_ctrlk('u')
         # Now ^L should find "Search" at 2:1 (since it starts at 1:2)
-        runner.send_keys('\x0c') # ^L (12)
+        runner.send_keys(KEY_CTRL_L) # ^L (12)
         runner.assert_cursor_position(2, 1)
         
-        runner.send_keys('\x0c') # ^L
+        runner.send_keys(KEY_CTRL_L) # ^L
         runner.assert_cursor_position(3, 1)
         
         # 4. Test Menu Search (Dialog)
-        runner.send_keys('\x1b' + 's') # Alt-S (Search menu)
+        runner.send_keys(KEY_ESC + 's') # Alt-S (Search menu)
         runner.send_keys('f')          # 'f' for Find...
         time.sleep(0.5)
         
         # Dialog is open, pre-filled with "Beta"
         # Clear and type "Gamma"
-        runner.send_keys('\x7f', count=10)
+        runner.send_keys(KEY_BACKSPACE, count=10)
         runner.send_keys("Gamma\n")
 
         # Should find "Gamma" at 3:8

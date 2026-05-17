@@ -1,6 +1,6 @@
 import time
 import os
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def test_format_document():
     runner = TurbostarRunner()
@@ -25,7 +25,7 @@ def test_format_document():
             raise e
         
         # 4. Test Undo of format
-        runner.send_keys('\x1f') # Ctrl-_ (Undo)
+        runner.send_keys(KEY_CTRL_UNDERSCORE) # Ctrl-_ (Undo)
         time.sleep(0.5)
         # Content should be back to messy state
         # (Quick check on screen is fine for undo state)

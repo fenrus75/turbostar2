@@ -1,13 +1,13 @@
 import time
-from turbostar_runner import TurbostarRunner
+from turbostar_runner import *
 
 def check_menu(key, expected_menu_name):
     runner = TurbostarRunner()
     log_contents = ""
     try:
         runner.start()
-        runner.send_keys(f'\x1b{key}') # ESC + key = Alt+key
-        runner.send_keys('\x1b')       # ESC to close menu
+        runner.send_keys(f'{KEY_ESC}{key}') # ESC + key = Alt+key
+        runner.send_keys(KEY_ESC)       # ESC to close menu
         time.sleep(0.5)
 
         runner.assert_in_log(f"Menu activated: {expected_menu_name}")
