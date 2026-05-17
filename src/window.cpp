@@ -366,6 +366,10 @@ void window::draw_content() const
 						pair = 8;
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
+					} else if (line_bg_pair != background_color_pair_) {
+						// Build error/warning is active for the whole line.
+						// Override all other highlights to keep the line solid red/yellow.
+						pair = line_bg_pair;
 					} else if (diagnostic_severity == 1) { // Error
 						pair = 27; // White on Red
 					} else if (diagnostic_severity == 2) { // Warning
