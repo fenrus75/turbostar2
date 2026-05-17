@@ -8,10 +8,6 @@
 
 # mid term items
 
-mouse support
-   - for the window close button thingy in the left top
-   - for menus
-
 
 # long term items   
 
@@ -21,6 +17,10 @@ mouse support
 
 
 # done items (items move here on completion)
+
+- mouse support
+   - for the window close button thingy in the left top
+   - for menus
 
 - Parse standard gcc/g++ error and warnings strings to feed back into our coloring, and add a "go to error" option (`F4` / `^K G`) that moves the cursor and view to the exact error.
    - Colored the whole horizontal line with an error red (and yellow for warning).
