@@ -71,6 +71,12 @@ test_history_manager = executable('test_history_manager',
   include_directories: 'src')
 test('unit_history_manager', test_history_manager)
 
+test_tool_infrastructure = executable('test_tool_infrastructure',
+  ['tests/unit/test_tool_infrastructure.cpp'],
+  dependencies : [nlohmann_json_dep],
+  include_directories: 'src')
+test('unit_tool_infrastructure', test_tool_infrastructure)
+
 # E2E tests (run via python)
 pymod = import('python')
 python = pymod.find_installation('python3', required: false)
