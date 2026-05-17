@@ -6,19 +6,7 @@
     - example: the git modified picture we have -- we could make it so that if you click that, you git add the file  
     - if we have the info to compile the file we could find some visual item to put somewhere that you can click to compile this file only
 
-- src/document.cpp is very large, we may want to split this into a few files
-    for faster compilation
-
 # mid term items
-
-- test runner refector: make a send_ctrlk(command) helper that internally sends the ctrl-K sequence followed by the command -- and make all tests use it when appropriate. 
-	Because we know that this is ctrl-k we can optimize the timing of this to not be worst case
-
-- tests: lets make sure that tests that verify content manipulation (as opposed to things like cursor movement/selection changes/etc) use the assert_content_is() kind
-  of structure rather than screen scraping - screen scraping is a lot more fragile
-
-- tests: some tests type in quite a bit of code, to then operate on that code. most of the time the typing part is not what is tested, just needed for the test later.
-   we should convert some of these to have a file in `tests/data` and use ^KR to just read the whole chunk into the file instantly
 
 
 # long term items   
@@ -39,6 +27,13 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- src/document.cpp is very large, we may want to split this into a few files
+  - Split `src/document.cpp` into 7 smaller sub-modules (edit, format, highlight, nav, search, selection, undo).
+- Test Suite Improvements:
+  - Created `docs/test-guidelines.md`.
+  - Added `send_ctrlk` helper.
+  - Transitioned screen scraping tests to `assert_content_is`.
+  - Converted slow typing tests to use `^KR` (insert_file) with `tests/data/` files.
 - there is a clear() in editor.cpp around line 450. This is causing flickering in the UI and is extremely annoying for the user, to the point that the application is unusable.
   - Removed `clear()` from `editor::render()`. Transferred `test_block_delete` and `test_scope_selection` to use `assert_content_is` instead of screen scraping to fix test flakiness.
 - in the config system, make focus_idx_ an enum so that we don't need to renumber everything every time.
