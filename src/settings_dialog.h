@@ -22,6 +22,7 @@ class settings_dialog : public dialog
 	bool is_lsp_enabled() const;
 	bool is_auto_open_error_files() const;
 	bool is_compile_on_save() const;
+	std::string get_llm_url() const;
 
       private:
 	void draw_group_box(int gy, int gx, int gw, int gh, const std::string &title) const;
@@ -36,6 +37,7 @@ class settings_dialog : public dialog
 	int selected_build_system_idx_{0};
 	
 	std::string build_directory_buffer_;
+	std::string llm_url_buffer_;
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
@@ -44,6 +46,7 @@ class settings_dialog : public dialog
 		styles,
 		build_system,
 		build_dir,
+		llm_url,
 		lsp,
 		auto_open,
 		compile_on_save,

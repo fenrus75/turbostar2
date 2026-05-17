@@ -52,6 +52,19 @@ void editor::new_window(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
+#include "agent_window.h"
+
+void editor::new_agent_window()
+{
+	auto win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_);
+	
+	// Add its document to the global documents list so it gets saved on exit/etc if needed (though it shouldn't be saved)
+	documents_.push_back(win->get_document());
+	
+	windows_.push_back(std::move(win));
+	activate_window(windows_.size() - 1);
+}
+
 void editor::activate_window(size_t index)
 {
 	if (index >= windows_.size())

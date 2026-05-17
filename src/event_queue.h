@@ -37,7 +37,9 @@ enum class event_type {
 	lsp_highlight_result, ///< Notification that LSP document highlight is available
 	lsp_selection_range_result, ///< Notification that LSP selection range is available
 	lsp_diagnostics_result, ///< Notification that LSP diagnostics are available
-	mouse_click ///< A mouse click event
+	mouse_click, ///< A mouse click event
+	agent_response, ///< Notification that LLM has responded
+	open_agent ///< Request to open the LLM agent chat window
 };
 
 struct text_range {

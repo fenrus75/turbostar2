@@ -13,6 +13,7 @@
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
+#include "agent_window.h"
 #include <fstream>
 #include <sstream>
 #include <lsp/json/json.h>
@@ -93,8 +94,25 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		logger.log("Dispatching settings event.");
 		active_dialog_ = std::make_unique<settings_dialog>();
 		active_dialog_mode_ = dialog_mode::settings;
-		set_focus(focus_target::dialog, "menu_settings");
+		set_focus(focus_target::dialog, "settings");
 		return;
 	}
 
+	if (ev.type == event_type::open_agent) {
+		logger.log("Dispatching open_agent event.");
+		new_agent_window();
+		return;
+	}
+
+	if (ev.type == event_type::agent_response) {
+		logger.log("Dispatching agent_response event.");
+		// Find the active agent window
+		for (auto& win : windows_) {
+			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
+				agent_win->append_response(ev.payload);
+				break;
+			}
+		}
+		return;
+	}
 }

@@ -70,6 +70,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::redraw:
 		case event_type::about:
 		case event_type::settings:
+		case event_type::open_agent:
+		case event_type::agent_response:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:

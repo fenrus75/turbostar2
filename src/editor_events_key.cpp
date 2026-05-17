@@ -122,6 +122,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 						config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
 						config_manager::get_instance().set_build_system(s_dialog->get_build_system());
 						config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
+						config_manager::get_instance().set_llm_url(s_dialog->get_llm_url());
 						config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
 						config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
 						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());

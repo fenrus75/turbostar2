@@ -22,8 +22,8 @@ lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
 
 turbostar_exe = executable('turbostar',
-  turbostar_sources,
-  dependencies : [ncurses_dep, lsp_dep],
+  turbostar_sources + tools_sources,
+  dependencies : [ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep],
   include_directories: include_directories('include'),
   install : true)
 

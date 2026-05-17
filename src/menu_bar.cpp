@@ -41,6 +41,9 @@ menu_bar::menu_bar()
 			'g',
 			{{"Git add", event_type::git_add, 'a', "", false},
 			 {"Git refresh", event_type::git_refresh, 'r', "", false}}},
+		       {"Agent",
+			'a',
+			{{"Open Chat...", event_type::open_agent, 'o', "", false}}},
 		       {"Window", 'w', {}},
 		       {"Help", 'h', {{"About...", event_type::about, 'a', "", false}}}};
 }

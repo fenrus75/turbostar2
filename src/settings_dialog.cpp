@@ -5,7 +5,7 @@
 #include "config_manager.h"
 
 settings_dialog::settings_dialog()
-    : dialog("Preferences", 60, 21)
+    : dialog("Preferences", 60, 22)
 {
 	styles_ = {"LLVM", "Google", "Chromium", "Mozilla", "WebKit", "Microsoft", "GNU", "file"};
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
@@ -22,6 +22,7 @@ settings_dialog::settings_dialog()
 	}
 	
 	build_directory_buffer_ = config_manager::get_instance().get_build_directory();
+	llm_url_buffer_ = config_manager::get_instance().get_llm_url();
 	lsp_enabled_ = config_manager::get_instance().is_lsp_enabled();
 	auto_open_error_files_ = config_manager::get_instance().is_auto_open_error_files();
 	compile_on_save_ = config_manager::get_instance().is_compile_on_save();
@@ -35,6 +36,11 @@ std::string settings_dialog::get_build_system() const
 std::string settings_dialog::get_build_directory() const
 {
 	return build_directory_buffer_;
+}
+
+std::string settings_dialog::get_llm_url() const
+{
+	return llm_url_buffer_;
 }
 
 bool settings_dialog::is_lsp_enabled() const
@@ -268,10 +274,13 @@ void settings_dialog::draw() const
 	// Build Directory Input
 	draw_text_input(13, 4, 52, "Build Directory:", build_directory_buffer_, focus_idx_ == focus_group::build_dir);
 
+	// LLM URL Input
+	draw_text_input(14, 4, 52, "LLM URL:", llm_url_buffer_, focus_idx_ == focus_group::llm_url);
+
 	// LSP toggle
-	draw_checkbox(15, 4, "Enable LSP (clangd)", lsp_enabled_, 'E');
-	draw_checkbox(16, 4, "Auto-open files for build errors", auto_open_error_files_, 'u');
-	draw_checkbox(17, 4, "Compile f[i]le on save", compile_on_save_, 'i');
+	draw_checkbox(16, 4, "Enable LSP (clangd)", lsp_enabled_, 'E');
+	draw_checkbox(17, 4, "Auto-open files for build errors", auto_open_error_files_, 'u');
+	draw_checkbox(18, 4, "Compile f[i]le on save", compile_on_save_, 'i');
 
 	// Buttons
 	auto draw_btn = [&](int by, int bx, const std::string &btext, char bhot, bool focused) {
@@ -298,9 +307,9 @@ void settings_dialog::draw() const
 		attrset(0);
 	};
 
-	draw_btn(19, 10, "  OK  ", 'o', focus_idx_ == focus_group::btn_ok);
-	draw_btn(19, 25, " Cancel ", 'c', focus_idx_ == focus_group::btn_cancel);
-	draw_btn(19, 40, " Help ", 'h', focus_idx_ == focus_group::btn_help);
+	draw_btn(20, 10, "  OK  ", 'o', focus_idx_ == focus_group::btn_ok);
+	draw_btn(20, 25, " Cancel ", 'c', focus_idx_ == focus_group::btn_cancel);
+	draw_btn(20, 40, " Help ", 'h', focus_idx_ == focus_group::btn_help);
 
 	attrset(0);
 }
@@ -342,6 +351,15 @@ dialog_result settings_dialog::handle_key(int key)
 		}
 		if (key >= 32 && key <= 126) {
 			build_directory_buffer_ += static_cast<char>(key);
+			return dialog_result::pending;
+		}
+	} else if (focus_idx_ == focus_group::llm_url) {
+		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
+			if (!llm_url_buffer_.empty()) llm_url_buffer_.pop_back();
+			return dialog_result::pending;
+		}
+		if (key >= 32 && key <= 126) {
+			llm_url_buffer_ += static_cast<char>(key);
 			return dialog_result::pending;
 		}
 	} else if (focus_idx_ == focus_group::lsp) {

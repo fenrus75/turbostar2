@@ -43,6 +43,7 @@ class editor
 
       private:
 	void new_window(const std::string &filename);
+	void new_agent_window();
 	void activate_window(size_t index);
 	void update_window_menu();
 	std::shared_ptr<document> get_active_doc() const;

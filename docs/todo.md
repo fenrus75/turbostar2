@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- Update the LLM `tool_context` configuration in `agent_window.cpp` to dynamically determine the workspace root. It currently defaults to `std::filesystem::current_path()`, but it should query `git_manager` or similar to find the root of the active git tree if one exists.
+
 # mid term items
 
 - mouse support for the file dialog

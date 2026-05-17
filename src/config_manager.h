@@ -31,6 +31,9 @@ class config_manager
 	bool is_compile_on_save() const { return compile_on_save_; }
 	void set_compile_on_save(bool compile) { compile_on_save_ = compile; }
 
+	std::string get_llm_url() const { return llm_url_; }
+	void set_llm_url(const std::string &url) { llm_url_ = url; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -38,6 +41,7 @@ class config_manager
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
+	std::string llm_url_{"http://192.168.1.42:8080"};
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
