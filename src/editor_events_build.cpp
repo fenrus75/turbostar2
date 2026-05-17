@@ -13,52 +13,8 @@
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
-#include <fstream>
-#include <sstream>
-#include <lsp/json/json.h>
 
 namespace fs = std::filesystem;
-
-static std::string get_compile_command_for_file(const std::string& filepath) {
-	std::string build_dir = config_manager::get_instance().get_build_directory();
-	fs::path cc_json = fs::path(build_dir) / "compile_commands.json";
-	if (!fs::exists(cc_json)) {
-		cc_json = fs::path("compile_commands.json");
-		if (!fs::exists(cc_json)) {
-			return "";
-		}
-	}
-	
-	std::ifstream f(cc_json);
-	if (!f.is_open()) return "";
-	std::stringstream buffer;
-	buffer << f.rdbuf();
-	std::string json_str = buffer.str();
-	
-	try {
-		lsp::json::Value val = lsp::json::parse(json_str);
-		if (val.isArray()) {
-			std::string target_abs = fs_utils::safe_absolute(filepath).lexically_normal().string();
-			for (auto& entry_val : val.array()) {
-				if (entry_val.isObject()) {
-					auto& obj = entry_val.object();
-					if (obj.contains("file") && obj.contains("command") && obj.contains("directory")) {
-						std::string dir = obj.get("directory").string();
-						std::string file = obj.get("file").string();
-						std::string abs_path = fs_utils::safe_absolute(fs::path(dir) / file).lexically_normal().string();
-						if (abs_path == target_abs) {
-							// Found it! Run the command in the directory specified
-							return "cd " + dir + " && " + obj.get("command").string();
-						}
-					}
-				}
-			}
-		}
-	} catch (...) {
-		return "";
-	}
-	return "";
-}
 
 void editor::dispatch_event_build(const editor_event &ev)
 {
@@ -132,7 +88,8 @@ void editor::dispatch_event_build(const editor_event &ev)
 		}
 	
 		if (!current_build_process_ || !current_build_process_->is_running()) {
-			std::string cmd = get_compile_command_for_file(active_doc->get_filename());
+			std::string build_dir = config_manager::get_instance().get_build_directory();
+			std::string cmd = fs_utils::get_compile_command_for_file(active_doc->get_filename(), build_dir);
 			if (cmd.empty()) {
 				logger.log("Could not find compile command for file: " + active_doc->get_filename());
 				// Fallback to normal compile? Or just do nothing.

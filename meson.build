@@ -29,24 +29,24 @@ turbostar_exe = executable('turbostar',
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
    'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
-   'src/agentlib/file_security_manager.cpp'] + tools_sources
+   'src/agentlib/file_security_manager.cpp', 'src/build_error_manager.cpp', 'src/config_manager.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
   include_directories: include_directories('include'),
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
   include_directories: include_directories('include'),
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
   install : false)
 
 agentcli_replay_exe = executable('agentcli_replay',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
   include_directories: include_directories('include'),
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
   install : false)

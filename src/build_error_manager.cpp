@@ -1,9 +1,8 @@
 #include "build_error_manager.h"
 #include <algorithm>
 #include <filesystem>
+#include <ctime>
 #include "fs_utils.h"
-
-namespace fs = std::filesystem;
 
 build_error_manager &build_error_manager::get_instance()
 {
@@ -16,6 +15,7 @@ void build_error_manager::clear()
 	std::lock_guard lock(mutex_);
 	errors_.clear();
 	current_index_ = -1;
+	last_compile_time_ = std::time(nullptr);
 }
 
 void build_error_manager::add_error(const build_error &err)
@@ -28,6 +28,12 @@ const std::vector<build_error>& build_error_manager::get_errors() const
 {
 	std::lock_guard lock(mutex_);
 	return errors_;
+}
+
+std::time_t build_error_manager::get_last_compile_time() const
+{
+	std::lock_guard lock(mutex_);
+	return last_compile_time_;
 }
 
 std::optional<build_error> build_error_manager::get_next_error()

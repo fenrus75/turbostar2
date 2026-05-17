@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
 
     // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "Please find all instances of 'agent_window' in src/editor.h using fs_regexp_lines.";
+    prompt = (argc > 1) ? argv[1] : "Please get the compile info for src/agentcli/main.cpp using the fs_compile_info tool.";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_regexp_lines tool if the user asks to search for something in a file.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_compile_info tool to get compilation and diagnostic information for a file.";
     conversation.push_back(system_msg);
 
     message user_msg;
