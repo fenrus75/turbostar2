@@ -248,7 +248,8 @@ if python.found()
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    is_parallel: false
   )
   test('e2e_ghost_x', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_ghost_x.py')],
