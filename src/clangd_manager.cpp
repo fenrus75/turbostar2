@@ -9,8 +9,7 @@
 #include <filesystem>
 #include "event_logger.h"
 #include "fs_utils.h"
-
-#include "fs_utils.h"
+#include <signal.h>
 
 namespace fs = std::filesystem;
 
@@ -105,22 +104,19 @@ void clangd_manager::stop()
 	if (!is_running_) return;
 
 	try {
-		// 1. Try a graceful Shutdown request with a short timeout
-		auto shutdown_req = message_handler_->sendRequest<lsp::requests::Shutdown>();
-		shutdown_req.result.wait_for(std::chrono::milliseconds(500));
+		// 1. Try a graceful Shutdown request - but don't wait for it
+		(void)message_handler_->sendRequest<lsp::requests::Shutdown>();
 	} catch (...) {}
 
 	try {
-		// 2. Always send the Exit notification, even if Shutdown timed out
+		// 2. Always send the Exit notification
 		message_handler_->sendNotification<lsp::notifications::Exit>();
 	} catch (...) {}
-
-	// Give clangd a tiny moment to flush and exit on its own
-	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 	try {
 		// 3. Forcefully terminate to ensure the pipe breaks and message_thread unblocks
 		if (process_) {
+			kill(process_->id(), SIGKILL);
 			process_->terminate();
 		}
 	} catch (...) {}
