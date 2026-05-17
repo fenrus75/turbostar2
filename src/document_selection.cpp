@@ -195,6 +195,19 @@ void document::move_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
+	int sx, sy, ex, ey;
+	get_selection_range_unlocked(sx, sy, ex, ey);
+
+	if (ty > ey) {
+		ty -= (ey - sy);
+	} else if (ty == ey && tx >= ex) {
+		ty = sy;
+		tx = sx + (tx - ex);
+	} else if (ty > sy || (ty == sy && tx >= sx)) {
+		ty = sy;
+		tx = sx;
+	}
+
 	begin_edit_group();
 
 	lock.unlock();
@@ -273,9 +286,8 @@ bool document::has_selection() const
 }
 
 
-void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const
+void document::get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const
 {
-	std::shared_lock lock(mutex_);
 	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
 		start_x = selection_start_x_;
 		start_y = selection_start_y_;
@@ -287,6 +299,12 @@ void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &
 		end_x = selection_start_x_;
 		end_y = selection_start_y_;
 	}
+}
+
+void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const
+{
+	std::shared_lock lock(mutex_);
+	get_selection_range_unlocked(start_x, start_y, end_x, end_y);
 }
 
 

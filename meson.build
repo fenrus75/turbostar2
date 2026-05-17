@@ -204,6 +204,14 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+
+  test('e2e_block_move_down', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_block_move_down.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+
   test('e2e_word_line_edit', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_word_line_edit.py')],
     env: e2e_env,

@@ -107,6 +107,14 @@ class TurbostarRunner:
         self.send_keys(seq_down)
         self.send_keys(seq_up)
 
+    def move_cursor_to_line(self, line_num):
+        """Use the 'Go to Line' dialog (^KL) to move the cursor to the specified 1-based line number."""
+        self.send_ctrlk('l')
+        self.assert_text_on_screen("Go to line:", timeout=2.0)
+        self.send_keys(str(line_num) + '\n')
+        # Wait until the status bar prompt disappears
+        self.assert_text_not_on_screen("Go to line:", timeout=2.0)
+
     def insert_file(self, rel_path):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         abs_path = os.path.join(project_root, rel_path)
