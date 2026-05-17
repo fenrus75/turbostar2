@@ -123,7 +123,21 @@ bool file_security_manager::validate_access(const std::string& requested_path,
         return false;
     }
 
-    // 5. Success
+    // 5. Final check against actual on-disk permissions
+    // If it exists, check if the OS actually allows the requested access
+    if (std::filesystem::exists(canonical_path)) {
+        auto perms = std::filesystem::status(canonical_path).permissions();
+        if (requested_perm == access_type::read && (perms & std::filesystem::perms::owner_read) == std::filesystem::perms::none) {
+            out_error = "Read permission denied by the operating system.";
+            return false;
+        }
+        if (requested_perm == access_type::write && (perms & std::filesystem::perms::owner_write) == std::filesystem::perms::none) {
+            out_error = "Write permission denied by the operating system.";
+            return false;
+        }
+    }
+
+    // 6. Success
     out_resolved_path = canonical_str;
     return true;
 }
