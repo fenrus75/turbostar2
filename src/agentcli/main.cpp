@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
 
     // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "What is the size of the file src/agentcli/main.cpp in bytes?";
+    prompt = (argc > 1) ? argv[1] : "Please list the contents of the src/tools directory using the fs_list_dir tool.";
     std::cout << "Connecting to: " << url << std::endl;
     std::cout << "Prompt: " << prompt << "\n" << std::endl;
     
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     
     message system_msg;
     system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_file_size tool to find out the file size if the user asks.";
+    system_msg.content = "You are a helpful assistant. You must use the provided fs_list_dir tool if the user asks to list a directory.";
     conversation.push_back(system_msg);
 
     message user_msg;
