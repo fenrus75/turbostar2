@@ -1,4 +1,5 @@
 #pragma once
+#include "file_security_manager.h"
 
 namespace agentlib {
 
@@ -7,7 +8,8 @@ namespace agentlib {
 // event queue, or other Turbostar editor state.
 class tool_context {
 public:
-    // ... contextual methods will be added here ...
+    file_security_manager fs_security;
+    // ... other contextual methods will be added here ...
 };
 
 } // namespace agentlib

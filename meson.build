@@ -28,7 +28,8 @@ turbostar_exe = executable('turbostar',
   install : true)
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
-   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp'] + tools_sources
+   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
+   'src/agentlib/file_security_manager.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
@@ -72,10 +73,16 @@ test_history_manager = executable('test_history_manager',
 test('unit_history_manager', test_history_manager)
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
-  ['tests/unit/test_tool_infrastructure.cpp'],
+  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp'],
   dependencies : [nlohmann_json_dep],
   include_directories: 'src')
 test('unit_tool_infrastructure', test_tool_infrastructure)
+
+test_file_security = executable('test_file_security',
+  ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_file_security', test_file_security)
 
 # E2E tests (run via python)
 pymod = import('python')
