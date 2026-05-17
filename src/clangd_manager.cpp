@@ -8,6 +8,9 @@
 #include <lsp/io/standardio.h>
 #include <filesystem>
 #include "event_logger.h"
+#include "fs_utils.h"
+
+#include "fs_utils.h"
 
 namespace fs = std::filesystem;
 

@@ -11,6 +11,7 @@
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "clangd_manager.h"
+#include "fs_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -568,6 +569,62 @@ void document::split_line()
 	notify_cursor_changed();
 }
 
+void document::append_line(const std::string &text)
+{
+	std::unique_lock lock(mutex_);
+	
+	// If the document is just a single empty line, replace it.
+	if (lines_.size() == 1 && lines_[0]->get_text().empty()) {
+		lines_[0] = std::make_shared<line>(text);
+		mark_line_dirty(lines_[0]);
+	} else {
+		auto l = std::make_shared<line>(text);
+		lines_.push_back(l);
+		mark_line_dirty(l);
+	}
+	
+	cursor_y_ = static_cast<int>(lines_.size() - 1);
+	cursor_x_ = lines_[cursor_y_]->length_in_chars();
+	target_cursor_x_ = cursor_x_;
+
+	set_modified();
+	lock.unlock();
+	notify_cursor_changed();
+}
+
+void document::trim_top_lines(int max_lines)
+{
+	std::unique_lock lock(mutex_);
+	if (static_cast<int>(lines_.size()) <= max_lines || max_lines <= 0) {
+		return;
+	}
+
+	int lines_to_remove = static_cast<int>(lines_.size()) - max_lines;
+	lines_.erase(lines_.begin(), lines_.begin() + lines_to_remove);
+
+	if (cursor_y_ >= lines_to_remove) {
+		cursor_y_ -= lines_to_remove;
+	} else {
+		cursor_y_ = 0;
+		cursor_x_ = 0;
+	}
+
+	if (selection_start_y_ != -1) {
+		selection_start_y_ -= lines_to_remove;
+		if (selection_start_y_ < 0) selection_start_y_ = 0;
+	}
+	if (selection_end_y_ != -1) {
+		selection_end_y_ -= lines_to_remove;
+		if (selection_end_y_ < 0) selection_end_y_ = 0;
+	}
+
+	target_cursor_x_ = cursor_x_;
+	
+	set_modified();
+	lock.unlock();
+	notify_cursor_changed();
+}
+
 void document::move_to_bol()
 {
 	std::unique_lock lock(mutex_);
@@ -765,7 +822,7 @@ void document::format_range(int start_y, int end_y)
 	bool force_file = false;
 	fs::path search_path;
 	if (!filename_.empty() && filename_ != "unknown.txt") {
-		search_path = fs::absolute(filename_).parent_path();
+		search_path = fs_utils::safe_absolute(filename_).parent_path();
 	} else {
 		search_path = fs::current_path();
 	}

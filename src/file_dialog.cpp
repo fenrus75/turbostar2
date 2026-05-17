@@ -1,4 +1,5 @@
 #include "file_dialog.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <ctime>
 #include <ncurses.h>
@@ -10,9 +11,9 @@ file_dialog::file_dialog(const std::string &title, file_dialog_mode mode, bool a
 {
 	try {
 		if (!initial_path.empty() && fs::is_directory(initial_path)) {
-			current_path_ = fs::absolute(initial_path);
+			current_path_ = fs_utils::safe_absolute(initial_path);
 		} else if (!initial_path.empty()) {
-			current_path_ = fs::absolute(fs::path(initial_path).parent_path());
+			current_path_ = fs_utils::safe_absolute(fs::path(initial_path).parent_path());
 			if (current_path_.empty())
 				current_path_ = fs::current_path();
 			filename_buffer_ = fs::path(initial_path).filename().string();

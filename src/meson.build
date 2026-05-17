@@ -19,6 +19,9 @@ turbostar_sources = files(
   'markdown_highlighter.cpp',
   'highlighter_registry.cpp',
   'clangd_manager.cpp',
-  'process_runner.cpp'
+  'process_runner.cpp',
+  'gcc_log_parser.cpp',
+  'build_error_manager.cpp',
+  'fs_utils.cpp'
 )
 
