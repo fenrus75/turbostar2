@@ -17,7 +17,8 @@ sections updated as enhancements are made to the project.
 | `docs/general-c++.md`  | Coding style for C++       | 
 | `docs/keybindings.md`  | Key binding documentation  |
 | `docs/colorscheme.md`  | Color scheme documentation |
-| `docs/buttonrecipe.md` | How to make UI buttons    |
+| `docs/buttonrecipe.md` | How to make UI buttons     |
+| `docs/test-guidelines.md` | End-to-End test guidelines |
 
 # Git policy
 
