@@ -193,6 +193,22 @@ class TurbostarRunner:
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' not found on screen after {timeout}s. Screen content:\n{display_str}")
 
+    def assert_menu_active(self, timeout=1.0):
+        """
+        Asserts that a menu dropdown is currently visible on screen.
+        Checks for the presence of the top-left menu border corner '┌' on line 1.
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._read_output()
+            # The menu top border is drawn on line index 1
+            if len(self.screen.display) > 1 and '┌' in self.screen.display[1]:
+                return
+            time.sleep(0.1)
+        
+        display_str = "\n".join(self.screen.display)
+        raise AssertionError(f"Menu dropdown not found on screen after {timeout}s. Screen content:\n{display_str}")
+
     def assert_text_not_on_screen(self, text, timeout=1.0):
         start_time = time.time()
         while time.time() - start_time < timeout:

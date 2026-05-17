@@ -42,7 +42,7 @@ def test_git_integration():
         # 7. Use "Git add" via menu
         # Alt+G for Git menu, then 'a' for Add
         runner.send_keys('\x1b' + 'g')
-        time.sleep(0.5)
+        runner.assert_menu_active(timeout=2.0)
         runner.send_keys('a')
 
         # Verify it staged the file
