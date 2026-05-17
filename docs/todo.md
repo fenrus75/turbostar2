@@ -1,7 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- we should consider giving the compiler window a different background color to make clear that the user cannot type there
-
+- can we parse standard gcc/g++ error and warnings strings to feed back into our coloring? Or maybe a "go to error" option of sorts
+  that moves the cursor and view to the exact error
   
 
 # mid term items
@@ -16,6 +16,7 @@
 
 - add a compile output window (implemented generic process_runner and split screen window)
    - Auto-activate (foreground) the output window when a build or test starts.
+   - Give the output window a distinct background color (White on Black) to distinguish it from editable code.
 
 - support for LSP servers (clangd)
    - Integrated leon-bckl/lsp-framework as a Meson subproject
