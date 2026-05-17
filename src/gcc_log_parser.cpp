@@ -30,6 +30,10 @@ void gcc_log_parser::parse_line(const std::string &line, int output_line, std::v
 		err.is_warning = (match[4].str() == "warning");
 		err.message = match[5].str();
 		err.output_buffer_line = output_line;
-		out_errors.push_back(err);
+
+		std::error_code ec;
+		if (fs::exists(err.filepath, ec)) {
+			out_errors.push_back(err);
+		}
 	}
 }
