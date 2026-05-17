@@ -11,10 +11,19 @@ These keys are handled by the central dispatcher regardless of focus (unless ove
 | `Alt+F` | Open File Menu | |
 | `Alt+E` | Open Edit Menu | |
 | `Alt+S` | Open Search Menu | |
+| `Alt+T` | Open Tools Menu | |
 | `Alt+P` | Open Options Menu | Preferences and settings. |
 | `Alt+G` | Open Git Menu | Git integration commands. |
+| `Alt+W` | Open Window Menu | |
 | `Alt+H` | Open Help Menu | |
 | `Alt+1...9` | Switch Window | Directly activates the corresponding numbered window. |
+| `F1` | Help | (Not fully implemented yet). |
+| `F2` | Save | Smart save current document. |
+| `F3` | Open | Open file dialog. |
+| `F4` | Next Error | Jump to the next build error. |
+| `F8` | Run Tests | Run the test suite using configured build system. |
+| `F9` | Compile | Run the compile command using configured build system. |
+| `Alt+F3`| Close Window | Closes the active window. |
 
 ## Menu Navigation
 
@@ -84,17 +93,21 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K K` | Set Selection End | Sets the end marker at the current cursor position. |
 | `^K C` | Copy Block | Copies selection to the current cursor position. |
 | `^K M` | Move Block | Moves selection to the current cursor position. |
+| `^K N` | New Window | Opens a new, empty window. |
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
 | `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
+| `^K A` | Save All | Saves all open, modified documents. |
 | `^K W` | Write / Save As | Prompts for a filename to save the current document. |
 | `^K R` | Insert File | Prompts for a filename to insert at the cursor position. |
 | `^K Q` | Quit / Abort | Exits the application without saving. |
 | `^K X` | Save & Exit | Saves the current document and exits. |
 | `^K U` | Top of File | Moves cursor to the beginning of the document. |
 | `^K V` | End of File | Moves cursor to the end of the document. |
+| `^K G` | Next Error | Jumps to the next build error in the compilation output. |
 | `^K L` | Go To Line | Prompts for a line number in the status bar to jump to. |
 | `^K J` | Format Paragraph | Runs `clang-format` on the current block of text. |
 | `^K [` / `^K {` | Select Scope | Automatically selects the current enclosing `{}` block. |
+| `^K ]` | Expand Selection | Uses LSP to expand the selection to the next logical enclosing block. |
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
 | `^K H` | Hide/Clear Selection | Removes both start and end markers. |
 

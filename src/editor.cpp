@@ -12,6 +12,7 @@
 #include "clangd_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
+#include "fs_utils.h"
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
@@ -779,10 +780,14 @@ void editor::dispatch(const editor_event &ev)
 
 			// 1. Find or open window for this file
 			size_t win_idx = static_cast<size_t>(-1);
+			std::string err_abs = fs_utils::safe_absolute(err.filepath).lexically_normal().string();
 			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_document() && windows_[i]->get_document()->get_filename() == err.filepath) {
-					win_idx = i;
-					break;
+				if (windows_[i]->get_document()) {
+					std::string win_file = windows_[i]->get_document()->get_filename();
+					if (win_file == err.filepath || fs_utils::safe_absolute(win_file).lexically_normal().string() == err_abs) {
+						win_idx = i;
+						break;
+					}
 				}
 			}
 
