@@ -5,8 +5,6 @@ def test_block_delete():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Setup multi-line text
         runner.send_keys("Line A\nLine B\nLine C")
         runner.assert_text_on_screen("Line A")
@@ -27,8 +25,6 @@ def test_block_delete():
         
         # 3. Delete Block (^KY)
         runner.send_ctrlk('y') # ^KY
-        
-        time.sleep(0.5)
         
         runner.assert_content_is('tests/data/block_delete_golden.txt')
         

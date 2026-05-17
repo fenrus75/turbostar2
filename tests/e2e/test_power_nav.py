@@ -5,8 +5,6 @@ def test_power_navigation():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Load document with multiple lines
         runner.insert_file('tests/data/power_nav_start.txt')
         

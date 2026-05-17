@@ -5,8 +5,6 @@ def test_ghost_x():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type the scenario
         # Line 1: 20 chars
         runner.send_keys("12345678901234567890\n")

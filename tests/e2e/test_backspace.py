@@ -5,8 +5,6 @@ def test_backspace():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # Test 1: Backspace within a line
         runner.send_keys("Helloo")
         runner.assert_text_on_screen("Helloo")

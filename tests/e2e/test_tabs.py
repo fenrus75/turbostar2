@@ -5,8 +5,6 @@ def test_tabs_positioning():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type text with a tab
         runner.send_keys("Tab")
         runner.send_keys('\t')

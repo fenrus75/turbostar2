@@ -16,8 +16,6 @@ def test_insert_file():
         
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 2. Type some initial text
         runner.send_keys("Start-")
         runner.assert_text_on_screen("Start-")
@@ -40,8 +38,7 @@ def test_insert_file():
         time.sleep(0.5)
         runner.assert_text_on_screen("Start-")
         # Ensure INSERTED_TEXT is GONE
-        screen = "\n".join(runner.screen.display)
-        assert "INSERTED_TEXT" not in screen
+        runner.assert_text_not_on_screen("INSERTED_TEXT")
         
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

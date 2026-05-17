@@ -5,8 +5,6 @@ def test_window_menu_switching():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Open a second window
         runner.send_keys('\x1bf') # Alt-F
         time.sleep(0.2)
@@ -45,7 +43,7 @@ def test_window_menu_switching():
         log = runner.get_log()
         # Find the LAST "Selecting window" message
         last_selecting = [line for line in log.splitlines() if "Selecting window:" in line][-1]
-        assert "Selecting window: 0" in last_selecting
+        runner.assert_in_log("Selecting window: 0")
 
         runner.send_ctrlk('q')
         runner.wait(timeout=5)

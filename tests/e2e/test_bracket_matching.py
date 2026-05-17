@@ -5,8 +5,6 @@ def test_bracket_matching():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some code with nested brackets
         runner.send_keys("if (a == (b + c)) {\n")
         runner.send_keys("    d[i] = {1, 2, 3};\n")

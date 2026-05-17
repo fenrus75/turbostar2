@@ -7,8 +7,6 @@ def test_format_document():
     ref_file = "tests/data/format_golden.txt"
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type messy C++ code
         runner.send_keys("int main(){\n")
         runner.send_keys("int x=5;\n")
@@ -32,7 +30,7 @@ def test_format_document():
         # Content should be back to messy state
         # (Quick check on screen is fine for undo state)
         screen_undone = "\n".join(runner.screen.display)
-        assert "int x=5;" in screen_undone
+        runner.assert_text_on_screen("int x=5;")
         
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

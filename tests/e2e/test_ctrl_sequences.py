@@ -5,8 +5,6 @@ def test_doubled_ctrl_sequences():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         runner.send_keys("Test Sequence")
         
         # 1. Test ^K^B (Ctrl-K, then Ctrl-B)
@@ -21,15 +19,14 @@ def test_doubled_ctrl_sequences():
         log = runner.get_log()
         
         # Verify both were handled
-        assert "K-block: Set Selection Begin" in log
-        assert "K-block: Set Selection End" in log
+        runner.assert_in_log("K-block: Set Selection Begin")
+        runner.assert_in_log("K-block: Set Selection End")
         
         # 3. Verify ^K^H (Hide Selection)
         runner.send_ctrlk('\x08') # \x08 is ^H (Backspace usually, but let's see)
         # Actually ^H is 8.
         time.sleep(0.5)
-        log = runner.get_log()
-        assert "K-block: Clear Selection" in log
+        runner.assert_in_log("K-block: Clear Selection")
         
         runner.send_ctrlk('q')
         runner.wait(timeout=5)

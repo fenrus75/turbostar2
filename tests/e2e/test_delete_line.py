@@ -5,8 +5,6 @@ def test_delete_line():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # Type three lines
         runner.send_keys("Line 1\nLine 2\nLine 3")
         runner.assert_text_on_screen("Line 1")
@@ -27,8 +25,7 @@ def test_delete_line():
         runner.assert_text_on_screen("Line 3")
         
         # Verify "Line 2" is actually gone
-        display = "\n".join(runner.screen.display)
-        assert "Line 2" not in display
+        runner.assert_text_not_on_screen("Line 2")
         
         # Cursor should be at 2:1
         runner.assert_cursor_position(2, 1)

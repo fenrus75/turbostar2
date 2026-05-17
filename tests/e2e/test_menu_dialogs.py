@@ -11,8 +11,6 @@ def test_menu_save_load():
         
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some unique text
         unique_text = "Menu System Verification"
         runner.send_keys(unique_text)
@@ -21,21 +19,15 @@ def test_menu_save_load():
         # 2. Open File -> Save via menu
         runner.send_keys('\x1bf') # Alt-F
         runner.send_keys('s')    # 's' for Save
+        runner.assert_text_on_screen('Save File As', timeout=2.0)
         
         # 3. Type filename in dialog and press Enter
         runner.send_keys('\x7f', count=15) # Clear "unknown.txt"
         runner.send_keys(test_file + '\n')
-        time.sleep(0.5)
+        runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
         # 4. Verify file exists
-        try:
-            assert os.path.exists(test_file)
-        except AssertionError as e:
-            print(f"Log contents:\n{runner.get_log()}")
-            raise e
-        with open(test_file, 'r') as f:
-            content = f.read()
-            assert unique_text in content
+        runner.assert_file_contains(test_file, unique_text)
             
         # 5. Clear document using Ctrl-Y
         runner.send_keys('\x19', count=5) 
@@ -43,10 +35,11 @@ def test_menu_save_load():
         # 6. Open File -> Open via menu
         runner.send_keys('\x1bf') # Alt-F
         runner.send_keys('o')    # 'o' for Open
+        runner.assert_text_on_screen('Open File', timeout=2.0)
         
         runner.send_keys('\x7f', count=25) # Clear
         runner.send_keys(test_file + '\n')
-        time.sleep(0.5)
+        runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
         # 7. Verify text is restored
         runner.assert_text_on_screen(unique_text)

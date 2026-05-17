@@ -59,9 +59,8 @@ class TurbostarRunner:
         os.close(self.slave_fd)
         self.slave_fd = None
         
-        # Give ncurses and the UI a moment to initialize
-        time.sleep(0.5)
-        self._read_output()
+        # Wait for the UI to initialize
+        self.assert_in_log("UI initialized.", timeout=5.0)
 
     def _read_output(self):
         if self.master_fd is None:
@@ -134,6 +133,35 @@ class TurbostarRunner:
             print(f"DEBUG: Status bar: '{status_bar_row}' -> {match.group(1)}:{match.group(2)}")
             return int(match.group(1)), int(match.group(2))
         return -1, -1
+
+
+    def assert_in_log(self, text, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            log = self.get_log()
+            if text in log:
+                return
+            time.sleep(0.1)
+        raise AssertionError(f"Text '{text}' not found in log after {timeout}s")
+
+    def assert_file_exists(self, path, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if os.path.exists(path):
+                return
+            time.sleep(0.1)
+        raise AssertionError(f"File '{path}' does not exist after {timeout}s")
+
+    def assert_file_contains(self, path, text, timeout=1.0):
+        self.assert_file_exists(path, timeout)
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            with open(path, 'r') as f:
+                content = f.read()
+            if text in content:
+                return
+            time.sleep(0.1)
+        raise AssertionError(f"File '{path}' does not contain '{text}' after {timeout}s")
 
     def assert_cursor_position(self, expected_y, expected_x, timeout=1.0):
         start_time = time.time()

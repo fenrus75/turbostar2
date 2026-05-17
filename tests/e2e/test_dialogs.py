@@ -11,8 +11,6 @@ def test_dialog_save_load():
         
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some unique text
         unique_text = "Dialog System Verification"
         runner.send_keys(unique_text)
@@ -20,43 +18,29 @@ def test_dialog_save_load():
         
         # 2. Open Save As dialog (^KW)
         runner.send_ctrlk('w')
-        time.sleep(0.5)
+        runner.assert_text_on_screen('Save File As', timeout=2.0)
         
         # 3. Type filename and press Enter
         # Clear pre-filled "unknown.txt"
         runner.send_keys('\x7f', count=25) 
         runner.send_keys(test_file + '\n')
-        time.sleep(1.0)
+        runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
         # 4. Verify file exists and has correct content
-        if not os.path.exists(test_file):
-            print(f"ERROR: File {test_file} not found.")
-            print(f"Log:\n{runner.get_log()}")
-            assert os.path.exists(test_file)
-            
-        with open(test_file, 'r') as f:
-            content = f.read()
-            if unique_text not in content:
-                print(f"ERROR: Unique text not in file. Content: '{content}'")
-                print(f"Log:\n{runner.get_log()}")
-                assert unique_text in content
+        runner.assert_file_contains(test_file, unique_text)
             
         # 5. Clear document
         runner.send_keys('\x19', count=5) 
             
         # 6. Open Load dialog (^KE)
         runner.send_ctrlk('e')
+        runner.assert_text_on_screen('Open File', timeout=2.0)
         runner.send_keys('\x7f', count=25) # Clear again
         runner.send_keys(test_file + '\n')
-        time.sleep(0.5)
+        runner.assert_text_not_on_screen('Open File', timeout=2.0)
         
         # 7. Verify text is back
-        try:
-            runner.assert_text_on_screen(unique_text)
-        except Exception as e:
-            print(f"ERROR: Text not found after load.")
-            print(f"Log:\n{runner.get_log()}")
-            raise e
+        runner.assert_text_on_screen(unique_text)
         
         runner.send_ctrlk('q')
         runner.wait(timeout=5)

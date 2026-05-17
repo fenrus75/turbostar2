@@ -5,8 +5,6 @@ def test_scope_selection():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Load some nested code
         runner.insert_file('tests/data/scope_sel_start.txt')
         
@@ -54,8 +52,6 @@ def test_scope_selection():
             raise e
         
         runner.send_ctrlk('y') # Delete block
-        time.sleep(0.5)
-        
         runner.assert_content_is('tests/data/scope_sel_2.txt')
 
         runner.send_ctrlk('q') # Ctrl-C

@@ -5,8 +5,6 @@ def test_single_tab():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type a single tab
         runner.send_keys('\t')
         time.sleep(0.5)

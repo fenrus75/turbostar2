@@ -5,8 +5,6 @@ def test_selection_maintenance():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some text
         runner.send_keys("Hello World")
         runner.assert_text_on_screen("Hello World")

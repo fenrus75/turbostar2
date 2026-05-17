@@ -5,8 +5,6 @@ def test_block_copy_move():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Setup text
         runner.send_keys("Start\nTarget\n[Block]\nEnd")
         runner.assert_text_on_screen("Target")
@@ -57,8 +55,7 @@ def test_block_copy_move():
         # Line 4: End
         runner.assert_text_on_screen("Start[Block]")
         # Verify it's gone from line 2
-        display = "\n".join(runner.screen.display)
-        assert "Target[Block]" not in display
+        runner.assert_text_not_on_screen("Target[Block]")
         
         runner.send_ctrlk('q') # Ctrl-C
         runner.wait(timeout=5)

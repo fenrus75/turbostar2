@@ -5,8 +5,6 @@ def test_syntax_markdown():
     runner = TurbostarRunner()
     try:
         runner.start(filename="test.md")
-        time.sleep(0.5)
-        
         # 1. Type some Markdown code
         runner.send_keys("# Heading 1\n")
         runner.send_keys("This is a **bold** statement.\n")

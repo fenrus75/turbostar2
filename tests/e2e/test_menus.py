@@ -15,8 +15,7 @@ def check_menu(key, expected_menu_name):
         except Exception as e:
             print(f"FAILED. Log: {runner.get_log()}")
             raise e
-        log_contents = runner.get_log()
-        assert f"Menu activated: {expected_menu_name}" in log_contents
+        runner.assert_in_log(f"Menu activated: {expected_menu_name}")
     except Exception as e:
         print(f"FAILED. Log: {runner.get_log()}")
         print(f"Screen:\n{chr(10).join(runner.screen.display)}")
@@ -41,9 +40,8 @@ def test_file_exit():
         except Exception as e:
             print(f"FAILED. Log: {runner.get_log()}")
             raise e
-        log_contents = runner.get_log()
-        assert "Menu activated: File" in log_contents
-        assert "Dispatching quit event." in log_contents
+        runner.assert_in_log("Menu activated: File")
+        runner.assert_in_log("Dispatching quit event.")
     finally:
         runner.cleanup()
 

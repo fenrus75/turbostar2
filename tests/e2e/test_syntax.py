@@ -5,8 +5,6 @@ def test_syntax_highlighting():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some code with keywords
         # "void main() { int x = 0; return; }"
         runner.send_keys("void main() { int x = 0; return; }")

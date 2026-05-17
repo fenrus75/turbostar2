@@ -5,8 +5,6 @@ def test_word_line_editing():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Test ^W (Delete Word Forward)
         runner.send_keys("One Two Three")
         runner.assert_cursor_position(1, 14)
@@ -42,7 +40,7 @@ def test_word_line_editing():
         runner.assert_text_on_screen("One End ")
         # Verify "Of Line" is gone
         display = "".join(runner.screen.display)
-        assert "Of Line" not in display
+        runner.assert_text_not_on_screen("Of Line")
         
         # 4. Test Alt-O (Delete to BOL)
         # Currently at 1:9 (after "One End ")
@@ -55,7 +53,7 @@ def test_word_line_editing():
         runner.assert_text_on_screen("End ")
         # Verify "One " is gone
         display = "".join(runner.screen.display)
-        assert "One " not in display
+        runner.assert_text_not_on_screen("One ")
         runner.assert_cursor_position(1, 1)
         
         runner.send_ctrlk('q') # Ctrl-C

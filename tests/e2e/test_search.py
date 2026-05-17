@@ -5,8 +5,6 @@ def test_search_functionality():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Setup multi-line text with repeating words
         content = "Search Alpha\nSearch Beta\nSearch Gamma"
         runner.send_keys(content)

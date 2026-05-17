@@ -5,8 +5,6 @@ def test_extra_shortcuts():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Test ^A and ^E
         runner.send_keys("Hello")
         runner.assert_cursor_position(1, 6)

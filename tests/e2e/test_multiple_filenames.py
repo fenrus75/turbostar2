@@ -6,8 +6,6 @@ def test_multiple_filenames():
     try:
         # Start with two specific filenames
         runner.start(filename="file1.txt file2.txt")
-        time.sleep(1.0)
-        
         # Verify both windows exist in the Window menu
         # Alt+W to open Window menu
         runner.send_keys('\x1b' + 'w')

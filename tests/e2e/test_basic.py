@@ -15,11 +15,11 @@ def test_startup_and_quit():
         log_contents = runner.get_log()
         print(f"LOG:\n{log_contents}")
 
-        assert "Application started." in log_contents
-        assert "UI initialized." in log_contents
-        assert "K-block: Quit (Abort)" in log_contents
-        assert "Dispatching quit event." in log_contents
-        assert "Exiting application loop." in log_contents
+        runner.assert_in_log("Application started.")
+        runner.assert_in_log("UI initialized.")
+        runner.assert_in_log("K-block: Quit (Abort)")
+        runner.assert_in_log("Dispatching quit event.")
+        runner.assert_in_log("Exiting application loop.")
 
     finally:
         runner.cleanup()

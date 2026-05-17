@@ -19,8 +19,6 @@ def test_file_dialog():
             f.write("hello")
 
         runner.start()
-        time.sleep(0.5)
-
         # 1. Open File Dialog
         runner.send_keys('\x1b' + 'f') # Alt-F
         runner.send_keys('o') # Open
@@ -37,9 +35,9 @@ def test_file_dialog():
         # 4. Check that the new window is opened
         log = runner.get_log()
         try:
-            assert "Document loaded from" in log
+            runner.assert_in_log("Document loaded from")
             full_path = os.path.abspath(os.path.join(testrun_dir, test_dir, test_file))
-            assert full_path in log
+            runner.assert_in_log(full_path)
         except AssertionError:
             print("Assertion failed. Log content:")
             print(log)
@@ -70,8 +68,6 @@ def test_file_dialog_autocomplete():
             f.write("hello foobar")
 
         runner.start()
-        time.sleep(0.5)
-
         runner.send_keys('\x1b' + 'f') # Alt-F
         runner.send_keys('o') # Open
         time.sleep(0.5)
@@ -86,7 +82,7 @@ def test_file_dialog_autocomplete():
         log = runner.get_log()
         try:
             full_path = os.path.abspath(os.path.join(testrun_dir, test_dir, test_file))
-            assert full_path in log
+            runner.assert_in_log(full_path)
         except AssertionError:
             print("Assertion failed. Log content:")
             print(log)

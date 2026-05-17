@@ -5,8 +5,6 @@ def test_search_autocomplete():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type some text
         runner.send_keys("The quick brown fox jumps over the lazy dog\n")
         

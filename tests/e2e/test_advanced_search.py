@@ -5,8 +5,6 @@ def test_advanced_search():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Setup multi-line text with repeating words and case variants
         content = "Apple apple alpha\nBanana banana\nApple pie"
         runner.send_keys(content)

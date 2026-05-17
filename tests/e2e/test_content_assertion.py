@@ -8,8 +8,6 @@ def test_assert_content():
     
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # 1. Type the content of golden_sample.txt
         runner.send_keys("Golden Data:\n")
         runner.send_keys("Selection, Load, Save.\n")
@@ -17,7 +15,6 @@ def test_assert_content():
         runner.send_keys("End of data.")
         
         # 2. Assert content matches
-        time.sleep(0.5)
         runner.assert_content_is(ref_file)
         
         runner.send_ctrlk('q')

@@ -27,8 +27,6 @@ def test_git_integration():
         
         # 2. Start Turbostar with the file
         runner.start(filename="git_test_repo/test.txt")
-        time.sleep(1.0)
-        
         # 3. Verify [✔] (Clean) is shown
         runner.assert_text_on_screen("[✔]", timeout=5.0)
 

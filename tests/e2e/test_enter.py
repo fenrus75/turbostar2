@@ -5,8 +5,6 @@ def test_enter_split():
     runner = TurbostarRunner()
     try:
         runner.start()
-        time.sleep(0.5)
-        
         # Type "Hello"
         runner.send_keys("Hello")
         runner.assert_text_on_screen("Hello")

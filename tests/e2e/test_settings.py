@@ -32,10 +32,10 @@ def test_settings_dialog():
         runner.wait(timeout=5)
         
         # Verify persistence
-        assert os.path.exists(config_path)
+        runner.assert_file_exists(config_path)
         with open(config_path, 'r') as f:
             content = f.read()
-            assert "clang_format_style=Google" in content
+            runner.assert_file_contains(config_path, "clang_format_style=Google")
             
     finally:
         runner.cleanup()
