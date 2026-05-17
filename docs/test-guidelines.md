@@ -51,3 +51,9 @@ Use established helper methods in `TurbostarRunner` instead of manually calculat
 - `runner.assert_cursor_position(y, x)` (1-based logical coordinates)
 - `runner.assert_selection_is(start_y, start_x, end_y, end_x)`
 - Future: A `send_ctrlk(command)` helper will be added to wrap the delay logic for `^K` prefixes.
+
+## 6. Avoid Direct `assert` Statements
+
+**Do not use bare `assert` statements directly within test functions.**
+A direct `assert` in a test script is a strong signal that either an existing helper method in `TurbostarRunner` should be used, or a new helper should be created.
+- **Why:** Helper methods are critical because they can encapsulate robust polling logic and generate rich, diagnostic error messages (e.g., printing both expected and actual data, or showing a diff) upon failure, without clobbering the main test logic with boilerplate.
