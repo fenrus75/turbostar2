@@ -5,11 +5,16 @@
 namespace agentlib {
 
 file_security_manager::file_security_manager() {
-    cwd_ = std::filesystem::current_path();
+    // Ensure the default cwd is an absolute, sanitized path
+    cwd_ = std::filesystem::weakly_canonical(std::filesystem::current_path());
 }
 
 void file_security_manager::set_working_directory(const std::filesystem::path& cwd) {
     cwd_ = std::filesystem::weakly_canonical(cwd);
+}
+
+std::filesystem::path file_security_manager::get_working_directory() const {
+    return cwd_;
 }
 
 void file_security_manager::add_allowed_root(const std::filesystem::path& root, access_type max_permission) {
