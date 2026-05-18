@@ -5,7 +5,8 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
-#include <regex>
+#include <re2/re2.h>
+#include <re2/stringpiece.h>
 #include "event_logger.h"
 #include "config_manager.h"
 #include "git_manager.h"
@@ -63,82 +64,78 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		std::string line_text = lines_[y]->get_text();
 		std::string original_line_text = line_text;
 
-		std::regex_constants::syntax_option_type flags = std::regex::ECMAScript;
+		re2::RE2::Options options;
+		options.set_log_errors(false);
 		if (params.ignore_case)
-			flags |= std::regex::icase;
+			options.set_case_sensitive(false);
 
 		std::string pattern = params.query;
 		if (params.whole_words && !params.regex) {
 			pattern = "\\b" + pattern + "\\b";
 		}
+		
+		// If literal search, escape it for RE2
+		if (!params.regex && !params.whole_words) {
+			pattern = re2::RE2::QuoteMeta(pattern);
+		}
 
-		try {
-			std::regex re(pattern, flags);
-			auto words_begin = std::sregex_iterator(line_text.begin(), line_text.end(), re);
-			auto words_end = std::sregex_iterator();
+		re2::RE2 re(pattern, options);
+		if (!re.ok()) return -1;
 
-			int best_found_char_idx = -1;
-			size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
+		int best_found_char_idx = -1;
+		size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
 
-			size_t line_scope_start_byte = 0;
-			size_t line_scope_end_byte = line_text.length();
-			if (params.selected_text_only) {
-				if (y == scope_sy)
-					line_scope_start_byte = lines_[y]->char_to_byte_offset(scope_sx);
-				if (y == scope_ey)
-					line_scope_end_byte = lines_[y]->char_to_byte_offset(scope_ex);
-			}
+		size_t line_scope_start_byte = 0;
+		size_t line_scope_end_byte = line_text.length();
+		if (params.selected_text_only) {
+			if (y == scope_sy)
+				line_scope_start_byte = lines_[y]->char_to_byte_offset(scope_sx);
+			if (y == scope_ey)
+				line_scope_end_byte = lines_[y]->char_to_byte_offset(scope_ex);
+		}
 
-			for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-				std::smatch match = *i;
-				size_t byte_pos = match.position();
+		re2::StringPiece input(line_text);
+		re2::StringPiece match;
+		size_t search_start = 0;
+		while (re.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+			search_start = (match.data() - input.data()) + match.size();
+			if (match.size() == 0) search_start++; // prevent infinite loop
 
-				if (params.backward) {
-					if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
-						int found_char_idx = 0;
-						size_t current_byte = 0;
-						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
-							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-							if (c < 0x80)
-								current_byte += 1;
-							else if ((c & 0xE0) == 0xC0)
-								current_byte += 2;
-							else if ((c & 0xE0) == 0xE0)
-								current_byte += 3;
-							else if ((c & 0xF0) == 0xF0)
-								current_byte += 4;
-							else
-								current_byte += 1;
-							found_char_idx++;
-						}
-						best_found_char_idx = found_char_idx;
+			size_t byte_pos = match.data() - line_text.data();
+
+			if (params.backward) {
+				if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
+					int found_char_idx = 0;
+					size_t current_byte = 0;
+					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
+						if (c < 0x80) current_byte += 1;
+						else if ((c & 0xE0) == 0xC0) current_byte += 2;
+						else if ((c & 0xE0) == 0xE0) current_byte += 3;
+						else if ((c & 0xF0) == 0xF0) current_byte += 4;
+						else current_byte += 1;
+						found_char_idx++;
 					}
-				} else {
-					if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
-						int found_char_idx = 0;
-						size_t current_byte = 0;
-						while (current_byte < byte_pos && current_byte < original_line_text.length()) {
-							unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-							if (c < 0x80)
-								current_byte += 1;
-							else if ((c & 0xE0) == 0xC0)
-								current_byte += 2;
-							else if ((c & 0xE0) == 0xE0)
-								current_byte += 3;
-							else if ((c & 0xF0) == 0xF0)
-								current_byte += 4;
-							else
-								current_byte += 1;
-							found_char_idx++;
-						}
-						return found_char_idx;
+					best_found_char_idx = found_char_idx;
+				}
+			} else {
+				if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
+					int found_char_idx = 0;
+					size_t current_byte = 0;
+					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
+						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
+						if (c < 0x80) current_byte += 1;
+						else if ((c & 0xE0) == 0xC0) current_byte += 2;
+						else if ((c & 0xE0) == 0xE0) current_byte += 3;
+						else if ((c & 0xF0) == 0xF0) current_byte += 4;
+						else current_byte += 1;
+						found_char_idx++;
 					}
+					return found_char_idx;
 				}
 			}
-			return best_found_char_idx;
-		} catch (...) {
-			return -1;
 		}
+		return best_found_char_idx;
 	};
 
 	if (params.backward) {

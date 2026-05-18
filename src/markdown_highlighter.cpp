@@ -1,6 +1,7 @@
 #include "markdown_highlighter.h"
 #include <filesystem>
-#include <regex>
+#include <re2/re2.h>
+#include <memory>
 
 bool markdown_highlighter::supports_file(const std::string &filename) const
 {
@@ -29,13 +30,14 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	} else {
 		// Basic bold support (**...**)
-		static const std::regex bold_regex("\\*\\*.*?\\*\\*");
-		auto words_begin = std::sregex_iterator(text.begin(), text.end(), bold_regex);
-		auto words_end = std::sregex_iterator();
-
-		for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-			std::smatch match = *i;
-			size_t byte_pos = match.position();
+		static const std::unique_ptr<re2::RE2> bold_regex = std::make_unique<re2::RE2>("\\*\\*.*?\\*\\*");
+		re2::StringPiece input(text);
+		re2::StringPiece match;
+		size_t search_start = 0;
+		while (bold_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+			search_start = (match.data() - input.data()) + match.size();
+			if (match.size() == 0) search_start++;
+			size_t byte_pos = match.data() - text.data();
 			size_t byte_len = match.length();
 
 			// Convert byte pos to char pos

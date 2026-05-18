@@ -13,13 +13,12 @@ namespace tools {
 fs_regexp_lines_tool::fs_regexp_lines_tool(fs_regexp_lines_args args) : args_(std::move(args)) {}
 
 bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
-    try {
-        compiled_regex_ = std::regex(args_.pattern);
-        return true;
-    } catch (const std::regex_error& e) {
-        out_error = "Invalid regular expression: " + std::string(e.what());
+    compiled_regex_ = std::make_unique<re2::RE2>(args_.pattern);
+    if (!compiled_regex_->ok()) {
+        out_error = "Invalid regular expression: " + compiled_regex_->error();
         return false;
     }
+    return true;
 }
 
 std::string fs_regexp_lines_tool::escape_markdown(const std::string& text) const {
@@ -57,7 +56,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context& ctx) {
             size_t total_lines = doc_snapshot->get_line_count();
             for (size_t i = 0; i < total_lines; ++i) {
                 std::string line_text = doc_snapshot->get_line_text(i);
-                if (std::regex_search(line_text, *compiled_regex_)) {
+                if (re2::RE2::PartialMatch(line_text, *compiled_regex_)) {
                     ss << format_line(i + 1, line_text);
                     match_count++;
                     if (match_count >= MAX_MATCHES) break;
@@ -101,7 +100,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context& ctx) {
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
-        if (std::regex_search(line, *compiled_regex_)) {
+        if (re2::RE2::PartialMatch(line, *compiled_regex_)) {
             ss << format_line(current_line, line);
             match_count++;
             if (match_count >= MAX_MATCHES) break;

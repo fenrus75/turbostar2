@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include <regex>
+#include <memory>
+#include <re2/re2.h>
 #include "../../agentlib/llm_tool.h"
 
 namespace tools {
@@ -20,7 +21,7 @@ public:
 
 private:
     fs_regexp_lines_args args_;
-    mutable std::optional<std::regex> compiled_regex_;
+    mutable std::unique_ptr<re2::RE2> compiled_regex_;
 
     std::string format_line(size_t line_number, const std::string& content) const;
     std::string escape_markdown(const std::string& text) const;

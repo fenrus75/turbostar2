@@ -17,7 +17,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	std::vector<syntax_attribute> attrs(char_count, syntax_attribute::normal);
 
 	// Pre-compiled combined regex for efficiency
-	static const std::regex kw_regex(
+	static const std::unique_ptr<re2::RE2> kw_regex = std::make_unique<re2::RE2>(
 	    "\\b("
 	    // Types
 	    "int|char|bool|float|double|void|auto|size_t|ssize_t|wchar_t|char8_t|char16_t|char32_t|"
@@ -41,12 +41,13 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	    "import|module|export|co_await|co_return|co_yield"
 	    ")\\b");
 
-	auto words_begin = std::sregex_iterator(text.begin(), text.end(), kw_regex);
-	auto words_end = std::sregex_iterator();
-
-	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-		std::smatch match = *i;
-		size_t byte_pos = match.position();
+	re2::StringPiece input(text);
+	re2::StringPiece match;
+	size_t search_start = 0;
+	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+		search_start = (match.data() - input.data()) + match.size();
+		if (match.size() == 0) search_start++;
+		size_t byte_pos = match.data() - text.data();
 		size_t byte_len = match.length();
 
 		// Convert byte pos to char pos

@@ -9,26 +9,28 @@ gcc_log_parser::gcc_log_parser()
 {
 	// Regex matches: <filename>:<line>:<col>: <severity>: <message>
 	// Capture groups: 1=file, 2=line, 3=col, 4=severity, 5=message
-	error_regex_ = std::regex(R"(^([^:\s]+):([0-9]+):([0-9]+): (error|warning): (.*)$)");
+	error_regex_ = std::make_unique<re2::RE2>(R"(^([^:\s]+):([0-9]+):([0-9]+): (error|warning): (.*)$)");
 }
 
 void gcc_log_parser::parse_line(const std::string &line, int output_line, std::vector<build_error> &out_errors)
 {
-	std::smatch match;
-	if (std::regex_search(line, match, error_regex_)) {
+	std::string file_match, severity_match, message_match;
+	int line_num, col_num;
+
+	if (re2::RE2::PartialMatch(line, *error_regex_, &file_match, &line_num, &col_num, &severity_match, &message_match)) {
 		build_error err;
 		
-		fs::path p(match[1].str());
+		fs::path p(file_match);
 		if (!p.is_absolute()) {
 			std::string build_dir = config_manager::get_instance().get_build_directory();
 			p = fs_utils::safe_absolute(fs::path(build_dir) / p);
 		}
 		err.filepath = p.string();
 		
-		err.line = std::stoi(match[2].str()) - 1; // 1-based to 0-based
-		err.column = std::stoi(match[3].str()) - 1;
-		err.is_warning = (match[4].str() == "warning");
-		err.message = match[5].str();
+		err.line = line_num - 1; // 1-based to 0-based
+		err.column = col_num - 1;
+		err.is_warning = (severity_match == "warning");
+		err.message = message_match;
 		err.output_buffer_line = output_line;
 
 		std::error_code ec;

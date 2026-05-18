@@ -1,7 +1,9 @@
 #pragma once
 
 #include "syntax_highlighter.h"
-#include <regex>
+#include <re2/re2.h>
+#include <re2/stringpiece.h>
+#include <memory>
 
 class cpp_highlighter : public syntax_highlighter
 {

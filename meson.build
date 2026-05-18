@@ -14,6 +14,7 @@ endif
 httplib_dep = dependency('cpp-httplib', required : true)
 nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
+re2_dep = dependency('re2', required : true)
 
 subdir('src')
 subdir('src/tools')
@@ -23,7 +24,7 @@ lsp_dep = lsp_fw.get_variable('lsp_dep')
 
 turbostar_exe = executable('turbostar',
   turbostar_sources + tools_sources,
-  dependencies : [ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep],
+  dependencies : [ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep],
   include_directories: include_directories('include'),
   install : true)
 
@@ -33,20 +34,20 @@ agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep],
   include_directories: include_directories('include'),
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep],
   include_directories: include_directories('include'),
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
   install : false)
 
 agentcli_replay_exe = executable('agentcli_replay',
   agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep],
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep],
   include_directories: include_directories('include'),
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
   install : false)
