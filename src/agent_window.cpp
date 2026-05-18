@@ -1,5 +1,6 @@
 #include "agent_window.h"
 #include "config_manager.h"
+#include "git_manager.h"
 #include "agentlib/httplib_transport.h"
 #include <ncurses.h>
 #include <nlohmann/json.hpp>
@@ -144,9 +145,18 @@ void agent_window::submit_prompt() {
         
         // Setup tool context
         tool_context ctx;
-        ctx.fs_security.set_working_directory(std::filesystem::current_path());
-        ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
-        ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
+        
+        std::string git_root = git_manager::get_instance().get_repository_root();
+        std::filesystem::path workspace_root;
+        if (!git_root.empty()) {
+            workspace_root = std::filesystem::path(git_root);
+        } else {
+            workspace_root = std::filesystem::current_path();
+        }
+        
+        ctx.fs_security.set_working_directory(workspace_root);
+        ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
+        ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
         ctx.doc_provider = state->doc_provider;
         
         std::string final_response;

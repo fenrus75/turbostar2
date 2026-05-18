@@ -47,6 +47,12 @@ class git_manager
 	 */
 	git_info get_cached_info(const std::string &filepath) const;
 
+	/**
+	 * @brief Synchronously returns the absolute path to the git repository root.
+	 * If the current directory is not in a git repository, returns an empty string.
+	 */
+	std::string get_repository_root() const;
+
       private:
 	git_manager() = default;
 	~git_manager();

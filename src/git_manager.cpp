@@ -65,6 +65,23 @@ git_info git_manager::get_cached_info(const std::string &filepath) const
 	return {};
 }
 
+std::string git_manager::get_repository_root() const
+{
+	std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
+	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
+	if (!pipe) return "";
+
+	std::array<char, 256> buffer;
+	std::string result;
+	if (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+		result = buffer.data();
+		if (!result.empty() && result.back() == '\n') {
+			result.pop_back();
+		}
+	}
+	return result;
+}
+
 void git_manager::worker_loop()
 {
 	while (!stop_thread_) {
