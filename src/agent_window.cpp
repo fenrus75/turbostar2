@@ -97,12 +97,14 @@ void agent_window::append_response(const std::string& response_text) {
     chat_history_->append_line(""); // Spacer
     
     // Auto-scroll to bottom
+    chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
 }
 
 void agent_window::append_tool_update(const std::string& tool_text) {
     chat_history_->append_line("*Executing tool: " + tool_text + "*");
+    chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
 }
@@ -115,6 +117,7 @@ void agent_window::submit_prompt() {
     // Echo to history
     chat_history_->append_line("> " + prompt);
     chat_history_->append_line("");
+    chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
 

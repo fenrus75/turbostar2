@@ -128,6 +128,32 @@ void editor::dispatch_event_key(const editor_event &ev)
 						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
 						config_manager::get_instance().save();
 					}
+				} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
+					std::string result = active_dialog_->get_result();
+					
+					active_dialog_.reset();
+					active_dialog_mode_ = dialog_mode::none;
+					set_focus(focus_target::window, "dialog_close");
+					
+					if (result == "yes") {
+						editor_event save_ev;
+						save_ev.type = event_type::save;
+						global_queue_.push(save_ev);
+						
+						editor_event close_ev;
+						close_ev.type = event_type::close_window;
+						// Using key_code 1 as a force flag to bypass the prompt again
+						close_ev.key_code = 1; 
+						global_queue_.push(close_ev);
+						
+					} else if (result == "no") {
+						if (doc) doc->clear_modified();
+						editor_event close_ev;
+						close_ev.type = event_type::close_window;
+						close_ev.key_code = 1;
+						global_queue_.push(close_ev);
+					}
+					// If "cancel", do nothing
 				} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 					std::string res = active_dialog_->get_result();
 					if (res == "exit") {

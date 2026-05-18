@@ -38,18 +38,22 @@ void editor::dispatch_event_window(const editor_event &ev)
 			
 			// Check if we need to prompt for save
 			if (doc && doc->is_modified() && ev.key_code != 1) {
-				int doc_users = 0;
-				for (const auto& w : windows_) {
-					if (w->get_document() == doc) doc_users++;
-				}
-				if (doc_users == 1) {
-					// This is the last window for a modified document. Prompt!
-					std::string fname = doc->get_filename();
-					if (fname.empty()) fname = "untitled.txt";
-					active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
-					active_dialog_mode_ = dialog_mode::save_prompt;
-					set_focus(focus_target::dialog, "close_window");
-					return; // Stop the close process until dialog resolves
+				// Don't prompt to save internal/special buffers
+				std::string title = windows_[active_idx]->get_title();
+				if (title != "Agent Chat" && title != "Compile Output" && title != "Test Output") {
+					int doc_users = 0;
+					for (const auto& w : windows_) {
+						if (w->get_document() == doc) doc_users++;
+					}
+					if (doc_users == 1) {
+						// This is the last window for a modified document. Prompt!
+						std::string fname = doc->get_filename();
+						if (fname.empty()) fname = "untitled.txt";
+						active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
+						active_dialog_mode_ = dialog_mode::save_prompt;
+						set_focus(focus_target::dialog, "close_window");
+						return; // Stop the close process until dialog resolves
+					}
 				}
 			}
 
