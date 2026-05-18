@@ -5,7 +5,7 @@
 #include "git_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
-    : id_(id), x_(x), y_(y), width_(width), height_(height), title_(title)
+    : x_(x), y_(y), width_(width), height_(height), id_(id), title_(title)
 {
 }
 

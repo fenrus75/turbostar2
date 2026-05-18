@@ -7,7 +7,7 @@ namespace tools {
 
 fs_replace_lines_tool::fs_replace_lines_tool(fs_replace_args args) : args_(std::move(args)) {}
 
-bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
+bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
     // 1. Existence Check
     if (!std::filesystem::exists(args_.safe_path)) {
         out_error = "Error: File does not exist. fs_replace_lines can only edit existing files.";
