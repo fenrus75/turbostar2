@@ -1,6 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- Implement `fs_replace_lines` tool. This will allow the LLM to surgically replace lines of code in a file. Critically, it must coordinate with `document_provider` and the `event_queue` to apply these edits directly to the user's active, open `document` buffer (if the file is open), pushing the change onto the user's undo stack for collaborative, safe editing.
 - Update the LLM `tool_context` configuration in `agent_window.cpp` to dynamically determine the workspace root. It currently defaults to `std::filesystem::current_path()`, but it should query `git_manager` or similar to find the root of the active git tree if one exists.
 - Implement a security scan for regular expressions provided by the LLM (e.g., in `fs_regexp_lines`) to detect and block malicious patterns (ReDoS attacks) before compilation.
 
@@ -23,6 +22,7 @@
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Implemented `fs_replace_lines` tool. This tool enables surgical, collaborative editing. It correctly parses complex JSON structures for `add`, `remove`, and `replace` operations using `original_text` for atomic verification. When a file is open in the active editor buffer, edits are bundled into a JSON payload and safely dispatched to the main UI thread via `apply_edits`, where they are grouped into a single undo stack command so the user can instantly `Ctrl-Z` the agent's work.
 - Implemented `fs_write_file` tool to allow the LLM to create new files or completely overwrite existing ones. The tool takes a `force_overwrite` parameter (default false) to prevent accidental data loss. Furthermore, it explicitly queries the `document_provider` and will categorically reject any attempt to overwrite a file that the user currently has open in a live Turbostar buffer, avoiding race conditions and lost edits.
 - Implemented `fs_compile_file` and `fs_compile_project` tools. These tools execute compilation commands synchronously (`popen`), cap the output at 10,000 characters to protect the LLM context window, and feed the output lines directly into `gcc_log_parser` and `build_error_manager` so the main UI workspace error list remains perfectly synchronized with the LLM's compilation attempts.
 - Implemented `fs_compile_summary` tool. This zero-parameter tool aggregates workspace-wide diagnostics by querying `build_error_manager` and open documents via `document_provider`. It strictly reports only on files authorized by `file_security_manager` and returns a Markdown table showing counts of compiler and LSP errors/warnings per file.
