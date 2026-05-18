@@ -7,7 +7,7 @@ def test_format_paragraph():
     step1_gold = "tests/data/format_para_step1.txt"
     step2_gold = "tests/data/format_para_step2.txt"
     try:
-        runner.start(use_lsp = True)
+        runner.start()
         # 1. Load two paragraphs of messy C++ code
         runner.insert_file('tests/data/format_para_start.txt')
         
@@ -32,8 +32,6 @@ def test_format_paragraph():
         # 6. Verify both are formatted
         runner.assert_content_is(step2_gold)
 
-        time.sleep(8.0) # Let clangd clean up
-        
     finally:
         runner.cleanup()
 
