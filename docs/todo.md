@@ -1,4 +1,4 @@
-# short term items (fixes needed -- agents can automatically add todo items to this section)
+# short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
 - We need a sandboxing strategy (see systemd stuff below)
     - before going to systemd, we need to manage all the places we do popen or other commands behind
@@ -21,6 +21,95 @@
     - we may not change ALL users of popen instantly
 
 
+- we need a method ("next_utf8_character(offset)") in the line class that takes an offset (in bytes) as input, and returns a std::string with the 
+  whole UTF8 character at this offset
+
+
+- draw performance issue (we see high cpu %age here in performance analysis)
+   the key performance analysis is that, while drawing a line, we iterate over every on-screen character position,
+   and calculate byte_off and next_byte_off FOR EACH POSITION.
+   We KNOW the current offset was the previous' loop next_byte_off, so we shouldn't need to calculate that twice, reuse instead across loop iterations
+
+   In addition, for finding the next offset, we should make a dedicated method that already takes the current offset
+   as argument, so that it only has to look 1 character ahead (O(1) algorithm), and not redo the whole line from scratch (O(N^2) algorithm).
+   This helper can return this character and we can use the length to calculate the next offset, so that even the substr() can be avoided and the whole
+   use across the loop goes away.
+
+- in draw_content, maybe cache previous attribute, so that attrset(COLOR_PAIR(pair)) only gets called for changes in attribute?
+    need to be careful, assume at start of line that we have no previous attribute (-1?) for attrset(COLOR_PAIR(pair))
+
+
+- missing meson.build dependency, causes race condition in fresh git clones, works on second build:
+    ../src/clangd_manager.cpp:5:10: fatal error: lsp/messages.h: No such file or directory
+    5 | #include <lsp/messages.h>
+
+
+- colors don't work somehow on a windows setup, we get black on black
+   (solution, change from xterm to ms-terminal -- we may not need to do
+   anything other than document in the project README.md)
+
+- next set of tools for agents (once we have sandboxing)
+    - flag_as_error(filename, line, startpos, endpos, error_string)
+          - code errors but also later for spell checking english/markdown
+    - run_python_script / run_python_file   (script has the code as argument, file the filename)
+    - ask-a-question  (multiple choices, always one "type the answer" one)
+    - request-access-to-resources (to add to the security manager, will ask the user)
+    - a set of git ops (branch, pull, add, diff-from-HEAD, diff-from-branch, status, commit, PR create, ..)
+    - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
+        - read memory, get registers
+
+- incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
+
+- map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
+
+- subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
+  different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
+
+- support the <PGUP>, <PGDN>, <DELETE>, <END> and <HOME> keyboard keys
+
+- mouse "scroll wheel" support for navigation within a window
+
+- Have a way to run the application (in gdb wrapper?) where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
+  if DISPLAY/etc are set
+
+- Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
+  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
+
+- enhance syntax highlighting -- support a few more things with reasonable colors
+
+- have a section in our history file for 1) which projects and 2) which files were open in that project
+  so that on start, we can reopen all previously open files for the current project we're in
+
+- figure out how to make mouse based paste work now that we hijack the mouse cursor
+
+- "go to definition" LSP support, even if we have open up a new file
+
+- paste speed is somehow artificially limited, you can almost see the characters beeing typed
+  while other editors are instant. Are we repainting every key press always?
+   - profiles confirm we spend all CPU time in drawing -- need to re-measure after we solve the o(N^2) there
+   - we may need to add a priority field to events, and sort the event queue
+   - also needs some sequence number for events
+   - we may need to see if more keys are in the ncurses queue and get them all into a string and make one event?
+   - we may need to suppress or group repaints 
+
+
+- if you have a new (untitled) document and type there, you cannot exit the application anymore until you save-as a name
+    - we should build a test case for this 
+
+- A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
+   - may want to give this a light gray background, but otherwise this is a read only document class
+   - means we need to compile the keybindings.md info into our binary -- meson should support this?
+
+- we need to do better about making the document class understand "read only" (never dirty, does not let user edit the content)
+    - agent window
+    - help window
+    - compile window
+
+    option would be to make a "read only" subclass, alternate option is a flag in the main class; hybrid option 
+    is a virtual is_read_only() that the subclass overrides
+
+
+
 
 # mid term items
 
@@ -28,6 +117,11 @@
    - the "recent files" drop thingy is the first candidate
 
 # long term items   
+
+- mouse support for resizing windows (bottom right corner) and moving (title bar)
+	
+- an "auto arrange windows" option of sorts
+   - option is all editor files in the right 2/3rd of the screen and the agent window the right 1/3rd
 
 - a git specific submenu when you click on the branch name in the title bar?
   only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities
@@ -49,6 +143,8 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 # done items (move items here on completion)
 
+
+## 18-05-2026
 ## 17-05-2026
 - Updated the LLM tool_context configuration in agent_window.cpp to dynamically determine the workspace root by querying the git_manager. This ensures that tools correctly resolve paths relative to the Git repository root rather than the CWD where the editor was launched.
 - Migrated the entire Turbostar codebase from `std::regex` to Google's `re2` library. This guarantees O(N) linear execution time for all regex operations, structurally mitigating ReDoS (catastrophic backtracking) vulnerabilities that could be triggered by untrusted LLM input via the `fs_regexp_lines` tool. Refactored the tool backend, highlighters, log parsers, and document search logic to use the new API.
