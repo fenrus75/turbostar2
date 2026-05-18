@@ -1,5 +1,27 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
+- We need a sandboxing strategy (see systemd stuff below)
+    - before going to systemd, we need to manage all the places we do popen or other commands behind
+      some nice object that we can call ; and then we can make derived objects from this with different
+      security properties
+    - this needs to be a per-instance object, since we will be setting security properties on that object
+      depending on the location, before the popen() should actually happen.
+
+| Location | Description |
+| :--- | :--- |
+| `src/document_format.cpp:72` | `std::system` to run `clang-format -i` on temporary files. |
+| `src/fs_utils.cpp:69` | `popen` in `execute_command_sync` for synchronous compilation/tools. |
+| `src/git_manager.cpp:71` | `popen` to find the git repository root. |
+| `src/git_manager.cpp:132` | `popen` to execute `git add`. |
+| `src/git_manager.cpp:150` | `popen` to fetch the current git branch. |
+| `src/git_manager.cpp:163` | `popen` to run `git status --porcelain`. |
+| `src/git_manager.cpp:184` | `popen` to check if inside a git work tree. |
+| `src/process_runner.cpp:46` | `popen` in `worker_loop` for background process execution. |
+
+    - we may not change ALL users of popen instantly
+
+
+
 # mid term items
 
 - mouse support for the file dialog
