@@ -139,9 +139,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			// Find the document
 			std::shared_ptr<document> target_doc = nullptr;
 			for (const auto& doc : documents_) {
-				if (fs_utils::safe_absolute(doc->get_filename()).lexically_normal().string() == safe_path) {
-					target_doc = doc;
-					break;
+				std::string doc_path = doc->get_filename();
+				if (!doc_path.empty()) {
+					try {
+						if (std::filesystem::weakly_canonical(doc_path).string() == safe_path) {
+							target_doc = doc;
+							break;
+						}
+					} catch (...) {}
 				}
 			}
 

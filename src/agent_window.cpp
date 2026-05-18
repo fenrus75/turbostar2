@@ -144,6 +144,7 @@ void agent_window::submit_prompt() {
         ctx.fs_security.set_working_directory(std::filesystem::current_path());
         ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
         ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
+        ctx.doc_provider = state->doc_provider;
         
         std::string final_response;
 
