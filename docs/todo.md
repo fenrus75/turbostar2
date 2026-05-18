@@ -1,7 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
 - Update the LLM `tool_context` configuration in `agent_window.cpp` to dynamically determine the workspace root. It currently defaults to `std::filesystem::current_path()`, but it should query `git_manager` or similar to find the root of the active git tree if one exists.
-- Implement a security scan for regular expressions provided by the LLM (e.g., in `fs_regexp_lines`) to detect and block malicious patterns (ReDoS attacks) before compilation.
 
 # mid term items
 
@@ -15,13 +14,23 @@
     - git add
     - ...
 
-- sandbox using systemd external tool calls like compile
+- sandbox using systemd-run external tool calls like compile
+    example "systemd-run --wait -p ProtectSystem=strict -p ProtectHome=read-only -p ReadWritePaths=/home/arjanvandeven/git/turbostar bash"
+    and also
+```bash
+systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
+  -p ProtectHome=tmpfs \
+  -p "BindPaths=$HOME" \
+  -p "WorkingDirectory=$HOME" \
+  /bin/bash
+```
 
 
 
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Migrated the entire Turbostar codebase from `std::regex` to Google's `re2` library. This guarantees O(N) linear execution time for all regex operations, structurally mitigating ReDoS (catastrophic backtracking) vulnerabilities that could be triggered by untrusted LLM input via the `fs_regexp_lines` tool. Refactored the tool backend, highlighters, log parsers, and document search logic to use the new API.
 - Implemented `fs_replace_lines` tool. This tool enables surgical, collaborative editing. It correctly parses complex JSON structures for `add`, `remove`, and `replace` operations using `original_text` for atomic verification. When a file is open in the active editor buffer, edits are bundled into a JSON payload and safely dispatched to the main UI thread via `apply_edits`, where they are grouped into a single undo stack command so the user can instantly `Ctrl-Z` the agent's work.
 - Implemented `fs_write_file` tool to allow the LLM to create new files or completely overwrite existing ones. The tool takes a `force_overwrite` parameter (default false) to prevent accidental data loss. Furthermore, it explicitly queries the `document_provider` and will categorically reject any attempt to overwrite a file that the user currently has open in a live Turbostar buffer, avoiding race conditions and lost edits.
 - Implemented `fs_compile_file` and `fs_compile_project` tools. These tools execute compilation commands synchronously (`popen`), cap the output at 10,000 characters to protect the LLM context window, and feed the output lines directly into `gcc_log_parser` and `build_error_manager` so the main UI workspace error list remains perfectly synchronized with the LLM's compilation attempts.
