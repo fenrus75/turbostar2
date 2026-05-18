@@ -44,6 +44,8 @@
     5 | #include <lsp/messages.h>
 
 
+- remember a per filename cursor positioin in our history file
+
 - colors don't work somehow on a windows setup, we get black on black
    (solution, change from xterm to ms-terminal -- we may not need to do
    anything other than document in the project README.md)
@@ -52,6 +54,7 @@
     - flag_as_error(filename, line, startpos, endpos, error_string)
           - code errors but also later for spell checking english/markdown
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
+    - managing todo lists
     - ask-a-question  (multiple choices, always one "type the answer" one)
     - request-access-to-resources (to add to the security manager, will ask the user)
     - a set of git ops (branch, pull, add, diff-from-HEAD, diff-from-branch, status, commit, PR create, ..)
