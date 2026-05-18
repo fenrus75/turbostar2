@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section)
 
-- Update the LLM `tool_context` configuration in `agent_window.cpp` to dynamically determine the workspace root. It currently defaults to `std::filesystem::current_path()`, but it should query `git_manager` or similar to find the root of the active git tree if one exists.
-
 # mid term items
 
 - mouse support for the file dialog
@@ -30,6 +28,7 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 # done items (move items here on completion)
 
 ## 17-05-2026
+- Updated the LLM tool_context configuration in agent_window.cpp to dynamically determine the workspace root by querying the git_manager. This ensures that tools correctly resolve paths relative to the Git repository root rather than the CWD where the editor was launched.
 - Migrated the entire Turbostar codebase from `std::regex` to Google's `re2` library. This guarantees O(N) linear execution time for all regex operations, structurally mitigating ReDoS (catastrophic backtracking) vulnerabilities that could be triggered by untrusted LLM input via the `fs_regexp_lines` tool. Refactored the tool backend, highlighters, log parsers, and document search logic to use the new API.
 - Implemented `fs_replace_lines` tool. This tool enables surgical, collaborative editing. It correctly parses complex JSON structures for `add`, `remove`, and `replace` operations using `original_text` for atomic verification. When a file is open in the active editor buffer, edits are bundled into a JSON payload and safely dispatched to the main UI thread via `apply_edits`, where they are grouped into a single undo stack command so the user can instantly `Ctrl-Z` the agent's work.
 - Implemented `fs_write_file` tool to allow the LLM to create new files or completely overwrite existing ones. The tool takes a `force_overwrite` parameter (default false) to prevent accidental data loss. Furthermore, it explicitly queries the `document_provider` and will categorically reject any attempt to overwrite a file that the user currently has open in a live Turbostar buffer, avoiding race conditions and lost edits.
