@@ -73,6 +73,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::open_agent:
 		case event_type::agent_response:
 		case event_type::agent_tool_update:
+		case event_type::apply_edits:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:

@@ -14,4 +14,10 @@ namespace fs_utils {
 	 * @brief Parses compile_commands.json to find the exact compile command for a file.
 	 */
 	std::string get_compile_command_for_file(const std::string& filepath, const std::string& build_dir);
+
+	/**
+	 * @brief Executes a shell command synchronously, capturing stdout and stderr.
+	 * It also parses the output lines using gcc_log_parser and populates build_error_manager.
+	 */
+	std::string execute_command_sync(const std::string& cmd);
 }

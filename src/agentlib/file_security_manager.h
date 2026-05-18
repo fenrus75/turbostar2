@@ -16,6 +16,7 @@ public:
 
     // Set the base directory that relative paths should be resolved against
     void set_working_directory(const std::filesystem::path& cwd);
+    std::filesystem::path get_working_directory() const;
 
     // Configuration
     void add_allowed_root(const std::filesystem::path& root, access_type max_permission);

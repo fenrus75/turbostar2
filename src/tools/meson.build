@@ -18,5 +18,7 @@ tools_sources = files(
   'fs_compile_project/fs_compile_project_entry.cpp',
   'fs_compile_project/fs_compile_project_security.cpp',
   'fs_write_file/fs_write_file_entry.cpp',
-  'fs_write_file/fs_write_file_security.cpp'
+  'fs_write_file/fs_write_file_security.cpp',
+  'fs_replace_lines/fs_replace_lines_entry.cpp',
+  'fs_replace_lines/fs_replace_lines_security.cpp'
 )

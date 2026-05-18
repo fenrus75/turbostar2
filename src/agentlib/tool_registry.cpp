@@ -8,16 +8,19 @@ tool_registry& tool_registry::get_instance() {
     return instance;
 }
 
-void tool_registry::register_validator(std::unique_ptr<tool_validator> validator) {
-    if (validator) {
-        std::string name = validator->get_name();
-        validators_[name] = std::move(validator);
+void tool_registry::register_validator(validator_factory factory) {
+    // Instantiate a dummy to get its name for the registry map
+    auto dummy = factory();
+    if (dummy) {
+        std::string name = dummy->get_name();
+        validator_factories_[name] = std::move(factory);
     }
 }
 
 nlohmann::json tool_registry::get_tools_json() const {
     nlohmann::json tools_array = nlohmann::json::array();
-    for (const auto& [name, validator] : validators_) {
+    for (const auto& [name, factory] : validator_factories_) {
+        auto validator = factory();
         nlohmann::json tool_schema = {
             {"type", "function"},
             {"function", {
@@ -32,12 +35,13 @@ nlohmann::json tool_registry::get_tools_json() const {
 }
 
 std::string tool_registry::execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const {
-    auto it = validators_.find(name);
-    if (it == validators_.end()) {
+    auto it = validator_factories_.find(name);
+    if (it == validator_factories_.end()) {
         return "Error: tool not found.";
     }
 
-    const auto& validator = it->second;
+    // Create a transient validator instance for this execution to ensure thread-safe state!
+    auto validator = it->second();
 
     nlohmann::json args;
     try {
@@ -52,20 +56,20 @@ std::string tool_registry::execute_tool(const std::string& name, const std::stri
         return "Stage 1 Security Violation: " + security_error;
     }
 
-    // Create the tool instance
-    auto tool = validator->create_tool();
+    // Create the tool instance (will fail if validate_args wasn't called)
+    auto tool = validator->create_tool(args);
     if (!tool) {
-        return "Error: Failed to instantiate tool.";
+        return "Error: Failed to instantiate tool. Validation state invalid.";
     }
 
     // Stage 2 Security: Runtime/Contextual validation
-    if (!tool->validate_runtime(args, ctx, security_error)) {
+    if (!tool->validate_runtime(ctx, security_error)) {
         return "Stage 2 Security Violation: " + security_error;
     }
 
     // Execution
     try {
-        return tool->execute(args, ctx);
+        return tool->execute(ctx);
     } catch (const std::exception& e) {
         return "Execution Error: " + std::string(e.what());
     }

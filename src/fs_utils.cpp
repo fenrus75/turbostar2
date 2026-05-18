@@ -1,7 +1,11 @@
 #include "fs_utils.h"
 #include "event_logger.h"
+#include "build_error_manager.h"
+#include "gcc_log_parser.h"
 #include <fstream>
 #include <sstream>
+#include <array>
+#include <cstdio>
 #include <lsp/json/json.h>
 
 namespace fs_utils {
@@ -58,5 +62,60 @@ namespace fs_utils {
 			return "";
 		}
 		return "";
+	}
+
+	std::string execute_command_sync(const std::string& cmd) {
+		std::string full_command = cmd + " 2>&1";
+		FILE *pipe = popen(full_command.c_str(), "r");
+		
+		if (!pipe) {
+			return "Error: Failed to start process.";
+		}
+
+		build_error_manager::get_instance().clear();
+		gcc_log_parser parser;
+
+		std::array<char, 256> buffer;
+		std::string current_line;
+		std::string full_output;
+		int output_line_num = 0;
+
+		while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+			current_line += buffer.data();
+			
+			size_t pos;
+			while ((pos = current_line.find('\n')) != std::string::npos) {
+				std::string line = current_line.substr(0, pos);
+				
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
+				
+				full_output += line + "\n";
+
+				std::vector<build_error> errs;
+				parser.parse_line(line, output_line_num++, errs);
+				for (const auto &e : errs) {
+					build_error_manager::get_instance().add_error(e);
+				}
+				
+				current_line = current_line.substr(pos + 1);
+			}
+		}
+
+		if (!current_line.empty()) {
+			full_output += current_line + "\n";
+			
+			std::vector<build_error> errs;
+			parser.parse_line(current_line, output_line_num++, errs);
+			for (const auto &e : errs) {
+				build_error_manager::get_instance().add_error(e);
+			}
+		}
+
+		int exit_code = pclose(pipe);
+		full_output += "\nProcess exited with code " + std::to_string(WEXITSTATUS(exit_code)) + "\n";
+		
+		return full_output;
 	}
 }

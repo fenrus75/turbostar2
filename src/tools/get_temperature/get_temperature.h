@@ -24,7 +24,7 @@ public:
     std::string get_parameter_description() const override { return "The location to check, e.g., San Francisco, CA or Mars"; }
 
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& ctx, std::string& out_error) const override;
-    std::unique_ptr<agentlib::llm_tool> create_tool(const std::string& arg) const override;
+    std::unique_ptr<agentlib::llm_tool> create_tool_from_string(const std::string& arg) const override;
 };
 
 } // namespace tools

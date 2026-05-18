@@ -55,24 +55,26 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			return;
 		}
 
-		// Otherwise, attempt to close the active window.
-		// Since closing the last window triggers a quit, this will cascade.
-		// But wait, if they have 5 windows, quit should close ALL of them.
-		// If we just push 5 close_window events?
-		// Actually, let's just use the active window. The user can press quit again.
-		// Wait, a standard quit closes everything.
-		// If we just push a close_window event, and if it succeeds, push another quit?
-		// Yes! 
-		editor_event close_ev;
-		close_ev.type = event_type::close_window;
-		global_queue_.push(close_ev);
-		
-		if (windows_.size() > 1) {
-			editor_event quit_ev;
-			quit_ev.type = event_type::quit;
-			global_queue_.push(quit_ev);
+		// Check if any documents are modified. If so, prompt for the first modified document.
+		for (const auto& doc : documents_) {
+			if (doc->is_modified()) {
+				std::string fname = doc->get_filename();
+				if (fname.empty()) fname = "untitled.txt";
+				
+				// Make sure we only prompt if we aren't already prompting
+				if (active_dialog_mode_ != dialog_mode::save_prompt) {
+					active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
+					active_dialog_mode_ = dialog_mode::save_prompt;
+					
+					// Important: pass a flag in the dialog payload so we know we are in a quit loop
+					set_focus(focus_target::dialog, "quit_all");
+				}
+				return;
+			}
 		}
-		
+
+		// If no documents are modified (or they have been saved/discarded), it is safe to exit.
+		is_running_ = false;
 		return;
 	}
 

@@ -19,7 +19,7 @@ bool get_temperature_validator::validate_string_arg(const std::string& location,
     return true;
 }
 
-std::unique_ptr<agentlib::llm_tool> get_temperature_validator::create_tool(const std::string& location) const {
+std::unique_ptr<agentlib::llm_tool> get_temperature_validator::create_tool_from_string(const std::string& location) const {
     return std::make_unique<get_temperature_tool>(location);
 }
 

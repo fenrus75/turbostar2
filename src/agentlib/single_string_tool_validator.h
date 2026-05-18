@@ -22,10 +22,7 @@ public:
     virtual std::string get_parameter_description() const = 0;
 
     // Stage 1 Security check, but receiving a native string instead of JSON
-    virtual bool validate_string_arg(const std::string& arg, const tool_context& ctx, std::string& out_error) const = 0;
-
-    // Factory method, receiving a native string instead of JSON
-    virtual std::unique_ptr<llm_tool> create_tool(const std::string& arg) const = 0;
+    // (This is declared as a pure virtual hook below)
 
     // --- Final implementations of the base tool_validator interface ---
 
@@ -42,7 +39,8 @@ public:
         };
     }
 
-    bool validate_args(const nlohmann::json& raw_args, const tool_context& ctx, std::string& out_error) const final {
+protected:
+    bool validate_args_impl(const nlohmann::json& raw_args, const tool_context& ctx, std::string& out_error) const final {
         std::string param_name = get_parameter_name();
         
         if (!raw_args.contains(param_name) || !raw_args[param_name].is_string()) {
@@ -53,9 +51,13 @@ public:
         return validate_string_arg(raw_args[param_name].get<std::string>(), ctx, out_error);
     }
 
-    std::unique_ptr<llm_tool> create_tool(const nlohmann::json& raw_args) const final {
-        return create_tool(raw_args[get_parameter_name()].get<std::string>());
+    std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json& raw_args) const final {
+        return create_tool_from_string(raw_args[get_parameter_name()].get<std::string>());
     }
+
+    // New hooks for the end-user tool
+    virtual bool validate_string_arg(const std::string& arg, const tool_context& ctx, std::string& out_error) const = 0;
+    virtual std::unique_ptr<llm_tool> create_tool_from_string(const std::string& arg) const = 0;
 };
 
 } // namespace agentlib

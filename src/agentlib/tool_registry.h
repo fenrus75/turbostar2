@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <functional>
 #include <nlohmann/json.hpp>
 #include "tool_validator.h"
 #include "tool_context.h"
@@ -10,10 +11,12 @@ namespace agentlib {
 
 class tool_registry {
 public:
+    using validator_factory = std::function<std::unique_ptr<tool_validator>()>;
+
     static tool_registry& get_instance();
 
     // Used by self-registering tools
-    void register_validator(std::unique_ptr<tool_validator> validator);
+    void register_validator(validator_factory factory);
 
     // Returns the JSON array of tools to inject into the OpenAI payload
     nlohmann::json get_tools_json() const;
@@ -23,7 +26,7 @@ public:
 
 private:
     tool_registry() = default;
-    std::map<std::string, std::unique_ptr<tool_validator>> validators_;
+    std::map<std::string, validator_factory> validator_factories_;
 };
 
 // Helper macro for static self-registration
@@ -31,7 +34,7 @@ private:
 template<typename T>
 struct tool_registrar {
     tool_registrar() {
-        tool_registry::get_instance().register_validator(std::make_unique<T>());
+        tool_registry::get_instance().register_validator([]() { return std::make_unique<T>(); });
     }
 };
 
