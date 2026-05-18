@@ -56,7 +56,7 @@ agentcli_replay_exe = executable('agentcli_replay',
 custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
-  command: ['sh', '-c', 'mkdir -p ' + join_paths(meson.project_source_root(), 'testrun') + ' && cp @INPUT@ ' + join_paths(meson.project_source_root(), 'testrun/turbostar')],
+  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
   build_by_default: true
 )
 
