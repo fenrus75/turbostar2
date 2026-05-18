@@ -45,7 +45,7 @@ class window
 	 * @brief Processes all pending events in the window's local queue.
 	 * @return true if an event was processed that requires a re-render.
 	 */
-	bool process_events();
+	virtual bool process_events();
 	void invalidate();
 	void set_cursor_position() const;
 	int get_cursor_x() const;
@@ -70,13 +70,15 @@ class window
 		return height_ - 2;
 	}
 
+      protected:
+	int x_, y_, width_, height_;
+	virtual void draw_content() const;
+
       private:
 	void update_viewport() const;
 	void draw_border() const;
-	void draw_content() const;
 
 	int id_;
-	int x_, y_, width_, height_;
 	std::string title_;
 	bool is_active_{false};
 
