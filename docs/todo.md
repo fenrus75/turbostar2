@@ -1,8 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
 - next set of tools for agents (once we have sandboxing)
-    - flag_as_error(filename, line, startpos, endpos, error_string)
-          - code errors but also later for spell checking english/markdown
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
     - managing todo lists
     - ask-a-question  (multiple choices, always one "type the answer" one)
@@ -33,14 +31,15 @@
    - means we need to compile the keybindings.md info into our binary -- meson should support this?
 
 
-
+- spell check via an LLM call with a good prompt, asking the LLM to flag errors
+   "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any errors"
+   this can be a temporary new agent connection, that destructs after the agent is done with the spell check
 
 # mid term items
 
 - mouse support for the file dialog
    - the "recent files" drop thingy is the first candidate
 
-- spell check via an LLM call with a good prompt, asking the LLM to flag errors
 
 # long term items   
 
@@ -66,6 +65,7 @@
 
 
 ## 18-05-2026
+- Implemented `flag_as_error` and `clear_all_errors` LLM tools. These tools allow the agent to inject diagnostics (errors and warnings) directly into the UI overlay via `build_error_manager`.
 - Implemented mouse scroll wheel support for document navigation (`BUTTON4_PRESSED` up, `BUTTON5_PRESSED` down).
 - Migrated all direct `popen` and `std::system` calls to the `command_runner` abstraction to prepare for sandboxing.
 - Implemented cursor memory. `history_manager` now saves the (x, y) cursor position for each file and restores it upon reopening.
