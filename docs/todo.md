@@ -29,7 +29,7 @@
 	- upto say the last 15 files? or 45? space is not really an issue
 
 - colors don't work somehow on a windows setup, we get black on black
-   (solution, change from xterm to ms-terminal -- we may not need to do
+   (solution, change TERM variable from xterm to ms-terminal -- we may not need to do
    anything other than document in the project README.md)
 
 - next set of tools for agents (once we have sandboxing)
@@ -51,6 +51,8 @@
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
 
 - mouse "scroll wheel" support for navigation within a window
+     BUTTON4_PRESSED = up, BUTTON5_PRESSED = down scrollwheel in ncurses
+
 
 - Have a way to run the application (in gdb wrapper?) where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
   if DISPLAY/etc are set
@@ -60,11 +62,8 @@
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
 
-- have a section in our history file for 1) which projects and 2) which files were open in that project
-  so that on start, we can reopen all previously open files for the current project we're in
-
 - figure out how to make mouse based paste work now that we hijack the mouse cursor
-	- the magic is the shift key, that works fine. We need to document in a README.md
+	- the magic is holding the shift key, that works fine. We need to document in a README.md
 
 - "go to definition" LSP support, even if we have open up a new file
 
@@ -125,6 +124,8 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Implemented cursor memory. `history_manager` now saves the (x, y) cursor position for each file and restores it upon reopening.
+- Implemented project state persistence. `history_manager` now saves the list of open files per Git project and automatically reopens them when Turbostar is launched without arguments.
 - Implemented read-only document abstraction. Added `is_read_only()` and `set_read_only()` flags to the `document` class, protected all user-facing mutation methods against read-only buffers, and applied this protection to the Agent Chat, Compile Output, and Test Output windows.
 - Fixed `lsp/messages.h` missing header race condition in fresh clones by correctly mapping `lsp_generated` in the `lsp_dep` dependency.
 - Fixed the issue where users were trapped in an exit loop if they had an unnamed dirty document by simplifying the save_prompt to save-as flow.
@@ -305,4 +306,5 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
    - currently a bit of a mess, we should make a testrun/ directory and make
      that the directory tests ALWAYS run from as CWD.. This impacts data
      directory paths, where to find the turbostat binary etc etc but at
+     least it will be a predictable place.at binary etc etc but at
      least it will be a predictable place.

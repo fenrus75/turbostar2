@@ -30,7 +30,19 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 	}
 
 	if (filenames.empty()) {
-		new_window("");
+		std::string repo_root = git_manager::get_instance().get_repository_root();
+		if (!repo_root.empty()) {
+			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(repo_root);
+			if (!proj_files.empty()) {
+				for (const auto &f : proj_files) {
+					new_window(f);
+				}
+			} else {
+				new_window("");
+			}
+		} else {
+			new_window("");
+		}
 	} else {
 		for (const auto &f : filenames) {
 			new_window(f);
@@ -352,7 +364,25 @@ void editor::run()
 		}
 	}
 
-	// Save history on exit
+	// Save cursor and project history on exit
+	for (const auto& doc : documents_) {
+		if (doc && !doc->get_filename().empty() && doc->has_nondefault_filename() && !doc->is_read_only()) {
+			history_manager::get_instance().set_cursor_pos(doc->get_filename(), doc->get_cursor_x(), doc->get_cursor_y());
+		}
+	}
+
+	std::string repo_root = git_manager::get_instance().get_repository_root();
+	if (!repo_root.empty()) {
+		std::vector<std::string> open_files;
+		for (const auto &w : windows_) {
+			auto doc = w->get_document();
+			if (doc && !doc->get_filename().empty() && doc->has_nondefault_filename() && !doc->is_read_only()) {
+				open_files.push_back(doc->get_filename());
+			}
+		}
+		history_manager::get_instance().set_project_files(repo_root, open_files);
+	}
+
 	history_manager::get_instance().save();
 }
 

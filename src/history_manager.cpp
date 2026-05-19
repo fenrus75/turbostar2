@@ -74,6 +74,18 @@ void history_manager::save() const
 	for (const auto &f : files_) {
 		file << f << "\n";
 	}
+
+	file << "\n[cursor_memory]\n";
+	for (const auto &[path, pos] : cursor_memory_) {
+		file << path << " " << pos.x << " " << pos.y << "\n";
+	}
+
+	file << "\n[projects]\n";
+	for (const auto &[proj, open_files] : project_files_) {
+		for (const auto &f : open_files) {
+			file << proj << "|" << f << "\n";
+		}
+	}
 }
 
 void history_manager::add_search(const std::string &search_string)
@@ -110,4 +122,35 @@ void history_manager::add_file(const std::string &filename)
 	if (files_.size() > max_history_items_) {
 		files_.pop_back();
 	}
+}
+void history_manager::set_cursor_pos(const std::string &filename, int x, int y)
+{
+	if (!filename.empty() && filename != "unknown.txt") {
+		cursor_memory_[filename] = {x, y};
+	}
+}
+
+std::optional<cursor_pos> history_manager::get_cursor_pos(const std::string &filename) const
+{
+	auto it = cursor_memory_.find(filename);
+	if (it != cursor_memory_.end()) {
+		return it->second;
+	}
+	return std::nullopt;
+}
+
+void history_manager::set_project_files(const std::string &project_root, const std::vector<std::string> &files)
+{
+	if (!project_root.empty()) {
+		project_files_[project_root] = files;
+	}
+}
+
+std::vector<std::string> history_manager::get_project_files(const std::string &project_root) const
+{
+	auto it = project_files_.find(project_root);
+	if (it != project_files_.end()) {
+		return it->second;
+	}
+	return {};
 }

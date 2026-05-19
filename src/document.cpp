@@ -15,6 +15,7 @@
  */
 
 #include "document.h"
+#include "history_manager.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -95,6 +96,18 @@ bool document::load_from_file(const std::string &filename)
 
 	event_logger::get_instance().log("Document loaded from: " + filename + " (" +
 					 std::to_string(line_count_unlocked()) + " lines)");
+
+	auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
+	if (pos_opt) {
+		cursor_x_ = pos_opt->x;
+		cursor_y_ = pos_opt->y;
+		if (cursor_y_ >= line_count_unlocked()) cursor_y_ = line_count_unlocked() - 1;
+		if (cursor_y_ < 0) cursor_y_ = 0;
+		if (cursor_x_ > lines_[cursor_y_]->length_in_chars()) cursor_x_ = lines_[cursor_y_]->length_in_chars();
+		if (cursor_x_ < 0) cursor_x_ = 0;
+		target_cursor_x_ = cursor_x_;
+	}
+
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
 	clangd_manager::get_instance().open_document(filename, get_text_all());

@@ -63,7 +63,11 @@ void editor::dispatch_event_window(const editor_event &ev)
 			     windows_[active_idx]->get_title() == "Test Output")) {
 				current_build_process_->stop();
 			}
-	
+			
+			if (doc && !doc->get_filename().empty() && doc->has_nondefault_filename() && !doc->is_read_only()) {
+				history_manager::get_instance().set_cursor_pos(doc->get_filename(), doc->get_cursor_x(), doc->get_cursor_y());
+			}
+
 			windows_.erase(windows_.begin() + active_idx);
 			
 			// Remove document if no other window is using it
