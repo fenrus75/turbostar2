@@ -709,7 +709,7 @@ void editor::render()
 		
 		// If no LSP diagnostic, check for GCC build errors
 		if (diag_text.empty()) {
-			auto build_err = build_error_manager::get_instance().find_error_at(doc->get_filename(), cur_y);
+			auto build_err = build_error_manager::get_instance().find_error_at(doc->get_safe_filename(), cur_y);
 			if (build_err) {
 				diag_text = (build_err->is_warning ? "[Warning] " : "[Error] ") + build_err->message;
 			}

@@ -43,6 +43,9 @@ document::document(event_queue &global_queue) : global_queue_(global_queue)
 
 document::document(event_queue &global_queue, const std::string &filename) : filename_(filename), global_queue_(global_queue)
 {
+	if (!filename_.empty()) {
+		safe_filename_ = fs_utils::safe_absolute(filename_).string();
+	}
 	if (filename.empty() || !load_from_file(filename)) {
 		if (lines_.empty())
 			lines_.push_back(std::make_shared<line>(""));
@@ -82,6 +85,7 @@ bool document::load_from_file(const std::string &filename)
 	}
 
 	filename_ = filename;
+	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
 	cursor_x_ = 0;
@@ -197,6 +201,7 @@ bool document::save_to_file(const std::string &filename)
 	}
 
 	filename_ = filename;
+	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
@@ -216,6 +221,7 @@ void document::clear()
 	lines_.push_back(l);
 	mark_line_dirty(l);
 	filename_ = "";
+	safe_filename_ = "";
 	refresh_highlighter();
 	modified_ = false;
 	cursor_x_ = 0;
@@ -236,6 +242,12 @@ const std::string &document::get_filename() const
 {
 	std::shared_lock lock(mutex_);
 	return filename_;
+}
+
+const std::string &document::get_safe_filename() const
+{
+	std::shared_lock lock(mutex_);
+	return safe_filename_;
 }
 
 

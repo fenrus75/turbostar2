@@ -260,7 +260,7 @@ void window::draw_content() const
 
 		int line_bg_pair = background_color_pair_;
 		if (doc_) {
-			auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
+			auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_safe_filename(), doc_line_idx);
 			if (build_err && build_err->end_column == 0) {
 				line_bg_pair = build_err->is_warning ? 28 : 27;
 			}
@@ -388,7 +388,7 @@ void window::draw_content() const
 					} else {
 						// Build error/warning might be active for this line as a sub-line highlight.
 						if (doc_) {
-							auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
+							auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_safe_filename(), doc_line_idx);
 							if (build_err) {
 								if (build_err->end_column == 0 || (static_cast<int>(char_idx) >= build_err->column && static_cast<int>(char_idx) < build_err->end_column)) {
 									pair = build_err->is_warning ? 28 : 27;

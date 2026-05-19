@@ -21,7 +21,11 @@ void build_error_manager::clear()
 void build_error_manager::add_error(const build_error &err)
 {
 	std::lock_guard lock(mutex_);
-	errors_.push_back(err);
+	build_error normalized_err = err;
+	if (!normalized_err.filepath.empty()) {
+		normalized_err.filepath = fs_utils::safe_absolute(normalized_err.filepath).string();
+	}
+	errors_.push_back(normalized_err);
 }
 
 const std::vector<build_error>& build_error_manager::get_errors() const
@@ -56,14 +60,11 @@ std::optional<build_error> build_error_manager::find_error_at(const std::string&
 	std::lock_guard lock(mutex_);
 	if (filepath.empty()) return std::nullopt;
 
-	std::string abs_path = fs_utils::safe_absolute(filepath).string();
-	
 	for (const auto& err : errors_) {
 		if (err.line == line) {
-			if (!err.filepath.empty() && fs_utils::safe_absolute(err.filepath).string() == abs_path) {
+			if (err.filepath == filepath) {
 				return err;
 			}
-			if (err.filepath == filepath) return err;
 		}
 	}
 	return std::nullopt;

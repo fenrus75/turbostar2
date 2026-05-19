@@ -202,11 +202,11 @@ void editor::dispatch_event_build(const editor_event &ev)
 	
 			// 1. Find or open window for this file
 			size_t win_idx = static_cast<size_t>(-1);
-			std::string err_abs = fs_utils::safe_absolute(err.filepath).string();
+			const std::string& err_abs = err.filepath;
 			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_document()) {
-					std::string win_file = windows_[i]->get_document()->get_filename();
-					if (win_file == err.filepath || fs_utils::safe_absolute(win_file).string() == err_abs) {
+				auto doc = windows_[i]->get_document();
+				if (doc) {
+					if (doc->get_safe_filename() == err_abs) {
 						win_idx = i;
 						break;
 					}

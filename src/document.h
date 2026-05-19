@@ -64,6 +64,7 @@ class document
 	bool save_to_file(const std::string &filename);
 	void clear();
 	const std::string &get_filename() const;
+	const std::string &get_safe_filename() const;
 	bool has_nondefault_filename() const;
 	bool is_modified() const;
 	void clear_modified();
@@ -171,6 +172,7 @@ class document
 	mutable std::shared_mutex mutex_;
 
 	std::string filename_;
+	std::string safe_filename_;
 	std::string git_branch_;
 	bool modified_{false};
 	bool read_only_{false};

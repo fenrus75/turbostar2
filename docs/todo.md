@@ -3,12 +3,6 @@
 - scripts/embed_text.py was not added to git so others could not build
 	- added something temporarily but needs checking
 
-- fs_utils::safe_absolute is not a cheap operation. build_error_manager::find_error_at calls this ALL THE TIME during
-  rendering. We need to change the rules, so that the paths in errors_ are made safe_absolute as they are put
-  into that vector, and we should also we should try to lift cleaning the filename argument to the caller; this may 
-  mean we need the document class and others to have a safe_filename copy of the filename that we keep updated.
-	- upside potential: 20%+ of cycles are spent here on files where the LSP gave warnings
-
 - we may need to rate-limit wrefresh()
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
@@ -79,6 +73,8 @@
 	- maybe also need sqlite_create_db(database) sqlite_delete_db(database)
 	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
 	- we may need a ~/.cache/turbostar directory for this sort of thing
+
+- there are compiler warnings -- that's sloppy, we should fix that
 
 - we need to build a general coredump tracking infrastructure
     - have a list of coredumps that come from build and test and run
@@ -156,6 +152,12 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- fs_utils::safe_absolute is not a cheap operation. build_error_manager::find_error_at calls this ALL THE TIME during
+  rendering. We need to change the rules, so that the paths in errors_ are made safe_absolute as they are put
+  into that vector, and we should also we should try to lift cleaning the filename argument to the caller; this may 
+  mean we need the document class and others to have a safe_filename copy of the filename that we keep updated.
+	- upside potential: 20%+ of cycles are spent here on files where the LSP gave warnings
+
 - Help keymapping window is NOT marked read only (it must be)
 	- easy fix, we added read-only capability yesterday
 	- if it was readonly already then read-only does not actually work and we need to fix that
