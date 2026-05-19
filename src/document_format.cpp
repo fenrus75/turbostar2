@@ -12,6 +12,7 @@
 #include "highlighter_registry.h"
 #include "clangd_manager.h"
 #include "fs_utils.h"
+#include "command_runner.h"
 
 namespace fs = std::filesystem;
 
@@ -70,7 +71,11 @@ void document::format_range(int start_y, int end_y)
 
 	// Run clang-format
 	std::string cmd = "clang-format " + style_arg + " -i " + temp_path;
-	if (std::system(cmd.c_str()) != 0) {
+	
+	sync_command_runner runner;
+	int exit_code = runner.execute(cmd);
+
+	if (exit_code != 0) {
 		event_logger::get_instance().log("Format failed: clang-format returned error.");
 		return;
 	}

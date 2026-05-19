@@ -7,19 +7,6 @@
     - this needs to be a per-instance object, since we will be setting security properties on that object
       depending on the location, before the popen() should actually happen.
 
-| Location | Description |
-| :--- | :--- |
-| `src/document_format.cpp:72` | `std::system` to run `clang-format -i` on temporary files. |
-| `src/fs_utils.cpp:69` | `popen` in `execute_command_sync` for synchronous compilation/tools. |
-| `src/git_manager.cpp:71` | `popen` to find the git repository root. |
-| `src/git_manager.cpp:132` | `popen` to execute `git add`. |
-| `src/git_manager.cpp:150` | `popen` to fetch the current git branch. |
-| `src/git_manager.cpp:163` | `popen` to run `git status --porcelain`. |
-| `src/git_manager.cpp:184` | `popen` to check if inside a git work tree. |
-| `src/process_runner.cpp:46` | `popen` in `worker_loop` for background process execution. |
-
-    - we may not change ALL users of popen instantly
-
 - missing meson.build dependency, causes race condition in fresh git clones, works on second build:
     ../src/clangd_manager.cpp:5:10: fatal error: lsp/messages.h: No such file or directory
     5 | #include <lsp/messages.h>
@@ -52,6 +39,7 @@
 
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
   (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
+  we need to hook to coredumpctl
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
 
@@ -114,6 +102,7 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Migrated all direct `popen` and `std::system` calls to the `command_runner` abstraction to prepare for sandboxing.
 - Implemented cursor memory. `history_manager` now saves the (x, y) cursor position for each file and restores it upon reopening.
 - Implemented project state persistence. `history_manager` now saves the list of open files per Git project and automatically reopens them when Turbostar is launched without arguments.
 - Implemented read-only document abstraction. Added `is_read_only()` and `set_read_only()` flags to the `document` class, protected all user-facing mutation methods against read-only buffers, and applied this protection to the Agent Chat, Compile Output, and Test Output windows.

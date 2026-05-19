@@ -5,6 +5,7 @@
 #include <memory>
 #include <array>
 #include "event_logger.h"
+#include "command_runner.h"
 
 namespace fs = std::filesystem;
 
@@ -147,30 +148,17 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 
 	// Fetch branch
 	std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
-	std::unique_ptr<FILE, int (*)(FILE *)> branch_pipe(popen(branch_cmd.c_str(), "r"), pclose);
-	if (branch_pipe) {
-		std::array<char, 128> buf;
-		if (fgets(buf.data(), buf.size(), branch_pipe.get()) != nullptr) {
-			info.branch = buf.data();
-			if (!info.branch.empty() && info.branch.back() == '\n')
-				info.branch.pop_back();
-		}
+	std::string branch_res = sync_command_runner().execute_and_get_output(branch_cmd);
+	if (!branch_res.empty()) {
+		info.branch = branch_res;
+		if (!info.branch.empty() && info.branch.back() == '\n')
+			info.branch.pop_back();
 	}
 	event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + filepath);
 
 	// Use -C to run git from the file's directory, so it correctly finds the repo.
 	std::string cmd = "git -C " + dir + " status --porcelain -u " + file + " 2>/dev/null";
-	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
-
-	if (!pipe) {
-		return info;
-	}
-
-	std::array<char, 128> buffer;
-	std::string result;
-	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-		result += buffer.data();
-	}
+	std::string result = sync_command_runner().execute_and_get_output(cmd);
 
 	if (!result.empty()) {
 		if (result.substr(0, 2) == "??") {
@@ -181,13 +169,9 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 	} else {
 		// Result is empty. Check if we are in a git repo.
 		std::string check_cmd = "git -C " + dir + " rev-parse --is-inside-work-tree 2>/dev/null";
-		std::unique_ptr<FILE, int (*)(FILE *)> check_pipe(popen(check_cmd.c_str(), "r"), pclose);
-		std::array<char, 64> check_buffer;
-		if (check_pipe && fgets(check_buffer.data(), check_buffer.size(), check_pipe.get()) != nullptr) {
-			std::string check_res = check_buffer.data();
-			if (check_res.find("true") != std::string::npos) {
-				info.status = git_status::clean;
-			}
+		std::string check_res = sync_command_runner().execute_and_get_output(check_cmd);
+		if (check_res.find("true") != std::string::npos) {
+			info.status = git_status::clean;
 		}
 	}
 

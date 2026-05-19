@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 
 int command_runner::execute(const std::string& command) {
-    std::string final_command = build_command(command) + " 2>&1";
+    std::string final_command = build_command(command);
     FILE* pipe = popen(final_command.c_str(), "r");
     
     if (!pipe) {
