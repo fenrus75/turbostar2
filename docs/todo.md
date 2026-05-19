@@ -1,35 +1,116 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- Help keymapping window is NOT marked read only (it must be)
+	- easy fix, we added read-only capability yesterday
+	- if it was readonly already then read-only does not actually work and we need to fix that
+	- testcase: open the help window, type something, the title bar of the window should not have a "*" in it
 
 - scripts/embed_text.py was not added to git so others could not build
+	- added something temporarily but needs checking
 
 - fs_utils::safe_absolute is not a cheap operation. build_error_manager::find_error_at calls this ALL THE TIME during
   rendering. We need to change the rules, so that the paths in errors_ are made safe_absolute as they are put
   into that vector, and we should also we should try to lift cleaning the filename argument to the caller; this may 
   mean we need the document class and others to have a safe_filename copy of the filename that we keep updated.
+	- upside potential: 20%+ of cycles are spent here on files where the LSP gave warnings
 
-- line::next_utf8_character should be optimized for the common case of single character. Once we know we're single character,
-  we can just return that character, no need to do substr and other expensive things.
+- line::next_utf8_character should be optimized for the common case of single byte. Once we know we're single byte,
+  we can just quickly and immediately return that character, no need to do substr and other expensive things.
+	- upside potential: 15%+ of cycles are spent here; half of the drawing cycles
+
+- in window.cpp in the draw function , we currently call ncurses one character at a time. For performance
+   we should consider consolidating/buffering into a string and print the whole string.
+   - we will need to "flush" this string before changing the attribute
+   - and flush at the end of the line
+
+- support namespaces (URI's) for "not really" files -- must be read only
+   - example: skills://someskill/foo.md
+   - would be a pre-declared std::map<string, string>
+      - design decision: do we make this a URI->filename mapping or a direct URI->content mapping?
+      - pro of content: thinking about security/sandboxing is easier
+      - con of content: memory use
+      - hybrid: have 2 maps - URI->filename but a demand-filled URI->content ?
+      - needs evaluation of pros/cons before deciding to implement
+   - read_lines / read file kind of operations should work transparently for these
+      - the LLM should not need to care
+
+- support SKILLs
+  - formal documentation: https://agentskills.io/client-implementation/adding-skills-support
+	- this document offers xml vs json vs ... lets do json as we already have the encoder/decoder for that
+	- tldr is "implement activate_skill and list the available skills as part of that" or "make it a system prompt"
+	- we need to evaluate the pros/cons of this
+  - need to decide, provide activate_skill() tool call or just tell the LLM to read the file
+     - we do not yet have a great read_file call though so tempted to do activate_skill()
+  - should be much simpler than supporting MCP so lets start with SKILLs
+  - we should make a skills:// filename namespace for them so that the agent can ask for subfiles as skills://someskill/resource/foo
+  - likely should support ~/.copilot/skills and perhaps some basic other directories by default
+  - at agent window start we should print a line listing the currently active SKILLs
+
+- activate_skill(skill name) implementation notes
+  - agent responds to the tool call with
+	<ACTIVATED_SKILL name="test-skill">
+	<INSTRUCTIONS>
+	   --- content of SKILLS.md ---
+	</INSTRUCTIONS>
+	<AVAILABLE RESOURCES>
+	   --- directory listing of the skills base dir in skills://<name>/<file> format---
+	</AVAILABLE RESOURCES>
+	</ACTIVATED SKILL>
+   - print "(Skill **name** activated)" in the Agent Window
+   - key question: do we need a special toolcall for getting skill resources, or is our existing way to read files sufficient
+     (consideration: we do NOT want to expose the actual file path of these as they are outside the project directory usually)
+
+  
 
 - next set of tools for agents (once we have sandboxing)
+    - read_binary_file(filename, start_byte_offset, size) to return a base64 encoded binary file content
+	- describe to the agent as a way to read non-ascii files such as PNG images
+    - ask-a-question  (multiple choices, always one "type the answer" one); convention is "ask_user", with a question argument and a list of suggested answers
+	- for now, a modal dialog with cursor navigation between the proposed options and an edit box for custom answer
+    - request-access-to-denied file (to add to the security manager, will ask the user)
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
     - managing todo lists
-    - ask-a-question  (multiple choices, always one "type the answer" one)
-    - request-access-to-resources (to add to the security manager, will ask the user)
+	- add_todo, list_todos, complete_todo, delete_todo
+        - we want the option to have a window to list current todos and their status
     - a set of git ops (branch, pull, add, diff-from-HEAD, diff-from-branch, status, commit, PR create, ..)
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
-    - coredump; get_coredump_info(nr) and get_coredump_list() 
+    - web_fetch(URI)
+	- need permission manager for which domains the user has allowed
+	- needs a way to ask the user for permission
+    - coredump; coredump_get_info(nr) and coredump_list() and over time a coredump_gdb()
+    - sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
+	- need to decide where to store the databases ; that is the hard part
+	- maybe also need sqlite_create_db(database) sqlite_delete_db(database)
+	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
+	- we may need a ~/.cache/turbostar directory for this sort of thing
+
+- we need to build a general coredump tracking infrastructure
+    - have a list of coredumps that come from build and test and run
+    - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
+      get a new window/dialog with details about the coredump
+    - once we have this we can also expose this to the agent
+
+
+
+- "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
+
+- mouse scroll wheel does not seem to work -- oh well, will need to debug at some point
 
 - incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
+
+- investigate to use the A2C protocol
+	- for now it does not look something we need
+
+- highlight trailing whitespaces somehow in source code?
 
 - map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
 
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
 
-- Have a way to run the application (in gdb wrapper?) where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
-  if DISPLAY/etc are set
+- Have a way to run the application where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
+  if DISPLAY/etc are set. Need to run it with our systemd-run wrapper so we can collect any coredumps easily
 
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
   (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
@@ -37,9 +118,12 @@
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
 
-- A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
-   - may want to give this a light gray background, but otherwise this is a read only document class
-   - means we need to compile the keybindings.md info into our binary -- meson should support this?
+- the colors for things in the bottom status bar are red now -- lets switch that to be more like the menu bar
+
+
+- CI is currently failing in github, not due to testrun/ missing
+ 	- needs investigation
+
 
 
 - spell check via an LLM call with a good prompt, asking the LLM to flag errors
@@ -49,6 +133,7 @@
 - paste speed is somehow artificially limited, you can almost see the characters beeing typed
   while other editors are instant. Are we repainting every key press always?
    - we need to use Bracketed Paste Mode by printing printf("\033[?2004h"); at start and printf("\033[?2004l"); at exit
+	- maybe ncurses has a nice abstraction for this and the next listed sequences
    - this causes \x1b[200~ to be entered just before the paste starts (which we need to eat) and \x1b[201~
      at the end of the paste. While we're in this "in the paste" mode we should surpress screen updates,
      and just do one final refresh when getting the end-of-paste marker.
@@ -75,8 +160,12 @@
 
 # done items (move items here on completion)
 
+## 19-05-2026
 
 ## 18-05-2026
+- A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
+   - may want to give this a light gray background, but otherwise this is a read only document class
+   - means we need to compile the keybindings.md info into our binary -- meson should support this?
 - Implemented `flag_as_error` and `clear_all_errors` LLM tools. These tools allow the agent to inject diagnostics (errors and warnings) directly into the UI overlay via `build_error_manager`.
 - Implemented mouse scroll wheel support for document navigation (`BUTTON4_PRESSED` up, `BUTTON5_PRESSED` down).
 - Migrated all direct `popen` and `std::system` calls to the `command_runner` abstraction to prepare for sandboxing.
