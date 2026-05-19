@@ -10,7 +10,7 @@ public:
     }
 
 protected:
-    void on_output_line(const std::string& line) override {
+    void on_output_line(const std::string& /*line*/) override {
         // Not needed for this test
     }
 };

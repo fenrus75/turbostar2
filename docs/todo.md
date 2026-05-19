@@ -20,6 +20,8 @@
    - read_lines / read file kind of operations should work transparently for these
       - the LLM should not need to care
 
+- in find_error_at, should we short circuit without taking the lock if we have no error information at all?
+
 - support SKILLs
   - formal documentation: https://agentskills.io/client-implementation/adding-skills-support
 	- this document offers xml vs json vs ... lets do json as we already have the encoder/decoder for that
@@ -70,8 +72,6 @@
 	- maybe also need sqlite_create_db(database) sqlite_delete_db(database)
 	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
 	- we may need a ~/.cache/turbostar directory for this sort of thing
-
-- there are compiler warnings -- that's sloppy, we should fix that
 
 - we need to build a general coredump tracking infrastructure
     - have a list of coredumps that come from build and test and run
@@ -149,6 +149,8 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- there are compiler warnings -- that's sloppy, we should fix that
+
 - scripts/embed_text.py was not added to git so others could not build
 	- added something temporarily but needs checking
 

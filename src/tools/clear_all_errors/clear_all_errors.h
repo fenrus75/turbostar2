@@ -9,7 +9,7 @@ namespace tools {
 class clear_all_errors_tool : public agentlib::llm_tool {
 public:
     clear_all_errors_tool() = default;
-    bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override { return true; }
+    bool validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const override { return true; }
     std::string execute(agentlib::tool_context& ctx) override;
 };
 

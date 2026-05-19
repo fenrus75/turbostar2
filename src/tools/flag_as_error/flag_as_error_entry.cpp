@@ -5,7 +5,7 @@ namespace tools {
 
 flag_as_error_tool::flag_as_error_tool(flag_as_error_args args) : args_(std::move(args)) {}
 
-std::string flag_as_error_tool::execute(agentlib::tool_context& ctx) {
+std::string flag_as_error_tool::execute(agentlib::tool_context& /*ctx*/) {
     build_error err;
     err.filepath = args_.safe_path;
     err.line = args_.line - 1; // 1-based to 0-based

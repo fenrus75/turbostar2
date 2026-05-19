@@ -18,7 +18,7 @@ struct flag_as_error_args {
 class flag_as_error_tool : public agentlib::llm_tool {
 public:
     flag_as_error_tool(flag_as_error_args args);
-    bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override { return true; }
+    bool validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const override { return true; }
     std::string execute(agentlib::tool_context& ctx) override;
 private:
     flag_as_error_args args_;
