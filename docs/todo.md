@@ -1,9 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- We need a sandboxing strategy (see systemd stuff below)
-    - this needs to be a per-instance object, since we will be setting security properties on that object
-      depending on the location, before the popen() should actually happen.
-
 - next set of tools for agents (once we have sandboxing)
     - flag_as_error(filename, line, startpos, endpos, error_string)
           - code errors but also later for spell checking english/markdown
@@ -14,6 +10,7 @@
     - a set of git ops (branch, pull, add, diff-from-HEAD, diff-from-branch, status, commit, PR create, ..)
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
+    - coredump; get_coredump_info(nr) and get_coredump_list() 
 
 - incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
 
@@ -27,17 +24,9 @@
 
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
   (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
-  we need to hook to coredumpctl
+  we need to hook to coredumpctl and somehow only look at coredumps from our working space
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
-
-- paste speed is somehow artificially limited, you can almost see the characters beeing typed
-  while other editors are instant. Are we repainting every key press always?
-   - profiles confirm we spend all CPU time in drawing -- need to re-measure after we solve the o(N^2) there
-   - we may need to add a priority field to events, and sort the event queue
-   - also needs some sequence number for events
-   - we may need to see if more keys are in the ncurses queue and get them all into a string and make one event?
-   - we may need to suppress or group repaints 
 
 - A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
    - may want to give this a light gray background, but otherwise this is a read only document class
@@ -51,9 +40,19 @@
 - mouse support for the file dialog
    - the "recent files" drop thingy is the first candidate
 
+- spell check via an LLM call with a good prompt, asking the LLM to flag errors
+
 # long term items   
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
+
+- paste speed is somehow artificially limited, you can almost see the characters beeing typed
+  while other editors are instant. Are we repainting every key press always?
+   - profiles confirm we spend all CPU time in drawing -- need to re-measure after we solve the o(N^2) there
+   - we may need to add a priority field to events, and sort the event queue
+   - also needs some sequence number for events
+   - we may need to see if more keys are in the ncurses queue and get them all into a string and make one event?
+   - we may need to suppress or group repaints 
 	
 - an "auto arrange windows" option of sorts
    - option is all editor files in the right 2/3rd of the screen and the agent window the right 1/3rd
