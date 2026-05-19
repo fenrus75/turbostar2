@@ -279,16 +279,17 @@ void window::draw_content() const
 		if (!current_l)
 			continue;
 
-		size_t char_count = current_l->length_in_chars();
 		int current_display_col = 0;
 		size_t byte_off = 0;
 		int last_attr_pair = line_bg_pair;
 
-		for (size_t char_idx = 0; char_idx < char_count; ++char_idx) {
+		for (size_t char_idx = 0; ; ++char_idx) {
 			int start_col = current_display_col;
 
 			// Determine character width and content
 			std::string utf8_char = current_l->next_utf8_character(byte_off);
+			if (utf8_char.empty())
+				break;
 
 			int char_width = 1;
 			if (utf8_char == "\t") {

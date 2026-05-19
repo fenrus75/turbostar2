@@ -110,11 +110,15 @@ std::string line::next_utf8_character(size_t &byte_offset) const
 	if (byte_offset >= text_.length())
 		return "";
 
-	unsigned char c = byte_at_unlocked(byte_offset);
+	unsigned char c = static_cast<unsigned char>(text_[byte_offset]);
+	if (c < 0x80) {
+		std::string result(1, static_cast<char>(c));
+		byte_offset++;
+		return result;
+	}
+
 	size_t char_len = 1;
-	if (c < 0x80)
-		char_len = 1;
-	else if ((c & 0xE0) == 0xC0)
+	if ((c & 0xE0) == 0xC0)
 		char_len = 2;
 	else if ((c & 0xF0) == 0xE0)
 		char_len = 3;

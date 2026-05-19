@@ -14,10 +14,6 @@
   mean we need the document class and others to have a safe_filename copy of the filename that we keep updated.
 	- upside potential: 20%+ of cycles are spent here on files where the LSP gave warnings
 
-- line::next_utf8_character should be optimized for the common case of single byte. Once we know we're single byte,
-  we can just quickly and immediately return that character, no need to do substr and other expensive things.
-	- upside potential: 15%+ of cycles are spent here; half of the drawing cycles
-
 - we may need to rate-limit wrefresh()
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
@@ -165,6 +161,9 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- line::next_utf8_character should be optimized for the common case of single byte. Once we know we're single byte,
+  we can just quickly and immediately return that character, no need to do substr and other expensive things.
+	- upside potential: 15%+ of cycles are spent here; half of the drawing cycles
 
 ## 18-05-2026
 - A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
