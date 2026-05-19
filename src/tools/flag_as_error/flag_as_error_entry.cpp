@@ -8,9 +8,9 @@ flag_as_error_tool::flag_as_error_tool(flag_as_error_args args) : args_(std::mov
 std::string flag_as_error_tool::execute(agentlib::tool_context& ctx) {
     build_error err;
     err.filepath = args_.safe_path;
-    err.line = args_.line;
-    err.column = args_.column;
-    err.end_column = args_.end_column;
+    err.line = args_.line - 1; // 1-based to 0-based
+    err.column = args_.column - 1; // 1-based to 0-based
+    err.end_column = args_.end_column > 0 ? args_.end_column - 1 : 0;
     err.message = args_.error_string;
     err.is_warning = args_.is_warning;
     err.output_buffer_line = -1; // Not from compile window
