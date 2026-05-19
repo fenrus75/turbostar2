@@ -1,8 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- scripts/embed_text.py was not added to git so others could not build
-	- added something temporarily but needs checking
-
 - we may need to rate-limit wrefresh()
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
@@ -152,6 +149,9 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- scripts/embed_text.py was not added to git so others could not build
+	- added something temporarily but needs checking
+
 - fs_utils::safe_absolute is not a cheap operation. build_error_manager::find_error_at calls this ALL THE TIME during
   rendering. We need to change the rules, so that the paths in errors_ are made safe_absolute as they are put
   into that vector, and we should also we should try to lift cleaning the filename argument to the caller; this may 
