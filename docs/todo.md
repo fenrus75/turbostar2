@@ -49,8 +49,6 @@
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
 
-- support the <PGUP>, <PGDN>, <DELETE>, <END> and <HOME> keyboard keys
-
 - mouse "scroll wheel" support for navigation within a window
 
 - Have a way to run the application (in gdb wrapper?) where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
@@ -129,6 +127,7 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Added support for standard keyboard navigation and editing keys (`<HOME>`, `<END>`, `<PGUP>`, `<PGDN>`, and `<DELETE>`).
 - Fixed draw performance issue (O(N^2) CPU spike) by implementing `next_utf8_character` in the `line` class for O(1) character extraction.
 - Optimized `window::draw_content` by reusing the byte offset across the loop and caching `attrset(COLOR_PAIR(pair))` calls to avoid redundant terminal updates.
 ## 17-05-2026

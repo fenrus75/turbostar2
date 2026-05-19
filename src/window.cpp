@@ -86,6 +86,26 @@ bool window::process_events()
 					doc_->move_cursor(1, 0);
 					invalidate();
 					break;
+				case KEY_HOME:
+					doc_->move_to_bol();
+					invalidate();
+					break;
+				case KEY_END:
+					doc_->move_to_eol();
+					invalidate();
+					break;
+				case KEY_PPAGE:
+					doc_->move_page_up(height_ - 2);
+					invalidate();
+					break;
+				case KEY_NPAGE:
+					doc_->move_page_down(height_ - 2);
+					invalidate();
+					break;
+				case KEY_DC:
+					doc_->delete_char();
+					invalidate();
+					break;
 				case KEY_BACKSPACE:
 				case 127:
 				case 8:
