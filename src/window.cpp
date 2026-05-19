@@ -259,18 +259,16 @@ void window::draw_content() const
 		if (!current_l)
 			continue;
 
-		std::string line_text = current_l->get_text();
 		size_t char_count = current_l->length_in_chars();
 		int current_display_col = 0;
+		size_t byte_off = 0;
+		int last_attr_pair = line_bg_pair;
 
 		for (size_t char_idx = 0; char_idx < char_count; ++char_idx) {
 			int start_col = current_display_col;
 
 			// Determine character width and content
-			std::string utf8_char;
-			size_t byte_off = current_l->char_to_byte_offset(char_idx);
-			size_t next_byte_off = current_l->char_to_byte_offset(char_idx + 1);
-			utf8_char = line_text.substr(byte_off, next_byte_off - byte_off);
+			std::string utf8_char = current_l->next_utf8_character(byte_off);
 
 			int char_width = 1;
 			if (utf8_char == "\t") {
@@ -389,7 +387,11 @@ void window::draw_content() const
 							pair = 24;
 					}
 
-					attrset(COLOR_PAIR(pair));
+					if (pair != last_attr_pair) {
+						attrset(COLOR_PAIR(pair));
+						last_attr_pair = pair;
+					}
+					
 					if (utf8_char == "\t") {
 						addch(' ');
 					} else {

@@ -104,6 +104,31 @@ int line::length_in_chars() const
 	return chars;
 }
 
+std::string line::next_utf8_character(size_t &byte_offset) const
+{
+	std::shared_lock lock(mutex_);
+	if (byte_offset >= text_.length())
+		return "";
+
+	unsigned char c = byte_at_unlocked(byte_offset);
+	size_t char_len = 1;
+	if (c < 0x80)
+		char_len = 1;
+	else if ((c & 0xE0) == 0xC0)
+		char_len = 2;
+	else if ((c & 0xF0) == 0xE0)
+		char_len = 3;
+	else if ((c & 0xF8) == 0xF0)
+		char_len = 4;
+
+	if (byte_offset + char_len > text_.length())
+		char_len = text_.length() - byte_offset;
+
+	std::string result = text_.substr(byte_offset, char_len);
+	byte_offset += char_len;
+	return result;
+}
+
 void line::insert_at(int char_pos, const std::string &utf8_char)
 {
 	std::unique_lock lock(mutex_);

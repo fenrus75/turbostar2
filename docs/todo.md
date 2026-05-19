@@ -20,25 +20,6 @@
 
     - we may not change ALL users of popen instantly
 
-
-- we need a method ("next_utf8_character(offset)") in the line class that takes an offset (in bytes) as input, and returns a std::string with the 
-  whole UTF8 character at this offset
-
-
-- draw performance issue (we see high cpu %age here in performance analysis)
-   the key performance analysis is that, while drawing a line, we iterate over every on-screen character position,
-   and calculate byte_off and next_byte_off FOR EACH POSITION.
-   We KNOW the current offset was the previous' loop next_byte_off, so we shouldn't need to calculate that twice, reuse instead across loop iterations
-
-   In addition, for finding the next offset, we should make a dedicated method that already takes the current offset
-   as argument, so that it only has to look 1 character ahead (O(1) algorithm), and not redo the whole line from scratch (O(N^2) algorithm).
-   This helper can return this character and we can use the length to calculate the next offset, so that even the substr() can be avoided and the whole
-   use across the loop goes away.
-
-- in draw_content, maybe cache previous attribute, so that attrset(COLOR_PAIR(pair)) only gets called for changes in attribute?
-    need to be careful, assume at start of line that we have no previous attribute (-1?) for attrset(COLOR_PAIR(pair))
-
-
 - missing meson.build dependency, causes race condition in fresh git clones, works on second build:
     ../src/clangd_manager.cpp:5:10: fatal error: lsp/messages.h: No such file or directory
     5 | #include <lsp/messages.h>
@@ -148,6 +129,8 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Fixed draw performance issue (O(N^2) CPU spike) by implementing `next_utf8_character` in the `line` class for O(1) character extraction.
+- Optimized `window::draw_content` by reusing the byte offset across the loop and caching `attrset(COLOR_PAIR(pair))` calls to avoid redundant terminal updates.
 ## 17-05-2026
 - Updated the LLM tool_context configuration in agent_window.cpp to dynamically determine the workspace root by querying the git_manager. This ensures that tools correctly resolve paths relative to the Git repository root rather than the CWD where the editor was launched.
 - Migrated the entire Turbostar codebase from `std::regex` to Google's `re2` library. This guarantees O(N) linear execution time for all regex operations, structurally mitigating ReDoS (catastrophic backtracking) vulnerabilities that could be triggered by untrusted LLM input via the `fs_regexp_lines` tool. Refactored the tool backend, highlighters, log parsers, and document search logic to use the new API.

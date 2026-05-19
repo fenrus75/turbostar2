@@ -22,6 +22,8 @@ class line
 	std::string get_text() const;
 	void set_text(const std::string &text);
 
+	std::string next_utf8_character(size_t &byte_offset) const;
+
 	void insert_at(int char_pos, const std::string &utf8_char);
 	void remove_at(int char_pos);
 	void split_at(int char_pos, line &new_line);
