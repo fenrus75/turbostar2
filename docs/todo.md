@@ -132,8 +132,6 @@
 
 # long term items   
 
-- update status bar draw method to support "^" characters in the string, where the ^ means "color the next character red", so we can have hotkeys shown properly
-
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
 	
@@ -148,6 +146,8 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- update status bar draw method to support "^" characters in the string, where the ^ means "color the next character red", so we can have hotkeys shown properly
+
 - the colors for things in the bottom status bar are red now -- lets switch that to be more like the menu bar
 
 - there are compiler warnings -- that's sloppy, we should fix that
