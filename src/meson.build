@@ -33,6 +33,7 @@ turbostar_sources = files(
   'popup_menu.cpp',
   'history_manager.cpp',
   'config_manager.cpp',
+  'command_runner.cpp',
   'git_manager.cpp',
   'cpp_highlighter.cpp',
   'markdown_highlighter.cpp',
