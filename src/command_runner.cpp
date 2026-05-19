@@ -1,10 +1,119 @@
 #include "command_runner.h"
+#include "config_manager.h"
 #include <array>
 #include <cstdio>
 #include <iostream>
 #include <poll.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+std::string command_runner::get_repository_root() {
+    std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
+    sync_command_runner runner;
+    runner.apply_internal_profile();
+    std::string result = runner.execute_and_get_output(cmd);
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+    if (result.empty()) {
+        return fs::current_path().string();
+    }
+    return result;
+}
+
+void command_runner::apply_default_profile() {
+    bypass_sandbox_ = false;
+    network_access_ = false;
+    home_access_ = home_access_t::hidden;
+    project_dir_ = "";
+    project_hash_ = "default";
+    extra_rw_paths_.clear();
+    extra_ro_paths_.clear();
+}
+
+void command_runner::apply_internal_profile() {
+    apply_default_profile();
+    bypass_sandbox_ = true;
+}
+
+void command_runner::apply_build_profile() {
+    apply_default_profile();
+    network_access_ = true;
+    home_access_ = home_access_t::read_only;
+    project_dir_ = get_repository_root();
+    project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
+}
+
+void command_runner::apply_strict_agent_profile() {
+    apply_default_profile();
+    network_access_ = false;
+    home_access_ = home_access_t::hidden;
+    project_dir_ = get_repository_root();
+    project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
+}
+
+std::string command_runner::build_command(const std::string& raw_command) const {
+    if (bypass_sandbox_ && !config_manager::get_instance().is_paranoid_mode()) {
+        return raw_command;
+    }
+
+    std::string random_suffix = std::to_string(rand() % 1000000);
+    std::string unit_name = "turbostar-project-" + project_hash_ + "-" + random_suffix;
+
+    std::string cmd = "systemd-run --user --pty --pipe --wait --quiet ";
+    cmd += "--unit=" + unit_name + " ";
+    cmd += "-p ProtectSystem=strict ";
+    cmd += "-p PrivateTmp=true ";
+    cmd += "-p PrivateDevices=true ";
+    cmd += "-p ProtectKernelTunables=true ";
+    cmd += "-p ProtectKernelModules=true ";
+    cmd += "-p MemoryDenyWriteExecute=true ";
+    cmd += "-p ProtectControlGroups=true ";
+    cmd += "-p RestrictRealtime=true ";
+
+    if (!network_access_) {
+        cmd += "-p PrivateNetwork=true ";
+    }
+
+    if (home_access_ == home_access_t::hidden) {
+        cmd += "-p ProtectHome=tmpfs ";
+    } else if (home_access_ == home_access_t::read_only) {
+        cmd += "-p ProtectHome=read-only ";
+    }
+
+    if (!project_dir_.empty()) {
+        cmd += "-p WorkingDirectory=" + project_dir_ + " ";
+        if (home_access_ == home_access_t::hidden) {
+            cmd += "-p BindPaths=" + project_dir_ + " ";
+        } else {
+            cmd += "-p ReadWritePaths=" + project_dir_ + " ";
+        }
+    }
+
+    for (const auto& p : extra_rw_paths_) {
+        cmd += "-p ReadWritePaths=" + p + " ";
+    }
+    for (const auto& p : extra_ro_paths_) {
+        if (home_access_ == home_access_t::hidden) {
+            cmd += "-p BindReadOnlyPaths=" + p + " ";
+        } else {
+            cmd += "-p ReadOnlyPaths=" + p + " ";
+        }
+    }
+
+    // Escape single quotes in the raw command
+    std::string escaped_command;
+    for (char c : raw_command) {
+        if (c == '\'') escaped_command += "'\\''";
+        else escaped_command += c;
+    }
+
+    cmd += "-- bash -c '" + escaped_command + "'";
+    return cmd;
+}
 
 int command_runner::execute(const std::string& command) {
     std::string final_command = build_command(command);

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "build_error_manager.h"
 #include "command_runner.h"
+#include "git_manager.h"
 
 process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines)
     : doc_(output_doc), max_lines_(max_lines)
@@ -80,6 +81,7 @@ private:
 void process_runner::worker_loop(std::string command)
 {
 	streaming_command_runner runner(doc_, parser_.get(), stop_requested_, auto_scroll_);
+	runner.apply_build_profile();
 	int exit_code = runner.execute(command + " 2>&1");
 	
 	doc_->append_line("");

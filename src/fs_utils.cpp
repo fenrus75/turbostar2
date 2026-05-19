@@ -87,6 +87,7 @@ namespace fs_utils {
 	std::string execute_command_sync(const std::string& cmd) {
 		build_error_manager::get_instance().clear();
 		sync_compile_runner runner;
+		runner.apply_build_profile();
 		int exit_code = runner.execute(cmd + " 2>&1");
 		runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
 		return runner.full_output;

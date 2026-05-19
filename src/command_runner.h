@@ -1,10 +1,37 @@
 #pragma once
 
 #include <string>
+#include <vector>
+
+enum class home_access_t {
+    hidden,
+    read_only,
+    read_write
+};
 
 class command_runner {
 public:
+    command_runner() { apply_default_profile(); }
     virtual ~command_runner() = default;
+
+    // Configuration Setters
+    void set_bypass_sandbox(bool bypass) { bypass_sandbox_ = bypass; }
+    void set_network_access(bool access) { network_access_ = access; }
+    void set_home_access(home_access_t access) { home_access_ = access; }
+    void set_project_dir(const std::string& dir) { project_dir_ = dir; }
+    void set_project_hash(const std::string& hash) { project_hash_ = hash; }
+    void add_extra_rw_path(const std::string& path) { extra_rw_paths_.push_back(path); }
+    void add_extra_ro_path(const std::string& path) { extra_ro_paths_.push_back(path); }
+
+    // Pre-defined Security Profiles
+    void apply_default_profile();
+    void apply_internal_profile();
+    void apply_build_profile();
+    void apply_strict_agent_profile();
+
+    // Resolves the git repository root.
+    // If not in a git repo, returns the current working directory.
+    static std::string get_repository_root();
 
     // The core execution engine.
     // - Handles popen/pclose internally.
@@ -34,10 +61,17 @@ protected:
     }
 
     // Hook to rewrite the command before it is passed to popen.
-    // This is where the future "sandboxing" strategy (e.g., systemd-run) will be injected.
-    virtual std::string build_command(const std::string& raw_command) const {
-        return raw_command; // Default: no sandboxing
-    }
+    // This injects the sandboxing strategy (e.g., systemd-run) if not bypassed.
+    virtual std::string build_command(const std::string& raw_command) const;
+
+private:
+    bool bypass_sandbox_{false};
+    bool network_access_{false};
+    home_access_t home_access_{home_access_t::hidden};
+    std::string project_dir_;
+    std::string project_hash_;
+    std::vector<std::string> extra_rw_paths_;
+    std::vector<std::string> extra_ro_paths_;
 };
 
 class sync_command_runner : public command_runner {
