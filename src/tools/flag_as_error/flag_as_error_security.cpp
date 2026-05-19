@@ -55,6 +55,22 @@ bool flag_as_error_security::validate_args_impl(
         return false;
     }
 
+    if (args["line"].get<int>() < 1) {
+        out_error = "Invalid argument: 'line' must be >= 1.";
+        return false;
+    }
+    
+    if (args["column"].get<int>() < 1) {
+        out_error = "Invalid argument: 'column' must be >= 1.";
+        return false;
+    }
+    
+    int end_col = args["end_column"].get<int>();
+    if (end_col != 0 && end_col < args["column"].get<int>()) {
+        out_error = "Invalid argument: 'end_column' must be 0 or >= 'column'.";
+        return false;
+    }
+
     std::string filename = args["filename"].get<std::string>();
     std::string safe_path;
     if (!ctx.fs_security.validate_access(filename, agentlib::access_type::read, safe_path, out_error)) {
