@@ -1,6 +1,15 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-this is a tyop
+
+- scripts/embed_text.py was not added to git so others could not build
+
+- fs_utils::safe_absolute is not a cheap operation. build_error_manager::find_error_at calls this ALL THE TIME during
+  rendering. We need to change the rules, so that the paths in errors_ are made safe_absolute as they are put
+  into that vector, and we should also we should try to lift cleaning the filename argument to the caller; this may 
+  mean we need the document class and others to have a safe_filename copy of the filename that we keep updated.
+
+- line::next_utf8_character should be optimized for the common case of single character. Once we know we're single character,
+  we can just return that character, no need to do substr and other expensive things.
 
 - next set of tools for agents (once we have sandboxing)
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
@@ -37,6 +46,14 @@ this is a tyop
    "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any spelling mistake and severe gramatical mistake as error and flag gramatical improvements as warning"
    this can be a temporary new agent connection, that destructs after the agent is done with the spell check
 
+- paste speed is somehow artificially limited, you can almost see the characters beeing typed
+  while other editors are instant. Are we repainting every key press always?
+   - we need to use Bracketed Paste Mode by printing printf("\033[?2004h"); at start and printf("\033[?2004l"); at exit
+   - this causes \x1b[200~ to be entered just before the paste starts (which we need to eat) and \x1b[201~
+     at the end of the paste. While we're in this "in the paste" mode we should surpress screen updates,
+     and just do one final refresh when getting the end-of-paste marker.
+
+
 # mid term items
 
 - mouse support for the file dialog
@@ -47,13 +64,6 @@ this is a tyop
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
-- paste speed is somehow artificially limited, you can almost see the characters beeing typed
-  while other editors are instant. Are we repainting every key press always?
-   - profiles confirm we spend all CPU time in drawing -- need to re-measure after we solve the o(N^2) there
-   - we may need to add a priority field to events, and sort the event queue
-   - also needs some sequence number for events
-   - we may need to see if more keys are in the ncurses queue and get them all into a string and make one event?
-   - we may need to suppress or group repaints 
 	
 - an "auto arrange windows" option of sorts
    - option is all editor files in the right 2/3rd of the screen and the agent window the right 1/3rd
