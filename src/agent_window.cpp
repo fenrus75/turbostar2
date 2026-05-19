@@ -15,6 +15,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
 
     // Create the document for the chat history
     chat_history_ = std::make_shared<document>(state_->global_queue);
+    chat_history_->set_read_only(true);
     attach_document(chat_history_);
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 

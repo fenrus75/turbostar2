@@ -26,6 +26,7 @@
 
 
 - remember a per filename cursor positioin in our history file
+	- upto say the last 15 files? or 45? space is not really an issue
 
 - colors don't work somehow on a windows setup, we get black on black
    (solution, change from xterm to ms-terminal -- we may not need to do
@@ -63,6 +64,7 @@
   so that on start, we can reopen all previously open files for the current project we're in
 
 - figure out how to make mouse based paste work now that we hijack the mouse cursor
+	- the magic is the shift key, that works fine. We need to document in a README.md
 
 - "go to definition" LSP support, even if we have open up a new file
 
@@ -123,6 +125,7 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Implemented read-only document abstraction. Added `is_read_only()` and `set_read_only()` flags to the `document` class, protected all user-facing mutation methods against read-only buffers, and applied this protection to the Agent Chat, Compile Output, and Test Output windows.
 - Fixed `lsp/messages.h` missing header race condition in fresh clones by correctly mapping `lsp_generated` in the `lsp_dep` dependency.
 - Fixed the issue where users were trapped in an exit loop if they had an unnamed dirty document by simplifying the save_prompt to save-as flow.
 - Added support for standard keyboard navigation and editing keys (`<HOME>`, `<END>`, `<PGUP>`, `<PGDN>`, and `<DELETE>`).

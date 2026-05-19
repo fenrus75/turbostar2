@@ -442,6 +442,7 @@ bool document::is_space_at_unlocked(int y, int x) const
 }
 
 void document::apply_external_edits_json(const std::string& json_str) {
+	if (is_read_only()) return;
 	try {
 		auto j = nlohmann::json::parse(json_str);
 		if (!j.is_array()) return;

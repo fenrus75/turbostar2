@@ -184,6 +184,7 @@ void document::copy_selection()
 
 void document::move_selection()
 {
+	if (is_read_only()) return;
 	std::unique_lock lock(mutex_);
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
 		lock.unlock();

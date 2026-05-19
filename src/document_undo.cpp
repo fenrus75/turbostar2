@@ -120,6 +120,7 @@ void document::undo()
 
 void document::redo()
 {
+	if (is_read_only()) return;
 	std::unique_lock lock(mutex_);
 	if (redo_stack_.empty())
 		return;

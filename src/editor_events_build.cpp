@@ -38,6 +38,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 				// Make the main windows smaller if there's only one, or just overlay
 				int compile_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
+				doc->set_read_only(true);
 				documents_.push_back(doc);
 	
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
@@ -107,6 +108,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
+				doc->set_read_only(true);
 				documents_.push_back(doc);
 				
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1, COLS, compile_height, "Compile Output");
@@ -150,6 +152,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			if (test_win_idx == static_cast<size_t>(-1)) {
 				int test_height = 10;
 				auto doc = std::make_shared<document>(global_queue_, "Test Output");
+				doc->set_read_only(true);
 				documents_.push_back(doc);
 	
 				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1, COLS, test_height, "Test Output");

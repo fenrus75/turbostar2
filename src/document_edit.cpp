@@ -303,6 +303,7 @@ void document::trim_top_lines(int max_lines)
 
 void document::delete_line()
 {
+	if (is_read_only()) return;
 	std::unique_lock lock(mutex_);
 	if (line_count_unlocked() <= 1) {
 		begin_edit_group();

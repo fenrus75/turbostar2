@@ -70,6 +70,9 @@ class document
 	std::string get_git_branch() const;
 	void set_git_branch(const std::string &branch);
 
+	virtual bool is_read_only() const { return read_only_; }
+	virtual void set_read_only(bool ro) { read_only_ = ro; }
+
 	// Basic accessors for now
 	int line_count() const;
 	size_t get_line_count() const;
@@ -170,6 +173,7 @@ class document
 	std::string filename_;
 	std::string git_branch_;
 	bool modified_{false};
+	bool read_only_{false};
 
 	int cursor_x_{0};
 	int cursor_y_{0};

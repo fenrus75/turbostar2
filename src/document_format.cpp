@@ -18,6 +18,7 @@ namespace fs = std::filesystem;
 
 void document::format_range(int start_y, int end_y)
 {
+	if (is_read_only()) return;
 	if (start_y < 0 || end_y >= line_count_unlocked() || start_y > end_y)
 		return;
 
@@ -137,7 +138,8 @@ void document::format_range(int start_y, int end_y)
 
 void document::format_paragraph()
 {
-	std::shared_lock lock(mutex_);
+	if (is_read_only()) return;
+	std::unique_lock lock(mutex_);
 	if (lines_.empty())
 		return;
 
