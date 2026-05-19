@@ -4,10 +4,11 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <vector>
+#include <span>
 
 namespace tools {
 
-static std::string base64_encode(const unsigned char* buf, size_t bufLen) {
+static std::string base64_encode(std::span<const unsigned char> buf) {
     static const char trailing_char = '=';
     static const char base64_chars[] = 
              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -20,8 +21,8 @@ static std::string base64_encode(const unsigned char* buf, size_t bufLen) {
     unsigned char char_array_3[3];
     unsigned char char_array_4[4];
 
-    while (bufLen--) {
-        char_array_3[i++] = *(buf++);
+    for (unsigned char byte : buf) {
+        char_array_3[i++] = byte;
         if (i == 3) {
             char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
             char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
@@ -110,7 +111,7 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context& /*ctx*/) {
         return "Requested range is empty or past the end of the file.";
     }
 
-    return base64_encode(buffer.data(), bytes_read);
+    return base64_encode(std::span<const unsigned char>(buffer.data(), bytes_read));
 }
 
 } // namespace tools
