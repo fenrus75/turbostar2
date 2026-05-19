@@ -106,9 +106,6 @@
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
 
-- the colors for things in the bottom status bar are red now -- lets switch that to be more like the menu bar
-
-
 - CI is currently failing in github, not due to testrun/ missing
  	- needs investigation
 
@@ -149,6 +146,8 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- the colors for things in the bottom status bar are red now -- lets switch that to be more like the menu bar
+
 - there are compiler warnings -- that's sloppy, we should fix that
 
 - scripts/embed_text.py was not added to git so others could not build

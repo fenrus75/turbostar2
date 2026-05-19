@@ -17,9 +17,9 @@ void status_bar::draw(const std::string &mode_help, const std::string &hover_tex
 	move(max_y - 1, 0);
 
 	if (!mode_help.empty()) {
-		attron(COLOR_PAIR(2)); // Hotkey style
+		attron(COLOR_PAIR(1));
 		printw(" %s ", mode_help.c_str());
-		attroff(COLOR_PAIR(2));
+		attroff(COLOR_PAIR(1));
 		attron(COLOR_PAIR(1));
 	} else {
 		// Cursor position
