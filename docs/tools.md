@@ -86,7 +86,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `filename` *(string, required)*: The relative path to the file.
     *   `line` *(integer, required)*: The 1-based line number of the error.
     *   `column` *(integer, required)*: The 1-based start column number of the error. Use 1 if unknown.
-    *   `end_column` *(integer, required)*: The 1-based end column number of the error. Use 0 to highlight the whole line.
+    *   `length` *(integer, required)*: The length of the error highlight in characters. Use 0 to highlight the whole line.
     *   `error_string` *(string, required)*: The description of the error.
     *   `is_warning` *(boolean, required)*: True if this is a warning, false if it is a hard error.
 

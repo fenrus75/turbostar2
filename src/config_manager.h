@@ -34,6 +34,9 @@ class config_manager
 	std::string get_llm_url() const { return llm_url_; }
 	void set_llm_url(const std::string &url) { llm_url_ = url; }
 
+	bool is_paranoid_mode() const { return paranoid_mode_; }
+	void set_paranoid_mode(bool paranoid) { paranoid_mode_ = paranoid; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -45,4 +48,5 @@ class config_manager
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
+	bool paranoid_mode_{false};
 };

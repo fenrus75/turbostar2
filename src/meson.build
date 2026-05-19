@@ -51,3 +51,12 @@ turbostar_sources = files(
   'agentlib/file_security_manager.cpp'
 )
 
+embed_prog = find_program('python3')
+help_text_h = custom_target('help_text.h',
+  input : '../docs/keybindings.md',
+  output : 'help_text.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'help_text_md']
+)
+
+turbostar_sources += help_text_h
+

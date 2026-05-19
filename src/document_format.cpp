@@ -73,6 +73,7 @@ void document::format_range(int start_y, int end_y)
 	std::string cmd = "clang-format " + style_arg + " -i " + temp_path;
 	
 	sync_command_runner runner;
+	runner.apply_internal_profile();
 	int exit_code = runner.execute(cmd);
 
 	if (exit_code != 0) {

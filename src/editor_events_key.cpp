@@ -30,6 +30,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 		// Global shortcuts
 		if (ev.key_code == KEY_F(1)) {
 			logger.log("Help shortcut pressed.");
+			editor_event help_ev;
+			help_ev.type = event_type::help;
+			global_queue_.push(help_ev);
 			return;
 		}
 		if (ev.key_code == KEY_F(2)) {

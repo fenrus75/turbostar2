@@ -69,16 +69,11 @@ git_info git_manager::get_cached_info(const std::string &filepath) const
 std::string git_manager::get_repository_root() const
 {
 	std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
-	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
-	if (!pipe) return "";
-
-	std::array<char, 256> buffer;
-	std::string result;
-	if (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-		result = buffer.data();
-		if (!result.empty() && result.back() == '\n') {
-			result.pop_back();
-		}
+	sync_command_runner runner;
+	runner.apply_internal_profile();
+	std::string result = runner.execute_and_get_output(cmd);
+	if (!result.empty() && result.back() == '\n') {
+		result.pop_back();
 	}
 	return result;
 }
@@ -130,7 +125,9 @@ void git_manager::run_git_add_cmd(const std::string &filepath)
 		dir = ".";
 
 	std::string cmd = "git -C " + dir + " add " + file + " 2>/dev/null";
-	std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
+	sync_command_runner runner;
+	runner.apply_internal_profile();
+	runner.execute_and_get_output(cmd);
 }
 
 git_info git_manager::run_git_status_cmd(const std::string &filepath)
@@ -148,7 +145,9 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 
 	// Fetch branch
 	std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
-	std::string branch_res = sync_command_runner().execute_and_get_output(branch_cmd);
+	sync_command_runner branch_runner;
+	branch_runner.apply_internal_profile();
+	std::string branch_res = branch_runner.execute_and_get_output(branch_cmd);
 	if (!branch_res.empty()) {
 		info.branch = branch_res;
 		if (!info.branch.empty() && info.branch.back() == '\n')
@@ -158,7 +157,9 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 
 	// Use -C to run git from the file's directory, so it correctly finds the repo.
 	std::string cmd = "git -C " + dir + " status --porcelain -u " + file + " 2>/dev/null";
-	std::string result = sync_command_runner().execute_and_get_output(cmd);
+	sync_command_runner status_runner;
+	status_runner.apply_internal_profile();
+	std::string result = status_runner.execute_and_get_output(cmd);
 
 	if (!result.empty()) {
 		if (result.substr(0, 2) == "??") {
@@ -169,7 +170,9 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 	} else {
 		// Result is empty. Check if we are in a git repo.
 		std::string check_cmd = "git -C " + dir + " rev-parse --is-inside-work-tree 2>/dev/null";
-		std::string check_res = sync_command_runner().execute_and_get_output(check_cmd);
+		sync_command_runner check_runner;
+		check_runner.apply_internal_profile();
+		std::string check_res = check_runner.execute_and_get_output(check_cmd);
 		if (check_res.find("true") != std::string::npos) {
 			info.status = git_status::clean;
 		}

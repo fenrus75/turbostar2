@@ -23,9 +23,9 @@ nlohmann::json flag_as_error_security::get_parameters_schema() const {
                 {"type", "integer"},
                 {"description", "The 1-based start column number of the error. Use 1 if unknown."}
             }},
-            {"end_column", {
+            {"length", {
                 {"type", "integer"},
-                {"description", "The 1-based end column number of the error. Use 0 to highlight the whole line."}
+                {"description", "The length of the error highlight in characters. Use 0 to highlight the whole line."}
             }},
             {"error_string", {
                 {"type", "string"},
@@ -36,7 +36,7 @@ nlohmann::json flag_as_error_security::get_parameters_schema() const {
                 {"description", "True if this is a warning, false if it is a hard error."}
             }}
         }},
-        {"required", {"filename", "line", "column", "error_string", "is_warning"}}
+        {"required", {"filename", "line", "column", "length", "error_string", "is_warning"}}
     };
 }
 
@@ -48,30 +48,29 @@ bool flag_as_error_security::validate_args_impl(
     if (!args.contains("filename") || !args["filename"].is_string() ||
         !args.contains("line") || !args["line"].is_number() ||
         !args.contains("column") || !args["column"].is_number() ||
-        !args.contains("end_column") || !args["end_column"].is_number() ||
+        !args.contains("length") || !args["length"].is_number() ||
         !args.contains("error_string") || !args["error_string"].is_string() ||
         !args.contains("is_warning") || !args["is_warning"].is_boolean()) {
-        out_error = "Invalid arguments: Requires filename (string), line (int), column (int), end_column (int), error_string (string), is_warning (bool).";
+        out_error = "Invalid arguments: Requires filename (string), line (int), column (int), length (int), error_string (string), is_warning (bool).";
         return false;
-    }
+        }
 
-    if (args["line"].get<int>() < 1) {
+        if (args["line"].get<int>() < 1) {
         out_error = "Invalid argument: 'line' must be >= 1.";
         return false;
-    }
-    
-    if (args["column"].get<int>() < 1) {
+        }
+
+        if (args["column"].get<int>() < 1) {
         out_error = "Invalid argument: 'column' must be >= 1.";
         return false;
-    }
-    
-    int end_col = args["end_column"].get<int>();
-    if (end_col != 0 && end_col < args["column"].get<int>()) {
-        out_error = "Invalid argument: 'end_column' must be 0 or >= 'column'.";
-        return false;
-    }
+        }
 
-    std::string filename = args["filename"].get<std::string>();
+        if (args["length"].get<int>() < 0) {
+        out_error = "Invalid argument: 'length' must be >= 0.";
+        return false;
+        }
+
+        std::string filename = args["filename"].get<std::string>();
     std::string safe_path;
     if (!ctx.fs_security.validate_access(filename, agentlib::access_type::read, safe_path, out_error)) {
         return false;
@@ -97,6 +96,7 @@ std::unique_ptr<agentlib::llm_tool> flag_as_error_security::create_tool_impl(con
     t_args.safe_path = filename; // We will validate again in execute or just use the filename
     t_args.line = args["line"].get<int>();
     t_args.column = args["column"].get<int>();
+    t_args.length = args["length"].get<int>();
     t_args.error_string = args["error_string"].get<std::string>();
     t_args.is_warning = args["is_warning"].get<bool>();
 

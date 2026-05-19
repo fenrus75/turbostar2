@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+this is a tyop
+
 - next set of tools for agents (once we have sandboxing)
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
     - managing todo lists
@@ -32,7 +34,7 @@
 
 
 - spell check via an LLM call with a good prompt, asking the LLM to flag errors
-   "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any errors"
+   "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any spelling mistake and severe gramatical mistake as error and flag gramatical improvements as warning"
    this can be a temporary new agent connection, that destructs after the agent is done with the spell check
 
 # mid term items
