@@ -62,19 +62,6 @@
     - git add
     - ...
 
-- sandbox using systemd-run external tool calls like compile
-    example "systemd-run --wait -p ProtectSystem=strict -p ProtectHome=read-only -p ReadWritePaths=/home/arjanvandeven/git/turbostar bash"
-    and also
-```bash
-systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
-  -p ProtectHome=tmpfs \
-  -p "BindPaths=$HOME" \
-  -p "WorkingDirectory=$HOME" \
-  /bin/bash
-```
-
-
-
 # done items (move items here on completion)
 
 
