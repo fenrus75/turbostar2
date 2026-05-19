@@ -10,6 +10,7 @@ struct flag_as_error_args {
     std::string safe_path;
     int line;
     int column;
+    int end_column;
     std::string error_string;
     bool is_warning;
 };

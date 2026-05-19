@@ -385,9 +385,17 @@ void window::draw_content() const
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
 					} else if (line_bg_pair != background_color_pair_) {
-						// Build error/warning is active for the whole line.
-						// Override all other highlights to keep the line solid red/yellow.
-						pair = line_bg_pair;
+						// Build error/warning is active for this line.
+						// If end_column is 0, highlight the whole line.
+						// If end_column > 0, highlight only the specified byte range.
+						if (doc_) {
+							auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
+							if (build_err) {
+								if (build_err->end_column == 0 || (static_cast<int>(char_idx) >= build_err->column && static_cast<int>(char_idx) < build_err->end_column)) {
+									pair = line_bg_pair;
+								}
+							}
+						}
 					} else if (diagnostic_severity == 1) { // Error
 						pair = 27; // White on Red
 					} else if (diagnostic_severity == 2) { // Warning

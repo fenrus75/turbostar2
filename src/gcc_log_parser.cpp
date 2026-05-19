@@ -29,6 +29,7 @@ void gcc_log_parser::parse_line(const std::string &line, int output_line, std::v
 		
 		err.line = line_num - 1; // 1-based to 0-based
 		err.column = col_num - 1;
+		err.end_column = 0; // Highlight whole line for compilers
 		err.is_warning = (severity_match == "warning");
 		err.message = message_match;
 		err.output_buffer_line = output_line;

@@ -24,6 +24,7 @@ enum class event_type {
 	replace,      ///< Request to replace text (triggers dialog)
 	format_doc,   ///< Request to format document/range
 	settings,     ///< Request to show settings dialog
+	help,         ///< Request to show help window
 	git_status_updated, ///< Notification that git status has changed
 	git_add,      ///< Request to git-add current file
 	git_refresh,  ///< Request to refresh git status manually
@@ -57,6 +58,7 @@ struct build_error {
 	std::string filepath;
 	int line;
 	int column;
+	int end_column; // Optional: 0 means highlight the whole line
 	std::string message;
 	bool is_warning;
 	int output_buffer_line; // Line in the "Compile Output" doc where this error was found

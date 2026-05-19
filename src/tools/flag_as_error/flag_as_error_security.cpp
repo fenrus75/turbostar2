@@ -21,7 +21,11 @@ nlohmann::json flag_as_error_security::get_parameters_schema() const {
             }},
             {"column", {
                 {"type", "integer"},
-                {"description", "The 1-based column number of the error."}
+                {"description", "The 1-based start column number of the error. Use 1 if unknown."}
+            }},
+            {"end_column", {
+                {"type", "integer"},
+                {"description", "The 1-based end column number of the error. Use 0 to highlight the whole line."}
             }},
             {"error_string", {
                 {"type", "string"},
@@ -44,9 +48,10 @@ bool flag_as_error_security::validate_args_impl(
     if (!args.contains("filename") || !args["filename"].is_string() ||
         !args.contains("line") || !args["line"].is_number() ||
         !args.contains("column") || !args["column"].is_number() ||
+        !args.contains("end_column") || !args["end_column"].is_number() ||
         !args.contains("error_string") || !args["error_string"].is_string() ||
         !args.contains("is_warning") || !args["is_warning"].is_boolean()) {
-        out_error = "Invalid arguments: Requires filename (string), line (int), column (int), error_string (string), is_warning (bool).";
+        out_error = "Invalid arguments: Requires filename (string), line (int), column (int), end_column (int), error_string (string), is_warning (bool).";
         return false;
     }
 
