@@ -132,6 +132,8 @@
 
 # long term items   
 
+- update status bar draw method to support "^" characters in the string, where the ^ means "color the next character red", so we can have hotkeys shown properly
+
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
 	
