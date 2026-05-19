@@ -1,10 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- Help keymapping window is NOT marked read only (it must be)
-	- easy fix, we added read-only capability yesterday
-	- if it was readonly already then read-only does not actually work and we need to fix that
-	- testcase: open the help window, type something, the title bar of the window should not have a "*" in it
-
 - scripts/embed_text.py was not added to git so others could not build
 	- added something temporarily but needs checking
 
@@ -161,6 +156,11 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- Help keymapping window is NOT marked read only (it must be)
+	- easy fix, we added read-only capability yesterday
+	- if it was readonly already then read-only does not actually work and we need to fix that
+	- testcase: open the help window, type something, the title bar of the window should not have a "*" in it
+
 - line::next_utf8_character should be optimized for the common case of single byte. Once we know we're single byte,
   we can just quickly and immediately return that character, no need to do substr and other expensive things.
 	- upside potential: 15%+ of cycles are spent here; half of the drawing cycles

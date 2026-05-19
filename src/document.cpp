@@ -262,6 +262,14 @@ void document::clear_modified()
 	notify_cursor_changed();
 }
 
+void document::set_read_only(bool ro)
+{
+	read_only_ = ro;
+	if (ro) {
+		clear_modified();
+	}
+}
+
 
 std::string document::get_git_branch() const
 {

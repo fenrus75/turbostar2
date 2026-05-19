@@ -19,6 +19,7 @@ namespace fs = std::filesystem;
 void document::insert_char(const std::string &utf8_char)
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -38,6 +39,7 @@ void document::insert_char(const std::string &utf8_char)
 void document::backspace()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	if (cursor_x_ > 0) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -76,6 +78,7 @@ void document::backspace()
 void document::delete_char()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < line_char_len) {
 		begin_edit_group();
@@ -107,6 +110,7 @@ void document::delete_char()
 void document::delete_to_eol()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
@@ -129,6 +133,7 @@ void document::delete_to_eol()
 void document::delete_to_bol()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	int count = cursor_x_;
 	if (count > 0) {
 		begin_edit_group();
@@ -151,6 +156,7 @@ void document::delete_to_bol()
 void document::delete_word_forward()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
@@ -185,6 +191,7 @@ void document::delete_word_forward()
 void document::delete_word_backward()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	if (cursor_x_ == 0) {
 		lock.unlock();
 		notify_cursor_changed();
@@ -219,6 +226,7 @@ void document::delete_word_backward()
 void document::split_line()
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -246,6 +254,7 @@ void document::split_line()
 void document::append_line(const std::string &text)
 {
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	
 	// If the document is just a single empty line, replace it.
 	if (lines_.size() == 1 && lines_[0]->get_text().empty()) {
@@ -303,8 +312,8 @@ void document::trim_top_lines(int max_lines)
 
 void document::delete_line()
 {
-	if (is_read_only()) return;
 	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
 	if (line_count_unlocked() <= 1) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, 0, lines_[0]);
