@@ -1,16 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
 - We need a sandboxing strategy (see systemd stuff below)
-    - before going to systemd, we need to manage all the places we do popen or other commands behind
-      some nice object that we can call ; and then we can make derived objects from this with different
-      security properties
     - this needs to be a per-instance object, since we will be setting security properties on that object
       depending on the location, before the popen() should actually happen.
-
-- missing meson.build dependency, causes race condition in fresh git clones, works on second build:
-    ../src/clangd_manager.cpp:5:10: fatal error: lsp/messages.h: No such file or directory
-    5 | #include <lsp/messages.h>
-
 
 - next set of tools for agents (once we have sandboxing)
     - flag_as_error(filename, line, startpos, endpos, error_string)
@@ -39,8 +31,6 @@
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
 
-- "go to definition" LSP support, even if we have open up a new file
-
 - paste speed is somehow artificially limited, you can almost see the characters beeing typed
   while other editors are instant. Are we repainting every key press always?
    - profiles confirm we spend all CPU time in drawing -- need to re-measure after we solve the o(N^2) there
@@ -52,14 +42,6 @@
 - A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
    - may want to give this a light gray background, but otherwise this is a read only document class
    - means we need to compile the keybindings.md info into our binary -- meson should support this?
-
-- we need to do better about making the document class understand "read only" (never dirty, does not let user edit the content)
-    - agent window
-    - help window
-    - compile window
-
-    option would be to make a "read only" subclass, alternate option is a flag in the main class; hybrid option 
-    is a virtual is_read_only() that the subclass overrides
 
 
 
