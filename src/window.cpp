@@ -261,7 +261,7 @@ void window::draw_content() const
 		int line_bg_pair = background_color_pair_;
 		if (doc_) {
 			auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
-			if (build_err) {
+			if (build_err && build_err->end_column == 0) {
 				line_bg_pair = build_err->is_warning ? 28 : 27;
 			}
 		}
@@ -384,35 +384,38 @@ void window::draw_content() const
 						pair = 8;
 						if (attr == syntax_attribute::keyword)
 							pair = 13;
-					} else if (line_bg_pair != background_color_pair_) {
-						// Build error/warning is active for this line.
-						// If end_column is 0, highlight the whole line.
-						// If end_column > 0, highlight only the specified byte range.
+					} else {
+						// Build error/warning might be active for this line as a sub-line highlight.
 						if (doc_) {
 							auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_filename(), doc_line_idx);
 							if (build_err) {
 								if (build_err->end_column == 0 || (static_cast<int>(char_idx) >= build_err->column && static_cast<int>(char_idx) < build_err->end_column)) {
-									pair = line_bg_pair;
+									pair = build_err->is_warning ? 28 : 27;
 								}
 							}
 						}
-					} else if (diagnostic_severity == 1) { // Error
-						pair = 27; // White on Red
-					} else if (diagnostic_severity == 2) { // Warning
-						pair = 28; // Black on Yellow
-					} else if (is_lsp_highlight) {
-						pair = 25; // Normal on Magenta
-						if (attr == syntax_attribute::keyword)
-							pair = 26; // Keyword on Magenta
-					} else {
-						if (attr == syntax_attribute::keyword)
-							pair = 12;
-						else if (attr == syntax_attribute::heading)
-							pair = 22;
-						else if (attr == syntax_attribute::bold)
-							pair = 23;
-						else if (attr == syntax_attribute::list_item)
-							pair = 24;
+					}
+					
+					// If no build error override happened, fallback to standard diagnostics/highlights
+					if (pair == line_bg_pair && line_bg_pair == background_color_pair_) {
+						if (diagnostic_severity == 1) { // Error
+							pair = 27; // White on Red
+						} else if (diagnostic_severity == 2) { // Warning
+							pair = 28; // Black on Yellow
+						} else if (is_lsp_highlight) {
+							pair = 25; // Normal on Magenta
+							if (attr == syntax_attribute::keyword)
+								pair = 26; // Keyword on Magenta
+						} else {
+							if (attr == syntax_attribute::keyword)
+								pair = 12;
+							else if (attr == syntax_attribute::heading)
+								pair = 22;
+							else if (attr == syntax_attribute::bold)
+								pair = 23;
+							else if (attr == syntax_attribute::list_item)
+								pair = 24;
+						}
 					}
 
 					if (pair != last_attr_pair) {
