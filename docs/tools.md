@@ -20,6 +20,13 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned.
 
+### `fs_read_binary`
+*   **Description:** Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `start_offset` *(integer, optional)*: The 0-based byte offset to start reading from. Defaults to 0.
+    *   `size` *(integer, optional)*: The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.
+
 ### `fs_regexp_lines`
 *   **Description:** Search for a regular expression within a file and return matching lines as a Markdown table.
 *   **Arguments:**

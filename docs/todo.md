@@ -51,8 +51,6 @@
   
 
 - next set of tools for agents (once we have sandboxing)
-    - read_binary_file(filename, start_byte_offset, size) to return a base64 encoded binary file content
-	- describe to the agent as a way to read non-ascii files such as PNG images
     - ask-a-question  (multiple choices, always one "type the answer" one); convention is "ask_user", with a question argument and a list of suggested answers
 	- for now, a modal dialog with cursor navigation between the proposed options and an edit box for custom answer
     - request-access-to-denied file (to add to the security manager, will ask the user)
@@ -146,6 +144,8 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- implemented fs_read_binary to allow LLMs to read binary files (like PNGs) as base64 encoded strings
+
 - update status bar draw method to support "^" characters in the string, where the ^ means "color the next character red", so we can have hotkeys shown properly
 
 - the colors for things in the bottom status bar are red now -- lets switch that to be more like the menu bar
