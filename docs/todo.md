@@ -88,8 +88,6 @@
 - investigate to use the A2C protocol
 	- for now it does not look something we need
 
-- highlight trailing whitespaces somehow in source code?
-
 - map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
 
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
@@ -144,6 +142,9 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- highlight trailing whitespaces somehow in source code?
+   - implemented specifically for C++ using the syntax highlighter architecture. Trailing spaces and tabs are now displayed with a high-contrast white-on-red background.
+
 - implemented fs_read_binary to allow LLMs to read binary files (like PNGs) as base64 encoded strings
 
 - update status bar draw method to support "^" characters in the string, where the ^ means "color the next character red", so we can have hotkeys shown properly

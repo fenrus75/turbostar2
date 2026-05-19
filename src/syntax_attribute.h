@@ -13,5 +13,6 @@ enum class syntax_attribute : uint8_t {
 	heading = 4,
 	bold = 5,
 	italic = 6,
-	list_item = 7
+	list_item = 7,
+	trailing_space = 8
 };

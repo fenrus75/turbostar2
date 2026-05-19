@@ -416,6 +416,8 @@ void window::draw_content() const
 								pair = 23;
 							else if (attr == syntax_attribute::list_item)
 								pair = 24;
+							else if (attr == syntax_attribute::trailing_space)
+								pair = 27; // White on Red
 						}
 					}
 
