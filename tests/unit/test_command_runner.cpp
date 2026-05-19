@@ -1,0 +1,86 @@
+#include "command_runner.h"
+#include "config_manager.h"
+#include <iostream>
+#include <cassert>
+
+class test_command_runner : public command_runner {
+public:
+    std::string test_build_command(const std::string& raw_command) const {
+        return build_command(raw_command);
+    }
+
+protected:
+    void on_output_line(const std::string& line) override {
+        // Not needed for this test
+    }
+};
+
+void assert_contains(const std::string& str, const std::string& substr) {
+    if (str.find(substr) == std::string::npos) {
+        std::cerr << "Assertion failed: String '" << str << "' does not contain '" << substr << "'\n";
+        exit(1);
+    }
+}
+
+void assert_not_contains(const std::string& str, const std::string& substr) {
+    if (str.find(substr) != std::string::npos) {
+        std::cerr << "Assertion failed: String '" << str << "' contains '" << substr << "'\n";
+        exit(1);
+    }
+}
+
+int main() {
+    config_manager::get_instance().set_paranoid_mode(false);
+
+    {
+        test_command_runner runner;
+        runner.apply_default_profile();
+        std::string cmd = runner.test_build_command("echo hello");
+        assert_contains(cmd, "systemd-run");
+        assert_contains(cmd, "-p ProtectHome=tmpfs");
+        assert_contains(cmd, "-p PrivateNetwork=true");
+        assert_contains(cmd, "-- bash -c 'echo hello'");
+    }
+
+    {
+        test_command_runner runner;
+        runner.apply_internal_profile();
+        std::string cmd = runner.test_build_command("echo hello");
+        // bypass_sandbox is true, and paranoid mode is false
+        if (cmd != "echo hello") {
+            std::cerr << "Internal profile should bypass sandbox\n";
+            exit(1);
+        }
+    }
+
+    {
+        test_command_runner runner;
+        runner.apply_build_profile();
+        std::string cmd = runner.test_build_command("make");
+        assert_contains(cmd, "systemd-run");
+        assert_contains(cmd, "-p ProtectHome=read-only");
+        assert_not_contains(cmd, "-p PrivateNetwork=true");
+    }
+
+    {
+        test_command_runner runner;
+        runner.apply_strict_agent_profile();
+        std::string cmd = runner.test_build_command("python script.py");
+        assert_contains(cmd, "systemd-run");
+        assert_contains(cmd, "-p ProtectHome=tmpfs");
+        assert_contains(cmd, "-p PrivateNetwork=true");
+    }
+
+    // Test paranoid mode
+    config_manager::get_instance().set_paranoid_mode(true);
+    {
+        test_command_runner runner;
+        runner.apply_internal_profile();
+        std::string cmd = runner.test_build_command("echo hello");
+        // Even with internal profile, paranoid mode should force systemd-run
+        assert_contains(cmd, "systemd-run");
+    }
+
+    std::cout << "test_command_runner passed!\n";
+    return 0;
+}
