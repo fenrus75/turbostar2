@@ -13,13 +13,13 @@ Before defining rigid "profiles," the `command_runner` (or a subclass like `sand
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `bypass_sandbox` | `bool` | `false` | If true, completely bypasses `systemd-run` and executes via direct `popen()`. Used for high-frequency, trusted internal commands (e.g., `git status`) to avoid the 10-50ms systemd overhead. |
+| `bypass_sandbox` | `bool` | `false` | If true, completely bypasses `systemd-run` and executes via direct `popen()`. Used for high-frequency, trusted internal commands (e.g., `git status`) to avoid the 10-50ms systemd overhead. *Note: A global "Paranoid Mode" setting will override this and force even internal commands into the sandbox.* |
 | `network_access` | `bool` | `false` | If true, allows the process to access the network. If false, maps to `-p PrivateNetwork=true`. |
 | `home_access` | `enum` | `hidden` | `hidden`: maps to `-p ProtectHome=tmpfs`.<br>`read_only`: maps to `-p ProtectHome=read-only`.<br>`read_write`: maps to `-p ProtectHome=yes` (rarely used). |
 | `project_dir` | `string` | `""` | The absolute path to the current project root. If set, this path is always added to `-p "BindPaths=..."` (if `home_access` is hidden) and made read-write. |
 | `extra_rw_paths` | `list<string>`| `[]` | Additional directories to mount as read-write (e.g., specific cache directories if needed). |
 | `extra_ro_paths` | `list<string>`| `[]` | Additional directories to mount as read-only (e.g., `~/.ccache` for non-compile tasks if we are hiding the rest of `$HOME`). |
-| `job_name` | `string` | `""` | An optional identifier for the job. Used to construct the `--unit=` argument for predictable coredumps (e.g., `--unit=turbostar-job-<job_name>-<random>`). |
+| `project_hash` | `string` | `""` | A hash of the `project_dir`. Used to construct the `--unit=` argument for predictable coredumps (e.g., `--unit=turbostar-project-<hash>`). This groups all jobs for a project under a predictable prefix. |
 
 ## The Base `systemd-run` Template
 
@@ -27,7 +27,7 @@ When `bypass_sandbox` is false, the runner will construct a command starting wit
 
 ```bash
 systemd-run --user --pty --pipe --wait \
-  --unit="turbostar-job-<job_name>-<random>" \
+  --unit="turbostar-project-<project_hash>-<random>" \
   -p ProtectSystem=strict \
   -p PrivateTmp=true \
   -p PrivateDevices=true \
@@ -58,6 +58,6 @@ Once the configurable object is built, we can define standard profiles that pre-
 ## Coredump Retrieval
 Because we use `--user` and assign a specific `--unit=` name, capturing a crash is trivial. An LLM agent tool can simply run:
 ```bash
-coredumpctl --user info turbostar-job-<job_name>-<random>
+coredumpctl --user info turbostar-project-<project_hash>-*
 ```
-This avoids needing any custom writable directories in `/var`.
+This avoids needing any custom writable directories in `/var` and groups all crashes for a specific project.
