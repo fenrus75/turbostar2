@@ -25,13 +25,6 @@
     5 | #include <lsp/messages.h>
 
 
-- remember a per filename cursor positioin in our history file
-	- upto say the last 15 files? or 45? space is not really an issue
-
-- colors don't work somehow on a windows setup, we get black on black
-   (solution, change TERM variable from xterm to ms-terminal -- we may not need to do
-   anything other than document in the project README.md)
-
 - next set of tools for agents (once we have sandboxing)
     - flag_as_error(filename, line, startpos, endpos, error_string)
           - code errors but also later for spell checking english/markdown
@@ -61,9 +54,6 @@
   (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
 
 - enhance syntax highlighting -- support a few more things with reasonable colors
-
-- figure out how to make mouse based paste work now that we hijack the mouse cursor
-	- the magic is holding the shift key, that works fine. We need to document in a README.md
 
 - "go to definition" LSP support, even if we have open up a new file
 
