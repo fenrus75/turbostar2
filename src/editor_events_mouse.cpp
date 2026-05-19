@@ -197,6 +197,28 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				}
 			}
 		}
+	} else if (ev.type == event_type::mouse_scroll_up || ev.type == event_type::mouse_scroll_down) {
+		// Find window under mouse
+		for (auto& w_ptr : windows_) {
+			window* w = w_ptr.get();
+			if (ev.mouse_x >= w->get_x() && ev.mouse_x < w->get_x() + w->get_width() &&
+			    ev.mouse_y >= w->get_y() && ev.mouse_y < w->get_y() + w->get_height()) {
+				
+				auto doc = w->get_document();
+				if (doc) {
+					if (ev.type == event_type::mouse_scroll_up) {
+						doc->move_cursor(0, -3); // Scroll up by 3 lines
+					} else {
+						doc->move_cursor(0, 3); // Scroll down by 3 lines
+					}
+					
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+				return;
+			}
+		}
 	}
 
 }

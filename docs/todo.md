@@ -30,10 +30,6 @@
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
 
-- mouse "scroll wheel" support for navigation within a window
-     BUTTON4_PRESSED = up, BUTTON5_PRESSED = down scrollwheel in ncurses
-
-
 - Have a way to run the application (in gdb wrapper?) where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
   if DISPLAY/etc are set
 
@@ -102,6 +98,7 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Implemented mouse scroll wheel support for document navigation (`BUTTON4_PRESSED` up, `BUTTON5_PRESSED` down).
 - Migrated all direct `popen` and `std::system` calls to the `command_runner` abstraction to prepare for sandboxing.
 - Implemented cursor memory. `history_manager` now saves the (x, y) cursor position for each file and restores it upon reopening.
 - Implemented project state persistence. `history_manager` now saves the list of open files per Git project and automatically reopens them when Turbostar is launched without arguments.

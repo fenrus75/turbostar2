@@ -280,6 +280,16 @@ void editor::run()
 							ev.mouse_x = event.x;
 							ev.mouse_y = event.y;
 							global_queue_.push(ev);
+						} else if (event.bstate & BUTTON4_PRESSED) {
+							ev.type = event_type::mouse_scroll_up;
+							ev.mouse_x = event.x;
+							ev.mouse_y = event.y;
+							global_queue_.push(ev);
+						} else if (event.bstate & BUTTON5_PRESSED) {
+							ev.type = event_type::mouse_scroll_down;
+							ev.mouse_x = event.x;
+							ev.mouse_y = event.y;
+							global_queue_.push(ev);
 						}
 					}
 				} else {
