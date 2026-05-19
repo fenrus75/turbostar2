@@ -156,3 +156,13 @@ For end-to-end (E2E) tests that involve complex content manipulation (e.g., bloc
 1.  **`assert_content_is(reference_file)`**: This primitive triggers a "Save As" operation within the editor to a temporary file and compares the resulting disk content against a "golden" reference file in `tests/data/`.
 2.  **Why**: Comparing whole-file content on disk is significantly more robust than screen-scraping, as it is immune to scrolling issues, viewport limitations, and TUI rendering artifacts.
 3.  **Diff Diagnostics**: If a mismatch occurs, the testing framework automatically prints a `diff -u` style output to the console to facilitate rapid debugging.
+
+## LLM Agent Security & Validation
+
+All tools exposed to the LLM agent must strictly adhere to the following architecture to prevent malicious or accidental disruption:
+
+- **Two-Stage Validation:**
+  - **Stage 1 (Automated Schema & Pre-invocation):** The central `tool_validator::validate_args` base method automatically performs a "test parse" against the JSON schema defined by `get_parameters_schema()`. It strictly enforces that all `required` properties are present and that their data types match exactly (e.g., rejecting strings passed as integers). The entire parsing loop is wrapped in a `try...catch` block to gracefully capture exceptions thrown by the JSON engine and return the exact rejection string to the LLM. Following schema validation, the tool implementation performs path validation against the `file_security_manager`.
+  - **Stage 2 (Runtime Contextual):** Validations that require access to the instantiated tool state or dynamic runtime context (e.g., verifying a file exists before modifying it).
+- **Hard Rule:** Raw LLM-provided JSON payloads must NEVER be passed directly to execution logic or external processes without first passing the centralized schema and type validations.
+- **Sandboxed Execution:** External command tools (like compile scripts or arbitrary python scripts) must use the `command_runner` profiles which inherently map to isolated `systemd-run` environments.
