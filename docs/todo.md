@@ -74,10 +74,6 @@
    - we may need to see if more keys are in the ncurses queue and get them all into a string and make one event?
    - we may need to suppress or group repaints 
 
-
-- if you have a new (untitled) document and type there, you cannot exit the application anymore until you save-as a name
-    - we should build a test case for this 
-
 - A way to get a help screen, that's a window that shows all the key bindings (a virtual file basically)
    - may want to give this a light gray background, but otherwise this is a read only document class
    - means we need to compile the keybindings.md info into our binary -- meson should support this?
@@ -127,6 +123,8 @@ systemd-run --pty --pipe --uid=$(id -u) --gid=$(id -g) \
 
 
 ## 18-05-2026
+- Fixed `lsp/messages.h` missing header race condition in fresh clones by correctly mapping `lsp_generated` in the `lsp_dep` dependency.
+- Fixed the issue where users were trapped in an exit loop if they had an unnamed dirty document by simplifying the save_prompt to save-as flow.
 - Added support for standard keyboard navigation and editing keys (`<HOME>`, `<END>`, `<PGUP>`, `<PGDN>`, and `<DELETE>`).
 - Fixed draw performance issue (O(N^2) CPU spike) by implementing `next_utf8_character` in the `line` class for O(1) character extraction.
 - Optimized `window::draw_content` by reusing the byte offset across the loop and caching `attrset(COLOR_PAIR(pair))` calls to avoid redundant terminal updates.

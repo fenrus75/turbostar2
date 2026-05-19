@@ -246,6 +246,13 @@ if python.found()
     timeout: 60
   )
 
+  test('e2e_untitled_save_loop', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_untitled_save_loop.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+
   test('e2e_force_quit', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_force_quit.py')],
     env: e2e_env,

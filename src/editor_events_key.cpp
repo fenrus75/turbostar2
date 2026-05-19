@@ -127,89 +127,60 @@ void editor::dispatch_event_key(const editor_event &ev)
 						config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
 						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
 						config_manager::get_instance().save();
-					}
-				} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
-					std::string result = active_dialog_->get_result();
-					
-					active_dialog_.reset();
-					active_dialog_mode_ = dialog_mode::none;
-					set_focus(focus_target::window, "dialog_close");
-					
-					if (result == "yes") {
-						editor_event save_ev;
-						save_ev.type = event_type::save;
-						global_queue_.push(save_ev);
-						
-						editor_event close_ev;
-						close_ev.type = event_type::close_window;
-						// Using key_code 1 as a force flag to bypass the prompt again
-						close_ev.key_code = 1; 
-						global_queue_.push(close_ev);
-						
-					} else if (result == "no") {
-						if (doc) doc->clear_modified();
-						editor_event close_ev;
-						close_ev.type = event_type::close_window;
-						close_ev.key_code = 1;
-						global_queue_.push(close_ev);
-					}
-					// If "cancel", do nothing
-				} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
-					std::string res = active_dialog_->get_result();
-					if (res == "exit") {
+						}
+						} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
+						std::string res = active_dialog_->get_result();
+						if (res == "exit") {
 						is_running_ = false;
-					} else if (res == "save_all") {
+						} else if (res == "save_all") {
 						editor_event save_all_ev;
 						save_all_ev.type = event_type::save_all;
 						global_queue_.push(save_all_ev);
-						
+
 						// Push another force_quit to retry exiting after saving
 						editor_event quit_ev;
 						quit_ev.type = event_type::force_quit;
 						global_queue_.push(quit_ev);
-					}
-					
-					active_dialog_.reset();
-					active_dialog_mode_ = dialog_mode::none;
-					if (res == "cancel") {
+						}
+
+						active_dialog_.reset();
+						active_dialog_mode_ = dialog_mode::none;
+						if (res == "cancel") {
 						set_focus(focus_target::window, "dialog_close");
-					}
-					return;
-				} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
-					std::string res = active_dialog_->get_result();
-					active_dialog_.reset();
-					active_dialog_mode_ = dialog_mode::none;
-					set_focus(focus_target::window, "dialog_close");
-					
-					if (res == "save") {
+						}
+						return;
+						} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
+						std::string res = active_dialog_->get_result();
+						active_dialog_.reset();
+						active_dialog_mode_ = dialog_mode::none;
+						set_focus(focus_target::window, "dialog_close");
+
+						if (res == "save") {
 						if (doc->get_filename().empty()) {
 							// Needs Save As
 							editor_event save_as_ev;
 							save_as_ev.type = event_type::save_as;
 							global_queue_.push(save_as_ev);
-							// Re-queue the close event to happen after save_as
-							editor_event close_ev;
-							close_ev.type = event_type::close_window;
-							global_queue_.push(close_ev);
+							// We intentionally do not queue close_window here to avoid a loop.
+							// The user can close the window after saving.
 						} else {
 							doc->save();
 							editor_event close_ev;
 							close_ev.type = event_type::close_window;
 							global_queue_.push(close_ev);
 						}
-					} else if (res == "discard") {
+						} else if (res == "discard") {
 						editor_event close_ev;
 						close_ev.type = event_type::close_window;
 						close_ev.key_code = 1; // Force close
 						global_queue_.push(close_ev);
-					} else if (res == "cancel") {
+						} else if (res == "cancel") {
 						// Do nothing, abort close
-					}
-					return;
-				}
+						}
+						return;
+						}
 
-				active_dialog_.reset();
-				active_dialog_mode_ = dialog_mode::none;
+						active_dialog_.reset();				active_dialog_mode_ = dialog_mode::none;
 				set_focus(focus_target::window, "dialog_close");
 
 			} else if (res == dialog_result::cancelled) {
