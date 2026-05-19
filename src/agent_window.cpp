@@ -215,7 +215,9 @@ void agent_window::submit_prompt() {
                     
                     // Notify UI about the tool result (truncate to a single line preview unless it's a structural error)
                     std::string result_preview = tool_result;
-                    if (result_preview.find("Stage 1 Security Violation:") != 0 && result_preview.find("Execution Error:") != 0) {
+                    if (result_preview.find("Stage 1 Security Violation:") != 0 && 
+                        result_preview.find("Execution Error:") != 0 &&
+                        result_preview.find("Error parsing tool arguments:") != 0) {
                         size_t newline_pos = result_preview.find('\n');
                         if (newline_pos != std::string::npos) {
                             result_preview = result_preview.substr(0, newline_pos) + " ...";

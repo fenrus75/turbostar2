@@ -52,14 +52,20 @@ std::string tool_registry::execute_tool(const std::string& name, const std::stri
 
     // Stage 1 Security: Pre-invocation validation
     std::string security_error;
-    if (!validator->validate_args(args, ctx, security_error)) {
-        return "Stage 1 Security Violation: " + security_error;
-    }
+    std::unique_ptr<agentlib::llm_tool> tool;
+    
+    try {
+        if (!validator->validate_args(args, ctx, security_error)) {
+            return "Stage 1 Security Violation: " + security_error;
+        }
 
-    // Create the tool instance (will fail if validate_args wasn't called)
-    auto tool = validator->create_tool(args);
-    if (!tool) {
-        return "Error: Failed to instantiate tool. Validation state invalid.";
+        // Create the tool instance (will fail if validate_args wasn't called)
+        tool = validator->create_tool(args);
+        if (!tool) {
+            return "Error: Failed to instantiate tool. Validation state invalid.";
+        }
+    } catch (const std::exception& e) {
+        return "Error parsing tool arguments: " + std::string(e.what());
     }
 
     // Stage 2 Security: Runtime/Contextual validation
