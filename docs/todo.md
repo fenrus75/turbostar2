@@ -18,10 +18,10 @@
   we can just quickly and immediately return that character, no need to do substr and other expensive things.
 	- upside potential: 15%+ of cycles are spent here; half of the drawing cycles
 
-- in window.cpp in the draw function , we currently call ncurses one character at a time. For performance
-   we should consider consolidating/buffering into a string and print the whole string.
-   - we will need to "flush" this string before changing the attribute
-   - and flush at the end of the line
+- we may need to rate-limit wrefresh()
+	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
+	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
+
 
 - support namespaces (URI's) for "not really" files -- must be read only
    - example: skills://someskill/foo.md
@@ -31,6 +31,8 @@
       - con of content: memory use
       - hybrid: have 2 maps - URI->filename but a demand-filled URI->content ?
       - needs evaluation of pros/cons before deciding to implement
+   - need an api for the system to populate this namespace
+   - need to support directory listings as well
    - read_lines / read file kind of operations should work transparently for these
       - the LLM should not need to care
 
