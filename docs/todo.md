@@ -22,13 +22,15 @@
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
 
+- do we need a whole fresh on a cursor move within the screen? or just update the cursor position
+
 
 - support namespaces (URI's) for "not really" files -- must be read only
    - example: skills://someskill/foo.md
    - would be a pre-declared std::map<string, string>
       - design decision: do we make this a URI->filename mapping or a direct URI->content mapping?
       - pro of content: thinking about security/sandboxing is easier
-      - con of content: memory use
+      - con of content: memory use, but skills are not supposed to be gigantic
       - hybrid: have 2 maps - URI->filename but a demand-filled URI->content ?
       - needs evaluation of pros/cons before deciding to implement
    - need an api for the system to populate this namespace
