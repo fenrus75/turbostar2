@@ -1,5 +1,6 @@
 #include "skill_manager.h"
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
 
 namespace agentlib {
@@ -27,16 +28,43 @@ void skill_manager::initialize() {
     }
 
     try {
-        for (const auto& entry : std::filesystem::directory_iterator(skills_base)) {
-            if (entry.is_directory()) {
-                std::string skill_name = entry.path().filename().string();
-                
-                skill new_skill;
-                new_skill.name = skill_name;
-                new_skill.root_path = entry.path();
-                skills_.push_back(new_skill);
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(skills_base)) {
+            if (entry.is_regular_file() && entry.path().filename() == "SKILL.md") {
+                std::ifstream file(entry.path());
+                std::string line;
+                if (std::getline(file, line) && line == "---") {
+                    std::string name;
+                    std::string description;
+                    bool in_desc = false;
+                    while (std::getline(file, line) && line != "---") {
+                        if (line.starts_with("name:")) {
+                            name = line.substr(5);
+                            name.erase(0, name.find_first_not_of(" \t"));
+                            in_desc = false;
+                        } else if (line.starts_with("description:")) {
+                            description = line.substr(12);
+                            description.erase(0, description.find_first_not_of(" \t"));
+                            in_desc = true;
+                        } else if (in_desc) {
+                            if (description.length() < 1024) {
+                                if (!description.empty()) description += "\n";
+                                description += line;
+                            }
+                        } else {
+                            in_desc = false;
+                        }
+                    }
 
-                scan_and_mount(entry.path(), skill_name);
+                    if (!name.empty()) {
+                        skill new_skill;
+                        new_skill.name = name;
+                        new_skill.description = description;
+                        new_skill.root_path = entry.path().parent_path();
+                        skills_.push_back(new_skill);
+
+                        scan_and_mount(new_skill.root_path, name);
+                    }
+                }
             }
         }
     } catch (...) {
