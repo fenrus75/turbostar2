@@ -14,6 +14,8 @@ public:
 
     message send_chat(const std::vector<message>& conversation, const tool_registry* registry = nullptr);
 
+    void cancel();
+
 private:
     std::shared_ptr<llm_transport> transport_;
 };

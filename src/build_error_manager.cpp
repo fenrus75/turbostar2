@@ -16,6 +16,7 @@ void build_error_manager::clear()
 	errors_.clear();
 	current_index_ = -1;
 	last_compile_time_ = std::time(nullptr);
+	has_errors_ = false;
 }
 
 void build_error_manager::add_error(const build_error &err)
@@ -26,6 +27,7 @@ void build_error_manager::add_error(const build_error &err)
 		normalized_err.filepath = fs_utils::safe_absolute(normalized_err.filepath).string();
 	}
 	errors_.push_back(normalized_err);
+	has_errors_ = true;
 }
 
 const std::vector<build_error>& build_error_manager::get_errors() const
@@ -57,8 +59,9 @@ void build_error_manager::reset_navigation()
 
 std::optional<build_error> build_error_manager::find_error_at(const std::string& filepath, int line) const
 {
+	if (!has_errors_ || filepath.empty()) return std::nullopt;
+
 	std::lock_guard lock(mutex_);
-	if (filepath.empty()) return std::nullopt;
 
 	for (const auto& err : errors_) {
 		if (err.line == line) {

@@ -46,4 +46,10 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
     return result_msg;
 }
 
+void llm_client::cancel() {
+    if (transport_) {
+        transport_->cancel();
+    }
+}
+
 } // namespace agentlib

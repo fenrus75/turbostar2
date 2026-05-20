@@ -1,10 +1,12 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- the agent prompt edit box has no cursor -- this is a huge usabilithy issue
+
 - we may need to rate-limit wrefresh()
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
 
-- do we need a whole fresh on a cursor move within the screen? or just update the cursor position
+- do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
 
 - next set of tools for agents (once we have sandboxing)
     - request-access-to-denied file (to add to the security manager, will ask the user)
@@ -26,6 +28,8 @@
 	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
 	- we may need a ~/.cache/turbostar directory for this sort of thing
 
+
+- should we send the initial system prompt and tool info as we open the window and not wait for the first user prompt?
 
 - we need to build a general coredump tracking infrastructure
     - have a list of coredumps that come from build and test and run
