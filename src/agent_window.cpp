@@ -345,4 +345,9 @@ void agent_window::render_input_box() const {
         mvaddstr(input_box_y + 2, input_box_x, " Press ENTER to send. ");
     }
     attrset(0);
+    
+    // Position hardware cursor
+    if (!is_waiting_for_llm_) {
+        move(input_box_y + 1, input_box_x + 2 + display_text.length());
+    }
 }

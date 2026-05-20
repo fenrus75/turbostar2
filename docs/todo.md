@@ -1,12 +1,15 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- the agent prompt edit box has no cursor -- this is a huge usabilithy issue
-
 - we may need to rate-limit wrefresh()
 	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
 	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
+   - a "need_cursor_update" would be good in addition to need-screen-refresh,
+     that was "small" cursor movements don't need a redraw of the content, only the status bar
+
+- we need a model class that tracks url, model name, purpose, cost, api key for each model
+   - over time we can use this to switch models dynamically
 
 - next set of tools for agents (once we have sandboxing)
     - request-access-to-denied file (to add to the security manager, will ask the user)
@@ -22,6 +25,7 @@
 	- needs a way to ask the user for permission
         - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; coredump_get_info(nr) and coredump_list() and over time a coredump_gdb()
+    - list_tool_calls() - return markdown table
     - get_current_datetime -- markdown table of unix time, and year, month, day, hour, minutes, seconds, timezone
     - sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
 	- need to decide where to store the databases ; that is the hard part
@@ -29,6 +33,8 @@
 	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
 	- we may need a ~/.cache/turbostar directory for this sort of thing
 
+
+- track which skills got activated and visuall mark them as such
 
 - should we send the initial system prompt and tool info as we open the window and not wait for the first user prompt?
 
@@ -46,6 +52,10 @@
 
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
+
+- a function that works on a document, with start and finish lines, and aligns markdown table | lines vertically
+   - step 1: track widest field on a per column basis
+   - step 2: pad all cells to their target width
 
 - Have a way to run the application where the editor leaves the whole screen for the app until it exits, or we launch a new terminal
   if DISPLAY/etc are set. Need to run it with our systemd-run wrapper so we can collect any coredumps easily
@@ -99,6 +109,8 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- the agent prompt edit box has no cursor -- this is a huge usabilithy issue
+   - Fixed by correctly positioning the hardware cursor using `move()` at the end of the `input_buffer_` during the agent window render cycle.
 - map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
    - mapped `<ESC>` (key code 27) in the Agent Window to trigger the cancel method on the LLM client transport layer.
 - in find_error_at, should we short circuit without taking the lock if we have no error information at all?
