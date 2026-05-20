@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include "virtual_file_system.h"
 
 namespace agentlib {
 
@@ -13,6 +14,9 @@ enum class access_type {
 class file_security_manager {
 public:
     file_security_manager();
+
+    void set_vfs(virtual_file_system* vfs) { vfs_ = vfs; }
+    virtual_file_system* get_vfs() const { return vfs_; }
 
     // Set the base directory that relative paths should be resolved against
     void set_working_directory(const std::filesystem::path& cwd);
@@ -36,6 +40,8 @@ public:
                          std::string& out_error) const;
 
 private:
+    virtual_file_system* vfs_{nullptr};
+
     struct allowed_path {
         std::filesystem::path path;
         access_type perm;

@@ -43,6 +43,18 @@ bool virtual_file_system::mount_file(const std::string& uri, const std::string& 
     auto handle = std::make_unique<mmap_handle>();
     handle->data = mapped;
     handle->size = sb.st_size;
+    handle->type = 'F';
+    
+    size_t lines = 0;
+    if (sb.st_size > 0 && mapped && mapped != MAP_FAILED) {
+        lines = 1;
+        const char* p = static_cast<const char*>(mapped);
+        const char* end = p + sb.st_size;
+        for (; p < end; ++p) {
+            if (*p == '\n') lines++;
+        }
+    }
+    handle->size_in_lines = lines;
     
     mounts_[uri] = std::move(handle);
     return true;
@@ -78,7 +90,7 @@ std::optional<std::string_view> virtual_file_system::read_file(const std::string
 std::optional<vfs_file_info> virtual_file_system::get_file_info(const std::string& uri) const {
     auto it = mounts_.find(uri);
     if (it != mounts_.end()) {
-        return vfs_file_info{uri, it->second->size};
+        return vfs_file_info{uri, it->second->size, it->second->type, it->second->size_in_lines};
     }
     return std::nullopt;
 }
@@ -87,7 +99,7 @@ std::vector<vfs_file_info> virtual_file_system::list_directory(const std::string
     std::vector<vfs_file_info> results;
     auto it = mounts_.lower_bound(prefix);
     while (it != mounts_.end() && it->first.starts_with(prefix)) {
-        results.push_back({it->first, it->second->size});
+        results.push_back({it->first, it->second->size, it->second->type, it->second->size_in_lines});
         ++it;
     }
     return results;

@@ -14,9 +14,6 @@ public:
 
 private:
     std::string safe_path_;
-
-    // Helper for fast, binary-safe line counting
-    std::string count_lines_if_text(const std::string& filepath) const;
 };
 
 class fs_list_dir_validator : public agentlib::single_file_tool_validator {

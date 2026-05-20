@@ -61,7 +61,33 @@ bool fs_read_binary_tool::validate_runtime(const agentlib::tool_context& /*ctx*/
     return true;
 }
 
-std::string fs_read_binary_tool::execute(agentlib::tool_context& /*ctx*/) {
+std::string fs_read_binary_tool::execute(agentlib::tool_context& ctx) {
+    if (args_.safe_path.starts_with("skills://")) {
+        auto vfs = ctx.fs_security.get_vfs();
+        if (vfs) {
+            auto view_opt = vfs->read_file(args_.safe_path);
+            if (view_opt) {
+                std::string_view view = view_opt.value();
+                size_t start = args_.start_offset;
+                if (start >= view.length()) {
+                    return "Error: start_offset is out of bounds.";
+                }
+                size_t len = view.length() - start;
+                if (args_.size >= 0 && static_cast<size_t>(args_.size) < len) {
+                    len = args_.size;
+                }
+                if (len > 50 * 1024 * 1024) {
+                    len = 50 * 1024 * 1024;
+                }
+                if (len == 0) {
+                    return "";
+                }
+                return base64_encode(std::span<const unsigned char>(reinterpret_cast<const unsigned char*>(view.data()) + start, len));
+            }
+        }
+        return "Error: Virtual file not found or not mounted.";
+    }
+
     struct stat sb;
     if (stat(args_.safe_path.c_str(), &sb) == -1) {
         return "Error: File does not exist or cannot be accessed.";

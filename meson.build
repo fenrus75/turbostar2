@@ -79,19 +79,19 @@ test_command_runner = executable('test_command_runner',
 test('unit_command_runner', test_command_runner)
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
-  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp'],
+  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [nlohmann_json_dep],
   include_directories: 'src')
 test('unit_tool_infrastructure', test_tool_infrastructure)
 
 test_file_security = executable('test_file_security',
-  ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp'],
+  ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [],
   include_directories: 'src')
 test('unit_file_security', test_file_security)
 
 test_fs_replace_lines = executable('test_fs_replace_lines',
-  ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp'],
+  ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp'],
   dependencies : [nlohmann_json_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines)

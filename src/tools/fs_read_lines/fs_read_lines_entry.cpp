@@ -30,7 +30,45 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context& ctx) {
     args_.start_line = start;
     args_.end_line = end;
 
-    // 2. Try reading from active editor document first
+    // 2. Intercept VFS paths (skills://)
+    if (args_.safe_path.starts_with("skills://")) {
+        auto vfs = ctx.fs_security.get_vfs();
+        if (vfs) {
+            auto view_opt = vfs->read_file(args_.safe_path);
+            if (view_opt) {
+                std::string_view view = view_opt.value();
+                
+                // Very basic line slicing from string_view
+                std::stringstream ss;
+                int current_line = 1;
+                size_t start_pos = 0;
+                
+                while (start_pos < view.length()) {
+                    size_t end_pos = view.find('\n', start_pos);
+                    std::string_view line = (end_pos == std::string_view::npos) 
+                                          ? view.substr(start_pos) 
+                                          : view.substr(start_pos, end_pos - start_pos);
+                    
+                    if (current_line >= args_.start_line && current_line <= args_.end_line) {
+                        ss << line << "\n";
+                    } else if (current_line > args_.end_line) {
+                        break;
+                    }
+                    
+                    start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
+                    current_line++;
+                }
+                
+                if (ss.str().empty()) {
+                    return "Requested line range is empty or past the end of the file.";
+                }
+                return ss.str();
+            }
+        }
+        return "Error: Virtual file not found or not mounted.";
+    }
+
+    // 3. Try reading from active editor document first
     if (ctx.doc_provider) {
         auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
         if (doc_snapshot) {

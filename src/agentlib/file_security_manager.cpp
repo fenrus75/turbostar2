@@ -60,6 +60,19 @@ bool file_security_manager::validate_access(const std::string& requested_path,
                                             std::string& out_resolved_path, 
                                             std::string& out_error) const {
     
+    if (requested_path.starts_with("skills://")) {
+        if (requested_perm == access_type::write) {
+            out_error = "Virtual files (skills://) are read-only.";
+            return false;
+        }
+        if (vfs_ && (vfs_->exists(requested_path) || !vfs_->list_directory(requested_path).empty())) {
+            out_resolved_path = requested_path;
+            return true;
+        }
+        out_error = "Virtual file or directory not found or not mounted.";
+        return false;
+    }
+
     std::filesystem::path p(requested_path);
     
     // 1. Resolve to Absolute

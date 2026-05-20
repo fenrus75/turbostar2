@@ -11,6 +11,11 @@ namespace fs_utils {
 	std::filesystem::path safe_absolute(const std::filesystem::path& p);
 
 	/**
+	 * @brief Rapidly counts the number of lines in a file by scanning memory. Returns empty string if file is binary or too large.
+	 */
+	std::string count_lines_in_file(const std::string& filepath);
+
+	/**
 	 * @brief Parses compile_commands.json to find the exact compile command for a file.
 	 */
 	std::string get_compile_command_for_file(const std::string& filepath, const std::string& build_dir);
