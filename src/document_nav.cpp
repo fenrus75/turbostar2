@@ -71,6 +71,7 @@ void document::move_to_eol()
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	}
+	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
 }
