@@ -421,18 +421,20 @@ dialog_result ask_user_dialog::handle_key(int key)
 		return dialog_result::pending;
 	}
 	
+	if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		if (focus_idx_ == static_cast<int>(options_.size() + 2)) {
+			return dialog_result::cancelled;
+		} else {
+			return dialog_result::confirmed;
+		}
+	}
+
 	if (focus_idx_ == static_cast<int>(options_.size())) {
 		// Text box is focused
 		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
 			if (!custom_answer_.empty()) custom_answer_.pop_back();
 		} else if (key >= 32 && key <= 126) {
 			custom_answer_ += static_cast<char>(key);
-		}
-	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
-		if (focus_idx_ == static_cast<int>(options_.size() + 2)) {
-			return dialog_result::cancelled;
-		} else {
-			return dialog_result::confirmed;
 		}
 	}
 	return dialog_result::pending;

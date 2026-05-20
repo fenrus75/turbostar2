@@ -75,6 +75,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::agent_response:
 		case event_type::agent_tool_update:
 		case event_type::apply_edits:
+		case event_type::prompt_user:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:

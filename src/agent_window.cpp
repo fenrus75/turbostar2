@@ -14,7 +14,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
     state_ = std::make_shared<agent_window_state>(global_queue, doc_provider);
 
     // Create the document for the chat history
-    chat_history_ = std::make_shared<document>(state_->global_queue);
+    chat_history_ = std::make_shared<document>(state_->global_queue, "Agent Chat");
     chat_history_->set_read_only(true);
     attach_document(chat_history_);
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
@@ -84,6 +84,7 @@ bool agent_window::process_events() {
 void agent_window::append_response(const std::string& response_text) {
     is_waiting_for_llm_ = false;
 
+    chat_history_->set_read_only(false);
     // Append response lines
     size_t start = 0;
     while (start < response_text.length()) {
@@ -97,15 +98,18 @@ void agent_window::append_response(const std::string& response_text) {
     }
 
     chat_history_->append_line(""); // Spacer
-    
-    // Auto-scroll to bottom
+    chat_history_->set_read_only(true);
+
     chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
 }
 
 void agent_window::append_tool_update(const std::string& tool_text) {
+    chat_history_->set_read_only(false);
     chat_history_->append_line("*Executing tool: " + tool_text + "*");
+    chat_history_->set_read_only(true);
+
     chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
@@ -117,8 +121,11 @@ void agent_window::submit_prompt() {
     is_waiting_for_llm_ = true;
 
     // Echo to history
+    chat_history_->set_read_only(false);
     chat_history_->append_line("> " + prompt);
     chat_history_->append_line("");
+    chat_history_->set_read_only(true);
+    
     chat_history_->clear_modified();
     chat_history_->move_to_bottom();
     invalidate();
