@@ -47,7 +47,7 @@ void skill_manager::initialize() {
                             in_desc = true;
                         } else if (in_desc) {
                             if (description.length() < 1024) {
-                                if (!description.empty()) description += "\n";
+                                if (!description.empty()) description += " ";
                                 description += line;
                             }
                         } else {

@@ -20,15 +20,7 @@ std::string list_skills_tool::execute(agentlib::tool_context& /*ctx*/) {
     ss << "| ---------- | --- | ----------- |\n";
     
     for (const auto& s : skills) {
-        // Simple sanitization for markdown table (replacing newlines with spaces)
-        std::string desc_sanitized = s.description;
-        for (char& c : desc_sanitized) {
-            if (c == '\n' || c == '\r') {
-                c = ' ';
-            }
-        }
-        
-        ss << "| " << s.name << " | " << s.uri << " | " << desc_sanitized << " |\n";
+        ss << "| " << s.name << " | " << s.uri << " | " << s.description << " |\n";
     }
 
     return ss.str();
