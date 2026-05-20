@@ -26,7 +26,6 @@
         - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; coredump_get_info(nr) and coredump_list() and over time a coredump_gdb()
     - list_tool_calls() - return markdown table
-    - get_current_datetime -- markdown table of unix time, and year, month, day, hour, minutes, seconds, timezone
     - sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
 	- need to decide where to store the databases ; that is the hard part
 	- maybe also need sqlite_create_db(database) sqlite_delete_db(database)
@@ -109,6 +108,7 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- get_current_datetime -- markdown table of unix time, and year, month, day, hour, minutes, seconds, timezone
 - the agent prompt edit box has no cursor -- this is a huge usabilithy issue
    - Fixed by correctly positioning the hardware cursor using `move()` at the end of the `input_buffer_` during the agent window render cycle.
 - map the <ESC> key or equivalent to a <stop> kind of thing with the LLM

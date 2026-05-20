@@ -15,6 +15,8 @@ tools_sources = files(
   'activate_skill/activate_skill_security.cpp',
   'list_skills/list_skills_entry.cpp',
   'list_skills/list_skills_security.cpp',
+  'get_current_datetime/get_current_datetime_entry.cpp',
+  'get_current_datetime/get_current_datetime_security.cpp',
   'fs_regexp_lines/fs_regexp_lines_entry.cpp',
   'fs_regexp_lines/fs_regexp_lines_security.cpp',
   'fs_compile_info/fs_compile_info_entry.cpp',

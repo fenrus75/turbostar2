@@ -121,7 +121,6 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.
 *   **Arguments:** None.
 
-### `get_temperature`
-*   **Description:** (Demo tool) Get the current temperature in a given location.
-*   **Arguments:**
-    *   `location` *(string, required)*: The location to check, e.g., "San Francisco, CA" or "Mars".
+### `get_current_datetime`
+*   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
+*   **Arguments:** None.
