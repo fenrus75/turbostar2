@@ -104,17 +104,19 @@ int line::length_in_chars() const
 	return chars;
 }
 
-std::string line::next_utf8_character(size_t &byte_offset) const
+bool line::next_utf8_character(size_t &byte_offset, std::string& out_char) const
 {
 	std::shared_lock lock(mutex_);
-	if (byte_offset >= text_.length())
-		return "";
+	if (byte_offset >= text_.length()) {
+		out_char.clear();
+		return false;
+	}
 
 	unsigned char c = static_cast<unsigned char>(text_[byte_offset]);
 	if (c < 0x80) {
-		std::string result(1, static_cast<char>(c));
+		out_char.assign(1, static_cast<char>(c));
 		byte_offset++;
-		return result;
+		return true;
 	}
 
 	size_t char_len = 1;
@@ -128,9 +130,9 @@ std::string line::next_utf8_character(size_t &byte_offset) const
 	if (byte_offset + char_len > text_.length())
 		char_len = text_.length() - byte_offset;
 
-	std::string result = text_.substr(byte_offset, char_len);
+	out_char.assign(text_, byte_offset, char_len);
 	byte_offset += char_len;
-	return result;
+	return true;
 }
 
 void line::insert_at(int char_pos, const std::string &utf8_char)
