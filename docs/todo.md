@@ -22,6 +22,7 @@
 	- needs a way to ask the user for permission
         - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; coredump_get_info(nr) and coredump_list() and over time a coredump_gdb()
+    - get_current_datetime -- markdown table of unix time, and year, month, day, hour, minutes, seconds, timezone
     - sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
 	- need to decide where to store the databases ; that is the hard part
 	- maybe also need sqlite_create_db(database) sqlite_delete_db(database)
