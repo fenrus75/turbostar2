@@ -9,6 +9,8 @@ tools_sources = files(
   'fs_read_lines/fs_read_lines_security.cpp',
   'fs_read_binary/fs_read_binary_entry.cpp',
   'fs_read_binary/fs_read_binary_security.cpp',
+  'ask_user/ask_user_entry.cpp',
+  'ask_user/ask_user_security.cpp',
   'fs_regexp_lines/fs_regexp_lines_entry.cpp',
   'fs_regexp_lines/fs_regexp_lines_security.cpp',
   'fs_compile_info/fs_compile_info_entry.cpp',

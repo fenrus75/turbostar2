@@ -125,3 +125,23 @@ class force_quit_dialog : public dialog
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	int remaining_seconds_{5};
 };
+
+/**
+ * @brief A dialog box asking a question with multiple choices.
+ */
+class ask_user_dialog : public dialog
+{
+      public:
+	ask_user_dialog(const std::string& question, const std::vector<std::string>& options);
+	~ask_user_dialog() override = default;
+
+	void draw() const override;
+	dialog_result handle_key(int key) override;
+	std::string get_result() const override;
+
+      private:
+	std::string question_;
+	std::vector<std::string> options_;
+	int focus_idx_{0};
+	std::string custom_answer_;
+};

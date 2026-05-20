@@ -119,6 +119,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (doc) {
 						doc->insert_file(result_path);
 					}
+				} else if (active_dialog_mode_ == dialog_mode::ask_user) {
+					if (active_ask_user_promise_) {
+						active_ask_user_promise_->set_value(active_dialog_->get_result());
+						active_ask_user_promise_.reset();
+					}
 				} else if (active_dialog_mode_ == dialog_mode::settings) {
 					auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
 					if (s_dialog) {
@@ -187,6 +192,12 @@ void editor::dispatch_event_key(const editor_event &ev)
 				set_focus(focus_target::window, "dialog_close");
 
 			} else if (res == dialog_result::cancelled) {
+				if (active_dialog_mode_ == dialog_mode::ask_user) {
+					if (active_ask_user_promise_) {
+						active_ask_user_promise_->set_value("");
+						active_ask_user_promise_.reset();
+					}
+				}
 				active_dialog_.reset();
 				active_dialog_mode_ = dialog_mode::none;
 				set_focus(focus_target::window, "dialog_cancel");

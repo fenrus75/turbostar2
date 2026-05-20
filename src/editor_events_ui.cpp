@@ -195,4 +195,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		return;
 	}
+
+	if (ev.type == event_type::prompt_user) {
+		logger.log("Dispatching prompt_user event.");
+		active_ask_user_promise_ = ev.prompt_promise;
+		active_dialog_ = std::make_unique<ask_user_dialog>(ev.payload, ev.prompt_options);
+		active_dialog_mode_ = dialog_mode::ask_user;
+		set_focus(focus_target::dialog, "prompt_user");
+		return;
+	}
 }

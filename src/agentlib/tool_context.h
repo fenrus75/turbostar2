@@ -1,6 +1,7 @@
 #pragma once
 #include "file_security_manager.h"
 #include "document_provider.h"
+#include "../event_queue.h"
 
 namespace agentlib {
 
@@ -11,6 +12,7 @@ class tool_context {
 public:
     file_security_manager fs_security;
     document_provider* doc_provider = nullptr;
+    event_queue* queue = nullptr;
     // ... other contextual methods will be added here ...
 };
 

@@ -349,3 +349,100 @@ std::string force_quit_dialog::get_result() const
 	if (focus_idx_ == 1) return "save_all";
 	return "cancel";
 }
+
+ask_user_dialog::ask_user_dialog(const std::string& question, const std::vector<std::string>& options)
+    : dialog("Question", std::max<int>(60, question.length() + 6), 9 + options.size()), question_(question), options_(options)
+{
+}
+
+void ask_user_dialog::draw() const
+{
+	dialog::draw();
+	attrset(COLOR_PAIR(1));
+	mvaddstr(y_ + 2, x_ + 3, question_.c_str());
+
+	int current_y = y_ + 4;
+	for (size_t i = 0; i < options_.size(); ++i) {
+		bool focused = (focus_idx_ == static_cast<int>(i));
+		move(current_y, x_ + 3);
+		if (focused) attrset(COLOR_PAIR(19));
+		else attrset(COLOR_PAIR(17));
+		addstr(focused ? "(•) " : "( ) ");
+		addstr(options_[i].c_str());
+		current_y++;
+	}
+
+	bool text_focused = (focus_idx_ == static_cast<int>(options_.size()));
+	attrset(COLOR_PAIR(1));
+	mvaddstr(current_y, x_ + 3, "Other:");
+	attrset(COLOR_PAIR(3));
+	move(current_y, x_ + 10);
+	for (int i = 0; i < width_ - 14; ++i) addch(' ');
+	mvaddstr(current_y, x_ + 10, custom_answer_.c_str());
+	if (text_focused) {
+		move(current_y, x_ + 10 + custom_answer_.length());
+		attrset(COLOR_PAIR(19));
+		addch(' ');
+		attrset(COLOR_PAIR(3));
+	}
+	current_y += 2;
+
+	auto draw_btn = [&](int by, int bx, const std::string &btext, bool focused) {
+		attrset(COLOR_PAIR(1));
+		mvaddstr(by, x_ + bx + btext.length(), "▄");
+		for (size_t i = 0; i < btext.length(); ++i)
+			mvaddstr(by + 1, x_ + bx + 1 + i, "▀");
+		move(by, x_ + bx);
+		if (focused) attrset(COLOR_PAIR(14));
+		else attrset(COLOR_PAIR(10));
+		addstr(btext.c_str());
+		attrset(0);
+	};
+
+	bool ok_focused = (focus_idx_ == static_cast<int>(options_.size() + 1));
+	bool cancel_focused = (focus_idx_ == static_cast<int>(options_.size() + 2));
+	
+	int btn_x_center = width_ / 2;
+	draw_btn(current_y, btn_x_center - 12, "   OK   ", ok_focused);
+	draw_btn(current_y, btn_x_center + 2, " Cancel ", cancel_focused);
+}
+
+dialog_result ask_user_dialog::handle_key(int key)
+{
+	int total_items = options_.size() + 3;
+	
+	if (key == 27) { // ESC
+		return dialog_result::cancelled;
+	} else if (key == KEY_DOWN || key == '\t') {
+		focus_idx_ = (focus_idx_ + 1) % total_items;
+		return dialog_result::pending;
+	} else if (key == KEY_UP || key == KEY_BTAB) {
+		focus_idx_ = (focus_idx_ - 1 + total_items) % total_items;
+		return dialog_result::pending;
+	}
+	
+	if (focus_idx_ == static_cast<int>(options_.size())) {
+		// Text box is focused
+		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
+			if (!custom_answer_.empty()) custom_answer_.pop_back();
+		} else if (key >= 32 && key <= 126) {
+			custom_answer_ += static_cast<char>(key);
+		}
+	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		if (focus_idx_ == static_cast<int>(options_.size() + 2)) {
+			return dialog_result::cancelled;
+		} else {
+			return dialog_result::confirmed;
+		}
+	}
+	return dialog_result::pending;
+}
+
+std::string ask_user_dialog::get_result() const
+{
+	if (focus_idx_ < static_cast<int>(options_.size())) {
+		return options_[focus_idx_];
+	} else {
+		return custom_answer_;
+	}
+}

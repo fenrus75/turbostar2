@@ -159,6 +159,7 @@ void agent_window::submit_prompt() {
         ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
         ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
         ctx.doc_provider = state->doc_provider;
+        ctx.queue = &state->global_queue;
         
         std::string final_response;
 

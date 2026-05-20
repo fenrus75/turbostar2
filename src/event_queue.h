@@ -4,6 +4,9 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <vector>
+#include <memory>
+#include <future>
 
 /**
  * @brief Event types supported by the editor.
@@ -44,7 +47,8 @@ enum class event_type {
 	agent_response, ///< Notification that LLM has responded
 	agent_tool_update, ///< Notification that LLM is executing a tool
 	open_agent, ///< Request to open the LLM agent chat window
-	apply_edits ///< Request to apply JSON-serialized LLM edits to the live document
+	apply_edits, ///< Request to apply JSON-serialized LLM edits to the live document
+	prompt_user ///< Request to prompt the user with a question and options
 };
 
 struct text_range {
@@ -89,6 +93,10 @@ struct editor_event {
 	std::string payload;   ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
 	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
+	
+	// Payload for prompt_user
+	std::vector<std::string> prompt_options;
+	std::shared_ptr<std::promise<std::string>> prompt_promise;
 };
 
 /**

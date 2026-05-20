@@ -105,6 +105,13 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 
 ## 5. Environment & Misc
 
+### `ask_user`
+*   **Description:** Ask the user one or more questions to gather preferences, clarify requirements, or make decisions. When using this tool, prefer providing multiple-choice options. An 'Other' text input field is automatically added.
+*   **Arguments:**
+    *   `questions` *(array of objects, required)*:
+        *   `question` *(string, required)*: The complete question to ask the user.
+        *   `options` *(array of strings, optional)*: The selectable choices for the question.
+
 ### `get_temperature`
 *   **Description:** (Demo tool) Get the current temperature in a given location.
 *   **Arguments:**
