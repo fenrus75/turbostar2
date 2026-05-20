@@ -6,6 +6,7 @@
 #include "../agentlib/httplib_transport.h"
 #include "../agentlib/recording_transport.h"
 #include "../agentlib/replay_transport.h"
+#include "../agentlib/skill_manager.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -34,9 +35,11 @@ int main(int argc, char** argv) {
     
     tool_registry& registry = tool_registry::get_instance();
     tool_context ctx;
+    agentlib::skill_manager::get_instance().initialize();
     ctx.fs_security.set_working_directory(std::filesystem::current_path());
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
+    ctx.fs_security.set_vfs(agentlib::skill_manager::get_instance().get_vfs());
 
     // 2. We ask a question that triggers the tool
     prompt = (argc > 1) ? argv[1] : "Replace line 2 of tests/unit/poem.txt with 'The birds are resting soft and still.'";

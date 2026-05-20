@@ -126,6 +126,8 @@
 
 # long term items   
 
+- Make skill_manager parsing and discovery fully compliant with the external skills specification (reading metadata, matching URIs, validating schema).
+
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
 	

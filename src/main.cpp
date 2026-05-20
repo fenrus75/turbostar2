@@ -8,6 +8,7 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "config_manager.h"
+#include "agentlib/skill_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -60,6 +61,7 @@ int main(int argc, char **argv)
 	CLI11_PARSE(app, argc, argv);
 
 	config_manager::get_instance().load();
+	agentlib::skill_manager::get_instance().initialize();
 
 	auto &logger = event_logger::get_instance();
 	if (!log_file.empty()) {
