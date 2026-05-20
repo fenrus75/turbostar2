@@ -113,7 +113,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
         *   `options` *(array of strings, optional)*: The selectable choices for the question.
 
 ### `activate_skill`
-*   **Description:** Activates a specialized agent skill by name. Returns the skill's instructions wrapped in `<activated_skill>` tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the *Available Skills* section.
+*   **Description:** Activates a specialized agent skill by name. Returns the skill's instructions wrapped in `<skill_content>` tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the *Available Skills* section.
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the skill to activate.
 

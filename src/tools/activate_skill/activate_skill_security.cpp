@@ -16,7 +16,25 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(activate_skill_raw_args, name);
 class activate_skill_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "activate_skill"; }
-    std::string get_description() const override { return "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <activated_skill> tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the *Available Skills* section."; }
+    std::string get_description() const override { 
+        std::string base_desc = "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <skill_content> tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the <available_skills> section."; 
+        
+        auto& skills = agentlib::skill_manager::get_instance().get_skills();
+        if (skills.empty()) {
+            return base_desc;
+        }
+
+        nlohmann::json skills_arr = nlohmann::json::array();
+        for (const auto& s : skills) {
+            skills_arr.push_back({
+                {"name", s.name},
+                {"description", s.description},
+                {"location", s.uri}
+            });
+        }
+
+        return base_desc + "\n\n<available_skills>\n" + skills_arr.dump() + "\n</available_skills>";
+    }
     
     nlohmann::json get_parameters_schema() const override {
         return {
