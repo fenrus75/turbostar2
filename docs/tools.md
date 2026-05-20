@@ -117,6 +117,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the skill to activate.
 
+### `list_skills`
+*   **Description:** Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.
+*   **Arguments:** None.
+
 ### `get_temperature`
 *   **Description:** (Demo tool) Get the current temperature in a given location.
 *   **Arguments:**

@@ -13,6 +13,8 @@ tools_sources = files(
   'ask_user/ask_user_security.cpp',
   'activate_skill/activate_skill_entry.cpp',
   'activate_skill/activate_skill_security.cpp',
+  'list_skills/list_skills_entry.cpp',
+  'list_skills/list_skills_security.cpp',
   'fs_regexp_lines/fs_regexp_lines_entry.cpp',
   'fs_regexp_lines/fs_regexp_lines_security.cpp',
   'fs_compile_info/fs_compile_info_entry.cpp',
