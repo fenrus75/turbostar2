@@ -362,13 +362,26 @@ void ask_user_dialog::draw() const
 	mvaddstr(y_ + 2, x_ + 3, question_.c_str());
 
 	int current_y = y_ + 4;
+	int available_width = width_ - 7; // Matches the width block of the text field (which goes up to width_ - 4, minus starting pos 3)
 	for (size_t i = 0; i < options_.size(); ++i) {
 		bool focused = (focus_idx_ == static_cast<int>(i));
 		move(current_y, x_ + 3);
 		if (focused) attrset(COLOR_PAIR(19));
 		else attrset(COLOR_PAIR(17));
 		addstr(focused ? "(•) " : "( ) ");
-		addstr(options_[i].c_str());
+		
+		std::string opt_text = options_[i];
+		if (opt_text.length() > static_cast<size_t>(available_width - 4)) {
+			opt_text = opt_text.substr(0, available_width - 7) + "...";
+		}
+		
+		addstr(opt_text.c_str());
+		
+		// Pad remaining width with spaces
+		int pad_len = available_width - 4 - opt_text.length();
+		for (int p = 0; p < pad_len; ++p) {
+			addch(' ');
+		}
 		current_y++;
 	}
 
