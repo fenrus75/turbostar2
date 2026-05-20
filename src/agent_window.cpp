@@ -24,13 +24,13 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
     auto http_transport = std::make_shared<httplib_transport>(url);
     state_->client = std::make_unique<llm_client>(http_transport);
 
-    // List available skills at startup
+    // List available skills at startup for the user
     auto& skills = skill_manager::get_instance().get_skills();
     if (!skills.empty()) {
         chat_history_->set_read_only(false);
         chat_history_->append_line("*Available Skills:*");
         for (const auto& s : skills) {
-            chat_history_->append_line("- **" + s.name + "**: " + s.description);
+            chat_history_->append_line("- **" + s.name + "**");
         }
         chat_history_->append_line("");
         chat_history_->set_read_only(true);
