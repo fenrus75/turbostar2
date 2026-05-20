@@ -6,33 +6,6 @@
 
 - do we need a whole fresh on a cursor move within the screen? or just update the cursor position
 
-- in find_error_at, should we short circuit without taking the lock if we have no error information at all?
-
-- formal documentation: https://agentskills.io/client-implementation/adding-skills-support
-	- this document offers xml vs json vs ... lets do json as we already have the encoder/decoder for that
-	- tldr is "implement activate_skill and list the available skills as part of that" or "make it a system prompt"
-	- we need to evaluate the pros/cons of this
-- need to decide, provide activate_skill() tool call or just tell the LLM to read the file
-   - we do not yet have a great read_file call though so tempted to do activate_skill()
-- should be much simpler than supporting MCP so lets start with SKILLs
-- at agent window start we should print a line listing the currently active SKILLs
-
-- activate_skill(skill name) implementation notes
-  - agent responds to the tool call with
-	<ACTIVATED_SKILL name="test-skill">
-	<INSTRUCTIONS>
-	   --- content of SKILLS.md ---
-	</INSTRUCTIONS>
-	<AVAILABLE RESOURCES>
-	   --- directory listing of the skills base dir in skills://<name>/<file> format---
-	</AVAILABLE RESOURCES>
-	</ACTIVATED SKILL>
-   - print "(Skill **name** activated)" in the Agent Window
-   - key question: do we need a special toolcall for getting skill resources, or is our existing way to read files sufficient
-     (consideration: we do NOT want to expose the actual file path of these as they are outside the project directory usually)
-
-  
-
 - next set of tools for agents (once we have sandboxing)
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - run_python_script / run_python_file   (script has the code as argument, file the filename)
@@ -43,8 +16,9 @@
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
     - web_fetch(URI)
-	- need permission manager for which domains the user has allowed
+	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
 	- needs a way to ask the user for permission
+        - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; coredump_get_info(nr) and coredump_list() and over time a coredump_gdb()
     - sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
 	- need to decide where to store the databases ; that is the hard part
@@ -53,8 +27,6 @@
 	- we may need a ~/.cache/turbostar directory for this sort of thing
 
 
-- need to make it possible to scroll backwards in the agent window
-   - major usability issue
 - we need to build a general coredump tracking infrastructure
     - have a list of coredumps that come from build and test and run
     - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
@@ -66,11 +38,6 @@
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
 
 - incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
-
-- investigate to use the A2C protocol
-	- for now it does not look something we need
-
-- map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
 
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
@@ -127,6 +94,10 @@
 # done items (move items here on completion)
 
 ## 19-05-2026
+- map the <ESC> key or equivalent to a <stop> kind of thing with the LLM
+   - mapped `<ESC>` (key code 27) in the Agent Window to trigger the cancel method on the LLM client transport layer.
+- in find_error_at, should we short circuit without taking the lock if we have no error information at all?
+   - Implemented an `std::atomic<bool> has_errors_` fast-path check to avoid locking the mutex when the error list is empty, removing micro-stalls from the UI rendering loop.
 - highlight trailing whitespaces somehow in source code?
    - implemented specifically for C++ using the syntax highlighter architecture. Trailing spaces and tabs are now displayed with a high-contrast white-on-red background.
 
