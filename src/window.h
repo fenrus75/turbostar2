@@ -47,7 +47,7 @@ class window
 	 */
 	virtual bool process_events();
 	void invalidate();
-	void set_cursor_position() const;
+	virtual void set_cursor_position() const;
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 

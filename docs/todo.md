@@ -77,9 +77,6 @@
 	- sqlite_create_db(database) 
 	- sqlite_delete_db(database) 
 	- sqlist_list_db()
-	- need to decide where to store the databases ; that is the hard part
-	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
-	- we may need a ~/.cache/turbostar/project-data-<hash>/ directory for this sort of thing
     - agent tools
 	- list_agents() - returns a markdown table of ID, name, status
  	- create_agent(name, profile) - profile is the .agent.md kind of content

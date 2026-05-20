@@ -26,6 +26,7 @@ public:
     
     // Intercepts events from the window's local queue
     bool process_events() override; 
+    void set_cursor_position() const override;
     
     // Called when the main loop dispatches the 'agent_response' event
     void append_response(const std::string& response_text);

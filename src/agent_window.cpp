@@ -307,6 +307,21 @@ void agent_window::draw_content() const {
     render_input_box();
 }
 
+void agent_window::set_cursor_position() const {
+    if (!is_waiting_for_llm_) {
+        int input_box_y = y_ + height_ - 4;
+        int input_box_x = x_ + 1;
+        int max_display_len = width_ - 5;
+        
+        std::string display_text = input_buffer_;
+        if (display_text.length() > static_cast<size_t>(max_display_len)) {
+            display_text = display_text.substr(display_text.length() - max_display_len);
+        }
+        
+        move(input_box_y + 1, input_box_x + 2 + display_text.length());
+    }
+}
+
 void agent_window::render_input_box() const {
     int input_box_y = y_ + height_ - 4; // Above the bottom border
     int input_box_x = x_ + 1;
@@ -345,9 +360,4 @@ void agent_window::render_input_box() const {
         mvaddstr(input_box_y + 2, input_box_x, " Press ENTER to send. ");
     }
     attrset(0);
-    
-    // Position hardware cursor
-    if (!is_waiting_for_llm_) {
-        move(input_box_y + 1, input_box_x + 2 + display_text.length());
-    }
 }
