@@ -59,6 +59,11 @@ bool agent_window::process_events() {
             int key = ev->key_code;
             
             if (is_waiting_for_llm_) {
+                if (key == 27) {
+                    if (state_ && state_->client) {
+                        state_->client->cancel();
+                    }
+                }
                 continue; // Ignore input while waiting
             }
 
@@ -245,8 +250,8 @@ void agent_window::submit_prompt() {
                         if (newline_pos != std::string::npos) {
                             result_preview = result_preview.substr(0, newline_pos) + " ...";
                         }
-                        if (result_preview.length() > 60) {
-                            result_preview = result_preview.substr(0, 57) + "...";
+                        if (result_preview.length() > 300) {
+                            result_preview = result_preview.substr(0, 297) + "...";
                         }
                     }
                     editor_event result_ev;
