@@ -84,6 +84,8 @@ private:
     };
 
     std::map<std::string, std::unique_ptr<mmap_handle>> mounts_;
+
+    void ensure_directories_exist(const std::string& file_uri);
 };
 
 } // namespace agentlib

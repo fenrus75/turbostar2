@@ -7,8 +7,28 @@
 namespace agentlib {
 
 virtual_file_system::mmap_handle::~mmap_handle() {
-    if (data && data != MAP_FAILED && size > 0) {
+    if (data && data != MAP_FAILED && size > 0 && type == 'F') {
         munmap(data, size);
+    }
+}
+
+void virtual_file_system::ensure_directories_exist(const std::string& file_uri) {
+    // Expected format: "skills://someskill/folder/file.txt"
+    size_t scheme_pos = file_uri.find("://");
+    if (scheme_pos == std::string::npos) return;
+
+    size_t start = scheme_pos + 3;
+    size_t slash_pos;
+    
+    while ((slash_pos = file_uri.find('/', start)) != std::string::npos) {
+        std::string dir_uri = file_uri.substr(0, slash_pos + 1); // includes the trailing slash
+        
+        if (!mounts_.contains(dir_uri)) {
+            auto handle = std::make_unique<mmap_handle>();
+            handle->type = 'D';
+            mounts_[dir_uri] = std::move(handle);
+        }
+        start = slash_pos + 1;
     }
 }
 
@@ -56,6 +76,7 @@ bool virtual_file_system::mount_file(const std::string& uri, const std::string& 
     }
     handle->size_in_lines = lines;
     
+    ensure_directories_exist(uri);
     mounts_[uri] = std::move(handle);
     return true;
 }

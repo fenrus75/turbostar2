@@ -62,7 +62,8 @@ void test_directory_listing() {
     vfs.mount_file("skills://other/f4.txt", f1);
 
     auto list = vfs.list_directory("skills://dir/");
-    assert(list.size() == 3);
+    // Expect 4: skills://dir/, skills://dir/f1.txt, skills://dir/f2.txt, skills://dir/f3.txt
+    assert(list.size() == 4);
 
     // Unmount prefix
     vfs.unmount_prefix("skills://dir/");
