@@ -54,8 +54,21 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context& ctx) {
         for (const auto& entry : entries) {
             // Extract filename from URI
             std::string filename = entry.uri.substr(prefix.length());
-            // Filter out files in subdirectories
-            if (filename.find('/') != std::string::npos) continue;
+            
+            // If filename is empty, this entry is the requested directory itself. Skip it.
+            if (filename.empty()) continue;
+
+            // Check if this is a direct child or in a deeper subdirectory
+            size_t slash_pos = filename.find('/');
+            if (slash_pos != std::string::npos) {
+                // If there's a slash, it's only a direct child if the slash is the VERY last character
+                // (e.g. "folder/" vs "folder/file.txt")
+                if (slash_pos != filename.length() - 1) {
+                    continue;
+                }
+                // Strip the trailing slash for the display table
+                filename = filename.substr(0, slash_pos);
+            }
 
             ss << "| " << filename << " | " << entry.type << " | " << entry.size << " | " << entry.size_in_lines << " | R-- |\n";
         }
