@@ -219,11 +219,11 @@ void agent_window::submit_prompt() {
                                     std::string s = item.value().get<std::string>();
                                     std::replace(s.begin(), s.end(), '\n', ' ');
                                     std::replace(s.begin(), s.end(), '\r', ' ');
-                                    if (s.length() > 20) s = s.substr(0, 17) + "...";
+                                    if (s.length() > 40) s = s.substr(0, 37) + "...";
                                     val_str = "\"" + s + "\"";
                                 } else {
                                     std::string s = item.value().dump();
-                                    if (s.length() > 20) s = s.substr(0, 17) + "...";
+                                    if (s.length() > 40) s = s.substr(0, 37) + "...";
                                     val_str = s;
                                 }
                                 arg_preview += val_str;
