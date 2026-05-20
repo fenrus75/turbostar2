@@ -6,33 +6,16 @@
 
 - do we need a whole fresh on a cursor move within the screen? or just update the cursor position
 
-
-- support namespaces (URI's) for "not really" files -- must be read only
-   - example: skills://someskill/foo.md
-   - would be a pre-declared std::map<string, string>
-      - design decision: do we make this a URI->filename mapping or a direct URI->content mapping?
-      - pro of content: thinking about security/sandboxing is easier
-      - con of content: memory use, but skills are not supposed to be gigantic
-      - hybrid: have 2 maps - URI->filename but a demand-filled URI->content ?
-      - needs evaluation of pros/cons before deciding to implement
-   - need an api for the system to populate this namespace
-   - need to support directory listings as well
-   - read_lines / read file kind of operations should work transparently for these
-      - the LLM should not need to care
-
 - in find_error_at, should we short circuit without taking the lock if we have no error information at all?
 
-- support SKILLs
-  - formal documentation: https://agentskills.io/client-implementation/adding-skills-support
+- formal documentation: https://agentskills.io/client-implementation/adding-skills-support
 	- this document offers xml vs json vs ... lets do json as we already have the encoder/decoder for that
 	- tldr is "implement activate_skill and list the available skills as part of that" or "make it a system prompt"
 	- we need to evaluate the pros/cons of this
-  - need to decide, provide activate_skill() tool call or just tell the LLM to read the file
-     - we do not yet have a great read_file call though so tempted to do activate_skill()
-  - should be much simpler than supporting MCP so lets start with SKILLs
-  - we should make a skills:// filename namespace for them so that the agent can ask for subfiles as skills://someskill/resource/foo
-  - likely should support ~/.copilot/skills and perhaps some basic other directories by default
-  - at agent window start we should print a line listing the currently active SKILLs
+- need to decide, provide activate_skill() tool call or just tell the LLM to read the file
+   - we do not yet have a great read_file call though so tempted to do activate_skill()
+- should be much simpler than supporting MCP so lets start with SKILLs
+- at agent window start we should print a line listing the currently active SKILLs
 
 - activate_skill(skill name) implementation notes
   - agent responds to the tool call with
@@ -344,6 +327,34 @@
     go to the end of the previous line on using the cursor-left key
 
 - our testing framework struggles with finding the turbostar binary as we
+  can use different buildroot -- can we teach meson to copy the result to
+  our testrun directory?
+
+- code cleanup
+    - window.cpp lines 54-106 is a chain of if statements that could
+    	be a switch()
+
+- fix search via ^K-F . When done via key bindings (thus status bar), the operation does not actually search. A consecutive ^L does search and to the found item
+- file dialog: File Open case. when you navigate (in the file listing section) to some file and hit Enter, you don't go directly to the editor with the file,
+    but instead you go first to the entry box at the top of the dialog. THis is a redundant but annoying-to-the-user step, we should just accept enter instantly
+- test suite failures need to be fixed; 
+   - likely the search item above will fix at least some failures
+- show dirty/clean state of the windows in the window title bar somehow, and in the window list menu
+- test suite running environment definition
+   - currently a bit of a mess, we should make a testrun/ directory and make
+     that the directory tests ALWAYS run from as CWD.. This impacts data
+     directory paths, where to find the turbostat binary etc etc but at
+     least it will be a predictable place.at binary etc etc but at
+     least it will be a predictable place.pt enter instantly
+- test suite failures need to be fixed; 
+   - likely the search item above will fix at least some failures
+- show dirty/clean state of the windows in the window title bar somehow, and in the window list menu
+- test suite running environment definition
+   - currently a bit of a mess, we should make a testrun/ directory and make
+     that the directory tests ALWAYS run from as CWD.. This impacts data
+     directory paths, where to find the turbostat binary etc etc but at
+     least it will be a predictable place.at binary etc etc but at
+     least it will be a predictable place. with finding the turbostar binary as we
   can use different buildroot -- can we teach meson to copy the result to
   our testrun directory?
 
