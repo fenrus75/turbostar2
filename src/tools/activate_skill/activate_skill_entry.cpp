@@ -26,9 +26,11 @@ std::string activate_skill_tool::execute(agentlib::tool_context& ctx) {
     }
 
     std::stringstream ss;
-    ss << "<ACTIVATED_SKILL name=\"" << args_.name << "\">\n";
-    ss << "<INSTRUCTIONS>\n" << instructions << "\n</INSTRUCTIONS>\n";
-    ss << "<AVAILABLE_RESOURCES>\n";
+    ss << "<skill_content name=\"" << args_.name << "\">\n";
+    ss << instructions << "\n\n";
+    ss << "Skill directory: `" << args_.target_skill.uri << "`\n";
+    ss << "Relative paths in this skill are relative to the skill directory.\n\n";
+    ss << "<skill_resources>\n";
     
     auto entries = vfs->list_directory(args_.target_skill.uri);
     for (const auto& entry : entries) {
@@ -36,14 +38,15 @@ std::string activate_skill_tool::execute(agentlib::tool_context& ctx) {
         std::string filename = entry.uri.substr(args_.target_skill.uri.length());
         if (filename.empty()) continue;
         
-        // Print it back as a full URI so the agent knows exactly how to request it
-        ss << args_.target_skill.uri << filename;
-        if (entry.type == 'D') ss << "/";
-        ss << "\n";
+        // Skip directory entries themselves from the <file> list, just list actual files
+        // (or we can append / to dirs if we want, but the spec shows files)
+        if (entry.type == 'D') continue;
+
+        ss << "  <file>" << filename << "</file>\n";
     }
     
-    ss << "</AVAILABLE_RESOURCES>\n";
-    ss << "</ACTIVATED_SKILL>";
+    ss << "</skill_resources>\n";
+    ss << "</skill_content>";
 
     return ss.str();
 }
