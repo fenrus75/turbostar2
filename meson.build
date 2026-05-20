@@ -30,7 +30,7 @@ turbostar_exe = executable('turbostar',
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
    'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
-   'src/agentlib/file_security_manager.cpp', 'src/build_error_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
+   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/build_error_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
@@ -95,6 +95,12 @@ test_fs_replace_lines = executable('test_fs_replace_lines',
   dependencies : [nlohmann_json_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines)
+
+test_virtual_file_system = executable('test_virtual_file_system',
+  ['tests/unit/test_virtual_file_system.cpp', 'src/agentlib/virtual_file_system.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_virtual_file_system', test_virtual_file_system)
 
 # E2E tests (run via python)
 pymod = import('python')
