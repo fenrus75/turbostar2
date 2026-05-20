@@ -11,7 +11,7 @@ namespace agentlib {
 struct skill {
     std::string name;
     std::string description;
-    std::filesystem::path root_path;
+    std::string uri;
 };
 
 class skill_manager {

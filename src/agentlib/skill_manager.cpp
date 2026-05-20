@@ -56,13 +56,15 @@ void skill_manager::initialize() {
                     }
 
                     if (!name.empty()) {
+                        std::filesystem::path physical_root = entry.path().parent_path();
+                        
                         skill new_skill;
                         new_skill.name = name;
                         new_skill.description = description;
-                        new_skill.root_path = entry.path().parent_path();
+                        new_skill.uri = "skills://" + name + "/";
                         skills_.push_back(new_skill);
 
-                        scan_and_mount(new_skill.root_path, name);
+                        scan_and_mount(physical_root, name);
                     }
                 }
             }
