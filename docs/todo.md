@@ -52,6 +52,9 @@
 	- storage needs to be outside the project, but specific to the project (hash of project as directory?)
 	- we may need a ~/.cache/turbostar directory for this sort of thing
 
+
+- need to make it possible to scroll backwards in the agent window
+   - major usability issue
 - we need to build a general coredump tracking infrastructure
     - have a list of coredumps that come from build and test and run
     - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
@@ -61,8 +64,6 @@
 
 
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
-
-- mouse scroll wheel does not seem to work -- oh well, will need to debug at some point
 
 - incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
 
