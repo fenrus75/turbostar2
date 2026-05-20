@@ -11,6 +11,8 @@ tools_sources = files(
   'fs_read_binary/fs_read_binary_security.cpp',
   'ask_user/ask_user_entry.cpp',
   'ask_user/ask_user_security.cpp',
+  'activate_skill/activate_skill_entry.cpp',
+  'activate_skill/activate_skill_security.cpp',
   'fs_regexp_lines/fs_regexp_lines_entry.cpp',
   'fs_regexp_lines/fs_regexp_lines_security.cpp',
   'fs_compile_info/fs_compile_info_entry.cpp',

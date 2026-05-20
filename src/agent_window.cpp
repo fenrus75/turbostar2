@@ -2,6 +2,7 @@
 #include "config_manager.h"
 #include "git_manager.h"
 #include "agentlib/httplib_transport.h"
+#include "agentlib/skill_manager.h"
 #include <ncurses.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -22,6 +23,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
     std::string url = config_manager::get_instance().get_llm_url();
     auto http_transport = std::make_shared<httplib_transport>(url);
     state_->client = std::make_unique<llm_client>(http_transport);
+
+    // List available skills at startup
+    auto& skills = skill_manager::get_instance().get_skills();
+    if (!skills.empty()) {
+        chat_history_->set_read_only(false);
+        chat_history_->append_line("*Available Skills:*");
+        for (const auto& s : skills) {
+            chat_history_->append_line("- **" + s.name + "**: " + s.description);
+        }
+        chat_history_->append_line("");
+        chat_history_->set_read_only(true);
+        chat_history_->clear_modified();
+    }
 }
 
 agent_window::~agent_window() {
@@ -165,6 +179,7 @@ void agent_window::submit_prompt() {
         ctx.fs_security.set_working_directory(workspace_root);
         ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
         ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
+        ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
         ctx.doc_provider = state->doc_provider;
         ctx.queue = &state->global_queue;
         
