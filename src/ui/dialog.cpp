@@ -173,58 +173,6 @@ void dialog::draw_buttons(int focused_button_idx) const
 	}
 }
 
-input_dialog::input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
-    : dialog(title, 50, 7), prompt_(prompt), buffer_(initial_value)
-{
-}
-
-void input_dialog::draw() const
-{
-	dialog::draw();
-	attron(COLOR_PAIR(1));
-
-	// Prompt
-	mvaddstr(y_ + 2, x_ + 2, prompt_.c_str());
-
-	// Input field box
-	attron(COLOR_PAIR(5));
-	move(y_ + 4, x_ + 2);
-	for (int i = 0; i < width_ - 4; ++i)
-		addch(' ');
-	mvaddstr(y_ + 4, x_ + 2, buffer_.c_str());
-	attroff(COLOR_PAIR(5));
-
-	attroff(COLOR_PAIR(1));
-}
-
-dialog_result input_dialog::handle_key(int key)
-{
-	event_logger::get_instance().log("Dialog handling key: " + std::to_string(key));
-	if (key == 27)
-		return dialog_result::cancelled;
-	if (key == 10 || key == 13 || key == KEY_ENTER)
-		return dialog_result::confirmed;
-
-	if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-		if (!buffer_.empty()) {
-			buffer_.pop_back();
-		}
-		return dialog_result::pending;
-	}
-
-	if (key >= 32 && key <= 126) {
-		buffer_ += static_cast<char>(key);
-		return dialog_result::pending;
-	}
-
-	return dialog_result::pending;
-}
-
-std::string input_dialog::get_result() const
-{
-	return buffer_;
-}
-
 message_dialog::message_dialog(const std::string &title, const std::vector<std::string> &lines)
     : dialog(title, 40, static_cast<int>(lines.size()) + 6), lines_(lines)
 {
@@ -325,11 +273,26 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename) {
 	}));
 	
 	dlg->set_focus_by_name("btn_save");
-	
+
+	return dlg;
+	}
+
+	std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
+	{
+	auto dlg = std::make_unique<dialog>(title, 50, 7);
+
+	dlg->add_child(std::make_unique<ui_text_label>(2, 2, prompt));
+
+	dlg->add_child(std::make_unique<ui_textbox>("input_buffer", 2, 4, 46, initial_value, [d = dlg.get()](const std::string& val) {
+		d->set_result(val);
+		d->set_action(dialog_result::confirmed);
+	}));
+
+	dlg->set_focus_by_name("input_buffer");
 	return dlg;
 }
-force_quit_dialog::force_quit_dialog()
-    : dialog("Force Quit", 50, 9)
+
+force_quit_dialog::force_quit_dialog()    : dialog("Force Quit", 50, 9)
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);

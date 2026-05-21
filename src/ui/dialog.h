@@ -65,18 +65,9 @@ class dialog : public ui_container
 
 // Factory functions
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename);
+std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value = "");
 
 // Legacy classes...
-class input_dialog : public dialog {
-      public:
-	input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value = "");
-	void draw() const override;
-	dialog_result handle_key(int key) override;
-	std::string get_result() const override;
-      private:
-	std::string prompt_;
-	std::string buffer_;
-};
 
 class message_dialog : public dialog {
       public:

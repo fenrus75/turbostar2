@@ -90,7 +90,22 @@ class ui_container : public ui_element
 	ui_element *focused_child_{nullptr};
 };
 
-// Represents a clickable button inside a dialog or container.
+// Represents a single-line text input field.
+class ui_textbox : public ui_element
+{
+      public:
+	ui_textbox(std::string name, int x, int y, int width, const std::string &initial_text, std::function<void(const std::string&)> on_submit = nullptr);
+
+	void draw(int abs_x, int abs_y) const override;
+	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
+	std::optional<std::string> get_value(const std::string &target_name) const override;
+
+      private:
+	std::string buffer_;
+	int cursor_pos_;
+	std::function<void(const std::string&)> on_submit_;
+};
+
 class ui_button : public ui_element
 {
       public:

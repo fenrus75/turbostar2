@@ -39,5 +39,5 @@ Derived from `ui_element`. Manages a list of child elements.
 - **`ui_button`**: An actionable control that can be clicked or triggered via hotkey.
 - **`ui_radio_choice` / `ui_radiobutton_group`**: Mutually exclusive selection controls.
 - **`ui_checkbox`**: Toggled boolean selection.
-- **`ui_textbox`**: Input area with cursor management.
+- **`ui_textbox`**: A single-line input area. Visually, it is rendered as a distinct solid block of background color (using `COLOR_PAIR(5)`) padded with spaces to fill its designated width. The text buffer is drawn over this background. A blinking or highlighted cursor indicates the active insertion point when the element has focus.
 - **`ui_listbox`**: Scrollable, selectable list of text items.
