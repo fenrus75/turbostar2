@@ -31,4 +31,10 @@ namespace fs_utils {
 	 * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/ and creates the directory if it doesn't exist.
 	 */
 	std::string get_project_db_dir();
+
+	/**
+	 * @brief Validates a database name against a strict whitelist (a-zA-Z0-9_-).
+	 * Prevents directory traversal, spaces, SQL injection payloads, and file extensions.
+	 */
+	bool is_valid_db_name(const std::string& name);
 }

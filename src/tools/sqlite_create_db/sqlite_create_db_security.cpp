@@ -1,4 +1,5 @@
 #include "sqlite_create_db.h"
+#include "../../fs_utils.h"
 #include "../../agentlib/single_string_tool_validator.h"
 #include "../../agentlib/tool_registry.h"
 
@@ -12,8 +13,8 @@ public:
     std::string get_parameter_description() const override { return "The simple name of the database to create (no paths or extensions)."; }
 
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& /*ctx*/, std::string& out_error) const override {
-        if (arg.empty() || arg.find('/') != std::string::npos || arg.find('\\') != std::string::npos) {
-            out_error = "Database name must be a simple filename without paths or slashes.";
+        if (!fs_utils::is_valid_db_name(arg)) {
+            out_error = "Database name must contain only a-z, A-Z, 0-9, _, and -.";
             return false;
         }
         return true;

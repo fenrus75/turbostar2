@@ -10,8 +10,8 @@ sqlite_perform_tool::sqlite_perform_tool(std::string database, std::string query
     : database_(std::move(database)), query_(std::move(query)) {}
 
 bool sqlite_perform_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
-    if (database_.empty() || database_.find('/') != std::string::npos || database_.find('\\') != std::string::npos) {
-        out_error = "Invalid database name. Use a simple alphanumeric filename without paths.";
+    if (!fs_utils::is_valid_db_name(database_)) {
+        out_error = "Invalid database name. Use only a-z, A-Z, 0-9, _, and -.";
         return false;
     }
     if (query_.empty()) {

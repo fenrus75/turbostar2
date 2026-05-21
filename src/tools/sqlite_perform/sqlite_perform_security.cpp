@@ -1,4 +1,5 @@
 #include "sqlite_perform.h"
+#include "../../fs_utils.h"
 #include "../../agentlib/tool_validator.h"
 #include "../../agentlib/tool_registry.h"
 
@@ -38,8 +39,8 @@ protected:
         }
         
         std::string db = args["database"].get<std::string>();
-        if (db.empty() || db.find('/') != std::string::npos || db.find('\\') != std::string::npos) {
-            out_error = "Database name must be a simple filename without paths or slashes.";
+        if (!fs_utils::is_valid_db_name(db)) {
+            out_error = "Database name must contain only a-z, A-Z, 0-9, _, and -.";
             return false;
         }
         

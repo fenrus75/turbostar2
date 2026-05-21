@@ -179,4 +179,14 @@ namespace fs_utils {
 	        return cache_dir.string();
 	}
 
+	bool is_valid_db_name(const std::string& name) {
+		if (name.empty()) return false;
+		for (char c : name) {
+			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
+				return false;
+			}
+		}
+		return true;
 	}
+
+}
