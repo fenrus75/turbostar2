@@ -106,6 +106,7 @@ std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& name) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     int new_id = id_ * 100 + static_cast<int>(subagents_.size()) + 1;
     auto subagent = ai_agent::create(new_id, name, llm_url_, global_queue_, doc_provider_);
+    subagent->set_parent(shared_from_this());
     subagents_.push_back(subagent);
     return subagent;
 }
@@ -329,6 +330,11 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
             ev.key_code = self->id_;
             ev.payload = final_response;
             self->global_queue_->push(ev);
+        }
+
+        // Notify parent agent asynchronously
+        if (auto parent = self->parent_agent_.lock()) {
+            parent->inject_context("system", "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state.");
         }
     }).detach();
 }

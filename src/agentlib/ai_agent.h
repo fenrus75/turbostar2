@@ -77,6 +77,8 @@ public:
     bool is_read_only() const { return read_only_; }
     void set_read_only(bool ro) { read_only_ = ro; }
 
+    void set_parent(std::weak_ptr<ai_agent> parent) { parent_agent_ = std::move(parent); }
+
 private:
     ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
 
@@ -87,6 +89,8 @@ private:
     std::atomic<bool> is_closed_{false};
     std::atomic<bool> read_only_{false};
     std::atomic<int> waiting_on_id_{-1};
+
+    std::weak_ptr<ai_agent> parent_agent_;
 
     event_queue* global_queue_;
     document_provider* doc_provider_;
