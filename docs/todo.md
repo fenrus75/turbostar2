@@ -112,8 +112,6 @@
 
 - enhance syntax highlighting -- support a few more things in C++ with reasonable colors
 
-- CI is currently failing in github, not due to testrun/ missing
- 	- needs investigation
 
 - spell check via an LLM call with a good prompt, asking the LLM to flag errors
    "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any spelling mistake and severe gramatical mistake as error and flag gramatical improvements as warning"
@@ -169,6 +167,8 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- CI is currently failing in github, not due to testrun/ missing
+ 	- needs investigation
 - have an attribute on tool call definitions to have it not log by default
    - otherwise tool calls get very verbose for "routine" calls
 
