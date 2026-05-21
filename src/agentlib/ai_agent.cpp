@@ -14,7 +14,7 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string& name, cons
 }
 
 ai_agent::ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider)
-    : id_(id), name_(name), global_queue_(queue), doc_provider_(doc_provider) 
+    : id_(id), name_(name), llm_url_(llm_url), global_queue_(queue), doc_provider_(doc_provider) 
 {
     auto http_transport = std::make_shared<httplib_transport>(llm_url);
     client_ = std::make_unique<llm_client>(http_transport);
@@ -102,9 +102,12 @@ bool ai_agent::delete_todo(const std::string& text_match, std::string& out_error
     return true;
 }
 
-std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& /*task_description*/) {
+std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& name) {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    return nullptr; // Placeholder for subagent spawning
+    int new_id = id_ * 100 + static_cast<int>(subagents_.size()) + 1;
+    auto subagent = ai_agent::create(new_id, name, llm_url_, global_queue_, doc_provider_);
+    subagents_.push_back(subagent);
+    return subagent;
 }
 
 void ai_agent::submit_prompt(const std::string& prompt_text) {

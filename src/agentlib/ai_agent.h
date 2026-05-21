@@ -60,6 +60,7 @@ private:
 
     int id_;
     std::string name_;
+    std::string llm_url_;
     std::atomic<agent_status> status_{agent_status::idle};
     std::atomic<bool> is_closed_{false};
 

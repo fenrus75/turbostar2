@@ -439,6 +439,12 @@ endif
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_agent_create', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_create.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_sqlite_tools', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_sqlite_tools.py')],
     env: e2e_env,
