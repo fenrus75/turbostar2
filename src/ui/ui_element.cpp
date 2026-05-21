@@ -1,6 +1,7 @@
 #include "ui/ui_element.h"
 #include <ncurses.h>
 #include <ctype.h>
+#include "event_logger.h"
 
 void ui_container::add_child(std::unique_ptr<ui_element> child)
 {
@@ -27,6 +28,17 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 	if (focused_child_ && ev.type == event_type::key_press) {
 		if (focused_child_->handle_event(ev, abs_x + focused_child_->x(), abs_y + focused_child_->y())) {
 			return true;
+		}
+	}
+	
+	// 1b. If it was a key press and the focused child didn't handle it, broadcast to others (for hotkeys)
+	if (ev.type == event_type::key_press) {
+		for (const auto &child : children_) {
+			if (child.get() != focused_child_) {
+				if (child->handle_event(ev, abs_x + child->x(), abs_y + child->y())) {
+					return true;
+				}
+			}
 		}
 	}
 	
@@ -87,6 +99,15 @@ std::optional<std::string> ui_container::get_value(const std::string &target_nam
 	return std::nullopt;
 }
 
+std::optional<std::string> ui_container::get_pressed_element_name() const
+{
+	for (const auto &child : children_) {
+		auto val = child->get_pressed_element_name();
+		if (val) return val;
+	}
+	return std::nullopt;
+}
+
 void ui_container::focus_next()
 {
 	if (children_.empty()) return;
@@ -133,62 +154,82 @@ void ui_container::child_got_selected(ui_element *child)
 	(void)child;
 }
 
+void ui_container::set_focus_by_name(const std::string &child_name)
+{
+	for (const auto &child : children_) {
+		if (child->name() == child_name) {
+			if (focused_child_) {
+				focused_child_->set_focus(false);
+			}
+			focused_child_ = child.get();
+			focused_child_->set_focus(true);
+			return;
+		}
+	}
+}
+
 // --- ui_button ---
 
 ui_button::ui_button(std::string name, int x, int y, const std::string &text, char hotkey, std::function<void()> on_click)
-    : ui_element(std::move(name), x, y, text.length() + 4, 1), text_(text), hotkey_(hotkey), on_click_(std::move(on_click))
+    : ui_element(std::move(name), x, y, text.length(), 1), text_(text), hotkey_(hotkey), on_click_(std::move(on_click))
 {
-	// width is text length + 4 for the "[ " and " ]" padding
 }
 
 void ui_button::draw(int abs_x, int abs_y) const
 {
-	if (has_focus_) {
-		attron(COLOR_PAIR(3)); // focused green
-	} else {
-		attron(COLOR_PAIR(2)); // normal green
-	}
+	attron(COLOR_PAIR(1));
+	mvaddstr(abs_y, abs_x + text_.length(), "▄");
+	std::string shadow_str;
+	for (size_t j = 0; j < text_.length(); ++j) shadow_str += "▀";
+	mvaddstr(abs_y + 1, abs_x + 1, shadow_str.c_str());
 	
-	mvprintw(abs_y, abs_x, "[ %s ]", text_.c_str());
+	if (has_focus_) attrset(COLOR_PAIR(10));
+	else attrset(COLOR_PAIR(8));
+	
+	mvaddstr(abs_y, abs_x, text_.c_str());
 	
 	if (hotkey_ != '\0') {
-		// Try to highlight the hotkey if it exists in the text
-		size_t pos = text_.find(hotkey_);
-		if (pos == std::string::npos) {
-			pos = text_.find(toupper(hotkey_));
-		}
-		if (pos == std::string::npos) {
-			pos = text_.find(tolower(hotkey_));
-		}
-		
-		if (pos != std::string::npos) {
-			attron(COLOR_PAIR(4)); // hotkey color (e.g. yellow)
-			mvaddch(abs_y, abs_x + 2 + pos, text_[pos]);
+		size_t hk_pos = text_.find(hotkey_);
+		if (hk_pos != std::string::npos) {
+			if (has_focus_) attron(COLOR_PAIR(12));
+			else attron(COLOR_PAIR(11));
+			mvaddch(abs_y, abs_x + hk_pos, text_[hk_pos]);
 		}
 	}
-	
-	attroff(COLOR_PAIR(2));
-	attroff(COLOR_PAIR(3));
-	attroff(COLOR_PAIR(4));
+	attrset(COLOR_PAIR(1));
 }
 
 bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
 	if (ev.type == event_type::key_press) {
 		if ((ev.key_code == '\n' || ev.key_code == '\r') && has_focus_) {
+			set_pressed(true);
 			if (on_click_) on_click_();
 			return true;
 		}
 		
 		if (hotkey_ != '\0' && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))) {
+			set_pressed(true);
 			if (on_click_) on_click_();
 			return true;
+		}
+
+		if (has_focus_) {
+			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN) {
+				if (parent_) parent_->focus_next();
+				return true;
+			}
+			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP) {
+				if (parent_) parent_->focus_previous();
+				return true;
+			}
 		}
 	}
 	
 	if (ev.type == event_type::mouse_click) {
 		if (contains_coordinate(ev.mouse_x, ev.mouse_y, abs_x, abs_y)) {
 			// Actually we might want to trigger on mouse up, but down is fine for now
+			set_pressed(true);
 			if (on_click_) on_click_();
 			return true;
 		}

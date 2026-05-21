@@ -32,7 +32,8 @@ void legacy_ui_button::draw() const
 	attrset(COLOR_PAIR(1));
 }
 
-dialog::dialog(const std::string &title, int width, int height) : title_(title), width_(width), height_(height)
+dialog::dialog(const std::string &title, int width, int height) 
+    : ui_container("dialog", 0, 0, width, height), title_(title)
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -40,6 +41,68 @@ dialog::dialog(const std::string &title, int width, int height) : title_(title),
 	y_ = (max_y - height_) / 2;
 }
 
+void dialog::draw(int abs_x, int abs_y) const
+{
+	// For legacy support when used as a pure ui_container, 
+	// we just map it to the legacy draw which utilizes x_ and y_
+	draw();
+}
+
+bool dialog::handle_event(const editor_event &ev, int abs_x, int abs_y)
+{
+	if (ui_container::handle_event(ev, abs_x, abs_y)) {
+		// A child handled it (e.g. a button was clicked). Check if it wants to close the dialog.
+		if (action_ != dialog_result::pending) {
+			return true;
+		}
+		return true;
+	}
+	return false;
+}
+
+dialog_result dialog::handle_key(int key)
+{
+	editor_event ev;
+	ev.type = event_type::key_press;
+	ev.key_code = key;
+
+	// Pass to the new container system
+	this->handle_event(ev, x_, y_);
+	
+	if (action_ == dialog_result::pending && key == 27) { // ESC
+		action_ = dialog_result::cancelled;
+		result_string_ = "cancel";
+	}
+
+	// Return whatever the children might have set
+	return action_;
+}
+
+std::optional<dialog_result> dialog::handle_mouse(int mouse_x, int mouse_y)
+{
+	editor_event ev;
+	ev.type = event_type::mouse_click;
+	ev.mouse_x = mouse_x;
+	ev.mouse_y = mouse_y;
+
+	// Pass to the new container system
+	this->handle_event(ev, x_, y_);
+
+	if (action_ != dialog_result::pending) {
+		return action_;
+	}
+
+	// Legacy buttons check (for older subclasses)
+	for (size_t i = 0; i < buttons_.size(); ++i) {
+		if (buttons_[i].contains(mouse_x, mouse_y)) {
+			// Instead of focus_idx_, we should maybe just set action
+			return buttons_[i].action;
+		}
+	}
+
+	return std::nullopt;
+}
+// Legacy layout
 void dialog::draw() const
 {
 	// Draw shadow
@@ -98,6 +161,8 @@ void dialog::draw() const
 		attroff(COLOR_PAIR(1));
 	}
 	attroff(COLOR_PAIR(1));
+
+	ui_container::draw(x_, y_);
 }
 
 void dialog::draw_buttons(int focused_button_idx) const
@@ -219,70 +284,50 @@ dialog_result message_dialog::handle_key(int key)
 	return dialog_result::pending;
 }
 
-save_prompt_dialog::save_prompt_dialog(const std::string &filename)
-    : dialog("Unsaved Changes", 50, 8), filename_(filename)
-{
-	int max_y, max_x;
-	getmaxyx(stdscr, max_y, max_x);
-	x_ = (max_x - width_) / 2;
-	y_ = (max_y - height_) / 2;
 
-	int by = y_ + height_ - 3;
-	buttons_.emplace_back("  Save  ", 'S', "save", dialog_result::confirmed, x_ + 4, by);
-	buttons_.emplace_back(" Discard ", 'D', "discard", dialog_result::confirmed, x_ + 18, by);
-	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + 34, by);
-}
+// --- Factory Methods ---
 
-void save_prompt_dialog::draw() const
-{
-	dialog::draw();
-	attron(COLOR_PAIR(1));
-
-	std::string msg = "Save changes to " + filename_ + "?";
-	int text_x = x_ + (width_ - static_cast<int>(msg.length())) / 2;
-	mvaddstr(y_ + 2, text_x, msg.c_str());
-
-	draw_buttons(focus_idx_);
-}
-
-std::optional<dialog_result> save_prompt_dialog::handle_mouse(int mouse_x, int mouse_y)
-{
-	for (size_t i = 0; i < buttons_.size(); ++i) {
-		if (buttons_[i].contains(mouse_x, mouse_y)) {
-			focus_idx_ = i;
-			return buttons_[i].action;
-		}
+class ui_text_label : public ui_element {
+public:
+	ui_text_label(int x, int y, const std::string& text)
+		: ui_element("text", x, y, text.length(), 1), text_(text) {}
+		
+	void draw(int abs_x, int abs_y) const override {
+		attron(COLOR_PAIR(1));
+		mvaddstr(abs_y, abs_x, text_.c_str());
+		attroff(COLOR_PAIR(1));
 	}
-	return std::nullopt;
-}
+	
+	bool handle_event(const editor_event&, int, int) override { return false; }
+private:
+	std::string text_;
+};
 
-dialog_result save_prompt_dialog::handle_key(int key)
-{
-	if (key == 27) { // ESC
-		return dialog_result::cancelled;
-	} else if (key == KEY_LEFT) {
-		focus_idx_ = (focus_idx_ - 1 + 3) % 3;
-	} else if (key == KEY_RIGHT) {
-		focus_idx_ = (focus_idx_ + 1) % 3;
-	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
-		if (focus_idx_ == 2) return dialog_result::cancelled;
-		return dialog_result::confirmed;
-	} else {
-		char c = std::tolower(static_cast<char>(key));
-		if (c == 's') { focus_idx_ = 0; return dialog_result::confirmed; }
-		if (c == 'd') { focus_idx_ = 1; return dialog_result::confirmed; }
-		if (c == 'c') { focus_idx_ = 2; return dialog_result::cancelled; }
-	}
-	return dialog_result::pending;
+std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename) {
+	auto dlg = std::make_unique<dialog>("Unsaved Changes", 50, 8);
+	
+	std::string msg = "Save changes to " + filename + "?";
+	int text_x = (50 - static_cast<int>(msg.length())) / 2;
+	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+	
+	int by = 8 - 3;
+	dlg->add_child(std::make_unique<ui_button>("btn_save", 4, by, "  Save  ", 'S', [d = dlg.get()]() {
+		d->set_result("save");
+		d->set_action(dialog_result::confirmed);
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_discard", 18, by, " Discard ", 'D', [d = dlg.get()]() {
+		d->set_result("discard");
+		d->set_action(dialog_result::confirmed);
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 34, by, " Cancel ", 'C', [d = dlg.get()]() {
+		d->set_result("cancel");
+		d->set_action(dialog_result::cancelled);
+	}));
+	
+	dlg->set_focus_by_name("btn_save");
+	
+	return dlg;
 }
-
-std::string save_prompt_dialog::get_result() const
-{
-	if (focus_idx_ == 0) return "save";
-	if (focus_idx_ == 1) return "discard";
-	return "cancel";
-}
-
 force_quit_dialog::force_quit_dialog()
     : dialog("Force Quit", 50, 9)
 {

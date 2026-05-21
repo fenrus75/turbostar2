@@ -64,7 +64,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				
 				// Make sure we only prompt if we aren't already prompting
 				if (active_dialog_mode_ != dialog_mode::save_prompt) {
-					active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
+					active_dialog_ = create_save_prompt_dialog(fname);
 					active_dialog_mode_ = dialog_mode::save_prompt;
 					
 					// Important: pass a flag in the dialog payload so we know we are in a quit loop

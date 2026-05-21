@@ -49,7 +49,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 						// This is the last window for a modified document. Prompt!
 						std::string fname = doc->get_filename();
 						if (fname.empty()) fname = "untitled.txt";
-						active_dialog_ = std::make_unique<save_prompt_dialog>(fname);
+						active_dialog_ = create_save_prompt_dialog(fname);
 						active_dialog_mode_ = dialog_mode::save_prompt;
 						set_focus(focus_target::dialog, "close_window");
 						return; // Stop the close process until dialog resolves

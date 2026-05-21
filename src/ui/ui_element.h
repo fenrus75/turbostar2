@@ -39,6 +39,15 @@ class ui_element
 	bool has_focus() const { return has_focus_; }
 	virtual void set_focus(bool focus) { has_focus_ = focus; }
 
+	bool is_pressed() const { return is_pressed_; }
+	virtual void set_pressed(bool pressed) { is_pressed_ = pressed; }
+
+	virtual std::optional<std::string> get_pressed_element_name() const
+	{
+		if (is_pressed_) return name_;
+		return std::nullopt;
+	}
+
 	void set_parent(ui_container *parent) { parent_ = parent; }
 	ui_container *parent() const { return parent_; }
 
@@ -52,6 +61,7 @@ class ui_element
 	std::string name_;
 	int x_, y_, width_, height_;
 	bool has_focus_{false};
+	bool is_pressed_{false};
 	ui_container *parent_{nullptr};
 };
 
@@ -68,10 +78,12 @@ class ui_container : public ui_element
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+	std::optional<std::string> get_pressed_element_name() const override;
 
 	virtual void focus_next();
 	virtual void focus_previous();
 	virtual void child_got_selected(ui_element *child);
+	virtual void set_focus_by_name(const std::string &child_name);
 
       protected:
 	std::vector<std::unique_ptr<ui_element>> children_;
