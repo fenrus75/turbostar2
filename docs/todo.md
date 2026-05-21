@@ -16,10 +16,6 @@
   - .env
   - our own API_KEY store
 
-- have an option in "ai_agent" class to make the whole agent "read only" (to allow for planning mode etc) which
-    - rejects any write tool calls (so write tool calls should check agent for read only in various places)
-    - we need to decide other security model implications
-
 - we need a window type to show "agent status"
 	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
 	  agent window the rest of the screen
@@ -169,6 +165,9 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- have an option in "ai_agent" class to make the whole agent "read only" (to allow for planning mode etc) which
+    - rejects any write tool calls (so write tool calls should check agent for read only in various places)
+    - we need to decide other security model implications
 - we should consider making a ui_listbox UI element and use it in the agent status window
 - agent tools
 	- list_agents() - returns a markdown table of ID, name, status
