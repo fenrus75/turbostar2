@@ -1,16 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- we may need to rate-limit wrefresh()
-	- for example, we should make wrefresh its own event type separate from drawing and queue it at the end of draw
-	- and then merge consecutive refresh events to only have 1 of them (the last one in the queue)
-
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
-
-- can we make next_utf8_character accept a string as argument into which we place the characters
-	- the caller should .reserve(4) at least 4 bytes so that in practice we never need to resize/allocate.
-	- performance feature: avoids having to construct new objects all the time etc
 
 - we need an "AI model" class that tracks url, model name, purpose, cost, api key for each model
    - over time we can use this to switch models dynamically
@@ -130,10 +122,6 @@
   or we launch a new terminal if DISPLAY/etc are set. Need to run it with our systemd-run wrapper so we can collect 
   any coredumps easily
 
-- our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
-  or ctrl-E
-	- slighlty annoying interaction issue
-
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
   (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
   we need to hook to coredumpctl and somehow only look at coredumps from our working space
@@ -197,6 +185,13 @@
 # done items (move items here on completion)
 
 ## 20-05-2026
+- can we make next_utf8_character accept a string as argument into which we place the characters
+	- the caller should .reserve(4) at least 4 bytes so that in practice we never need to resize/allocate.
+	- performance feature: avoids having to construct new objects all the time etc
+- our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
+  or ctrl-E
+	- slighlty annoying interaction issue
+
 
 ## 19-05-2026
 - get_current_datetime -- markdown table of unix time, and year, month, day, hour, minutes, seconds, timezone
