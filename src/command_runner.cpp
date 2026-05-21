@@ -104,6 +104,28 @@ std::string command_runner::build_command(const std::string& raw_command) const 
         }
     }
 
+    // Mask sensitive files natively at the kernel level
+    std::vector<std::string> inaccessible_paths;
+    
+    const char* home_env = std::getenv("HOME");
+    if (home_env) {
+        std::string home(home_env);
+        inaccessible_paths.push_back("-" + home + "/.ssh");
+        inaccessible_paths.push_back("-" + home + "/.env");
+        inaccessible_paths.push_back("-" + home + "/.aws");
+        inaccessible_paths.push_back("-" + home + "/.gnupg");
+        inaccessible_paths.push_back("-" + home + "/.gemini/keys");
+    }
+
+    if (!project_dir_.empty()) {
+        inaccessible_paths.push_back("-" + project_dir_ + "/.env");
+        inaccessible_paths.push_back("-" + project_dir_ + "/.ssh");
+    }
+
+    for (const auto& p : inaccessible_paths) {
+        cmd += "-p InaccessiblePaths=" + p + " ";
+    }
+
     // Escape single quotes in the raw command
     std::string escaped_command;
     for (char c : raw_command) {

@@ -7,6 +7,18 @@ namespace agentlib {
 file_security_manager::file_security_manager() {
     // Ensure the default cwd is an absolute, sanitized path
     cwd_ = std::filesystem::weakly_canonical(std::filesystem::current_path());
+
+    // Hardcode critical security paths that should NEVER be accessed by an agent
+    add_ignore_pattern("/.ssh");
+    add_ignore_pattern("\\.ssh");
+    add_ignore_pattern("/.env");
+    add_ignore_pattern("\\.env");
+    add_ignore_pattern("/.aws");
+    add_ignore_pattern("\\.aws");
+    add_ignore_pattern("/.gnupg");
+    add_ignore_pattern("\\.gnupg");
+    add_ignore_pattern("/.gemini/keys");
+    add_ignore_pattern("\\.gemini\\keys");
 }
 
 void file_security_manager::set_working_directory(const std::filesystem::path& cwd) {
