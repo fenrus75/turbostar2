@@ -40,6 +40,11 @@ public:
     bool mount_file(const std::string& uri, const std::string& disk_path);
 
     /**
+     * @brief Maps a direct memory buffer to a virtual URI.
+     */
+    bool mount_buffer(const std::string& uri, const std::string& buffer);
+
+    /**
      * @brief Unmounts a specific URI.
      */
     void unmount_file(const std::string& uri);

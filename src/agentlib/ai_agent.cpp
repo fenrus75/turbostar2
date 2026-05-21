@@ -324,51 +324,55 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
         // Notify parent agent asynchronously
         if (auto parent = self->parent_agent_.lock()) {
-            std::string notification = "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state.";
+            std::string agent_id_str = std::to_string(self->id_);
+            std::string uri = "agent://" + agent_id_str + "/completion_report.json";
             
-            // Extract the last 30 lines of interaction history to provide immediate context
-            std::string history_summary;
-            int total_lines = 0;
-            
-            std::vector<std::string> lines;
-            for (auto it = self->interactions_.rbegin(); it != self->interactions_.rend(); ++it) {
-                std::string raw = (*it)->get_raw_text();
-                
-                // Split by newline and insert backwards
-                size_t start = 0;
-                std::vector<std::string> chunk_lines;
-                while (start < raw.length()) {
-                    size_t end = raw.find('\n', start);
-                    if (end == std::string::npos) {
-                        chunk_lines.push_back(raw.substr(start));
-                        break;
+            std::string summary_text;
+            if (!final_response.empty()) {
+                // Heuristic: Extract the last sentence or two
+                size_t pos = final_response.find_last_of(".!?\n");
+                if (pos != std::string::npos && pos > 0) {
+                    size_t prev_pos = final_response.find_last_of(".!?\n", pos - 1);
+                    if (prev_pos != std::string::npos) {
+                        summary_text = final_response.substr(prev_pos + 1);
+                    } else {
+                        summary_text = final_response;
                     }
-                    chunk_lines.push_back(raw.substr(start, end - start));
-                    start = end + 1;
+                    // Clean up leading/trailing whitespace
+                    summary_text.erase(0, summary_text.find_first_not_of(" \n\r\t"));
+                    summary_text.erase(summary_text.find_last_not_of(" \n\r\t") + 1);
+                } else {
+                    summary_text = final_response;
                 }
-                
-                // Add to our lines buffer in reverse order
-                for (auto chunk_it = chunk_lines.rbegin(); chunk_it != chunk_lines.rend(); ++chunk_it) {
-                    if (total_lines >= 30) break;
-                    lines.push_back(*chunk_it);
-                    total_lines++;
-                }
-                
-                if (total_lines >= 30) break;
+            } else {
+                summary_text = "Task completed with no final response text.";
             }
-            
-            if (!lines.empty()) {
-                notification += "\n\nRecent context (last 30 lines):\n---\n";
-                // We collected lines backwards, so reverse them for reading
-                for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
-                    notification += *it + "\n";
-                }
-                notification += "---\n";
-            }
-            
-            notification += "Use the agent_get_output(" + std::to_string(self->id_) + ") tool if you need the full interaction history.";
 
-            parent->inject_context("system", notification);
+            nlohmann::json notification_json = {
+                {"event", "SubagentStop"},
+                {"agent_id", self->id_},
+                {"name", self->name_},
+                {"status", "completed"},
+                {"result", {
+                    {"summary", summary_text},
+                    {"output_path", uri}
+                }}
+            };
+            
+            // Generate full history buffer for the virtual file
+            std::string full_history = "Interaction History for Agent " + agent_id_str + " (" + self->name_ + ")\n=======================================================\n\n";
+            for (const auto& interaction : self->interactions_) {
+                full_history += interaction->get_raw_text() + "\n\n";
+            }
+            
+            // Mount to global VFS
+            skill_manager::get_instance().get_vfs()->mount_buffer(uri, full_history);
+
+            std::string system_msg = "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
+            system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
+            system_msg += "You can read the full interaction history log at: " + uri;
+
+            parent->inject_context("system", system_msg);
         }
     }).detach();
 }

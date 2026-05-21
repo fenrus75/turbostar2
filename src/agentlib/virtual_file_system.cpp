@@ -3,17 +3,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstring>
 
 namespace agentlib {
 
 virtual_file_system::mmap_handle::~mmap_handle() {
-    if (data && data != MAP_FAILED && size > 0 && type == 'F') {
-        munmap(data, size);
+    if (data && data != MAP_FAILED && size > 0) {
+        if (type == 'F') {
+            munmap(data, size);
+        } else if (type == 'M') {
+            free(data);
+        }
     }
 }
 
 void virtual_file_system::ensure_directories_exist(const std::string& file_uri) {
-    // Expected format: "skills://someskill/folder/file.txt"
+    // Expected format: "skills://someskill/folder/file.txt" or "agent://101/file.txt"
     size_t scheme_pos = file_uri.find("://");
     if (scheme_pos == std::string::npos) return;
 
@@ -70,6 +75,33 @@ bool virtual_file_system::mount_file(const std::string& uri, const std::string& 
         lines = 1;
         const char* p = static_cast<const char*>(mapped);
         const char* end = p + sb.st_size;
+        for (; p < end; ++p) {
+            if (*p == '\n') lines++;
+        }
+    }
+    handle->size_in_lines = lines;
+    
+    ensure_directories_exist(uri);
+    mounts_[uri] = std::move(handle);
+    return true;
+}
+
+bool virtual_file_system::mount_buffer(const std::string& uri, const std::string& buffer) {
+    auto handle = std::make_unique<mmap_handle>();
+    handle->type = 'M';
+    handle->size = buffer.size();
+    
+    if (handle->size > 0) {
+        handle->data = malloc(handle->size);
+        if (!handle->data) return false;
+        memcpy(handle->data, buffer.data(), handle->size);
+    }
+    
+    size_t lines = 0;
+    if (handle->size > 0) {
+        lines = 1;
+        const char* p = static_cast<const char*>(handle->data);
+        const char* end = p + handle->size;
         for (; p < end; ++p) {
             if (*p == '\n') lines++;
         }
