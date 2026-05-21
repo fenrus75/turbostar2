@@ -30,11 +30,17 @@ std::string wait_for_agent_tool::execute(agentlib::tool_context& ctx) {
         return "Error: Could not find subagent with ID " + std::to_string(args_.id);
     }
 
+    ctx.active_agent->set_status(agentlib::agent_status::waiting, target_agent->get_id());
+
     // Wait until the target agent is no longer processing
     while (target_agent->get_status() == agentlib::agent_status::thinking || 
-           target_agent->get_status() == agentlib::agent_status::tool_execution) {
+           target_agent->get_status() == agentlib::agent_status::tool_execution ||
+           target_agent->get_status() == agentlib::agent_status::waiting) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    // Restore our status to tool_execution so the caller loop knows we're back
+    ctx.active_agent->set_status(agentlib::agent_status::tool_execution);
 
     std::string base_msg = "Subagent reached idle state successfully.";
     if (target_agent->get_status() == agentlib::agent_status::error) {

@@ -29,6 +29,7 @@ std::string agent_list_tool::execute(agentlib::tool_context& ctx) {
             case agentlib::agent_status::thinking: status_str = "Thinking"; break;
             case agentlib::agent_status::tool_execution: status_str = "Tool Execution"; break;
             case agentlib::agent_status::error: status_str = "Error"; break;
+            case agentlib::agent_status::waiting: status_str = "Waiting"; break;
         }
         oss << "| " << sub->get_id() << " | " << sub->get_name() << " | " << status_str << " |\n";
     }

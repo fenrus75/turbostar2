@@ -19,6 +19,7 @@ enum class agent_status {
     idle,
     thinking,
     tool_execution,
+    waiting,
     error
 };
 
@@ -39,6 +40,18 @@ public:
     int get_id() const { return id_; }
     std::string get_name() const { return name_; }
     agent_status get_status() const { return status_; }
+    
+    // Explicitly set the status, optionally with a target ID if waiting
+    void set_status(agent_status s, int target_id = -1) { 
+        status_ = s; 
+        if (s == agent_status::waiting) {
+            waiting_on_id_ = target_id;
+        } else {
+            waiting_on_id_ = -1;
+        }
+    }
+    
+    int get_waiting_on_id() const { return waiting_on_id_; }
 
     void add_todo(const std::string& task);
     std::vector<todo_item> get_todos() const;
@@ -72,6 +85,7 @@ private:
     std::atomic<agent_status> status_{agent_status::idle};
     std::atomic<bool> is_closed_{false};
     std::atomic<bool> read_only_{false};
+    std::atomic<int> waiting_on_id_{-1};
 
     event_queue* global_queue_;
     document_provider* doc_provider_;

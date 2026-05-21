@@ -101,14 +101,19 @@ void agent_status_window::draw_content() const {
         auto subagents = agent_->get_subagents();
         std::vector<std::string> subagent_strings;
         for (const auto& sub : subagents) {
-            std::string status_str;
-            switch (sub->get_status()) {
-                case agentlib::agent_status::idle: status_str = "[Idle]"; break;
-                case agentlib::agent_status::thinking: status_str = "[Thinking]"; break;
-                case agentlib::agent_status::tool_execution: status_str = "[Tool]"; break;
-                case agentlib::agent_status::error: status_str = "[Error]"; break;
+            if (current_y < y_ + height_ - 1) {
+                std::string status_str;
+                switch (sub->get_status()) {
+                    case agentlib::agent_status::idle: status_str = "[Idle]"; break;
+                    case agentlib::agent_status::thinking: status_str = "[Thinking]"; break;
+                    case agentlib::agent_status::tool_execution: status_str = "[Tool]"; break;
+                    case agentlib::agent_status::error: status_str = "[Error]"; break;
+                    case agentlib::agent_status::waiting: 
+                        status_str = "[Waiting for " + std::to_string(sub->get_waiting_on_id()) + "]"; 
+                        break;
+                }
+                subagent_strings.push_back(" " + sub->get_name() + " " + status_str);
             }
-            subagent_strings.push_back(" " + sub->get_name() + " " + status_str);
         }
         
         // Compute dynamic height available
