@@ -11,6 +11,15 @@
      so that we can fill in purpose, and outright ban bad models
    - likely allow .turbostar like files to append to the build in list
 
+- we should take a set of known security sensitive files and in our sandbox, make them disappear
+  - .ssh/
+  - .env
+  - our own API_KEY store
+
+- have an option in "ai_agent" class to make the whole agent "read only" (to allow for planning mode etc) which
+    - rejects any write tool calls (so write tool calls should check agent for read only in various places)
+    - we need to decide other security model implications
+
 - we need a window type to show "agent status"
 	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
 	  agent window the rest of the screen
@@ -51,6 +60,7 @@
 	- coredump_list()
 	- coredump_read_memory(nr, location, size)
 	- coredump_gdb(nr, command) (over time -- likely to come later)
+
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
@@ -159,6 +169,7 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- we should consider making a ui_listbox UI element and use it in the agent status window
 - agent tools
 	- list_agents() - returns a markdown table of ID, name, status
  	- create_agent(name, profile) - profile is the .agent.md kind of content
