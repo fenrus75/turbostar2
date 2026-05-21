@@ -3,6 +3,35 @@
 #include <ncurses.h>
 #include "event_logger.h"
 
+ui_button::ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py)
+    : text(t), hotkey(hk), result_string(res), action(act), x(px), y(py), width(static_cast<int>(t.length()))
+{
+}
+
+void ui_button::draw() const
+{
+	attron(COLOR_PAIR(1));
+	mvaddstr(y, x + text.length(), "▄");
+	std::string shadow_str;
+	for (size_t j = 0; j < text.length(); ++j) shadow_str += "▀";
+	mvaddstr(y + 1, x + 1, shadow_str.c_str());
+	
+	if (is_focused) attrset(COLOR_PAIR(10));
+	else attrset(COLOR_PAIR(8));
+	
+	mvaddstr(y, x, text.c_str());
+	
+	if (hotkey != '\0') {
+		size_t hk_pos = text.find(hotkey);
+		if (hk_pos != std::string::npos) {
+			if (is_focused) attron(COLOR_PAIR(12));
+			else attron(COLOR_PAIR(11));
+			mvaddch(y, x + hk_pos, text[hk_pos]);
+		}
+	}
+	attrset(COLOR_PAIR(1));
+}
+
 dialog::dialog(const std::string &title, int width, int height) : title_(title), width_(width), height_(height)
 {
 	int max_y, max_x;
@@ -69,6 +98,14 @@ void dialog::draw() const
 		attroff(COLOR_PAIR(1));
 	}
 	attroff(COLOR_PAIR(1));
+}
+
+void dialog::draw_buttons(int focused_button_idx) const
+{
+	for (size_t i = 0; i < buttons_.size(); ++i) {
+		buttons_[i].set_focus(static_cast<int>(i) == focused_button_idx);
+		buttons_[i].draw();
+	}
 }
 
 input_dialog::input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
@@ -189,6 +226,11 @@ save_prompt_dialog::save_prompt_dialog(const std::string &filename)
 	getmaxyx(stdscr, max_y, max_x);
 	x_ = (max_x - width_) / 2;
 	y_ = (max_y - height_) / 2;
+
+	int by = y_ + height_ - 3;
+	buttons_.emplace_back("  Save  ", 'S', "save", dialog_result::confirmed, x_ + 4, by);
+	buttons_.emplace_back(" Discard ", 'D', "discard", dialog_result::confirmed, x_ + 18, by);
+	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::confirmed, x_ + 34, by);
 }
 
 void save_prompt_dialog::draw() const
@@ -200,33 +242,18 @@ void save_prompt_dialog::draw() const
 	int text_x = x_ + (width_ - static_cast<int>(msg.length())) / 2;
 	mvaddstr(y_ + 2, text_x, msg.c_str());
 
+	draw_buttons(focus_idx_);
+}
 
-	auto draw_btn = [&](int bx, const std::string &text, char hotkey, bool focused) {
-		int by = y_ + height_ - 3;
-		
-		attron(COLOR_PAIR(1));
-		mvaddstr(by, bx + text.length(), "▄");
-		std::string shadow_str;
-		for (size_t i = 0; i < text.length(); ++i) shadow_str += "▀";
-		mvaddstr(by + 1, bx + 1, shadow_str.c_str());
-		
-		if (focused) attrset(COLOR_PAIR(10));
-		else attrset(COLOR_PAIR(8));
-		
-		mvaddstr(by, bx, text.c_str());
-		
-		size_t hk_pos = text.find(hotkey);
-		if (hk_pos != std::string::npos) {
-			if (focused) attron(COLOR_PAIR(12));
-			else attron(COLOR_PAIR(11));
-			mvaddch(by, bx + hk_pos, text[hk_pos]);
+std::optional<dialog_result> save_prompt_dialog::handle_mouse(int mouse_x, int mouse_y)
+{
+	for (size_t i = 0; i < buttons_.size(); ++i) {
+		if (buttons_[i].contains(mouse_x, mouse_y)) {
+			focus_idx_ = i;
+			return buttons_[i].action;
 		}
-		attrset(COLOR_PAIR(1));
-	};
-
-	draw_btn(x_ + 4, "  Save  ", 'S', focus_idx_ == 0);
-	draw_btn(x_ + 18, " Discard ", 'D', focus_idx_ == 1);
-	draw_btn(x_ + 34, " Cancel ", 'C', focus_idx_ == 2);
+	}
+	return std::nullopt;
 }
 
 dialog_result save_prompt_dialog::handle_key(int key)
@@ -263,6 +290,11 @@ force_quit_dialog::force_quit_dialog()
 	x_ = (max_x - width_) / 2;
 	y_ = (max_y - height_) / 2;
 	start_time_ = std::chrono::steady_clock::now();
+
+	int by = y_ + height_ - 3;
+	buttons_.emplace_back("  Exit  ", 'E', "exit", dialog_result::confirmed, x_ + 4, by);
+	buttons_.emplace_back(" Save All ", 'S', "save_all", dialog_result::confirmed, x_ + 16, by);
+	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::confirmed, x_ + 32, by);
 }
 
 bool force_quit_dialog::tick()
@@ -294,32 +326,18 @@ void force_quit_dialog::draw() const
 		mvaddstr(y_ + 4, count_x, count_msg.c_str());
 	}
 
-	auto draw_btn = [&](int bx, const std::string &text, char hotkey, bool focused) {
-		int by = y_ + height_ - 3;
-		
-		attron(COLOR_PAIR(1));
-		mvaddstr(by, bx + text.length(), "▄");
-		std::string shadow_str;
-		for (size_t i = 0; i < text.length(); ++i) shadow_str += "▀";
-		mvaddstr(by + 1, bx + 1, shadow_str.c_str());
-		
-		if (focused) attrset(COLOR_PAIR(10));
-		else attrset(COLOR_PAIR(8));
-		
-		mvaddstr(by, bx, text.c_str());
-		
-		size_t hk_pos = text.find(hotkey);
-		if (hk_pos != std::string::npos) {
-			if (focused) attron(COLOR_PAIR(12));
-			else attron(COLOR_PAIR(11));
-			mvaddch(by, bx + hk_pos, text[hk_pos]);
-		}
-		attrset(COLOR_PAIR(1));
-	};
+	draw_buttons(focus_idx_);
+}
 
-	draw_btn(x_ + 4, "  Exit  ", 'E', focus_idx_ == 0);
-	draw_btn(x_ + 16, " Save All ", 'S', focus_idx_ == 1);
-	draw_btn(x_ + 32, " Cancel ", 'C', focus_idx_ == 2);
+std::optional<dialog_result> force_quit_dialog::handle_mouse(int mouse_x, int mouse_y)
+{
+	for (size_t i = 0; i < buttons_.size(); ++i) {
+		if (buttons_[i].contains(mouse_x, mouse_y)) {
+			focus_idx_ = i;
+			return buttons_[i].action;
+		}
+	}
+	return std::nullopt;
 }
 
 dialog_result force_quit_dialog::handle_key(int key)
@@ -353,6 +371,15 @@ std::string force_quit_dialog::get_result() const
 ask_user_dialog::ask_user_dialog(const std::string& question, const std::vector<std::string>& options)
     : dialog("Question", std::max<int>(60, question.length() + 6), 9 + options.size()), question_(question), options_(options)
 {
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	x_ = (max_x - width_) / 2;
+	y_ = (max_y - height_) / 2;
+
+	int current_y = y_ + 4 + options_.size() + 2;
+	int btn_x_center = width_ / 2;
+	buttons_.emplace_back("   OK   ", 'O', "ok", dialog_result::confirmed, x_ + btn_x_center - 12, current_y);
+	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + btn_x_center + 2, current_y);
 }
 
 void ask_user_dialog::draw() const
@@ -398,26 +425,22 @@ void ask_user_dialog::draw() const
 		addch(' ');
 		attrset(COLOR_PAIR(3));
 	}
-	current_y += 2;
 
-	auto draw_btn = [&](int by, int bx, const std::string &btext, bool focused) {
-		attrset(COLOR_PAIR(1));
-		mvaddstr(by, x_ + bx + btext.length(), "▄");
-		for (size_t i = 0; i < btext.length(); ++i)
-			mvaddstr(by + 1, x_ + bx + 1 + i, "▀");
-		move(by, x_ + bx);
-		if (focused) attrset(COLOR_PAIR(14));
-		else attrset(COLOR_PAIR(10));
-		addstr(btext.c_str());
-		attrset(0);
-	};
+	int btn_focus = -1;
+	if (focus_idx_ == static_cast<int>(options_.size() + 1)) btn_focus = 0;
+	if (focus_idx_ == static_cast<int>(options_.size() + 2)) btn_focus = 1;
+	draw_buttons(btn_focus);
+}
 
-	bool ok_focused = (focus_idx_ == static_cast<int>(options_.size() + 1));
-	bool cancel_focused = (focus_idx_ == static_cast<int>(options_.size() + 2));
-	
-	int btn_x_center = width_ / 2;
-	draw_btn(current_y, btn_x_center - 12, "   OK   ", ok_focused);
-	draw_btn(current_y, btn_x_center + 2, " Cancel ", cancel_focused);
+std::optional<dialog_result> ask_user_dialog::handle_mouse(int mouse_x, int mouse_y)
+{
+	for (size_t i = 0; i < buttons_.size(); ++i) {
+		if (buttons_[i].contains(mouse_x, mouse_y)) {
+			focus_idx_ = options_.size() + 1 + i;
+			return buttons_[i].action;
+		}
+	}
+	return std::nullopt;
 }
 
 dialog_result ask_user_dialog::handle_key(int key)

@@ -14,6 +14,32 @@ enum class dialog_result {
 };
 
 /**
+ * @brief Represents a clickable button inside a dialog.
+ */
+struct ui_button {
+	std::string text;
+	char hotkey;
+	std::string result_string;
+	dialog_result action;
+	int x;
+	int y;
+	int width;
+	bool is_focused{false};
+
+	ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py);
+
+	bool contains(int mouse_x, int mouse_y) const {
+		return mouse_y == y && mouse_x >= x && mouse_x < x + width;
+	}
+
+	void set_focus(bool focused) {
+		is_focused = focused;
+	}
+
+	void draw() const;
+};
+
+/**
  * @brief Abstract base class for modal dialog boxes.
  *
  * Handles layout, borders, and shadows.
@@ -37,6 +63,12 @@ class dialog
 	virtual dialog_result handle_key(int key) = 0;
 
 	/**
+	 * @brief Processes mouse input for the dialog.
+	 * @return A dialog_result if an action was taken, or nullopt.
+	 */
+	virtual std::optional<dialog_result> handle_mouse(int /*x*/, int /*y*/) { return std::nullopt; }
+
+	/**
 	 * @brief Returns the primary result string of the dialog (if
 	 * applicable).
 	 */
@@ -49,6 +81,9 @@ class dialog
 	std::string title_;
 	int width_, height_;
 	int x_, y_;
+	mutable std::vector<ui_button> buttons_;
+
+	void draw_buttons(int focused_button_idx) const;
 };
 
 /**
@@ -96,6 +131,7 @@ class save_prompt_dialog : public dialog
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;
+	std::optional<dialog_result> handle_mouse(int x, int y) override;
 	std::string get_result() const override;
 
       private:
@@ -115,6 +151,7 @@ class force_quit_dialog : public dialog
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;
+	std::optional<dialog_result> handle_mouse(int x, int y) override;
 	std::string get_result() const override;
 	bool tick();
 
@@ -137,6 +174,7 @@ class ask_user_dialog : public dialog
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;
+	std::optional<dialog_result> handle_mouse(int x, int y) override;
 	std::string get_result() const override;
 
       private:

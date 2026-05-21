@@ -25,9 +25,22 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 
 	if (ev.type == event_type::mouse_click) {
 		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
-		
-		if (active_popup_) {
-			auto res = active_popup_->handle_mouse(ev.mouse_x, ev.mouse_y);
+
+		if (active_dialog_) {
+			auto res = active_dialog_->handle_mouse(ev.mouse_x, ev.mouse_y);
+			if (res.has_value()) {
+				dialog_result dres = res.value();
+				if (dres != dialog_result::pending) {
+					resolve_dialog(dres);
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+					return;
+				}
+			}
+		}
+
+		if (active_popup_) {			auto res = active_popup_->handle_mouse(ev.mouse_x, ev.mouse_y);
 			if (res.has_value()) {
 				int id = res.value();
 				active_popup_.reset();

@@ -68,6 +68,7 @@ class editor : public agentlib::document_provider
 	void dispatch_event_build(const editor_event &ev);
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
+	void resolve_dialog(dialog_result res);
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
 	void render();

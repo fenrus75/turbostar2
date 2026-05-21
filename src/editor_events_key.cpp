@@ -19,6 +19,131 @@
 
 namespace fs = std::filesystem;
 
+void editor::resolve_dialog(dialog_result res)
+{
+	if (res == dialog_result::confirmed) {
+		auto doc = get_active_doc();
+		if (!doc)
+			doc = documents_[0]; // Default fallback
+
+		if (active_dialog_mode_ == dialog_mode::load) {
+			std::string result_path = active_dialog_->get_result();
+			new_window(result_path);
+			history_manager::get_instance().add_file(result_path);
+		} else if (active_dialog_mode_ == dialog_mode::save) {
+			std::string result_path = active_dialog_->get_result();
+			doc->save_to_file(result_path);
+			history_manager::get_instance().add_file(result_path);
+			for (auto &w : windows_) {
+				if (w->get_document() == doc) {
+					w->set_title(doc->get_filename());
+					break;
+				}
+			}
+			update_window_menu();
+			if (config_manager::get_instance().is_compile_on_save()) {
+				editor_event compile_ev;
+				compile_ev.type = event_type::compile_file;
+				global_queue_.push(compile_ev);
+			}
+		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
+			auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
+			if (f_dialog) {
+				current_search_ = f_dialog->get_search_params();
+				history_manager::get_instance().add_search(current_search_.query);
+				if (doc->find_next(current_search_)) {
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::insert_file) {
+			std::string result_path = active_dialog_->get_result();
+			if (doc) {
+				doc->insert_file(result_path);
+			}
+		} else if (active_dialog_mode_ == dialog_mode::ask_user) {
+			if (active_ask_user_promise_) {
+				active_ask_user_promise_->set_value(active_dialog_->get_result());
+				active_ask_user_promise_.reset();
+			}
+		} else if (active_dialog_mode_ == dialog_mode::settings) {
+			auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
+			if (s_dialog) {
+				config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
+				config_manager::get_instance().set_build_system(s_dialog->get_build_system());
+				config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
+				config_manager::get_instance().set_llm_url(s_dialog->get_llm_url());
+				config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
+				config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
+				config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
+				config_manager::get_instance().save();
+			}
+		} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "exit") {
+				is_running_ = false;
+			} else if (res_str == "save_all") {
+				editor_event save_all_ev;
+				save_all_ev.type = event_type::save_all;
+				global_queue_.push(save_all_ev);
+
+				editor_event quit_ev;
+				quit_ev.type = event_type::force_quit;
+				global_queue_.push(quit_ev);
+			}
+
+			active_dialog_.reset();
+			active_dialog_mode_ = dialog_mode::none;
+			if (res_str == "cancel") {
+				set_focus(focus_target::window, "dialog_close");
+			}
+			return;
+		} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
+			std::string res_str = active_dialog_->get_result();
+			active_dialog_.reset();
+			active_dialog_mode_ = dialog_mode::none;
+			set_focus(focus_target::window, "dialog_close");
+
+			if (res_str == "save") {
+				if (doc->get_filename().empty()) {
+					editor_event save_as_ev;
+					save_as_ev.type = event_type::save_as;
+					global_queue_.push(save_as_ev);
+				} else {
+					doc->save();
+					editor_event close_ev;
+					close_ev.type = event_type::close_window;
+					global_queue_.push(close_ev);
+				}
+			} else if (res_str == "discard") {
+				editor_event close_ev;
+				close_ev.type = event_type::close_window;
+				close_ev.key_code = 1;
+				global_queue_.push(close_ev);
+			} else if (res_str == "cancel") {
+			}
+			return;
+		}
+
+		active_dialog_.reset();
+		active_dialog_mode_ = dialog_mode::none;
+		set_focus(focus_target::window, "dialog_close");
+
+	} else if (res == dialog_result::cancelled) {
+		if (active_dialog_mode_ == dialog_mode::ask_user) {
+			if (active_ask_user_promise_) {
+				active_ask_user_promise_->set_value("");
+				active_ask_user_promise_.reset();
+			}
+		}
+
+		active_dialog_.reset();
+		active_dialog_mode_ = dialog_mode::none;
+		set_focus(focus_target::window, "dialog_cancel");
+	}
+}
+
 void editor::dispatch_event_key(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
@@ -77,134 +202,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 		// 1. Modal Dialogs have highest priority
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
-			if (res == dialog_result::confirmed) {
-				auto doc = get_active_doc();
-				if (!doc)
-					doc = documents_[0]; // Default fallback
-	
-				if (active_dialog_mode_ == dialog_mode::load) {
-					std::string result_path = active_dialog_->get_result();
-					new_window(result_path);
-					history_manager::get_instance().add_file(result_path);
-				} else if (active_dialog_mode_ == dialog_mode::save) {
-					std::string result_path = active_dialog_->get_result();
-					doc->save_to_file(result_path);
-					history_manager::get_instance().add_file(result_path);
-					// Update window title
-					for (auto &w : windows_) {
-						if (w->get_document() == doc) {
-							w->set_title(doc->get_filename());
-							break;
-						}
-					}
-					update_window_menu();
-					if (config_manager::get_instance().is_compile_on_save()) {
-						editor_event compile_ev;
-						compile_ev.type = event_type::compile_file;
-						global_queue_.push(compile_ev);
-					}
-				} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
-					auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
-					if (f_dialog) {
-						current_search_ = f_dialog->get_search_params();
-						history_manager::get_instance().add_search(current_search_.query);
-						if (doc->find_next(current_search_)) {
-							editor_event redraw_ev;
-							redraw_ev.type = event_type::redraw;
-							global_queue_.push(redraw_ev);
-						}
-					}
-				} else if (active_dialog_mode_ == dialog_mode::insert_file) {
-					std::string result_path = active_dialog_->get_result();
-					if (doc) {
-						doc->insert_file(result_path);
-					}
-				} else if (active_dialog_mode_ == dialog_mode::ask_user) {
-					if (active_ask_user_promise_) {
-						active_ask_user_promise_->set_value(active_dialog_->get_result());
-						active_ask_user_promise_.reset();
-					}
-				} else if (active_dialog_mode_ == dialog_mode::settings) {
-					auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
-					if (s_dialog) {
-						config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
-						config_manager::get_instance().set_build_system(s_dialog->get_build_system());
-						config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
-						config_manager::get_instance().set_llm_url(s_dialog->get_llm_url());
-						config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
-						config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
-						config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
-						config_manager::get_instance().save();
-						}
-						} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
-						std::string res = active_dialog_->get_result();
-						if (res == "exit") {
-						is_running_ = false;
-						} else if (res == "save_all") {
-						editor_event save_all_ev;
-						save_all_ev.type = event_type::save_all;
-						global_queue_.push(save_all_ev);
-
-						// Push another force_quit to retry exiting after saving
-						editor_event quit_ev;
-						quit_ev.type = event_type::force_quit;
-						global_queue_.push(quit_ev);
-						}
-
-						active_dialog_.reset();
-						active_dialog_mode_ = dialog_mode::none;
-						if (res == "cancel") {
-						set_focus(focus_target::window, "dialog_close");
-						}
-						return;
-						} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
-						std::string res = active_dialog_->get_result();
-						active_dialog_.reset();
-						active_dialog_mode_ = dialog_mode::none;
-						set_focus(focus_target::window, "dialog_close");
-
-						if (res == "save") {
-						if (doc->get_filename().empty()) {
-							// Needs Save As
-							editor_event save_as_ev;
-							save_as_ev.type = event_type::save_as;
-							global_queue_.push(save_as_ev);
-							// We intentionally do not queue close_window here to avoid a loop.
-							// The user can close the window after saving.
-						} else {
-							doc->save();
-							editor_event close_ev;
-							close_ev.type = event_type::close_window;
-							global_queue_.push(close_ev);
-						}
-						} else if (res == "discard") {
-						editor_event close_ev;
-						close_ev.type = event_type::close_window;
-						close_ev.key_code = 1; // Force close
-						global_queue_.push(close_ev);
-						} else if (res == "cancel") {
-						// Do nothing, abort close
-						}
-						return;
-						}
-
-						active_dialog_.reset();				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window, "dialog_close");
-
-			} else if (res == dialog_result::cancelled) {
-				if (active_dialog_mode_ == dialog_mode::ask_user) {
-					if (active_ask_user_promise_) {
-						active_ask_user_promise_->set_value("");
-						active_ask_user_promise_.reset();
-					}
-				}
-				active_dialog_.reset();
-				active_dialog_mode_ = dialog_mode::none;
-				set_focus(focus_target::window, "dialog_cancel");
+			if (res != dialog_result::pending) {
+				resolve_dialog(res);
 			}
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 			return;
 		}
-	
 		// 2. Status Bar Search Prompt
 		if (is_searching_prompt_) {
 			if (ev.key_code == 27) { // ESC
