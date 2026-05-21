@@ -4,18 +4,6 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
-- we should take a set of known security sensitive files and in our sandbox, make them disappear
-  - .ssh/
-  - .env
-  - our own API_KEY store
-
-- we need a window type to show "agent status"
-	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
-	  agent window the rest of the screen
-	- all subagents (with a highlight cursor so that we can go view details)
-	- activated skills ?
-	- active model, tokens consumed, cost$, .... <more over time>
-
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
@@ -46,23 +34,6 @@
 	- coredump_gdb(nr, command) (over time -- likely to come later)
      - enter_plan_mode, exit_plan_mode
 
-- the context we give to the agent as part of the notification that a subagent finished should be
-  (per internet documentation) in json format:
-{
-  "event": "SubagentStop",
-  "agent_id": "subagent_123ab",
-  "name": "data_quality_agent",
-  "status": "completed",
-  "duration_s": 24.5,
-  "result": {
-    "summary": "Data cleaning complete.",
-    "output_path": "reports/data_quality_report.md"
-  }
-}
-	so we need to write the log to a file .md (likely a virtual file in the vfs)
-	and provide the last sentence our two in summary
-
-
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
@@ -72,9 +43,6 @@
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
 
-- track which skills got activated and visually mark them as such
-	- the initial skill table we report at launch should come with an open box utf8 character (BALLOT BOX: ☐ )
-        - once activated we replace that with the same box with a checkmark in it (BALLOT BOX WITH CHECK: ☑ )
 
 - should we send the initial system prompt and tool info as we open the agent window and not wait for the first user prompt?
 	- goal: reduce latency for first actual prompt
@@ -172,6 +140,15 @@
 
 ## 21-05-2026
 - agent tools
+    - formatted subagent completion notification as industry-standard JSON and mounted full logs to the VFS.
+- we should take a set of known security sensitive files and in our sandbox, make them disappear
+  - .ssh/
+  - .env
+  - our own API_KEY store
+- track which skills got activated and visually mark them as such
+	- the initial skill table we report at launch should come with an open box utf8 character (BALLOT BOX: ☐ )
+        - once activated we replace that with the same box with a checkmark in it (BALLOT BOX WITH CHECK: ☑ )
+- agent tools
     - run_python() with optional code string, file_path, and uv dependency management.
 - we need an "AI model" class/extend the current class that tracks URL, model name, purpose, cost (and API key etc). 
     - the agent status window should use this data to calculate the cost 
@@ -193,7 +170,12 @@
 
 
 ## 20-05-2026
-
+- we need a window type to show "agent status"
+	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
+	  agent window the rest of the screen
+	- all subagents (with a highlight cursor so that we can go view details)
+	- activated skills ?
+	- active model, tokens consumed, cost$, .... <more over time>
 - add python basic syntax highlighting
     - implemented `python_highlighter` with keyword, string, comment, and trailing whitespace support
     - added unit tests and verified with full test suite
