@@ -23,17 +23,42 @@ public:
     bool is_pure() const override { return false; }
 
     std::string get_name() const override { return "run_python"; }
-    std::string get_description() const override { return "Executes Python code. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file). Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'. Note: If 'uv' is not available on the host, dependencies may be ignored."; }
+    std::string get_description() const override { 
+        if (has_uv()) {
+            return "Executes Python code. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file). Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'.";
+        }
+        return "Executes Python code. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file).";
+    }
     
     nlohmann::json get_parameters_schema() const override {
+        nlohmann::json props = {
+            {"code", {{"type", "string"}, {"description", "The raw Python code string to execute."}}},
+            {"file_path", {{"type", "string"}, {"description", "The relative path to a Python script to execute."}}}
+        };
+
+        if (has_uv()) {
+            props["dependencies"] = {
+                {"type", "array"}, 
+                {"items", {{"type", "string"}}}, 
+                {"description", "A list of PyPI packages required by the script (e.g., ['requests', 'beautifulsoup4'])."}
+            };
+        }
+
         return {
             {"type", "object"},
-            {"properties", {
-                {"code", {{"type", "string"}, {"description", "The raw Python code string to execute."}}},
-                {"file_path", {{"type", "string"}, {"description", "The relative path to a Python script to execute."}}},
-                {"dependencies", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "A list of PyPI packages required by the script (e.g., ['requests', 'beautifulsoup4'])."}}}
-            }}
+            {"properties", props}
         };
+    }
+
+private:
+    bool has_uv() const {
+        static bool uv_checked = false;
+        static bool uv_available = false;
+        if (!uv_checked) {
+            uv_available = (system("which uv > /dev/null 2>&1") == 0);
+            uv_checked = true;
+        }
+        return uv_available;
     }
 
 protected:
