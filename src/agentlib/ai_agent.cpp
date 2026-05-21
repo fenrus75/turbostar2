@@ -37,19 +37,56 @@ void ai_agent::cancel_current_task() {
 
 void ai_agent::add_todo(const std::string& task) {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    todos_.push_back(task);
+    todos_.push_back({task, false});
 }
 
-std::vector<std::string> ai_agent::get_todos() const {
+std::vector<todo_item> ai_agent::get_todos() const {
     std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(state_mutex_));
     return todos_;
 }
 
-void ai_agent::clear_todo(size_t index) {
+bool ai_agent::mark_todo_complete(const std::string& text_match, std::string& out_error) {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    if (index < todos_.size()) {
-        todos_.erase(todos_.begin() + index);
+    int match_idx = -1;
+    for (size_t i = 0; i < todos_.size(); ++i) {
+        if (todos_[i].text.find(text_match) != std::string::npos) {
+            if (match_idx != -1) {
+                out_error = "Multiple tasks match '" + text_match + "'. Please be more specific.";
+                return false;
+            }
+            match_idx = i;
+        }
     }
+    
+    if (match_idx == -1) {
+        out_error = "No task found matching '" + text_match + "'.";
+        return false;
+    }
+    
+    todos_[match_idx].completed = true;
+    return true;
+}
+
+bool ai_agent::delete_todo(const std::string& text_match, std::string& out_error) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    int match_idx = -1;
+    for (size_t i = 0; i < todos_.size(); ++i) {
+        if (todos_[i].text.find(text_match) != std::string::npos) {
+            if (match_idx != -1) {
+                out_error = "Multiple tasks match '" + text_match + "'. Please be more specific.";
+                return false;
+            }
+            match_idx = i;
+        }
+    }
+    
+    if (match_idx == -1) {
+        out_error = "No task found matching '" + text_match + "'.";
+        return false;
+    }
+    
+    todos_.erase(todos_.begin() + match_idx);
+    return true;
 }
 
 std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& /*task_description*/) {
@@ -92,6 +129,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
         ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
         ctx.doc_provider = self->doc_provider_;
         ctx.queue = self->global_queue_;
+        ctx.active_agent = self.get();
         
         std::string final_response;
 

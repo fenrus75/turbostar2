@@ -7,6 +7,8 @@
 #include "../agentlib/recording_transport.h"
 #include "../agentlib/replay_transport.h"
 #include "../agentlib/skill_manager.h"
+#include "../agentlib/ai_agent.h"
+#include "../event_queue.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -20,12 +22,12 @@ int main(int argc, char** argv) {
     // Set up the transport chain
 #if defined(LLM_TRANSPORT_REPLAY)
     std::cout << "[Using Replay Transport]" << std::endl;
-    auto player = std::make_shared<replay_transport>("llm_debug_traffic.json");
+    auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "llm_debug_traffic.json");
     llm_client client(player);
 #elif defined(LLM_TRANSPORT_RECORD)
     std::cout << "[Using Recording Transport]" << std::endl;
     auto http_transport = std::make_shared<httplib_transport>(url);
-    auto recorder = std::make_shared<recording_transport>(http_transport, "llm_debug_traffic.json");
+    auto recorder = std::make_shared<recording_transport>(http_transport, argc > 2 ? argv[2] : "llm_debug_traffic.json");
     llm_client client(recorder);
 #else
     std::cout << "[Using Standard HTTP Transport]" << std::endl;
@@ -35,6 +37,10 @@ int main(int argc, char** argv) {
     
     tool_registry& registry = tool_registry::get_instance();
     tool_context ctx;
+    event_queue q;
+    auto test_agent = ai_agent::create(1, "TestAgent", url, &q, nullptr);
+    ctx.active_agent = test_agent.get();
+
     agentlib::skill_manager::get_instance().initialize();
     ctx.fs_security.set_working_directory(std::filesystem::current_path());
     ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);

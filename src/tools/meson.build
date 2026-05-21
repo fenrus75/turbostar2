@@ -1,4 +1,12 @@
 tools_sources = files(
+  'agent_add_todo/agent_add_todo_entry.cpp',
+  'agent_add_todo/agent_add_todo_security.cpp',
+  'agent_list_todos/agent_list_todos_entry.cpp',
+  'agent_list_todos/agent_list_todos_security.cpp',
+  'agent_complete_todo/agent_complete_todo_entry.cpp',
+  'agent_complete_todo/agent_complete_todo_security.cpp',
+  'agent_delete_todo/agent_delete_todo_entry.cpp',
+  'agent_delete_todo/agent_delete_todo_security.cpp',
   'get_temperature/get_temperature_entry.cpp',
   'get_temperature/get_temperature_security.cpp',
   'fs_file_size/fs_file_size_entry.cpp',

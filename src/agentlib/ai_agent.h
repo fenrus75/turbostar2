@@ -21,6 +21,11 @@ enum class agent_status {
     error
 };
 
+struct todo_item {
+    std::string text;
+    bool completed{false};
+};
+
 class ai_agent : public std::enable_shared_from_this<ai_agent> {
 public:
     static std::shared_ptr<ai_agent> create(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
@@ -35,8 +40,9 @@ public:
     agent_status get_status() const { return status_; }
 
     void add_todo(const std::string& task);
-    std::vector<std::string> get_todos() const;
-    void clear_todo(size_t index);
+    std::vector<todo_item> get_todos() const;
+    bool mark_todo_complete(const std::string& text_match, std::string& out_error);
+    bool delete_todo(const std::string& text_match, std::string& out_error);
 
     std::shared_ptr<ai_agent> spawn_subagent(const std::string& task_description);
     const std::vector<std::shared_ptr<ai_agent>>& get_subagents() const { return subagents_; }
@@ -53,7 +59,7 @@ private:
     document_provider* doc_provider_;
 
     std::mutex state_mutex_;
-    std::vector<std::string> todos_;
+    std::vector<todo_item> todos_;
     std::vector<std::shared_ptr<ai_agent>> subagents_;
 
     std::mutex conversation_mutex_;

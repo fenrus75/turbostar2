@@ -1,35 +1,25 @@
 #include "agent_add_todo.h"
 #include "../../agentlib/single_string_tool_validator.h"
+#include "../../agentlib/tool_registry.h"
 
 namespace tools {
-    static agentlib::single_string_tool_validator<agent_add_todo_tool> validator("text");
-}
 
-extern "C" {
+class agent_add_todo_validator : public agentlib::single_string_tool_validator {
+public:
+    std::string get_name() const override { return "agent_add_todo"; }
+    std::string get_description() const override { return "Adds a new task to the AI agent's internal todo (task) list. Use this to track steps during complex multi-part requests."; }
+    std::string get_parameter_name() const override { return "text"; }
+    std::string get_parameter_description() const override { return "The description of the task to add."; }
 
-const char* get_tool_name_agent_add_todo() {
-    return "agent_add_todo";
-}
+    bool validate_string_arg(const std::string& /*arg*/, const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const override {
+        return true;
+    }
 
-const char* get_tool_description_agent_add_todo() {
-    return "Adds a new task to the AI agent's internal todo list. Use this to track steps during complex multi-part requests.";
-}
+    std::unique_ptr<agentlib::llm_tool> create_tool_from_string(const std::string& arg) const override {
+        return std::make_unique<agent_add_todo_tool>(arg);
+    }
+};
 
-const char* get_tool_parameters_schema_agent_add_todo() {
-    return R"({
-        "type": "object",
-        "properties": {
-            "text": {
-                "type": "string",
-                "description": "The description of the task to add."
-            }
-        },
-        "required": ["text"]
-    })";
-}
-
-agentlib::tool_validator* get_tool_validator_agent_add_todo() {
-    return &tools::validator;
-}
+REGISTER_TOOL(agent_add_todo_validator)
 
 }
