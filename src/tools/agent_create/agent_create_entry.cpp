@@ -23,7 +23,7 @@ std::string agent_create_tool::execute(agentlib::tool_context& ctx) {
     // Submit the initial profile/prompt to start the agent's work
     new_agent->submit_prompt(args_.profile);
 
-    return "Agent '" + args_.name + "' created successfully with ID: " + std::to_string(new_agent->get_id());
+    return "Agent '" + args_.name + "' created successfully with ID: " + std::to_string(new_agent->get_id()) + ". Agent started asynchronously. Use wait_for_agent(" + std::to_string(new_agent->get_id()) + ") to wait for the agent to finish.";
 }
 
 } // namespace tools

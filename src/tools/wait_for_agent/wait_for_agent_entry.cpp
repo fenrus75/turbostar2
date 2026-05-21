@@ -36,11 +36,12 @@ std::string wait_for_agent_tool::execute(agentlib::tool_context& ctx) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
+    std::string base_msg = "Subagent reached idle state successfully.";
     if (target_agent->get_status() == agentlib::agent_status::error) {
-        return "Subagent finished with an error state.";
+        base_msg = "Subagent finished with an error state.";
     }
 
-    return "Subagent reached idle state successfully.";
+    return base_msg + " Use agent_get_output(" + std::to_string(args_.id) + ") to retrieve its interaction history.";
 }
 
 } // namespace tools
