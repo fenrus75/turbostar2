@@ -1,4 +1,4 @@
-#include "menu_bar.h"
+#include "ui/menu_bar.h"
 #include <cctype>
 #include <ncurses.h>
 #include "event_logger.h"

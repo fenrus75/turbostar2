@@ -1,4 +1,4 @@
-#include "dialog.h"
+#include "ui/dialog.h"
 #include <algorithm>
 #include <ncurses.h>
 #include "event_logger.h"

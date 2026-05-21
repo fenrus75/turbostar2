@@ -1,4 +1,4 @@
-#include "settings_dialog.h"
+#include "ui/settings_dialog.h"
 #include <algorithm>
 #include <cctype>
 #include <ncurses.h>

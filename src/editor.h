@@ -3,13 +3,13 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "dialog.h"
+#include "ui/dialog.h"
 #include "document.h"
 #include "event_queue.h"
-#include "menu_bar.h"
-#include "popup_menu.h"
-#include "status_bar.h"
-#include "window.h"
+#include "ui/menu_bar.h"
+#include "ui/popup_menu.h"
+#include "ui/status_bar.h"
+#include "ui/window.h"
 #include "process_runner.h"
 #include "agentlib/document_provider.h"
 

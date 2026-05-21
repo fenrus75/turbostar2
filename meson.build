@@ -26,7 +26,7 @@ lsp_dep = lsp_fw.get_variable('lsp_dep')
 turbostar_exe = executable('turbostar',
   turbostar_sources + tools_sources,
   dependencies : [ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include'),
+  include_directories: include_directories('include', 'src'),
   install : true)
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/git_manager.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
@@ -36,20 +36,20 @@ agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/g
 agentcli_exe = executable('agentcli',
   agentcli_sources,
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include'),
+  include_directories: include_directories('include', 'src'),
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
   agentcli_sources,
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include'),
+  include_directories: include_directories('include', 'src'),
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
   install : false)
 
 agentcli_replay_exe = executable('agentcli_replay',
   agentcli_sources,
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include'),
+  include_directories: include_directories('include', 'src'),
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
   install : false)
 
@@ -102,6 +102,12 @@ test_virtual_file_system = executable('test_virtual_file_system',
   dependencies : [],
   include_directories: 'src')
 test('unit_virtual_file_system', test_virtual_file_system)
+
+test_python_highlighter = executable('test_python_highlighter',
+  ['tests/unit/test_python_highlighter.cpp', 'src/python_highlighter.cpp', 'src/line.cpp'],
+  dependencies : [re2_dep],
+  include_directories: 'src')
+test('unit_python_highlighter', test_python_highlighter)
 
 test_sqlite_validation = executable('test_sqlite_validation',
   ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp'],

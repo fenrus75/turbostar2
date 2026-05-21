@@ -1,4 +1,4 @@
-#include "window.h"
+#include "ui/window.h"
 #include <ncurses.h>
 #include "event_logger.h"
 #include "build_error_manager.h"

@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include "dialog.h"
+#include "ui/dialog.h"
 
 namespace fs = std::filesystem;
 

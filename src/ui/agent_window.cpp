@@ -1,4 +1,4 @@
-#include "agent_window.h"
+#include "ui/agent_window.h"
 #include "config_manager.h"
 #include "git_manager.h"
 #include "agentlib/httplib_transport.h"

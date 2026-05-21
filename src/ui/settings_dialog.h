@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "dialog.h"
+#include "ui/dialog.h"
 
 /**
  * @brief Preferences dialog inspired by Borland Turbo C++.

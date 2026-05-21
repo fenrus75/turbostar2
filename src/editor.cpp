@@ -3,11 +3,11 @@
 #include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
-#include "file_dialog.h"
-#include "find_dialog.h"
+#include "ui/file_dialog.h"
+#include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
-#include "settings_dialog.h"
+#include "ui/settings_dialog.h"
 #include "git_manager.h"
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"
@@ -64,7 +64,7 @@ void editor::new_window(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
-#include "agent_window.h"
+#include "ui/agent_window.h"
 
 void editor::new_agent_window()
 {

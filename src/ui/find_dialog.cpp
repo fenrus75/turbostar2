@@ -1,4 +1,4 @@
-#include "find_dialog.h"
+#include "ui/find_dialog.h"
 #include <cctype>
 #include <ncurses.h>
 

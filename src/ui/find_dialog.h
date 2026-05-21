@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "dialog.h"
+#include "ui/dialog.h"
 #include "document.h" // For search_params
 
 /**
