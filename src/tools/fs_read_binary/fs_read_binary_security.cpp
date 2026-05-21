@@ -16,6 +16,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_binary_raw_args, path, s
 
 class fs_read_binary_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return true; }
+    bool is_silent_by_default() const override { return false; }
+
     std::string get_name() const override { return "fs_read_binary"; }
     std::string get_description() const override { return "Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size."; }
     

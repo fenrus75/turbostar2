@@ -7,6 +7,8 @@ namespace tools {
 
 class list_skills_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return true; }
+
     std::string get_name() const override { return "list_skills"; }
     std::string get_description() const override { return "Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills."; }
     

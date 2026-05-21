@@ -21,6 +21,9 @@ public:
     // Returns the JSON array of tools to inject into the OpenAI payload
     nlohmann::json get_tools_json() const;
 
+    // Checks if the tool should be silent in the UI by default
+    bool is_tool_silent(const std::string& name) const;
+
     // Executes the two-stage security and execution pipeline
     std::string execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const;
 

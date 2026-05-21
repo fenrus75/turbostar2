@@ -7,6 +7,8 @@ namespace tools {
 
 class get_current_datetime_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return true; }
+
     std::string get_name() const override { return "get_current_datetime"; }
     std::string get_description() const override { return "Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone."; }
     

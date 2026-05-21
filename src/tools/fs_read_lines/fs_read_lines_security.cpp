@@ -18,6 +18,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_lines_raw_args, path, st
 
 class fs_read_lines_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return true; }
+    bool is_silent_by_default() const override { return false; }
+
     std::string get_name() const override { return "fs_read_lines"; }
     std::string get_description() const override { return "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000."; }
     

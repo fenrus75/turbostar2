@@ -176,7 +176,9 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                         arg_preview = "...";
                     }
 
-                    if (self->global_queue_) {
+                    bool is_silent = registry.is_tool_silent(call.function.name);
+
+                    if (self->global_queue_ && !is_silent) {
                         editor_event tool_ev;
                         tool_ev.type = event_type::agent_tool_update;
                         tool_ev.payload = call.function.name + "(" + arg_preview + ")";
@@ -198,7 +200,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                         }
                     }
                     
-                    if (self->global_queue_) {
+                    if (self->global_queue_ && !is_silent) {
                         editor_event result_ev;
                         result_ev.type = event_type::agent_tool_update;
                         result_ev.payload = "↳ Result: " + result_preview;

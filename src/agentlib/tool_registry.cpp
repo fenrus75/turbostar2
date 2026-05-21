@@ -34,6 +34,15 @@ nlohmann::json tool_registry::get_tools_json() const {
     return tools_array;
 }
 
+bool tool_registry::is_tool_silent(const std::string& name) const {
+    auto it = validator_factories_.find(name);
+    if (it != validator_factories_.end()) {
+        auto validator = it->second();
+        return validator->is_silent_by_default();
+    }
+    return false;
+}
+
 std::string tool_registry::execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const {
     auto it = validator_factories_.find(name);
     if (it == validator_factories_.end()) {

@@ -6,6 +6,8 @@ namespace tools {
 
 class sqlite_list_db_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return true; }
+
     std::string get_name() const override { return "sqlite_list_db"; }
     std::string get_description() const override { return "Lists all persistent SQLite databases available for the project."; }
     

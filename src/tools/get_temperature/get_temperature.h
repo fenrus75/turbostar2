@@ -21,7 +21,8 @@ public:
     std::string get_name() const override { return "get_temperature"; }
     std::string get_description() const override { return "Get the current temperature in a given location"; }
     std::string get_parameter_name() const override { return "location"; }
-    std::string get_parameter_description() const override { return "The location to check, e.g., San Francisco, CA or Mars"; }
+    std::string get_parameter_description() const override { return "The city and state, e.g. San Francisco, CA"; }
+    bool is_pure() const override { return true; }
 
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::unique_ptr<agentlib::llm_tool> create_tool_from_string(const std::string& arg) const override;

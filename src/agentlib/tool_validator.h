@@ -16,6 +16,13 @@ public:
     virtual std::string get_description() const = 0;
     virtual nlohmann::json get_parameters_schema() const = 0;
 
+    // Indicates if the tool is "pure" (has no side effects).
+    // Pure tools (e.g., read, list, status) can be safely executed repeatedly.
+    virtual bool is_pure() const { return false; }
+
+    // Indicates if the tool's execution should be hidden from the UI by default.
+    virtual bool is_silent_by_default() const { return is_pure(); }
+
     // Non-Virtual Interface (NVI): Enforces state and execution order.
     // Parses and validates args before the tool is allowed to be instantiated.
     bool validate_args(const nlohmann::json& args, const tool_context& ctx, std::string& out_error) {
