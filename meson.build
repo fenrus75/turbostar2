@@ -9,6 +9,16 @@ git_prog = find_program('git', required: false)
 ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
   ncurses_dep = cc.find_library('ncursesw', required : true)
+
+  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
+  # It has a tendency to make later tests fail randomly if it is not last.
+  test('e2e_lsp_selection', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
 endif
 
 httplib_dep = dependency('cpp-httplib', required : true)
@@ -253,7 +263,17 @@ if python.found()
       workdir: meson.project_build_root(),
       timeout: 60
     )
-  endif
+  
+  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
+  # It has a tendency to make later tests fail randomly if it is not last.
+  test('e2e_lsp_selection', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
+endif
 
   test('e2e_save_mouse', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_save_mouse.py')],
@@ -312,6 +332,12 @@ if python.found()
   )
   test('e2e_content_assertion', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_content_assertion.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+  test('e2e_dialog_esc', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_dialog_esc.py')],
     env: e2e_env,
     workdir: meson.project_build_root(),
     timeout: 60
@@ -407,13 +433,6 @@ if python.found()
     timeout: 60,
     is_parallel: false
   )
-  test('e2e_lsp_selection', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false
-  )
   test('e2e_agent_todos', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_todos.py')],
     env: e2e_env,
@@ -425,5 +444,15 @@ if python.found()
     env: e2e_env,
     workdir: meson.project_build_root(),
     timeout: 60
+  )
+
+  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
+  # It has a tendency to make later tests fail randomly if it is not last.
+  test('e2e_lsp_selection', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
   )
 endif
