@@ -27,6 +27,8 @@ tools_sources = files(
   'agent_end/agent_end_security.cpp',
   'agent_todo_status/agent_todo_status_entry.cpp',
   'agent_todo_status/agent_todo_status_security.cpp',
+  'message_agent/message_agent_entry.cpp',
+  'message_agent/message_agent_security.cpp',
   'get_temperature/get_temperature_entry.cpp',
   'get_temperature/get_temperature_security.cpp',
   'fs_file_size/fs_file_size_entry.cpp',
