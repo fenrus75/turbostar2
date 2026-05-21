@@ -63,9 +63,14 @@ class dialog : public ui_container
 	void draw_buttons(int focused_button_idx) const;
 };
 
+#include "document.h"
+
 // Factory functions
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename);
 std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value = "");
+std::unique_ptr<dialog> create_search_dialog(const std::string &title, const search_params &initial_params, bool is_replace);
+
+search_params extract_search_params(const dialog& dlg, const search_params& initial_params);
 
 // Legacy classes...
 

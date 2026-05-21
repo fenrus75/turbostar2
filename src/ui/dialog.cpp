@@ -66,10 +66,22 @@ dialog_result dialog::handle_key(int key)
 	ev.type = event_type::key_press;
 	ev.key_code = key;
 
+	static bool expecting_alt_char = false;
+	
+	if (key == 27 && action_ == dialog_result::pending) {
+		expecting_alt_char = true;
+		return dialog_result::pending;
+	}
+	
+	if (expecting_alt_char) {
+		ev.key_code = -key; // Format it correctly for the ui_elements to parse as Alt+Key
+		expecting_alt_char = false;
+	}
+
 	// Pass to the new container system
 	this->handle_event(ev, x_, y_);
 	
-	if (action_ == dialog_result::pending && key == 27) { // ESC
+	if (action_ == dialog_result::pending && ev.key_code == 27) { // ESC
 		action_ = dialog_result::cancelled;
 		result_string_ = "cancel";
 	}
@@ -493,4 +505,121 @@ std::string ask_user_dialog::get_result() const
 	} else {
 		return custom_answer_;
 	}
+}
+
+search_params extract_search_params(const dialog& dlg, const search_params& initial_params)
+{
+	search_params params = initial_params;
+	
+	auto q = dlg.get_value("query");
+	if (q) params.query = *q;
+	
+	auto r = dlg.get_value("replacement");
+	if (r) params.replacement = *r;
+	
+	auto ic = dlg.get_value("ignore_case");
+	if (ic) params.ignore_case = (*ic == "false"); // Checkbox is "Case sensitive", so true means ignore_case = false
+	
+	auto ww = dlg.get_value("whole_words");
+	if (ww) params.whole_words = (*ww == "true");
+	
+	auto re = dlg.get_value("regex");
+	if (re) params.regex = (*re == "true");
+	
+	auto pr = dlg.get_value("prompt_on_replace");
+	if (pr) params.prompt_on_replace = (*pr == "true");
+	
+	auto dir = dlg.get_value("direction");
+	if (dir) params.backward = (*dir == "dir_backward");
+	
+	auto scope = dlg.get_value("scope");
+	if (scope) params.selected_text_only = (*scope == "scope_selected");
+	
+	auto origin = dlg.get_value("origin");
+	if (origin) params.from_cursor = (*origin == "origin_cursor");
+	
+	return params;
+}
+
+std::unique_ptr<dialog> create_search_dialog(const std::string &title, const search_params &initial_params, bool is_replace)
+{
+	int height = is_replace ? 18 : 16;
+	auto dlg = std::make_unique<dialog>(title, 64, height);
+	
+	int y_off = is_replace ? 2 : 0;
+	
+	// Query
+	dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Text to find"));
+	dlg->add_child(std::make_unique<ui_textbox>("query", 16, 2, 40, initial_params.query, [d = dlg.get()](const std::string&) {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	
+	// Replace
+	if (is_replace) {
+		dlg->add_child(std::make_unique<ui_text_label>(2, 4, "Replace with"));
+		dlg->add_child(std::make_unique<ui_textbox>("replacement", 16, 4, 40, initial_params.replacement, [d = dlg.get()](const std::string&) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result("ok");
+		}));
+	}
+	
+	// Options Group
+	int opt_h = is_replace ? 5 : 4;
+	auto opt_group = std::make_unique<ui_group_box>("opt_group", 2, 5 + y_off, 30, opt_h, "Options");
+	opt_group->add_child(std::make_unique<ui_checkbox>("ignore_case", 2, 1, "Case sensitive", 'c', !initial_params.ignore_case));
+	opt_group->add_child(std::make_unique<ui_checkbox>("whole_words", 2, 2, "Whole words only", 'w', initial_params.whole_words));
+	opt_group->add_child(std::make_unique<ui_checkbox>("regex", 2, 3, "Regular expression", 'r', initial_params.regex));
+	if (is_replace) {
+		opt_group->add_child(std::make_unique<ui_checkbox>("prompt_on_replace", 2, 4, "Prompt on replace", 'p', initial_params.prompt_on_replace));
+	}
+	dlg->add_child(std::move(opt_group));
+	
+	// Direction Group
+	auto dir_group = std::make_unique<ui_group_box>("dir_group", 33, 5 + y_off, 28, 3, "Direction");
+	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction", 0, 0, 28, 3);
+	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", 2, 1, "Forward", 'f', !initial_params.backward));
+	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", 2, 2, "Backward", 'b', initial_params.backward));
+	dir_group->add_child(std::move(dir_radio));
+	dlg->add_child(std::move(dir_group));
+	
+	// Scope Group
+	auto scope_group = std::make_unique<ui_group_box>("scope_group", 2, 10 + y_off, 30, 3, "Scope");
+	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope", 0, 0, 30, 3);
+	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", 2, 1, "Global", 'g', !initial_params.selected_text_only));
+	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_selected", 2, 2, "Selected text", 's', initial_params.selected_text_only));
+	scope_group->add_child(std::move(scope_radio));
+	dlg->add_child(std::move(scope_group));
+	
+	// Origin Group
+	auto orig_group = std::make_unique<ui_group_box>("orig_group", 33, 10 + y_off, 28, 3, "Origin");
+	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin", 0, 0, 28, 3);
+	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", 2, 1, "From cursor", 'o', initial_params.from_cursor));
+	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", 2, 2, "Entire scope", 'e', !initial_params.from_cursor));
+	orig_group->add_child(std::move(orig_radio));
+	dlg->add_child(std::move(orig_group));
+	
+	// Buttons
+	int btn_y = 14 + y_off;
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 8, btn_y, "  OK  ", 'k', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	
+	if (is_replace) {
+		dlg->add_child(std::make_unique<ui_button>("btn_change_all", 18, btn_y, " Change all ", 'a', [d = dlg.get()]() {
+			d->set_action(dialog_result::confirmed);
+			d->set_result("change_all");
+		}));
+	}
+	
+	int bx_pos = is_replace ? 34 : 28;
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", bx_pos, btn_y, " Cancel ", 'l', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+	
+	dlg->set_focus_by_name("query");
+	
+	return dlg;
 }

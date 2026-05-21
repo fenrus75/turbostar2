@@ -25,7 +25,7 @@ void editor::dispatch_event_search(const editor_event &ev)
 
 	if (ev.type == event_type::find) {
 		logger.log("Dispatching find event (advanced dialog).");
-		active_dialog_ = std::make_unique<find_dialog>("Find", current_search_, false);
+		active_dialog_ = create_search_dialog("Find", current_search_, false);
 		active_dialog_mode_ = dialog_mode::search;
 		set_focus(focus_target::dialog, "menu_find");
 		return;
@@ -33,7 +33,7 @@ void editor::dispatch_event_search(const editor_event &ev)
 
 	if (ev.type == event_type::replace) {
 		logger.log("Dispatching replace event (advanced dialog).");
-		active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
+		active_dialog_ = create_search_dialog("Replace", current_search_, true);
 		active_dialog_mode_ = dialog_mode::replace;
 		set_focus(focus_target::dialog, "menu_replace");
 		return;

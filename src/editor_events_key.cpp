@@ -47,15 +47,12 @@ void editor::resolve_dialog(dialog_result res)
 				global_queue_.push(compile_ev);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
-			auto f_dialog = dynamic_cast<find_dialog *>(active_dialog_.get());
-			if (f_dialog) {
-				current_search_ = f_dialog->get_search_params();
-				history_manager::get_instance().add_search(current_search_.query);
-				if (doc->find_next(current_search_)) {
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
-				}
+			current_search_ = extract_search_params(*active_dialog_, current_search_);
+			history_manager::get_instance().add_search(current_search_.query);
+			if (doc->find_next(current_search_)) {
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::insert_file) {
 			std::string result_path = active_dialog_->get_result();
@@ -272,7 +269,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 	
 				if (is_replace) {
 					is_search_options_prompt_ = false;
-					active_dialog_ = std::make_unique<find_dialog>("Replace", current_search_, true);
+					active_dialog_ = create_search_dialog("Replace", current_search_, true);
 					active_dialog_mode_ = dialog_mode::replace;
 					set_focus(focus_target::dialog, "menu_replace");
 					return;

@@ -11,7 +11,8 @@ void ui_container::add_child(std::unique_ptr<ui_element> child)
 	// If it's the first child, give it focus by default
 	if (!focused_child_ && !children_.empty()) {
 		focused_child_ = children_.back().get();
-		focused_child_->set_focus(true);
+		// Only propagate true if the container itself has focus
+		focused_child_->set_focus(has_focus_);
 	}
 }
 
@@ -108,44 +109,135 @@ std::optional<std::string> ui_container::get_pressed_element_name() const
 	return std::nullopt;
 }
 
-void ui_container::focus_next()
+void ui_container::set_focus(bool focus)
 {
-	if (children_.empty()) return;
+	has_focus_ = focus;
+	if (focused_child_) {
+		focused_child_->set_focus(focus);
+	}
+}
+
+bool ui_container::focus_first()
+{
+	for (auto& child : children_) {
+		if (child->focus_first()) {
+			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			focused_child_ = child.get();
+			focused_child_->set_focus(true);
+			return true;
+		}
+		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" && child->name() != "scope_group" && child->name() != "orig_group") { // hacky way to check focusable
+			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			focused_child_ = child.get();
+			focused_child_->set_focus(true);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ui_container::focus_last()
+{
+	for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
+		auto& child = *it;
+		if (child->focus_last()) {
+			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			focused_child_ = child.get();
+			focused_child_->set_focus(true);
+			return true;
+		}
+		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" && child->name() != "scope_group" && child->name() != "orig_group") {
+			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			focused_child_ = child.get();
+			focused_child_->set_focus(true);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ui_container::focus_next()
+{
+	if (children_.empty()) return false;
 	
 	if (focused_child_) {
-		focused_child_->set_focus(false);
+		if (focused_child_->focus_next()) return true;
+
 		auto it = std::find_if(children_.begin(), children_.end(), 
 			[this](const std::unique_ptr<ui_element>& p) { return p.get() == focused_child_; });
 		
-		if (it != children_.end() && std::next(it) != children_.end()) {
-			focused_child_ = std::next(it)->get();
-		} else {
-			focused_child_ = children_.front().get(); // wrap
+		auto next_it = it;
+		if (next_it != children_.end()) ++next_it;
+		
+		while (next_it != children_.end()) {
+			if ((*next_it)->focus_first()) {
+				focused_child_->set_focus(false);
+				focused_child_ = next_it->get();
+				focused_child_->set_focus(true);
+				return true;
+			}
+			if ((*next_it)->name() != "text" && (*next_it)->name() != "opt_group" && (*next_it)->name() != "dir_group" && (*next_it)->name() != "scope_group" && (*next_it)->name() != "orig_group") {
+				focused_child_->set_focus(false);
+				focused_child_ = next_it->get();
+				focused_child_->set_focus(true);
+				return true;
+			}
+			++next_it;
 		}
+		
+		// If we are the root dialog, wrap around
+		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" || name_ == "Replace") {
+			focused_child_->set_focus(false);
+			focus_first();
+			return true;
+		}
+		
+		return false;
 	} else {
-		focused_child_ = children_.front().get();
+		return focus_first();
 	}
-	focused_child_->set_focus(true);
 }
 
-void ui_container::focus_previous()
+bool ui_container::focus_previous()
 {
-	if (children_.empty()) return;
+	if (children_.empty()) return false;
 	
 	if (focused_child_) {
-		focused_child_->set_focus(false);
+		if (focused_child_->focus_previous()) return true;
+
 		auto it = std::find_if(children_.begin(), children_.end(), 
 			[this](const std::unique_ptr<ui_element>& p) { return p.get() == focused_child_; });
 		
 		if (it != children_.begin()) {
-			focused_child_ = std::prev(it)->get();
-		} else {
-			focused_child_ = children_.back().get(); // wrap
+			auto prev_it = std::prev(it);
+			while (true) {
+				if ((*prev_it)->focus_last()) {
+					focused_child_->set_focus(false);
+					focused_child_ = prev_it->get();
+					focused_child_->set_focus(true);
+					return true;
+				}
+				if ((*prev_it)->name() != "text" && (*prev_it)->name() != "opt_group" && (*prev_it)->name() != "dir_group" && (*prev_it)->name() != "scope_group" && (*prev_it)->name() != "orig_group") {
+					focused_child_->set_focus(false);
+					focused_child_ = prev_it->get();
+					focused_child_->set_focus(true);
+					return true;
+				}
+				if (prev_it == children_.begin()) break;
+				--prev_it;
+			}
 		}
+		
+		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" || name_ == "Replace") {
+			focused_child_->set_focus(false);
+			focus_last();
+			return true;
+		}
+		
+		return false;
 	} else {
-		focused_child_ = children_.back().get();
+		return focus_last();
 	}
-	focused_child_->set_focus(true);
 }
 
 void ui_container::child_got_selected(ui_element *child)
@@ -258,11 +350,13 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			}
 			
 			if (ev.key_code == KEY_DOWN || ev.key_code == '\t') {
-				if (parent_) parent_->focus_next();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_next()) break; p = p->parent(); }
 				return true;
 			}
 			if (ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
-				if (parent_) parent_->focus_previous();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_previous()) break; p = p->parent(); }
 				return true;
 			}
 		}
@@ -333,7 +427,7 @@ bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			return true;
 		}
 		
-		if (hotkey_ != '\0' && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))) {
+		if (hotkey_ != '\0' && (ev.key_code == -hotkey_ || ev.key_code == -tolower(hotkey_) || ev.key_code == -toupper(hotkey_) || (has_focus_ && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))))) {
 			set_pressed(true);
 			if (on_click_) on_click_();
 			return true;
@@ -341,11 +435,13 @@ bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 		if (has_focus_) {
 			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
-				if (parent_) parent_->focus_next();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_next()) break; p = p->parent(); }
 				return true;
 			}
 			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
-				if (parent_) parent_->focus_previous();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_previous()) break; p = p->parent(); }
 				return true;
 			}
 		}
@@ -377,8 +473,11 @@ void ui_checkbox::draw(int abs_x, int abs_y) const
 	else attrset(COLOR_PAIR(17));
 	
 	addch('[');
-	if (checked_) addch('X');
-	else addch(' ');
+	if (checked_) {
+		addch('X');
+	} else {
+		addch(' ');
+	}
 	addch(']');
 	
 	mvaddstr(abs_y, abs_x + 4, text_.c_str());
@@ -404,7 +503,7 @@ bool ui_checkbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			return true;
 		}
 		
-		if (hotkey_ != '\0' && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))) {
+		if (hotkey_ != '\0' && (ev.key_code == -hotkey_ || ev.key_code == -tolower(hotkey_) || ev.key_code == -toupper(hotkey_) || (has_focus_ && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))))) {
 			checked_ = !checked_;
 			if (parent_) parent_->set_focus_by_name(name_);
 			return true;
@@ -412,11 +511,13 @@ bool ui_checkbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 		if (has_focus_) {
 			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
-				if (parent_) parent_->focus_next();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_next()) break; p = p->parent(); }
 				return true;
 			}
 			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
-				if (parent_) parent_->focus_previous();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_previous()) break; p = p->parent(); }
 				return true;
 			}
 		}
@@ -452,11 +553,11 @@ void ui_radio_choice::draw(int abs_x, int abs_y) const
 	else attrset(COLOR_PAIR(17));
 	
 	addch('(');
-	if (selected_) addstr("•");
-	else addch(' ');
-	
-	if (has_focus_) attrset(COLOR_PAIR(19));
-	else attrset(COLOR_PAIR(17));
+	if (selected_) {
+		addstr("•");
+	} else {
+		addch(' ');
+	}
 	addch(')');
 	
 	mvaddstr(abs_y, abs_x + 4, text_.c_str());
@@ -483,7 +584,7 @@ bool ui_radio_choice::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			return true;
 		}
 		
-		if (hotkey_ != '\0' && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))) {
+		if (hotkey_ != '\0' && (ev.key_code == -hotkey_ || ev.key_code == -tolower(hotkey_) || ev.key_code == -toupper(hotkey_) || (has_focus_ && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))))) {
 			selected_ = true;
 			if (parent_) {
 				parent_->set_focus_by_name(name_);
@@ -494,11 +595,13 @@ bool ui_radio_choice::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 		if (has_focus_) {
 			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
-				if (parent_) parent_->focus_next();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_next()) break; p = p->parent(); }
 				return true;
 			}
 			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
-				if (parent_) parent_->focus_previous();
+				ui_element* p = parent_;
+				while (p) { if (p->focus_previous()) break; p = p->parent(); }
 				return true;
 			}
 		}
@@ -556,6 +659,36 @@ std::optional<std::string> ui_radiobutton_group::get_value(const std::string &ta
 		}
 		return std::nullopt;
 	}
-	// Fallback to standard container recursive search
-	return ui_container::get_value(target_name);
+	// Also allow children to be queried by their direct name
+	for (const auto& child : children_) {
+		auto val = child->get_value(target_name);
+		if (val) return val;
+	}
+	return std::nullopt;
+}
+
+// --- ui_group_box ---
+
+ui_group_box::ui_group_box(std::string name, int x, int y, int width, int height, const std::string &title)
+    : ui_container(std::move(name), x, y, width, height), title_(title)
+{
+}
+
+void ui_group_box::draw(int abs_x, int abs_y) const
+{
+	attrset(COLOR_PAIR(17));
+	for (int i = 1; i < height_; ++i) {
+		move(abs_y + i, abs_x);
+		for (int j = 0; j < width_; ++j)
+			addch(' ');
+	}
+
+	if (!title_.empty()) {
+		attrset(COLOR_PAIR(1));
+		mvaddstr(abs_y, abs_x, title_.c_str());
+	}
+	attrset(0);
+	
+	// Draw children
+	ui_container::draw(abs_x, abs_y);
 }

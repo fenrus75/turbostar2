@@ -18,7 +18,7 @@ def test_close_dirty():
         runner.assert_text_on_screen("Save changes to untitled.txt?", timeout=2.0)
         
         # 4. Press 'C' to Cancel
-        runner.send_keys('c')
+        runner.send_keys('\x1b' + 'c')
         runner.assert_text_not_on_screen("Save changes to untitled.txt?", timeout=2.0)
         
         # We should still be running
@@ -27,7 +27,8 @@ def test_close_dirty():
         # 5. Try to close again, this time discard
         runner.send_ctrlk('q')
         runner.assert_text_on_screen("Save changes to untitled.txt?", timeout=2.0)
-        runner.send_keys('d') # Discard
+        runner.send_keys('\x1b' + 'd') # Discard
+        time.sleep(0.5)
         
         # It should discard and quit
         

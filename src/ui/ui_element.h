@@ -38,6 +38,10 @@ class ui_element
 
 	bool has_focus() const { return has_focus_; }
 	virtual void set_focus(bool focus) { has_focus_ = focus; }
+	virtual bool focus_next() { return false; }
+	virtual bool focus_previous() { return false; }
+	virtual bool focus_first() { return false; }
+	virtual bool focus_last() { return false; }
 
 	bool is_pressed() const { return is_pressed_; }
 	virtual void set_pressed(bool pressed) { is_pressed_ = pressed; }
@@ -80,8 +84,12 @@ class ui_container : public ui_element
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 	std::optional<std::string> get_pressed_element_name() const override;
 
-	virtual void focus_next();
-	virtual void focus_previous();
+	void set_focus(bool focus) override;
+
+	virtual bool focus_next();
+	virtual bool focus_first();
+	virtual bool focus_previous();
+	virtual bool focus_last();
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
 
@@ -160,4 +168,16 @@ class ui_radiobutton_group : public ui_container
 
 	void child_got_selected(ui_element *child) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+};
+
+class ui_group_box : public ui_container
+{
+      public:
+	ui_group_box(std::string name, int x, int y, int width, int height, const std::string &title);
+
+	void draw(int abs_x, int abs_y) const override;
+	// handle_event is inherited from ui_container, so it just dispatches to children
+
+      private:
+	std::string title_;
 };

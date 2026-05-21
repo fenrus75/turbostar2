@@ -90,6 +90,7 @@ struct editor_event {
 	int mouse_x{-1};       ///< Mouse X coordinate (if type == mouse_click)
 	int mouse_y{-1};       ///< Mouse Y coordinate (if type == mouse_click)
 	std::string utf8_char; ///< UTF-8 character sequence for typing
+	bool alt_pressed{false};
 	std::string payload;   ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
 	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
