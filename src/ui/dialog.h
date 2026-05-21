@@ -16,7 +16,7 @@ enum class dialog_result {
 /**
  * @brief Represents a clickable button inside a dialog.
  */
-struct ui_button {
+struct legacy_ui_button {
 	std::string text;
 	char hotkey;
 	std::string result_string;
@@ -26,7 +26,7 @@ struct ui_button {
 	int width;
 	bool is_focused{false};
 
-	ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py);
+	legacy_ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py);
 
 	bool contains(int mouse_x, int mouse_y) const {
 		return mouse_y == y && mouse_x >= x && mouse_x < x + width;
@@ -81,7 +81,7 @@ class dialog
 	std::string title_;
 	int width_, height_;
 	int x_, y_;
-	mutable std::vector<ui_button> buttons_;
+	mutable std::vector<legacy_ui_button> buttons_;
 
 	void draw_buttons(int focused_button_idx) const;
 };

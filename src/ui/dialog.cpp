@@ -3,12 +3,12 @@
 #include <ncurses.h>
 #include "event_logger.h"
 
-ui_button::ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py)
+legacy_ui_button::legacy_ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py)
     : text(t), hotkey(hk), result_string(res), action(act), x(px), y(py), width(static_cast<int>(t.length()))
 {
 }
 
-void ui_button::draw() const
+void legacy_ui_button::draw() const
 {
 	attron(COLOR_PAIR(1));
 	mvaddstr(y, x + text.length(), "▄");

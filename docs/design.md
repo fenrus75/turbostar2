@@ -15,6 +15,7 @@ sections updated as enhancements are made to the project.
 | ---------------------- | --------------------       |
 | `docs/style.md`        | Coding style               |
 | `docs/general-c++.md`  | Coding style for C++       | 
+| `docs/design-ui.md`    | UI architecture and widgets|
 | `docs/keybindings.md`  | Key binding documentation  |
 | `docs/colorscheme.md`  | Color scheme documentation |
 | `docs/buttonrecipe.md` | How to make UI buttons     |
