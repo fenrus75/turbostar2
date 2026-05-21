@@ -21,6 +21,8 @@ public:
     // Override to draw the input box at the bottom
     void draw_content() const override; 
 
+    std::shared_ptr<agentlib::ai_agent> get_agent() const { return agent_; }
+
 private:
     void submit_prompt();
     void render_input_box() const;

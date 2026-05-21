@@ -63,18 +63,56 @@ void editor::new_window(const std::string &filename)
 }
 
 #include "ui/agent_window.h"
+#include "ui/agent_status_window.h"
+
+void editor::update_window_layout() {
+	bool has_agent = false;
+	for (const auto& win : windows_) {
+		if (dynamic_cast<agent_window*>(win.get()) != nullptr) {
+			has_agent = true;
+			break;
+		}
+	}
+
+	if (has_agent) {
+		int agent_w = (COLS * 70) / 100;
+		int status_w = COLS - agent_w;
+
+		for (auto& win : windows_) {
+			if (auto aw = dynamic_cast<agent_window*>(win.get())) {
+				aw->set_bounds(0, 1, agent_w, LINES - 2);
+				aw->invalidate();
+			} else if (auto asw = dynamic_cast<agent_status_window*>(win.get())) {
+				asw->set_bounds(agent_w, 1, status_w, LINES - 2);
+				asw->invalidate();
+			}
+		}
+	} else {
+		// Normal full screen
+		for (auto& win : windows_) {
+			win->set_bounds(0, 1, COLS, LINES - 2);
+			win->invalidate();
+		}
+	}
+}
 
 void editor::new_agent_window()
 {
-	auto win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, this);
-	
-	// Add its document to the global documents list so it gets saved on exit/etc if needed (though it shouldn't be saved)
-	documents_.push_back(win->get_document());
-	
-	windows_.push_back(std::move(win));
-	activate_window(windows_.size() - 1);
-}
+	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, this);
 
+	// Add its document to the global documents list so it gets saved on exit/etc if needed (though it shouldn't be saved)
+	documents_.push_back(main_agent_win->get_document());
+
+	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2, "Agent Status", main_agent_win->get_agent());
+
+	windows_.push_back(std::move(main_agent_win));
+	windows_.push_back(std::move(status_win));
+
+	update_window_layout();
+
+	// Activate the main agent window
+	activate_window(windows_.size() - 2);
+}
 void editor::activate_window(size_t index)
 {
 	if (index >= windows_.size())

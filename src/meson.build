@@ -17,6 +17,7 @@ turbostar_sources = files(
   'editor_events_key.cpp',
   'ui/window.cpp',
   'ui/agent_window.cpp',
+  'ui/agent_status_window.cpp',
   'ui/ui_element.cpp',
   'ui/components/ui_textbox.cpp',
   'ui/components/ui_button.cpp',

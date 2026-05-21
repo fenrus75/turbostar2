@@ -35,6 +35,12 @@ class window
 	int get_y() const { return y_; }
 	int get_width() const { return width_; }
 	int get_height() const { return height_; }
+	void set_bounds(int x, int y, int width, int height) {
+		x_ = x;
+		y_ = y;
+		width_ = width;
+		height_ = height;
+	}
 	int get_popup_button_x() const { return x_ + width_ - 10; }
 	int get_git_button_width() const;
 

@@ -50,6 +50,7 @@ class editor : public agentlib::document_provider
       private:
 	void new_window(const std::string &filename);
 	void new_agent_window();
+	void update_window_layout();
 	void activate_window(size_t index);
 	void update_window_menu();
 	std::shared_ptr<document> get_active_doc() const;
