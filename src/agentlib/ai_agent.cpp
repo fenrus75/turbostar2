@@ -329,21 +329,20 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
             
             std::string summary_text;
             if (!final_response.empty()) {
-                // Heuristic: Extract the last sentence or two
-                size_t pos = final_response.find_last_of(".!?\n");
-                if (pos != std::string::npos && pos > 0) {
-                    size_t prev_pos = final_response.find_last_of(".!?\n", pos - 1);
-                    if (prev_pos != std::string::npos) {
-                        summary_text = final_response.substr(prev_pos + 1);
-                    } else {
-                        summary_text = final_response;
-                    }
-                    // Clean up leading/trailing whitespace
-                    summary_text.erase(0, summary_text.find_first_not_of(" \n\r\t"));
-                    summary_text.erase(summary_text.find_last_not_of(" \n\r\t") + 1);
+                // Heuristic: Extract the last 120 characters and remove newlines
+                if (final_response.length() > 120) {
+                    summary_text = final_response.substr(final_response.length() - 120);
                 } else {
                     summary_text = final_response;
                 }
+                
+                // Replace all newlines with spaces
+                std::replace(summary_text.begin(), summary_text.end(), '\n', ' ');
+                std::replace(summary_text.begin(), summary_text.end(), '\r', ' ');
+                
+                // Clean up leading/trailing whitespace
+                summary_text.erase(0, summary_text.find_first_not_of(" \t"));
+                summary_text.erase(summary_text.find_last_not_of(" \t") + 1);
             } else {
                 summary_text = "Task completed with no final response text.";
             }
@@ -355,7 +354,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                 {"status", "completed"},
                 {"result", {
                     {"summary", summary_text},
-                    {"output_path", uri}
+                    {"output_path", "`" + uri + "`"}
                 }}
             };
             
@@ -370,7 +369,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
             std::string system_msg = "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
             system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
-            system_msg += "You can read the full interaction history log at: " + uri;
+            system_msg += "You can read the full interaction history log at: `" + uri + "`";
 
             parent->inject_context("system", system_msg);
         }
