@@ -18,11 +18,6 @@
 
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
-    - run_python() -- start with filename as argument -- maybe allow direct python snippets as well
-	- also allow "modules to install" as parameter so we can pass those to "uv", solves the "system pip" problem
-	- we should consider always using "uv" if it is available and fall back to python3 if not
-	- the benefit of direct python code is that we can put it somewhere clever and the agent does not 
-	  need to clobber the project for it.
     - a set of LSP tools to help code navigation
 	- code_find_definition
 	- code_find_references
@@ -176,6 +171,8 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- agent tools
+    - run_python() with optional code string, file_path, and uv dependency management.
 - we need an "AI model" class/extend the current class that tracks URL, model name, purpose, cost (and API key etc). 
     - the agent status window should use this data to calculate the cost 
 - have an option in "ai_agent" class to make the whole agent "read only" (to allow for planning mode etc) which
