@@ -29,7 +29,8 @@ def test_file_dialog():
         time.sleep(0.5)
 
         # 3. Type the file name and confirm
-        runner.send_keys(test_file + '\n')
+        runner.send_keys(test_file)
+        runner.send_keys('\x1b' + 'o')
         time.sleep(0.5)
 
         # 4. Check that the new window is opened
@@ -76,7 +77,9 @@ def test_file_dialog_autocomplete():
         time.sleep(0.5)
 
         # Type 'foo' and hit enter, it should autocomplete to 'foobar.txt'
-        runner.send_keys('foo\n')
+        runner.send_keys('foo')
+        runner.send_keys('\n')
+        runner.send_keys('\x1b' + 'o')
         time.sleep(0.5)
 
         log = runner.get_log()

@@ -23,6 +23,8 @@
     - run_python() -- start with filename as argument -- maybe allow direct python snippets as well
 	- also allow "modules to install" as parameter so we can pass those to "uv", solves the "system pip" problem
 	- we should consider always using "uv" if it is available and fall back to python3 if not
+	- the benefit of direct python code is that we can put it somewhere clever and the agent does not 
+	  need to clobber the project for it.
     - a set of LSP tools to help code navigation
 	- code_find_definition
 	- code_find_references
@@ -57,13 +59,14 @@
         - report_my_agent_status(text)
 	- agent_todo_status(ID) - returns the todo list with status of a client/sub agent
 
+- sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
+  write in the tool security system and sandbox system so that the agent does not need to clobber the actual
+  project directory with small python or other scripts it makes to do things
+
 - syntax highlighting of trailing whitespace is annoying if you're still typing the line.. any space you type
    instantly turns red. Need to maybe know which line the cursor is on or something, or wait for 10 seconds or .. or ..
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
-
-- have an attribute on tool call definitions to have it not log by default
-   - otherwise tool calls get very verbose for "routine" calls
 
 - track which skills got activated and visually mark them as such
 	- the initial skill table we report at launch should come with an open box utf8 character (BALLOT BOX: ☐ )
@@ -88,12 +91,6 @@
      decide to render in various ways, some will be multi line, some will be hidden by default. This makes scrolling tricky
      so we likely need to compute and cache Y coordinates for all of these, and have the AI element return its "height"
 
-## 20-05-2026
-- add python basic syntax highlighting
-    - implemented `python_highlighter` with keyword, string, comment, and trailing whitespace support
-    - added unit tests and verified with full test suite
-- list_tool_calls() tool to return markdown table of all available agent capabilities
-  (so goes up to find the start, goes down to find the end)
 
 - a function that works on a document, with start and finish lines as argument, and aligns markdown table | lines vertically
    - step 1: track widest field on a per column basis, this becomes the target width for that column - but ignores extra padding
@@ -171,7 +168,18 @@
 
 # done items (move items here on completion)
 
+## 21-05-2026
+- have an attribute on tool call definitions to have it not log by default
+   - otherwise tool calls get very verbose for "routine" calls
+
+
 ## 20-05-2026
+
+- add python basic syntax highlighting
+    - implemented `python_highlighter` with keyword, string, comment, and trailing whitespace support
+    - added unit tests and verified with full test suite
+- list_tool_calls() tool to return markdown table of all available agent capabilities
+  (so goes up to find the start, goes down to find the end)
 - add a python LSP (use /usr/bin/pylsp )
     - refactored `clangd_manager` to `lsp_manager` to support multiple language servers
     - added support for starting and routing messages to `pylsp` for `.py` files

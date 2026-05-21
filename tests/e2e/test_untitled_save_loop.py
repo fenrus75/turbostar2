@@ -18,13 +18,13 @@ def test_untitled_save_loop():
         runner.assert_text_on_screen("Save changes to untitled.txt?", timeout=2.0)
         
         # 4. Press 'S' to Save
-        runner.send_keys('s')
+        runner.send_keys('\x1b' + 's')
         
         # 5. It should prompt for Save As because it's untitled
         runner.assert_text_on_screen("Save File As", timeout=2.0)
         
         # 6. Let's cancel the Save As dialog
-        runner.send_keys('\x1b') # ESC to cancel Save As
+        runner.send_keys('\x1b' + 'c') # ESC to cancel Save As
         
         # 7. It should go back to the editor, NOT loop back to the save prompt
         runner.assert_text_not_on_screen("Save changes to untitled.txt?", timeout=2.0)

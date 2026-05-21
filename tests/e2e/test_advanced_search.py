@@ -13,7 +13,7 @@ def test_advanced_search():
         runner.send_ctrlk('u')
         
         # 2. Test Case Sensitivity (OFF by default)
-        runner.send_keys(KEY_ESC + 's') # Alt-S
+        runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         
@@ -22,11 +22,11 @@ def test_advanced_search():
         runner.send_keys("Apple")
         
         # Toggle Case Sensitive (hotkey 'c' -> Alt-C)
-        runner.send_keys(KEY_ESC + 'c')
+        runner.send_keys('\x1b' + 'c')
         
         
         # Press OK (hotkey 'k' -> Alt-K)
-        runner.send_keys(KEY_ESC + 'k')
+        runner.send_keys('\x1b' + 'k')
         
         # Should find "Apple" at 1:1
         runner.assert_cursor_position(1, 1)
@@ -37,16 +37,16 @@ def test_advanced_search():
         runner.assert_cursor_position(3, 1)
         
         # 3. Test Backward Search
-        runner.send_keys(KEY_ESC + 's') # Alt-S
+        runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         
         # Toggle Backward (hotkey 'b' -> Alt-B)
-        runner.send_keys(KEY_ESC + 'b')
+        runner.send_keys('\x1b' + 'b')
         
         
         # Press OK (Alt-K)
-        runner.send_keys(KEY_ESC + 'k')
+        runner.send_keys('\x1b' + 'k')
         
         # From 3:1, searching backward for "Apple" (case sensitive ON)
         # Should stay at 3:1 initially
@@ -58,7 +58,7 @@ def test_advanced_search():
         runner.assert_cursor_position(1, 1)
         
         # 4. Test Whole Words
-        runner.send_keys(KEY_ESC + 's') # Alt-S
+        runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
         time.sleep(0.5)
         
@@ -67,11 +67,11 @@ def test_advanced_search():
         runner.send_keys("App")
         
         # Toggle Whole Words (hotkey 'w' -> Alt-W)
-        runner.send_keys(KEY_ESC + 'w')
+        runner.send_keys('\x1b' + 'w')
         
         
         # Press OK (Alt-K)
-        runner.send_keys(KEY_ESC + 'k')
+        runner.send_keys('\x1b' + 'k')
         
         # Should NOT find "App" as a whole word, stays at 1:1
         runner.assert_cursor_position(1, 1)

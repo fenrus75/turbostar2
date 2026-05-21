@@ -3,7 +3,6 @@
 #include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
-#include "ui/file_dialog.h"
 #include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
@@ -24,7 +23,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 
 	if (ev.type == event_type::load) {
 		logger.log("Dispatching load event.");
-		active_dialog_ = std::make_unique<file_dialog>("Open File", file_dialog_mode::open, true, ".");
+		active_dialog_ = create_file_dialog("Open File", ".");
 		active_dialog_mode_ = dialog_mode::load;
 		set_focus(focus_target::dialog, "menu_load");
 		return;
@@ -97,7 +96,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 		} else {
 			filename_arg = ".";
 		}
-		active_dialog_ = std::make_unique<file_dialog>("Save File As", file_dialog_mode::save, false, filename_arg);
+		active_dialog_ = create_file_dialog("Save File As", filename_arg);
 		active_dialog_mode_ = dialog_mode::save;
 		set_focus(focus_target::dialog, "menu_save");
 		return;
@@ -135,3 +134,4 @@ void editor::dispatch_event_file(const editor_event &ev)
 	}
 
 }
+

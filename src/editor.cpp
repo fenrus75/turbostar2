@@ -3,7 +3,6 @@
 #include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
-#include "ui/file_dialog.h"
 #include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
@@ -505,7 +504,7 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'r') {
 		logger.log("K-block: Insert File");
-		active_dialog_ = std::make_unique<file_dialog>("Insert File", file_dialog_mode::open, false, ".");
+		active_dialog_ = create_file_dialog("Insert File", ".");
 		active_dialog_mode_ = dialog_mode::insert_file;
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
