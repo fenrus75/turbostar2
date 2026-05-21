@@ -28,7 +28,7 @@ turbostar_exe = executable('turbostar',
   include_directories: include_directories('include'),
   install : true)
 
-agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
+agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/git_manager.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
    'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
    'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/skill_manager.cpp', 'src/build_error_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
 
@@ -400,5 +400,11 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
+  )
+  test('e2e_agent_todos', python,
+    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_todos.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
   )
 endif

@@ -1,0 +1,70 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Add a task to read the Readme, then list my tasks. Then mark the first one complete using the tools available.\",\"role\":\"user\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_add\", \"type\": \"function\", \"function\": {\"name\": \"agent_add_todo\", \"arguments\": \"{\\\"text\\\": \\\"Read the Readme file\\\"}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Add a task to read the Readme, then list my tasks. Then mark the first one complete using the tools available.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"text\\\": \\\"Read the Readme file\\\"}\",\"name\":\"agent_add_todo\"},\"id\":\"call_add\",\"type\":\"function\"}]},{\"content\":\"Added todo: Read the Readme file\",\"name\":\"agent_add_todo\",\"role\":\"tool\",\"tool_call_id\":\"call_add\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_list\", \"type\": \"function\", \"function\": {\"name\": \"agent_list_todos\", \"arguments\": \"{}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Add a task to read the Readme, then list my tasks. Then mark the first one complete using the tools available.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"text\\\": \\\"Read the Readme file\\\"}\",\"name\":\"agent_add_todo\"},\"id\":\"call_add\",\"type\":\"function\"}]},{\"content\":\"Added todo: Read the Readme file\",\"name\":\"agent_add_todo\",\"role\":\"tool\",\"tool_call_id\":\"call_add\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{}\",\"name\":\"agent_list_todos\"},\"id\":\"call_list\",\"type\":\"function\"}]},{\"content\":\"- [ ] Read the Readme file\\n\",\"name\":\"agent_list_todos\",\"role\":\"tool\",\"tool_call_id\":\"call_list\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_complete\", \"type\": \"function\", \"function\": {\"name\": \"agent_complete_todo\", \"arguments\": \"{\\\"text\\\": \\\"Readme\\\"}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Add a task to read the Readme, then list my tasks. Then mark the first one complete using the tools available.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"text\\\": \\\"Read the Readme file\\\"}\",\"name\":\"agent_add_todo\"},\"id\":\"call_add\",\"type\":\"function\"}]},{\"content\":\"Added todo: Read the Readme file\",\"name\":\"agent_add_todo\",\"role\":\"tool\",\"tool_call_id\":\"call_add\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{}\",\"name\":\"agent_list_todos\"},\"id\":\"call_list\",\"type\":\"function\"}]},{\"content\":\"- [ ] Read the Readme file\\n\",\"name\":\"agent_list_todos\",\"role\":\"tool\",\"tool_call_id\":\"call_list\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"text\\\": \\\"Readme\\\"}\",\"name\":\"agent_complete_todo\"},\"id\":\"call_complete\",\"type\":\"function\"}]},{\"content\":\"Task marked complete.\",\"name\":\"agent_complete_todo\",\"role\":\"tool\",\"tool_call_id\":\"call_complete\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": \"I have added the task, listed your tasks, and marked it complete!\"}}]}"
+    }
+  }
+]
