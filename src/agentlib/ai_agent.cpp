@@ -1,0 +1,203 @@
+#include "ai_agent.h"
+#include "httplib_transport.h"
+#include "skill_manager.h"
+#include "../git_manager.h"
+#include "../event_queue.h"
+#include <nlohmann/json.hpp>
+#include <algorithm>
+#include <filesystem>
+
+namespace agentlib {
+
+std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider) {
+    return std::shared_ptr<ai_agent>(new ai_agent(id, name, llm_url, queue, doc_provider));
+}
+
+ai_agent::ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider)
+    : id_(id), name_(name), global_queue_(queue), doc_provider_(doc_provider) 
+{
+    auto http_transport = std::make_shared<httplib_transport>(llm_url);
+    client_ = std::make_unique<llm_client>(http_transport);
+}
+
+ai_agent::~ai_agent() {
+    close();
+}
+
+void ai_agent::close() {
+    is_closed_ = true;
+    cancel_current_task();
+}
+
+void ai_agent::cancel_current_task() {
+    if (client_) {
+        client_->cancel();
+    }
+}
+
+void ai_agent::add_todo(const std::string& task) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    todos_.push_back(task);
+}
+
+std::vector<std::string> ai_agent::get_todos() const {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(state_mutex_));
+    return todos_;
+}
+
+void ai_agent::clear_todo(size_t index) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    if (index < todos_.size()) {
+        todos_.erase(todos_.begin() + index);
+    }
+}
+
+std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& /*task_description*/) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return nullptr; // Placeholder for subagent spawning
+}
+
+void ai_agent::submit_prompt(const std::string& prompt_text) {
+    {
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        message user_msg;
+        user_msg.role = "user";
+        user_msg.content = prompt_text;
+        conversation_.push_back(user_msg);
+    }
+
+    status_ = agent_status::thinking;
+
+    std::thread([self = shared_from_this()]() {
+        std::vector<message> convo_copy;
+        {
+            std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+            convo_copy = self->conversation_;
+        }
+        
+        auto& registry = tool_registry::get_instance();
+        tool_context ctx;
+        
+        std::string git_root = git_manager::get_instance().get_repository_root();
+        std::filesystem::path workspace_root;
+        if (!git_root.empty()) {
+            workspace_root = std::filesystem::path(git_root);
+        } else {
+            workspace_root = std::filesystem::current_path();
+        }
+        
+        ctx.fs_security.set_working_directory(workspace_root);
+        ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
+        ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
+        ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
+        ctx.doc_provider = self->doc_provider_;
+        ctx.queue = self->global_queue_;
+        
+        std::string final_response;
+
+        while (true) {
+            if (self->is_closed_) return;
+
+            self->status_ = agent_status::thinking;
+            message response = self->client_->send_chat(convo_copy, &registry);
+            
+            if (self->is_closed_) return;
+
+            if (response.tool_calls && !response.tool_calls->empty()) {
+                self->status_ = agent_status::tool_execution;
+                convo_copy.push_back(response);
+
+                for (const auto& call : *response.tool_calls) {
+                    if (self->is_closed_) return;
+
+                    std::string arg_preview;
+                    try {
+                        auto args_json = nlohmann::json::parse(call.function.arguments);
+                        if (args_json.is_object()) {
+                            bool first = true;
+                            for (const auto& item : args_json.items()) {
+                                if (!first) arg_preview += ", ";
+                                first = false;
+                                
+                                std::string val_str;
+                                if (item.value().is_string()) {
+                                    std::string s = item.value().get<std::string>();
+                                    std::replace(s.begin(), s.end(), '\n', ' ');
+                                    std::replace(s.begin(), s.end(), '\r', ' ');
+                                    if (s.length() > 40) s = s.substr(0, 37) + "...";
+                                    val_str = "\"" + s + "\"";
+                                } else {
+                                    std::string s = item.value().dump();
+                                    if (s.length() > 40) s = s.substr(0, 37) + "...";
+                                    val_str = s;
+                                }
+                                arg_preview += val_str;
+                            }
+                        }
+                    } catch (...) {
+                        arg_preview = "...";
+                    }
+
+                    if (self->global_queue_) {
+                        editor_event tool_ev;
+                        tool_ev.type = event_type::agent_tool_update;
+                        tool_ev.payload = call.function.name + "(" + arg_preview + ")";
+                        self->global_queue_->push(tool_ev);
+                    }
+
+                    std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
+                    
+                    std::string result_preview = tool_result;
+                    if (result_preview.find("Stage 1 Security Violation:") != 0 && 
+                        result_preview.find("Execution Error:") != 0 &&
+                        result_preview.find("Error parsing tool arguments:") != 0) {
+                        size_t newline_pos = result_preview.find('\n');
+                        if (newline_pos != std::string::npos) {
+                            result_preview = result_preview.substr(0, newline_pos) + " ...";
+                        }
+                        if (result_preview.length() > 300) {
+                            result_preview = result_preview.substr(0, 297) + "...";
+                        }
+                    }
+                    
+                    if (self->global_queue_) {
+                        editor_event result_ev;
+                        result_ev.type = event_type::agent_tool_update;
+                        result_ev.payload = "↳ Result: " + result_preview;
+                        self->global_queue_->push(result_ev);
+                    }
+                    
+                    message tool_msg;
+                    tool_msg.role = "tool";
+                    tool_msg.content = tool_result;
+                    tool_msg.name = call.function.name;
+                    tool_msg.tool_call_id = call.id;
+                    
+                    convo_copy.push_back(tool_msg);
+                }
+            } else {
+                convo_copy.push_back(response);
+                final_response = response.content;
+                break;
+            }
+        }
+        
+        if (self->is_closed_) return;
+
+        {
+            std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+            self->conversation_ = convo_copy;
+        }
+        
+        self->status_ = agent_status::idle;
+
+        if (self->global_queue_) {
+            editor_event ev;
+            ev.type = event_type::agent_response;
+            ev.payload = final_response;
+            self->global_queue_->push(ev);
+        }
+    }).detach();
+}
+
+} // namespace agentlib

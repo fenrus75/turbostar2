@@ -10,7 +10,7 @@ class window
 {
       public:
 	window(int id, int x, int y, int width, int height, const std::string &title);
-	~window() = default;
+	virtual ~window() = default;
 
 	void draw() const;
 	void set_active(bool active);
