@@ -52,7 +52,8 @@ llm_chat_response llm_client::send_chat(const std::vector<message>& conversation
         }
     }
     
-    chat_response.msg.content = "Error connecting to LLM server. Status: " + std::to_string(res.status_code);
+    std::string target_url = transport_ ? transport_->get_base_url() : "unknown";
+    chat_response.msg.content = "Error connecting to LLM server at " + target_url + ". Status: " + std::to_string(res.status_code) + "\nResponse body: " + res.body;
     return chat_response;
 }
 

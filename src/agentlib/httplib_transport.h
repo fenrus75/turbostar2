@@ -17,6 +17,7 @@ public:
     
     transport_response post(const std::string& path, const std::string& json_body) override;
     void cancel() override;
+    std::string get_base_url() const override { return base_url_; }
 
 private:
     std::string base_url_;

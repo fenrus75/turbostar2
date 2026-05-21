@@ -18,6 +18,9 @@ public:
 
     // Cancels an ongoing request (if supported by the transport)
     virtual void cancel() {}
+
+    // Returns the base URL of this transport for error reporting
+    virtual std::string get_base_url() const = 0;
 };
 
 } // namespace agentlib

@@ -10,6 +10,7 @@ public:
     recording_transport(std::shared_ptr<llm_transport> inner, const std::string& log_file);
     
     transport_response post(const std::string& path, const std::string& json_body) override;
+    std::string get_base_url() const override { return inner_->get_base_url(); }
 
 private:
     void append_to_log(const std::string& path, const std::string& request_body, const transport_response& res);

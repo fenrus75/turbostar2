@@ -6,12 +6,12 @@ using json = nlohmann::json;
 
 namespace agentlib {
 
-replay_transport::replay_transport(const std::string& playback_file) {
-    std::ifstream in(playback_file);
-    if (in.is_open()) {
+replay_transport::replay_transport(const std::string& playback_file) : playback_file_(playback_file) {
+    std::ifstream file(playback_file);
+    if (file.is_open()) {
         try {
             json data;
-            in >> data;
+            file >> data;
             if (data.is_array()) {
                 for (const auto& item : data) {
                     log_array_.push_back(item);
