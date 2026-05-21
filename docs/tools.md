@@ -125,6 +125,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
 
+### `list_tool_calls`
+*   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.
+*   **Arguments:** None.
+
 ---
 
 ## 6. Agent State & To-Do Management

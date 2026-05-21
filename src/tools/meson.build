@@ -9,6 +9,8 @@ tools_sources = files(
   'sqlite_perform/sqlite_perform_security.cpp',
   'agent_add_todo/agent_add_todo_entry.cpp',
   'agent_add_todo/agent_add_todo_security.cpp',
+  'list_tool_calls/list_tool_calls_entry.cpp',
+  'list_tool_calls/list_tool_calls_security.cpp',
   'agent_list_todos/agent_list_todos_entry.cpp',
   'agent_list_todos/agent_list_todos_security.cpp',
   'agent_complete_todo/agent_complete_todo_entry.cpp',
