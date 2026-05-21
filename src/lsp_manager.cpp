@@ -1,4 +1,4 @@
-#include "clangd_manager.h"
+#include "lsp_manager.h"
 #include <iostream>
 #include <lsp/connection.h>
 #include <lsp/messagehandler.h>
@@ -10,36 +10,44 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include <signal.h>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
-clangd_manager &clangd_manager::get_instance()
+lsp_manager &lsp_manager::get_instance()
 {
-	static clangd_manager instance;
+	static lsp_manager instance;
 	return instance;
 }
 
-clangd_manager::~clangd_manager()
+lsp_manager::~lsp_manager()
 {
 	stop();
 }
 
-void clangd_manager::start(event_queue &queue)
+void lsp_manager::start_server(const std::string& name, const std::vector<std::string>& args, const std::string& language_id)
 {
-	global_queue_ = &queue;
-	
+	auto server = std::make_unique<server_instance>();
+	server->language_id = language_id;
 	try {
-		// Launch clangd with error logging only to prevent stderr leakage onto the ncurses screen
-		process_ = std::make_unique<lsp::Process>("clangd", std::vector<std::string>{"-log=error"});
-		connection_ = std::make_unique<lsp::Connection>(process_->stdIO());
-		message_handler_ = std::make_unique<lsp::MessageHandler>(*connection_);
+		server->process = std::make_unique<lsp::Process>(name, args);
+		server->connection = std::make_unique<lsp::Connection>(server->process->stdIO());
+		server->message_handler = std::make_unique<lsp::MessageHandler>(*(server->connection));
+		server->is_running.store(true);
 		
-		is_running_.store(true);
-		message_thread_ = std::thread([this]() { message_loop(); });
+		server->message_thread = std::thread([s = server.get()]() {
+			try {
+				while (s->is_running.load()) {
+					s->message_handler->processIncomingMessages();
+				}
+			} catch (const std::exception &e) {
+				s->is_running.store(false);
+				event_logger::get_instance().log("LSP message loop error: " + std::string(e.what()));
+			}
+		});
 
 		auto initializeParams = lsp::requests::Initialize::Params();
 		initializeParams.processId = lsp::Process::currentProcessId();
-		// Use current working directory as root
 		std::string cwd = fs::current_path().string();
 		initializeParams.rootUri = lsp::DocumentUri::fromPath(cwd);
 		initializeParams.capabilities = {
@@ -50,13 +58,12 @@ void clangd_manager::start(event_queue &queue)
 			}
 		};
 
-		auto initializeRequest = message_handler_->sendRequest<lsp::requests::Initialize>(std::move(initializeParams));
-		// We wait for the result
+		auto initializeRequest = server->message_handler->sendRequest<lsp::requests::Initialize>(std::move(initializeParams));
 		auto initializeResult = initializeRequest.result.get();
 
-		message_handler_->sendNotification<lsp::notifications::Initialized>({});
+		server->message_handler->sendNotification<lsp::notifications::Initialized>({});
 		
-		message_handler_->add<lsp::notifications::TextDocument_PublishDiagnostics>([this](const lsp::notifications::TextDocument_PublishDiagnostics::Params& params) {
+		server->message_handler->add<lsp::notifications::TextDocument_PublishDiagnostics>([this](const lsp::notifications::TextDocument_PublishDiagnostics::Params& params) {
 			if (global_queue_) {
 				std::vector<diagnostic_info> diagnostics;
 				for (const auto& diag : params.diagnostics) {
@@ -72,7 +79,6 @@ void clangd_manager::start(event_queue &queue)
 					diagnostics.push_back(info);
 				}
 				
-				// Sort diagnostics to find the first one (lowest line, then lowest character)
 				std::sort(diagnostics.begin(), diagnostics.end(), [](const diagnostic_info& a, const diagnostic_info& b) {
 					if (a.range.start_y != b.range.start_y) {
 						return a.range.start_y < b.range.start_y;
@@ -80,7 +86,6 @@ void clangd_manager::start(event_queue &queue)
 					return a.range.start_x < b.range.start_x;
 				});
 
-				// Only keep the first one
 				if (diagnostics.size() > 1) {
 					diagnostics.resize(1);
 				}
@@ -92,58 +97,91 @@ void clangd_manager::start(event_queue &queue)
 			}
 		});
 
-		event_logger::get_instance().log("clangd started and initialized successfully.");
+		servers_.push_back(std::move(server));
+		event_logger::get_instance().log(name + " started and initialized successfully.");
 	} catch (const std::exception& e) {
-		event_logger::get_instance().log("Failed to start clangd: " + std::string(e.what()));
-		is_running_.store(false);
+		event_logger::get_instance().log("Failed to start " + name + ": " + std::string(e.what()));
+		server->is_running.store(false);
 	}
 }
 
-void clangd_manager::stop()
+void lsp_manager::start(event_queue &queue)
 {
-	if (!is_running_) return;
+	global_queue_ = &queue;
+	
+	start_server("clangd", {"-log=error"}, "cpp");
+	start_server("pylsp", {}, "python");
+}
 
-	try {
-		// 1. Try a graceful Shutdown request - but don't wait for it
-		(void)message_handler_->sendRequest<lsp::requests::Shutdown>();
-	} catch (...) {}
+void lsp_manager::stop()
+{
+	for (auto& server : servers_) {
+		if (!server->is_running) continue;
 
-	try {
-		// 2. Always send the Exit notification
-		message_handler_->sendNotification<lsp::notifications::Exit>();
-	} catch (...) {}
+		try {
+			(void)server->message_handler->sendRequest<lsp::requests::Shutdown>();
+		} catch (...) {}
 
-	try {
-		// 3. Forcefully terminate to ensure the pipe breaks and message_thread unblocks
-		if (process_) {
-			kill(process_->id(), SIGKILL);
-			process_->terminate();
+		try {
+			server->message_handler->sendNotification<lsp::notifications::Exit>();
+		} catch (...) {}
+
+		try {
+			if (server->process) {
+				kill(server->process->id(), SIGKILL);
+				server->process->terminate();
+			}
+		} catch (...) {}
+
+		server->is_running.store(false);
+
+		if (server->message_thread.joinable()) {
+			server->message_thread.join();
 		}
-	} catch (...) {}
-
-	is_running_.store(false);
-
-	if (message_thread_.joinable()) {
-		message_thread_.join();
 	}
-
-	message_handler_.reset();
-	connection_.reset();
-	process_.reset();
+	servers_.clear();
 }
-void clangd_manager::open_document(const std::string &filepath, const std::string &text)
+
+lsp_manager::server_instance* lsp_manager::get_server_for_file(const std::string& filepath)
 {
-	if (!is_running_ || !is_supported_file(filepath)) return;
+	std::string ext = fs::path(filepath).extension().string();
+	for (auto &c : ext) c = std::tolower(c);
+	
+	std::string lang_id;
+	if (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp") lang_id = "cpp";
+	else if (ext == ".py") lang_id = "python";
+	
+	if (lang_id.empty()) return nullptr;
+	
+	for (auto& server : servers_) {
+		if (server->language_id == lang_id && server->is_running) {
+			return server.get();
+		}
+	}
+	return nullptr;
+}
+
+bool lsp_manager::is_supported_file(const std::string &filepath) const
+{
+	std::string ext = fs::path(filepath).extension().string();
+	for (auto &c : ext) c = std::tolower(c);
+	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".py");
+}
+
+void lsp_manager::open_document(const std::string &filepath, const std::string &text)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server) return;
 	
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
 		doc_versions_[filepath] = 1;
 
 		auto uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
-		message_handler_->sendNotification<lsp::notifications::TextDocument_DidOpen>({
+		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidOpen>({
 			.textDocument = {
 				.uri = std::move(uri),
-				.languageId = "cpp", // Hardcode C++ for now since clangd is C++
+				.languageId = server->language_id,
 				.version = 1,
 				.text = text
 			}
@@ -151,9 +189,10 @@ void clangd_manager::open_document(const std::string &filepath, const std::strin
 	} catch (...) {}
 }
 
-void clangd_manager::update_document(const std::string &filepath, const std::string &text)
+void lsp_manager::update_document(const std::string &filepath, const std::string &text)
 {
-	if (!is_running_ || !is_supported_file(filepath)) return;
+	auto server = get_server_for_file(filepath);
+	if (!server) return;
 
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
@@ -168,20 +207,21 @@ void clangd_manager::update_document(const std::string &filepath, const std::str
 		changeEvent.text = text;
 		didChangeParams.contentChanges.push_back(changeEvent);
 		
-		message_handler_->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
+		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
 	} catch (...) {}
 }
 
-void clangd_manager::request_hover(const std::string &filepath, int line, int character)
+void lsp_manager::request_hover(const std::string &filepath, int line, int character)
 {
-	if (!is_running_ || !is_supported_file(filepath)) return;
+	auto server = get_server_for_file(filepath);
+	if (!server) return;
 	
 	try {
 		auto hoverParams = lsp::requests::TextDocument_Hover::Params();
 		hoverParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
 		hoverParams.position = {static_cast<unsigned int>(line), static_cast<unsigned int>(character)};
 
-		message_handler_->sendRequest<lsp::requests::TextDocument_Hover>(
+		server->message_handler->sendRequest<lsp::requests::TextDocument_Hover>(
 			std::move(hoverParams),
 			[this](const lsp::requests::TextDocument_Hover::Result& result) {
 				if (!result.isNull()) {
@@ -199,22 +239,23 @@ void clangd_manager::request_hover(const std::string &filepath, int line, int ch
 				}
 			},
 			[](const lsp::ResponseError& error) {
-				event_logger::get_instance().log(std::string("clangd hover error: ") + error.message());
+				event_logger::get_instance().log(std::string("LSP hover error: ") + error.message());
 			}
 		);
 	} catch (...) {}
 }
 
-void clangd_manager::request_document_highlight(const std::string &filepath, int line, int character)
+void lsp_manager::request_document_highlight(const std::string &filepath, int line, int character)
 {
-	if (!is_running_ || !is_supported_file(filepath)) return;
+	auto server = get_server_for_file(filepath);
+	if (!server) return;
 
 	try {
 		auto highlightParams = lsp::requests::TextDocument_DocumentHighlight::Params();
 		highlightParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
 		highlightParams.position = {static_cast<unsigned int>(line), static_cast<unsigned int>(character)};
 
-		message_handler_->sendRequest<lsp::requests::TextDocument_DocumentHighlight>(
+		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentHighlight>(
 			std::move(highlightParams),
 			[this](const lsp::requests::TextDocument_DocumentHighlight::Result& result) {
 				if (!result.isNull()) {
@@ -232,32 +273,31 @@ void clangd_manager::request_document_highlight(const std::string &filepath, int
 						global_queue_->push(ev);
 					}
 				} else {
-					// Clear highlights if result is null (e.g., cursor not on a symbol)
 					if (global_queue_) {
 						editor_event ev;
 						ev.type = event_type::lsp_highlight_result;
-						// empty highlight_ranges
 						global_queue_->push(ev);
 					}
 				}
 			},
 			[](const lsp::ResponseError& error) {
-				event_logger::get_instance().log(std::string("clangd highlight error: ") + error.message());
+				event_logger::get_instance().log(std::string("LSP highlight error: ") + error.message());
 			}
 		);
 	} catch (...) {}
 }
 
-void clangd_manager::request_selection_range(const std::string &filepath, int line, int character)
+void lsp_manager::request_selection_range(const std::string &filepath, int line, int character)
 {
-	if (!is_running_ || !is_supported_file(filepath)) return;
+	auto server = get_server_for_file(filepath);
+	if (!server) return;
 
 	try {
 		auto selectionParams = lsp::requests::TextDocument_SelectionRange::Params();
 		selectionParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
 		selectionParams.positions.push_back({static_cast<unsigned int>(line), static_cast<unsigned int>(character)});
 
-		message_handler_->sendRequest<lsp::requests::TextDocument_SelectionRange>(
+		server->message_handler->sendRequest<lsp::requests::TextDocument_SelectionRange>(
 			std::move(selectionParams),
 			[this](const lsp::requests::TextDocument_SelectionRange::Result& result) {
 				if (!result.isNull() && !result.value().empty()) {
@@ -265,7 +305,6 @@ void clangd_manager::request_selection_range(const std::string &filepath, int li
 						editor_event ev;
 						ev.type = event_type::lsp_selection_range_result;
 						
-						// We traverse the tree from innermost to outermost
 						const lsp::SelectionRange* current = &result.value()[0];
 						while (current) {
 							ev.highlight_ranges.push_back({
@@ -282,29 +321,8 @@ void clangd_manager::request_selection_range(const std::string &filepath, int li
 				}
 			},
 			[](const lsp::ResponseError& error) {
-				event_logger::get_instance().log(std::string("clangd selection range error: ") + error.message());
+				event_logger::get_instance().log(std::string("LSP selection range error: ") + error.message());
 			}
 		);
 	} catch (...) {}
-}
-
-bool clangd_manager::is_supported_file(const std::string &filepath) const
-{
-	std::string ext = fs::path(filepath).extension().string();
-	// Convert to lowercase
-	for (auto &c : ext)
-		c = std::tolower(c);
-	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp");
-}
-
-void clangd_manager::message_loop()
-{
-	try {
-		while (is_running_) {
-			message_handler_->processIncomingMessages();
-		}
-	} catch (const std::exception &e) {
-		is_running_.store(false);
-		event_logger::get_instance().log("clangd message loop error: " + std::string(e.what()));
-	}
 }

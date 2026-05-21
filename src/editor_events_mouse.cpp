@@ -9,7 +9,7 @@
 #include "config_manager.h"
 #include "settings_dialog.h"
 #include "git_manager.h"
-#include "clangd_manager.h"
+#include "lsp_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"

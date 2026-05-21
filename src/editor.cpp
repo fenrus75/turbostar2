@@ -9,7 +9,7 @@
 #include "config_manager.h"
 #include "settings_dialog.h"
 #include "git_manager.h"
-#include "clangd_manager.h"
+#include "lsp_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
@@ -26,7 +26,7 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 	git_manager::get_instance().start(global_queue_);
 	bool lsp_allowed = !no_lsp && config_manager::get_instance().is_lsp_enabled();
 	if (lsp_allowed) {
-		clangd_manager::get_instance().start(global_queue_);
+		lsp_manager::get_instance().start(global_queue_);
 	}
 
 	if (filenames.empty()) {
@@ -231,7 +231,7 @@ std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std
 
 editor::~editor()
 {
-	clangd_manager::get_instance().stop();
+	lsp_manager::get_instance().stop();
 	git_manager::get_instance().stop();
 }
 
@@ -526,7 +526,7 @@ bool editor::handle_k_block_key(int key)
 	} else if (c == ']') {
 		logger.log("K-block: Expand Selection (LSP)");
 		if (active_doc && !active_doc->get_filename().empty()) {
-			clangd_manager::get_instance().request_selection_range(
+			lsp_manager::get_instance().request_selection_range(
 				active_doc->get_filename(),
 				active_doc->get_cursor_y(),
 				active_doc->get_cursor_x()

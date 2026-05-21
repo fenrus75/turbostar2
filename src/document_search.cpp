@@ -11,7 +11,7 @@
 #include "config_manager.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
-#include "clangd_manager.h"
+#include "lsp_manager.h"
 #include "fs_utils.h"
 
 namespace fs = std::filesystem;

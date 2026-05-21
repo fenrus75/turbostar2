@@ -5,6 +5,8 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <mutex>
+#include <vector>
 #include "event_queue.h"
 
 namespace lsp {
@@ -16,10 +18,10 @@ namespace lsp {
 	}
 }
 
-class clangd_manager
+class lsp_manager
 {
       public:
-	static clangd_manager &get_instance();
+	static lsp_manager &get_instance();
 
 	void start(event_queue &queue);
 	void stop();
@@ -31,18 +33,23 @@ class clangd_manager
 	void request_selection_range(const std::string &filepath, int line, int character);
 
       private:
-	clangd_manager() = default;
-	~clangd_manager();
+	lsp_manager() = default;
+	~lsp_manager();
 
-	void message_loop();
+	struct server_instance {
+		std::string language_id;
+		std::unique_ptr<lsp::Process> process;
+		std::unique_ptr<lsp::Connection> connection;
+		std::unique_ptr<lsp::MessageHandler> message_handler;
+		std::thread message_thread;
+		std::atomic<bool> is_running{false};
+	};
+
+	void start_server(const std::string& name, const std::vector<std::string>& args, const std::string& language_id);
+	server_instance* get_server_for_file(const std::string& filepath);
 	bool is_supported_file(const std::string &filepath) const;
 
-	std::unique_ptr<lsp::Process> process_;
-	std::unique_ptr<lsp::Connection> connection_;
-	std::unique_ptr<lsp::MessageHandler> message_handler_;
-	
-	std::thread message_thread_;
-	std::atomic<bool> is_running_{false};
+	std::vector<std::unique_ptr<server_instance>> servers_;
 	event_queue *global_queue_{nullptr};
 	
 	std::mutex doc_mutex_;

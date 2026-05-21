@@ -88,11 +88,11 @@
      decide to render in various ways, some will be multi line, some will be hidden by default. This makes scrolling tricky
      so we likely need to compute and cache Y coordinates for all of these, and have the AI element return its "height"
 
-- add a python LSP (use /usr/bin/pylsp )
-
+## 20-05-2026
 - add python basic syntax highlighting
-
-- a helper that, given the current cursor position is inside a markdown table, that the selection becomes the whole markdown table
+    - implemented `python_highlighter` with keyword, string, comment, and trailing whitespace support
+    - added unit tests and verified with full test suite
+- list_tool_calls() tool to return markdown table of all available agent capabilities
   (so goes up to find the start, goes down to find the end)
 
 - a function that works on a document, with start and finish lines as argument, and aligns markdown table | lines vertically
@@ -172,6 +172,12 @@
 # done items (move items here on completion)
 
 ## 20-05-2026
+- add a python LSP (use /usr/bin/pylsp )
+    - refactored `clangd_manager` to `lsp_manager` to support multiple language servers
+    - added support for starting and routing messages to `pylsp` for `.py` files
+- add python basic syntax highlighting
+    - implemented `python_highlighter` with keyword, string, comment, and trailing whitespace support
+    - added unit tests and verified with full test suite
 - list_tool_calls() tool to return markdown table of all available agent capabilities
 - sqlite database support
     - implemented `sqlite_create_db`, `sqlite_delete_db`, `sqlite_list_db`, and `sqlite_perform` tools using raw `sqlite3` C API
