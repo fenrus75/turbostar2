@@ -51,14 +51,6 @@
 	- coredump_list()
 	- coredump_read_memory(nr, location, size)
 	- coredump_gdb(nr, command) (over time -- likely to come later)
-    - agent tools
-	- list_agents() - returns a markdown table of ID, name, status
- 	- create_agent(name, profile) - profile is the .agent.md kind of content
-	- agent_status(ID) - returns detailed agent status
-	- end_agent(ID)
-        - report_my_agent_status(text)
-	- agent_todo_status(ID) - returns the todo list with status of a client/sub agent
-
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
@@ -167,6 +159,13 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- agent tools
+	- list_agents() - returns a markdown table of ID, name, status
+ 	- create_agent(name, profile) - profile is the .agent.md kind of content
+	- agent_status(ID) - returns detailed agent status
+	- end_agent(ID)
+        - report_my_agent_status(text)
+	- agent_todo_status(ID) - returns the todo list with status of a client/sub agent
 - CI is currently failing in github, not due to testrun/ missing
  	- needs investigation
 - have an attribute on tool call definitions to have it not log by default
