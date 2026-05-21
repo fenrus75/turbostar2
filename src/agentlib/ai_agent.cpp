@@ -118,6 +118,11 @@ void ai_agent::remove_subagent(int id) {
         }), subagents_.end());
 }
 
+std::vector<std::shared_ptr<ai_agent>> ai_agent::get_subagents() const {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(state_mutex_));
+    return subagents_;
+}
+
 void ai_agent::submit_prompt(const std::string& prompt_text) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
