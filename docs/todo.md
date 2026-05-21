@@ -27,10 +27,6 @@
 	- activated skills ?
 	- active model, tokens consumed, cost$, .... <more over time>
 
-- more mouse support -- UI experience item
-	- the various save/discard/cancel dialog boxes should take a mouse click on the buttons
-	- this should be simpler than things like file selection dialog box
-
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - run_python() -- start with filename as argument -- maybe allow direct python snippets as well
@@ -185,6 +181,9 @@
 # done items (move items here on completion)
 
 ## 20-05-2026
+- more mouse support -- UI experience item
+	- the various save/discard/cancel dialog boxes should take a mouse click on the buttons
+	- implemented a new `ui_button` class to encapsulate layout and interaction logic, eliminating hardcoded coordinates.
 - can we make next_utf8_character accept a string as argument into which we place the characters
 	- the caller should .reserve(4) at least 4 bytes so that in practice we never need to resize/allocate.
 	- performance feature: avoids having to construct new objects all the time etc
