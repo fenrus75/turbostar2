@@ -124,3 +124,26 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `get_current_datetime`
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
+
+---
+
+## 6. Agent State & To-Do Management
+
+### `agent_add_todo`
+*   **Description:** Adds a new task to the AI agent's internal todo list. Use this to track steps during complex multi-part requests.
+*   **Arguments:**
+    *   `text` *(string, required)*: The description of the task to add.
+
+### `agent_list_todos`
+*   **Description:** Lists all tasks currently in the AI agent's internal todo list, formatted as markdown checkboxes.
+*   **Arguments:** None.
+
+### `agent_complete_todo`
+*   **Description:** Marks a task as complete in the AI agent's internal todo list.
+*   **Arguments:**
+    *   `text` *(string, required)*: The exact task text or a unique substring to match.
+
+### `agent_delete_todo`
+*   **Description:** Deletes a task from the AI agent's internal todo list.
+*   **Arguments:**
+    *   `text` *(string, required)*: The exact task text or a unique substring to match.
