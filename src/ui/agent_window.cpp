@@ -104,8 +104,10 @@ void agent_window::on_agent_update() {
 void agent_window::draw_content() const {
     // 1. Draw the chat history in the upper portion
     int input_box_height = 3; 
-    int available_height = height_ - 2 - input_box_height;
-    int current_y = y_ + height_ - 2 - input_box_height - 1; // start from bottom of available area
+    int separator_height = 1;
+    int reserved_bottom = input_box_height + separator_height;
+    int available_height = height_ - 2 - reserved_bottom;
+    int current_y = y_ + 1 + available_height - 1; // start from bottom of available area
     int start_x = x_ + 1;
     int max_width = width_ - 2;
 
@@ -160,12 +162,14 @@ void agent_window::draw_content() const {
     if (input_box_) {
         // Draw separator line
         int input_box_y = y_ + height_ - 4; 
+        int separator_y = input_box_y - 1;
+
         attrset(COLOR_PAIR(get_background_color_pair()));
         for (int i = 0; i < max_width; ++i) {
-            mvaddch(input_box_y, start_x + i, ACS_HLINE);
+            mvaddch(separator_y, start_x + i, ACS_HLINE);
         }
         
-        input_box_->set_bounds(start_x, input_box_y + 1, max_width, 3);
+        input_box_->set_bounds(start_x, input_box_y, max_width, 3);
         input_box_->set_focus(is_active());
         input_box_->draw(0, 0);
     }
