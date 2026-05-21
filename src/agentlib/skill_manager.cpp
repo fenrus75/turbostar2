@@ -1,4 +1,27 @@
 #include "skill_manager.h"
+#include "tool_validator.h"
+
+
+extern "C" const char* get_tool_name_agent_add_todo();
+extern "C" const char* get_tool_description_agent_add_todo();
+extern "C" const char* get_tool_parameters_schema_agent_add_todo();
+extern "C" agentlib::tool_validator* get_tool_validator_agent_add_todo();
+
+extern "C" const char* get_tool_name_agent_list_todos();
+extern "C" const char* get_tool_description_agent_list_todos();
+extern "C" const char* get_tool_parameters_schema_agent_list_todos();
+extern "C" agentlib::tool_validator* get_tool_validator_agent_list_todos();
+
+extern "C" const char* get_tool_name_agent_complete_todo();
+extern "C" const char* get_tool_description_agent_complete_todo();
+extern "C" const char* get_tool_parameters_schema_agent_complete_todo();
+extern "C" agentlib::tool_validator* get_tool_validator_agent_complete_todo();
+
+extern "C" const char* get_tool_name_agent_delete_todo();
+extern "C" const char* get_tool_description_agent_delete_todo();
+extern "C" const char* get_tool_parameters_schema_agent_delete_todo();
+extern "C" agentlib::tool_validator* get_tool_validator_agent_delete_todo();
+
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
