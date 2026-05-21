@@ -134,13 +134,53 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::open_subagent) {
+		logger.log("Dispatching open_subagent event for agent ID: " + std::to_string(ev.key_code));
+		
+		int target_id = ev.key_code;
+		
+		// 1. Check if an agent window for this subagent already exists
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (auto aw = dynamic_cast<agent_window*>(windows_[i].get())) {
+				if (aw->get_agent()->get_id() == target_id) {
+					activate_window(i);
+					return;
+				}
+			}
+		}
+		
+		// 2. Window doesn't exist, we need to find the subagent and spawn a window
+		std::shared_ptr<agentlib::ai_agent> found_subagent = nullptr;
+		for (auto& win : windows_) {
+			// Find a status window or main agent window that knows about this subagent
+			if (auto aw = dynamic_cast<agent_window*>(win.get())) {
+				for (auto& sub : aw->get_agent()->get_subagents()) {
+					if (sub->get_id() == target_id) {
+						found_subagent = sub;
+						break;
+					}
+				}
+			}
+			if (found_subagent) break;
+		}
+
+		if (found_subagent) {
+			open_subagent_window(found_subagent);
+		} else {
+			logger.log("Error: Could not find subagent with ID " + std::to_string(target_id) + " to open.");
+		}
+		return;
+	}
+
 	if (ev.type == event_type::agent_response) {
 		logger.log("Dispatching agent_response event.");
 		// Find the active agent window
 		for (auto& win : windows_) {
 			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
-				agent_win->append_response(ev.payload);
-				break;
+				if (agent_win->get_agent()->get_id() == ev.key_code) {
+					agent_win->on_agent_update();
+					break;
+				}
 			}
 		}
 		return;
@@ -151,8 +191,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		// Find the active agent window
 		for (auto& win : windows_) {
 			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
-				agent_win->append_tool_update(ev.payload);
-				break;
+				if (agent_win->get_agent()->get_id() == ev.key_code) {
+					agent_win->on_agent_update();
+					break;
+				}
 			}
 		}
 		return;

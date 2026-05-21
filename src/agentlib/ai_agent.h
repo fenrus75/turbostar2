@@ -9,6 +9,7 @@
 #include "llm_client.h"
 #include "tool_registry.h"
 #include "document_provider.h"
+#include "agent_interaction.h"
 
 class event_queue;
 
@@ -56,6 +57,9 @@ public:
     void add_active_skill(const std::string& skill_name);
     std::vector<std::string> get_active_skills() const;
 
+    const std::vector<std::shared_ptr<agent_interaction>>& get_interactions() const { return interactions_; }
+    void add_interaction(std::shared_ptr<agent_interaction> interaction);
+
 private:
     ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
 
@@ -72,6 +76,7 @@ private:
     std::vector<todo_item> todos_;
     std::vector<std::shared_ptr<ai_agent>> subagents_;
     std::vector<std::string> active_skills_;
+    std::vector<std::shared_ptr<agent_interaction>> interactions_;
 
     std::string model_name_{"default-model"}; // Placeholder for now
     std::atomic<int> tokens_tx_{0};

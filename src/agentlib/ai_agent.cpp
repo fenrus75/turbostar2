@@ -123,6 +123,11 @@ std::vector<std::shared_ptr<ai_agent>> ai_agent::get_subagents() const {
     return subagents_;
 }
 
+void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    interactions_.push_back(std::move(interaction));
+}
+
 void ai_agent::submit_prompt(const std::string& prompt_text) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -130,6 +135,10 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
         user_msg.role = "user";
         user_msg.content = prompt_text;
         conversation_.push_back(user_msg);
+    }
+    
+    if (!prompt_text.empty()) {
+        add_interaction(std::make_shared<interaction_user_message>(prompt_text));
     }
 
     status_ = agent_status::thinking;
@@ -230,11 +239,15 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
                     bool is_silent = registry.is_tool_silent(call.function.name);
 
-                    if (self->global_queue_ && !is_silent) {
-                        editor_event tool_ev;
-                        tool_ev.type = event_type::agent_tool_update;
-                        tool_ev.payload = call.function.name + "(" + arg_preview + ")";
-                        self->global_queue_->push(tool_ev);
+                    if (!is_silent) {
+                        self->add_interaction(std::make_shared<interaction_tool_call>(call.function.name + "(" + arg_preview + ")"));
+                        if (self->global_queue_) {
+                            editor_event tool_ev;
+                            tool_ev.type = event_type::agent_tool_update;
+                            tool_ev.key_code = self->id_;
+                            // Payload no longer needed, window can just pull from interactions_
+                            self->global_queue_->push(tool_ev);
+                        }
                     }
 
                     std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
@@ -252,11 +265,14 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                         }
                     }
                     
-                    if (self->global_queue_ && !is_silent) {
-                        editor_event result_ev;
-                        result_ev.type = event_type::agent_tool_update;
-                        result_ev.payload = "↳ Result: " + result_preview;
-                        self->global_queue_->push(result_ev);
+                    if (!is_silent) {
+                        self->add_interaction(std::make_shared<interaction_tool_result>(result_preview));
+                        if (self->global_queue_) {
+                            editor_event result_ev;
+                            result_ev.type = event_type::agent_tool_update;
+                            result_ev.key_code = self->id_;
+                            self->global_queue_->push(result_ev);
+                        }
                     }
                     
                     message tool_msg;
@@ -283,9 +299,14 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
         
         self->status_ = agent_status::idle;
 
+        if (!final_response.empty()) {
+            self->add_interaction(std::make_shared<interaction_llm_response>(final_response));
+        }
+
         if (self->global_queue_) {
             editor_event ev;
             ev.type = event_type::agent_response;
+            ev.key_code = self->id_;
             ev.payload = final_response;
             self->global_queue_->push(ev);
         }

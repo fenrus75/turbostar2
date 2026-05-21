@@ -15,24 +15,23 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
     std::string url = config_manager::get_instance().get_llm_url();
     agent_ = ai_agent::create(id, "Agent", url, &global_queue, doc_provider);
 
-    // Create the document for the chat history
-    chat_history_ = std::make_shared<document>(global_queue, "Agent Chat");
-    chat_history_->set_read_only(true);
-    attach_document(chat_history_);
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 
     // List available skills at startup for the user
     auto& skills = skill_manager::get_instance().get_skills();
     if (!skills.empty()) {
-        chat_history_->set_read_only(false);
-        chat_history_->append_line("*Available Skills:*");
+        std::string skills_text = "Available Skills:\n";
         for (const auto& s : skills) {
-            chat_history_->append_line("- **" + s.name + "**");
+            skills_text += "- " + s.name + "\n";
         }
-        chat_history_->append_line("");
-        chat_history_->set_read_only(true);
-        chat_history_->clear_modified();
+        agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
     }
+}
+
+agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent, event_queue& global_queue)
+    : window(id, x, y, width, height, existing_agent->get_name()), agent_(std::move(existing_agent))
+{
+    set_background_color_pair(17);
 }
 
 agent_window::~agent_window() {
@@ -43,12 +42,6 @@ agent_window::~agent_window() {
 
 bool agent_window::process_events() {
     bool needs_render = false;
-    
-    // We want to intercept key events for our input buffer.
-    // If it's a key we don't care about, we push it back to a temporary queue,
-    // or we just process our keys and let the base class process the rest?
-    // The easiest way is to pop them all. If it's an input key, handle it.
-    // If it's a scrolling key (UP, DOWN, PAGE_UP, PAGE_DOWN), pass it to the document.
     
     while (auto ev = get_queue().pop()) {
         if (ev->type == event_type::key_press) {
@@ -72,16 +65,19 @@ bool agent_window::process_events() {
                     needs_render = true;
                 }
             } else if (key == KEY_UP) {
-                chat_history_->move_cursor(0, -1);
+                scroll_offset_++;
                 needs_render = true;
             } else if (key == KEY_DOWN) {
-                chat_history_->move_cursor(0, 1);
-                needs_render = true;
+                if (scroll_offset_ > 0) {
+                    scroll_offset_--;
+                    needs_render = true;
+                }
             } else if (key == 21) { // Ctrl-U (Page up)
-                chat_history_->move_page_up(get_content_height() - 3);
+                scroll_offset_ += get_content_height() - 3;
                 needs_render = true;
             } else if (key == 22) { // Ctrl-V (Page down)
-                chat_history_->move_page_down(get_content_height() - 3);
+                scroll_offset_ -= get_content_height() - 3;
+                if (scroll_offset_ < 0) scroll_offset_ = 0;
                 needs_render = true;
             } else if (key >= 32 && key <= 126) {
                 input_buffer_ += static_cast<char>(key);
@@ -94,65 +90,73 @@ bool agent_window::process_events() {
     return needs_render;
 }
 
-void agent_window::append_response(const std::string& response_text) {
-    chat_history_->set_read_only(false);
-    // Append response lines
-    size_t start = 0;
-    while (start < response_text.length()) {
-        size_t end = response_text.find('\n', start);
-        if (end == std::string::npos) {
-            chat_history_->append_line(response_text.substr(start));
-            break;
-        }
-        chat_history_->append_line(response_text.substr(start, end - start));
-        start = end + 1;
-    }
-
-    chat_history_->append_line(""); // Spacer
-    chat_history_->set_read_only(true);
-
-    chat_history_->clear_modified();
-    chat_history_->move_to_bottom();
-    invalidate();
-}
-
-void agent_window::append_tool_update(const std::string& tool_text) {
-    chat_history_->set_read_only(false);
-    chat_history_->append_line("*Executing tool: " + tool_text + "*");
-    chat_history_->set_read_only(true);
-
-    chat_history_->clear_modified();
-    chat_history_->move_to_bottom();
+void agent_window::on_agent_update() {
+    scroll_offset_ = 0; // Snap to bottom
     invalidate();
 }
 
 void agent_window::submit_prompt() {
     std::string prompt = input_buffer_;
     input_buffer_.clear();
-
-    chat_history_->set_read_only(false);
-    chat_history_->append_line("> " + prompt);
-    chat_history_->append_line("");
-    chat_history_->set_read_only(true);
-    
-    chat_history_->clear_modified();
-    chat_history_->move_to_bottom();
+    scroll_offset_ = 0;
     invalidate();
-
     agent_->submit_prompt(prompt);
 }
 
 void agent_window::draw_content() const {
     // 1. Draw the chat history in the upper portion
     int input_box_height = 3; 
+    int available_height = height_ - 2 - input_box_height;
+    int current_y = y_ + height_ - 2 - input_box_height - 1; // start from bottom of available area
+    int start_x = x_ + 1;
+    int max_width = width_ - 2;
+
+    attron(COLOR_PAIR(get_background_color_pair()));
+
+    // First, clear the content area
+    for (int i = 1; i <= available_height; ++i) {
+        move(y_ + i, x_ + 1);
+        for (int j = 0; j < width_ - 2; ++j) addch(' ');
+    }
+
+    auto interactions = agent_->get_interactions();
     
-    // Temporarily shrink height so the document renderer doesn't draw over our input box
-    int original_height = height_;
-    const_cast<agent_window*>(this)->height_ -= input_box_height;
+    // We render backwards from the bottom
+    int rendered_lines = 0;
     
-    window::draw_content(); // Render standard document
-    
-    const_cast<agent_window*>(this)->height_ = original_height;
+    // Apply scroll offset
+    int skip_lines = scroll_offset_;
+
+    for (auto it = interactions.rbegin(); it != interactions.rend() && rendered_lines < available_height; ++it) {
+        auto lines = (*it)->render(max_width);
+        
+        // Iterate backwards through the lines of this interaction
+        for (auto line_it = lines.rbegin(); line_it != lines.rend(); ++line_it) {
+            if (skip_lines > 0) {
+                skip_lines--;
+                continue;
+            }
+            
+            if (rendered_lines >= available_height) break;
+
+            attron(COLOR_PAIR(line_it->color_pair));
+            
+            std::string display_text = line_it->text;
+            if (display_text.length() > static_cast<size_t>(max_width)) {
+                display_text = display_text.substr(0, max_width);
+            }
+            
+            mvprintw(current_y, start_x, "%s", display_text.c_str());
+            attroff(COLOR_PAIR(line_it->color_pair));
+            
+            attron(COLOR_PAIR(get_background_color_pair())); // restore bg
+            
+            current_y--;
+            rendered_lines++;
+        }
+    }
+
+    attroff(COLOR_PAIR(get_background_color_pair()));
 
     // 2. Draw the input box at the bottom
     render_input_box();
