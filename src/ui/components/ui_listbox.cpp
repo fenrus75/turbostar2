@@ -42,7 +42,6 @@ void ui_listbox::draw(int abs_x, int abs_y) const
 {
     int start_y = abs_y + y_;
     int start_x = abs_x + x_;
-    attron(COLOR_PAIR(8));
 
     for (int i = 0; i < height_; ++i) {
         int item_idx = scroll_top_ + i;
@@ -59,12 +58,16 @@ void ui_listbox::draw(int abs_x, int abs_y) const
                 mvprintw(start_y + i, start_x, "%s", display_text.c_str());
                 attroff(COLOR_PAIR(8));
             } else {
+		attron(COLOR_PAIR(12));
                 mvprintw(start_y + i, start_x, "%s", display_text.c_str());
+		attroff(COLOR_PAIR(12));
             }
         } else {
+	    attron(COLOR_PAIR(12));
             // Empty space
             std::string empty(width_, ' ');
             mvprintw(start_y + i, start_x, "%s", empty.c_str());
+	    attroff(COLOR_PAIR(12));
         }
     }
 }

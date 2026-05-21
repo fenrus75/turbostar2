@@ -76,6 +76,8 @@ class window
 		return height_ - 2;
 	}
 
+	event_queue& get_window_queue() { return window_queue_; }
+
       protected:
 	int x_, y_, width_, height_;
 	virtual void draw_content() const;

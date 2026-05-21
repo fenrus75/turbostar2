@@ -47,6 +47,7 @@ enum class event_type {
 	agent_response, ///< Notification that LLM has responded
 	agent_tool_update, ///< Notification that LLM is executing a tool
 	open_agent, ///< Request to open the LLM agent chat window
+	open_subagent, ///< Request to open a specific subagent chat window (key_code is agent ID)
 	apply_edits, ///< Request to apply JSON-serialized LLM edits to the live document
 	prompt_user ///< Request to prompt the user with a question and options
 };

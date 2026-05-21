@@ -24,6 +24,12 @@ class ui_element
 	int y() const { return y_; }
 	int width() const { return width_; }
 	int height() const { return height_; }
+	void set_bounds(int x, int y, int width, int height) {
+		x_ = x;
+		y_ = y;
+		width_ = width;
+		height_ = height;
+	}
 	std::string name() const { return name_; }
 
 	virtual void draw(int abs_x, int abs_y) const = 0;
