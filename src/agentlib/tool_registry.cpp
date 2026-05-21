@@ -1,4 +1,5 @@
 #include "tool_registry.h"
+#include "ai_agent.h"
 #include <iostream>
 
 namespace agentlib {
@@ -51,6 +52,10 @@ std::string tool_registry::execute_tool(const std::string& name, const std::stri
 
     // Create a transient validator instance for this execution to ensure thread-safe state!
     auto validator = it->second();
+
+    if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
+        return "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+    }
 
     nlohmann::json args;
     try {
