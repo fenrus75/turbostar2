@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y meson ninja-build libncursesw5-dev python3
+        run: sudo apt-get update && sudo apt-get install -y meson ninja-build libncursesw5-dev python3 libcpp-httplib-dev nlohmann-json3-dev libre2-dev libsqlite3-dev
       - name: Build
         run: meson setup build && ninja -C build
       - name: Test
