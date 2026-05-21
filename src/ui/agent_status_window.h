@@ -2,10 +2,12 @@
 
 #include "window.h"
 #include "../agentlib/ai_agent.h"
+#include "ui/components/ui_listbox.h"
+#include <memory>
 
 class agent_status_window : public window {
 public:
-    agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent);
+    agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent, event_queue& global_queue);
     ~agent_status_window() override = default;
 
     void draw_content() const override;
@@ -16,6 +18,9 @@ public:
 
 private:
     std::shared_ptr<agentlib::ai_agent> agent_;
+    event_queue& global_queue_;
     int cursor_y_{0};
     int scroll_offset_{0};
+    
+    std::unique_ptr<ui_listbox> subagents_list_;
 };

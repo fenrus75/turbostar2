@@ -5,10 +5,24 @@
 #include <sstream>
 #include <algorithm>
 
-agent_status_window::agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent)
-    : window(id, x, y, width, height, title), agent_(std::move(agent)) {
+agent_status_window::agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent, event_queue& global_queue)
+    : window(id, x, y, width, height, title), agent_(std::move(agent)), global_queue_(global_queue) {
     // 2 represents COLOR_WINDOW from standard macros in project.
     set_background_color_pair(2);
+
+    subagents_list_ = std::make_unique<ui_listbox>("subagents", 0, 0, width_ - 2, 1,
+        [this](int) {
+            invalidate(); // redraw on selection change
+        },
+        [this](int index) {
+            auto subagents = agent_->get_subagents();
+            if (index >= 0 && index < (int)subagents.size()) {
+                editor_event sub_ev;
+                sub_ev.type = event_type::open_subagent;
+                sub_ev.key_code = subagents[index]->get_id();
+                global_queue_.push(sub_ev);
+            }
+        });
 }
 
 void agent_status_window::draw_content() const {
@@ -83,31 +97,52 @@ void agent_status_window::draw_content() const {
     // 3. Subagents Section
     if (current_y < y_ + height_ - 1) {
         print_line(start_x, current_y++, "--- Subagents ---");
+        
         auto subagents = agent_->get_subagents();
-        if (subagents.empty()) {
-            print_line(start_x, current_y++, "  None");
-        } else {
-            for (const auto& sub : subagents) {
-                if (current_y < y_ + height_ - 1) {
-                    std::string status_str;
-                    switch (sub->get_status()) {
-                        case agentlib::agent_status::idle: status_str = "[Idle]"; break;
-                        case agentlib::agent_status::thinking: status_str = "[Thinking]"; break;
-                        case agentlib::agent_status::tool_execution: status_str = "[Tool]"; break;
-                        case agentlib::agent_status::error: status_str = "[Error]"; break;
-                    }
-                    print_line(start_x, current_y++, " " + sub->get_name() + " " + status_str);
-                }
+        std::vector<std::string> subagent_strings;
+        for (const auto& sub : subagents) {
+            std::string status_str;
+            switch (sub->get_status()) {
+                case agentlib::agent_status::idle: status_str = "[Idle]"; break;
+                case agentlib::agent_status::thinking: status_str = "[Thinking]"; break;
+                case agentlib::agent_status::tool_execution: status_str = "[Tool]"; break;
+                case agentlib::agent_status::error: status_str = "[Error]"; break;
             }
+            subagent_strings.push_back(" " + sub->get_name() + " " + status_str);
+        }
+        
+        // Compute dynamic height available
+        int available_height = (y_ + height_ - 1) - current_y;
+        if (available_height > 0) {
+            subagents_list_->set_bounds(start_x, current_y, max_width, available_height);
+            subagents_list_->set_items(subagent_strings);
+            
+            // Pass focus state to the listbox
+            subagents_list_->set_focus(is_active());
         }
     }
     
     attroff(COLOR_PAIR(get_background_color_pair()));
+
+    // Draw the listbox
+    if (subagents_list_) {
+        // draw uses absolute coordinates. We pass 0,0 since set_bounds used start_x/current_y as relative to 0,0
+        // Wait, set_bounds sets x_, y_. If we pass abs_x=0, abs_y=0, it will draw at x_, y_.
+        subagents_list_->draw(0, 0);
+    }
 }
 
 bool agent_status_window::process_events() {
-    bool needs_render = window::process_events();
-    // TODO: Handle keyboard navigation here (Up/Down arrows, Enter to view details)
+    bool needs_render = false;
+    while (auto ev = get_window_queue().pop()) {
+        if (is_active() && subagents_list_ && subagents_list_->handle_event(*ev, 0, 0)) {
+            needs_render = true;
+            invalidate();
+            continue;
+        }
+        // ... (handle other window keys if any, none for now)
+    }
+    
     return needs_render;
 }
 
