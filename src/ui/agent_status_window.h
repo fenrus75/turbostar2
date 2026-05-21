@@ -8,7 +8,7 @@ public:
     agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent);
     ~agent_status_window() override = default;
 
-    void draw() const;
+    void draw_content() const override;
     bool process_events() override;
     void set_cursor_position() const override;
 

@@ -9,9 +9,7 @@ agent_status_window::agent_status_window(int id, int x, int y, int width, int he
     set_background_color_pair(2);
 }
 
-void agent_status_window::draw() const {
-    window::draw();
-
+void agent_status_window::draw_content() const {
     if (!is_visible()) {
         return;
     }
@@ -21,6 +19,12 @@ void agent_status_window::draw() const {
     int max_width = width_ - 2;
 
     attron(COLOR_PAIR(get_background_color_pair()));
+
+    // First, clear the content area
+    for (int i = 1; i < height_ - 1; ++i) {
+        move(y_ + i, x_ + 1);
+        for (int j = 0; j < width_ - 2; ++j) addch(' ');
+    }
 
     auto print_line = [&](int x, int y, const std::string& text) {
         if (text.length() > (size_t)max_width) {
