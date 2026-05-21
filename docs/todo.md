@@ -1,5 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
-
+ 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar

@@ -95,9 +95,6 @@ void editor::resolve_dialog(dialog_result res)
 
 			active_dialog_.reset();
 			active_dialog_mode_ = dialog_mode::none;
-			if (res_str == "cancel") {
-				set_focus(focus_target::window, "dialog_close");
-			}
 			return;
 		} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
 			std::string res_str = active_dialog_->get_result();
@@ -121,7 +118,6 @@ void editor::resolve_dialog(dialog_result res)
 				close_ev.type = event_type::close_window;
 				close_ev.key_code = 1;
 				global_queue_.push(close_ev);
-			} else if (res_str == "cancel") {
 			}
 			return;
 		}

@@ -230,7 +230,7 @@ save_prompt_dialog::save_prompt_dialog(const std::string &filename)
 	int by = y_ + height_ - 3;
 	buttons_.emplace_back("  Save  ", 'S', "save", dialog_result::confirmed, x_ + 4, by);
 	buttons_.emplace_back(" Discard ", 'D', "discard", dialog_result::confirmed, x_ + 18, by);
-	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::confirmed, x_ + 34, by);
+	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + 34, by);
 }
 
 void save_prompt_dialog::draw() const
@@ -265,12 +265,13 @@ dialog_result save_prompt_dialog::handle_key(int key)
 	} else if (key == KEY_RIGHT) {
 		focus_idx_ = (focus_idx_ + 1) % 3;
 	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		if (focus_idx_ == 2) return dialog_result::cancelled;
 		return dialog_result::confirmed;
 	} else {
 		char c = std::tolower(static_cast<char>(key));
 		if (c == 's') { focus_idx_ = 0; return dialog_result::confirmed; }
 		if (c == 'd') { focus_idx_ = 1; return dialog_result::confirmed; }
-		if (c == 'c') { focus_idx_ = 2; return dialog_result::confirmed; }
+		if (c == 'c') { focus_idx_ = 2; return dialog_result::cancelled; }
 	}
 	return dialog_result::pending;
 }
@@ -294,7 +295,7 @@ force_quit_dialog::force_quit_dialog()
 	int by = y_ + height_ - 3;
 	buttons_.emplace_back("  Exit  ", 'E', "exit", dialog_result::confirmed, x_ + 4, by);
 	buttons_.emplace_back(" Save All ", 'S', "save_all", dialog_result::confirmed, x_ + 16, by);
-	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::confirmed, x_ + 32, by);
+	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + 32, by);
 }
 
 bool force_quit_dialog::tick()
@@ -351,12 +352,13 @@ dialog_result force_quit_dialog::handle_key(int key)
 	} else if (key == KEY_RIGHT) {
 		focus_idx_ = (focus_idx_ + 1) % 3;
 	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
+		if (focus_idx_ == 2) return dialog_result::cancelled;
 		return dialog_result::confirmed;
 	} else {
 		char c = std::tolower(static_cast<char>(key));
 		if (c == 'e' || c == 'x') { focus_idx_ = 0; return dialog_result::confirmed; }
 		if (c == 's') { focus_idx_ = 1; return dialog_result::confirmed; }
-		if (c == 'c') { focus_idx_ = 2; return dialog_result::confirmed; }
+		if (c == 'c') { focus_idx_ = 2; return dialog_result::cancelled; }
 	}
 	return dialog_result::pending;
 }
