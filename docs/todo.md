@@ -4,12 +4,10 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
-- we need an "AI model" class that tracks url, model name, purpose, cost, api key for each model
-   - over time we can use this to switch models dynamically
-   - we should query a set of API points for their supported models at startup
-   - need a small "we know these model names" database compiled into the binary from some docs/*.md file
-     so that we can fill in purpose, and outright ban bad models
-   - likely allow .turbostar like files to append to the build in list
+- we should take a set of known security sensitive files and in our sandbox, make them disappear
+  - .ssh/
+  - .env
+  - our own API_KEY store
 
 - we need a window type to show "agent status"
 	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
@@ -51,6 +49,24 @@
 	- coredump_list()
 	- coredump_read_memory(nr, location, size)
 	- coredump_gdb(nr, command) (over time -- likely to come later)
+     - enter_plan_mode, exit_plan_mode
+
+- the context we give to the agent as part of the notification that a subagent finished should be
+  (per internet documentation) in json format:
+{
+  "event": "SubagentStop",
+  "agent_id": "subagent_123ab",
+  "name": "data_quality_agent",
+  "status": "completed",
+  "duration_s": 24.5,
+  "result": {
+    "summary": "Data cleaning complete.",
+    "output_path": "reports/data_quality_report.md"
+  }
+}
+	so we need to write the log to a file .md (likely a virtual file in the vfs)
+	and provide the last sentence our two in summary
+
 
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
@@ -160,10 +176,8 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
-- we should take a set of known security sensitive files and in our sandbox, make them disappear
-  - .ssh/
-  - .env
-  - our own API_KEY store
+- we need an "AI model" class/extend the current class that tracks URL, model name, purpose, cost (and API key etc). 
+    - the agent status window should use this data to calculate the cost 
 - have an option in "ai_agent" class to make the whole agent "read only" (to allow for planning mode etc) which
     - rejects any write tool calls (so write tool calls should check agent for read only in various places)
     - we need to decide other security model implications
