@@ -6,7 +6,7 @@ Top design documentation: `docs/design.md`
 # Project specific rules
 
 - keep `docs/design.md` and related documents updated at all times
-- git commit after each logical change
+- git commit after each logical change or item implemented. This is a standing rule.
 - perform a code review before each commit to ensure no stray edits happened
 - run the test suite before commit
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase

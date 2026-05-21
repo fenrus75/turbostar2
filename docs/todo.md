@@ -11,15 +11,6 @@
      so that we can fill in purpose, and outright ban bad models
    - likely allow .turbostar like files to append to the build in list
 
-- we need an "AI agent" class/extend the current class that represents a whole agent, and has 
-	- each new window gets such a class
-	- an agent instance has
-		- some ID - tbd if this ID is global or unique within the parent agent only
-                - vector<> of sub AI agents (same class type)
-		- a status
-		- a connection/model/etc
-		- a vector of todos
-
 - we need a window type to show "agent status"
 	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
 	  agent window the rest of the screen
@@ -30,14 +21,6 @@
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - run_python() -- start with filename as argument -- maybe allow direct python snippets as well
-    - managing todo lists
-	- add_todo(text)
-	- list_todos(), 
-	- complete_todo(text)
-	- delete_todo(text)
-        - we want the option to have a window to list current todos and their status
- 	- todos are a per-agent property
-        - may need a blurb in the system prompt to urge the LLM to track todo lists using tools
     - a set of git ops
 	- git_branch(branchname)
 	- git_checkout(...)
@@ -181,6 +164,10 @@
 # done items (move items here on completion)
 
 ## 20-05-2026
+- we need an "AI agent" class/extend the current class that represents a whole agent
+    - implemented `ai_agent` class and successfully decoupled it from the `agent_window` UI
+- managing todo lists tools (add_todo, list_todos, complete_todo, delete_todo)
+    - tools implemented, registered to AI agent state, and heavily E2E tested
 - more mouse support -- UI experience item
 	- the various save/discard/cancel dialog boxes should take a mouse click on the buttons
 	- implemented a new `ui_button` class to encapsulate layout and interaction logic, eliminating hardcoded coordinates.
