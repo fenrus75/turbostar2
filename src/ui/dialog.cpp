@@ -3,35 +3,6 @@
 #include <ncurses.h>
 #include "event_logger.h"
 
-legacy_ui_button::legacy_ui_button(const std::string &t, char hk, const std::string &res, dialog_result act, int px, int py)
-    : text(t), hotkey(hk), result_string(res), action(act), x(px), y(py), width(static_cast<int>(t.length()))
-{
-}
-
-void legacy_ui_button::draw() const
-{
-	attron(COLOR_PAIR(1));
-	mvaddstr(y, x + text.length(), "▄");
-	std::string shadow_str;
-	for (size_t j = 0; j < text.length(); ++j) shadow_str += "▀";
-	mvaddstr(y + 1, x + 1, shadow_str.c_str());
-	
-	if (is_focused) attrset(COLOR_PAIR(10));
-	else attrset(COLOR_PAIR(8));
-	
-	mvaddstr(y, x, text.c_str());
-	
-	if (hotkey != '\0') {
-		size_t hk_pos = text.find(hotkey);
-		if (hk_pos != std::string::npos) {
-			if (is_focused) attron(COLOR_PAIR(12));
-			else attron(COLOR_PAIR(11));
-			mvaddch(y, x + hk_pos, text[hk_pos]);
-		}
-	}
-	attrset(COLOR_PAIR(1));
-}
-
 dialog::dialog(const std::string &title, int width, int height) 
     : ui_container("dialog", 0, 0, width, height), title_(title)
 {
@@ -121,22 +92,14 @@ std::optional<dialog_result> dialog::handle_mouse(int mouse_x, int mouse_y)
 	ev.type = event_type::mouse_click;
 	ev.mouse_x = mouse_x;
 	ev.mouse_y = mouse_y;
-
+	
 	// Pass to the new container system
 	this->handle_event(ev, x_, y_);
-
+	
 	if (action_ != dialog_result::pending) {
 		return action_;
 	}
-
-	// Legacy buttons check (for older subclasses)
-	for (size_t i = 0; i < buttons_.size(); ++i) {
-		if (buttons_[i].contains(mouse_x, mouse_y)) {
-			// Instead of focus_idx_, we should maybe just set action
-			return buttons_[i].action;
-		}
-	}
-
+	
 	return std::nullopt;
 }
 // Legacy layout
@@ -195,92 +158,6 @@ void dialog::draw() const
 	ui_container::draw(x_, y_);
 }
 
-void dialog::draw_buttons(int focused_button_idx) const
-{
-	for (size_t i = 0; i < buttons_.size(); ++i) {
-		buttons_[i].set_focus(static_cast<int>(i) == focused_button_idx);
-		buttons_[i].draw();
-	}
-}
-
-message_dialog::message_dialog(const std::string &title, const std::vector<std::string> &lines)
-    : dialog(title, 40, static_cast<int>(lines.size()) + 6), lines_(lines)
-{
-	// Adjust width if any line is too long
-	for (const auto &line : lines) {
-		if (static_cast<int>(line.length()) + 6 > width_) {
-			width_ = static_cast<int>(line.length()) + 6;
-		}
-	}
-	// Recalculate x/y after width adjustment
-	int max_y, max_x;
-	getmaxyx(stdscr, max_y, max_x);
-	x_ = (max_x - width_) / 2;
-	y_ = (max_y - height_) / 2;
-}
-
-void message_dialog::draw() const
-{
-	dialog::draw();
-	attron(COLOR_PAIR(1));
-
-	for (size_t i = 0; i < lines_.size(); ++i) {
-		int text_x = x_ + (width_ - static_cast<int>(lines_[i].length())) / 2;
-		mvaddstr(y_ + 2 + i, text_x, lines_[i].c_str());
-	}
-
-	// OK Button
-	std::string ok_text = "  OK  ";
-	int btn_x = x_ + (width_ - static_cast<int>(ok_text.length())) / 2;
-	int btn_y = y_ + height_ - 3;
-
-	// Button Shadow
-	// Side shadow (half block)
-	attron(COLOR_PAIR(1));
-	mvaddstr(btn_y, btn_x + static_cast<int>(ok_text.length()), "▄");
-	attroff(COLOR_PAIR(1));
-
-	// Bottom shadow (half block)
-	attron(COLOR_PAIR(1));
-	mvaddstr(btn_y + 1, btn_x + 1, "▀▀▀▀▀▀");
-	attroff(COLOR_PAIR(1));
-
-	// Button surface
-	attron(COLOR_PAIR(10));
-	mvaddstr(btn_y, btn_x, ok_text.c_str());
-	attroff(COLOR_PAIR(10));
-
-	attroff(COLOR_PAIR(1));
-}
-
-dialog_result message_dialog::handle_key(int key)
-{
-	// Any of these keys close the dialog
-	if (key == 27 || key == 10 || key == 13 || key == KEY_ENTER || key == 32) {
-		return dialog_result::confirmed;
-	}
-	return dialog_result::pending;
-}
-
-
-// --- Factory Methods ---
-
-class ui_text_label : public ui_element {
-public:
-	ui_text_label(int x, int y, const std::string& text)
-		: ui_element("text", x, y, text.length(), 1), text_(text) {}
-		
-		void draw(int abs_x, int abs_y) const override {
-		attron(COLOR_PAIR(1));
-		mvaddstr(abs_y, abs_x, text_.c_str());
-		attroff(COLOR_PAIR(1));
-	}
-	
-	bool handle_event(const editor_event&, int, int) override { return false; }
-private:
-	std::string text_;
-};
-
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename) {
 	auto dlg = std::make_unique<dialog>("Unsaved Changes", 50, 8);
 	
@@ -303,227 +180,159 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string& filename) {
 	}));
 	
 	dlg->set_focus_by_name("btn_save");
-
+	
 	return dlg;
+}
+
+std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines)
+{
+	int width = 40;
+	for (const auto &line : lines) {
+		if (static_cast<int>(line.length()) + 6 > width) {
+			width = static_cast<int>(line.length()) + 6;
+		}
+	}
+	int height = lines.size() + 6;
+	auto dlg = std::make_unique<dialog>(title, width, height);
+
+	for (size_t i = 0; i < lines.size(); ++i) {
+		int text_x = (width - static_cast<int>(lines[i].length())) / 2;
+		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
 	}
 
-	std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
-	{
-	auto dlg = std::make_unique<dialog>(title, 50, 7);
+	std::string ok_text = "  OK  ";
+	int btn_x = (width - static_cast<int>(ok_text.length())) / 2;
+	int btn_y = height - 3;
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x, btn_y, ok_text, 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	
+	dlg->set_focus_by_name("btn_ok");
+	return dlg;
+}
 
-	dlg->add_child(std::make_unique<ui_text_label>(2, 2, prompt));
+class force_quit_dialog_impl : public dialog {
+public:
+	force_quit_dialog_impl() : dialog("Force Quit", 50, 9) {
+		start_time_ = std::chrono::steady_clock::now();
+		
+		std::string msg = "Unsaved changes! Quit anyway?";
+		int text_x = (width_ - static_cast<int>(msg.length())) / 2;
+		add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+		
+		int by = height_ - 3;
+		add_child(std::make_unique<ui_button>("btn_exit", 4, by, "  Exit  ", 'E', [this]() {
+			set_action(dialog_result::confirmed);
+			set_result("exit");
+		}));
+		add_child(std::make_unique<ui_button>("btn_save_all", 16, by, " Save All ", 'S', [this]() {
+			set_action(dialog_result::confirmed);
+			set_result("save_all");
+		}));
+		add_child(std::make_unique<ui_button>("btn_cancel", 32, by, " Cancel ", 'C', [this]() {
+			set_action(dialog_result::cancelled);
+			set_result("cancel");
+		}));
+		
+		set_focus_by_name("btn_save_all");
+	}
 
-	dlg->add_child(std::make_unique<ui_textbox>("input_buffer", 2, 4, 46, initial_value, [d = dlg.get()](const std::string& val) {
-		d->set_result(val);
+	void draw(int abs_x, int abs_y) const override {
+		dialog::draw(abs_x, abs_y);
+		if (countdown_active_) {
+			std::string count_msg = "(Auto-closing in " + std::to_string(remaining_seconds_) + "s)";
+			int count_x = x_ + (width_ - static_cast<int>(count_msg.length())) / 2;
+			attron(COLOR_PAIR(1));
+			mvaddstr(y_ + 4, count_x, count_msg.c_str());
+			attroff(COLOR_PAIR(1));
+		}
+	}
+	
+	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override {
+		if (ev.type == event_type::key_press || ev.type == event_type::mouse_click) {
+			countdown_active_ = false; // Any interaction cancels countdown
+		}
+		if (ev.type == event_type::key_press && ev.key_code == 27) { // ESC instantly exits per user request
+			set_action(dialog_result::confirmed);
+			set_result("exit");
+			return true;
+		}
+		return dialog::handle_event(ev, abs_x, abs_y);
+	}
+	
+	bool tick() override {
+		if (countdown_active_) {
+			auto now = std::chrono::steady_clock::now();
+			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count();
+			int new_remaining = 5 - static_cast<int>(elapsed);
+			if (new_remaining <= 0) {
+				set_action(dialog_result::confirmed);
+				set_result("exit");
+				return true;
+			}
+			remaining_seconds_ = new_remaining;
+		}
+		return false;
+	}
+
+private:
+	bool countdown_active_{true};
+	std::chrono::time_point<std::chrono::steady_clock> start_time_;
+	int remaining_seconds_{5};
+};
+
+std::unique_ptr<dialog> create_force_quit_dialog()
+{
+	return std::make_unique<force_quit_dialog_impl>();
+}
+
+std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, const std::vector<std::string>& options)
+{
+	int height = 9 + options.size();
+	int width = std::max<int>(60, question.length() + 6);
+	auto dlg = std::make_unique<dialog>("Question", width, height);
+
+	dlg->add_child(std::make_unique<ui_text_label>((width - question.length()) / 2, 2, question));
+
+	auto opt_group = std::make_unique<ui_radiobutton_group>("options", 3, 4, width - 6, options.size());
+	for (size_t i = 0; i < options.size(); ++i) {
+		std::string label = options[i];
+		if (label.length() > static_cast<size_t>(width - 10)) label = label.substr(0, width - 10);
+		opt_group->add_child(std::make_unique<ui_radio_choice>(options[i], 0, i, label, '\0', i == 0));
+	}
+	dlg->add_child(std::move(opt_group));
+
+	int text_y = 4 + options.size();
+	dlg->add_child(std::make_unique<ui_text_label>(3, text_y, "Other:"));
+	
+	// Create the textbox, and hook it up so that when it gains focus, it auto-selects the "Other" option 
+	// (or just rely on the fact that if a custom string is entered, it overrides).
+	dlg->add_child(std::make_unique<ui_textbox>("custom_answer", 10, text_y, width - 14, ""));
+
+	int current_y = text_y + 2;
+	int btn_x_center = width / 2;
+	
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x_center - 12, current_y, "   OK   ", 'O', [d = dlg.get()]() {
+		auto custom = d->get_value("custom_answer");
+		if (custom && !custom->empty()) {
+			d->set_result(*custom);
+		} else {
+			auto opt = d->get_value("options");
+			if (opt) d->set_result(*opt);
+		}
 		d->set_action(dialog_result::confirmed);
 	}));
+	
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 2, current_y, " Cancel ", 'C', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
 
-	dlg->set_focus_by_name("input_buffer");
+	dlg->set_focus_by_name("options");
 	return dlg;
 }
 
-force_quit_dialog::force_quit_dialog()    : dialog("Force Quit", 50, 9)
-{
-	int max_y, max_x;
-	getmaxyx(stdscr, max_y, max_x);
-	x_ = (max_x - width_) / 2;
-	y_ = (max_y - height_) / 2;
-	start_time_ = std::chrono::steady_clock::now();
-
-	int by = y_ + height_ - 3;
-	buttons_.emplace_back("  Exit  ", 'E', "exit", dialog_result::confirmed, x_ + 4, by);
-	buttons_.emplace_back(" Save All ", 'S', "save_all", dialog_result::confirmed, x_ + 16, by);
-	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + 32, by);
-}
-
-bool force_quit_dialog::tick()
-{
-	if (countdown_active_) {
-		auto now = std::chrono::steady_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count();
-		int new_remaining = 5 - static_cast<int>(elapsed);
-		if (new_remaining <= 0) {
-			return true; // Expired
-		}
-		remaining_seconds_ = new_remaining;
-	}
-	return false;
-}
-
-void force_quit_dialog::draw() const
-{
-	dialog::draw();
-	attron(COLOR_PAIR(1));
-
-	std::string msg = "Unsaved changes! Quit anyway?";
-	int text_x = x_ + (width_ - static_cast<int>(msg.length())) / 2;
-	mvaddstr(y_ + 2, text_x, msg.c_str());
-
-	if (countdown_active_) {
-		std::string count_msg = "(Auto-closing in " + std::to_string(remaining_seconds_) + "s)";
-		int count_x = x_ + (width_ - static_cast<int>(count_msg.length())) / 2;
-		mvaddstr(y_ + 4, count_x, count_msg.c_str());
-	}
-
-	draw_buttons(focus_idx_);
-}
-
-std::optional<dialog_result> force_quit_dialog::handle_mouse(int mouse_x, int mouse_y)
-{
-	for (size_t i = 0; i < buttons_.size(); ++i) {
-		if (buttons_[i].contains(mouse_x, mouse_y)) {
-			focus_idx_ = i;
-			return buttons_[i].action;
-		}
-	}
-	return std::nullopt;
-}
-
-dialog_result force_quit_dialog::handle_key(int key)
-{
-	countdown_active_ = false; // Any key press stops the countdown
-	if (key == 27) { // ESC instantly exits per user request
-		focus_idx_ = 0; // Exit
-		return dialog_result::confirmed;
-	} else if (key == KEY_LEFT) {
-		focus_idx_ = (focus_idx_ - 1 + 3) % 3;
-	} else if (key == KEY_RIGHT) {
-		focus_idx_ = (focus_idx_ + 1) % 3;
-	} else if (key == '\n' || key == 13 || key == KEY_ENTER) {
-		if (focus_idx_ == 2) return dialog_result::cancelled;
-		return dialog_result::confirmed;
-	} else {
-		char c = std::tolower(static_cast<char>(key));
-		if (c == 'e' || c == 'x') { focus_idx_ = 0; return dialog_result::confirmed; }
-		if (c == 's') { focus_idx_ = 1; return dialog_result::confirmed; }
-		if (c == 'c') { focus_idx_ = 2; return dialog_result::cancelled; }
-	}
-	return dialog_result::pending;
-}
-
-std::string force_quit_dialog::get_result() const
-{
-	if (focus_idx_ == 0) return "exit";
-	if (focus_idx_ == 1) return "save_all";
-	return "cancel";
-}
-
-ask_user_dialog::ask_user_dialog(const std::string& question, const std::vector<std::string>& options)
-    : dialog("Question", std::max<int>(60, question.length() + 6), 9 + options.size()), question_(question), options_(options)
-{
-	int max_y, max_x;
-	getmaxyx(stdscr, max_y, max_x);
-	x_ = (max_x - width_) / 2;
-	y_ = (max_y - height_) / 2;
-
-	int current_y = y_ + 4 + options_.size() + 2;
-	int btn_x_center = width_ / 2;
-	buttons_.emplace_back("   OK   ", 'O', "ok", dialog_result::confirmed, x_ + btn_x_center - 12, current_y);
-	buttons_.emplace_back(" Cancel ", 'C', "cancel", dialog_result::cancelled, x_ + btn_x_center + 2, current_y);
-}
-
-void ask_user_dialog::draw() const
-{
-	dialog::draw();
-	attrset(COLOR_PAIR(1));
-	mvaddstr(y_ + 2, x_ + 3, question_.c_str());
-
-	int current_y = y_ + 4;
-	int available_width = width_ - 7; // Matches the width block of the text field (which goes up to width_ - 4, minus starting pos 3)
-	for (size_t i = 0; i < options_.size(); ++i) {
-		bool focused = (focus_idx_ == static_cast<int>(i));
-		move(current_y, x_ + 3);
-		if (focused) attrset(COLOR_PAIR(19));
-		else attrset(COLOR_PAIR(17));
-		addstr(focused ? "(•) " : "( ) ");
-		
-		std::string opt_text = options_[i];
-		if (opt_text.length() > static_cast<size_t>(available_width - 4)) {
-			opt_text = opt_text.substr(0, available_width - 7) + "...";
-		}
-		
-		addstr(opt_text.c_str());
-		
-		// Pad remaining width with spaces
-		int pad_len = available_width - 4 - opt_text.length();
-		for (int p = 0; p < pad_len; ++p) {
-			addch(' ');
-		}
-		current_y++;
-	}
-
-	bool text_focused = (focus_idx_ == static_cast<int>(options_.size()));
-	attrset(COLOR_PAIR(1));
-	mvaddstr(current_y, x_ + 3, "Other:");
-	attrset(COLOR_PAIR(3));
-	move(current_y, x_ + 10);
-	for (int i = 0; i < width_ - 14; ++i) addch(' ');
-	mvaddstr(current_y, x_ + 10, custom_answer_.c_str());
-	if (text_focused) {
-		move(current_y, x_ + 10 + custom_answer_.length());
-		attrset(COLOR_PAIR(19));
-		addch(' ');
-		attrset(COLOR_PAIR(3));
-	}
-
-	int btn_focus = -1;
-	if (focus_idx_ == static_cast<int>(options_.size() + 1)) btn_focus = 0;
-	if (focus_idx_ == static_cast<int>(options_.size() + 2)) btn_focus = 1;
-	draw_buttons(btn_focus);
-}
-
-std::optional<dialog_result> ask_user_dialog::handle_mouse(int mouse_x, int mouse_y)
-{
-	for (size_t i = 0; i < buttons_.size(); ++i) {
-		if (buttons_[i].contains(mouse_x, mouse_y)) {
-			focus_idx_ = options_.size() + 1 + i;
-			return buttons_[i].action;
-		}
-	}
-	return std::nullopt;
-}
-
-dialog_result ask_user_dialog::handle_key(int key)
-{
-	int total_items = options_.size() + 3;
-	
-	if (key == 27) { // ESC
-		return dialog_result::cancelled;
-	} else if (key == KEY_DOWN || key == '\t') {
-		focus_idx_ = (focus_idx_ + 1) % total_items;
-		return dialog_result::pending;
-	} else if (key == KEY_UP || key == KEY_BTAB) {
-		focus_idx_ = (focus_idx_ - 1 + total_items) % total_items;
-		return dialog_result::pending;
-	}
-	
-	if (key == '\n' || key == 13 || key == KEY_ENTER) {
-		if (focus_idx_ == static_cast<int>(options_.size() + 2)) {
-			return dialog_result::cancelled;
-		} else {
-			return dialog_result::confirmed;
-		}
-	}
-
-	if (focus_idx_ == static_cast<int>(options_.size())) {
-		// Text box is focused
-		if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-			if (!custom_answer_.empty()) custom_answer_.pop_back();
-		} else if (key >= 32 && key <= 126) {
-			custom_answer_ += static_cast<char>(key);
-		}
-	}
-	return dialog_result::pending;
-}
-
-std::string ask_user_dialog::get_result() const
-{
-	if (focus_idx_ < static_cast<int>(options_.size())) {
-		return options_[focus_idx_];
-	} else {
-		return custom_answer_;
-	}
-}
 
 search_params extract_search_params(const dialog& dlg, const search_params& initial_params)
 {

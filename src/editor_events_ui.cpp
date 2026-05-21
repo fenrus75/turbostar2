@@ -35,7 +35,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		
 		if (any_dirty) {
-			active_dialog_ = std::make_unique<force_quit_dialog>();
+			active_dialog_ = create_force_quit_dialog();
 			active_dialog_mode_ = dialog_mode::force_quit_prompt;
 			set_focus(focus_target::dialog, "force_quit");
 			return;
@@ -86,7 +86,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		logger.log("Dispatching about event.");
 		std::vector<std::string> about_lines = {"TurboStar Editor",   "Version 0.1.0",	 "", "A nostalgia inspired TUI editor", "",
 							"Copyright (c) 2026", "Arjan van de Ven"};
-		active_dialog_ = std::make_unique<message_dialog>("About TurboStar", about_lines);
+		active_dialog_ = create_message_dialog("About TurboStar", about_lines);
 		set_focus(focus_target::dialog, "menu_about");
 		return;
 	}
@@ -197,7 +197,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	if (ev.type == event_type::prompt_user) {
 		logger.log("Dispatching prompt_user event.");
 		active_ask_user_promise_ = ev.prompt_promise;
-		active_dialog_ = std::make_unique<ask_user_dialog>(ev.payload, ev.prompt_options);
+		active_dialog_ = create_ask_user_dialog(ev.payload, ev.prompt_options);
 		active_dialog_mode_ = dialog_mode::ask_user;
 		set_focus(focus_target::dialog, "prompt_user");
 		return;

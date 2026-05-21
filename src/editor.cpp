@@ -254,9 +254,8 @@ void editor::run()
 		int res = get_wch(&wch);
 
 		// Handle dialog tick (auto-countdown)
-		if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
-			auto s_dialog = dynamic_cast<force_quit_dialog*>(active_dialog_.get());
-			if (s_dialog && s_dialog->tick()) {
+		if (active_dialog_mode_ == dialog_mode::force_quit_prompt && active_dialog_) {
+			if (active_dialog_->tick()) {
 				// Countdown expired, force quit
 				editor_event quit_ev;
 				quit_ev.type = event_type::force_quit;
