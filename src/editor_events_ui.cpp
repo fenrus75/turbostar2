@@ -56,7 +56,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		// Check if any documents are modified. If so, prompt for the first modified document.
 		for (const auto& doc : documents_) {
-			if (doc->is_modified()) {
+			if (doc && doc->is_modified()) {
 				std::string fname = doc->get_filename();
 				if (fname.empty()) fname = "untitled.txt";
 				
