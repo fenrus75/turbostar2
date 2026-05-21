@@ -31,11 +31,14 @@ class config_manager
 	bool is_compile_on_save() const { return compile_on_save_; }
 	void set_compile_on_save(bool compile) { compile_on_save_ = compile; }
 
-	std::string get_llm_url() const { return llm_url_; }
-	void set_llm_url(const std::string &url) { llm_url_ = url; }
+	std::string get_default_model_id() const { return default_model_id_; }
+	void set_default_model_id(const std::string &id) { default_model_id_ = id; }
 
 	bool is_paranoid_mode() const { return paranoid_mode_; }
 	void set_paranoid_mode(bool paranoid) { paranoid_mode_ = paranoid; }
+
+	bool is_log_all_tool_calls() const { return log_all_tool_calls_; }
+	void set_log_all_tool_calls(bool log_all) { log_all_tool_calls_ = log_all; }
 
       private:
 	config_manager() = default;
@@ -44,9 +47,10 @@ class config_manager
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
-	std::string llm_url_{"http://192.168.1.42:8080"};
+	std::string default_model_id_{"gpt-4o"};
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
 	bool paranoid_mode_{false};
+	bool log_all_tool_calls_{false};
 };

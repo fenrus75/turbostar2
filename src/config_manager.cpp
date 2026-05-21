@@ -58,8 +58,10 @@ void config_manager::load()
 			auto_open_error_files_ = (value == "true" || value == "1");
 		} else if (key == "compile_on_save") {
 			compile_on_save_ = (value == "true" || value == "1");
-		} else if (key == "llm_url") {
-			llm_url_ = value;
+		} else if (key == "default_model_id" or key == "llm_url") {
+			default_model_id_ = value;
+		} else if (key == "log_all_tool_calls") {
+			log_all_tool_calls_ = (value == "true" || value == "1");
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -78,11 +80,12 @@ void config_manager::save()
 	file << "clang_format_style=" << clang_format_style_ << "\n";
 	file << "build_system=" << build_system_ << "\n";
 	file << "build_directory=" << build_directory_ << "\n";
-	file << "llm_url=" << llm_url_ << "\n";
+	file << "default_model_id=" << default_model_id_ << "\n";
 	file << "lsp_enabled=" << (lsp_enabled_ ? "true" : "false") << "\n";
 	file << "auto_open_error_files=" << (auto_open_error_files_ ? "true" : "false") << "\n";
 	file << "compile_on_save=" << (compile_on_save_ ? "true" : "false") << "\n";
 	file << "paranoid_mode=" << (paranoid_mode_ ? "true" : "false") << "\n";
+	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
 	
 	event_logger::get_instance().log("Configuration saved to " + path);
 }

@@ -6,7 +6,7 @@
 
 class agent_window : public window {
 public:
-    agent_window(int id, int x, int y, int width, int height, event_queue& global_queue, agentlib::document_provider* doc_provider);
+    agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_model> model, event_queue& global_queue, agentlib::document_provider* doc_provider);
     agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent, event_queue& global_queue);
     ~agent_window() override;
     

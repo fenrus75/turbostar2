@@ -10,14 +10,14 @@
 
 namespace agentlib {
 
-std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider) {
-    return std::shared_ptr<ai_agent>(new ai_agent(id, name, llm_url, queue, doc_provider));
+std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider) {
+    return std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
 }
 
-ai_agent::ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider)
-    : id_(id), name_(name), llm_url_(llm_url), global_queue_(queue), doc_provider_(doc_provider) 
+ai_agent::ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider)
+    : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider) 
 {
-    auto http_transport = std::make_shared<httplib_transport>(llm_url);
+    auto http_transport = std::make_shared<httplib_transport>(model_->get_url());
     client_ = std::make_unique<llm_client>(http_transport);
 }
 
@@ -106,7 +106,7 @@ bool ai_agent::delete_todo(const std::string& text_match, std::string& out_error
 std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& name) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     int new_id = id_ * 100 + static_cast<int>(subagents_.size()) + 1;
-    auto subagent = ai_agent::create(new_id, name, llm_url_, global_queue_, doc_provider_);
+    auto subagent = ai_agent::create(new_id, name, model_, global_queue_, doc_provider_);
     subagent->set_parent(shared_from_this());
     subagents_.push_back(subagent);
     return subagent;
@@ -200,28 +200,14 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
             llm_chat_response chat_res = self->client_->send_chat(convo_copy, &registry);
             message response = chat_res.msg;
 
-            // Accumulate usage and update model name
+            // Accumulate usage and record cost via the model class
             self->tokens_tx_ += chat_res.usage.prompt_tokens;
             self->tokens_rx_ += chat_res.usage.completion_tokens;
-            if (!chat_res.model.empty()) {
-                self->model_name_ = chat_res.model;
-            }
             
-            // Simple placeholder cost calculation
-            double cost_per_1m_tx = 5.00; // GPT-4o placeholder
-            double cost_per_1m_rx = 15.00;
-            if (self->model_name_.find("gemini") != std::string::npos) {
-                cost_per_1m_tx = 3.50; // Gemini 1.5 Pro placeholder
-                cost_per_1m_rx = 10.50;
-            } else if (self->model_name_.find("claude") != std::string::npos) {
-                cost_per_1m_tx = 3.00;
-                cost_per_1m_rx = 15.00;
-            }
+            double turn_cost = self->model_->calculate_and_record_cost(chat_res.usage.prompt_tokens, chat_res.usage.completion_tokens);
             
             double current_cost = self->estimated_cost_.load();
-            current_cost += (chat_res.usage.prompt_tokens / 1000000.0) * cost_per_1m_tx;
-            current_cost += (chat_res.usage.completion_tokens / 1000000.0) * cost_per_1m_rx;
-            self->estimated_cost_.store(current_cost);
+            self->estimated_cost_.store(current_cost + turn_cost);
 
             if (self->is_closed_) return;
             if (response.tool_calls && !response.tool_calls->empty()) {

@@ -57,7 +57,11 @@ void agent_status_window::draw_content() const {
     }
 
     // 1. Telemetry Section
-    print_line(start_x, current_y++, "Model: " + agent_->get_model_name());
+    if (agent_->get_model()) {
+        print_line(start_x, current_y++, "Model: " + agent_->get_model()->get_name());
+    } else {
+        print_line(start_x, current_y++, "Model: Unknown");
+    }
     
     std::stringstream tx_stream;
     tx_stream << "Tx: " << agent_->get_tokens_tx() << " tokens";

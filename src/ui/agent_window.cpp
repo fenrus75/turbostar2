@@ -9,11 +9,10 @@
 
 using namespace agentlib;
 
-agent_window::agent_window(int id, int x, int y, int width, int height, event_queue& global_queue, agentlib::document_provider* doc_provider)
+agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_model> model, event_queue& global_queue, agentlib::document_provider* doc_provider)
     : window(id, x, y, width, height, "Agent Chat")
 {
-    std::string url = config_manager::get_instance().get_llm_url();
-    agent_ = ai_agent::create(id, "Agent", url, &global_queue, doc_provider);
+    agent_ = ai_agent::create(id, "Agent", std::move(model), &global_queue, doc_provider);
 
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 

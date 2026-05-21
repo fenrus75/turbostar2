@@ -62,6 +62,7 @@ turbostar_sources = files(
   'agentlib/file_security_manager.cpp',
   'agentlib/virtual_file_system.cpp',
   'agentlib/agent_interaction.cpp',
+  'agentlib/ai_model.cpp',
   'agentlib/skill_manager.cpp',
 )
 

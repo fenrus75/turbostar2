@@ -64,6 +64,7 @@ void editor::new_window(const std::string &filename)
 
 #include "ui/agent_window.h"
 #include "ui/agent_status_window.h"
+#include "agentlib/ai_model.h"
 
 void editor::update_window_layout() {
 	bool has_agent = false;
@@ -99,7 +100,14 @@ void editor::update_window_layout() {
 
 void editor::new_agent_window()
 {
-	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, this);
+	std::string default_model_id = config_manager::get_instance().get_default_model_id();
+	auto model = agentlib::ai_model_registry::get_instance().get_model(default_model_id);
+	if (!model) {
+		// Fallback if the configured model isn't found
+		model = agentlib::ai_model_registry::get_instance().get_model("gpt-4o");
+	}
+
+	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this);
 
 	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2, "Agent Status", main_agent_win->get_agent(), global_queue_);
 

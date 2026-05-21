@@ -10,6 +10,7 @@
 #include "tool_registry.h"
 #include "document_provider.h"
 #include "agent_interaction.h"
+#include "ai_model.h"
 
 class event_queue;
 
@@ -30,7 +31,7 @@ struct todo_item {
 
 class ai_agent : public std::enable_shared_from_this<ai_agent> {
 public:
-    static std::shared_ptr<ai_agent> create(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
+    static std::shared_ptr<ai_agent> create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
     ~ai_agent();
 
     void submit_prompt(const std::string& prompt_text);
@@ -63,7 +64,7 @@ public:
     void remove_subagent(int id);
     std::vector<std::shared_ptr<ai_agent>> get_subagents() const;
 
-    std::string get_model_name() const { return model_name_; }
+    std::shared_ptr<ai_model> get_model() const { return model_; }
     int get_tokens_tx() const { return tokens_tx_; }
     int get_tokens_rx() const { return tokens_rx_; }
     double get_estimated_cost() const { return estimated_cost_; }
@@ -80,11 +81,11 @@ public:
     void set_parent(std::weak_ptr<ai_agent> parent) { parent_agent_ = std::move(parent); }
 
 private:
-    ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
+    ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
     int id_;
     std::string name_;
-    std::string llm_url_;
+    std::shared_ptr<ai_model> model_;
     std::atomic<agent_status> status_{agent_status::idle};
     std::atomic<bool> is_closed_{false};
     std::atomic<bool> read_only_{false};
@@ -101,7 +102,6 @@ private:
     std::vector<std::string> active_skills_;
     std::vector<std::shared_ptr<agent_interaction>> interactions_;
 
-    std::string model_name_{"default-model"}; // Placeholder for now
     std::atomic<int> tokens_tx_{0};
     std::atomic<int> tokens_rx_{0};
     std::atomic<double> estimated_cost_{0.0};

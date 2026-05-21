@@ -10,6 +10,8 @@
 #include "../agentlib/ai_agent.h"
 #include "../event_queue.h"
 
+#include "../agentlib/ai_model.h"
+
 using namespace agentlib;
 using json = nlohmann::json;
 
@@ -38,7 +40,8 @@ int main(int argc, char** argv) {
     tool_registry& registry = tool_registry::get_instance();
     tool_context ctx;
     event_queue q;
-    auto test_agent = ai_agent::create(1, "TestAgent", url, &q, nullptr);
+    auto model = std::make_shared<ai_model>("cli-model", "CLI Model", url, "CLI Test", 0.0, 0.0);
+    auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
     ctx.active_agent = test_agent.get();
 
     agentlib::skill_manager::get_instance().initialize();
