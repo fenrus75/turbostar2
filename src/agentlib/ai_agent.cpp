@@ -3,6 +3,7 @@
 #include "skill_manager.h"
 #include "../git_manager.h"
 #include "../event_queue.h"
+#include "../config_manager.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <filesystem>
@@ -259,6 +260,9 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                     }
 
                     bool is_silent = registry.is_tool_silent(call.function.name);
+                    if (config_manager::get_instance().is_log_all_tool_calls()) {
+                        is_silent = false;
+                    }
 
                     if (!is_silent) {
                         self->add_interaction(std::make_shared<interaction_tool_call>(call.function.name + "(" + arg_preview + ")"));
@@ -334,7 +338,51 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
         // Notify parent agent asynchronously
         if (auto parent = self->parent_agent_.lock()) {
-            parent->inject_context("system", "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state. Use the agent_get_output(" + std::to_string(self->id_) + ") tool to retrieve its interaction history and results.");
+            std::string notification = "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state.";
+            
+            // Extract the last 30 lines of interaction history to provide immediate context
+            std::string history_summary;
+            int total_lines = 0;
+            
+            std::vector<std::string> lines;
+            for (auto it = self->interactions_.rbegin(); it != self->interactions_.rend(); ++it) {
+                std::string raw = (*it)->get_raw_text();
+                
+                // Split by newline and insert backwards
+                size_t start = 0;
+                std::vector<std::string> chunk_lines;
+                while (start < raw.length()) {
+                    size_t end = raw.find('\n', start);
+                    if (end == std::string::npos) {
+                        chunk_lines.push_back(raw.substr(start));
+                        break;
+                    }
+                    chunk_lines.push_back(raw.substr(start, end - start));
+                    start = end + 1;
+                }
+                
+                // Add to our lines buffer in reverse order
+                for (auto chunk_it = chunk_lines.rbegin(); chunk_it != chunk_lines.rend(); ++chunk_it) {
+                    if (total_lines >= 30) break;
+                    lines.push_back(*chunk_it);
+                    total_lines++;
+                }
+                
+                if (total_lines >= 30) break;
+            }
+            
+            if (!lines.empty()) {
+                notification += "\n\nRecent context (last 30 lines):\n---\n";
+                // We collected lines backwards, so reverse them for reading
+                for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+                    notification += *it + "\n";
+                }
+                notification += "---\n";
+            }
+            
+            notification += "Use the agent_get_output(" + std::to_string(self->id_) + ") tool if you need the full interaction history.";
+
+            parent->inject_context("system", notification);
         }
     }).detach();
 }
