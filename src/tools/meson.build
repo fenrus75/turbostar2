@@ -31,6 +31,8 @@ tools_sources = files(
   'message_agent/message_agent_security.cpp',
   'agent_get_output/agent_get_output_entry.cpp',
   'agent_get_output/agent_get_output_security.cpp',
+  'wait_for_agent/wait_for_agent_entry.cpp',
+  'wait_for_agent/wait_for_agent_security.cpp',
   'get_temperature/get_temperature_entry.cpp',
   'get_temperature/get_temperature_security.cpp',
   'fs_file_size/fs_file_size_entry.cpp',
