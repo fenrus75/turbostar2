@@ -101,140 +101,22 @@ class ui_container : public ui_element
 };
 
 // Represents a single-line text input field.
-class ui_textbox : public ui_element
-{
-      public:
-	ui_textbox(std::string name, int x, int y, int width, const std::string &initial_text, std::function<void(const std::string&)> on_submit = nullptr);
 
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
-	std::optional<std::string> get_value(const std::string &target_name) const override;
-	
-	void set_buffer(const std::string& buf) { buffer_ = buf; cursor_pos_ = buffer_.length(); }
-	void set_autocomplete_provider(std::function<std::string(const std::string&)> provider) { autocomplete_provider_ = std::move(provider); }
 
-      private:
-	std::string buffer_;
-	int cursor_pos_;
-	std::function<void(const std::string&)> on_submit_;
-	std::function<std::string(const std::string&)> autocomplete_provider_;
-};
 
-class ui_button : public ui_element
-{
-      public:
-	ui_button(std::string name, int x, int y, const std::string &text, char hotkey, std::function<void()> on_click);
 
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 
-      private:
-	std::string text_;
-	char hotkey_;
-	std::function<void()> on_click_;
-};
 
-class ui_checkbox : public ui_element
-{
-      public:
-	ui_checkbox(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state = false);
 
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
-	std::optional<std::string> get_value(const std::string &target_name) const override;
 
-      private:
-	std::string text_;
-	char hotkey_;
-	bool checked_;
-};
 
-class ui_radio_choice : public ui_element
-{
-      public:
-	ui_radio_choice(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state = false);
 
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
-	std::optional<std::string> get_value(const std::string &target_name) const override;
 
-	void set_selected(bool s) { selected_ = s; }
-	bool is_selected() const { return selected_; }
 
-      private:
-	std::string text_;
-	char hotkey_;
-	bool selected_;
-};
-
-class ui_radiobutton_group : public ui_container
-{
-      public:
-	ui_radiobutton_group(std::string name, int x, int y, int width, int height);
-
-	void child_got_selected(ui_element *child) override;
-	std::optional<std::string> get_value(const std::string &target_name) const override;
-};
-
-class ui_group_box : public ui_container
-{
-      public:
-	ui_group_box(std::string name, int x, int y, int width, int height, const std::string &title);
-
-	void draw(int abs_x, int abs_y) const override;
-	// handle_event is inherited from ui_container, so it just dispatches to children
-
-      private:
-	std::string title_;
-};
-
-class ui_fileselector;
-class ui_file_info_panel : public ui_element
-{
-      public:
-	ui_file_info_panel(int x, int y, int width, ui_fileselector* fs_view);
-
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &/*ev*/, int /*abs_x*/, int /*abs_y*/) override { return false; }
-
-      private:
-	ui_fileselector* fs_view_;
-};
-
-namespace fs = std::filesystem;
-
-struct file_entry {
-	fs::path path;
-	std::string display_name;
-	bool is_dir;
-	uintmax_t size;
-	std::chrono::system_clock::time_point mtime;
-};
-
-class ui_fileselector : public ui_element
-{
-      public:
-	ui_fileselector(std::string name, int x, int y, int width, int height, 
-					const std::string& initial_path,
-					std::function<void(const std::string&)> on_selection_changed,
-					std::function<void(const std::string&)> on_submit);
-
-	void draw(int abs_x, int abs_y) const override;
-	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
-
-	void populate_files();
-	void set_current_path(const fs::path& path);
-	fs::path get_current_path() const { return current_path_; }
-	
-	std::optional<file_entry> get_selected_entry() const;
-	std::string get_autocomplete_suggestion(const std::string& buffer) const;
-
-      private:
-	fs::path current_path_;
-	std::vector<file_entry> files_;
-	int selected_index_{0};
-	int scroll_top_{0};
-	
-	std::function<void(const std::string&)> on_selection_changed_;
-	std::function<void(const std::string&)> on_submit_;
-};
+#include "ui/components/ui_textbox.h"
+#include "ui/components/ui_button.h"
+#include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_radio.h"
+#include "ui/components/ui_group_box.h"
+#include "ui/components/ui_fileselector.h"
+#include "ui/components/ui_text_label.h"
