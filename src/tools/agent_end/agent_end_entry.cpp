@@ -29,6 +29,7 @@ std::string agent_end_tool::execute(agentlib::tool_context& ctx) {
     }
 
     target_agent->close();
+    ctx.active_agent->remove_subagent(args_.id);
     
     return "Agent ID " + std::to_string(args_.id) + " (" + target_agent->get_name() + ") closed successfully.";
 }

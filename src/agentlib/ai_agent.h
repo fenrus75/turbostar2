@@ -45,6 +45,7 @@ public:
     bool delete_todo(const std::string& text_match, std::string& out_error);
 
     std::shared_ptr<ai_agent> spawn_subagent(const std::string& task_description);
+    void remove_subagent(int id);
     const std::vector<std::shared_ptr<ai_agent>>& get_subagents() const { return subagents_; }
 
     std::string get_model_name() const { return model_name_; }

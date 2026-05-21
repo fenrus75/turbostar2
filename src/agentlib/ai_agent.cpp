@@ -110,6 +110,14 @@ std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& name) {
     return subagent;
 }
 
+void ai_agent::remove_subagent(int id) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    subagents_.erase(std::remove_if(subagents_.begin(), subagents_.end(),
+        [id](const std::shared_ptr<ai_agent>& agent) {
+            return agent->get_id() == id;
+        }), subagents_.end());
+}
+
 void ai_agent::submit_prompt(const std::string& prompt_text) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
