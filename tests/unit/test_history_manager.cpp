@@ -43,7 +43,9 @@ void test_history_manager() {
 
     // 6. Test Save and Load
     // First, clear by loading a non-existent file
-    setenv("HOME", "/tmp/non_existent_turbostar_test_dir", 1);
+    std::string test_dir = "/tmp/non_existent_turbostar_test_dir";
+    fs::create_directories(test_dir);
+    setenv("HOME", test_dir.c_str(), 1);
     hm.load();
     assert(hm.get_searches().empty());
     assert(hm.get_files().empty());
