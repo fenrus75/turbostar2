@@ -215,11 +215,11 @@ bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 
 		if (has_focus_) {
-			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN) {
+			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
 				if (parent_) parent_->focus_next();
 				return true;
 			}
-			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP) {
+			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
 				if (parent_) parent_->focus_previous();
 				return true;
 			}
