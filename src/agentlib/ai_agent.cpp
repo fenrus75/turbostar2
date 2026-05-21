@@ -128,6 +128,26 @@ void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction) {
     interactions_.push_back(std::move(interaction));
 }
 
+void ai_agent::inject_context(const std::string& role, const std::string& content) {
+    {
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        message context_msg;
+        context_msg.role = role;
+        context_msg.content = content;
+        conversation_.push_back(context_msg);
+    }
+    
+    add_interaction(std::make_shared<interaction_system_message>(content));
+
+    // If the agent is idle or waiting, wake it up to process this new context.
+    if (status_ == agent_status::idle || status_ == agent_status::waiting) {
+        // To wake it up safely, we can just call an empty submit_prompt.
+        // Wait, submit_prompt adds a user message if it's not empty, and starts the thread.
+        // Let's refactor the thread starting logic into a private method or just reuse submit_prompt("").
+        submit_prompt("");
+    }
+}
+
 void ai_agent::submit_prompt(const std::string& prompt_text) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);

@@ -34,6 +34,7 @@ public:
     ~ai_agent();
 
     void submit_prompt(const std::string& prompt_text);
+    void inject_context(const std::string& role, const std::string& content);
     void cancel_current_task();
     void close();
 
