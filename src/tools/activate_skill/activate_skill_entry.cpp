@@ -1,4 +1,5 @@
 #include "activate_skill.h"
+#include "../../agentlib/ai_agent.h"
 #include <sstream>
 
 namespace tools {
@@ -10,6 +11,10 @@ bool activate_skill_tool::validate_runtime(const agentlib::tool_context& /*ctx*/
 }
 
 std::string activate_skill_tool::execute(agentlib::tool_context& ctx) {
+    if (ctx.active_agent) {
+        ctx.active_agent->add_active_skill(args_.name);
+    }
+
     auto vfs = ctx.fs_security.get_vfs();
     if (!vfs) {
         return "Error: Virtual File System not initialized.";

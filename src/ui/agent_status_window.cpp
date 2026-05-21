@@ -1,7 +1,9 @@
 #include "agent_status_window.h"
+#include "agentlib/skill_manager.h"
 #include <ncurses.h>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
 
 agent_status_window::agent_status_window(int id, int x, int y, int width, int height, const std::string& title, std::shared_ptr<agentlib::ai_agent> agent)
     : window(id, x, y, width, height, title), agent_(std::move(agent)) {
@@ -59,14 +61,19 @@ void agent_status_window::draw_content() const {
 
     // 2. Skills Section
     print_line(start_x, current_y++, "--- Skills ---");
-    auto skills = agent_->get_active_skills();
-    if (skills.empty()) {
-        print_line(start_x, current_y++, "  None active");
+    auto active_skills = agent_->get_active_skills();
+    auto all_skills = agentlib::skill_manager::get_instance().get_skills();
+    
+    if (all_skills.empty()) {
+        print_line(start_x, current_y++, "  None available");
     } else {
-        for (const auto& skill : skills) {
+        for (const auto& skill : all_skills) {
             if (current_y < y_ + height_ - 1) {
+                bool is_active = std::find(active_skills.begin(), active_skills.end(), skill.name) != active_skills.end();
                 // E26x91x92 is \xE2\x98\x91 BALLOT BOX WITH CHECK ☑
-                print_line(start_x, current_y++, " \xE2\x98\x91 " + skill);
+                // E26x98x90 is \xE2\x98\x90 BALLOT BOX ☐
+                std::string box = is_active ? "\xE2\x98\x91" : "\xE2\x98\x90";
+                print_line(start_x, current_y++, " " + box + " " + skill.name);
             }
         }
     }
