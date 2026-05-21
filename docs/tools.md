@@ -147,3 +147,27 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Deletes a task from the AI agent's internal todo list.
 *   **Arguments:**
     *   `text` *(string, required)*: The exact task text or a unique substring to match.
+
+---
+
+## 7. SQLite Database Operations
+
+### `sqlite_create_db`
+*   **Description:** Creates a new persistent SQLite database for the project.
+*   **Arguments:**
+    *   `database` *(string, required)*: The simple name of the database to create (no paths or extensions).
+
+### `sqlite_delete_db`
+*   **Description:** Deletes an existing SQLite database for the project.
+*   **Arguments:**
+    *   `database` *(string, required)*: The simple name of the database to delete.
+
+### `sqlite_list_db`
+*   **Description:** Lists all persistent SQLite databases available for the project.
+*   **Arguments:** None.
+
+### `sqlite_perform`
+*   **Description:** Executes arbitrary SQL queries on a persistent SQLite database. Returns results as a Markdown table.
+*   **Arguments:**
+    *   `database` *(string, required)*: The simple name of the database to query.
+    *   `query` *(string, required)*: The SQL command(s) to execute.

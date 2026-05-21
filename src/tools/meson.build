@@ -1,4 +1,12 @@
 tools_sources = files(
+  'sqlite_create_db/sqlite_create_db_entry.cpp',
+  'sqlite_create_db/sqlite_create_db_security.cpp',
+  'sqlite_delete_db/sqlite_delete_db_entry.cpp',
+  'sqlite_delete_db/sqlite_delete_db_security.cpp',
+  'sqlite_list_db/sqlite_list_db_entry.cpp',
+  'sqlite_list_db/sqlite_list_db_security.cpp',
+  'sqlite_perform/sqlite_perform_entry.cpp',
+  'sqlite_perform/sqlite_perform_security.cpp',
   'agent_add_todo/agent_add_todo_entry.cpp',
   'agent_add_todo/agent_add_todo_security.cpp',
   'agent_list_todos/agent_list_todos_entry.cpp',

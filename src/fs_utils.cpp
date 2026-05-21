@@ -3,6 +3,7 @@
 #include "build_error_manager.h"
 #include "gcc_log_parser.h"
 #include "command_runner.h"
+#include "git_manager.h"
 #include <fstream>
 #include <sstream>
 #include <array>
@@ -12,6 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
+#include <nlohmann/json.hpp>
 #include <lsp/json/json.h>
 
 namespace fs_utils {
@@ -146,10 +148,35 @@ namespace fs_utils {
 	};
 
 	std::string execute_command_sync(const std::string& cmd) {
-		build_error_manager::get_instance().clear();
-		sync_compile_runner runner;
-		runner.apply_build_profile();
-		int exit_code = runner.execute(cmd + " 2>&1");
-		runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
-		return runner.full_output;
-	}}
+	        build_error_manager::get_instance().clear();
+	        sync_compile_runner runner;
+	        runner.apply_build_profile();
+	        int exit_code = runner.execute(cmd + " 2>&1");
+	        runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
+	        return runner.full_output;
+	}
+
+	std::string get_project_db_dir() {
+	        std::string repo_root = git_manager::get_instance().get_repository_root();
+	        if (repo_root.empty()) {
+	                repo_root = std::filesystem::current_path().string();
+	        }
+
+	        std::hash<std::string> hasher;
+	        size_t hash = hasher(repo_root);
+
+	        const char* home = std::getenv("HOME");
+	        std::filesystem::path cache_dir;
+	        if (home) {
+	                cache_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "dbs";
+	        } else {
+	                cache_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "dbs";
+	        }
+
+	        std::error_code ec;
+	        std::filesystem::create_directories(cache_dir, ec);
+
+	        return cache_dir.string();
+	}
+
+	}

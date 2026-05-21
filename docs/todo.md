@@ -21,6 +21,8 @@
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - run_python() -- start with filename as argument -- maybe allow direct python snippets as well
+	- also allow "modules to install" as parameter so we can pass those to "uv", solves the "system pip" problem
+	- we should consider always using "uv" if it is available and fall back to python3 if not
     - a set of git ops
 	- git_branch(branchname)
 	- git_checkout(...)
@@ -43,11 +45,6 @@
 	- coredump_read_memory(nr, location, size)
 	- coredump_gdb(nr, command) (over time -- likely to come later)
     - list_tool_calls() - return markdown table
-    - sqlite database support
-	- sqlite_perform(database, sql command) - very generic so that the LLM can do its own operations
-	- sqlite_create_db(database) 
-	- sqlite_delete_db(database) 
-	- sqlist_list_db()
     - agent tools
 	- list_agents() - returns a markdown table of ID, name, status
  	- create_agent(name, profile) - profile is the .agent.md kind of content
@@ -83,6 +80,10 @@
 
 - subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
   different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
+   - we need to make it not a vector of strings, but  vector of "AI elements", which are typed "things" that we can
+     decide to render in various ways, some will be multi line, some will be hidden by default. This makes scrolling tricky
+     so we likely need to compute and cache Y coordinates for all of these, and have the AI element return its "height"
+
 
 - a helper that, given the current cursor position is inside a markdown table, that the selection becomes the whole markdown table
   (so goes up to find the start, goes down to find the end)
@@ -135,7 +136,7 @@
 
 - MCP support
 
-- send per repository instructions to the LLM at startup
+- send per repository instructions to the LLM at startup similar to GEMINI.md -- or we use exactly GEMINI.md
 
 # long term items   
 
@@ -164,6 +165,9 @@
 # done items (move items here on completion)
 
 ## 20-05-2026
+- sqlite database support
+    - implemented `sqlite_create_db`, `sqlite_delete_db`, `sqlite_list_db`, and `sqlite_perform` tools using raw `sqlite3` C API
+    - databases are securely stored globally in `~/.cache/turbostar/projects/<hash>/dbs/`
 - we need an "AI agent" class/extend the current class that represents a whole agent
     - implemented `ai_agent` class and successfully decoupled it from the `agent_window` UI
 - managing todo lists tools (add_todo, list_todos, complete_todo, delete_todo)

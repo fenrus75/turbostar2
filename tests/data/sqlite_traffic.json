@@ -1,0 +1,87 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'\",\"role\":\"user\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_create\",\"type\":\"function\",\"function\":{\"name\":\"sqlite_create_db\",\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\",\"name\":\"sqlite_create_db\"},\"id\":\"call_create\",\"type\":\"function\"}]},{\"content\":\"Database 'testdb' created successfully.\",\"name\":\"sqlite_create_db\",\"role\":\"tool\",\"tool_call_id\":\"call_create\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_list\",\"type\":\"function\",\"function\":{\"name\":\"sqlite_list_db\",\"arguments\":\"{}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\",\"name\":\"sqlite_create_db\"},\"id\":\"call_create\",\"type\":\"function\"}]},{\"content\":\"Database 'testdb' created successfully.\",\"name\":\"sqlite_create_db\",\"role\":\"tool\",\"tool_call_id\":\"call_create\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{}\",\"name\":\"sqlite_list_db\"},\"id\":\"call_list\",\"type\":\"function\"}]},{\"content\":\"| Database Name | Size (Bytes) |\\n|---------------|--------------|\\n| testdb | 0 |\\n\",\"name\":\"sqlite_list_db\",\"role\":\"tool\",\"tool_call_id\":\"call_list\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_perf\",\"type\":\"function\",\"function\":{\"name\":\"sqlite_perform\",\"arguments\":\"{\\\"database\\\": \\\"testdb\\\", \\\"query\\\": \\\"CREATE TABLE test(id INT);\\\"}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\",\"name\":\"sqlite_create_db\"},\"id\":\"call_create\",\"type\":\"function\"}]},{\"content\":\"Database 'testdb' created successfully.\",\"name\":\"sqlite_create_db\",\"role\":\"tool\",\"tool_call_id\":\"call_create\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{}\",\"name\":\"sqlite_list_db\"},\"id\":\"call_list\",\"type\":\"function\"}]},{\"content\":\"| Database Name | Size (Bytes) |\\n|---------------|--------------|\\n| testdb | 0 |\\n\",\"name\":\"sqlite_list_db\",\"role\":\"tool\",\"tool_call_id\":\"call_list\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\", \\\"query\\\": \\\"CREATE TABLE test(id INT);\\\"}\",\"name\":\"sqlite_perform\"},\"id\":\"call_perf\",\"type\":\"function\"}]},{\"content\":\"Query executed successfully. (0 rows returned)\",\"name\":\"sqlite_perform\",\"role\":\"tool\",\"tool_call_id\":\"call_perf\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_del\",\"type\":\"function\",\"function\":{\"name\":\"sqlite_delete_db\",\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\"}}]}}]}"
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"messages\":[{\"content\":\"Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\",\"name\":\"sqlite_create_db\"},\"id\":\"call_create\",\"type\":\"function\"}]},{\"content\":\"Database 'testdb' created successfully.\",\"name\":\"sqlite_create_db\",\"role\":\"tool\",\"tool_call_id\":\"call_create\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{}\",\"name\":\"sqlite_list_db\"},\"id\":\"call_list\",\"type\":\"function\"}]},{\"content\":\"| Database Name | Size (Bytes) |\\n|---------------|--------------|\\n| testdb | 0 |\\n\",\"name\":\"sqlite_list_db\",\"role\":\"tool\",\"tool_call_id\":\"call_list\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\", \\\"query\\\": \\\"CREATE TABLE test(id INT);\\\"}\",\"name\":\"sqlite_perform\"},\"id\":\"call_perf\",\"type\":\"function\"}]},{\"content\":\"Query executed successfully. (0 rows returned)\",\"name\":\"sqlite_perform\",\"role\":\"tool\",\"tool_call_id\":\"call_perf\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"database\\\": \\\"testdb\\\"}\",\"name\":\"sqlite_delete_db\"},\"id\":\"call_del\",\"type\":\"function\"}]},{\"content\":\"Database 'testdb' deleted successfully.\",\"name\":\"sqlite_delete_db\",\"role\":\"tool\",\"tool_call_id\":\"call_del\"}],\"model\":\"foo\",\"temperature\":0.1}"
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"I have completed the SQLite operations.\"}}]}"
+    }
+  }
+]

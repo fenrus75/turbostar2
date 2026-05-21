@@ -25,4 +25,10 @@ namespace fs_utils {
 	 * It also parses the output lines using gcc_log_parser and populates build_error_manager.
 	 */
 	std::string execute_command_sync(const std::string& cmd);
+
+	/**
+	 * @brief Returns the safe, project-specific directory for storing SQLite databases.
+	 * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/ and creates the directory if it doesn't exist.
+	 */
+	std::string get_project_db_dir();
 }
