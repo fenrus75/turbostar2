@@ -26,7 +26,6 @@
 #include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
-#include "ui/settings_dialog.h"
 #include "git_manager.h"
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"

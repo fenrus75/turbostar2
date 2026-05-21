@@ -623,3 +623,105 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	
 	return dlg;
 }
+
+#include "config_manager.h"
+
+std::unique_ptr<dialog> create_settings_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Preferences", 60, 22);
+
+	// Clang Format Style group
+	auto style_group = std::make_unique<ui_group_box>("style_group", 4, 2, 30, 9, " Clang Format Style ");
+	auto style_radio = std::make_unique<ui_radiobutton_group>("style", 0, 0, 30, 9);
+	
+	std::vector<std::pair<std::string, char>> style_labels = {
+		{"LLVM", 'L'}, {"Google", 'G'}, {"Chromium", 'C'}, {"Mozilla", 'M'},
+		{"WebKit", 'W'}, {"Microsoft", 's'}, {"GNU", 'N'}, {".clang-format file", 'f'}
+	};
+
+	std::string current_style = config_manager::get_instance().get_clang_format_style();
+	for (size_t i = 0; i < style_labels.size(); ++i) {
+		bool selected = (current_style == style_labels[i].first);
+		style_radio->add_child(std::make_unique<ui_radio_choice>(style_labels[i].first, 2, 1 + i, style_labels[i].first, style_labels[i].second, selected));
+	}
+	style_group->add_child(std::move(style_radio));
+	dlg->add_child(std::move(style_group));
+
+	// Build System group
+	auto build_group = std::make_unique<ui_group_box>("build_group", 36, 2, 20, 5, " Build System ");
+	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system", 0, 0, 20, 5);
+	
+	std::vector<std::pair<std::string, char>> system_labels = {
+		{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}
+	};
+
+	std::string current_system = config_manager::get_instance().get_build_system();
+	for (size_t i = 0; i < system_labels.size(); ++i) {
+		bool selected = (current_system == system_labels[i].first);
+		build_radio->add_child(std::make_unique<ui_radio_choice>(system_labels[i].first, 2, 1 + i, system_labels[i].first, system_labels[i].second, selected));
+	}
+	build_group->add_child(std::move(build_radio));
+	dlg->add_child(std::move(build_group));
+
+	// Build Directory Input
+	dlg->add_child(std::make_unique<ui_text_label>(4, 13, "Build Directory:"));
+	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 21, 13, 35, config_manager::get_instance().get_build_directory()));
+
+	// LLM URL Input
+	dlg->add_child(std::make_unique<ui_text_label>(4, 14, "LLM URL:"));
+	dlg->add_child(std::make_unique<ui_textbox>("llm_url", 13, 14, 43, config_manager::get_instance().get_llm_url()));
+
+	// Toggles
+	dlg->add_child(std::make_unique<ui_checkbox>("lsp_enabled", 4, 16, "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
+	dlg->add_child(std::make_unique<ui_checkbox>("auto_open_error", 4, 17, "Auto-open files for build errors", 'u', config_manager::get_instance().is_auto_open_error_files()));
+	dlg->add_child(std::make_unique<ui_checkbox>("compile_on_save", 4, 18, "Compile f[i]le on save", 'i', config_manager::get_instance().is_compile_on_save()));
+
+	// Buttons
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 10, 20, "  OK  ", 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 25, 20, " Cancel ", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_help", 40, 20, " Help ", 'h', [d = dlg.get()]() {
+		// Not currently hooked up to help system inside dialog, but returning help result
+		d->set_action(dialog_result::confirmed);
+		d->set_result("help");
+	}));
+
+	dlg->set_focus_by_name("style_group");
+
+	return dlg;
+}
+
+void apply_settings_from_dialog(const dialog& dlg)
+{
+	auto& cfg = config_manager::get_instance();
+	
+	auto style = dlg.get_value("style");
+	if (style) cfg.set_clang_format_style(*style);
+	
+	auto build_sys = dlg.get_value("build_system");
+	if (build_sys) cfg.set_build_system(*build_sys);
+	
+	auto b_dir = dlg.get_value("build_dir");
+	if (b_dir) cfg.set_build_directory(*b_dir);
+	
+	auto l_url = dlg.get_value("llm_url");
+	if (l_url) cfg.set_llm_url(*l_url);
+	
+	auto lsp = dlg.get_value("lsp_enabled");
+	if (lsp) cfg.set_lsp_enabled(*lsp == "true");
+	
+	auto auto_op = dlg.get_value("auto_open_error");
+	if (auto_op) cfg.set_auto_open_error_files(*auto_op == "true");
+	
+	auto cmp = dlg.get_value("compile_on_save");
+	if (cmp) cfg.set_compile_on_save(*cmp == "true");
+	
+	cfg.save();
+}
+
+// Ensure the #include "config_manager.h" is not duplicated if it's already there

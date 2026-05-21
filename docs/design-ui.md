@@ -37,7 +37,7 @@ Derived from `ui_element`. Manages a list of child elements.
 
 ### Concrete Elements (Examples)
 - **`ui_button`**: An actionable control that can be clicked or triggered via hotkey.
-- **`ui_radio_choice` / `ui_radiobutton_group`**: Mutually exclusive selection controls.
-- **`ui_checkbox`**: Toggled boolean selection.
+- **`ui_radio_choice` / `ui_radiobutton_group`**: Mutually exclusive selection controls. A `ui_radio_choice` displays `(•)` when selected and `( )` when unselected. It uses `COLOR_PAIR(19)` for the indicator when focused and `COLOR_PAIR(17)` when unfocused. Its text label uses `COLOR_PAIR(17)` with `COLOR_PAIR(18)` highlighting the hotkey character. The `ui_radiobutton_group` acts as a logical container enforcing mutual exclusivity.
+- **`ui_checkbox`**: Toggled boolean selection. It displays `[X]` when checked and `[ ]` when unchecked. Like radio buttons, the indicator uses `COLOR_PAIR(19)` when focused and `COLOR_PAIR(17)` when unfocused, while its text label uses `COLOR_PAIR(17)` with `COLOR_PAIR(18)` for the hotkey. Toggling is typically done via the spacebar or the assigned hotkey.
 - **`ui_textbox`**: A single-line input area. Visually, it is rendered as a distinct solid block of background color (using `COLOR_PAIR(5)`) padded with spaces to fill its designated width. The text buffer is drawn over this background. A blinking or highlighted cursor indicates the active insertion point when the element has focus.
 - **`ui_listbox`**: Scrollable, selectable list of text items.

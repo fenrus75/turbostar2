@@ -7,7 +7,6 @@
 #include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
-#include "ui/settings_dialog.h"
 #include "git_manager.h"
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"
@@ -124,7 +123,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::settings) {
 		logger.log("Dispatching settings event.");
-		active_dialog_ = std::make_unique<settings_dialog>();
+		active_dialog_ = create_settings_dialog();
 		active_dialog_mode_ = dialog_mode::settings;
 		set_focus(focus_target::dialog, "settings");
 		return;

@@ -10,11 +10,11 @@
  *
  * Features multiple sections: Options, Direction, Scope, and Origin.
  */
-class find_dialog : public dialog
+class find_dialog_legacy : public dialog
 {
       public:
-	find_dialog(const std::string &title, const search_params &initial_params, bool is_replace = false);
-	~find_dialog() override = default;
+	find_dialog_legacy(const std::string &title, const search_params &initial_params, bool is_replace = false);
+	~find_dialog_legacy() override = default;
 
 	void draw() const override;
 	dialog_result handle_key(int key) override;

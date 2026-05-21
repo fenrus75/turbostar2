@@ -7,7 +7,6 @@
 #include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
-#include "ui/settings_dialog.h"
 #include "git_manager.h"
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"
@@ -65,16 +64,8 @@ void editor::resolve_dialog(dialog_result res)
 				active_ask_user_promise_.reset();
 			}
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
-			auto s_dialog = dynamic_cast<settings_dialog *>(active_dialog_.get());
-			if (s_dialog) {
-				config_manager::get_instance().set_clang_format_style(s_dialog->get_selected_style());
-				config_manager::get_instance().set_build_system(s_dialog->get_build_system());
-				config_manager::get_instance().set_build_directory(s_dialog->get_build_directory());
-				config_manager::get_instance().set_llm_url(s_dialog->get_llm_url());
-				config_manager::get_instance().set_lsp_enabled(s_dialog->is_lsp_enabled());
-				config_manager::get_instance().set_auto_open_error_files(s_dialog->is_auto_open_error_files());
-				config_manager::get_instance().set_compile_on_save(s_dialog->is_compile_on_save());
-				config_manager::get_instance().save();
+			if (active_dialog_->get_result() == "ok") {
+				apply_settings_from_dialog(*active_dialog_);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 			std::string res_str = active_dialog_->get_result();

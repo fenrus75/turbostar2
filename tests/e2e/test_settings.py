@@ -18,10 +18,10 @@ def test_settings_dialog():
         runner.assert_text_on_screen("Clang Format Style")
         
         # 2. Select "Google" style (hotkey 'G')
-        runner.send_keys('g')
+        runner.send_keys(KEY_ESC + 'g')
         
-        # 3. Confirm with Enter
-        runner.send_keys('\n')
+        # 3. Confirm with OK button (hotkey 'O')
+        runner.send_keys(KEY_ESC + 'o')
         
         # 4. Quit and verify config file
         

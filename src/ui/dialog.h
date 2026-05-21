@@ -71,6 +71,8 @@ std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std:
 std::unique_ptr<dialog> create_search_dialog(const std::string &title, const search_params &initial_params, bool is_replace);
 
 search_params extract_search_params(const dialog& dlg, const search_params& initial_params);
+std::unique_ptr<dialog> create_settings_dialog();
+void apply_settings_from_dialog(const dialog& dlg);
 
 // Legacy classes...
 

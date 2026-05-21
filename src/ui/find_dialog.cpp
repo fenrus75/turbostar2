@@ -2,19 +2,19 @@
 #include <cctype>
 #include <ncurses.h>
 
-find_dialog::find_dialog(const std::string &title, const search_params &initial_params, bool is_replace)
+find_dialog_legacy::find_dialog_legacy(const std::string &title, const search_params &initial_params, bool is_replace)
     : dialog(title, 64, get_height(is_replace)), params_(initial_params), is_replace_(is_replace)
 {
 }
 
-int find_dialog::get_height(bool is_replace)
+int find_dialog_legacy::get_height(bool is_replace)
 {
 	if (is_replace)
 		return 18;
 	return 16;
 }
 
-void find_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
+void find_dialog_legacy::draw_group_box(int gy, int gx, int gw, int gh, const std::string &gtitle) const
 {
 	// Fill background
 	attrset(COLOR_PAIR(17));
@@ -31,7 +31,7 @@ void find_dialog::draw_group_box(int gy, int gx, int gw, int gh, const std::stri
 	attrset(0);
 }
 
-void find_dialog::draw_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
+void find_dialog_legacy::draw_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
 {
 	std::string lower_text = text;
 	for (char &c : lower_text)
@@ -50,7 +50,7 @@ void find_dialog::draw_labeled_text(int ly, int lx, const std::string &text, cha
 	}
 }
 
-void find_dialog::draw_group_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
+void find_dialog_legacy::draw_group_labeled_text(int ly, int lx, const std::string &text, char hotkey) const
 {
 	std::string lower_text = text;
 	for (char &c : lower_text)
@@ -70,7 +70,7 @@ void find_dialog::draw_group_labeled_text(int ly, int lx, const std::string &tex
 	}
 }
 
-void find_dialog::draw() const
+void find_dialog_legacy::draw() const
 {
 	dialog::draw();
 	attrset(COLOR_PAIR(1));
@@ -270,7 +270,7 @@ void find_dialog::draw() const
 	attrset(0);
 }
 
-dialog_result find_dialog::handle_key(int key)
+dialog_result find_dialog_legacy::handle_key(int key)
 {
 	if (key == 27)
 		return dialog_result::cancelled;
@@ -384,7 +384,7 @@ dialog_result find_dialog::handle_key(int key)
 	return dialog_result::pending;
 }
 
-search_params find_dialog::get_search_params() const
+search_params find_dialog_legacy::get_search_params() const
 {
 	return params_;
 }
