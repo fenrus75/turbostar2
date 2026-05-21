@@ -334,7 +334,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
         // Notify parent agent asynchronously
         if (auto parent = self->parent_agent_.lock()) {
-            parent->inject_context("system", "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state.");
+            parent->inject_context("system", "Subagent " + std::to_string(self->id_) + " (" + self->name_ + ") has finished processing and returned to idle state. Use the agent_get_output(" + std::to_string(self->id_) + ") tool to retrieve its interaction history and results.");
         }
     }).detach();
 }
