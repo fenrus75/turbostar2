@@ -65,7 +65,8 @@ int main(int argc, char** argv) {
     conversation.push_back(user_msg);
 
     while (true) {
-        message response = client.send_chat(conversation, &registry);
+        agentlib::llm_chat_response chat_res = client.send_chat(conversation, &registry);
+        message response = chat_res.msg;
 
         if (response.tool_calls && !response.tool_calls->empty()) {
             std::cout << "LLM requested tool calls." << std::endl;

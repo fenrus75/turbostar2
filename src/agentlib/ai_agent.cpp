@@ -45,6 +45,19 @@ std::vector<todo_item> ai_agent::get_todos() const {
     return todos_;
 }
 
+void ai_agent::add_active_skill(const std::string& skill_name) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    // Check if it already exists to avoid duplicates
+    if (std::find(active_skills_.begin(), active_skills_.end(), skill_name) == active_skills_.end()) {
+        active_skills_.push_back(skill_name);
+    }
+}
+
+std::vector<std::string> ai_agent::get_active_skills() const {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(state_mutex_));
+    return active_skills_;
+}
+
 bool ai_agent::mark_todo_complete(const std::string& text_match, std::string& out_error) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     int match_idx = -1;
@@ -137,10 +150,33 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
             if (self->is_closed_) return;
 
             self->status_ = agent_status::thinking;
-            message response = self->client_->send_chat(convo_copy, &registry);
-            
-            if (self->is_closed_) return;
+            llm_chat_response chat_res = self->client_->send_chat(convo_copy, &registry);
+            message response = chat_res.msg;
 
+            // Accumulate usage and update model name
+            self->tokens_tx_ += chat_res.usage.prompt_tokens;
+            self->tokens_rx_ += chat_res.usage.completion_tokens;
+            if (!chat_res.model.empty()) {
+                self->model_name_ = chat_res.model;
+            }
+            
+            // Simple placeholder cost calculation
+            double cost_per_1m_tx = 5.00; // GPT-4o placeholder
+            double cost_per_1m_rx = 15.00;
+            if (self->model_name_.find("gemini") != std::string::npos) {
+                cost_per_1m_tx = 3.50; // Gemini 1.5 Pro placeholder
+                cost_per_1m_rx = 10.50;
+            } else if (self->model_name_.find("claude") != std::string::npos) {
+                cost_per_1m_tx = 3.00;
+                cost_per_1m_rx = 15.00;
+            }
+            
+            double current_cost = self->estimated_cost_.load();
+            current_cost += (chat_res.usage.prompt_tokens / 1000000.0) * cost_per_1m_tx;
+            current_cost += (chat_res.usage.completion_tokens / 1000000.0) * cost_per_1m_rx;
+            self->estimated_cost_.store(current_cost);
+
+            if (self->is_closed_) return;
             if (response.tool_calls && !response.tool_calls->empty()) {
                 self->status_ = agent_status::tool_execution;
                 convo_copy.push_back(response);

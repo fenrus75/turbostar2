@@ -47,6 +47,14 @@ public:
     std::shared_ptr<ai_agent> spawn_subagent(const std::string& task_description);
     const std::vector<std::shared_ptr<ai_agent>>& get_subagents() const { return subagents_; }
 
+    std::string get_model_name() const { return model_name_; }
+    int get_tokens_tx() const { return tokens_tx_; }
+    int get_tokens_rx() const { return tokens_rx_; }
+    double get_estimated_cost() const { return estimated_cost_; }
+    
+    void add_active_skill(const std::string& skill_name);
+    std::vector<std::string> get_active_skills() const;
+
 private:
     ai_agent(int id, const std::string& name, const std::string& llm_url, event_queue* queue, document_provider* doc_provider);
 
@@ -61,6 +69,12 @@ private:
     std::mutex state_mutex_;
     std::vector<todo_item> todos_;
     std::vector<std::shared_ptr<ai_agent>> subagents_;
+    std::vector<std::string> active_skills_;
+
+    std::string model_name_{"default-model"}; // Placeholder for now
+    std::atomic<int> tokens_tx_{0};
+    std::atomic<int> tokens_rx_{0};
+    std::atomic<double> estimated_cost_{0.0};
 
     std::mutex conversation_mutex_;
     std::vector<message> conversation_;

@@ -7,7 +7,7 @@ namespace agentlib {
 
 llm_client::llm_client(std::shared_ptr<llm_transport> transport) : transport_(std::move(transport)) {}
 
-message llm_client::send_chat(const std::vector<message>& conversation, const tool_registry* registry) {
+llm_chat_response llm_client::send_chat(const std::vector<message>& conversation, const tool_registry* registry) {
     json payload = {
         {"model", "default-model"},
         {"messages", conversation},
@@ -26,24 +26,34 @@ message llm_client::send_chat(const std::vector<message>& conversation, const to
 
     auto res = transport_->post("/v1/chat/completions", body);
     
-    message result_msg;
-    result_msg.role = "assistant";
+    llm_chat_response chat_response;
+    chat_response.msg.role = "assistant";
 
     if (res.status_code == 200) {
         try {
             json response = json::parse(res.body);
+            if (response.contains("model")) {
+                chat_response.model = response["model"].get<std::string>();
+            }
+            if (response.contains("usage")) {
+                auto usage = response["usage"];
+                if (usage.contains("prompt_tokens")) chat_response.usage.prompt_tokens = usage["prompt_tokens"].get<int>();
+                if (usage.contains("completion_tokens")) chat_response.usage.completion_tokens = usage["completion_tokens"].get<int>();
+                if (usage.contains("total_tokens")) chat_response.usage.total_tokens = usage["total_tokens"].get<int>();
+            }
             if (response.contains("choices") && !response["choices"].empty()) {
                 auto msg_json = response["choices"][0]["message"];
-                return msg_json.get<message>();
+                chat_response.msg = msg_json.get<message>();
+                return chat_response;
             }
         } catch (const std::exception& e) {
-            result_msg.content = "Error parsing response JSON: " + std::string(e.what());
-            return result_msg;
+            chat_response.msg.content = "Error parsing response JSON: " + std::string(e.what());
+            return chat_response;
         }
     }
     
-    result_msg.content = "Error connecting to LLM server. Status: " + std::to_string(res.status_code);
-    return result_msg;
+    chat_response.msg.content = "Error connecting to LLM server. Status: " + std::to_string(res.status_code);
+    return chat_response;
 }
 
 void llm_client::cancel() {

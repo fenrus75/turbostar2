@@ -46,4 +46,16 @@ inline void from_json(const nlohmann::json& j, message& p) {
     if (j.contains("tool_calls")) p.tool_calls = j.at("tool_calls").get<std::vector<tool_call>>();
 }
 
+struct llm_usage {
+    int prompt_tokens{0};
+    int completion_tokens{0};
+    int total_tokens{0};
+};
+
+struct llm_chat_response {
+    message msg;
+    llm_usage usage;
+    std::string model;
+};
+
 } // namespace agentlib

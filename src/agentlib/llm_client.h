@@ -12,7 +12,7 @@ class llm_client {
 public:
     explicit llm_client(std::shared_ptr<llm_transport> transport);
 
-    message send_chat(const std::vector<message>& conversation, const tool_registry* registry = nullptr);
+    llm_chat_response send_chat(const std::vector<message>& conversation, const tool_registry* registry = nullptr);
 
     void cancel();
 
