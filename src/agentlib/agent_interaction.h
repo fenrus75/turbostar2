@@ -17,6 +17,7 @@ public:
 
     int get_height(int width) const;
     const std::vector<interaction_line>& render(int width) const;
+    virtual std::string get_raw_text() const = 0;
 
 protected:
     virtual std::vector<interaction_line> format_lines(int width) const = 0;
@@ -29,6 +30,7 @@ private:
 class interaction_user_message : public agent_interaction {
 public:
     explicit interaction_user_message(std::string text) : text_(std::move(text)) {}
+    std::string get_raw_text() const override { return "User: " + text_; }
 protected:
     std::vector<interaction_line> format_lines(int width) const override;
 private:
@@ -38,6 +40,7 @@ private:
 class interaction_llm_response : public agent_interaction {
 public:
     explicit interaction_llm_response(std::string text) : text_(std::move(text)) {}
+    std::string get_raw_text() const override { return "LLM: " + text_; }
 protected:
     std::vector<interaction_line> format_lines(int width) const override;
 private:
@@ -47,6 +50,7 @@ private:
 class interaction_tool_call : public agent_interaction {
 public:
     explicit interaction_tool_call(std::string text) : text_(std::move(text)) {}
+    std::string get_raw_text() const override { return "Tool Call: " + text_; }
 protected:
     std::vector<interaction_line> format_lines(int width) const override;
 private:
@@ -56,6 +60,7 @@ private:
 class interaction_tool_result : public agent_interaction {
 public:
     explicit interaction_tool_result(std::string text) : text_(std::move(text)) {}
+    std::string get_raw_text() const override { return "Tool Result: " + text_; }
 protected:
     std::vector<interaction_line> format_lines(int width) const override;
 private:
@@ -65,6 +70,7 @@ private:
 class interaction_system_message : public agent_interaction {
 public:
     explicit interaction_system_message(std::string text) : text_(std::move(text)) {}
+    std::string get_raw_text() const override { return "System: " + text_; }
 protected:
     std::vector<interaction_line> format_lines(int width) const override;
 private:
