@@ -1,6 +1,7 @@
 #pragma once
 #include "ui/window.h"
 #include "agentlib/ai_agent.h"
+#include "ui/components/ui_multiline_edit.h"
 #include <memory>
 
 class agent_window : public window {
@@ -22,11 +23,8 @@ public:
     std::shared_ptr<agentlib::ai_agent> get_agent() const { return agent_; }
 
 private:
-    void submit_prompt();
-    void render_input_box() const;
-
     int scroll_offset_{0};
-    std::string input_buffer_;
     
+    std::unique_ptr<ui_multiline_edit> input_box_;
     std::shared_ptr<agentlib::ai_agent> agent_;
 };

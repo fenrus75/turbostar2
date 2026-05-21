@@ -17,6 +17,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, event_qu
 
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 
+    input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this](const std::string& text) {
+        agent_->submit_prompt(text);
+        scroll_offset_ = 0;
+        invalidate();
+    });
+
     // List available skills at startup for the user
     auto& skills = skill_manager::get_instance().get_skills();
     if (!skills.empty()) {
@@ -32,6 +38,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
     : window(id, x, y, width, height, existing_agent->get_name()), agent_(std::move(existing_agent))
 {
     set_background_color_pair(17);
+
+    input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this](const std::string& text) {
+        agent_->submit_prompt(text);
+        scroll_offset_ = 0;
+        invalidate();
+    });
 }
 
 agent_window::~agent_window() {
@@ -50,24 +62,21 @@ bool agent_window::process_events() {
             if ((agent_->get_status() != agent_status::idle)) {
                 if (key == 27) {
                     agent_->cancel_current_task();
+                    needs_render = true;
                 }
                 continue; // Ignore input while waiting
             }
 
-            if (key == 10 || key == 13 || key == KEY_ENTER) {
-                if (!input_buffer_.empty()) {
-                    submit_prompt();
-                    needs_render = true;
-                }
-            } else if (key == KEY_BACKSPACE || key == 127 || key == 8) {
-                if (!input_buffer_.empty()) {
-                    input_buffer_.pop_back();
-                    needs_render = true;
-                }
-            } else if (key == KEY_UP) {
+            if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
+                needs_render = true;
+                continue;
+            }
+
+            // Window-level scrolling fallback
+            if (key == KEY_UP) { // Up
                 scroll_offset_++;
                 needs_render = true;
-            } else if (key == KEY_DOWN) {
+            } else if (key == KEY_DOWN) { // Down
                 if (scroll_offset_ > 0) {
                     scroll_offset_--;
                     needs_render = true;
@@ -78,9 +87,6 @@ bool agent_window::process_events() {
             } else if (key == 22) { // Ctrl-V (Page down)
                 scroll_offset_ -= get_content_height() - 3;
                 if (scroll_offset_ < 0) scroll_offset_ = 0;
-                needs_render = true;
-            } else if (key >= 32 && key <= 126) {
-                input_buffer_ += static_cast<char>(key);
                 needs_render = true;
             }
         }
@@ -93,14 +99,6 @@ bool agent_window::process_events() {
 void agent_window::on_agent_update() {
     scroll_offset_ = 0; // Snap to bottom
     invalidate();
-}
-
-void agent_window::submit_prompt() {
-    std::string prompt = input_buffer_;
-    input_buffer_.clear();
-    scroll_offset_ = 0;
-    invalidate();
-    agent_->submit_prompt(prompt);
 }
 
 void agent_window::draw_content() const {
@@ -159,60 +157,22 @@ void agent_window::draw_content() const {
     attroff(COLOR_PAIR(get_background_color_pair()));
 
     // 2. Draw the input box at the bottom
-    render_input_box();
+    if (input_box_) {
+        // Draw separator line
+        int input_box_y = y_ + height_ - 4; 
+        attrset(COLOR_PAIR(get_background_color_pair()));
+        for (int i = 0; i < max_width; ++i) {
+            mvaddch(input_box_y, start_x + i, ACS_HLINE);
+        }
+        
+        input_box_->set_bounds(start_x, input_box_y + 1, max_width, 3);
+        input_box_->set_focus(is_active());
+        input_box_->draw(0, 0);
+    }
 }
 
 void agent_window::set_cursor_position() const {
-    if (!(agent_->get_status() != agent_status::idle)) {
-        int input_box_y = y_ + height_ - 4;
-        int input_box_x = x_ + 1;
-        int max_display_len = width_ - 5;
-        
-        std::string display_text = input_buffer_;
-        if (display_text.length() > static_cast<size_t>(max_display_len)) {
-            display_text = display_text.substr(display_text.length() - max_display_len);
-        }
-        
-        move(input_box_y + 1, input_box_x + 2 + display_text.length());
+    if (is_active() && input_box_) {
+        input_box_->draw(0, 0);
     }
-}
-
-void agent_window::render_input_box() const {
-    int input_box_y = y_ + height_ - 4; // Above the bottom border
-    int input_box_x = x_ + 1;
-    int input_box_w = width_ - 2;
-
-    attrset(COLOR_PAIR(1)); // Normal text for input box
-    
-    // Draw separator line
-    for (int i = 0; i < input_box_w; ++i) {
-        mvaddch(input_box_y, input_box_x + i, ACS_HLINE);
-    }
-
-    // Draw prompt indicator
-    mvaddstr(input_box_y + 1, input_box_x, "> ");
-    
-    // Draw input buffer (handle horizontal scrolling simply for now)
-    std::string display_text = input_buffer_;
-    int max_display_len = input_box_w - 3;
-    if (display_text.length() > static_cast<size_t>(max_display_len)) {
-        display_text = display_text.substr(display_text.length() - max_display_len);
-    }
-    
-    mvaddstr(input_box_y + 1, input_box_x + 2, display_text.c_str());
-
-    // Fill rest with spaces
-    for (size_t i = display_text.length(); i < static_cast<size_t>(max_display_len); ++i) {
-        addch(' ');
-    }
-    
-    // Status text
-    if ((agent_->get_status() != agent_status::idle)) {
-        attrset(COLOR_PAIR(15)); // Highlight
-        mvaddstr(input_box_y + 2, input_box_x, " Waiting for LLM response... ");
-    } else {
-        attrset(COLOR_PAIR(10)); // Muted
-        mvaddstr(input_box_y + 2, input_box_x, " Press ENTER to send. ");
-    }
-    attrset(0);
 }

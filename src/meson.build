@@ -20,6 +20,7 @@ turbostar_sources = files(
   'ui/agent_status_window.cpp',
   'ui/ui_element.cpp',
   'ui/components/ui_textbox.cpp',
+  'ui/components/ui_multiline_edit.cpp',
   'ui/components/ui_listbox.cpp',
   'ui/components/ui_button.cpp',
   'ui/components/ui_checkbox.cpp',
