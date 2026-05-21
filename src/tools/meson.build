@@ -33,6 +33,8 @@ tools_sources = files(
   'agent_get_output/agent_get_output_security.cpp',
   'wait_for_agent/wait_for_agent_entry.cpp',
   'wait_for_agent/wait_for_agent_security.cpp',
+  'run_python/run_python_entry.cpp',
+  'run_python/run_python_security.cpp',
   'get_temperature/get_temperature_entry.cpp',
   'get_temperature/get_temperature_security.cpp',
   'fs_file_size/fs_file_size_entry.cpp',
