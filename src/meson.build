@@ -35,6 +35,7 @@ turbostar_sources = files(
   'document_format.cpp',
   'document_highlight.cpp',
   'ui/dialog.cpp',
+  'ui/dialog_factories.cpp',
   'ui/popup_menu.cpp',
   'history_manager.cpp',
   'config_manager.cpp',

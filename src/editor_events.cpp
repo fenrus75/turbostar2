@@ -22,7 +22,6 @@
 #include <chrono>
 #include <ncurses.h>
 #include "event_logger.h"
-#include "ui/find_dialog.h"
 #include "history_manager.h"
 #include "config_manager.h"
 #include "git_manager.h"
