@@ -10,6 +10,7 @@
 	- code_find_definition
 	- code_find_references
 	- code_lsp_rename
+        - code_lsp_get_errors? or is our normal get errors already enough
     - a set of git ops
 	- git_branch(branchname)
 	- git_checkout(...)
@@ -57,16 +58,15 @@
 
 - incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
 
-- subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
-  different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
-   - we need to make it not a vector of strings, but  vector of "AI elements", which are typed "things" that we can
-     decide to render in various ways, some will be multi line, some will be hidden by default. This makes scrolling tricky
-     so we likely need to compute and cache Y coordinates for all of these, and have the AI element return its "height"
+- if we have warnings/etc info, the initial system prompt should say that, or maybe it's an early notification
+    - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
+
 
 
 - a function that works on a document, with start and finish lines as argument, and aligns markdown table | lines vertically
    - step 1: track widest field on a per column basis, this becomes the target width for that column - but ignores extra padding
    - step 2: pad all cells to their target width so that all | are perfectly vertically aligned
+
 
 - our "reformat selection" hotkey for markdown could combine the above 2 steps somehow
 
@@ -139,6 +139,11 @@
 # done items (move items here on completion)
 
 ## 21-05-2026
+- coredump tracker.
+  - we run systemd-run so coredumps go into systemd-coredump, and coredumpctl will find them
+  - we should have an object/list of these somewhere so the user can look at them and we can present them to the agent in a precooked way
+  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
+  we need to hook to coredumpctl and somehow only look at coredumps from our working space
 - agent tools
     - formatted subagent completion notification as industry-standard JSON and mounted full logs to the VFS.
 - we should take a set of known security sensitive files and in our sandbox, make them disappear
@@ -170,6 +175,11 @@
 
 
 ## 20-05-2026
+- subclass the document view for LLM so that we can change the visuals, including fancier rendering of Markdown tables,
+  different colors for "think", allow to show terminal output in a subwindow in the document etc, as the agent mode matures
+   - we need to make it not a vector of strings, but  vector of "AI elements", which are typed "things" that we can
+     decide to render in various ways, some will be multi line, some will be hidden by default. This makes scrolling tricky
+     so we likely need to compute and cache Y coordinates for all of these, and have the AI element return its "height"
 - we need a window type to show "agent status"
 	- "narrow" style window, goal would be the right 20%-30% (TBD) of the screen with the main
 	  agent window the rest of the screen
