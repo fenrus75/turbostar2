@@ -452,6 +452,7 @@ void document::request_redraw() const
 
 void document::set_modified()
 {
+	if (read_only_) return;
 	modified_ = true;
 	lsp_diagnostics_.clear();
 }
