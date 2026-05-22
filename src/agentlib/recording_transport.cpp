@@ -15,12 +15,18 @@ transport_response recording_transport::post(const std::string& path, const std:
     auto res = inner_->post(path, json_body);
     
     // 2. Log to file in a structured JSON format
-    append_to_log(path, json_body, res); 
-    
+    append_to_log(path, json_body, res);
     return res;
-}
+    }
 
-void recording_transport::append_to_log(const std::string& path, const std::string& request_body, const transport_response& res) {
+    bool recording_transport::post_stream(const std::string& path, const std::string& json_body, 
+                                       std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) {
+    // For now, we don't record streaming responses easily in the same format.
+    // We'll just pass through to the inner transport.
+    return inner_->post_stream(path, json_body, callback);
+    }
+
+    void recording_transport::append_to_log(const std::string& path, const std::string& request_body, const transport_response& res) {
     json log_array = json::array();
 
     // Try to read existing log

@@ -10,6 +10,19 @@
 
 namespace agentlib {
 
+std::string agent_status_to_string(agent_status status, const std::string& tool_name) {
+    switch (status) {
+        case agent_status::idle: return "Idle";
+        case agent_status::thinking: return "Thinking...";
+        case agent_status::tool_execution: 
+            if (!tool_name.empty()) return "Running Tool: " + tool_name;
+            return "Running Tool...";
+        case agent_status::waiting: return "Waiting...";
+        case agent_status::error: return "Error";
+        default: return "Unknown";
+    }
+}
+
 std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider) {
     return std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
 }
@@ -28,6 +41,22 @@ ai_agent::~ai_agent() {
 void ai_agent::close() {
     is_closed_ = true;
     cancel_current_task();
+}
+
+void ai_agent::set_status(agent_status s, int target_id) {
+    status_ = s;
+    if (s == agent_status::waiting) {
+        waiting_on_id_ = target_id;
+    } else {
+        waiting_on_id_ = -1;
+    }
+
+    if (global_queue_) {
+        editor_event tool_ev;
+        tool_ev.type = event_type::agent_tool_update;
+        tool_ev.key_code = id_;
+        global_queue_->push(tool_ev);
+    }
 }
 
 void ai_agent::cancel_current_task() {
@@ -51,6 +80,12 @@ void ai_agent::add_active_skill(const std::string& skill_name) {
     // Check if it already exists to avoid duplicates
     if (std::find(active_skills_.begin(), active_skills_.end(), skill_name) == active_skills_.end()) {
         active_skills_.push_back(skill_name);
+        if (global_queue_) {
+            editor_event tool_ev;
+            tool_ev.type = event_type::agent_tool_update;
+            tool_ev.key_code = id_;
+            global_queue_->push(tool_ev);
+        }
     }
 }
 
@@ -109,6 +144,14 @@ std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string& name) {
     auto subagent = ai_agent::create(new_id, name, model_, global_queue_, doc_provider_);
     subagent->set_parent(shared_from_this());
     subagents_.push_back(subagent);
+
+    if (global_queue_) {
+        editor_event tool_ev;
+        tool_ev.type = event_type::agent_tool_update;
+        tool_ev.key_code = id_;
+        global_queue_->push(tool_ev);
+    }
+
     return subagent;
 }
 
@@ -118,6 +161,13 @@ void ai_agent::remove_subagent(int id) {
         [id](const std::shared_ptr<ai_agent>& agent) {
             return agent->get_id() == id;
         }), subagents_.end());
+
+    if (global_queue_) {
+        editor_event tool_ev;
+        tool_ev.type = event_type::agent_tool_update;
+        tool_ev.key_code = id_;
+        global_queue_->push(tool_ev);
+    }
 }
 
 std::vector<std::shared_ptr<ai_agent>> ai_agent::get_subagents() const {
@@ -164,6 +214,12 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
     }
 
     status_ = agent_status::thinking;
+    if (global_queue_) {
+        editor_event tool_ev;
+        tool_ev.type = event_type::agent_tool_update;
+        tool_ev.key_code = id_;
+        global_queue_->push(tool_ev);
+    }
 
     std::thread([self = shared_from_this()]() {
         std::vector<message> convo_copy;
@@ -197,25 +253,85 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
             if (self->is_closed_) return;
 
             self->status_ = agent_status::thinking;
-            llm_chat_response chat_res = self->client_->send_chat(convo_copy, &registry);
-            message response = chat_res.msg;
+            
+            std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
+            std::shared_ptr<interaction_llm_response> current_response = nullptr;
+            std::vector<tool_call> accumulated_tool_calls;
+            message response_msg;
+            response_msg.role = "assistant";
 
-            // Accumulate usage and record cost via the model class
-            self->tokens_tx_ += chat_res.usage.prompt_tokens;
-            self->tokens_rx_ += chat_res.usage.completion_tokens;
-            
-            double turn_cost = self->model_->calculate_and_record_cost(chat_res.usage.prompt_tokens, chat_res.usage.completion_tokens);
-            
-            double current_cost = self->estimated_cost_.load();
-            self->estimated_cost_.store(current_cost + turn_cost);
+            self->client_->send_chat_stream(convo_copy, [&](const chat_delta& delta) {
+                if (self->is_closed_) return;
+
+                if (!delta.reasoning_content.empty()) {
+                    if (!current_reasoning) {
+                        current_reasoning = std::make_shared<interaction_reasoning>("");
+                        self->add_interaction(current_reasoning);
+                    }
+                    current_reasoning->append_text(delta.reasoning_content);
+                    if (self->global_queue_) {
+                        editor_event ev;
+                        ev.type = event_type::agent_tool_update;
+                        ev.key_code = self->id_;
+                        self->global_queue_->push(ev);
+                    }
+                }
+
+                if (!delta.content.empty()) {
+                    if (!current_response) {
+                        current_response = std::make_shared<interaction_llm_response>("");
+                        self->add_interaction(current_response);
+                    }
+                    current_response->append_text(delta.content);
+                    response_msg.content += delta.content;
+                    if (self->global_queue_) {
+                        editor_event ev;
+                        ev.type = event_type::agent_tool_update;
+                        ev.key_code = self->id_;
+                        self->global_queue_->push(ev);
+                    }
+                }
+
+                if (delta.tool_calls) {
+                    for (const auto& tc : *delta.tool_calls) {
+                        if (tc.id.empty() && !accumulated_tool_calls.empty()) {
+                            auto& last = accumulated_tool_calls.back();
+                            if (!tc.function.name.empty()) last.function.name += tc.function.name;
+                            if (!tc.function.arguments.empty()) last.function.arguments += tc.function.arguments;
+                        } else {
+                            accumulated_tool_calls.push_back(tc);
+                        }
+                    }
+                }
+
+                if (delta.usage.total_tokens > 0) {
+                    self->tokens_tx_ += delta.usage.prompt_tokens;
+                    self->tokens_rx_ += delta.usage.completion_tokens;
+                    
+                    double turn_cost = self->model_->calculate_and_record_cost(delta.usage.prompt_tokens, delta.usage.completion_tokens);
+                    double current_cost = self->estimated_cost_.load();
+                    self->estimated_cost_.store(current_cost + turn_cost);
+
+                    if (self->global_queue_) {
+                        editor_event tool_ev;
+                        tool_ev.type = event_type::agent_tool_update;
+                        tool_ev.key_code = self->id_;
+                        self->global_queue_->push(tool_ev);
+                    }
+                }
+            }, &registry);
 
             if (self->is_closed_) return;
-            if (response.tool_calls && !response.tool_calls->empty()) {
-                self->status_ = agent_status::tool_execution;
-                convo_copy.push_back(response);
 
-                for (const auto& call : *response.tool_calls) {
+            if (!accumulated_tool_calls.empty()) {
+                response_msg.tool_calls = accumulated_tool_calls;
+                convo_copy.push_back(response_msg);
+
+                for (const auto& call : *response_msg.tool_calls) {
                     if (self->is_closed_) return;
+
+                    self->current_tool_ = call.function.name;
+                    self->status_ = agent_status::tool_execution;
 
                     std::string arg_preview;
                     try {
@@ -256,7 +372,6 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                             editor_event tool_ev;
                             tool_ev.type = event_type::agent_tool_update;
                             tool_ev.key_code = self->id_;
-                            // Payload no longer needed, window can just pull from interactions_
                             self->global_queue_->push(tool_ev);
                         }
                     }
@@ -294,9 +409,11 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
                     
                     convo_copy.push_back(tool_msg);
                 }
+                self->current_tool_.clear();
+                self->status_ = agent_status::thinking;
             } else {
-                convo_copy.push_back(response);
-                final_response = response.content;
+                convo_copy.push_back(response_msg);
+                final_response = response_msg.content;
                 break;
             }
         }
@@ -309,10 +426,6 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
         }
         
         self->status_ = agent_status::idle;
-
-        if (!final_response.empty()) {
-            self->add_interaction(std::make_shared<interaction_llm_response>(final_response));
-        }
 
         if (self->global_queue_) {
             editor_event ev;

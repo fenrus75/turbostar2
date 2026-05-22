@@ -3,9 +3,6 @@
 - we need to ensure LSP servers are more or less per project, not per file
 	- performance/memory consumption issue
 
-- incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
-    but an important usability one
-
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
@@ -44,8 +41,6 @@
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
-
-- show agent status (thinking, idle, etc) somewhere live -- maybe agent status window maybe bottom status bar maybe both
 
 - syntax highlighting of trailing whitespace is annoying if you're still typing the line.. any space you type
    instantly turns red. Need to maybe know which line the cursor is on or something, or wait for 10 seconds or .. or ..
@@ -137,6 +132,10 @@
   LSP servers are now started on-demand only when a file of the corresponding language is opened.
 - implemented Bracketed Paste Mode to support instant pasting of large text blocks.
   This includes bulk-insert logic in the document and optimized undo recording for paste operations.
+- implemented Agent Live Status display in the status bar and agent status window.
+  Added a unified status-to-string helper and real-time event triggers for state changes (thinking, tool execution, telemetry updates).
+- implemented incremental (streaming) LLM updates and "think" block support.
+  Refactored the entire LLM interaction stack (transport, client, and agent) to handle SSE streams, allowing for real-time UI feedback of reasoning and responses.
 
 ## 21-05-2026
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way

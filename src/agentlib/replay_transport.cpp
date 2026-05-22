@@ -45,4 +45,15 @@ transport_response replay_transport::post(const std::string& /*path*/, const std
     return res;
 }
 
+bool replay_transport::post_stream(const std::string& path, const std::string& json_body, 
+                                    std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) {
+    // For replay, we just deliver the whole body in one chunk if we find a match.
+    auto res = post(path, json_body);
+    if (res.status_code == 200) {
+        callback(res.body.c_str(), res.body.length(), 0, res.body.length());
+        return true;
+    }
+    return false;
+}
+
 } // namespace agentlib

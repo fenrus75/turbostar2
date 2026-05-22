@@ -67,6 +67,11 @@ std::vector<interaction_line> interaction_llm_response::format_lines(int width) 
     return wrap_text("", text_, width, 1);
 }
 
+std::vector<interaction_line> interaction_reasoning::format_lines(int width) const {
+    // 10 is muted (White on Green). Let's use it for reasoning too, maybe with a prefix.
+    return wrap_text("[Thinking] ", text_, width, 10);
+}
+
 std::vector<interaction_line> interaction_tool_call::format_lines(int width) const {
     // 10 is muted (White on Green). Let's use 10 for tool calls so they stand out but aren't normal text.
     return wrap_text("* Executing tool: ", text_, width, 10);

@@ -58,4 +58,13 @@ struct llm_chat_response {
     std::string model;
 };
 
+struct chat_delta {
+    std::string role;
+    std::string content;
+    std::string reasoning_content;
+    std::optional<std::vector<tool_call>> tool_calls;
+    bool is_final{false};
+    llm_usage usage;
+};
+
 } // namespace agentlib

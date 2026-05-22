@@ -35,4 +35,23 @@ transport_response httplib_transport::post(const std::string& path, const std::s
     return response;
 }
 
+bool httplib_transport::post_stream(const std::string& path, const std::string& json_body, 
+                                     std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) {
+    httplib::Result res;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!cli_) return false;
+        
+        httplib::Request req;
+        req.method = "POST";
+        req.path = path;
+        req.body = json_body;
+        req.set_header("Content-Type", "application/json");
+        req.content_receiver = callback;
+        
+        res = cli_->send(req);
+    }
+    return res && res->status == 200;
+}
+
 } // namespace agentlib

@@ -16,6 +16,8 @@ public:
     ~httplib_transport() override;
     
     transport_response post(const std::string& path, const std::string& json_body) override;
+    bool post_stream(const std::string& path, const std::string& json_body, 
+                     std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) override;
     void cancel() override;
     std::string get_base_url() const override { return base_url_; }
 
