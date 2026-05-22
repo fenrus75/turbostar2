@@ -369,7 +369,7 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
 
             std::string system_msg = "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
             system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
-            system_msg += "You can read the full interaction history log at: `" + uri + "`";
+            system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
 
             parent->inject_context("system", system_msg);
         }
