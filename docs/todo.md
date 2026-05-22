@@ -163,6 +163,8 @@
     - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
       get a new window/dialog with details about the coredump
     - once we have this we can also expose this to the agent
+	- coredump_get_info(nr) and 
+	- coredump_list()
 - coredump tracker.
   - we run systemd-run so coredumps go into systemd-coredump, and coredumpctl will find them
   - we should have an object/list of these somewhere so the user can look at them and we can present them to the agent in a precooked way
