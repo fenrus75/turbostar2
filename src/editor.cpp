@@ -377,6 +377,11 @@ void editor::run()
 						}
 
 						if (seq == "200~") {
+							if (is_pasting_ && !paste_buffer_.empty()) {
+								ev.type = event_type::paste;
+								ev.payload = paste_buffer_;
+								global_queue_.push(ev);
+							}
 							is_pasting_ = true;
 							paste_buffer_.clear();
 						} else if (seq == "201~") {
@@ -385,29 +390,46 @@ void editor::run()
 								ev.type = event_type::paste;
 								ev.payload = paste_buffer_;
 								global_queue_.push(ev);
+								paste_buffer_.clear();
 							}
 						} else {
-							int key = 0;
-							if (seq == "A") key = KEY_UP;
-							else if (seq == "B") key = KEY_DOWN;
-							else if (seq == "C") key = KEY_RIGHT;
-							else if (seq == "D") key = KEY_LEFT;
+							if (is_pasting_) {
+								paste_buffer_ += "\033[";
+								paste_buffer_ += seq;
+							} else {
+								int key = 0;
+								if (seq == "A") key = KEY_UP;
+								else if (seq == "B") key = KEY_DOWN;
+								else if (seq == "C") key = KEY_RIGHT;
+								else if (seq == "D") key = KEY_LEFT;
 
-							if (key != 0) {
-								ev.type = event_type::key_press;
-								ev.key_code = key;
-								global_queue_.push(ev);
+								if (key != 0) {
+									ev.type = event_type::key_press;
+									ev.key_code = key;
+									global_queue_.push(ev);
+								}
 							}
 						}
 					} else if (next_res != ERR) {
 						// Alt + key
-						ev.type = event_type::key_press;
-						ev.key_code = -static_cast<int>(next_wch);
-						global_queue_.push(ev);
+						if (is_pasting_) {
+							paste_buffer_ += (char)27;
+							char buf[8];
+							int len = wctomb(buf, next_wch);
+							if (len > 0) paste_buffer_.append(buf, len);
+						} else {
+							ev.type = event_type::key_press;
+							ev.key_code = -static_cast<int>(next_wch);
+							global_queue_.push(ev);
+						}
 					} else {
-						ev.type = event_type::key_press;
-						ev.key_code = 27; // Bare ESC
-						global_queue_.push(ev);
+						if (is_pasting_) {
+							paste_buffer_ += (char)27;
+						} else {
+							ev.type = event_type::key_press;
+							ev.key_code = 27; // Bare ESC
+							global_queue_.push(ev);
+						}
 					}
 					timeout(50); // Restore 50ms timeout
 				} else {
