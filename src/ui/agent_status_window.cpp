@@ -77,6 +77,16 @@ void agent_status_window::draw_content() const {
 
     current_y++; // Spacing
 
+    // 1b. Current Status Section
+    print_line(start_x, current_y++, "--- Status ---");
+    std::string status_str = agentlib::agent_status_to_string(agent_->get_status(), agent_->get_current_tool());
+    if (agent_->get_status() == agentlib::agent_status::waiting) {
+        status_str = "Waiting for Subagent (" + std::to_string(agent_->get_waiting_on_id()) + ")";
+    }
+    print_line(start_x, current_y++, " " + status_str);
+
+    current_y++; // Spacing
+
     // 2. Skills Section
     print_line(start_x, current_y++, "--- Skills ---");
     auto active_skills = agent_->get_active_skills();
@@ -106,17 +116,11 @@ void agent_status_window::draw_content() const {
         std::vector<std::string> subagent_strings;
         for (const auto& sub : subagents) {
             if (current_y < y_ + height_ - 1) {
-                std::string status_str;
-                switch (sub->get_status()) {
-                    case agentlib::agent_status::idle: status_str = "[Idle]"; break;
-                    case agentlib::agent_status::thinking: status_str = "[Thinking]"; break;
-                    case agentlib::agent_status::tool_execution: status_str = "[Tool]"; break;
-                    case agentlib::agent_status::error: status_str = "[Error]"; break;
-                    case agentlib::agent_status::waiting: 
-                        status_str = "[Waiting for " + std::to_string(sub->get_waiting_on_id()) + "]"; 
-                        break;
+                std::string sub_status = agentlib::agent_status_to_string(sub->get_status(), sub->get_current_tool());
+                if (sub->get_status() == agentlib::agent_status::waiting) {
+                    sub_status = "Waiting (" + std::to_string(sub->get_waiting_on_id()) + ")";
                 }
-                subagent_strings.push_back(" " + sub->get_name() + " " + status_str);
+                subagent_strings.push_back(" " + sub->get_name() + " [" + sub_status + "]");
             }
         }
         

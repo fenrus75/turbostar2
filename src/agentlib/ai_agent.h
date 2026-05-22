@@ -24,6 +24,8 @@ enum class agent_status {
     error
 };
 
+std::string agent_status_to_string(agent_status status, const std::string& tool_name = "");
+
 struct todo_item {
     std::string text;
     bool completed{false};
@@ -42,16 +44,10 @@ public:
     int get_id() const { return id_; }
     std::string get_name() const { return name_; }
     agent_status get_status() const { return status_; }
+    std::string get_current_tool() const { return current_tool_; }
     
     // Explicitly set the status, optionally with a target ID if waiting
-    void set_status(agent_status s, int target_id = -1) { 
-        status_ = s; 
-        if (s == agent_status::waiting) {
-            waiting_on_id_ = target_id;
-        } else {
-            waiting_on_id_ = -1;
-        }
-    }
+    void set_status(agent_status s, int target_id = -1);
     
     int get_waiting_on_id() const { return waiting_on_id_; }
 
@@ -87,6 +83,7 @@ private:
     std::string name_;
     std::shared_ptr<ai_model> model_;
     std::atomic<agent_status> status_{agent_status::idle};
+    std::string current_tool_;
     std::atomic<bool> is_closed_{false};
     std::atomic<bool> read_only_{false};
     std::atomic<int> waiting_on_id_{-1};

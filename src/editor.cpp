@@ -816,6 +816,23 @@ void editor::render()
 		combined_hover += diag_text;
 	}
 
+	// Find active agent status
+	std::string agent_status_text = "";
+	for (const auto& win : windows_) {
+		if (auto aw = dynamic_cast<agent_window*>(win.get())) {
+			auto agent = aw->get_agent();
+			if (agent && agent->get_status() != agentlib::agent_status::idle) {
+				agent_status_text = "Agent: " + agentlib::agent_status_to_string(agent->get_status(), agent->get_current_tool());
+				break;
+			}
+		}
+	}
+
+	if (!agent_status_text.empty()) {
+		if (!combined_hover.empty()) combined_hover += " | ";
+		combined_hover += agent_status_text;
+	}
+
 	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y);
 
 	if (active_dialog_) {
