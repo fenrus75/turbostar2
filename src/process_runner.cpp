@@ -24,7 +24,9 @@ void process_runner::execute(const std::string &command)
 
 	doc_->clear();
 	build_error_manager::get_instance().clear();
+	doc_->append_line("-------------------------------------------------------------------------------");
 	doc_->append_line("Running: " + command);
+	doc_->append_line("-------------------------------------------------------------------------------");
 
 	is_running_.store(true);
 	stop_requested_.store(false);
@@ -85,7 +87,9 @@ void process_runner::worker_loop(std::string command)
 	int exit_code = runner.execute(command + " 2>&1");
 	
 	doc_->append_line("");
+	doc_->append_line("-------------------------------------------------------------------------------");
 	doc_->append_line("Process exited with code " + std::to_string(exit_code));
+	doc_->append_line("-------------------------------------------------------------------------------");
 	if (auto_scroll_.load()) {
 		doc_->move_to_bottom();
 	}

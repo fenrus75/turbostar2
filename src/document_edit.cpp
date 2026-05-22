@@ -254,7 +254,6 @@ void document::split_line()
 void document::append_line(const std::string &text)
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
 	
 	// If the document is just a single empty line, replace it.
 	if (lines_.size() == 1 && lines_[0]->get_text().empty()) {
