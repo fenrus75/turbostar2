@@ -1,8 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- performance bug: We start the pylsp language server on opening a .cpp file!
-	- starting pylsp is a very expensive operation so we must only ever do this for .py files
-
 - we need to ensure LSP servers are more or less per project, not per file
 	- performance/memory consumption issue
 
@@ -147,6 +144,8 @@
 ## 22-05-2026
 - fixed critical systemd-run masking bug where non-existent files in the mask list would prevent the sandbox from starting.
   The code now explicitly checks for file existence before adding them to InaccessiblePaths.
+- fixed performance bug where pylsp was started eagerly even for non-python files.
+  LSP servers are now started on-demand only when a file of the corresponding language is opened.
 
 ## 21-05-2026
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way

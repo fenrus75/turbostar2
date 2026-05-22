@@ -108,9 +108,6 @@ void lsp_manager::start_server(const std::string& name, const std::vector<std::s
 void lsp_manager::start(event_queue &queue)
 {
 	global_queue_ = &queue;
-	
-	start_server("clangd", {"-log=error"}, "cpp");
-	start_server("pylsp", {}, "python");
 }
 
 void lsp_manager::stop()
@@ -158,6 +155,20 @@ lsp_manager::server_instance* lsp_manager::get_server_for_file(const std::string
 			return server.get();
 		}
 	}
+
+	// Try to start the server on demand
+	if (lang_id == "cpp") {
+		start_server("clangd", {"-log=error"}, "cpp");
+	} else if (lang_id == "python") {
+		start_server("pylsp", {}, "python");
+	}
+
+	for (auto& server : servers_) {
+		if (server->language_id == lang_id && server->is_running) {
+			return server.get();
+		}
+	}
+
 	return nullptr;
 }
 
