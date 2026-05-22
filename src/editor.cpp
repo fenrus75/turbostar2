@@ -67,6 +67,7 @@ void editor::new_window(const std::string &filename)
 
 #include "ui/agent_window.h"
 #include "ui/agent_status_window.h"
+#include "ui/coredump_window.h"
 #include "agentlib/ai_model.h"
 
 void editor::update_window_layout() {
@@ -130,6 +131,14 @@ void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 	update_window_layout();
 
 	// Activate the new subagent window (it will be resized by update_window_layout)
+	activate_window(windows_.size() - 1);
+}
+
+void editor::new_coredump_window()
+{
+	auto dump_win = std::make_unique<coredump_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2);
+	windows_.push_back(std::move(dump_win));
+	update_window_layout();
 	activate_window(windows_.size() - 1);
 }
 

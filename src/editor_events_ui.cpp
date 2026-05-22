@@ -134,6 +134,12 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::open_coredump_viewer) {
+		logger.log("Dispatching open_coredump_viewer event.");
+		new_coredump_window();
+		return;
+	}
+
 	if (ev.type == event_type::open_subagent) {
 		logger.log("Dispatching open_subagent event for agent ID: " + std::to_string(ev.key_code));
 		
