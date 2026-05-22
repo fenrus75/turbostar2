@@ -111,16 +111,30 @@ std::string command_runner::build_command(const std::string& raw_command) const 
     const char* home_env = std::getenv("HOME");
     if (home_env) {
         std::string home(home_env);
-        inaccessible_paths.push_back("-" + home + "/.ssh");
-        inaccessible_paths.push_back("-" + home + "/.env");
-        inaccessible_paths.push_back("-" + home + "/.aws");
-        inaccessible_paths.push_back("-" + home + "/.gnupg");
-        inaccessible_paths.push_back("-" + home + "/.gemini/keys");
+        std::vector<std::string> sensitive = {
+            home + "/.ssh",
+            home + "/.env",
+            home + "/.aws",
+            home + "/.gnupg",
+            home + "/.gemini/keys"
+        };
+        for (const auto& s : sensitive) {
+            if (fs::exists(s)) {
+                inaccessible_paths.push_back("-" + s);
+            }
+        }
     }
 
     if (!project_dir_.empty()) {
-        inaccessible_paths.push_back("-" + project_dir_ + "/.env");
-        inaccessible_paths.push_back("-" + project_dir_ + "/.ssh");
+        std::vector<std::string> sensitive = {
+            project_dir_ + "/.env",
+            project_dir_ + "/.ssh"
+        };
+        for (const auto& s : sensitive) {
+            if (fs::exists(s)) {
+                inaccessible_paths.push_back("-" + s);
+            }
+        }
     }
 
     for (const auto& p : inaccessible_paths) {

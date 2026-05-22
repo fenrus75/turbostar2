@@ -1,8 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- serious bug: systemd-run fails if a file we're masking does not exist; our .env masking suffers from that and
-  it makes systemd-run just not execute at all. we need to check for presence for each of our masks!
-
 - performance bug: We start the pylsp language server on opening a .cpp file!
 	- starting pylsp is a very expensive operation so we must only ever do this for .py files
 
@@ -148,6 +145,8 @@
 # done items (move items here on completion)
 
 ## 22-05-2026
+- fixed critical systemd-run masking bug where non-existent files in the mask list would prevent the sandbox from starting.
+  The code now explicitly checks for file existence before adding them to InaccessiblePaths.
 
 ## 21-05-2026
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
