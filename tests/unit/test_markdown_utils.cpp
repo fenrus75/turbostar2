@@ -57,11 +57,31 @@ void test_align_table_block() {
     assert(aligned[2] == "| Alice   | 30  | New York      |");
 }
 
+void test_align_table_utf8() {
+    std::vector<std::string> table = {
+        "| Emoji | Meaning |",
+        "|---|---|",
+        "| 🦀 | Rust |",
+        "| 🚀 | Fast |",
+        "| 💻 | Code |"
+    };
+    
+    auto aligned = table_aligner::align_table_block(table);
+    
+    // Each emoji is 1 char wide in our utf8_length assumption
+    assert(aligned.size() == 5);
+    assert(aligned[0] == "| Emoji | Meaning |");
+    assert(aligned[1] == "|-------|---------|");
+    assert(aligned[2] == "| 🦀     | Rust    |");
+    assert(aligned[3] == "| 🚀     | Fast    |");
+}
+
 int main() {
     test_is_table_row();
     test_is_header_separator();
     test_find_table_ranges();
     test_align_table_block();
+    test_align_table_utf8();
     
     std::cout << "markdown_utils unit tests passed!\n";
     return 0;

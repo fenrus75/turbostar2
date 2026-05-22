@@ -106,6 +106,26 @@ std::string table_aligner::trim(const std::string& s) {
     return s.substr(first, (last - first + 1));
 }
 
+size_t table_aligner::utf8_length(const std::string& s) {
+    size_t offset = 0;
+    size_t chars = 0;
+    while (offset < s.length()) {
+        unsigned char c = static_cast<unsigned char>(s[offset]);
+        if (c < 0x80)
+            offset += 1;
+        else if ((c & 0xE0) == 0xC0)
+            offset += 2;
+        else if ((c & 0xF0) == 0xE0)
+            offset += 3;
+        else if ((c & 0xF8) == 0xF0)
+            offset += 4;
+        else
+            offset += 1;
+        chars++;
+    }
+    return chars;
+}
+
 std::vector<std::string> table_aligner::align_table_block(const std::vector<std::string>& lines, const align_options& opts) {
     if (lines.empty()) return {};
 
@@ -126,7 +146,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
         }
         
         for (size_t i = 0; i < tokens.size(); ++i) {
-            col_widths[i] = std::max(col_widths[i], tokens[i].length());
+            col_widths[i] = std::max(col_widths[i], utf8_length(tokens[i]));
         }
     }
     
@@ -151,7 +171,11 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
                 
                 std::string cell = (i < row.size()) ? row[i] : "";
                 aligned_line += cell;
-                aligned_line += std::string(col_widths[i] - cell.length(), ' ');
+                
+                size_t cell_len = utf8_length(cell);
+                if (col_widths[i] > cell_len) {
+                    aligned_line += std::string(col_widths[i] - cell_len, ' ');
+                }
                 
                 aligned_line += std::string(opts.padding, ' ');
             }

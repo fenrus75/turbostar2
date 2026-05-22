@@ -37,6 +37,11 @@ public:
      */
     static bool is_header_separator(const std::string& line);
 
+    /**
+     * @brief Get the number of UTF-8 characters in a string.
+     */
+    static size_t utf8_length(const std::string& s);
+
 private:
     static std::vector<std::string> tokenize_row(const std::string& line);
     static std::string trim(const std::string& s);

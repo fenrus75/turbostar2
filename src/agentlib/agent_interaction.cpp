@@ -1,6 +1,50 @@
 #include "agent_interaction.h"
+#include "markdown_utils.h"
+#include <algorithm>
+#include <sstream>
 
 namespace agentlib {
+
+// Helper to align tables within a string
+static std::string align_markdown_tables(const std::string& text) {
+    std::vector<std::string> lines;
+    std::stringstream ss(text);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        lines.push_back(line);
+    }
+    
+    // getline won't capture the last newline if it's empty
+    if (!text.empty() && text.back() == '\n') {
+        lines.push_back("");
+    }
+
+    auto ranges = markdown_utils::table_aligner::find_table_ranges(lines);
+    if (ranges.empty()) return text;
+
+    // Process ranges from bottom to top to avoid offset issues
+    std::vector<std::string> processed_lines = lines;
+    for (auto it = ranges.rbegin(); it != ranges.rend(); ++it) {
+        std::vector<std::string> table_block;
+        for (size_t i = it->start_line; i <= it->end_line; ++i) {
+            table_block.push_back(processed_lines[i]);
+        }
+        
+        auto aligned = markdown_utils::table_aligner::align_table_block(table_block);
+        
+        // Replace in processed_lines
+        processed_lines.erase(processed_lines.begin() + it->start_line, processed_lines.begin() + it->end_line + 1);
+        processed_lines.insert(processed_lines.begin() + it->start_line, aligned.begin(), aligned.end());
+    }
+
+    std::string result;
+    for (size_t i = 0; i < processed_lines.size(); ++i) {
+        result += processed_lines[i];
+        if (i < processed_lines.size() - 1) result += "\n";
+    }
+    return result;
+}
 
 int agent_interaction::get_height(int width) const {
     return render(width).size();
@@ -64,7 +108,7 @@ std::vector<interaction_line> interaction_user_message::format_lines(int width) 
 
 std::vector<interaction_line> interaction_llm_response::format_lines(int width) const {
     // 1 is normal text. No prefix.
-    return wrap_text("", text_, width, 1);
+    return wrap_text("", align_markdown_tables(text_), width, 1);
 }
 
 std::vector<interaction_line> interaction_reasoning::format_lines(int width) const {
@@ -79,12 +123,12 @@ std::vector<interaction_line> interaction_tool_call::format_lines(int width) con
 
 std::vector<interaction_line> interaction_tool_result::format_lines(int width) const {
     // 10 is muted.
-    return wrap_text("  ↳ Result: ", text_, width, 10);
+    return wrap_text("  ↳ Result: ", align_markdown_tables(text_), width, 10);
 }
 
 std::vector<interaction_line> interaction_system_message::format_lines(int width) const {
     // 2 is hotkey color (Red on White).
-    return wrap_text("[System] ", text_, width, 2);
+    return wrap_text("[System] ", align_markdown_tables(text_), width, 2);
 }
 
 } // namespace agentlib
