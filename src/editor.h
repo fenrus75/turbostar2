@@ -116,5 +116,8 @@ class editor : public agentlib::document_provider
 	bool debug_mode_{false};
 	std::string debug_string_;
 
+	bool is_pasting_{false};
+	std::string paste_buffer_;
+
 	std::unique_ptr<process_runner> current_build_process_;
 };

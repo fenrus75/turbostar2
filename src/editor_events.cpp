@@ -113,6 +113,14 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::key_press:
 			dispatch_event_key(ev);
 			break;
+		case event_type::paste:
+			{
+				window *active_win = get_active_window();
+				if (active_win) {
+					active_win->get_queue().push(ev);
+				}
+			}
+			break;
 		default:
 			break;
 	}

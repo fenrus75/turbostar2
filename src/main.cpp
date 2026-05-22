@@ -130,7 +130,8 @@ int main(int argc, char **argv)
 	// Enable mouse tracking for clicks
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	// Tell the terminal to send mouse events (works for some xterm-compatible terms)
-	printf("\033[?1000h\n");
+	// Also enable bracketed paste mode
+	printf("\033[?1000h\033[?2004h\n");
 	fflush(stdout);
 
 	curs_set(0); // Hide the cursor for now
@@ -141,6 +142,10 @@ int main(int argc, char **argv)
 	main_editor.run();
 
 	logger.log("Exiting application loop.");
+
+	// Disable mouse tracking and bracketed paste mode
+	printf("\033[?1000l\033[?2004l\n");
+	fflush(stdout);
 
 	endwin();
 

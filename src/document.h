@@ -88,6 +88,7 @@ class document
 	void move_cursor(int dx, int dy);
 	void request_redraw() const;
 	void insert_char(const std::string &utf8_char);
+	void insert_text(const std::string &text);
 	void backspace();
 	void delete_char();
 	void delete_word_forward();

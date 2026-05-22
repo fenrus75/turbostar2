@@ -369,24 +369,30 @@ void editor::run()
 					wint_t next_wch;
 					int next_res = get_wch(&next_wch);
 					if (next_res != ERR && next_res != KEY_CODE_YES && next_wch == '[') {
-						wint_t arrow_wch;
-						int arrow_res = get_wch(&arrow_wch);
-						if (arrow_res != ERR && arrow_res != KEY_CODE_YES) {
-							int key = 0;
-							switch (arrow_wch) {
-								case 'A':
-									key = KEY_UP;
-									break;
-								case 'B':
-									key = KEY_DOWN;
-									break;
-								case 'C':
-									key = KEY_RIGHT;
-									break;
-								case 'D':
-									key = KEY_LEFT;
-									break;
+						std::string seq;
+						wint_t seq_wch;
+						while (get_wch(&seq_wch) != ERR) {
+							seq += (char)seq_wch;
+							if (seq_wch == '~' || seq.length() > 10) break;
+						}
+
+						if (seq == "200~") {
+							is_pasting_ = true;
+							paste_buffer_.clear();
+						} else if (seq == "201~") {
+							is_pasting_ = false;
+							if (!paste_buffer_.empty()) {
+								ev.type = event_type::paste;
+								ev.payload = paste_buffer_;
+								global_queue_.push(ev);
 							}
+						} else {
+							int key = 0;
+							if (seq == "A") key = KEY_UP;
+							else if (seq == "B") key = KEY_DOWN;
+							else if (seq == "C") key = KEY_RIGHT;
+							else if (seq == "D") key = KEY_LEFT;
+
 							if (key != 0) {
 								ev.type = event_type::key_press;
 								ev.key_code = key;
@@ -406,17 +412,19 @@ void editor::run()
 					timeout(50); // Restore 50ms timeout
 				} else {
 					// Printable character or UTF-8 sequence
-					ev.type = event_type::key_press;
-					ev.key_code = static_cast<int>(wch);
-
 					// Convert wide char to UTF-8 string
 					char buf[8];
 					int len = wctomb(buf, wch);
 					if (len > 0) {
-						ev.utf8_char.assign(buf, len);
+						if (is_pasting_) {
+							paste_buffer_.append(buf, len);
+						} else {
+							ev.type = event_type::key_press;
+							ev.key_code = static_cast<int>(wch);
+							ev.utf8_char.assign(buf, len);
+							global_queue_.push(ev);
+						}
 					}
-
-					global_queue_.push(ev);
 				}
 			}
 		}

@@ -181,6 +181,9 @@ bool window::process_events()
 					}
 					break;
 			}
+		} else if (ev->type == event_type::paste && doc_) {
+			doc_->insert_text(ev->payload);
+			invalidate();
 		}
 	}
 

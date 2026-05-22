@@ -52,6 +52,15 @@ void document::record_action(edit_action::action_type type, int y, std::shared_p
 	if (!is_recording_actions_)
 		return;
 
+	// Optimization: If the last action in the current group was a replace_line
+	// for the same line, don't record it again.
+	if (type == edit_action::action_type::replace_line && !current_action_group_.actions.empty()) {
+		const auto& last = current_action_group_.actions.back();
+		if (last.type == edit_action::action_type::replace_line && last.y == y) {
+			return;
+		}
+	}
+
 	edit_action act;
 	act.type = type;
 	act.y = y;

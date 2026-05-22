@@ -93,17 +93,6 @@
    "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any spelling mistake and severe gramatical mistake as error and flag gramatical improvements as warning"
    this can be a temporary new agent connection, that destructs after the agent is done with the spell check
 
-- paste speed is somehow artificially limited, you can almost see the characters beeing typed
-  while other editors are instant. Are we repainting every key press always?
-   - we need to use Bracketed Paste Mode by printing printf("\033[?2004h"); at start and printf("\033[?2004l"); at exit
-	- maybe ncurses has a nice abstraction for this and the next listed sequences
-   - this causes \x1b[200~ to be entered just before the paste starts (which we need to eat) and \x1b[201~
-     at the end of the paste. While we're in this "in the paste" mode we should surpress screen updates,
-     and just do one final refresh when getting the end-of-paste marker.
-   - this a real UI interaction issue, performance is terrible even now that our drawing speed is much better
-   - on receiving the 200 message, we may want to wait, say, 10msec for all input from the paste to arrive, and then bulk
-     process.
-
 
 # mid term items
 
@@ -146,6 +135,8 @@
   The code now explicitly checks for file existence before adding them to InaccessiblePaths.
 - fixed performance bug where pylsp was started eagerly even for non-python files.
   LSP servers are now started on-demand only when a file of the corresponding language is opened.
+- implemented Bracketed Paste Mode to support instant pasting of large text blocks.
+  This includes bulk-insert logic in the document and optimized undo recording for paste operations.
 
 ## 21-05-2026
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way

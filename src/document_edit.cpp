@@ -344,3 +344,62 @@ void document::delete_line()
 	lock.unlock();
 	notify_cursor_changed();
 }
+
+
+void document::insert_text(const std::string &text)
+{
+	std::unique_lock lock(mutex_);
+	if (is_read_only()) return;
+	
+	begin_edit_group();
+	
+	size_t i = 0;
+	while (i < text.length()) {
+		if (text[i] == '\n' || text[i] == '\r') {
+			if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
+				record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+				adjust_selection_for_split(cursor_y_, cursor_x_);
+				auto new_l = std::make_shared<line>("");
+				lines_[cursor_y_]->split_at(cursor_x_, *new_l);
+				mark_line_dirty(lines_[cursor_y_]);
+				mark_line_dirty(new_l);
+				lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
+				record_action(edit_action::action_type::insert_line, cursor_y_ + 1, nullptr);
+				cursor_y_++;
+				cursor_x_ = 0;
+			}
+			if (text[i] == '\r' && i + 1 < text.length() && text[i+1] == '\n') {
+				i++;
+			}
+			i++;
+		} else {
+			if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
+				size_t char_len = 0;
+				unsigned char c = static_cast<unsigned char>(text[i]);
+				if (c < 0x80) char_len = 1;
+				else if ((c & 0xe0) == 0xc0) char_len = 2;
+				else if ((c & 0xf0) == 0xe0) char_len = 3;
+				else if ((c & 0xf8) == 0xf0) char_len = 4;
+				else char_len = 1;
+
+				if (i + char_len > text.length()) char_len = text.length() - i;
+				std::string utf8_char = text.substr(i, char_len);
+
+				record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+				adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
+				lines_[cursor_y_]->insert_at(cursor_x_, utf8_char);
+				mark_line_dirty(lines_[cursor_y_]);
+				cursor_x_++;
+				i += char_len;
+			} else {
+				i++;
+			}
+		}
+	}
+	
+	set_modified();
+	end_edit_group();
+	target_cursor_x_ = cursor_x_;
+	lock.unlock();
+	notify_cursor_changed();
+}
