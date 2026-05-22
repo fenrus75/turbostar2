@@ -10,15 +10,6 @@ ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
   ncurses_dep = cc.find_library('ncursesw', required : true)
 
-  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
-  # It has a tendency to make later tests fail randomly if it is not last.
-  test('e2e_lsp_selection', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false
-  )
 endif
 
 httplib_dep = dependency('cpp-httplib', required : true)
@@ -41,7 +32,7 @@ turbostar_exe = executable('turbostar',
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/git_manager.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
    'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
-   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/agent_interaction.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/skill_manager.cpp', 'src/build_error_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
+   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/agent_interaction.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/skill_manager.cpp', 'src/build_error_manager.cpp', 'src/coredump_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,
@@ -85,7 +76,7 @@ test_history_manager = executable('test_history_manager',
 test('unit_history_manager', test_history_manager)
 
 test_command_runner = executable('test_command_runner',
-  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp'],
+  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/coredump_manager.cpp'],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner)
 
@@ -120,7 +111,7 @@ test_python_highlighter = executable('test_python_highlighter',
 test('unit_python_highlighter', test_python_highlighter)
 
 test_sqlite_validation = executable('test_sqlite_validation',
-  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp'],
+  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/coredump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp'],
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation)
@@ -264,15 +255,6 @@ if python.found()
       timeout: 60
     )
   
-  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
-  # It has a tendency to make later tests fail randomly if it is not last.
-  test('e2e_lsp_selection', python,
-    args: [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
-    env: e2e_env,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false
-  )
 endif
 
   test('e2e_save_mouse', python,

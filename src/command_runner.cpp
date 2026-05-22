@@ -1,5 +1,6 @@
 #include "command_runner.h"
 #include "config_manager.h"
+#include "coredump_manager.h"
 #include <array>
 #include <cstdio>
 #include <iostream>
@@ -63,7 +64,7 @@ std::string command_runner::build_command(const std::string& raw_command) const 
     std::string random_suffix = std::to_string(rand() % 1000000);
     std::string unit_name = "turbostar-project-" + project_hash_ + "-" + random_suffix;
 
-    std::string cmd = "systemd-run --user --pty --pipe --wait --quiet ";
+    std::string cmd = "systemd-run --user --pipe --wait --quiet ";
     cmd += "--unit=" + unit_name + " ";
     cmd += "-p ProtectSystem=strict ";
     cmd += "-p PrivateTmp=true ";
@@ -138,7 +139,7 @@ std::string command_runner::build_command(const std::string& raw_command) const 
 }
 
 int command_runner::execute(const std::string& command) {
-    std::string final_command = build_command(command);
+    std::string final_command = build_command(command) + " 2>/dev/null";
     FILE* pipe = popen(final_command.c_str(), "r");
     
     if (!pipe) {
@@ -190,7 +191,13 @@ int command_runner::execute(const std::string& command) {
     }
 
     int exit_code = pclose(pipe);
-    return WEXITSTATUS(exit_code);
+    int status = WEXITSTATUS(exit_code);
+
+    if (!bypass_coredump_check_ && !project_hash_.empty()) {
+        last_coredumps_report_ = coredump_manager::get_instance().refresh(project_hash_);
+    }
+
+    return status;
 }
 
 std::string sync_command_runner::execute_and_get_output(const std::string& command) {

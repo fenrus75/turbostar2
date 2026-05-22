@@ -10,9 +10,11 @@
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
+#include "coredump_manager.h"
 #include "fs_utils.h"
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <lsp/json/json.h>
 
 namespace fs = std::filesystem;
@@ -27,8 +29,9 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 		lsp_manager::get_instance().start(global_queue_);
 	}
 
+	std::string repo_root = git_manager::get_instance().get_repository_root();
+
 	if (filenames.empty()) {
-		std::string repo_root = git_manager::get_instance().get_repository_root();
 		if (!repo_root.empty()) {
 			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(repo_root);
 			if (!proj_files.empty()) {

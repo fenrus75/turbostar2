@@ -88,6 +88,11 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
     }
 
     std::string output = runner.execute_and_get_output(full_cmd);
+    
+    std::string coredumps = runner.get_new_coredumps();
+    if (!coredumps.empty()) {
+        output += "\n\n" + coredumps;
+    }
 
     if (output.empty()) {
         return "Process finished successfully with no output.";

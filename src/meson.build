@@ -52,6 +52,7 @@ turbostar_sources = files(
   'process_runner.cpp',
   'gcc_log_parser.cpp',
   'build_error_manager.cpp',
+  'coredump_manager.cpp',
   'fs_utils.cpp',
   'agentlib/ai_agent.cpp',
   'agentlib/llm_client.cpp',
