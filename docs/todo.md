@@ -1,5 +1,17 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
- 
+
+- serious bug: systemd-run fails if a file we're masking does not exist; our .env masking suffers from that and
+  it makes systemd-run just not execute at all. we need to check for presence for each of our masks!
+
+- performance bug: We start the pylsp language server on opening a .cpp file!
+	- starting pylsp is a very expensive operation so we must only ever do this for .py files
+
+- we need to ensure LSP servers are more or less per project, not per file
+	- performance/memory consumption issue
+
+- incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
+    but an important usability one
+
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
@@ -20,43 +32,42 @@
 	- git_diff_from_branch(branchname)
 	- git_diff (uncommitted changes list)
 	- git_status()
+	- git "what is staged"  (git --no-page diff --stat)
 	- git_commit(message)
 	- git_create_pr(message)
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
     - web_fetch(URI)
-	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
+	- need permission manager for which domains the user has allowed - stored i8~n a new config file somewhere
 	- needs a way to ask the user for permission
         - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; 
-	- coredump_get_info(nr) and 
-	- coredump_list()
 	- coredump_read_memory(nr, location, size)
 	- coredump_gdb(nr, command) (over time -- likely to come later)
-     - enter_plan_mode, exit_plan_mode
+    - enter_plan_mode, exit_plan_mode
+    - run_shell_command
 
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
+
+- show agent status (thinking, idle, etc) somewhere live -- maybe agent status window maybe bottom status bar maybe both
 
 - syntax highlighting of trailing whitespace is annoying if you're still typing the line.. any space you type
    instantly turns red. Need to maybe know which line the cursor is on or something, or wait for 10 seconds or .. or ..
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
 
+- on startup somehow the screen is black for slightly too long - it feels slow
+	- might be related to the pylsp thing
+	- we may need a short initial delay (say 100 msec) in "background" threads
 
 - should we send the initial system prompt and tool info as we open the agent window and not wait for the first user prompt?
 	- goal: reduce latency for first actual prompt
 
-- we need to build a general coredump tracking infrastructure
-    - have a list of coredumps that come from build and test and run
-    - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
-      get a new window/dialog with details about the coredump
-    - once we have this we can also expose this to the agent
 
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
 
-- incremental (think) updates from the LLM (needs a different protocol flow throughout the whole system - not a small task)
 
 - if we have warnings/etc info, the initial system prompt should say that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
@@ -70,6 +81,9 @@
 
 - our "reformat selection" hotkey for markdown could combine the above 2 steps somehow
 
+- if the user mentions a file in the prompt (example: "Can you look at the file `/tmp/foo.md`" recogize this pattern
+  and give some amount of file system permission to such a mentioned file
+
 - a function that works on a document, that first aligns a markdown table (with the function above), and then replaces 
   the border characters with pretty UTF8 single line borders
 	- this means adding 2 lines, one for above and one for below the markdown lines
@@ -77,10 +91,6 @@
 - A "Run" menu command in the tools menu, it runs the application where the editor leaves the whole screen for the app until it exits, 
   or we launch a new terminal if DISPLAY/etc are set. Need to run it with our systemd-run wrapper so we can collect 
   any coredumps easily
-
-- Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
-  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
-  we need to hook to coredumpctl and somehow only look at coredumps from our working space
 
 - enhance syntax highlighting -- support a few more things in C++ with reasonable colors
 
@@ -103,8 +113,7 @@
 
 # mid term items
 
-- mouse support for the file dialog
-   - the "recent files" drop thingy is the first candidate
+- the whole coredump approach needs a rethink, the world is 100x more complex than assumed
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
@@ -122,8 +131,8 @@
   if this will break ncurses' brain.
 
 - Make skill_manager parsing and discovery fully compliant with the external skills specification (reading metadata, matching URIs, validating schema).
-- use a more conformant yaml parser for SKILL.md metadata extraction instead of manual line scanning
 
+- use a more conformant yaml parser for SKILL.md metadata extraction instead of manual line scanning
 
 - run a small LLM local to decide which model/etc gets to run agent asks
 	
@@ -138,7 +147,22 @@
 
 # done items (move items here on completion)
 
+## 22-05-2026
+
 ## 21-05-2026
+- Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
+  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
+  we need to hook to coredumpctl and somehow only look at coredumps from our working space
+
+- mouse support for the file dialog
+   - the "recent files" drop thingy is the first candidate
+	- coredump_get_info(nr) and 
+	- coredump_list()
+- we need to build a general coredump tracking infrastructure
+    - have a list of coredumps that come from build and test and run
+    - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
+      get a new window/dialog with details about the coredump
+    - once we have this we can also expose this to the agent
 - coredump tracker.
   - we run systemd-run so coredumps go into systemd-coredump, and coredumpctl will find them
   - we should have an object/list of these somewhere so the user can look at them and we can present them to the agent in a precooked way
