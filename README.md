@@ -29,6 +29,14 @@ You will need the following installed on your system:
 *   `libre2-dev` (Google's RE2 regular expression library)
 *   `nlohmann-json3-dev`
 *   `libcpp-httplib-dev`
+*   `libsqlite3-dev`
+*   `libdtl-dev` (Diff Template Library)
+
+On Debian/Ubuntu-based systems, you can install the required dependencies with:
+```bash
+sudo apt update
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev
+```
 
 ### Build Instructions
 
