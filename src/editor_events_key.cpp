@@ -47,6 +47,11 @@ void editor::resolve_dialog(dialog_result res)
 				compile_ev.type = event_type::compile_file;
 				global_queue_.push(compile_ev);
 			}
+			if (is_quitting_) {
+				editor_event quit_ev;
+				quit_ev.type = event_type::quit;
+				global_queue_.push(quit_ev);
+			}
 		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
 			history_manager::get_instance().add_search(current_search_.query);
@@ -99,15 +104,26 @@ void editor::resolve_dialog(dialog_result res)
 					global_queue_.push(save_as_ev);
 				} else {
 					doc->save();
-					editor_event close_ev;
-					close_ev.type = event_type::close_window;
-					global_queue_.push(close_ev);
+					if (is_quitting_) {
+						editor_event quit_ev;
+						quit_ev.type = event_type::quit;
+						global_queue_.push(quit_ev);
+					} else {
+						editor_event close_ev;
+						close_ev.type = event_type::close_window;
+						global_queue_.push(close_ev);
+					}
 				}
 			} else if (res_str == "discard") {
 				editor_event close_ev;
 				close_ev.type = event_type::close_window;
 				close_ev.key_code = 1;
 				global_queue_.push(close_ev);
+				if (is_quitting_) {
+					editor_event quit_ev;
+					quit_ev.type = event_type::quit;
+					global_queue_.push(quit_ev);
+				}
 			}
 			return;
 		}
@@ -117,6 +133,7 @@ void editor::resolve_dialog(dialog_result res)
 		set_focus(focus_target::window, "dialog_close");
 
 	} else if (res == dialog_result::cancelled) {
+		is_quitting_ = false;
 		if (active_dialog_mode_ == dialog_mode::ask_user) {
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value("");
@@ -218,11 +235,6 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 	
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
-				if (!suggestion.empty() && search_input_buffer_ != suggestion) {
-					search_input_buffer_ = suggestion;
-					return;
-				}
-				
 				current_search_.query = search_input_buffer_;
 				
 				is_searching_prompt_ = false;

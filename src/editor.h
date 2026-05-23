@@ -129,6 +129,7 @@ class editor : public agentlib::document_provider
 	std::string get_search_autocomplete() const;
 
 	bool is_running_{true};
+	bool is_quitting_{false};
 	bool exit_immediately_{false};
 	bool debug_mode_{false};
 	std::string debug_string_;

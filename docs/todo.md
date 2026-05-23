@@ -7,11 +7,15 @@
 
 - pass the build/ directory to the clangd LSP so it knows where to find compile_commands.json
 
-- we don't pass -pty or equivalent to systemd-run which means we don't see the output of a compile happening
+- you can do "save as" on the agent window -- likely we need to gray out/deactivate the menu for read only buffers
 
-- we need an agent interaction type that represents a "terminal" so that if the agent runs a shell command, we can get a live view
-	- example: the python calling toolcall should do this
-	- should draw a nice frame around this as well
+- if we have a dirty file, and try to exit, the save option in the dialog will save the file, but then NOT exit the editor.
+  the desired behavior is save/save all, but then exit.
+
+- exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
+   -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
+
+- in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
 
 - autocomplete for ^KF is terrible, if you type what you want, but there is an autocomplete, you cannot NOT do the autocomplete
   and it always takes an extra enter. we should make <TAB> as indicator that I want to consume the autocomplete
@@ -23,6 +27,7 @@
 
 - next set of tools for agents
     - a fs_mkdir() call to allow the agent to make subdirectories -- should act like "mkdir -p", so recursive
+    - support "**" in the fs_list_dir tool
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
 	- code_lsp_rename
@@ -107,6 +112,11 @@
     - ...
 
 # done items (move items here on completion)
+
+## 23-05-2026
+- we need an agent interaction type that represents a "terminal" so that if the agent runs a shell command, we can get a live view
+	- example: the python calling toolcall should do this
+	- should draw a nice frame around this as well
 
 ## 22-05-2026
 - the build time is getting long; we should consider splitting the meson

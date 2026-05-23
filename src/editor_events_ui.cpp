@@ -47,6 +47,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
+		is_quitting_ = true;
 		
 		// If no windows, just exit
 		if (windows_.empty()) {
