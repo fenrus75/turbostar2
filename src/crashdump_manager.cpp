@@ -128,7 +128,7 @@ void crashdump_manager::generate_report_if_needed(const std::string& crash_dir) 
                         location = m.path.empty() ? "[unknown]" : m.path;
                     }
 
-                    // Strip project root from location if present
+                    // Normalize and strip project root from location if present
                     static std::string repo_root = git_manager::get_instance().get_repository_root();
                     if (repo_root.empty()) {
                         repo_root = fs::current_path().string();
@@ -137,7 +137,23 @@ void crashdump_manager::generate_report_if_needed(const std::string& crash_dir) 
                     if (!prefix.empty() && prefix.back() != '/') {
                         prefix += "/";
                     }
-                    if (location.starts_with(prefix)) {
+
+                    size_t colon_pos = location.find_last_of(':');
+                    if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
+                        std::string file_part = location.substr(0, colon_pos);
+                        std::string line_part = location.substr(colon_pos);
+                        
+                        fs::path p(file_part);
+                        if (!p.is_absolute()) {
+                            p = fs::path(repo_root) / p;
+                        }
+                        file_part = p.lexically_normal().string();
+                        
+                        if (file_part.starts_with(prefix)) {
+                            file_part = file_part.substr(prefix.length());
+                        }
+                        location = file_part + line_part;
+                    } else if (location.starts_with(prefix)) {
                         location = location.substr(prefix.length());
                     }
 
