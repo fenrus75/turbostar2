@@ -50,6 +50,17 @@ public:
 		: doc_(doc), parser_(parser), stop_requested_(stop_flag), auto_scroll_(auto_scroll), line_count_(0) {}
 
 protected:
+	void on_output_chunk(const std::string& chunk) override {
+		line_buffer_ += chunk;
+		size_t pos;
+		while ((pos = line_buffer_.find('\n')) != std::string::npos) {
+			std::string line = line_buffer_.substr(0, pos);
+			if (!line.empty() && line.back() == '\r') line.pop_back();
+			on_output_line(line);
+			line_buffer_ = line_buffer_.substr(pos + 1);
+		}
+	}
+
 	void on_output_line(const std::string& line) override {
 		doc_->append_line(line);
 
@@ -72,12 +83,22 @@ protected:
 		return !stop_requested_.load();
 	}
 
+public:
+    void flush() {
+        if (!line_buffer_.empty()) {
+            if (line_buffer_.back() == '\r') line_buffer_.pop_back();
+            on_output_line(line_buffer_);
+            line_buffer_.clear();
+        }
+    }
+
 private:
 	std::shared_ptr<document> doc_;
 	build_log_parser* parser_;
 	std::atomic<bool>& stop_requested_;
 	std::atomic<bool>& auto_scroll_;
 	int line_count_;
+	std::string line_buffer_;
 };
 
 void process_runner::worker_loop(std::string command)
@@ -85,6 +106,7 @@ void process_runner::worker_loop(std::string command)
 	streaming_command_runner runner(doc_, parser_.get(), stop_requested_, auto_scroll_);
 	runner.apply_build_profile();
 	int exit_code = runner.execute(command + " 2>&1");
+	runner.flush();
 	
 	doc_->append_line("");
 	doc_->append_line("-------------------------------------------------------------------------------");

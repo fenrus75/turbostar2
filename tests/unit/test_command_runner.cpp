@@ -10,6 +10,7 @@ public:
     }
 
 protected:
+    void on_output_chunk(const std::string& /*chunk*/) override {}
     void on_output_line(const std::string& /*line*/) override {
         // Not needed for this test
     }
