@@ -9,16 +9,10 @@
 
 - you can do "save as" on the agent window -- likely we need to gray out/deactivate the menu for read only buffers
 
-- if we have a dirty file, and try to exit, the save option in the dialog will save the file, but then NOT exit the editor.
-  the desired behavior is save/save all, but then exit.
-
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
 
 - in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
-
-- autocomplete for ^KF is terrible, if you type what you want, but there is an autocomplete, you cannot NOT do the autocomplete
-  and it always takes an extra enter. we should make <TAB> as indicator that I want to consume the autocomplete
 
 - when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
 
@@ -114,6 +108,10 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- if we have a dirty file, and try to exit, the save option in the dialog will save the file, but then NOT exit the editor.
+  the desired behavior is save/save all, but then exit.
+- autocomplete for ^KF is terrible, if you type what you want, but there is an autocomplete, you cannot NOT do the autocomplete
+  and it always takes an extra enter. we should make <TAB> as indicator that I want to consume the autocomplete
 - we need an agent interaction type that represents a "terminal" so that if the agent runs a shell command, we can get a live view
 	- example: the python calling toolcall should do this
 	- should draw a nice frame around this as well
