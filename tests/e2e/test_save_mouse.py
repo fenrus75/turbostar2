@@ -7,8 +7,8 @@ from turbostar_runner import TurbostarRunner
 def test_save_mouse():
     runner = TurbostarRunner()
     
-    # Create temp directory manually
-    temp_dir = tempfile.mkdtemp()
+    # Create temp directory manually within current dir
+    temp_dir = tempfile.mkdtemp(dir=os.getcwd())
     file_path = os.path.join(temp_dir, "test_save.txt")
     with open(file_path, "w") as f:
         f.write("Initial\n")

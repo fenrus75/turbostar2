@@ -7,9 +7,9 @@
 
 namespace tools {
 
-class fs_compile_project_tool : public agentlib::llm_tool {
+class fs_run_tests_tool : public agentlib::llm_tool {
 public:
-    fs_compile_project_tool();
+    fs_run_tests_tool();
 
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
@@ -19,10 +19,10 @@ private:
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
 };
 
-class fs_compile_project_validator : public agentlib::tool_validator {
+class fs_run_tests_validator : public agentlib::tool_validator {
 public:
-    std::string get_name() const override { return "fs_compile_project"; }
-    std::string get_description() const override { return "Compiles the entire project and returns the raw console output. Populates the workspace error list. Runs with terminal interaction."; }
+    std::string get_name() const override { return "fs_run_tests"; }
+    std::string get_description() const override { return "Runs the project's test suite and returns the console output. Catch crashes and dumps backtraces. Runs with terminal interaction."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {
@@ -37,7 +37,7 @@ protected:
     }
 
     std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json& /*args*/) const override {
-        return std::make_unique<fs_compile_project_tool>();
+        return std::make_unique<fs_run_tests_tool>();
     }
 };
 

@@ -65,6 +65,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 
 ## 3. Compilation & Diagnostics
 
+### `fs_run_tests`
+*   **Description:** Runs the project's test suite (synchronously) and returns the console output. Catch crashes and dumps backtraces. Runs with terminal interaction.
+*   **Arguments:** None.
+
 ### `fs_compile_project`
 *   **Description:** Compiles the entire project (synchronously) and returns the raw console output. Populates the workspace error list.
 *   **Arguments:** None.
