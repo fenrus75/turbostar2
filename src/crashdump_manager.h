@@ -23,6 +23,9 @@ public:
     std::string refresh(const std::string& project_hash);
     const std::vector<crashdump_info>& get_crashdumps() const;
     std::string get_markdown_table() const;
+    
+    // Deletes all crash dumps from the disk and clears internal state
+    void clear_all();
 
 private:
     crashdump_manager() = default;

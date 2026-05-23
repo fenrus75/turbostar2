@@ -112,8 +112,6 @@ static void write_registers(const char* dir_path, ucontext_t* uc) {
 }
 
 static void write_backtrace(const char* dir_path, ucontext_t* uc) {
-    (void)uc; // We will use unw_getcontext instead for reliability
-
     char filepath[1024] = {0};
     safe_strcpy(filepath, dir_path, sizeof(filepath));
     safe_strcat(filepath, "/stack.bin", sizeof(filepath));
@@ -122,10 +120,9 @@ static void write_backtrace(const char* dir_path, ucontext_t* uc) {
     if (fd < 0) return;
 
     unw_cursor_t cursor;
-    unw_context_t unw_ctx;
-    unw_getcontext(&unw_ctx);
-
-    if (unw_init_local(&cursor, &unw_ctx) < 0) {
+    
+    // We use the ucontext_t provided by the signal handler, which holds the exact state of the crashed thread
+    if (unw_init_local(&cursor, (unw_context_t*)uc) < 0) {
         close(fd);
         return;
     }
