@@ -171,8 +171,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 		if (ev.key_code == KEY_F(2)) {
 			logger.log("Save shortcut pressed.");
-			if (doc && doc->is_read_only()) {
-				logger.log("Cannot save read-only buffer.");
+			if (!doc || doc->is_read_only()) {
+				logger.log("Cannot save read-only or empty buffer.");
 				return;
 			}
 			editor_event save_ev;

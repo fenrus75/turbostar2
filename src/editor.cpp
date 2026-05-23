@@ -186,7 +186,7 @@ void editor::update_window_menu()
 	top_menu_.set_category_items("Window", items);
 
 	auto active_doc = get_active_doc();
-	bool read_only = (active_doc && active_doc->is_read_only());
+	bool read_only = (!active_doc || active_doc->is_read_only());
 	top_menu_.set_item_disabled(event_type::save, read_only);
 	top_menu_.set_item_disabled(event_type::save_as, read_only);
 	top_menu_.set_item_disabled(event_type::save_all, read_only);
@@ -608,6 +608,10 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'a') {
 		logger.log("K-block: Save All");
+		if (active_doc && active_doc->is_read_only()) {
+			logger.log("Cannot save-all read-only buffer via hotkey.");
+			return true;
+		}
 		editor_event ev;
 		ev.type = event_type::save_all;
 		global_queue_.push(ev);
@@ -626,7 +630,6 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'j') {
 		logger.log("K-block: Format Paragraph");
-		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
 			active_doc->format_paragraph();
 		}
@@ -643,7 +646,6 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == '[' || c == '{') {
 		logger.log("K-block: Select Scope");
-		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
 			active_doc->select_enclosing_scope();
 			editor_event redraw_ev;
@@ -652,14 +654,21 @@ bool editor::handle_k_block_key(int key)
 		}
 		return true;
 	} else if (c == 'd' || c == 's') {
-
 		logger.log("K-block: Save File");
+		if (!active_doc || active_doc->is_read_only()) {
+			logger.log("Cannot save read-only or empty buffer via hotkey.");
+			return true;
+		}
 		editor_event ev;
 		ev.type = event_type::save;
 		global_queue_.push(ev);
 		return true;
 	} else if (c == 'w') {
 		logger.log("K-block: Write (Save As)");
+		if (!active_doc || active_doc->is_read_only()) {
+			logger.log("Cannot save-as read-only or empty buffer via hotkey.");
+			return true;
+		}
 		editor_event ev;
 		ev.type = event_type::save_as;
 		global_queue_.push(ev);

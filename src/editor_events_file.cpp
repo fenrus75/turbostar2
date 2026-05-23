@@ -33,8 +33,8 @@ void editor::dispatch_event_file(const editor_event &ev)
 		logger.log("Dispatching save event (Smart Save).");
 		std::shared_ptr<document> active_doc = get_active_doc();
 
-		if (active_doc && active_doc->is_read_only()) {
-			logger.log("Cannot save read-only buffer.");
+		if (!active_doc || active_doc->is_read_only()) {
+			logger.log("Cannot save read-only or empty buffer.");
 			return;
 		}
 	
@@ -95,8 +95,8 @@ void editor::dispatch_event_file(const editor_event &ev)
 		logger.log("Dispatching save_as event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
 
-		if (active_doc && active_doc->is_read_only()) {
-			logger.log("Cannot save-as read-only buffer.");
+		if (!active_doc || active_doc->is_read_only()) {
+			logger.log("Cannot save-as read-only or empty buffer.");
 			return;
 		}
 	
