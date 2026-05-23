@@ -7,7 +7,17 @@
 
 namespace tools {
 
-run_python_tool::run_python_tool(run_python_args args) : args_(std::move(args)) {}
+run_python_tool::run_python_tool(run_python_args args) : args_(std::move(args)) {
+    std::string title = "Python Execution";
+    if (args_.file_path) {
+        title += " (" + *args_.file_path + ")";
+    }
+    interaction_ = std::make_shared<agentlib::interaction_terminal>(title, "Running...");
+}
+
+std::shared_ptr<agentlib::agent_interaction> run_python_tool::get_interaction() const {
+    return interaction_;
+}
 
 bool run_python_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
     if (args_.file_path) {
@@ -95,7 +105,14 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
     }
 
     if (output.empty()) {
-        return "Process finished successfully with no output.";
+        output = "Process finished successfully with no output.";
+    }
+
+    if (interaction_) {
+        interaction_->set_text(output);
+        if (ctx.trigger_ui_update) {
+            ctx.trigger_ui_update();
+        }
     }
 
     return output;

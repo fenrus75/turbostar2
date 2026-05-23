@@ -119,6 +119,10 @@ int main(int argc, char **argv)
 	init_pair(30, COLOR_GREEN + 8, COLOR_BLUE);     // Diff Add (Bright Green on Blue)
 	init_pair(31, COLOR_RED + 8, COLOR_BLUE);       // Diff Delete (Bright Red on Blue)
 	init_pair(32, COLOR_CYAN + 8, COLOR_BLUE);      // Diff Header (Bright Cyan on Blue)
+	init_pair(33, COLOR_YELLOW + 8, COLOR_CYAN);    // Read Lines Pending (Bright Yellow on Cyan)
+	init_pair(34, COLOR_GREEN + 8, COLOR_CYAN);     // Read Lines Success (Bright Green on Cyan)
+	init_pair(35, COLOR_RED + 8, COLOR_CYAN);       // Read Lines Failure (Bright Red on Cyan)
+	init_pair(36, COLOR_WHITE + 8, COLOR_BLACK);    // Terminal Border (Bright White on Black)
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000

@@ -44,6 +44,7 @@ agentlib_sources = files(
   'agentlib/interactions/user_message.cpp',
   'agentlib/interactions/llm_response.cpp',
   'agentlib/interactions/reasoning.cpp',
+  'agentlib/interactions/terminal.cpp',
   'agentlib/interactions/tool_interaction.cpp',
   'agentlib/interactions/system_message.cpp',
   'agentlib/ai_model.cpp',

@@ -2,6 +2,7 @@
 
 #include "base.h"
 #include "action.h"
+#include "terminal.h"
 #include "user_message.h"
 #include "llm_response.h"
 #include "reasoning.h"
