@@ -29,11 +29,7 @@
     	- git_checkout(...)
     	- git_pull()
     	- git_push(force) -- if fource is specified we need to ask the user permission -- maybe always decline for now
-    	- git_add(list of filenames)
     	- git_diff_from_branch(branchname)
-    	- git_status()
-    	- git "what is staged"  (git --no-page diff --stat)
-    	- git_commit(message)
     	- git_create_pr(message)
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
@@ -106,6 +102,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented Phase 2 mutating Git tools: `git_add` (with array path validation), `git_restore`, and `git_commit` (which writes the message to a secure tempfile to avoid shell injection entirely).
 - implemented Phase 1 read-only Git tools: `git_diff_unstaged`, `git_diff_staged`, and `git_log`, providing safe access to sanitized raw patch output.
 - created `fs_utils::is_shell_safe` to strictly filter parameters bound for shell execution using an explicit character allowlist.
 - implemented `fs_mkdir` tool for the agent to recursively create directories like `mkdir -p`.
