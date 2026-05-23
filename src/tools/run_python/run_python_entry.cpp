@@ -1,6 +1,7 @@
 #include "run_python.h"
 #include "../../command_runner.h"
 #include "../../fs_utils.h"
+#include "../../crashdump_manager.h"
 #include "../terminal_command_runner.h"
 #include <filesystem>
 #include <fstream>
@@ -100,12 +101,16 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
         full_cmd = base_cmd + "'" + script_path + "'";
     }
 
+    size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
     runner.execute(full_cmd);
-    std::string output = runner.get_final_output();
     
-    std::string crashdumps = runner.get_new_crashdumps();
-    if (!crashdumps.empty()) {
-        output += "\n\n" + crashdumps;
+    std::string output = runner.get_final_output();
+    runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
+    size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+    
+    if (crashes_after > crashes_before) {
+        output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) + 
+                  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.";
     }
 
     if (output.empty()) {

@@ -1,6 +1,7 @@
 #include "fs_compile_file.h"
 #include "../../fs_utils.h"
 #include "../../config_manager.h"
+#include "../../crashdump_manager.h"
 #include "../terminal_command_runner.h"
 
 namespace tools {
@@ -29,12 +30,16 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context& ctx) {
         return "Error: Cannot find compile command for this file in compile_commands.json.";
     }
 
+    size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
     runner.execute(cmd);
-    std::string output = runner.get_final_output();
     
-    std::string crashdumps = runner.get_new_crashdumps();
-    if (!crashdumps.empty()) {
-        output += "\n\n" + crashdumps;
+    std::string output = runner.get_final_output();
+    runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
+    size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+    
+    if (crashes_after > crashes_before) {
+        output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) + 
+                  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.";
     }
     
     // Cap output at 10,000 characters to protect context window
