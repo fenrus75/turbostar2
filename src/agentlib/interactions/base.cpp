@@ -87,7 +87,9 @@ const std::vector<interaction_line>& agent_interaction::render(int width) const 
 
 std::vector<interaction_line> agent_interaction::wrap_text(const std::string& prefix, const std::string& text, int width, int color_pair) {
     std::vector<interaction_line> lines;
-    if (width <= static_cast<int>(prefix.length()) + 5) {
+    int prefix_utf8_len = markdown_utils::utf8_length(prefix);
+    
+    if (width <= prefix_utf8_len + 5) {
         lines.push_back({prefix + text, color_pair});
         return lines;
     }
@@ -100,8 +102,8 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string& pr
     while (std::getline(ss, line)) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
 
-        std::string current_prefix = first ? prefix : std::string(prefix.length(), ' ');
-        int available_width = width - current_prefix.length();
+        std::string current_prefix = first ? prefix : std::string(prefix_utf8_len, ' ');
+        int available_width = width - prefix_utf8_len;
 
         if (line.empty()) {
             lines.push_back({current_prefix, color_pair});
@@ -109,25 +111,54 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string& pr
             continue;
         }
 
-        size_t start = 0;
-        while (start < line.length()) {
-            size_t len = std::min(static_cast<size_t>(available_width), line.length() - start);
+        size_t byte_idx = 0;
+        while (byte_idx < line.length()) {
+            // Find how many bytes we can consume to fit within available_width characters
+            size_t chunk_byte_len = 0;
+            int chars_consumed = 0;
+            size_t last_space_byte_idx = std::string::npos;
+            size_t last_space_chars = 0;
             
-            // Try to break at space if not at end of line
-            if (start + len < line.length()) {
-                size_t space = line.find_last_of(" \t", start + len);
-                if (space != std::string::npos && space > start) {
-                    len = space - start;
+            size_t peek_idx = byte_idx;
+            while (peek_idx < line.length() && chars_consumed < available_width) {
+                unsigned char c = static_cast<unsigned char>(line[peek_idx]);
+                size_t char_bytes = 1;
+                if ((c & 0xE0) == 0xC0) char_bytes = 2;
+                else if ((c & 0xF0) == 0xE0) char_bytes = 3;
+                else if ((c & 0xF8) == 0xF0) char_bytes = 4;
+                
+                if (peek_idx + char_bytes > line.length()) {
+                    char_bytes = line.length() - peek_idx; // Malformed UTF-8 fallback
                 }
+
+                if (c == ' ' || c == '\t') {
+                    last_space_byte_idx = peek_idx;
+                    last_space_chars = chars_consumed;
+                }
+
+                peek_idx += char_bytes;
+                chars_consumed++;
+                chunk_byte_len += char_bytes;
             }
 
-            lines.push_back({current_prefix + line.substr(start, len), color_pair});
-            start += len;
-            while (start < line.length() && (line[start] == ' ' || line[start] == '\t')) {
-                start++;
+            // If we hit the width limit, but the line continues, try to break at the last space
+            if (peek_idx < line.length() && last_space_byte_idx != std::string::npos && last_space_byte_idx > byte_idx) {
+                chunk_byte_len = last_space_byte_idx - byte_idx;
+                chars_consumed = last_space_chars;
             }
-            current_prefix = std::string(prefix.length(), ' ');
-            available_width = width - current_prefix.length();
+
+            if (chunk_byte_len == 0) break; // Safety net
+
+            lines.push_back({current_prefix + line.substr(byte_idx, chunk_byte_len), color_pair});
+            
+            byte_idx += chunk_byte_len;
+            
+            // Skip trailing spaces for the next wrapped line
+            while (byte_idx < line.length() && (line[byte_idx] == ' ' || line[byte_idx] == '\t')) {
+                byte_idx++;
+            }
+
+            current_prefix = std::string(prefix_utf8_len, ' ');
             first = false;
         }
     }
