@@ -609,9 +609,12 @@ void editor::launch_inline_agent(const std::string &prompt)
 	system_prompt += "\nInstructions:\n"
 		"1. Use tool calls to perform the task. Do NOT provide a conversational response text.\n"
 		"2. Use 'fs_read_lines' to read the target range and surrounding context if needed.\n"
-		"3. Use 'fs_replace_lines' to modify the code in the target range. Prefer surgical edits.\n"
-		"4. Use 'agent_set_status' to provide brief status updates (e.g., 'Analyzing...', 'Applying fixes...').\n"
-		"5. When finished, provide a final status update (e.g., 'Reformatted function.') and then simply stop. Do not ask for further instructions.";
+		"3. For code refactoring: Use 'fs_replace_lines' to modify the code in the target range. Prefer surgical edits.\n"
+		"4. For spell checking/reviews: Use 'flag_as_error' to highlight spelling and grammatical mistakes. "
+		"Use 'error' (is_warning=false) for spelling mistakes and 'warning' (is_warning=true) for grammatical improvements. "
+		"Include the suggested improvement in the 'error_string' argument.\n"
+		"5. Use 'agent_set_status' to provide brief status updates (e.g., 'Analyzing...', 'Applying fixes...').\n"
+		"6. When finished, provide a final status update (e.g., 'Reformatted function.') and then simply stop. Do not ask for further instructions.";
 
 	agent->inject_context("system", system_prompt);
 	agent->submit_prompt(prompt);

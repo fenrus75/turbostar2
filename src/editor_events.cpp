@@ -97,6 +97,13 @@ bool editor::handle_p_block_key(int key)
 		ev.payload = "Complete the function framework and any TODOs in the target range, removing completed TODO comments.";
 		global_queue_.push(ev);
 		return true;
+	} else if (c == 's') {
+		logger.log("P-block: Spell Check");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Spell check the target range. For code, focus on comments and strings. For non-code, check everything.";
+		global_queue_.push(ev);
+		return true;
 	} else if (c == 'u') {
 		logger.log("P-block: Custom Prompt");
 		is_inline_agent_prompt_ = true;

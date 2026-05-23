@@ -780,7 +780,7 @@ void editor::render()
 	} else if (q_block_mode_) {
 		status_help = "Q-Block: F:Find A:Replace";
 	} else if (p_block_mode_) {
-		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (U)ser: _";
+		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (S)pell (U)ser: _";
 	} else if (is_inline_agent_prompt_) {
 		status_help = "Agent Task: " + inline_agent_input_buffer_ + "_";
 	} else if (is_searching_prompt_) {
