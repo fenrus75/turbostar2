@@ -53,6 +53,8 @@ tools_sources = files(
   'fs_file_size/fs_file_size_security.cpp',
   'fs_list_dir/fs_list_dir_entry.cpp',
   'fs_list_dir/fs_list_dir_security.cpp',
+  'fs_mkdir/fs_mkdir_entry.cpp',
+  'fs_mkdir/fs_mkdir_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
   'fs_read_lines/fs_read_lines_security.cpp',
   'fs_read_binary/fs_read_binary_entry.cpp',

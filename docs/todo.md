@@ -20,7 +20,6 @@
   This is essential for reviewing automated edits from inline agent operations.
 
 - next set of tools for agents
-    - a fs_mkdir() call to allow the agent to make subdirectories -- should act like "mkdir -p", so recursive
     - support "**" in the fs_list_dir tool
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
@@ -108,6 +107,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `fs_mkdir` tool for the agent to recursively create directories like `mkdir -p`.
 - if we have a dirty file, and try to exit, the save option in the dialog will save the file, but then NOT exit the editor.
   the desired behavior is save/save all, but then exit.
 - autocomplete for ^KF is terrible, if you type what you want, but there is an autocomplete, you cannot NOT do the autocomplete
