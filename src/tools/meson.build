@@ -83,6 +83,8 @@ tools_sources = files(
   'git_diff_from_branch/git_diff_from_branch_security.cpp',
   'git_pull/git_pull_entry.cpp',
   'git_pull/git_pull_security.cpp',
+  'git_push/git_push_entry.cpp',
+  'git_push/git_push_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
   'fs_read_lines/fs_read_lines_security.cpp',
   'fs_read_binary/fs_read_binary_entry.cpp',

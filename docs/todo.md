@@ -25,10 +25,9 @@
         - a set of LSP tools to help code navigation
     	- code_lsp_rename
         - a set of git ops
-    	- git_branch(branchname)
-    	- git_push(force) -- if fource is specified we need to ask the user permission -- maybe always decline for now
-    	- git_create_pr(message)
-    - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
+    	- a set of git ops
+    		- git_create_pr(message)
+    	- gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
     - web_fetch(URI)
 	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
@@ -63,6 +62,8 @@
 
 
 # mid term items
+
+- support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 
 - the whole coredump approach needs a rethink, the world is 100x more complex than assumed
 
@@ -99,6 +100,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `git_push` tool. Force pushing is currently explicitly rejected in the schema validator.
 - implemented Phase 3 Git tools: `git_checkout_branch`, `git_diff_from_branch`, and `git_pull`, ensuring all branch arguments strictly pass `fs_utils::is_shell_safe`.
 - implemented `git_unstage` using `git restore --staged -- <paths>` with a fallback to `git reset HEAD`, handling new/empty repositories properly.
 - implemented `git_init` tool with security checks to prevent running if a `.git` directory already exists.
