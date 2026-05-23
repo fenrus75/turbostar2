@@ -46,6 +46,7 @@ bool run_python_tool::validate_runtime(const agentlib::tool_context& ctx, std::s
 std::string run_python_tool::execute(agentlib::tool_context& ctx) {
     live_python_runner runner(interaction_, ctx.trigger_ui_update);
     runner.apply_strict_agent_profile();
+    runner.set_enable_crash_catcher(true);
     runner.set_project_dir(ctx.fs_security.get_working_directory().string());
     
     // Allow uv cache explicitly if it exists
