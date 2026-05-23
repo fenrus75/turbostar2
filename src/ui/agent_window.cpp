@@ -4,6 +4,7 @@
 #include "git_manager.h"
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
+#include "markdown_utils.h"
 #include <ncurses.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -144,15 +145,32 @@ void agent_window::draw_content() const {
             
             if (rendered_lines >= available_height) break;
 
+            int current_x = start_x;
+
+            if (!line_it->prefix.empty()) {
+                attron(COLOR_PAIR(line_it->prefix_color_pair));
+                mvprintw(current_y, current_x, "%s", line_it->prefix.c_str());
+                attroff(COLOR_PAIR(line_it->prefix_color_pair));
+                current_x += markdown_utils::utf8_length(line_it->prefix);
+            }
+
             attron(COLOR_PAIR(line_it->color_pair));
             
             std::string display_text = line_it->text;
-            if (display_text.length() > static_cast<size_t>(max_width)) {
-                display_text = display_text.substr(0, max_width);
+            // Provide a rough safety bound
+            if (display_text.length() > static_cast<size_t>(max_width) * 4) { 
+                display_text = display_text.substr(0, max_width * 4);
             }
             
-            mvprintw(current_y, start_x, "%s", display_text.c_str());
+            mvprintw(current_y, current_x, "%s", display_text.c_str());
             attroff(COLOR_PAIR(line_it->color_pair));
+            current_x += markdown_utils::utf8_length(line_it->text);
+
+            if (!line_it->suffix.empty()) {
+                attron(COLOR_PAIR(line_it->suffix_color_pair));
+                mvprintw(current_y, current_x, "%s", line_it->suffix.c_str());
+                attroff(COLOR_PAIR(line_it->suffix_color_pair));
+            }
             
             attron(COLOR_PAIR(get_background_color_pair())); // restore bg
             

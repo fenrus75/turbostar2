@@ -1,4 +1,5 @@
 #include "base.h"
+#include "../../markdown_utils.h"
 #include <algorithm>
 #include <sstream>
 
@@ -10,7 +11,55 @@ int agent_interaction::get_height(int width) const {
 
 const std::vector<interaction_line>& agent_interaction::render(int width) const {
     if (width != cached_width_) {
-        cached_lines_ = format_lines(width);
+        if (!is_boxed_) {
+            cached_lines_ = format_lines(width);
+        } else {
+            int inner_width = width - 4;
+            if (inner_width < 10) inner_width = 10;
+            
+            std::vector<interaction_line> inner_lines = format_lines(inner_width);
+            cached_lines_.clear();
+            
+            // Single line box drawing characters
+            std::string top_left = "\xE2\x94\x8C";
+            std::string horiz = "\xE2\x94\x80";
+            std::string top_right = "\xE2\x94\x90";
+            std::string vert = "\xE2\x94\x82";
+            std::string bot_left = "\xE2\x94\x94";
+            std::string bot_right = "\xE2\x94\x98";
+
+            std::string top_border = top_left;
+            for (int i = 0; i < inner_width + 2; ++i) top_border += horiz;
+            top_border += top_right;
+            
+            interaction_line top_line;
+            top_line.text = top_border;
+            top_line.color_pair = box_color_pair_;
+            cached_lines_.push_back(top_line);
+            
+            for (const auto& line : inner_lines) {
+                int content_len = markdown_utils::utf8_length(line.text);
+                int pad_len = inner_width - content_len;
+                if (pad_len < 0) pad_len = 0;
+                
+                interaction_line boxed_line = line;
+                boxed_line.prefix = vert + " ";
+                boxed_line.prefix_color_pair = box_color_pair_;
+                boxed_line.suffix = std::string(pad_len, ' ') + " " + vert;
+                boxed_line.suffix_color_pair = box_color_pair_;
+                
+                cached_lines_.push_back(boxed_line);
+            }
+
+            std::string bot_border = bot_left;
+            for (int i = 0; i < inner_width + 2; ++i) bot_border += horiz;
+            bot_border += bot_right;
+            
+            interaction_line bot_line;
+            bot_line.text = bot_border;
+            bot_line.color_pair = box_color_pair_;
+            cached_lines_.push_back(bot_line);
+        }
         cached_width_ = width;
     }
     return cached_lines_;

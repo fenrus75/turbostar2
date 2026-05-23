@@ -26,6 +26,10 @@ By default, the `ai_agent` provides a simple text-based interaction for tool cal
 1. **`llm_tool::get_interaction()`**: The `tool_registry::prepare_tool` pipeline instantiates the tool before execution. The `ai_agent` checks if the tool returns a custom `agent_interaction`. If provided, this custom interaction replaces the default UI logging.
 2. **Dynamic UI Updates**: The `ai_agent` injects a `trigger_ui_update` callback into the `tool_context`. During a long-running `llm_tool::execute()` method, the tool can mutate its custom interaction object and invoke `ctx.trigger_ui_update()` to force the TUI to redraw the screen immediately, all without blocking the main event thread.
 
+### Visual Styling
+The `agent_interaction` base class supports styling options:
+- **Box Framing (`is_boxed_`)**: Interactions can be configured to render inside a single-line ASCII box. This is handled at the base class level via `set_boxed(true, color_pair)`. The `render()` pipeline automatically draws the `┌─┐` borders, vertical walls, and recalculates the internal wrapping width, allowing complex elements (like tables or tool outputs) to sit neatly inside a visual boundary without needing to implement their own boxing logic.
+
 ## Transport and Testing Layer
 The agent uses a pluggable transport layer (implementing `llm_transport`) to facilitate network communication and enable deterministic End-to-End testing.
 

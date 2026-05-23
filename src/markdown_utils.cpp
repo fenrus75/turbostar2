@@ -106,7 +106,7 @@ std::string table_aligner::trim(const std::string& s) {
     return s.substr(first, (last - first + 1));
 }
 
-size_t table_aligner::utf8_length(const std::string& s) {
+size_t utf8_length(const std::string& s) {
     size_t offset = 0;
     size_t chars = 0;
     while (offset < s.length()) {
