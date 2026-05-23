@@ -157,6 +157,7 @@ For end-to-end (E2E) tests that involve complex content manipulation (e.g., bloc
 1.  **`assert_content_is(reference_file)`**: This primitive triggers a "Save As" operation within the editor to a temporary file and compares the resulting disk content against a "golden" reference file in `tests/data/`.
 2.  **Why**: Comparing whole-file content on disk is significantly more robust than screen-scraping, as it is immune to scrolling issues, viewport limitations, and TUI rendering artifacts.
 3.  **Diff Diagnostics**: If a mismatch occurs, the testing framework automatically prints a `diff -u` style output to the console to facilitate rapid debugging.
+le output to the console to facilitate rapid debugging.
 
 ## LLM Agent Security & Validation
 

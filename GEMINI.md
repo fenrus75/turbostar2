@@ -27,7 +27,6 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 | `general-c++.md` | C++20 coding guidelines and rules. |
 | `joe-keys.md` | Reference for the "joe" dialect Wordstar keybindings. |
 | `keybindings.md` | Complete list of implemented keyboard shortcuts. |
-| `llmtools.md` | Architecture and security model for the LLM tool infrastructure. |
 | `release-checklist.md` | Step-by-step checklist for releases and RCs. |
 | `sandbox.md` | Details the systemd-based sandboxing and security strategy. |
 | `style.md` | C++ coding style guide and formatting conventions. |
@@ -41,6 +40,15 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
    - Re-read the file before working on TODO items or evaluating what to
      work on next.
    - Re-read the file after completion of a TODO item.
+- Move completed items to the Done section.
+   - Re-read the todo.md file before doing the edit!
+- Add any items deferred during other activities to the short-term section.
+
+# Dependencies
+- CLI11 (header-only) for command-line parsing.
+
+
+tem.
 - Move completed items to the Done section.
    - Re-read the todo.md file before doing the edit!
 - Add any items deferred during other activities to the short-term section.
