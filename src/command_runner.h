@@ -23,6 +23,7 @@ public:
     void add_extra_rw_path(const std::string& path) { extra_rw_paths_.push_back(path); }
     void add_extra_ro_path(const std::string& path) { extra_ro_paths_.push_back(path); }
     void set_bypass_coredump_check(bool bypass) { bypass_coredump_check_ = bypass; }
+    void set_use_pty(bool use_pty) { use_pty_ = use_pty; }
 
     // Pre-defined Security Profiles
     void apply_default_profile();
@@ -81,6 +82,7 @@ private:
     std::vector<std::string> extra_rw_paths_;
     std::vector<std::string> extra_ro_paths_;
     bool bypass_coredump_check_{false};
+    bool use_pty_{false};
     std::string last_coredumps_report_;
 };
 

@@ -64,7 +64,13 @@ std::string command_runner::build_command(const std::string& raw_command) const 
     std::string random_suffix = std::to_string(rand() % 1000000);
     std::string unit_name = "turbostar-project-" + project_hash_ + "-" + random_suffix;
 
-    std::string cmd = "systemd-run --user --pipe --wait --quiet ";
+    std::string cmd = "systemd-run --user ";
+    if (use_pty_) {
+        cmd += "--pty ";
+    } else {
+        cmd += "--pipe ";
+    }
+    cmd += "--wait --quiet ";
     cmd += "--unit=" + unit_name + " ";
     cmd += "-p ProtectSystem=strict ";
     cmd += "-p PrivateTmp=true ";
