@@ -39,7 +39,12 @@ agentlib_sources = files(
   'agentlib/replay_transport.cpp',
   'agentlib/file_security_manager.cpp',
   'agentlib/virtual_file_system.cpp',
-  'agentlib/agent_interaction.cpp',
+  'agentlib/interactions/base.cpp',
+  'agentlib/interactions/user_message.cpp',
+  'agentlib/interactions/llm_response.cpp',
+  'agentlib/interactions/reasoning.cpp',
+  'agentlib/interactions/tool_interaction.cpp',
+  'agentlib/interactions/system_message.cpp',
   'agentlib/ai_model.cpp',
   'agentlib/skill_manager.cpp'
 )

@@ -9,7 +9,7 @@
 #include "llm_client.h"
 #include "tool_registry.h"
 #include "document_provider.h"
-#include "agent_interaction.h"
+#include "interactions/interactions.h"
 #include "ai_model.h"
 
 class event_queue;
