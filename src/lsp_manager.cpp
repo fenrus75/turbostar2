@@ -1,4 +1,5 @@
 #include "lsp_manager.h"
+#include "config_manager.h"
 #include <iostream>
 #include <future>
 #include <lsp/connection.h>
@@ -159,7 +160,8 @@ lsp_manager::server_instance* lsp_manager::get_server_for_file(const std::string
 
 	// Try to start the server on demand
 	if (lang_id == "cpp") {
-		start_server("clangd", {"-log=error"}, "cpp");
+		std::string build_dir = config_manager::get_instance().get_build_directory();
+		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir}, "cpp");
 	} else if (lang_id == "python") {
 		start_server("pylsp", {}, "python");
 	}

@@ -5,8 +5,6 @@
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
 
-- pass the build/ directory to the clangd LSP so it knows where to find compile_commands.json
-
 - you can do "save as" on the agent window -- likely we need to gray out/deactivate the menu for read only buffers
 
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
@@ -100,6 +98,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- passed the build directory (via `config_manager::get_instance().get_build_directory()`) to the `clangd` LSP using the `--compile-commands-dir` flag so it correctly locates `compile_commands.json`.
 - implemented `git_push` tool. Force pushing is currently explicitly rejected in the schema validator.
 - implemented Phase 3 Git tools: `git_checkout_branch`, `git_diff_from_branch`, and `git_pull`, ensuring all branch arguments strictly pass `fs_utils::is_shell_safe`.
 - implemented `git_unstage` using `git restore --staged -- <paths>` with a fallback to `git reset HEAD`, handling new/empty repositories properly.
