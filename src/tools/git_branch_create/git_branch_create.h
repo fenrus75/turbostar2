@@ -2,6 +2,7 @@
 #include <string>
 #include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/single_string_tool_validator.h"
+#include "../../fs_utils.h"
 
 namespace tools {
 
@@ -27,26 +28,10 @@ public:
     
 protected:
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& /*ctx*/, std::string& out_error) const override {
-        // Strict sanity check on branch name to prevent shell escapes and invalid git names
-        if (arg.empty()) {
-            out_error = "Branch name cannot be empty.";
+        if (!fs_utils::is_shell_safe(arg)) {
+            out_error = "Branch name contains invalid or unsafe shell characters.";
             return false;
         }
-        
-        // Allowed characters: alphanumeric, hyphen, underscore, slash, dot
-        for (char c : arg) {
-            if (!std::isalnum(c) && c != '-' && c != '_' && c != '/' && c != '.') {
-                out_error = "Branch name contains invalid characters. Only alphanumeric, -, _, /, and . are allowed.";
-                return false;
-            }
-        }
-        
-        // Prevent directory traversal or strange starting sequences
-        if (arg.find("..") != std::string::npos || arg.front() == '-' || arg.front() == '/') {
-            out_error = "Branch name cannot contain '..' or start with '-' or '/'.";
-            return false;
-        }
-
         return true;
     }
     

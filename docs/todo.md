@@ -20,22 +20,21 @@
   This is essential for reviewing automated edits from inline agent operations.
 
 - next set of tools for agents
-    - support "**" in the fs_list_dir tool
-    - request-access-to-denied file (to add to the security manager, will ask the user)
-    - a set of LSP tools to help code navigation
-	- code_lsp_rename
-    - a set of git ops
-	- git_branch(branchname)
-	- git_checkout(...)
-	- git_pull()
-	- git_push(force) -- if fource is specified we need to ask the user permission -- maybe always decline for now
-	- git_add(list of filenames)
-	- git_diff_from_branch(branchname)
-	- git_diff (uncommitted changes list)
-	- git_status()
-	- git "what is staged"  (git --no-page diff --stat)
-	- git_commit(message)
-	- git_create_pr(message)
+    - next set of tools for agents
+        - request-access-to-denied file (to add to the security manager, will ask the user)
+        - a set of LSP tools to help code navigation
+    	- code_lsp_rename
+        - a set of git ops
+    	- git_branch(branchname)
+    	- git_checkout(...)
+    	- git_pull()
+    	- git_push(force) -- if fource is specified we need to ask the user permission -- maybe always decline for now
+    	- git_add(list of filenames)
+    	- git_diff_from_branch(branchname)
+    	- git_status()
+    	- git "what is staged"  (git --no-page diff --stat)
+    	- git_commit(message)
+    	- git_create_pr(message)
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
     - web_fetch(URI)
@@ -107,6 +106,8 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented Phase 1 read-only Git tools: `git_diff_unstaged`, `git_diff_staged`, and `git_log`, providing safe access to sanitized raw patch output.
+- created `fs_utils::is_shell_safe` to strictly filter parameters bound for shell execution using an explicit character allowlist.
 - implemented `fs_mkdir` tool for the agent to recursively create directories like `mkdir -p`.
 - if we have a dirty file, and try to exit, the save option in the dialog will save the file, but then NOT exit the editor.
   the desired behavior is save/save all, but then exit.

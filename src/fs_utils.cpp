@@ -211,6 +211,25 @@ namespace fs_utils {
 		return true;
 	}
 
+	bool is_shell_safe(const std::string& s) {
+		if (s.empty()) return false;
+		
+		// Prevent directory traversal or flag injection at the start
+		if (s.find("..") != std::string::npos || s.front() == '-') {
+			return false;
+		}
+
+		// Strict allowlist: Alphanumeric, slash, dot, underscore, hyphen, equals, colon, plus, comma, at-sign.
+		// Explicity excludes: Space, quote marks, ampersand, pipe, redirect, semicolon, backtick, dollar, braces, etc.
+		for (char c : s) {
+			if (!std::isalnum(c) && c != '/' && c != '.' && c != '_' && c != '-' && 
+			    c != '=' && c != ':' && c != '+' && c != ',' && c != '@') {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool is_safe_for_ui(const std::string& s) {
 		for (unsigned char c : s) {
 			// Reject control characters (0-31), including ESC (27)
