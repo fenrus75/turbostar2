@@ -376,8 +376,30 @@ void ai_agent::start_processing() {
                         is_silent = false;
                     }
 
+                    // Provide UI update callback for long-running tools
+                    ctx.trigger_ui_update = [this_ptr = self.get()]() {
+                        if (this_ptr->global_queue_) {
+                            editor_event ev;
+                            ev.type = event_type::agent_tool_update;
+                            ev.key_code = this_ptr->id_;
+                            this_ptr->global_queue_->push(ev);
+                        }
+                    };
+
+                    auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
+                    std::string tool_result;
+                    std::shared_ptr<agent_interaction> custom_interaction;
+
+                    if (prep.tool) {
+                        custom_interaction = prep.tool->get_interaction();
+                    }
+
                     if (!is_silent) {
-                        self->add_interaction(std::make_shared<interaction_tool_call>(call.function.name + "(" + arg_preview + ")"));
+                        if (custom_interaction) {
+                            self->add_interaction(custom_interaction);
+                        } else {
+                            self->add_interaction(std::make_shared<interaction_tool_call>(call.function.name + "(" + arg_preview + ")"));
+                        }
                         if (self->global_queue_) {
                             editor_event tool_ev;
                             tool_ev.type = event_type::agent_tool_update;
@@ -386,10 +408,18 @@ void ai_agent::start_processing() {
                         }
                     }
 
-                    std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
-                    
+                    if (!prep.error_message.empty()) {
+                        tool_result = prep.error_message;
+                    } else {
+                        try {
+                            tool_result = prep.tool->execute(ctx);
+                        } catch (const std::exception& e) {
+                            tool_result = "Execution Error: " + std::string(e.what());
+                        }
+                    }
+
                     std::string result_preview = tool_result;
-                    if (result_preview.find("Stage 1 Security Violation:") != 0 && 
+                    if (result_preview.find("Stage 1 Security Violation:") != 0 &&
                         result_preview.find("Execution Error:") != 0 &&
                         result_preview.find("Error parsing tool arguments:") != 0) {
                         size_t newline_pos = result_preview.find('\n');
@@ -400,8 +430,8 @@ void ai_agent::start_processing() {
                             result_preview = result_preview.substr(0, 297) + "...";
                         }
                     }
-                    
-                    if (!is_silent) {
+
+                    if (!is_silent && !custom_interaction) {
                         self->add_interaction(std::make_shared<interaction_tool_result>(result_preview));
                         if (self->global_queue_) {
                             editor_event result_ev;
@@ -410,9 +440,8 @@ void ai_agent::start_processing() {
                             self->global_queue_->push(result_ev);
                         }
                     }
-                    
-                    message tool_msg;
-                    tool_msg.role = "tool";
+
+                    message tool_msg;                    tool_msg.role = "tool";
                     tool_msg.content = tool_result;
                     tool_msg.name = call.function.name;
                     tool_msg.tool_call_id = call.id;

@@ -44,52 +44,69 @@ bool tool_registry::is_tool_silent(const std::string& name) const {
     return false;
 }
 
-std::string tool_registry::execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const {
+tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const {
+    tool_preparation_result res;
     auto it = validator_factories_.find(name);
     if (it == validator_factories_.end()) {
-        return "Error: tool not found.";
+        res.error_message = "Error: tool not found.";
+        return res;
     }
 
     // Create a transient validator instance for this execution to ensure thread-safe state!
     auto validator = it->second();
 
     if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
-        return "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+        res.error_message = "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+        return res;
     }
 
     nlohmann::json args;
     try {
         args = nlohmann::json::parse(args_json_string);
     } catch (const std::exception& e) {
-        return "Error parsing tool arguments: " + std::string(e.what());
+        res.error_message = "Error parsing tool arguments: " + std::string(e.what());
+        return res;
     }
 
     // Stage 1 Security: Pre-invocation validation
     std::string security_error;
-    std::unique_ptr<agentlib::llm_tool> tool;
     
     try {
         if (!validator->validate_args(args, ctx, security_error)) {
-            return "Stage 1 Security Violation: " + security_error;
+            res.error_message = "Stage 1 Security Violation: " + security_error;
+            return res;
         }
 
         // Create the tool instance (will fail if validate_args wasn't called)
-        tool = validator->create_tool(args);
-        if (!tool) {
-            return "Error: Failed to instantiate tool. Validation state invalid.";
+        res.tool = validator->create_tool(args);
+        if (!res.tool) {
+            res.error_message = "Error: Failed to instantiate tool. Validation state invalid.";
+            return res;
         }
     } catch (const std::exception& e) {
-        return "Error parsing tool arguments: " + std::string(e.what());
+        res.error_message = "Error parsing tool arguments: " + std::string(e.what());
+        return res;
     }
 
     // Stage 2 Security: Runtime/Contextual validation
-    if (!tool->validate_runtime(ctx, security_error)) {
-        return "Stage 2 Security Violation: " + security_error;
+    if (!res.tool->validate_runtime(ctx, security_error)) {
+        res.error_message = "Stage 2 Security Violation: " + security_error;
+        res.tool.reset();
+        return res;
     }
 
+    return res;
+}
+
+std::string tool_registry::execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const {
+    auto prep = prepare_tool(name, args_json_string, ctx);
+    if (!prep.error_message.empty()) {
+        return prep.error_message;
+    }
+    
     // Execution
     try {
-        return tool->execute(ctx);
+        return prep.tool->execute(ctx);
     } catch (const std::exception& e) {
         return "Execution Error: " + std::string(e.what());
     }

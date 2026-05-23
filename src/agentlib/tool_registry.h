@@ -24,7 +24,15 @@ public:
     // Checks if the tool should be silent in the UI by default
     bool is_tool_silent(const std::string& name) const;
 
-    // Executes the two-stage security and execution pipeline
+    struct tool_preparation_result {
+        std::unique_ptr<llm_tool> tool;
+        std::string error_message; // If non-empty, preparation failed
+    };
+
+    // Performs parsing, Stage 1, and Stage 2 validation without executing
+    tool_preparation_result prepare_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const;
+
+    // Executes the two-stage security and execution pipeline (Legacy / Convenience)
     std::string execute_tool(const std::string& name, const std::string& args_json_string, tool_context& ctx) const;
 
 private:

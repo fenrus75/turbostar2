@@ -16,9 +16,15 @@ The `interactions` subsystem acts as the ViewModel bridging the gap between raw 
 - **Subclasses**:
   - `user_message`: Represents user input.
   - `llm_response`: The textual output from the LLM.
-  - `tool_interaction`: Visualizes a tool call (e.g., showing what tool was run, the arguments, and the result).
+  - `tool_interaction`: Visualizes a tool call.
   - `system_message`: System-level prompts and context injected into the context window.
   - `reasoning`: Handles display of the agent's internal thought process/reasoning steps, if supported by the model.
+
+### Custom Tool Interactions
+By default, the `ai_agent` provides a simple text-based interaction for tool calls and results. However, tools can take over their own UI representation to provide rich, dynamic feedback (like progress bars or formatted diffs) during execution:
+
+1. **`llm_tool::get_interaction()`**: The `tool_registry::prepare_tool` pipeline instantiates the tool before execution. The `ai_agent` checks if the tool returns a custom `agent_interaction`. If provided, this custom interaction replaces the default UI logging.
+2. **Dynamic UI Updates**: The `ai_agent` injects a `trigger_ui_update` callback into the `tool_context`. During a long-running `llm_tool::execute()` method, the tool can mutate its custom interaction object and invoke `ctx.trigger_ui_update()` to force the TUI to redraw the screen immediately, all without blocking the main event thread.
 
 ## Transport and Testing Layer
 The agent uses a pluggable transport layer (implementing `llm_transport`) to facilitate network communication and enable deterministic End-to-End testing.
