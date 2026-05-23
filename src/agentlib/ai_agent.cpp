@@ -177,6 +177,10 @@ std::vector<std::shared_ptr<ai_agent>> ai_agent::get_subagents() const {
 
 void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction) {
     std::lock_guard<std::mutex> lock(state_mutex_);
+    for (auto& existing : interactions_) {
+        existing->set_age(existing->get_age() + 1);
+    }
+    interaction->set_age(0);
     interactions_.push_back(std::move(interaction));
 }
 
@@ -433,6 +437,14 @@ void ai_agent::start_processing() {
 
                     if (!is_silent && !custom_interaction) {
                         self->add_interaction(std::make_shared<interaction_tool_result>(result_preview));
+                        if (self->global_queue_) {
+                            editor_event result_ev;
+                            result_ev.type = event_type::agent_tool_update;
+                            result_ev.key_code = self->id_;
+                            self->global_queue_->push(result_ev);
+                        }
+                    } else if (!is_silent && custom_interaction) {
+                        // Force a redraw so the final status of the custom interaction (e.g. checkmark) is visible
                         if (self->global_queue_) {
                             editor_event result_ev;
                             result_ev.type = event_type::agent_tool_update;

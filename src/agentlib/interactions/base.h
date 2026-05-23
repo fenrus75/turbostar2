@@ -33,6 +33,14 @@ public:
         invalidate_cache();
     }
 
+    int get_age() const { return age_; }
+    virtual void set_age(int age) { 
+        if (age_ != age) {
+            age_ = age; 
+            invalidate_cache(); 
+        }
+    }
+
 protected:
     virtual std::vector<interaction_line> format_lines(int width) const = 0;
 
@@ -45,6 +53,7 @@ private:
     bool is_boxed_ = false;
     int box_color_pair_ = 5;
     std::string box_title_;
+    int age_ = 0;
 };
 
 } // namespace agentlib
