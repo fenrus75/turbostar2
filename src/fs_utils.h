@@ -33,6 +33,17 @@ namespace fs_utils {
 	std::string get_project_db_dir();
 
 	/**
+	 * @brief Returns a safe, project-specific directory for temporary files (avoiding /tmp which is sandboxed).
+	 * Resolves to ~/.cache/turbostar/projects/<hash>/tmp/ and creates the directory if it doesn't exist.
+	 */
+	std::string get_project_tmp_dir();
+
+	/**
+	 * @brief Returns a safe, project-specific directory for storing crash dumps.
+	 * Resolves to ~/.cache/turbostar/projects/<hash>/dumps/ and creates the directory if it doesn't exist.
+	 */
+	std::string get_project_dump_dir();
+	/**
 	 * @brief Validates a database name against a strict whitelist (a-zA-Z0-9_-).
 	 * Prevents directory traversal, spaces, SQL injection payloads, and file extensions.
 	 */

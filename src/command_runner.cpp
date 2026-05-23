@@ -1,6 +1,7 @@
 #include "command_runner.h"
 #include "config_manager.h"
 #include "coredump_manager.h"
+#include "fs_utils.h"
 #include <array>
 #include <cstdio>
 #include <iostream>
@@ -113,6 +114,24 @@ std::string command_runner::build_command(const std::string& raw_command) const 
         }
     }
 
+    // Only inject dump dirs and LD_PRELOAD if we are actually sandboxing AND
+    // the caller explicitly opted into the LD_PRELOAD crash catcher.
+    // This breaks recursion loops where internal profiles (git rev-parse)
+    // bypass the sandbox but used to still call get_project_dump_dir().
+    if (!bypass_sandbox_ && enable_crash_catcher_) {
+        std::string dump_dir = fs_utils::get_project_dump_dir();
+        if (home_access_ == home_access_t::hidden) {
+            cmd += "-p BindPaths=" + dump_dir + " ";
+        } else {
+            cmd += "-p ReadWritePaths=" + dump_dir + " ";
+        }
+        
+        // Inject the LD_PRELOAD crash handler
+        std::string lib_path = fs::absolute(fs::path("build") / "libturbocatch.so").string();
+        cmd += "-p Environment=\"LD_PRELOAD=" + lib_path + "\" ";
+        cmd += "-p Environment=\"TURBOSTAR_DUMP_DIR=" + dump_dir + "\" ";
+    }
+
     for (const auto& p : extra_rw_paths_) {
         cmd += "-p ReadWritePaths=" + p + " ";
     }
@@ -179,9 +198,9 @@ int command_runner::execute(const std::string& command) {
         return -1; // Failed to start
     }
 
+#include <unistd.h> // needed for read()
     int fd = fileno(pipe);
-    std::array<char, 256> buffer;
-    std::string current_line;
+    std::array<char, 4096> buffer; // Larger buffer for raw reads
 
     while (should_continue()) {
         struct pollfd pfd;
@@ -196,31 +215,12 @@ int command_runner::execute(const std::string& command) {
             continue; // Timeout, check should_continue() again
         }
 
-        if (fgets(buffer.data(), buffer.size(), pipe) == nullptr) {
-            break; // EOF
+        ssize_t bytes_read = read(fd, buffer.data(), buffer.size());
+        if (bytes_read <= 0) {
+            break; // EOF or error
         }
         
-        current_line += buffer.data();
-        
-        size_t pos;
-        while ((pos = current_line.find('\n')) != std::string::npos) {
-            std::string line = current_line.substr(0, pos);
-            
-            if (!line.empty() && line.back() == '\r') {
-                line.pop_back();
-            }
-            
-            on_output_line(line);
-            current_line = current_line.substr(pos + 1);
-        }
-    }
-
-    // Flush any remaining characters without a newline
-    if (!current_line.empty()) {
-        if (!current_line.empty() && current_line.back() == '\r') {
-            current_line.pop_back();
-        }
-        on_output_line(current_line);
+        on_output_chunk(std::string(buffer.data(), bytes_read));
     }
 
     int exit_code = pclose(pipe);
@@ -233,9 +233,26 @@ int command_runner::execute(const std::string& command) {
     return status;
 }
 
+void sync_command_runner::on_output_chunk(const std::string& chunk) {
+    line_buffer_ += chunk;
+    size_t pos;
+    while ((pos = line_buffer_.find('\n')) != std::string::npos) {
+        std::string line = line_buffer_.substr(0, pos);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        on_output_line(line);
+        line_buffer_ = line_buffer_.substr(pos + 1);
+    }
+}
+
 std::string sync_command_runner::execute_and_get_output(const std::string& command) {
     full_output_.clear();
+    line_buffer_.clear();
     exit_code_ = execute(command);
+    if (!line_buffer_.empty()) {
+        if (line_buffer_.back() == '\r') line_buffer_.pop_back();
+        on_output_line(line_buffer_);
+        line_buffer_.clear();
+    }
     return full_output_;
 }
 

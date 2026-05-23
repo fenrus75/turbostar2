@@ -24,6 +24,7 @@ public:
     void add_extra_ro_path(const std::string& path) { extra_ro_paths_.push_back(path); }
     void set_bypass_coredump_check(bool bypass) { bypass_coredump_check_ = bypass; }
     void set_use_pty(bool use_pty) { use_pty_ = use_pty; }
+    void set_enable_crash_catcher(bool enable) { enable_crash_catcher_ = enable; }
 
     // Pre-defined Security Profiles
     void apply_default_profile();
@@ -55,9 +56,14 @@ protected:
     // Required Virtuals
     // ------------------------------------------------------------------------
     
-    // Called sequentially for every complete line of output (stdout + stderr combined).
-    // Subclasses implement this to stream to a document, a logger, or accumulate to a string.
-    virtual void on_output_line(const std::string& line) = 0;
+    // Called sequentially for every raw chunk of output (stdout + stderr combined).
+    // This allows subclasses to process progress bars (\r) or partial lines live.
+    virtual void on_output_chunk(const std::string& chunk) = 0;
+
+    // Legacy method for line-by-line parsing. Base class handles splitting chunks into lines.
+    // If a subclass overrides on_output_chunk, this is never called automatically.
+    // By default, the base implementation of on_output_chunk accumulates lines and calls this.
+    virtual void on_output_line(const std::string& line) { (void)line; }
 
     // ------------------------------------------------------------------------
     // Optional Virtuals
@@ -83,6 +89,7 @@ private:
     std::vector<std::string> extra_ro_paths_;
     bool bypass_coredump_check_{false};
     bool use_pty_{false};
+    bool enable_crash_catcher_{false};
     std::string last_coredumps_report_;
 };
 
@@ -94,9 +101,11 @@ public:
     int get_exit_code() const { return exit_code_; }
 
 protected:
+    void on_output_chunk(const std::string& chunk) override;
     void on_output_line(const std::string& line) override;
 
 private:
     std::string full_output_;
+    std::string line_buffer_;
     int exit_code_ = 0;
 };

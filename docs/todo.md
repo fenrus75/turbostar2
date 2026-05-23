@@ -45,10 +45,9 @@
 
 - should we send the initial system prompt and tool info as we open the agent window and not wait for the first user prompt?
 	- goal: reduce latency for first actual prompt
+	- current issue: we send an empty user prompt which may confuse the agent, if a GEMINI.md exists
 
 
-- "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
-	- this would be a great addition to our ^P menu, to spell check (and fix) text (for non code) or comments and user strings (for code)
 
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
@@ -57,6 +56,8 @@
 
 
 # mid term items
+
+- we need an `fs_utils` helper to locate `libturbocatch.so` in a few key places (e.g., build directory, installation directory, etc) for reliable `LD_PRELOAD` injection.
 
 - support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 
@@ -95,6 +96,8 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
+	- this would be a great addition to our ^P menu, to spell check (and fix) text (for non code) or comments and user strings (for code)
 - disabled saving operations ("Save", "Save As", "Save All") for read-only buffers (like the Agent window), graying out the menu items and ignoring the respective keyboard shortcuts (`^KS`, `^KW`, `F2`).
 - passed the build directory (via `config_manager::get_instance().get_build_directory()`) to the `clangd` LSP using the `--compile-commands-dir` flag so it correctly locates `compile_commands.json`.
 - implemented `git_push` tool. Force pushing is currently explicitly rejected in the schema validator.

@@ -199,10 +199,55 @@ namespace fs_utils {
 	        std::filesystem::create_directories(cache_dir, ec);
 
 	        return cache_dir.string();
-	}
+	        }
 
-	bool is_valid_db_name(const std::string& name) {
-		if (name.empty()) return false;
+	        std::string get_project_tmp_dir() {
+	        std::string repo_root = git_manager::get_instance().get_repository_root();
+	        if (repo_root.empty()) {
+	        	repo_root = std::filesystem::current_path().string();
+	        }
+
+	        std::hash<std::string> hasher;
+	        size_t hash = hasher(repo_root);
+
+	        const char* home = std::getenv("HOME");
+	        std::filesystem::path tmp_dir;
+	        if (home) {
+	        	tmp_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "tmp";
+	        } else {
+	        	tmp_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "tmp";
+	        }
+
+	        std::error_code ec;
+	        std::filesystem::create_directories(tmp_dir, ec);
+
+	        return tmp_dir.string();
+	        }
+
+	        std::string get_project_dump_dir() {
+	        std::string repo_root = git_manager::get_instance().get_repository_root();
+	        if (repo_root.empty()) {
+	        	repo_root = std::filesystem::current_path().string();
+	        }
+
+	        std::hash<std::string> hasher;
+	        size_t hash = hasher(repo_root);
+
+	        const char* home = std::getenv("HOME");
+	        std::filesystem::path dump_dir;
+	        if (home) {
+	        	dump_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "dumps";
+	        } else {
+	        	dump_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "dumps";
+	        }
+
+	        std::error_code ec;
+	        std::filesystem::create_directories(dump_dir, ec);
+
+	        return dump_dir.string();
+	        }
+
+	        bool is_valid_db_name(const std::string& name) {		if (name.empty()) return false;
 		for (char c : name) {
 			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
 				return false;

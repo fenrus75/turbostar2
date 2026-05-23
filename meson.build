@@ -76,7 +76,8 @@ test_history_manager = executable('test_history_manager',
 test('unit_history_manager', test_history_manager)
 
 test_command_runner = executable('test_command_runner',
-  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/coredump_manager.cpp'],
+  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/coredump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner)
 
