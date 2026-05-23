@@ -46,6 +46,19 @@ void command_runner::apply_build_profile() {
     home_access_ = home_access_t::read_only;
     project_dir_ = get_repository_root();
     project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
+    
+    // Allow ccache write access if the user has it configured
+    const char* home = std::getenv("HOME");
+    if (home) {
+        std::string ccache_dir = std::string(home) + "/.ccache";
+        if (std::filesystem::exists(ccache_dir)) {
+            extra_rw_paths_.push_back(ccache_dir);
+        }
+        std::string xdg_ccache_dir = std::string(home) + "/.cache/ccache";
+        if (std::filesystem::exists(xdg_ccache_dir)) {
+            extra_rw_paths_.push_back(xdg_ccache_dir);
+        }
+    }
 }
 
 void command_runner::apply_strict_agent_profile() {
