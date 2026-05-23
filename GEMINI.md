@@ -6,6 +6,7 @@ Top design documentation: `docs/design.md`
 # Project specific rules
 
 - keep `docs/design.md` and related documents updated at all times. Update the specific documentation files listed in the "Documentation Files" section whenever architectural or structural changes occur.
+- when adding a new `.cpp` source file, you MUST update `meson.build` and `src/meson.build`. A common mistake is to add it to the main `turbostar` target but forget to add it to the `agentcli_sources` list or relevant unit test targets.
 - git commit after each logical change or item implemented. This is a standing rule.
 - when adding a new `event_type` enum value, you MUST update the central `editor::dispatch` function in `src/editor_events.cpp` to route the new event to its appropriate handler; missing this is a common source of bugs.
 - perform a code review before each commit to ensure no stray edits happened

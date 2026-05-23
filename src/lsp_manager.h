@@ -33,6 +33,16 @@ class lsp_manager
 	void request_selection_range(const std::string &filepath, int line, int character);
 	bool is_supported_file(const std::string &filepath) const;
 
+	// Synchronous queries for tools
+	std::vector<text_range> query_selection_ranges(const std::string &filepath, int line, int character);
+
+	struct location_info {
+		std::string path;
+		text_range range;
+	};
+	std::vector<location_info> query_definition(const std::string &filepath, int line, int character);
+	std::vector<location_info> query_references(const std::string &filepath, int line, int character);
+
       private:
 	lsp_manager() = default;
 	~lsp_manager();

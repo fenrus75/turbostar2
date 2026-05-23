@@ -1,23 +1,18 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- we need to ensure LSP servers are more or less per project, not per file
-	- performance/memory consumption issue
-
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
+- the build time is getting long; we should consider splitting the meson
+  build in directories with intermediate .a files or something
+
 - implement a generic "diff view" that can visualize the changes in the last undo group.
   This is essential for reviewing automated edits from inline agent operations.
-
-- improve inline agent context by querying LSP for the enclosing scope (function/class) containing the cursor.
-  This will allow the ^P assistant to operate on entire semantic units by default.
 
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
-	- code_find_definition
-	- code_find_references
 	- code_lsp_rename
         - code_lsp_get_errors? or is our normal get errors already enough
     - a set of git ops
@@ -118,6 +113,10 @@
   Refactored the entire LLM interaction stack (transport, client, and agent) to handle SSE streams, allowing for real-time UI feedback of reasoning and responses.
 - implemented `markdown_utils` for automatic table detection and vertical alignment.
   Added a reusable building block for reformatting markdown tables with comprehensive unit testing.
+- implemented `code_get_scope`, `code_get_definition`, and `code_get_references` tools.
+  These tools provide the agent with semantic code understanding, allowing it to find implementation boundaries and symbol usages across the repository using the LSP.
+- implemented background LSP-based enclosing scope tracking.
+  The editor now continuously caches the semantic unit (function/class) containing the cursor, which is used to provide precise context for inline agent operations.
 - optimized startup by delaying background thread initialization and fixing eager LSP spawning.
 
 ## 21-05-2026

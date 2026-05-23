@@ -1,5 +1,6 @@
 #include "lsp_manager.h"
 #include <iostream>
+#include <future>
 #include <lsp/connection.h>
 #include <lsp/messagehandler.h>
 #include <lsp/messages.h>
@@ -177,6 +178,163 @@ bool lsp_manager::is_supported_file(const std::string &filepath) const
 	std::string ext = fs::path(filepath).extension().string();
 	for (auto &c : ext) c = std::tolower(c);
 	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".py");
+}
+
+std::vector<text_range> lsp_manager::query_selection_ranges(const std::string &filepath, int line, int character)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server) return {};
+
+	auto promise = std::make_shared<std::promise<std::vector<text_range>>>();
+	auto future = promise->get_future();
+
+	try {
+		auto selectionParams = lsp::requests::TextDocument_SelectionRange::Params();
+		selectionParams.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		selectionParams.positions.push_back({static_cast<unsigned int>(line), static_cast<unsigned int>(character)});
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_SelectionRange>(
+			std::move(selectionParams),
+			[promise](const lsp::requests::TextDocument_SelectionRange::Result& result) {
+				std::vector<text_range> ranges;
+				if (!result.isNull() && !result.value().empty()) {
+					const lsp::SelectionRange* current = &result.value()[0];
+					while (current) {
+						ranges.push_back({
+							static_cast<int>(current->range.start.line),
+							static_cast<int>(current->range.start.character),
+							static_cast<int>(current->range.end.line),
+							static_cast<int>(current->range.end.character)
+						});
+						current = current->parent.get();
+					}
+				}
+				promise->set_value(std::move(ranges));
+			},
+			[promise](const lsp::ResponseError& /*error*/) {
+				promise->set_value({});
+			}
+		);
+		
+		if (future.wait_for(std::chrono::seconds(2)) == std::future_status::ready) {
+			return future.get();
+		}
+	} catch (...) {}
+
+	return {};
+}
+
+std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std::string &filepath, int line, int character)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server) return {};
+
+	auto promise = std::make_shared<std::promise<std::vector<location_info>>>();
+	auto future = promise->get_future();
+
+	try {
+		auto params = lsp::requests::TextDocument_Definition::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		params.position = {static_cast<unsigned int>(line), static_cast<unsigned int>(character)};
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_Definition>(
+			std::move(params),
+			[promise](const lsp::requests::TextDocument_Definition::Result& result) {
+				std::vector<location_info> infos;
+				if (!result.isNull()) {
+					auto process_location = [&](const lsp::Location& loc) {
+						location_info info;
+						info.path = std::string(loc.uri.path());
+						info.range = {
+							static_cast<int>(loc.range.start.line),
+							static_cast<int>(loc.range.start.character),
+							static_cast<int>(loc.range.end.line),
+							static_cast<int>(loc.range.end.character)
+						};
+						infos.push_back(info);
+					};
+
+					const auto& val = result.value();
+					if (std::holds_alternative<lsp::Definition>(val)) {
+						const auto& def = std::get<lsp::Definition>(val);
+						if (std::holds_alternative<lsp::Location>(def)) {
+							process_location(std::get<lsp::Location>(def));
+						} else if (std::holds_alternative<std::vector<lsp::Location>>(def)) {
+							for (const auto& l : std::get<std::vector<lsp::Location>>(def)) process_location(l);
+						}
+					} else if (std::holds_alternative<std::vector<lsp::DefinitionLink>>(val)) {
+						for (const auto& link : std::get<std::vector<lsp::DefinitionLink>>(val)) {
+							location_info info;
+							info.path = std::string(link.targetUri.path());
+							info.range = {
+								static_cast<int>(link.targetRange.start.line),
+								static_cast<int>(link.targetRange.start.character),
+								static_cast<int>(link.targetRange.end.line),
+								static_cast<int>(link.targetRange.end.character)
+							};
+							infos.push_back(info);
+						}
+					}
+				}
+				promise->set_value(std::move(infos));
+			},
+			[promise](const lsp::ResponseError& /*error*/) {
+				promise->set_value({});
+			}
+		);
+		
+		if (future.wait_for(std::chrono::seconds(2)) == std::future_status::ready) {
+			return future.get();
+		}
+	} catch (...) {}
+
+	return {};
+}
+
+std::vector<lsp_manager::location_info> lsp_manager::query_references(const std::string &filepath, int line, int character)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server) return {};
+
+	auto promise = std::make_shared<std::promise<std::vector<location_info>>>();
+	auto future = promise->get_future();
+
+	try {
+		auto params = lsp::requests::TextDocument_References::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		params.position = {static_cast<unsigned int>(line), static_cast<unsigned int>(character)};
+		params.context.includeDeclaration = true;
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_References>(
+			std::move(params),
+			[promise](const lsp::requests::TextDocument_References::Result& result) {
+				std::vector<location_info> infos;
+				if (!result.isNull()) {
+					for (const auto& loc : result.value()) {
+						location_info info;
+						info.path = std::string(loc.uri.path());
+						info.range = {
+							static_cast<int>(loc.range.start.line),
+							static_cast<int>(loc.range.start.character),
+							static_cast<int>(loc.range.end.line),
+							static_cast<int>(loc.range.end.character)
+						};
+						infos.push_back(info);
+					}
+				}
+				promise->set_value(std::move(infos));
+			},
+			[promise](const lsp::ResponseError& /*error*/) {
+				promise->set_value({});
+			}
+		);
+		
+		if (future.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+			return future.get();
+		}
+	} catch (...) {}
+
+	return {};
 }
 
 void lsp_manager::open_document(const std::string &filepath, const std::string &text)
