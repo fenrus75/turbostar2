@@ -51,7 +51,9 @@ enum class event_type {
 	open_coredump_viewer, ///< Request to open the coredump viewer
 	apply_edits, ///< Request to apply JSON-serialized LLM edits to the live document
 	prompt_user, ///< Request to prompt the user with a question and options
-	paste ///< A bracketed paste event
+	paste, ///< A bracketed paste event
+	set_transient_status, ///< Set a temporary message in the status bar
+	inline_agent_request ///< Request for a headless agent operation
 };
 
 struct text_range {

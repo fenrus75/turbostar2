@@ -79,6 +79,8 @@ public:
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
+    void start_processing();
+
     int id_;
     std::string name_;
     std::shared_ptr<ai_model> model_;

@@ -78,6 +78,9 @@ class editor : public agentlib::document_provider
 	void resolve_dialog(dialog_result res);
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
+	bool handle_p_block_key(int key);
+	void handle_inline_agent_prompt_key(int key);
+	void launch_inline_agent(const std::string &prompt);
 	void render();
 
 	event_queue global_queue_;
@@ -90,6 +93,7 @@ class editor : public agentlib::document_provider
 	focus_target current_focus_{focus_target::window};
 	bool k_block_mode_{false};
 	bool q_block_mode_{false};
+	bool p_block_mode_{false};
 
 	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
@@ -106,6 +110,14 @@ class editor : public agentlib::document_provider
 
 	bool is_going_to_line_prompt_{false};
 	std::string line_input_buffer_;
+	
+	bool is_inline_agent_prompt_{false};
+	std::string inline_agent_input_buffer_;
+
+	std::vector<std::shared_ptr<agentlib::ai_agent>> headless_agents_;
+
+	std::string transient_status_message_;
+	std::chrono::steady_clock::time_point transient_status_expiry_;
 	
 	std::string hover_text_;
 

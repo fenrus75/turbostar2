@@ -6,7 +6,7 @@
 namespace agentlib {
 
 // Helper to align tables within a string
-static std::string align_markdown_tables(const std::string& text) {
+static std::string align_markdown_tables(const std::string& text, bool framed = false) {
     std::vector<std::string> lines;
     std::stringstream ss(text);
     std::string line;
@@ -31,7 +31,9 @@ static std::string align_markdown_tables(const std::string& text) {
             table_block.push_back(processed_lines[i]);
         }
         
-        auto aligned = markdown_utils::table_aligner::align_table_block(table_block);
+        markdown_utils::align_options opts;
+        opts.use_utf8_frames = framed;
+        auto aligned = markdown_utils::table_aligner::align_table_block(table_block, opts);
         
         // Replace in processed_lines
         processed_lines.erase(processed_lines.begin() + it->start_line, processed_lines.begin() + it->end_line + 1);
@@ -108,22 +110,22 @@ std::vector<interaction_line> interaction_user_message::format_lines(int width) 
 
 std::vector<interaction_line> interaction_llm_response::format_lines(int width) const {
     // 1 is normal text. No prefix.
-    return wrap_text("", align_markdown_tables(text_), width, 1);
+    return wrap_text("", align_markdown_tables(text_, true), width, 1);
 }
 
 std::vector<interaction_line> interaction_reasoning::format_lines(int width) const {
     // 10 is muted (White on Green). Let's use it for reasoning too, maybe with a prefix.
-    return wrap_text("[Thinking] ", text_, width, 10);
+    return wrap_text("[Thinking] ", align_markdown_tables(text_, true), width, 10);
 }
 
 std::vector<interaction_line> interaction_tool_call::format_lines(int width) const {
     // 10 is muted (White on Green). Let's use 10 for tool calls so they stand out but aren't normal text.
-    return wrap_text("* Executing tool: ", text_, width, 10);
+    return wrap_text("* Executing tool: ", align_markdown_tables(text_, true), width, 10);
 }
 
 std::vector<interaction_line> interaction_tool_result::format_lines(int width) const {
     // 10 is muted.
-    return wrap_text("  ↳ Result: ", align_markdown_tables(text_), width, 10);
+    return wrap_text("  ↳ Result: ", align_markdown_tables(text_, true), width, 10);
 }
 
 std::vector<interaction_line> interaction_system_message::format_lines(int width) const {

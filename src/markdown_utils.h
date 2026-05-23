@@ -8,6 +8,7 @@ namespace markdown_utils {
 struct align_options {
     int padding = 1;              // Spaces between text and the | separator
     bool use_outer_pipes = true;  // Ensure table starts and ends with |
+    bool use_utf8_frames = false; // Use UTF-8 box drawing characters
 };
 
 struct table_range {

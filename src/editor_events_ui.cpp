@@ -250,4 +250,24 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		set_focus(focus_target::dialog, "prompt_user");
 		return;
 	}
+
+	if (ev.type == event_type::agent_response) {
+		// Clean up headless agent if it exists
+		headless_agents_.erase(std::remove_if(headless_agents_.begin(), headless_agents_.end(),
+			[&ev](const std::shared_ptr<agentlib::ai_agent>& agent) {
+				return agent->get_id() == ev.key_code;
+			}), headless_agents_.end());
+		return;
+	}
+
+	if (ev.type == event_type::set_transient_status) {
+		transient_status_message_ = ev.payload;
+		transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		return;
+	}
+
+	if (ev.type == event_type::inline_agent_request) {
+		launch_inline_agent(ev.payload);
+		return;
+	}
 }

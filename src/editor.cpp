@@ -278,13 +278,21 @@ std::vector<std::string> editor::get_open_document_paths() const {
 }
 
 std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string& safe_path) const {
+    std::filesystem::path target_p(safe_path);
     for (const auto& doc : documents_) {
         std::string doc_path = doc->get_filename();
         if (doc_path.empty()) continue;
         
         try {
-            std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
-            if (p.string() == safe_path) {
+            std::filesystem::path p(doc_path);
+            if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
+                if (std::filesystem::equivalent(p, target_p)) {
+                    return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
+                }
+            }
+            
+            // Fallback for non-existent files or if equivalent fails (e.g. relative vs absolute)
+            if (std::filesystem::weakly_canonical(p).string() == std::filesystem::weakly_canonical(target_p).string()) {
                 return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
             }
         } catch (...) {
@@ -771,6 +779,10 @@ void editor::render()
 			      "V:End Q:Quit X:SaveExit F:Find";
 	} else if (q_block_mode_) {
 		status_help = "Q-Block: F:Find A:Replace";
+	} else if (p_block_mode_) {
+		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (U)ser: _";
+	} else if (is_inline_agent_prompt_) {
+		status_help = "Agent Task: " + inline_agent_input_buffer_ + "_";
 	} else if (is_searching_prompt_) {
 		std::string suggestion = get_search_autocomplete();
 		if (!suggestion.empty() && suggestion != search_input_buffer_) {
@@ -831,6 +843,16 @@ void editor::render()
 	if (!agent_status_text.empty()) {
 		if (!combined_hover.empty()) combined_hover += " | ";
 		combined_hover += agent_status_text;
+	}
+
+	// Check for transient status message
+	if (!transient_status_message_.empty()) {
+		if (std::chrono::steady_clock::now() < transient_status_expiry_) {
+			if (!combined_hover.empty()) combined_hover += " | ";
+			combined_hover += "[ " + transient_status_message_ + " ]";
+		} else {
+			transient_status_message_ = "";
+		}
 	}
 
 	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y);

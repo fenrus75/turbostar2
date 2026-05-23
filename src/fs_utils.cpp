@@ -189,4 +189,16 @@ namespace fs_utils {
 		return true;
 	}
 
+	bool is_safe_for_ui(const std::string& s) {
+		for (unsigned char c : s) {
+			// Reject control characters (0-31), including ESC (27)
+			// Allow TAB (9), LF (10), CR (13) if we want to be more lenient, 
+			// but for a status line, we should probably be strict.
+			if (c < 32 || c == 127) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 }

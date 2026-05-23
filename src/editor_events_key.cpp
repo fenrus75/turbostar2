@@ -11,6 +11,8 @@
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/ai_model.h"
 #include <fstream>
 #include <sstream>
 #include <lsp/json/json.h>
@@ -325,6 +327,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
+
+		if (is_inline_agent_prompt_) {
+			handle_inline_agent_prompt_key(ev.key_code);
+			return;
+		}
 	
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
@@ -358,19 +365,32 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			q_block_mode_ = false;
 		}
-	
+
+		if (p_block_mode_) {
+			if (handle_p_block_key(ev.key_code)) {
+				p_block_mode_ = false;
+				return;
+			}
+			p_block_mode_ = false;
+		}
+
 		if (ev.key_code == 11) { // Ctrl-K
 			logger.log("Entering K-block mode.");
 			k_block_mode_ = true;
 			return;
 		}
-	
+
 		if (ev.key_code == 17) { // Ctrl-Q
 			logger.log("Entering Q-block mode.");
 			q_block_mode_ = true;
 			return;
 		}
-	
+
+		if (ev.key_code == 16) { // Ctrl-P
+			logger.log("Entering P-block mode.");
+			p_block_mode_ = true;
+			return;
+		}	
 		if (ev.key_code == 31) { // Ctrl-_ (Undo)
 			logger.log("Undo requested.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -472,3 +492,94 @@ void editor::dispatch_event_key(const editor_event &ev)
 	}
 
 }
+
+void editor::handle_inline_agent_prompt_key(int key)
+{
+	if (key == 27) { // ESC
+		is_inline_agent_prompt_ = false;
+		return;
+	}
+	if (key == 13 || key == 10 || key == KEY_ENTER) {
+		if (!inline_agent_input_buffer_.empty()) {
+			launch_inline_agent(inline_agent_input_buffer_);
+		}
+		is_inline_agent_prompt_ = false;
+		return;
+	}
+	if (key == KEY_BACKSPACE || key == 127 || key == 8) {
+		if (!inline_agent_input_buffer_.empty())
+			inline_agent_input_buffer_.pop_back();
+		return;
+	}
+	if (key >= 32 && key < 127) {
+		inline_agent_input_buffer_ += static_cast<char>(key);
+	}
+}
+
+void editor::launch_inline_agent(const std::string &prompt)
+{
+	auto &logger = event_logger::get_instance();
+	logger.log("Launching inline agent with prompt: " + prompt);
+
+	std::shared_ptr<document> doc = get_active_doc();
+	if (!doc) return;
+
+	int cur_y = doc->get_cursor_y();
+	std::string filename = doc->get_filename();
+
+	// 1. Determine target range
+	int start_line = cur_y + 1;
+	int end_line = cur_y + 1;
+
+	if (doc->has_selection()) {
+		int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
+		doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+		start_line = sel_start_y + 1;
+		end_line = sel_end_y + 1;
+	}
+
+	// 2. Collect diagnostics in range
+	std::string diagnostics_context;
+	auto diags = doc->get_diagnostics();
+	for (const auto& diag : diags) {
+		if (diag.range.start_y + 1 >= start_line - 5 && diag.range.start_y + 1 <= end_line + 5) {
+			diagnostics_context += "- " + diag.message + " (line " + std::to_string(diag.range.start_y + 1) + ")\n";
+		}
+	}
+
+	// 3. Spawn headless agent
+	std::string model_id = config_manager::get_instance().get_default_model_id();
+	auto model = agentlib::ai_model_registry::get_instance().get_model(model_id);
+	if (!model) {
+		logger.log("Error: Default model '" + model_id + "' not found in registry.");
+		return;
+	}
+
+	int agent_id = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count() % 1000000);
+	
+	auto agent = agentlib::ai_agent::create(agent_id, "InlineAssistant", model, &global_queue_, this);
+	
+	std::string system_prompt = "You are a headless surgical coding assistant. You are assisting the user with file '" + filename + "'.\n"
+		"The user's cursor or selection is in the target range: lines " + std::to_string(start_line) + " to " + std::to_string(end_line) + ".\n"
+		"Your task is to perform code transformations or reviews within this range.\n";
+	
+	if (!diagnostics_context.empty()) {
+		system_prompt += "\nThe following diagnostics (errors/warnings) are active near this range:\n" + diagnostics_context;
+	}
+
+	system_prompt += "\nInstructions:\n"
+		"1. Use tool calls to perform the task. Do NOT provide a conversational response text.\n"
+		"2. Use 'fs_read_lines' to read the target range and surrounding context if needed.\n"
+		"3. Use 'fs_replace_lines' to modify the code in the target range. Prefer surgical edits.\n"
+		"4. Use 'agent_set_status' to provide brief status updates (e.g., 'Analyzing...', 'Applying fixes...').\n"
+		"5. When finished, provide a final status update (e.g., 'Reformatted function.') and then simply stop. Do not ask for further instructions.";
+
+	agent->inject_context("system", system_prompt);
+	agent->submit_prompt(prompt);
+
+	headless_agents_.push_back(agent);
+
+	transient_status_message_ = "Agent: Thinking...";
+	transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+}
+

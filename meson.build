@@ -32,7 +32,7 @@ turbostar_exe = executable('turbostar',
 
 agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/git_manager.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
    'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
-   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/agent_interaction.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/skill_manager.cpp', 'src/build_error_manager.cpp', 'src/coredump_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
+   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/agent_interaction.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/skill_manager.cpp', 'src/markdown_utils.cpp', 'src/build_error_manager.cpp', 'src/coredump_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
 
 agentcli_exe = executable('agentcli',
   agentcli_sources,

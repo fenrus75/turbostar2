@@ -188,18 +188,15 @@ void ai_agent::inject_context(const std::string& role, const std::string& conten
         context_msg.content = content;
         conversation_.push_back(context_msg);
     }
-    
+
     add_interaction(std::make_shared<interaction_system_message>(content));
 
     // If the agent is idle or waiting, wake it up to process this new context.
     if (status_ == agent_status::idle || status_ == agent_status::waiting) {
-        // To wake it up safely, we can just call an empty submit_prompt.
-        // Wait, submit_prompt adds a user message if it's not empty, and starts the thread.
-        // Let's refactor the thread starting logic into a private method or just reuse submit_prompt("").
-        submit_prompt("");
+        // Start processing without adding a user message
+        start_processing();
     }
 }
-
 void ai_agent::submit_prompt(const std::string& prompt_text) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -213,7 +210,20 @@ void ai_agent::submit_prompt(const std::string& prompt_text) {
         add_interaction(std::make_shared<interaction_user_message>(prompt_text));
     }
 
-    status_ = agent_status::thinking;
+    start_processing();
+}
+
+void ai_agent::start_processing() {
+    // Atomically check if we are already busy
+    agent_status expected = agent_status::idle;
+    if (!status_.compare_exchange_strong(expected, agent_status::thinking)) {
+        expected = agent_status::waiting;
+        if (!status_.compare_exchange_strong(expected, agent_status::thinking)) {
+            // Already processing or in error state
+            return;
+        }
+    }
+
     if (global_queue_) {
         editor_event tool_ev;
         tool_ev.type = event_type::agent_tool_update;

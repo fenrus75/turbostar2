@@ -151,40 +151,77 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
     }
     
     std::vector<std::string> result;
+    
+    auto make_border = [&](const std::string& left, const std::string& mid, const std::string& right, const std::string& fill) {
+        std::string line = left;
+        for (size_t i = 0; i < col_widths.size(); ++i) {
+            if (i > 0) line += mid;
+            for (size_t j = 0; j < col_widths[i] + 2 * opts.padding; ++j) line += fill;
+        }
+        line += right;
+        return line;
+    };
+
+    if (opts.use_utf8_frames) {
+        result.push_back(make_border("┌", "┬", "┐", "─"));
+    }
+
     for (size_t row_idx = 0; row_idx < grid.size(); ++row_idx) {
         const auto& row = grid[row_idx];
         std::string aligned_line;
         
-        if (opts.use_outer_pipes) aligned_line += "|";
-        
-        if (row.size() == 1 && row[0] == "---SEPARATOR---") {
-            // Reconstruct separator based on widths
-            for (size_t i = 0; i < col_widths.size(); ++i) {
-                if (i > 0) aligned_line += "|";
-                // For the separator, we fill the entire width (including padding area) with dashes
-                aligned_line += std::string(col_widths[i] + 2 * opts.padding, '-');
+        if (opts.use_utf8_frames) {
+            if (row.size() == 1 && row[0] == "---SEPARATOR---") {
+                aligned_line = make_border("├", "┼", "┤", "─");
+            } else {
+                aligned_line = "│";
+                for (size_t i = 0; i < col_widths.size(); ++i) {
+                    if (i > 0) aligned_line += "│";
+                    aligned_line += std::string(opts.padding, ' ');
+                    std::string cell = (i < row.size()) ? row[i] : "";
+                    aligned_line += cell;
+                    size_t cell_len = utf8_length(cell);
+                    if (col_widths[i] > cell_len) {
+                        aligned_line += std::string(col_widths[i] - cell_len, ' ');
+                    }
+                    aligned_line += std::string(opts.padding, ' ');
+                }
+                aligned_line += "│";
             }
         } else {
-            for (size_t i = 0; i < col_widths.size(); ++i) {
-                if (i > 0) aligned_line += "|";
-                aligned_line += std::string(opts.padding, ' ');
-                
-                std::string cell = (i < row.size()) ? row[i] : "";
-                aligned_line += cell;
-                
-                size_t cell_len = utf8_length(cell);
-                if (col_widths[i] > cell_len) {
-                    aligned_line += std::string(col_widths[i] - cell_len, ' ');
+            if (opts.use_outer_pipes) aligned_line += "|";
+            
+            if (row.size() == 1 && row[0] == "---SEPARATOR---") {
+                // Reconstruct separator based on widths
+                for (size_t i = 0; i < col_widths.size(); ++i) {
+                    if (i > 0) aligned_line += "|";
+                    aligned_line += std::string(col_widths[i] + 2 * opts.padding, '-');
                 }
-                
-                aligned_line += std::string(opts.padding, ' ');
+            } else {
+                for (size_t i = 0; i < col_widths.size(); ++i) {
+                    if (i > 0) aligned_line += "|";
+                    aligned_line += std::string(opts.padding, ' ');
+                    
+                    std::string cell = (i < row.size()) ? row[i] : "";
+                    aligned_line += cell;
+                    
+                    size_t cell_len = utf8_length(cell);
+                    if (col_widths[i] > cell_len) {
+                        aligned_line += std::string(col_widths[i] - cell_len, ' ');
+                    }
+                    
+                    aligned_line += std::string(opts.padding, ' ');
+                }
             }
+            if (opts.use_outer_pipes) aligned_line += "|";
         }
-        
-        if (opts.use_outer_pipes) aligned_line += "|";
         result.push_back(aligned_line);
     }
     
+    if (opts.use_utf8_frames) {
+        result.push_back(make_border("└", "┴", "┘", "─"));
+    }
+
     return result;
 }
 

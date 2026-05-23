@@ -27,6 +27,8 @@ tools_sources = files(
   'agent_end/agent_end_security.cpp',
   'agent_todo_status/agent_todo_status_entry.cpp',
   'agent_todo_status/agent_todo_status_security.cpp',
+  'agent_set_status/agent_set_status_entry.cpp',
+  'agent_set_status/agent_set_status_security.cpp',
   'message_agent/message_agent_entry.cpp',
   'message_agent/message_agent_security.cpp',
   'agent_get_output/agent_get_output_entry.cpp',

@@ -56,6 +56,56 @@ bool editor::handle_q_block_key(int key)
 	return false;
 }
 
+bool editor::handle_p_block_key(int key)
+{
+	auto &logger = event_logger::get_instance();
+	int c = std::tolower(key);
+	logger.log("P-block handling key: " + std::to_string(key));
+
+	if (c == 'r') {
+		logger.log("P-block: Reformat");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Reformat the code in the target range.";
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'f') {
+		logger.log("P-block: Fix Warnings");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Fix any flagged warnings or errors in the target range.";
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'c') {
+		logger.log("P-block: Add Comments");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Add descriptive comments to the code in the target range.";
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'v') {
+		logger.log("P-block: Review");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Provide a code review and flag potential issues as errors or warnings in the target range.";
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 't') {
+		logger.log("P-block: Complete TODOs");
+		editor_event ev;
+		ev.type = event_type::inline_agent_request;
+		ev.payload = "Complete the function framework and any TODOs in the target range, removing completed TODO comments.";
+		global_queue_.push(ev);
+		return true;
+	} else if (c == 'u') {
+		logger.log("P-block: Custom Prompt");
+		is_inline_agent_prompt_ = true;
+		inline_agent_input_buffer_ = "";
+		return true;
+	}
+	return false;
+}
+
 void editor::dispatch(const editor_event &ev)
 {
 	switch (ev.type) {
@@ -75,6 +125,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::agent_tool_update:
 		case event_type::apply_edits:
 		case event_type::prompt_user:
+		case event_type::set_transient_status:
+		case event_type::inline_agent_request:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:

@@ -37,4 +37,11 @@ namespace fs_utils {
 	 * Prevents directory traversal, spaces, SQL injection payloads, and file extensions.
 	 */
 	bool is_valid_db_name(const std::string& name);
+
+	/**
+	 * @brief Returns true if the string is safe for display in the UI (status line).
+	 * Rejects any string containing non-printable characters or ANSI escape sequences
+	 * to prevent malicious agents from spoofing UI elements.
+	 */
+	bool is_safe_for_ui(const std::string& s);
 }
