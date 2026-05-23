@@ -18,41 +18,41 @@ thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 
-subdir('src')
-subdir('src/tools')
-
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
 
+# Define dependencies early
+inc = include_directories('include', 'src')
+ncurses = ncurses_dep
+
+subdir('src')
+
 turbostar_exe = executable('turbostar',
-  turbostar_sources + tools_sources,
-  dependencies : [ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include', 'src'),
+  'src/main.cpp',
+  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc,
   install : true)
 
-agentcli_sources = ['src/agentcli/main.cpp', 'src/agentlib/ai_agent.cpp', 'src/git_manager.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/tool_registry.cpp',
-   'src/agentlib/httplib_transport.cpp', 'src/agentlib/recording_transport.cpp', 'src/agentlib/replay_transport.cpp',
-   'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/agent_interaction.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/skill_manager.cpp', 'src/markdown_utils.cpp', 'src/lsp_manager.cpp', 'src/build_error_manager.cpp', 'src/coredump_manager.cpp', 'src/config_manager.cpp', 'src/command_runner.cpp', 'src/fs_utils.cpp', 'src/event_logger.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp'] + tools_sources
-
 agentcli_exe = executable('agentcli',
-  agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include', 'src'),
+  'src/agentcli/main.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc,
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
-  agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include', 'src'),
+  'src/agentcli/main.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
   install : false)
 
 agentcli_replay_exe = executable('agentcli_replay',
-  agentcli_sources,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: include_directories('include', 'src'),
+  'src/agentcli/main.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
   install : false)
+
 
 # --- Automated binary deployment to testrun/ ---
 # This ensures that E2E tests always use the latest built binary.
