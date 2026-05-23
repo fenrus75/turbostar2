@@ -77,7 +77,7 @@ protected:
             }
         }
 
-        if (!result_text_.empty()) {
+        if (!result_text_.empty() && result_text_.find("Successfully") != 0) {
             lines.push_back({"", 3});
             auto res_lines = wrap_text("", "-> " + result_text_, width, 10);
             lines.insert(lines.end(), res_lines.begin(), res_lines.end());

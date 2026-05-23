@@ -104,7 +104,17 @@ void crashdump_manager::generate_report_if_needed(const std::string& crash_dir) 
                     if (!m.path.empty() && m.path[0] == '/') {
                         std::ostringstream cmd;
                         cmd << "addr2line -C -f -e '" << m.path << "' " << std::hex << rel_addr;
-                        std::string output = fs_utils::execute_command_sync(cmd.str());
+                        
+                        std::string output;
+                        FILE* pipe = popen(cmd.str().c_str(), "r");
+                        if (pipe) {
+                            char buffer[128];
+                            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                                output += buffer;
+                            }
+                            pclose(pipe);
+                        }
+
                         std::istringstream addr_out(output);
                         std::string f_line, l_line;
                         if (std::getline(addr_out, f_line) && std::getline(addr_out, l_line)) {

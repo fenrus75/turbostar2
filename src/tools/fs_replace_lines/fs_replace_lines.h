@@ -31,7 +31,7 @@ private:
     fs_replace_args args_;
     std::shared_ptr<agentlib::agent_interaction> interaction_;
     
-    std::string execute_disk_fallback() const;
+    std::string execute_disk_fallback(agentlib::tool_context& ctx);
 };
 
 class fs_replace_lines_validator : public agentlib::tool_validator {

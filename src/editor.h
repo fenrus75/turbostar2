@@ -54,7 +54,7 @@ class editor : public agentlib::document_provider
       private:
 	void new_window(const std::string &filename);
 	void new_agent_window();
-	void new_coredump_window();
+	void new_crashdump_window();
 	void open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent);
 	void update_window_layout();
 	void activate_window(size_t index);

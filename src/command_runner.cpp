@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <filesystem>
+#include <atomic>
+#include <chrono>
 
 namespace fs = std::filesystem;
 
@@ -76,7 +78,9 @@ std::string command_runner::build_command(const std::string& raw_command) const 
         return raw_command;
     }
 
-    std::string random_suffix = std::to_string(rand() % 1000000);
+    static std::atomic<int> unit_counter{0};
+    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::string random_suffix = std::to_string(now) + "-" + std::to_string(unit_counter++);
     std::string unit_name = "turbostar-project-" + project_hash_ + "-" + random_suffix;
 
     std::string cmd = "systemd-run --user ";
@@ -192,7 +196,7 @@ std::string command_runner::build_command(const std::string& raw_command) const 
 }
 
 int command_runner::execute(const std::string& command) {
-    std::string final_command = build_command(command) + " 2>/dev/null";
+    std::string final_command = build_command(command) + " 2>&1"; // Changed from 2>/dev/null to see errors
     FILE* pipe = popen(final_command.c_str(), "r");
     
     if (!pipe) {

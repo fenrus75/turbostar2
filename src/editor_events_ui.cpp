@@ -135,9 +135,9 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::open_coredump_viewer) {
-		logger.log("Dispatching open_coredump_viewer event.");
-		new_coredump_window();
+	if (ev.type == event_type::open_crashdump_viewer) {
+		logger.log("Dispatching open_crashdump_viewer event.");
+		new_crashdump_window();
 		return;
 	}
 

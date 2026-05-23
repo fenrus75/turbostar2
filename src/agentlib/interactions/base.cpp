@@ -89,12 +89,36 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string& pr
     std::vector<interaction_line> lines;
     int prefix_utf8_len = markdown_utils::utf8_length(prefix);
     
+    std::string full_text;
+    size_t line_chars = 0;
+    for (size_t i = 0; i < text.length(); ) {
+        unsigned char c = static_cast<unsigned char>(text[i]);
+        if (c == '\n') {
+            full_text += c;
+            line_chars = 0;
+            i++;
+        } else if (c == '\t') {
+            int spaces = 4 - (line_chars % 4);
+            full_text.append(spaces, ' ');
+            line_chars += spaces;
+            i++;
+        } else {
+            size_t char_bytes = 1;
+            if ((c & 0xE0) == 0xC0) char_bytes = 2;
+            else if ((c & 0xF0) == 0xE0) char_bytes = 3;
+            else if ((c & 0xF8) == 0xF0) char_bytes = 4;
+            if (i + char_bytes > text.length()) char_bytes = text.length() - i;
+            full_text.append(text, i, char_bytes);
+            line_chars++;
+            i += char_bytes;
+        }
+    }
+
     if (width <= prefix_utf8_len + 5) {
-        lines.push_back({prefix + text, color_pair});
+        lines.push_back({prefix + full_text, color_pair});
         return lines;
     }
 
-    std::string full_text = text;
     std::stringstream ss(full_text);
     std::string line;
     bool first = true;

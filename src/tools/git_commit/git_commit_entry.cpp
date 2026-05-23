@@ -43,7 +43,7 @@ std::string git_commit_tool::execute(agentlib::tool_context& ctx) {
     }
 
     // Write commit message to a temporary file to avoid shell injection
-    std::filesystem::path temp_dir = std::filesystem::temp_directory_path();
+    std::filesystem::path temp_dir = std::filesystem::path(fs_utils::get_project_tmp_dir());
     std::filesystem::path msg_file = temp_dir / ("commit_msg_" + std::to_string(std::hash<std::string>{}(message_)) + ".txt");
     
     std::ofstream out(msg_file);

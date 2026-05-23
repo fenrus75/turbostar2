@@ -23,6 +23,7 @@ class process_runner
 
 	bool is_running() const { return is_running_.load(); }
 	void set_auto_scroll(bool scroll) { auto_scroll_.store(scroll); }
+	void set_enable_crash_catcher(bool enable) { enable_crash_catcher_.store(enable); }
 
       private:
 	void worker_loop(std::string command);
@@ -35,4 +36,5 @@ class process_runner
 	std::atomic<bool> is_running_{false};
 	std::atomic<bool> stop_requested_{false};
 	std::atomic<bool> auto_scroll_{true};
+	std::atomic<bool> enable_crash_catcher_{false};
 };

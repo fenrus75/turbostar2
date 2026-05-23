@@ -1,5 +1,6 @@
 #include "command_runner.h"
 #include "config_manager.h"
+#include "crashdump_manager.h"
 #include <iostream>
 #include <cassert>
 
@@ -32,6 +33,18 @@ void assert_not_contains(const std::string& str, const std::string& substr) {
 
 int main() {
     config_manager::get_instance().set_paranoid_mode(false);
+    
+    // Force crashdump refresh
+    crashdump_manager::get_instance().refresh("18141464172954113443");
+
+    {
+        sync_command_runner runner;
+        runner.apply_build_profile();
+        runner.set_enable_crash_catcher(true);
+        std::string output = runner.execute_and_get_output("echo hello_crash_catcher");
+        std::cout << "Crash catcher output: " << output << "\n";
+        assert_contains(output, "hello_crash_catcher");
+    }
 
     {
         test_command_runner runner;

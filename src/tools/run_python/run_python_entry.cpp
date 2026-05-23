@@ -156,9 +156,9 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
     runner.execute(full_cmd);
     std::string output = runner.get_final_output();
     
-    std::string coredumps = runner.get_new_coredumps();
-    if (!coredumps.empty()) {
-        output += "\n\n" + coredumps;
+    std::string crashdumps = runner.get_new_crashdumps();
+    if (!crashdumps.empty()) {
+        output += "\n\n" + crashdumps;
     }
 
     if (output.empty()) {

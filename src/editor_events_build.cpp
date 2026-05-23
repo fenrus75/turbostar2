@@ -165,6 +165,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			test_win->set_visible(true);
 			current_build_process_ = std::make_unique<process_runner>(test_win->get_document(), 1000);
 			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
+			current_build_process_->set_enable_crash_catcher(true);
 	
 			std::string build_system = config_manager::get_instance().get_build_system();			std::string build_dir = config_manager::get_instance().get_build_directory();
 			std::string cmd;

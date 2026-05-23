@@ -28,9 +28,9 @@
 	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
 	- needs a way to ask the user for permission
         - probably a popen to /usr/bin/curl as that should get all the https certs right
-    - coredump; 
-	- coredump_read_memory(nr, location, size)
-	- coredump_gdb(nr, command) (over time -- likely to come later)
+    - crashdump; 
+	- crashdump_read_memory(nr, location, size)
+	- crashdump_gdb(nr, command) (over time -- likely to come later)
     - enter_plan_mode, exit_plan_mode
     - run_shell_command
 
@@ -61,7 +61,7 @@
 
 - support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 
-- the whole coredump approach needs a rethink, the world is 100x more complex than assumed
+- the whole crashdump approach needs a rethink, the world is 100x more complex than assumed
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
@@ -141,26 +141,26 @@
 - optimized startup by delaying background thread initialization and fixing eager LSP spawning.
 
 ## 21-05-2026
-- Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
-  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
-  we need to hook to coredumpctl and somehow only look at coredumps from our working space
+- Maybe catch crashdumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way
+  (maybe a "get_last_crashdump_info" tool - actually get_crashdump_info(nr), and a get_crashdump_list() which returns available crashdumps)
+  we need to hook to crashdumpctl and somehow only look at crashdumps from our working space
 
 - mouse support for the file dialog
    - the "recent files" drop thingy is the first candidate
-	- coredump_get_info(nr) and 
-	- coredump_list()
-- we need to build a general coredump tracking infrastructure
-    - have a list of coredumps that come from build and test and run
-    - have a window that shows these coredumps, with a "cursor" so that the user can select a coredump, hit <enter> and
-      get a new window/dialog with details about the coredump
+	- crashdump_get_info(nr) and 
+	- crashdump_list()
+- we need to build a general crashdump tracking infrastructure
+    - have a list of crashdumps that come from build and test and run
+    - have a window that shows these crashdumps, with a "cursor" so that the user can select a crashdump, hit <enter> and
+      get a new window/dialog with details about the crashdump
     - once we have this we can also expose this to the agent
-	- coredump_get_info(nr) and 
-	- coredump_list()
-- coredump tracker.
-  - we run systemd-run so coredumps go into systemd-coredump, and coredumpctl will find them
+	- crashdump_get_info(nr) and 
+	- crashdump_list()
+- crashdump tracker.
+  - we run systemd-run so crashdumps go into systemd-crashdump, and crashdumpctl will find them
   - we should have an object/list of these somewhere so the user can look at them and we can present them to the agent in a precooked way
-  (maybe a "get_last_coredump_info" tool - actually get_coredump_info(nr), and a get_coredump_list() which returns available coredumps)
-  we need to hook to coredumpctl and somehow only look at coredumps from our working space
+  (maybe a "get_last_crashdump_info" tool - actually get_crashdump_info(nr), and a get_crashdump_list() which returns available crashdumps)
+  we need to hook to crashdumpctl and somehow only look at crashdumps from our working space
 - agent tools
     - formatted subagent completion notification as industry-standard JSON and mounted full logs to the VFS.
 - we should take a set of known security sensitive files and in our sandbox, make them disappear

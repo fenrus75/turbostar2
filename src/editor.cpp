@@ -10,7 +10,7 @@
 #include "lsp_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
-#include "coredump_manager.h"
+#include "crashdump_manager.h"
 #include "fs_utils.h"
 #include <fstream>
 #include <sstream>
@@ -67,7 +67,7 @@ void editor::new_window(const std::string &filename)
 
 #include "ui/agent_window.h"
 #include "ui/agent_status_window.h"
-#include "ui/coredump_window.h"
+#include "ui/crashdump_window.h"
 #include "agentlib/ai_model.h"
 
 void editor::update_window_layout() {
@@ -134,9 +134,9 @@ void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 	activate_window(windows_.size() - 1);
 }
 
-void editor::new_coredump_window()
+void editor::new_crashdump_window()
 {
-	auto dump_win = std::make_unique<coredump_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2);
+	auto dump_win = std::make_unique<crashdump_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2);
 	windows_.push_back(std::move(dump_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
