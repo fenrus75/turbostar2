@@ -14,6 +14,23 @@
 
 namespace fs = std::filesystem;
 
+static std::string get_turbocatch_lib_path() {
+    static std::string cached_path = []() {
+        std::vector<std::string> search_paths = {
+            "/usr/lib/x86_64-linux-gnu/libturbocatch.so",
+            "/usr/lib64/libturbocatch.so",
+            fs::absolute(fs::path("build") / "libturbocatch.so").string()
+        };
+        for (const auto& path : search_paths) {
+            if (fs::exists(path)) {
+                return path;
+            }
+        }
+        return fs::absolute(fs::path("build") / "libturbocatch.so").string();
+    }();
+    return cached_path;
+}
+
 std::string command_runner::get_repository_root() {
     std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
     sync_command_runner runner;
@@ -132,7 +149,7 @@ std::string command_runner::build_command(const std::string& raw_command) const 
         }
         
         // Inject the LD_PRELOAD crash handler
-        std::string lib_path = fs::absolute(fs::path("build") / "libturbocatch.so").string();
+        std::string lib_path = get_turbocatch_lib_path();
         cmd += "-p Environment=\"LD_PRELOAD=" + lib_path + "\" ";
         cmd += "-p Environment=\"TURBOSTAR_DUMP_DIR=" + dump_dir + "\" ";
     }
