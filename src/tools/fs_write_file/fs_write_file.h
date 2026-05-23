@@ -16,11 +16,13 @@ class fs_write_file_tool : public agentlib::llm_tool {
 public:
     explicit fs_write_file_tool(fs_write_file_args args);
 
+    std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
 
 private:
     fs_write_file_args args_;
+    std::shared_ptr<agentlib::agent_interaction> interaction_;
 };
 
 class fs_write_file_validator : public agentlib::tool_validator {
