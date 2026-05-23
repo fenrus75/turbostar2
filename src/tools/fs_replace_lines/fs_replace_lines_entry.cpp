@@ -19,6 +19,12 @@ public:
         invalidate_cache();
     }
 
+    void set_target_type(const std::string& path, bool is_buffer) {
+        std::string title = path;
+        if (is_buffer) title += " (edit buffer)";
+        set_boxed(true, 5, title);
+    }
+
     void set_diff(const std::vector<std::string>& before, const std::vector<std::string>& after) {
         dtl::Diff<std::string, std::vector<std::string>> d(before, after);
         d.compose();
@@ -168,7 +174,9 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context& ctx) {
     // We always compute the diff via the disk logic so the agent UI sees what happened
     result_msg = execute_disk_fallback(ctx);
     
+    bool is_buffer = false;
     if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+        is_buffer = true;
         // The file is already modified on disk by the fallback, but the editor buffer needs to know.
         // A better architecture would have the doc_provider return the diff, but for now we just 
         // reload the file from disk if it was modified, or let the live_edits handle it.
@@ -183,10 +191,10 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context& ctx) {
             edits_json.push_back(edit_json);
         }
         ctx.doc_provider->apply_live_edits(args_.safe_path, edits_json.dump());
-        result_msg = "Successfully dispatched " + std::to_string(args_.edits.size()) + " edits to the live editor buffer.";
     }
     
     if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
+        custom_interaction->set_target_type(args_.path, is_buffer);
         custom_interaction->set_result(result_msg);
         if (ctx.trigger_ui_update) {
             ctx.trigger_ui_update();
