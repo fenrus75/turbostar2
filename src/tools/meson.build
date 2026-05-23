@@ -69,6 +69,8 @@ tools_sources = files(
   'git_log/git_log_security.cpp',
   'git_add/git_add_entry.cpp',
   'git_add/git_add_security.cpp',
+  'git_unstage/git_unstage_entry.cpp',
+  'git_unstage/git_unstage_security.cpp',
   'git_restore/git_restore_entry.cpp',
   'git_restore/git_restore_security.cpp',
   'git_commit/git_commit_entry.cpp',
