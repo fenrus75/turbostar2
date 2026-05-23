@@ -4,8 +4,72 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <deque>
+#include <sstream>
 
 namespace tools {
+
+class terminal_parser {
+public:
+    void process_chunk(const std::string& chunk) {
+        full_output_ += chunk;
+        for (char c : chunk) {
+            if (c == '\n') {
+                display_lines_.push_back(current_line_);
+                if (display_lines_.size() > 15) {
+                    display_lines_.pop_front();
+                }
+                current_line_.clear();
+            } else if (c == '\r') {
+                current_line_.clear(); // Overwrite current line (handle progress bars)
+            } else {
+                current_line_ += c;
+            }
+        }
+    }
+
+    std::string get_display_text() const {
+        std::string res;
+        for (const auto& line : display_lines_) {
+            res += line + "\n";
+        }
+        res += current_line_;
+        return res;
+    }
+
+    std::string get_full_output() const {
+        return full_output_;
+    }
+
+private:
+    std::deque<std::string> display_lines_;
+    std::string current_line_;
+    std::string full_output_;
+};
+
+class live_python_runner : public command_runner {
+public:
+    live_python_runner(std::shared_ptr<agentlib::interaction_terminal> interaction, 
+                       std::function<void()> trigger_update)
+        : interaction_(interaction), trigger_update_(std::move(trigger_update)) {}
+
+    std::string get_final_output() const { return parser_.get_full_output(); }
+
+protected:
+    void on_output_chunk(const std::string& chunk) override {
+        parser_.process_chunk(chunk);
+        if (interaction_) {
+            interaction_->set_text(parser_.get_display_text());
+            if (trigger_update_) trigger_update_();
+        }
+    }
+    void on_output_line(const std::string& /*line*/) override {}
+
+private:
+    terminal_parser parser_;
+    std::shared_ptr<agentlib::interaction_terminal> interaction_;
+    std::function<void()> trigger_update_;
+};
 
 run_python_tool::run_python_tool(run_python_args args) : args_(std::move(args)) {
     std::string title = "Python Execution";
@@ -34,7 +98,7 @@ bool run_python_tool::validate_runtime(const agentlib::tool_context& ctx, std::s
 }
 
 std::string run_python_tool::execute(agentlib::tool_context& ctx) {
-    sync_command_runner runner;
+    live_python_runner runner(interaction_, ctx.trigger_ui_update);
     runner.apply_strict_agent_profile();
     runner.set_project_dir(ctx.fs_security.get_working_directory().string());
     
@@ -50,15 +114,7 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
     std::string script_path;
 
     if (args_.code) {
-        // Create a temporary file in a generic /tmp location since we aren't sure about the project scratch dir yet.
-        // Wait, command_runner strict profile might deny write access to /tmp directly? 
-        // No, `PrivateTmp=true` means the script gets a private /tmp but the host /tmp isn't mapped inside unless we put it in the process's own /tmp.
-        // If we write to host /tmp, systemd-run with PrivateTmp=true CANNOT see it.
-        // So we must write it to the project directory or to a scratch space.
-        
-        // Let's use the project directory for now, and explicitly clean it up.
-        // A better approach is to use stdin, but `uv run` expects a file to infer dependencies sometimes, though `uv run -` works for stdin.
-        // Let's use stdin to avoid filesystem pollution!
+        // We will use stdin
     } else {
         std::string resolved_path;
         std::string error;
@@ -97,7 +153,8 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
         full_cmd = base_cmd + "'" + script_path + "'";
     }
 
-    std::string output = runner.execute_and_get_output(full_cmd);
+    runner.execute(full_cmd);
+    std::string output = runner.get_final_output();
     
     std::string coredumps = runner.get_new_coredumps();
     if (!coredumps.empty()) {
@@ -106,12 +163,11 @@ std::string run_python_tool::execute(agentlib::tool_context& ctx) {
 
     if (output.empty()) {
         output = "Process finished successfully with no output.";
-    }
-
-    if (interaction_) {
-        interaction_->set_text(output);
-        if (ctx.trigger_ui_update) {
-            ctx.trigger_ui_update();
+        if (interaction_) {
+            interaction_->set_text(output);
+            if (ctx.trigger_ui_update) {
+                ctx.trigger_ui_update();
+            }
         }
     }
 
