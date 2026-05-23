@@ -5,7 +5,9 @@ namespace agentlib {
 
 class interaction_reasoning : public agent_interaction {
 public:
-    explicit interaction_reasoning(std::string text) : text_(std::move(text)) {}
+    explicit interaction_reasoning(std::string text) : text_(std::move(text)) {
+        set_boxed(true, 10, "Agent Reasoning"); // 10 is White on Green (current default)
+    }
     std::string get_raw_text() const override { return "Thinking: " + text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
 protected:

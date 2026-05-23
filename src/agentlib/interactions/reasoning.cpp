@@ -45,7 +45,7 @@ static std::string align_markdown_tables(const std::string& text, bool framed = 
 }
 
 std::vector<interaction_line> interaction_reasoning::format_lines(int width) const {
-    return wrap_text("[Thinking] ", align_markdown_tables(text_, true), width, 10);
+    return wrap_text("", align_markdown_tables(text_, false), width, 10);
 }
 
 } // namespace agentlib
