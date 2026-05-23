@@ -32,6 +32,11 @@ void editor::dispatch_event_file(const editor_event &ev)
 	if (ev.type == event_type::save) {
 		logger.log("Dispatching save event (Smart Save).");
 		std::shared_ptr<document> active_doc = get_active_doc();
+
+		if (active_doc && active_doc->is_read_only()) {
+			logger.log("Cannot save read-only buffer.");
+			return;
+		}
 	
 		if (active_doc && active_doc->has_nondefault_filename()) {
 			active_doc->save();
@@ -62,7 +67,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 	if (ev.type == event_type::save_all) {
 		logger.log("Dispatching save_all event.");
 		for (auto &doc : documents_) {
-			if (doc && doc->is_modified() && doc->has_nondefault_filename()) {
+			if (doc && doc->is_modified() && doc->has_nondefault_filename() && !doc->is_read_only()) {
 				doc->save();
 				history_manager::get_instance().add_file(doc->get_filename());
 				for (auto &w : windows_) {
@@ -89,6 +94,11 @@ void editor::dispatch_event_file(const editor_event &ev)
 	if (ev.type == event_type::save_as) {
 		logger.log("Dispatching save_as event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
+
+		if (active_doc && active_doc->is_read_only()) {
+			logger.log("Cannot save-as read-only buffer.");
+			return;
+		}
 	
 		std::string filename_arg;
 		if (active_doc) {

@@ -87,6 +87,17 @@ void menu_bar::set_category_items(const std::string &name, const std::vector<men
 	}
 }
 
+void menu_bar::set_item_disabled(event_type action, bool disabled)
+{
+	for (auto &cat : categories_) {
+		for (auto &item : cat.items) {
+			if (item.action == action) {
+				item.is_disabled = disabled;
+			}
+		}
+	}
+}
+
 bool menu_bar::handle_key(int key, event_queue &queue)
 {
 	if (!is_open())
@@ -124,8 +135,11 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		return true;
 	} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 		if (!categories_[active_category_].items.empty()) {
-			editor_event ev;
 			const auto &item = categories_[active_category_].items[selected_item_];
+			if (item.is_disabled) {
+				return true; // Consume but do nothing
+			}
+			editor_event ev;
 			ev.type = item.action;
 			ev.key_code = item.action_key_code;
 			event_logger::get_instance().log("Menu pushing event: " + std::to_string(static_cast<int>(ev.type)));
@@ -138,11 +152,13 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		const auto &items = categories_[active_category_].items;
 		for (size_t i = 0; i < items.size(); ++i) {
 			if (!items[i].is_separator && std::tolower(items[i].hotkey) == c) {
+				if (items[i].is_disabled) {
+					return true; // Consume but do nothing
+				}
 				editor_event ev;
 				ev.type = items[i].action;
 				ev.key_code = items[i].action_key_code;
-				event_logger::get_instance().log("Menu hotkey " + std::string(1, c) +
-								 " pushing event: " + std::to_string(static_cast<int>(ev.type)));
+				event_logger::get_instance().log("Menu pushing hotkey event: " + std::to_string(static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();
 				return true;
@@ -245,10 +261,13 @@ void menu_bar::draw() const
 			} else {
 				bool selected = (static_cast<int>(i) == selected_item_);
 				mvaddstr(2 + i, drop_col, "│");
-				if (selected)
+				if (item.is_disabled) {
+					attrset(COLOR_PAIR(37));
+				} else if (selected) {
 					attrset(COLOR_PAIR(14));
-				else
+				} else {
 					attrset(COLOR_PAIR(1));
+				}
 
 				// Background fill
 				for (int j = 1; j < drop_width - 1; ++j)
@@ -266,7 +285,7 @@ void menu_bar::draw() const
 
 				// Draw name with hotkey
 				for (size_t j = 0; j < item.name.length(); ++j) {
-					if (j == hotkey_pos) {
+					if (j == hotkey_pos && !item.is_disabled) {
 						if (selected)
 							attron(COLOR_PAIR(15));
 						else

@@ -19,10 +19,10 @@ struct menu_item {
 	{
 	}
 	bool is_separator{false};
-};
+	bool is_disabled{false};
+	};
 
-struct menu_category {
-	std::string name;
+	struct menu_category {	std::string name;
 	char hotkey;
 	std::vector<menu_item> items;
 };
@@ -41,9 +41,9 @@ class menu_bar
 	void close_menu();
 
 	void set_category_items(const std::string &name, const std::vector<menu_item> &items);
+	void set_item_disabled(event_type action, bool disabled);
 
-      private:
-	void find_next_item();
+	private:	void find_next_item();
 	void find_prev_item();
 	std::vector<menu_category> categories_;
 	int active_category_{-1};

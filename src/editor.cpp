@@ -184,6 +184,12 @@ void editor::update_window_menu()
 	}
 	event_logger::get_instance().log("update_window_menu: " + std::to_string(items.size()) + " items");
 	top_menu_.set_category_items("Window", items);
+
+	auto active_doc = get_active_doc();
+	bool read_only = (active_doc && active_doc->is_read_only());
+	top_menu_.set_item_disabled(event_type::save, read_only);
+	top_menu_.set_item_disabled(event_type::save_as, read_only);
+	top_menu_.set_item_disabled(event_type::save_all, read_only);
 }
 
 std::shared_ptr<document> editor::get_active_doc() const

@@ -4,9 +4,6 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
-
-- you can do "save as" on the agent window -- likely we need to gray out/deactivate the menu for read only buffers
-
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
 
@@ -98,6 +95,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- disabled saving operations ("Save", "Save As", "Save All") for read-only buffers (like the Agent window), graying out the menu items and ignoring the respective keyboard shortcuts (`^KS`, `^KW`, `F2`).
 - passed the build directory (via `config_manager::get_instance().get_build_directory()`) to the `clangd` LSP using the `--compile-commands-dir` flag so it correctly locates `compile_commands.json`.
 - implemented `git_push` tool. Force pushing is currently explicitly rejected in the schema validator.
 - implemented Phase 3 Git tools: `git_checkout_branch`, `git_diff_from_branch`, and `git_pull`, ensuring all branch arguments strictly pass `fs_utils::is_shell_safe`.

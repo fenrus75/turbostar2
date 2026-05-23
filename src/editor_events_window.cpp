@@ -35,7 +35,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 			std::shared_ptr<document> doc = windows_[active_idx]->get_document();
 			
 			// Check if we need to prompt for save
-			if (doc && doc->is_modified() && ev.key_code != 1) {
+			if (doc && doc->is_modified() && !doc->is_read_only() && ev.key_code != 1) {
 				// Don't prompt to save internal/special buffers
 				std::string title = windows_[active_idx]->get_title();
 				if (title != "Agent Chat" && title != "Compile Output" && title != "Test Output") {
