@@ -8,6 +8,7 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "config_manager.h"
+#include "project_manager.h"
 #include "agentlib/skill_manager.h"
 
 namespace fs = std::filesystem;
@@ -137,6 +138,8 @@ int main(int argc, char **argv)
 	curs_set(0); // Hide the cursor for now
 
 	logger.log("UI initialized.");
+
+	project_manager::get_instance().initialize();
 
 	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp);
 	main_editor.run();

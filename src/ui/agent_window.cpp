@@ -1,5 +1,6 @@
 #include "ui/agent_window.h"
 #include "config_manager.h"
+#include "project_manager.h"
 #include "git_manager.h"
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
@@ -13,6 +14,11 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
     : window(id, x, y, width, height, "Agent Chat")
 {
     agent_ = ai_agent::create(id, "Agent", std::move(model), &global_queue, doc_provider);
+
+    std::string project_instr = project_manager::get_instance().get_project_instructions();
+    if (!project_instr.empty()) {
+        agent_->inject_context("system", "Project-specific instructions and engineering standards:\n" + project_instr);
+    }
 
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 

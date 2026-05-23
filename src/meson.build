@@ -14,6 +14,7 @@ core_sources = files(
   'config_manager.cpp',
   'git_manager.cpp',
   'lsp_manager.cpp',
+  'project_manager.cpp',
   'event_logger.cpp',
   'event_queue.cpp',
   'gcc_log_parser.cpp',

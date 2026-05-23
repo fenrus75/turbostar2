@@ -11,6 +11,7 @@
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include <fstream>
@@ -602,6 +603,11 @@ void editor::launch_inline_agent(const std::string &prompt)
 		"The user's cursor or selection is in the target range: lines " + std::to_string(start_line) + " to " + std::to_string(end_line) + ".\n"
 		"Your task is to perform code transformations or reviews within this range.\n";
 	
+	std::string project_instr = project_manager::get_instance().get_project_instructions();
+	if (!project_instr.empty()) {
+		system_prompt += "\nProject-specific instructions and engineering standards:\n" + project_instr + "\n";
+	}
+
 	if (!diagnostics_context.empty()) {
 		system_prompt += "\nThe following diagnostics (errors/warnings) are active near this range:\n" + diagnostics_context;
 	}

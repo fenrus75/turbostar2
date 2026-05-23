@@ -4,17 +4,28 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
-- the build time is getting long; we should consider splitting the meson
-  build in directories with intermediate .a files or something
+
+- we don't pass -pty or equivalent to systemd-run which means we don't see the output of a compile happening
+
+- we need an agent interaction type that represents a "terminal" so that if the agent runs a shell command, we can get a live view
+	- example: the python calling toolcall should do this
+	- should draw a nice frame around this as well
+
+- autocomplete for ^KF is terrible, if you type what you want, but there is an autocomplete, you cannot NOT do the autocomplete
+  and it always takes an extra enter. we should make <TAB> as indicator that I want to consume the autocomplete
+
+- when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
 
 - implement a generic "diff view" that can visualize the changes in the last undo group.
   This is essential for reviewing automated edits from inline agent operations.
+
+- consolidate other project-level state and logic into the new `project_manager` singleton.
+  (e.g., repository root tracking, build system detection, and cross-component project context).
 
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
 	- code_lsp_rename
-        - code_lsp_get_errors? or is our normal get errors already enough
     - a set of git ops
 	- git_branch(branchname)
 	- git_checkout(...)
@@ -30,7 +41,7 @@
     - gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
         - read memory, get registers
     - web_fetch(URI)
-	- need permission manager for which domains the user has allowed - stored i8~n a new config file somewhere
+	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
 	- needs a way to ask the user for permission
         - probably a popen to /usr/bin/curl as that should get all the https certs right
     - coredump; 
@@ -53,15 +64,12 @@
 
 
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
+	- this would be a great addition to our ^P menu, to spell check (and fix) text (for non code) or comments and user strings (for code)
 
-
-- if we have warnings/etc info, the initial system prompt should say that, or maybe it's an early notification
+- if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
 
 
-- our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
-  or ctrl-E
-	- slighlty annoying interaction issue
 
 
 # mid term items
@@ -101,6 +109,11 @@
 # done items (move items here on completion)
 
 ## 22-05-2026
+- the build time is getting long; we should consider splitting the meson
+  build in directories with intermediate .a files or something
+- our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
+  or ctrl-E
+	- slighlty annoying interaction issue
 - fixed critical systemd-run masking bug where non-existent files in the mask list would prevent the sandbox from starting.
   The code now explicitly checks for file existence before adding them to InaccessiblePaths.
 - fixed performance bug where pylsp was started eagerly even for non-python files.
