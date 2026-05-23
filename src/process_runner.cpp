@@ -4,6 +4,7 @@
 #include <iostream>
 #include <poll.h>
 #include <unistd.h>
+#include <sstream>
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "git_manager.h"
@@ -105,9 +106,20 @@ void process_runner::worker_loop(std::string command)
 {
 	streaming_command_runner runner(doc_, parser_.get(), stop_requested_, auto_scroll_);
 	runner.apply_build_profile();
+	runner.set_enable_crash_catcher(enable_crash_catcher_.load());
 	int exit_code = runner.execute(command + " 2>&1");
 	runner.flush();
 	
+	std::string new_crashdumps = runner.get_new_crashdumps();
+	if (!new_crashdumps.empty()) {
+		doc_->append_line("");
+		std::istringstream iss(new_crashdumps);
+		std::string line;
+		while (std::getline(iss, line)) {
+			doc_->append_line(line);
+		}
+	}
+
 	doc_->append_line("");
 	doc_->append_line("-------------------------------------------------------------------------------");
 	doc_->append_line("Process exited with code " + std::to_string(exit_code));

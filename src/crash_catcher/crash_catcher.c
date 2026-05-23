@@ -112,6 +112,8 @@ static void write_registers(const char* dir_path, ucontext_t* uc) {
 }
 
 static void write_backtrace(const char* dir_path, ucontext_t* uc) {
+    (void)uc; // We will use unw_getcontext instead for reliability
+
     char filepath[1024] = {0};
     safe_strcpy(filepath, dir_path, sizeof(filepath));
     safe_strcat(filepath, "/stack.bin", sizeof(filepath));
@@ -120,21 +122,22 @@ static void write_backtrace(const char* dir_path, ucontext_t* uc) {
     if (fd < 0) return;
 
     unw_cursor_t cursor;
-    // We try to initialize the cursor with the context provided by the signal handler.
-    // This skips the signal trampoline frames and starts right at the crash site.
-    if (unw_init_local(&cursor, uc) < 0) {
+    unw_context_t unw_ctx;
+    unw_getcontext(&unw_ctx);
+
+    if (unw_init_local(&cursor, &unw_ctx) < 0) {
         close(fd);
         return;
     }
 
     // Dump raw instruction pointers
     int max_frames = 100;
-    while (unw_step(&cursor) > 0 && max_frames-- > 0) {
+    do {
         unw_word_t ip;
         if (unw_get_reg(&cursor, UNW_REG_IP, &ip) == 0) {
             write(fd, &ip, sizeof(ip));
         }
-    }
+    } while (unw_step(&cursor) > 0 && max_frames-- > 0);
 
     close(fd);
 }
