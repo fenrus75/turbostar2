@@ -1,12 +1,12 @@
-#include "coredump_window.h"
+#include "crashdump_window.h"
 #include <ncurses.h>
 
-coredump_window::coredump_window(int id, int x, int y, int width, int height)
-    : window(id, x, y, width, height, "Coredumps")
+crashdump_window::crashdump_window(int id, int x, int y, int width, int height)
+    : window(id, x, y, width, height, "Crashdumps")
 {
     set_background_color_pair(2); // Use standard window background
 
-    listbox_ = std::make_unique<ui_listbox>("coredumps", 0, 0, width_ - 2, 5,
+    listbox_ = std::make_unique<ui_listbox>("crashdumps", 0, 0, width_ - 2, 5,
         [this](int new_index) {
             if (new_index != last_selected_index_) {
                 detail_scroll_offset_ = 0;
@@ -20,18 +20,18 @@ coredump_window::coredump_window(int id, int x, int y, int width, int height)
     populate_listbox();
 }
 
-void coredump_window::populate_listbox() {
-    current_dumps_ = coredump_manager::get_instance().get_coredumps();
+void crashdump_window::populate_listbox() {
+    current_dumps_ = crashdump_manager::get_instance().get_crashdumps();
     std::vector<std::string> display_items;
     
     for (const auto& dump : current_dumps_) {
-        display_items.push_back(" " + std::to_string(dump.pid) + " | " + dump.timestamp + " | " + dump.signal + " | " + dump.executable);
+        display_items.push_back(" " + dump.crash_id + " | " + dump.timestamp + " | " + dump.signal + " | " + dump.executable);
     }
     
     listbox_->set_items(display_items);
 }
 
-void coredump_window::draw_content() const {
+void crashdump_window::draw_content() const {
     if (!is_visible()) return;
 
     int list_height = height_ * 0.3; // Top 30% for list
@@ -95,13 +95,13 @@ void coredump_window::draw_content() const {
             }
         }
     } else {
-        mvprintw(current_y, start_x, " No coredump selected.");
+        mvprintw(current_y, start_x, " No crashdump selected.");
     }
 
     attroff(COLOR_PAIR(get_background_color_pair()));
 }
 
-bool coredump_window::process_events() {
+bool crashdump_window::process_events() {
     bool needs_render = false;
     
     while (auto ev = get_window_queue().pop()) {
@@ -130,7 +130,7 @@ bool coredump_window::process_events() {
     return needs_render;
 }
 
-void coredump_window::set_cursor_position() const {
+void crashdump_window::set_cursor_position() const {
     if (is_active() && listbox_) {
         // Let listbox set cursor if it wants, though it's a read-only list
         listbox_->draw(0, 0); 

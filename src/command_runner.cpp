@@ -1,6 +1,6 @@
 #include "command_runner.h"
 #include "config_manager.h"
-#include "coredump_manager.h"
+#include "crashdump_manager.h"
 #include "fs_utils.h"
 #include <array>
 #include <cstdio>
@@ -39,6 +39,7 @@ void command_runner::apply_default_profile() {
 void command_runner::apply_internal_profile() {
     apply_default_profile();
     bypass_sandbox_ = true;
+    bypass_crashdump_check_ = true;
 }
 
 void command_runner::apply_build_profile() {
@@ -226,8 +227,8 @@ int command_runner::execute(const std::string& command) {
     int exit_code = pclose(pipe);
     int status = WEXITSTATUS(exit_code);
 
-    if (!bypass_coredump_check_ && !project_hash_.empty()) {
-        last_coredumps_report_ = coredump_manager::get_instance().refresh(project_hash_);
+    if (!bypass_crashdump_check_ && !project_hash_.empty()) {
+        last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
     }
 
     return status;
