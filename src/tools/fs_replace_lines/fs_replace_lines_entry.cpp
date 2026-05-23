@@ -2,10 +2,48 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include "../../agentlib/interactions/base.h"
 
 namespace tools {
 
-fs_replace_lines_tool::fs_replace_lines_tool(fs_replace_args args) : args_(std::move(args)) {}
+class interaction_fs_replace_lines : public agentlib::agent_interaction {
+public:
+    interaction_fs_replace_lines(const std::string& path, size_t num_edits) {
+        set_boxed(true, 5); // 5 is Window Border color pair
+        call_text_ = "fs_replace_lines: Editing " + path + " (" + std::to_string(num_edits) + " operations)";
+    }
+    
+    void set_result(const std::string& res) {
+        result_text_ = res;
+        invalidate_cache();
+    }
+    
+    std::string get_raw_text() const override {
+        return call_text_ + (result_text_.empty() ? "" : "\nResult: " + result_text_);
+    }
+
+protected:
+    std::vector<agentlib::interaction_line> format_lines(int width) const override {
+        auto lines = wrap_text("", call_text_, width, 3); // 3 is Yellow on Dark Blue
+        if (!result_text_.empty()) {
+            auto res_lines = wrap_text("", "-> " + result_text_, width, 10); // 10 is Green on Dark Blue
+            lines.insert(lines.end(), res_lines.begin(), res_lines.end());
+        }
+        return lines;
+    }
+
+private:
+    std::string call_text_;
+    std::string result_text_;
+};
+
+fs_replace_lines_tool::fs_replace_lines_tool(fs_replace_args args) : args_(std::move(args)) {
+    interaction_ = std::make_shared<interaction_fs_replace_lines>(args_.path, args_.edits.size());
+}
+
+std::shared_ptr<agentlib::agent_interaction> fs_replace_lines_tool::get_interaction() const {
+    return interaction_;
+}
 
 bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
     // 1. Existence Check
@@ -59,6 +97,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context& /*ctx
 }
 
 std::string fs_replace_lines_tool::execute(agentlib::tool_context& ctx) {
+    std::string result_msg;
     if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
         // Create a JSON payload of the edits to send to the UI thread
         nlohmann::json edits_json = nlohmann::json::array();
@@ -72,9 +111,19 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context& ctx) {
         }
         
         ctx.doc_provider->apply_live_edits(args_.safe_path, edits_json.dump());
-        return "Successfully dispatched " + std::to_string(args_.edits.size()) + " edits to the live editor buffer.";
+        result_msg = "Successfully dispatched " + std::to_string(args_.edits.size()) + " edits to the live editor buffer.";
+    } else {
+        result_msg = execute_disk_fallback();
     }
-    return execute_disk_fallback();
+    
+    if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
+        custom_interaction->set_result(result_msg);
+        if (ctx.trigger_ui_update) {
+            ctx.trigger_ui_update();
+        }
+    }
+    
+    return result_msg;
 }
 
 std::string fs_replace_lines_tool::execute_disk_fallback() const {

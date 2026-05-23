@@ -91,9 +91,8 @@ test_file_security = executable('test_file_security',
   dependencies : [],
   include_directories: 'src')
 test('unit_file_security', test_file_security)
-
 test_fs_replace_lines = executable('test_fs_replace_lines',
-  ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp'],
+  ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp'],
   dependencies : [nlohmann_json_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines)

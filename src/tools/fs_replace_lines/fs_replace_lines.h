@@ -23,11 +23,13 @@ class fs_replace_lines_tool : public agentlib::llm_tool {
 public:
     explicit fs_replace_lines_tool(fs_replace_args args);
 
+    std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
 
 private:
     fs_replace_args args_;
+    std::shared_ptr<agentlib::agent_interaction> interaction_;
     
     std::string execute_disk_fallback() const;
 };
