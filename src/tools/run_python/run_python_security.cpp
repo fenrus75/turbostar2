@@ -24,10 +24,11 @@ public:
 
     std::string get_name() const override { return "run_python"; }
     std::string get_description() const override { 
+        std::string base_desc = "Executes Python code. You MUST use print() statements to see output, as the script runs headlessly. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file).";
         if (has_uv()) {
-            return "Executes Python code. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file). Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'.";
+            return base_desc + " Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'.";
         }
-        return "Executes Python code. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file).";
+        return base_desc;
     }
     
     nlohmann::json get_parameters_schema() const override {
