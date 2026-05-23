@@ -102,6 +102,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `git_init` tool with security checks to prevent running if a `.git` directory already exists.
 - implemented Phase 2 mutating Git tools: `git_add` (with array path validation), `git_restore`, and `git_commit` (which writes the message to a secure tempfile to avoid shell injection entirely).
 - implemented Phase 1 read-only Git tools: `git_diff_unstaged`, `git_diff_staged`, and `git_log`, providing safe access to sanitized raw patch output.
 - created `fs_utils::is_shell_safe` to strictly filter parameters bound for shell execution using an explicit character allowlist.

@@ -73,6 +73,8 @@ tools_sources = files(
   'git_restore/git_restore_security.cpp',
   'git_commit/git_commit_entry.cpp',
   'git_commit/git_commit_security.cpp',
+  'git_init/git_init_entry.cpp',
+  'git_init/git_init_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
   'fs_read_lines/fs_read_lines_security.cpp',
   'fs_read_binary/fs_read_binary_entry.cpp',
