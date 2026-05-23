@@ -4,7 +4,7 @@
 
 namespace tools {
 
-agent_set_status_tool::agent_set_status_tool(agent_set_status_args args) : args_(std::move(args)) {}
+agent_set_status_tool::agent_set_status_tool(agent_set_status_args args) : llm_tool_action("Setting status to: " + args.message), args_(std::move(args)) {}
 
 std::string agent_set_status_tool::execute(agentlib::tool_context& ctx) {
     if (ctx.queue) {
@@ -12,8 +12,10 @@ std::string agent_set_status_tool::execute(agentlib::tool_context& ctx) {
         ev.type = event_type::set_transient_status;
         ev.payload = args_.message;
         ctx.queue->push(ev);
+        set_success(ctx);
         return "Status message updated.";
     }
+    set_failure(ctx, "Event queue not available.");
     return "Error: Event queue not available.";
 }
 

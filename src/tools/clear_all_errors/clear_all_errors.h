@@ -1,14 +1,14 @@
 #pragma once
-#include "../../agentlib/llm_tool.h"
+#include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/tool_validator.h"
 #include <nlohmann/json.hpp>
 #include <string>
 
 namespace tools {
 
-class clear_all_errors_tool : public agentlib::llm_tool {
+class clear_all_errors_tool : public agentlib::llm_tool_action {
 public:
-    clear_all_errors_tool() = default;
+    clear_all_errors_tool() : llm_tool_action("Clearing all errors") {}
     bool validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const override { return true; }
     std::string execute(agentlib::tool_context& ctx) override;
 };

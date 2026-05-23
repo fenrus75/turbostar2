@@ -1,11 +1,11 @@
 #pragma once
 #include <string>
-#include "../../agentlib/llm_tool.h"
+#include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/single_file_tool_validator.h"
 
 namespace tools {
 
-class fs_file_size_tool : public agentlib::llm_tool {
+class fs_file_size_tool : public agentlib::llm_tool_action {
 public:
     explicit fs_file_size_tool(std::string safe_path);
 

@@ -12,7 +12,7 @@
 
 namespace tools {
 
-fs_list_dir_tool::fs_list_dir_tool(std::string safe_path) : safe_path_(std::move(safe_path)) {}
+fs_list_dir_tool::fs_list_dir_tool(std::string safe_path) : llm_tool_action("Listing directory " + safe_path), safe_path_(std::move(safe_path)) {}
 
 bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
     if (safe_path_.starts_with("skills://")) {
@@ -40,7 +40,10 @@ bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context& ctx, std::
 std::string fs_list_dir_tool::execute(agentlib::tool_context& ctx) {
     if (safe_path_.starts_with("skills://")) {
         auto vfs = ctx.fs_security.get_vfs();
-        if (!vfs) return "Error: VFS not available.";
+        if (!vfs) {
+            set_failure(ctx, "VFS not available");
+            return "Error: VFS not available.";
+        }
 
         std::string prefix = safe_path_;
         if (!prefix.ends_with('/')) prefix += '/';
@@ -51,6 +54,7 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context& ctx) {
         ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
 
         auto entries = vfs->list_directory(prefix);
+        size_t count = 0;
         for (const auto& entry : entries) {
             // Extract filename from URI
             std::string filename = entry.uri.substr(prefix.length());
@@ -71,7 +75,9 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context& ctx) {
             }
 
             ss << "| " << filename << " | " << entry.type << " | " << entry.size << " | " << entry.size_in_lines << " | R-- |\n";
+            count++;
         }
+        set_success(ctx, "Found " + std::to_string(count) + " virtual items");
         return ss.str();
     }
 

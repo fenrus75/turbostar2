@@ -9,7 +9,7 @@ bool get_current_datetime_tool::validate_runtime(const agentlib::tool_context& /
     return true;
 }
 
-std::string get_current_datetime_tool::execute(agentlib::tool_context& /*ctx*/) {
+std::string get_current_datetime_tool::execute(agentlib::tool_context& ctx) {
     auto now = std::chrono::system_clock::now();
     std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
     
@@ -30,6 +30,7 @@ std::string get_current_datetime_tool::execute(agentlib::tool_context& /*ctx*/) 
     ss << "| Second | " << local_tm->tm_sec << " |\n";
     ss << "| Timezone | " << tz_buf << " |\n";
 
+    set_success(ctx);
     return ss.str();
 }
 

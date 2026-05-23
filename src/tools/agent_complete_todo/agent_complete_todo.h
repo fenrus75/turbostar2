@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../../agentlib/llm_tool.h"
+#include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/tool_context.h"
 #include <string>
 
 namespace tools {
 
-class agent_complete_todo_tool : public agentlib::llm_tool {
+class agent_complete_todo_tool : public agentlib::llm_tool_action {
 public:
     explicit agent_complete_todo_tool(std::string text_match);
 

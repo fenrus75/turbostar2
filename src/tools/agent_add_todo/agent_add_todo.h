@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../../agentlib/llm_tool.h"
+#include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/tool_context.h"
 #include <string>
 #include <vector>
 
 namespace tools {
 
-class agent_add_todo_tool : public agentlib::llm_tool {
+class agent_add_todo_tool : public agentlib::llm_tool_action {
 public:
     explicit agent_add_todo_tool(std::string text);
 

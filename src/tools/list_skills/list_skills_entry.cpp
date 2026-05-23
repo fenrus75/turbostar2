@@ -8,10 +8,11 @@ bool list_skills_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, s
     return true;
 }
 
-std::string list_skills_tool::execute(agentlib::tool_context& /*ctx*/) {
+std::string list_skills_tool::execute(agentlib::tool_context& ctx) {
     auto& skills = agentlib::skill_manager::get_instance().get_skills();
     
     if (skills.empty()) {
+        set_success(ctx, "0 skills");
         return "No skills are currently available.";
     }
 
@@ -23,6 +24,7 @@ std::string list_skills_tool::execute(agentlib::tool_context& /*ctx*/) {
         ss << "| " << s.name << " | " << s.uri << " | " << s.description << " |\n";
     }
 
+    set_success(ctx, std::to_string(skills.size()) + " skills");
     return ss.str();
 }
 

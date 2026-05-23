@@ -3,7 +3,7 @@
 
 namespace tools {
 
-agent_add_todo_tool::agent_add_todo_tool(std::string text) : text_(std::move(text)) {}
+agent_add_todo_tool::agent_add_todo_tool(std::string text) : llm_tool_action("Adding todo: " + text), text_(std::move(text)) {}
 
 bool agent_add_todo_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
     if (!ctx.active_agent) {
@@ -19,6 +19,7 @@ bool agent_add_todo_tool::validate_runtime(const agentlib::tool_context& ctx, st
 
 std::string agent_add_todo_tool::execute(agentlib::tool_context& ctx) {
     ctx.active_agent->add_todo(text_);
+    set_success(ctx);
     return "Added todo: " + text_;
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "../../agentlib/tool_registry.h"
+#include "../../agentlib/llm_tool_action.h"
 
 namespace tools {
 
@@ -8,7 +9,7 @@ struct agent_set_status_args {
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(agent_set_status_args, message);
 
-class agent_set_status_tool : public agentlib::llm_tool {
+class agent_set_status_tool : public agentlib::llm_tool_action {
 public:
     explicit agent_set_status_tool(agent_set_status_args args);
 
