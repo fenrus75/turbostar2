@@ -5,6 +5,8 @@
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
 
+- pass the build/ directory to the clangd LSP so it knows where to find compile_commands.json
+
 - we don't pass -pty or equivalent to systemd-run which means we don't see the output of a compile happening
 
 - we need an agent interaction type that represents a "terminal" so that if the agent runs a shell command, we can get a live view
@@ -19,10 +21,8 @@
 - implement a generic "diff view" that can visualize the changes in the last undo group.
   This is essential for reviewing automated edits from inline agent operations.
 
-- consolidate other project-level state and logic into the new `project_manager` singleton.
-  (e.g., repository root tracking, build system detection, and cross-component project context).
-
 - next set of tools for agents
+    - a fs_mkdir() call to allow the agent to make subdirectories -- should act like "mkdir -p", so recursive
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
 	- code_lsp_rename
