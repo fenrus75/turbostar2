@@ -25,7 +25,7 @@ ai_model_registry& ai_model_registry::get_instance() {
 ai_model_registry::ai_model_registry() {
     // Standard baseline models
     register_model(std::make_shared<ai_model>(
-        "local-default", "Local Host", "http://192.168.1.42:8080", "Default local LLM", 0.0, 0.0));
+        "local-default", "Local Host", "http://192.168.1.60:8080", "Default local LLM", 0.0, 0.0));
         
     register_model(std::make_shared<ai_model>(
         "gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00));
