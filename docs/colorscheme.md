@@ -32,6 +32,9 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Diff: Additions** | Bright Green | Dark Blue | 30 | Lines added via fs_replace_lines. |
 | **Diff: Deletions** | Bright Red | Dark Blue | 31 | Lines removed via fs_replace_lines. |
 | **Diff: Header** | Bright Cyan | Dark Blue | 32 | The `@@ -X,Y +X,Y @@` context headers. |
+| **Tool: Read Pending** | Bright Yellow | Cyan | 33 | Active state for `fs_read_lines`. |
+| **Tool: Read Success** | Bright White | Cyan | 8 | Success state for `fs_read_lines`. |
+| **Tool: Read Failure** | Bright Red | Cyan | 35 | Failure state for `fs_read_lines`. |
 
 ## Dialog Boxes
 

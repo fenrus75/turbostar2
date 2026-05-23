@@ -40,9 +40,9 @@ public:
 
 protected:
     std::vector<agentlib::interaction_line> format_lines(int width) const override {
-        int color = 3; // 3 is Yellow on Dark Blue
-        if (status_ == status::success) color = 30; // 30 is Bright Green on Dark Blue
-        else if (status_ == status::failure) color = 31; // 31 is Bright Red on Dark Blue
+        int color = 33; // 33 is Bright Yellow on Cyan
+        if (status_ == status::success) color = 8; // 8 is Bright White on Cyan
+        else if (status_ == status::failure) color = 35; // 35 is Bright Red on Cyan
         
         auto lines = wrap_text("", get_raw_text(), width, color);
         return lines;
@@ -158,6 +158,11 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context& ctx) {
             result_text = read_from_document(doc_snapshot.get(), total_lines);
             if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
                 custom_interaction->set_total(total_lines);
+                if (result_text.starts_with("Error:") || result_text.starts_with("Requested line range is empty") || result_text.starts_with("Requested start line is past")) {
+                    custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+                } else {
+                    custom_interaction->set_status(interaction_fs_read_lines::status::success);
+                }
                 if (ctx.trigger_ui_update) ctx.trigger_ui_update();
             }
             return result_text;
@@ -168,6 +173,11 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context& ctx) {
     result_text = read_from_disk(total_lines);
     if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
         custom_interaction->set_total(total_lines);
+        if (result_text.starts_with("Error:") || result_text.starts_with("Requested line range is empty")) {
+            custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+        } else {
+            custom_interaction->set_status(interaction_fs_read_lines::status::success);
+        }
         if (ctx.trigger_ui_update) ctx.trigger_ui_update();
     }
     return result_text;
