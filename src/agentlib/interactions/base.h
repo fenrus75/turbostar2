@@ -26,9 +26,10 @@ public:
     void invalidate_cache() { cached_width_ = -1; }
 
     bool is_boxed() const { return is_boxed_; }
-    void set_boxed(bool boxed, int color_pair = 5) {
+    void set_boxed(bool boxed, int color_pair = 5, const std::string& title = "") {
         is_boxed_ = boxed;
         box_color_pair_ = color_pair;
+        box_title_ = title;
         invalidate_cache();
     }
 
@@ -43,6 +44,7 @@ private:
     mutable std::vector<interaction_line> cached_lines_;
     bool is_boxed_ = false;
     int box_color_pair_ = 5;
+    std::string box_title_;
 };
 
 } // namespace agentlib

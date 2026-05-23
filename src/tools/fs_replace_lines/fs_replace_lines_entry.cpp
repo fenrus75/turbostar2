@@ -9,8 +9,8 @@ namespace tools {
 class interaction_fs_replace_lines : public agentlib::agent_interaction {
 public:
     interaction_fs_replace_lines(const std::string& path, size_t num_edits) {
-        set_boxed(true, 5); // 5 is Window Border color pair
-        call_text_ = "fs_replace_lines: Editing " + path + " (" + std::to_string(num_edits) + " operations)";
+        set_boxed(true, 5, path); // 5 is Window Border color pair
+        call_text_ = "Applying " + std::to_string(num_edits) + " operations";
     }
     
     void set_result(const std::string& res) {

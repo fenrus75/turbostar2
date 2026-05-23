@@ -29,7 +29,27 @@ const std::vector<interaction_line>& agent_interaction::render(int width) const 
             std::string bot_right = "\xE2\x94\x98";
 
             std::string top_border = top_left;
-            for (int i = 0; i < inner_width + 2; ++i) top_border += horiz;
+            
+            if (!box_title_.empty()) {
+                std::string title_str = " " + box_title_ + " ";
+                int title_len = markdown_utils::utf8_length(title_str);
+                int border_len = inner_width + 2;
+                
+                if (title_len >= border_len) {
+                    // Title is too long, just draw horizontal line
+                    for (int i = 0; i < border_len; ++i) top_border += horiz;
+                } else {
+                    int left_pad = (border_len - title_len) / 2;
+                    int right_pad = border_len - title_len - left_pad;
+                    
+                    for (int i = 0; i < left_pad; ++i) top_border += horiz;
+                    top_border += title_str;
+                    for (int i = 0; i < right_pad; ++i) top_border += horiz;
+                }
+            } else {
+                for (int i = 0; i < inner_width + 2; ++i) top_border += horiz;
+            }
+            
             top_border += top_right;
             
             interaction_line top_line;
