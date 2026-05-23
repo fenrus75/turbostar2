@@ -116,6 +116,9 @@ int main(int argc, char **argv)
 	init_pair(27, COLOR_WHITE + 8, COLOR_RED);      // LSP Error (White on Red)
 	init_pair(28, COLOR_BLACK, COLOR_YELLOW);       // LSP Warning (Black on Yellow)
 	init_pair(29, COLOR_WHITE, COLOR_BLACK);        // Terminal Output (White on Black)
+	init_pair(30, COLOR_GREEN + 8, COLOR_BLUE);     // Diff Add (Bright Green on Blue)
+	init_pair(31, COLOR_RED + 8, COLOR_BLUE);       // Diff Delete (Bright Red on Blue)
+	init_pair(32, COLOR_CYAN + 8, COLOR_BLUE);      // Diff Header (Bright Cyan on Blue)
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000

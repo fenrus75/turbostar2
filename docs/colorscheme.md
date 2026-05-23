@@ -29,6 +29,9 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Scrollbar Track** | Cyan | Dark Blue | 4 | Dithered/shaded block characters. |
 | **Scrollbar Arrows** | Cyan | Dark Blue | 4 | Scroll indicators. |
 | **Window Widgets** | Green | Dark Blue | 5 | e.g., the `[■]` close button inner square. |
+| **Diff: Additions** | Bright Green | Dark Blue | 30 | Lines added via fs_replace_lines. |
+| **Diff: Deletions** | Bright Red | Dark Blue | 31 | Lines removed via fs_replace_lines. |
+| **Diff: Header** | Bright Cyan | Dark Blue | 32 | The `@@ -X,Y +X,Y @@` context headers. |
 
 ## Dialog Boxes
 
