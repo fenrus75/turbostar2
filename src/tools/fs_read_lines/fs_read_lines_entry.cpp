@@ -8,52 +8,31 @@
 #include <cstring>
 #include <algorithm>
 
-#include "../../agentlib/interactions/base.h"
+#include "../../agentlib/interactions/action.h"
 
 namespace tools {
 
-class interaction_fs_read_lines : public agentlib::agent_interaction {
+class interaction_fs_read_lines : public agentlib::interaction_action {
 public:
-    enum class status { pending, success, failure };
-
     interaction_fs_read_lines(const std::string& path, int start, int end, size_t total) 
-        : path_(path), start_(start), end_(end), total_(total), status_(status::pending) {}
+        : agentlib::interaction_action(path), path_(path), start_(start), end_(end), total_(total) {
+        update_text();
+    }
 
     void set_total(size_t total) {
         total_ = total;
-        invalidate_cache();
-    }
-
-    void set_status(status s) {
-        status_ = s;
-        invalidate_cache();
-    }
-
-    std::string get_raw_text() const override {
-        std::string icon;
-        if (status_ == status::pending) icon = "\xE2\x97\x8F"; // ●
-        else if (status_ == status::success) icon = "\xE2\x9C\x94"; // ✔
-        else icon = "\xE2\x9C\x96"; // ✖
-        
-        return icon + "  " + path_ + " \xE2\x86\x92 Read lines " + std::to_string(start_) + "-" + std::to_string(end_) + " of " + std::to_string(total_) + " from " + path_;
-    }
-
-protected:
-    std::vector<agentlib::interaction_line> format_lines(int width) const override {
-        int color = 33; // 33 is Bright Yellow on Cyan
-        if (status_ == status::success) color = 8; // 8 is Bright White on Cyan
-        else if (status_ == status::failure) color = 35; // 35 is Bright Red on Cyan
-        
-        auto lines = wrap_text("", get_raw_text(), width, color);
-        return lines;
+        update_text();
     }
 
 private:
+    void update_text() {
+        set_action_text(path_ + " \xE2\x86\x92 Read lines " + std::to_string(start_) + "-" + std::to_string(end_) + " of " + std::to_string(total_));
+    }
+
     std::string path_;
     int start_;
     int end_;
     size_t total_;
-    status status_;
 };
 
 fs_read_lines_tool::fs_read_lines_tool(fs_read_lines_args args) : args_(std::move(args)) {

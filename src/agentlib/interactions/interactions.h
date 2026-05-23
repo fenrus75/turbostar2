@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base.h"
+#include "action.h"
 #include "user_message.h"
 #include "llm_response.h"
 #include "reasoning.h"
