@@ -85,7 +85,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 
 ---
 
-## 4. UI Overlays
+## 4. UI Overlays & Feedback
 
 ### `flag_as_error`
 *   **Description:** Flags a specific line (and optional column range) in a file as an error or warning, creating a diagnostic overlay in the editor UI (red/yellow backgrounds).
@@ -101,9 +101,41 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Clears all currently flagged errors and warnings from the editor UI.
 *   **Arguments:** None.
 
+### `agent_set_status`
+*   **Description:** Sets a brief status message in the editor's status bar to inform the user of progress.
+*   **Arguments:**
+    *   `message` *(string, required)*: The brief status message (e.g., 'Analyzing code...').
+
 ---
 
-## 5. Environment & Misc
+## 5. Semantic Code Analysis (LSP)
+
+These tools provide semantic understanding of code by leveraging the Language Server Protocol (LSP). They are available for supported languages (currently C++ and Python).
+
+### `code_get_scope`
+*   **Description:** Returns the semantic hierarchy of code blocks (function, class, etc.) containing a specific location.
+*   **Arguments:**
+    *   `path` *(string, required)*: The file path.
+    *   `line` *(integer, required)*: The 1-based line number.
+    *   `character` *(integer, required)*: The 0-based character offset.
+
+### `code_get_definition`
+*   **Description:** Finds the definition(s) of a symbol at a specific location, potentially across multiple files.
+*   **Arguments:**
+    *   `path` *(string, required)*: The file path.
+    *   `line` *(integer, required)*: The 1-based line number.
+    *   `character` *(integer, required)*: The 0-based character offset.
+
+### `code_get_references`
+*   **Description:** Finds all references (usages) of a symbol across the project.
+*   **Arguments:**
+    *   `path` *(string, required)*: The file path.
+    *   `line` *(integer, required)*: The 1-based line number.
+    *   `character` *(integer, required)*: The 0-based character offset.
+
+---
+
+## 6. Environment & Misc
 
 ### `ask_user`
 *   **Description:** Ask the user one or more questions to gather preferences, clarify requirements, or make decisions. When using this tool, prefer providing multiple-choice options. An 'Other' text input field is automatically added.
@@ -129,9 +161,16 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.
 *   **Arguments:** None.
 
+### `run_python`
+*   **Description:** Executes Python code in a sandboxed environment.
+*   **Arguments:**
+    *   `code` *(string, optional)*: The raw Python code string to execute.
+    *   `file_path` *(string, optional)*: The relative path to a Python script to execute.
+    *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available).
+
 ---
 
-## 6. Agent State & To-Do Management
+## 7. Agent State & To-Do Management
 
 ### `agent_add_todo`
 *   **Description:** Adds a new task to the AI agent's internal todo list. Use this to track steps during complex multi-part requests.
@@ -154,7 +193,65 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 
 ---
 
-## 7. SQLite Database Operations
+## 8. Subagent Orchestration
+
+### `create_agent`
+*   **Description:** Creates a new subagent to delegate tasks to.
+*   **Arguments:**
+    *   `name` *(string, required)*: A short, descriptive name for the subagent.
+    *   `profile` *(string, required)*: The initial prompt and system instructions for the subagent.
+
+### `list_agents`
+*   **Description:** Lists all active subagents managed by the current agent. Returns a Markdown table of ID, Name, and Status.
+*   **Arguments:** None.
+
+### `agent_status`
+*   **Description:** Returns detailed status information about a specific subagent.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent to query.
+
+### `message_agent`
+*   **Description:** Sends a message or command to an active subagent.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent.
+    *   `message` *(string, required)*: The text message or instruction to send.
+
+### `wait_for_agent`
+*   **Description:** Pauses execution until the specified subagent becomes idle.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent to wait for.
+
+### `agent_get_output`
+*   **Description:** Retrieves the entire interaction history of a specific subagent.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent to query.
+
+### `end_agent`
+*   **Description:** Closes and terminates a specific subagent.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent to terminate.
+
+### `agent_todo_status`
+*   **Description:** Returns the todo list with completion status of a specific subagent.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The ID of the subagent to query.
+
+---
+
+## 9. Coredump & Crash Analysis
+
+### `coredump_list`
+*   **Description:** Returns a markdown table of recent coredumps (crashes) generated by commands in the sandbox.
+*   **Arguments:** None.
+
+### `coredump_get_info`
+*   **Description:** Retrieves the detailed backtrace and GDB analysis of a specific coredump.
+*   **Arguments:**
+    *   `pid` *(integer, required)*: The Process ID (PID) of the crashed executable.
+
+---
+
+## 10. SQLite Database Operations
 
 ### `sqlite_create_db`
 *   **Description:** Creates a new persistent SQLite database for the project.
