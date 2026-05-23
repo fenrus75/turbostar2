@@ -99,6 +99,18 @@ To register a tool, use the `REGISTER_TOOL` macro in the `<tool_name>_security.c
 REGISTER_TOOL(my_tool_validator_class)
 ```
 
+## Architectural Guidelines: Specific Git Tools vs Generic Shell Execution
+
+When designing interactions with Git, TurboStar adheres to a strict policy of utilizing dedicated Git tools (e.g., `git_status`, `git_diff_uncommitted`) parsed as Markdown tables, rather than granting the LLM general shell access (`run_shell_command`).
+
+**Security and Sandboxing:** The `file_security_manager` ensures the agent only operates on allowed directories. Providing generic shell access completely bypasses this sandbox. Dedicated tools enforce rigid access controls and require explicit user confirmation for destructive actions (e.g., `--force` pushes).
+
+**Token Efficiency & Parsability:** Raw Git output is verbose, contains ANSI color codes, and includes interactive elements (pagers) that confuse agents. By wrapping Git commands in C++ and outputting curated Markdown tables (e.g., parsing `git status --porcelain`), we supply the LLM with structured, deterministic data that consumes fewer tokens and reduces hallucinations.
+
+**Hybrid Strategy:**
+- **Lists & Statuses:** For read-only list operations (`git_status`, `git_branch_list`), use `git --porcelain` or `--format` internally, parse in C++, and return a Markdown table.
+- **Content & Diffs:** For operations where table structures don't make sense (`git_diff`, `git_commit` errors), return sanitized raw patch output, strictly enforcing flags like `--no-color`, `--no-pager`, and `--unified=3` to ensure LLM readability.
+
 ## Creating a New Tool
 
 1. Create a new subdirectory in `src/tools/` (e.g., `src/tools/my_tool/`).
