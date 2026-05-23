@@ -1,5 +1,6 @@
 #include "crashdump_manager.h"
 #include "fs_utils.h"
+#include "git_manager.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -127,6 +128,19 @@ void crashdump_manager::generate_report_if_needed(const std::string& crash_dir) 
                         location = m.path.empty() ? "[unknown]" : m.path;
                     }
 
+                    // Strip project root from location if present
+                    static std::string repo_root = git_manager::get_instance().get_repository_root();
+                    if (repo_root.empty()) {
+                        repo_root = fs::current_path().string();
+                    }
+                    std::string prefix = repo_root;
+                    if (!prefix.empty() && prefix.back() != '/') {
+                        prefix += "/";
+                    }
+                    if (location.starts_with(prefix)) {
+                        location = location.substr(prefix.length());
+                    }
+
                     report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `" << func_name << "` | " << location << " |\n";
                     found = true;
                     break;
@@ -221,4 +235,18 @@ std::string crashdump_manager::get_markdown_table() const {
         oss << dump.to_markdown_row() << "\n";
     }
     return oss.str();
+}
+
+void crashdump_manager::clear_all() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    crashdumps_.clear();
+    seen_crash_ids_.clear();
+    
+    std::string dump_dir = fs_utils::get_project_dump_dir();
+    if (fs::exists(dump_dir)) {
+        std::error_code ec;
+        fs::remove_all(dump_dir, ec);
+        fs::create_directories(dump_dir, ec);
+    }
 }
