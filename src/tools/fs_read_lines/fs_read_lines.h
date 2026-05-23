@@ -17,14 +17,16 @@ class fs_read_lines_tool : public agentlib::llm_tool {
 public:
     explicit fs_read_lines_tool(fs_read_lines_args args);
 
+    std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
 
 private:
     fs_read_lines_args args_;
+    std::shared_ptr<agentlib::agent_interaction> interaction_;
 
-    std::string read_from_document(agentlib::document_snapshot* doc) const;
-    std::string read_from_disk() const;
+    std::string read_from_document(agentlib::document_snapshot* doc, size_t& out_total_lines) const;
+    std::string read_from_disk(size_t& out_total_lines) const;
 };
 
 } // namespace tools

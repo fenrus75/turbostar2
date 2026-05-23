@@ -8,9 +8,61 @@
 #include <cstring>
 #include <algorithm>
 
+#include "../../agentlib/interactions/base.h"
+
 namespace tools {
 
-fs_read_lines_tool::fs_read_lines_tool(fs_read_lines_args args) : args_(std::move(args)) {}
+class interaction_fs_read_lines : public agentlib::agent_interaction {
+public:
+    enum class status { pending, success, failure };
+
+    interaction_fs_read_lines(const std::string& path, int start, int end, size_t total) 
+        : path_(path), start_(start), end_(end), total_(total), status_(status::pending) {}
+
+    void set_total(size_t total) {
+        total_ = total;
+        invalidate_cache();
+    }
+
+    void set_status(status s) {
+        status_ = s;
+        invalidate_cache();
+    }
+
+    std::string get_raw_text() const override {
+        std::string icon;
+        if (status_ == status::pending) icon = "\xE2\x97\x8F"; // ●
+        else if (status_ == status::success) icon = "\xE2\x9C\x94"; // ✔
+        else icon = "\xE2\x9C\x96"; // ✖
+        
+        return icon + "  " + path_ + " \xE2\x86\x92 Read lines " + std::to_string(start_) + "-" + std::to_string(end_) + " of " + std::to_string(total_) + " from " + path_;
+    }
+
+protected:
+    std::vector<agentlib::interaction_line> format_lines(int width) const override {
+        int color = 3; // 3 is Yellow on Dark Blue
+        if (status_ == status::success) color = 30; // 30 is Bright Green on Dark Blue
+        else if (status_ == status::failure) color = 31; // 31 is Bright Red on Dark Blue
+        
+        auto lines = wrap_text("", get_raw_text(), width, color);
+        return lines;
+    }
+
+private:
+    std::string path_;
+    int start_;
+    int end_;
+    size_t total_;
+    status status_;
+};
+
+fs_read_lines_tool::fs_read_lines_tool(fs_read_lines_args args) : args_(std::move(args)) {
+    interaction_ = std::make_shared<interaction_fs_read_lines>(args_.requested_path, args_.start_line, args_.end_line, 0);
+}
+
+std::shared_ptr<agentlib::agent_interaction> fs_read_lines_tool::get_interaction() const {
+    return interaction_;
+}
 
 bool fs_read_lines_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const {
     return true;
@@ -38,6 +90,16 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context& ctx) {
             if (view_opt) {
                 std::string_view view = view_opt.value();
                 
+                size_t total_lines = std::count(view.begin(), view.end(), '\n');
+                if (!view.empty() && view.back() != '\n') {
+                    total_lines++;
+                }
+
+                if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+                    custom_interaction->set_total(total_lines);
+                    // Defer status update until we know if it succeeded
+                }
+
                 // Very basic line slicing from string_view
                 std::stringstream ss;
                 int current_line = 1;
@@ -59,35 +121,66 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context& ctx) {
                     current_line++;
                 }
                 
+                std::string result_text;
                 if (ss.str().empty()) {
-                    return "Requested line range is empty or past the end of the file.";
+                    result_text = "Requested line range is empty or past the end of the file.";
+                    if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+                        custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+                    }
+                } else {
+                    result_text = ss.str();
+                    if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+                        custom_interaction->set_status(interaction_fs_read_lines::status::success);
+                    }
                 }
-                return ss.str();
+                
+                if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+                    if (ctx.trigger_ui_update) ctx.trigger_ui_update();
+                }
+                return result_text;
             }
+        }
+        
+        if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+            custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+            if (ctx.trigger_ui_update) ctx.trigger_ui_update();
         }
         return "Error: Virtual file not found or not mounted.";
     }
 
     // 3. Try reading from active editor document first
+    size_t total_lines = 0;
+    std::string result_text;
+
     if (ctx.doc_provider) {
         auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
         if (doc_snapshot) {
-            return read_from_document(doc_snapshot.get());
+            result_text = read_from_document(doc_snapshot.get(), total_lines);
+            if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+                custom_interaction->set_total(total_lines);
+                if (ctx.trigger_ui_update) ctx.trigger_ui_update();
+            }
+            return result_text;
         }
     }
 
     // 3. Fallback to direct disk access
-    return read_from_disk();
+    result_text = read_from_disk(total_lines);
+    if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+        custom_interaction->set_total(total_lines);
+        if (ctx.trigger_ui_update) ctx.trigger_ui_update();
+    }
+    return result_text;
 }
 
-std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot* doc) const {
+std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot* doc, size_t& out_total_lines) const {
     std::stringstream ss;
-    size_t total_lines = doc->get_line_count();
+    out_total_lines = doc->get_line_count();
 
     int start_idx = args_.start_line - 1;
-    int end_idx = std::min<int>(args_.end_line - 1, static_cast<int>(total_lines) - 1);
+    int end_idx = std::min<int>(args_.end_line - 1, static_cast<int>(out_total_lines) - 1);
 
-    if (start_idx >= static_cast<int>(total_lines)) {
+    if (start_idx >= static_cast<int>(out_total_lines)) {
         return "Requested start line is past the end of the file.";
     }
 
@@ -98,7 +191,8 @@ std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot* 
     return ss.str();
 }
 
-std::string fs_read_lines_tool::read_from_disk() const {
+std::string fs_read_lines_tool::read_from_disk(size_t& out_total_lines) const {
+    out_total_lines = 0;
     struct stat sb;
     if (stat(args_.safe_path.c_str(), &sb) == -1) {
         return "Error: File does not exist or cannot be accessed.";
@@ -123,6 +217,22 @@ std::string fs_read_lines_tool::read_from_disk() const {
     }
 
     // Reset stream
+    file.clear();
+    file.seekg(0);
+
+    // Fast count of total lines
+    out_total_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
+    if (sb.st_size > 0) {
+        file.clear();
+        file.seekg(-1, std::ios_base::end);
+        char last_char;
+        file.get(last_char);
+        if (last_char != '\n') {
+            out_total_lines++;
+        }
+    }
+
+    // Reset stream for actual reading
     file.clear();
     file.seekg(0);
 
