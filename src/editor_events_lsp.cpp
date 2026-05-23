@@ -40,27 +40,52 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 	if (ev.type == event_type::lsp_selection_range_result) {
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc && !ev.highlight_ranges.empty()) {
-			int sel_start_x = -1, sel_start_y = -1, sel_end_x = -1, sel_end_y = -1;
-			bool has_sel = active_doc->has_selection();
-			if (has_sel) {
-				active_doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
-			}
-	
-			// We traverse from innermost to outermost to find the first range strictly larger than the current selection.
-			// Or if no selection exists, we pick the innermost one (the first element).
+			int total_lines = static_cast<int>(active_doc->line_count());
+			
+			// Always find and update the "optimal" enclosing scope (largest not whole file)
+			const text_range* enclosing = nullptr;
 			for (const auto& range : ev.highlight_ranges) {
-				if (!has_sel) {
-					active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+				int range_height = range.end_y - range.start_y;
+				// If range is almost the whole file (say > 95%), we stop at the previous one
+				if (range_height >= total_lines - 2 && enclosing != nullptr) {
 					break;
-				} else {
-					// Check if this range is strictly larger than the current selection
-					if (range.start_y < sel_start_y || 
-					    (range.start_y == sel_start_y && range.start_x < sel_start_x) ||
-					    range.end_y > sel_end_y ||
-					    (range.end_y == sel_end_y && range.end_x > sel_end_x)) {
-					    
-					    active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
-					    break;
+				}
+				enclosing = &range;
+			}
+			if (enclosing) {
+				active_doc->set_enclosing_scope(*enclosing);
+			}
+
+			if (pending_inline_agent_task_.active) {
+				// Special logic for headless agent: Use the enclosing scope we just found
+				if (enclosing) {
+					active_doc->set_selection(enclosing->start_y, enclosing->start_x, enclosing->end_y, enclosing->end_x);
+				}
+				
+				launch_inline_agent(pending_inline_agent_task_.prompt);
+				pending_inline_agent_task_.active = false;
+				active_doc->clear_selection(); // Clear it after launch so user doesn't see it lingering
+			} else {
+				// Standard expansion logic: Innermost strictly larger than current
+				int sel_start_x = -1, sel_start_y = -1, sel_end_x = -1, sel_end_y = -1;
+				bool has_sel = active_doc->has_selection();
+				if (has_sel) {
+					active_doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
+				}
+
+				for (const auto& range : ev.highlight_ranges) {
+					if (!has_sel) {
+						active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+						break;
+					} else {
+						if (range.start_y < sel_start_y || 
+						    (range.start_y == sel_start_y && range.start_x < sel_start_x) ||
+						    range.end_y > sel_end_y ||
+						    (range.end_y == sel_end_y && range.end_x > sel_end_x)) {
+						    
+						    active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+						    break;
+						}
 					}
 				}
 			}

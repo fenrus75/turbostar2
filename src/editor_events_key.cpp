@@ -132,8 +132,14 @@ void editor::resolve_dialog(dialog_result res)
 void editor::dispatch_event_key(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
-
 	if (ev.type == event_type::key_press) {
+		std::shared_ptr<document> doc = get_active_doc();
+		int old_y = -1, old_x = -1;
+		if (doc) {
+			old_y = doc->get_cursor_y();
+			old_x = doc->get_cursor_x();
+		}
+
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 	
@@ -489,6 +495,28 @@ void editor::dispatch_event_key(const editor_event &ev)
 				active_win->get_queue().push(ev);
 			}
 		}
+
+		// Background: Update LSP scope if cursor moved outside currently known scope
+		if (doc) {
+			int new_y = doc->get_cursor_y();
+			int new_x = doc->get_cursor_x();
+			if (new_y != old_y || new_x != old_x) {
+				if (!doc->get_filename().empty() && lsp_manager::get_instance().is_supported_file(doc->get_filename())) {
+					auto scope = doc->get_enclosing_scope();
+					bool outside = true;
+					if (scope) {
+						if (new_y >= scope->start_y && new_y <= scope->end_y) {
+							// For performance, we could check X too, but lines are usually enough
+							outside = false;
+						}
+					}
+					
+					if (outside) {
+						lsp_manager::get_instance().request_selection_range(doc->get_filename(), new_y, new_x);
+					}
+				}
+			}
+		}
 	}
 
 }
@@ -525,6 +553,7 @@ void editor::launch_inline_agent(const std::string &prompt)
 	if (!doc) return;
 
 	int cur_y = doc->get_cursor_y();
+	int cur_x = doc->get_cursor_x();
 	std::string filename = doc->get_filename();
 
 	// 1. Determine target range
@@ -536,6 +565,16 @@ void editor::launch_inline_agent(const std::string &prompt)
 		doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
 		start_line = sel_start_y + 1;
 		end_line = sel_end_y + 1;
+	} else if (doc->get_enclosing_scope()) {
+		auto scope = doc->get_enclosing_scope();
+		start_line = scope->start_y + 1;
+		end_line = scope->end_y + 1;
+	} else if (!filename.empty() && lsp_manager::get_instance().is_supported_file(filename)) {
+		// No cached scope, need to wait for LSP
+		logger.log("No cached scope for inline agent. Querying LSP.");
+		pending_inline_agent_task_ = {prompt, true};
+		lsp_manager::get_instance().request_selection_range(filename, cur_y, cur_x);
+		return;
 	}
 
 	// 2. Collect diagnostics in range

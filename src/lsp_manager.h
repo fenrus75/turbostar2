@@ -31,6 +31,7 @@ class lsp_manager
 	void request_hover(const std::string &filepath, int line, int character);
 	void request_document_highlight(const std::string &filepath, int line, int character);
 	void request_selection_range(const std::string &filepath, int line, int character);
+	bool is_supported_file(const std::string &filepath) const;
 
       private:
 	lsp_manager() = default;
@@ -47,7 +48,6 @@ class lsp_manager
 
 	void start_server(const std::string& name, const std::vector<std::string>& args, const std::string& language_id);
 	server_instance* get_server_for_file(const std::string& filepath);
-	bool is_supported_file(const std::string &filepath) const;
 
 	std::vector<std::unique_ptr<server_instance>> servers_;
 	event_queue *global_queue_{nullptr};

@@ -113,6 +113,11 @@ class editor : public agentlib::document_provider
 	
 	bool is_inline_agent_prompt_{false};
 	std::string inline_agent_input_buffer_;
+	
+	struct pending_task {
+		std::string prompt;
+		bool active{false};
+	} pending_inline_agent_task_;
 
 	std::vector<std::shared_ptr<agentlib::ai_agent>> headless_agents_;
 

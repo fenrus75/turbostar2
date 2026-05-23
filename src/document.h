@@ -150,6 +150,12 @@ class document
 	}
 	const std::vector<diagnostic_info>& get_lsp_diagnostics() const { return lsp_diagnostics_; }
 
+	void set_enclosing_scope(const text_range &range) {
+		std::unique_lock lock(mutex_);
+		enclosing_scope_ = range;
+	}
+	const std::optional<text_range>& get_enclosing_scope() const { return enclosing_scope_; }
+
       private:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
@@ -212,4 +218,5 @@ class document
 
 	mutable std::vector<text_range> lsp_highlights_;
 	mutable std::vector<diagnostic_info> lsp_diagnostics_;
+	mutable std::optional<text_range> enclosing_scope_;
 };
