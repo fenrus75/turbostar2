@@ -1,4 +1,4 @@
-project('turbostar', 'cpp',
+project('turbostar', ['cpp', 'c'],
   version : '0.1',
   default_options : ['warning_level=3', 'cpp_std=c++23'])
 
@@ -26,6 +26,16 @@ inc = include_directories('include', 'src')
 ncurses = ncurses_dep
 
 subdir('src')
+
+# Provide a libunwind dependency.
+cc = meson.get_compiler('c')
+libunwind_dep = cc.find_library('unwind', required: true)
+
+libturbocatch = shared_library('turbocatch',
+  'src/crash_catcher/crash_catcher.c',
+  dependencies: [libunwind_dep],
+  install: false
+)
 
 turbostar_exe = executable('turbostar',
   'src/main.cpp',
