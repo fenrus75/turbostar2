@@ -7,6 +7,12 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
+- implement a generic "diff view" that can visualize the changes in the last undo group.
+  This is essential for reviewing automated edits from inline agent operations.
+
+- improve inline agent context by querying LSP for the enclosing scope (function/class) containing the cursor.
+  This will allow the ^P assistant to operate on entire semantic units by default.
+
 - next set of tools for agents
     - request-access-to-denied file (to add to the security manager, will ask the user)
     - a set of LSP tools to help code navigation
@@ -47,10 +53,6 @@
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
 
-- on startup somehow the screen is black for slightly too long - it feels slow
-	- might be related to the pylsp thing
-	- we may need a short initial delay (say 100 msec) in "background" threads
-
 - should we send the initial system prompt and tool info as we open the agent window and not wait for the first user prompt?
 	- goal: reduce latency for first actual prompt
 
@@ -62,31 +64,9 @@
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
 
 
-
-- a function that works on a document, with start and finish lines as argument, and aligns markdown table | lines vertically
-   - step 1: track widest field on a per column basis, this becomes the target width for that column - but ignores extra padding
-   - step 2: pad all cells to their target width so that all | are perfectly vertically aligned
-
-
-- our "reformat selection" hotkey for markdown could combine the above 2 steps somehow
-
-- if the user mentions a file in the prompt (example: "Can you look at the file `/tmp/foo.md`" recogize this pattern
-  and give some amount of file system permission to such a mentioned file
-
-- a function that works on a document, that first aligns a markdown table (with the function above), and then replaces 
-  the border characters with pretty UTF8 single line borders
-	- this means adding 2 lines, one for above and one for below the markdown lines
-
-- A "Run" menu command in the tools menu, it runs the application where the editor leaves the whole screen for the app until it exits, 
-  or we launch a new terminal if DISPLAY/etc are set. Need to run it with our systemd-run wrapper so we can collect 
-  any coredumps easily
-
-- enhance syntax highlighting -- support a few more things in C++ with reasonable colors
-
-
-- spell check via an LLM call with a good prompt, asking the LLM to flag errors
-   "Check this document for spelling and gramatical errors, and use the flag_as_error tool to report any spelling mistake and severe gramatical mistake as error and flag gramatical improvements as warning"
-   this can be a temporary new agent connection, that destructs after the agent is done with the spell check
+- our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
+  or ctrl-E
+	- slighlty annoying interaction issue
 
 
 # mid term items
@@ -136,6 +116,9 @@
   Added a unified status-to-string helper and real-time event triggers for state changes (thinking, tool execution, telemetry updates).
 - implemented incremental (streaming) LLM updates and "think" block support.
   Refactored the entire LLM interaction stack (transport, client, and agent) to handle SSE streams, allowing for real-time UI feedback of reasoning and responses.
+- implemented `markdown_utils` for automatic table detection and vertical alignment.
+  Added a reusable building block for reformatting markdown tables with comprehensive unit testing.
+- optimized startup by delaying background thread initialization and fixing eager LSP spawning.
 
 ## 21-05-2026
 - Maybe catch coredumps and deal with them with gdb nicely, also allows us to give data to the agent in a precooked way

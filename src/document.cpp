@@ -483,6 +483,23 @@ void document::apply_external_edits_json(const std::string& json_str) {
 		
 		std::unique_lock lock(mutex_);
 		begin_edit_group();
+
+		auto adjust_all = [&](int edit_idx, int delta) {
+			auto adj = [&](int &x, int &y) {
+				if (y == -1) return;
+				if (y > edit_idx) {
+					y += delta;
+				} else if (y == edit_idx) {
+					// If the line we are on is deleted, move to previous or snap to start
+					if (delta < 0) x = 0;
+					// If we are replacing/adding, we'll end up at the start of the new block
+					// but let's try to be less jumpy.
+				}
+			};
+			adj(cursor_x_, cursor_y_);
+			adj(selection_start_x_, selection_start_y_);
+			adj(selection_end_x_, selection_end_y_);
+		};
 		
 		// The edits must be descending to avoid index shifts
 		for (const auto& edit : j) {
@@ -494,9 +511,9 @@ void document::apply_external_edits_json(const std::string& json_str) {
 			if (idx < 0 || idx >= static_cast<int>(lines_.size())) continue;
 			
 			if (type == "remove") {
-				cursor_y_ = idx; cursor_x_ = 0;
 				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 				lines_.erase(lines_.begin() + idx);
+				adjust_all(idx, -1);
 			} else if (type == "add" && edit.contains("replace_with")) {
 				std::string newstring = edit["replace_with"].get<std::string>();
 				std::stringstream ss(newstring);
@@ -511,14 +528,13 @@ void document::apply_external_edits_json(const std::string& json_str) {
 					}
 				}
 				
-				cursor_y_ = idx; cursor_x_ = 0;
 				for (size_t i = 0; i < new_lines.size(); ++i) {
 					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
+				adjust_all(idx, static_cast<int>(new_lines.size()));
 			} else if (type == "replace" && edit.contains("replace_with")) {
-				cursor_y_ = idx; cursor_x_ = 0;
 				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 				lines_.erase(lines_.begin() + idx);
 				
@@ -540,9 +556,19 @@ void document::apply_external_edits_json(const std::string& json_str) {
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
+				adjust_all(idx, static_cast<int>(new_lines.size()) - 1);
 			}
 		}
 		
+		// Ensure cursor is still in bounds
+		if (cursor_y_ < 0) cursor_y_ = 0;
+		if (cursor_y_ >= static_cast<int>(lines_.size())) cursor_y_ = static_cast<int>(lines_.size()) - 1;
+		if (cursor_x_ < 0) cursor_x_ = 0;
+		int line_len = lines_[cursor_y_]->length_in_chars();
+		if (cursor_x_ > line_len) cursor_x_ = line_len;
+
+		target_cursor_x_ = cursor_x_;
+
 		end_edit_group();
 		set_modified();
 		lock.unlock();

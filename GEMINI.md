@@ -7,6 +7,7 @@ Top design documentation: `docs/design.md`
 
 - keep `docs/design.md` and related documents updated at all times. Update the specific documentation files listed in the "Documentation Files" section whenever architectural or structural changes occur.
 - git commit after each logical change or item implemented. This is a standing rule.
+- when adding a new `event_type` enum value, you MUST update the central `editor::dispatch` function in `src/editor_events.cpp` to route the new event to its appropriate handler; missing this is a common source of bugs.
 - perform a code review before each commit to ensure no stray edits happened
 - run the test suite before commit
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
