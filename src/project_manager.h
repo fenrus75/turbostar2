@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <memory>
+#include <string>
 #include "lsp_manager.h"
 
 /**
@@ -19,12 +19,26 @@ class project_manager
 	/**
 	 * @brief Returns the absolute path to the project/repository root.
 	 */
-	std::string get_repository_root() const { return repo_root_; }
+	std::string get_repository_root() const
+	{
+		return repo_root_;
+	}
 
 	/**
 	 * @brief Returns the content of AGENTS.md or GEMINI.md if found at the root.
 	 */
-	std::string get_project_instructions() const { return instructions_; }
+	std::string get_project_instructions() const
+	{
+		return instructions_;
+	}
+
+	/**
+	 * @brief Returns a minified version of .clang-format if it exists and is under 100 lines.
+	 */
+	std::string get_clang_format() const
+	{
+		return clang_format_;
+	}
 
 	// LSP delegation methods
 	void lsp_start(event_queue &queue);
@@ -43,10 +57,11 @@ class project_manager
 
       private:
 	project_manager() = default;
-	
+
 	void load_instructions();
 
 	std::string repo_root_;
 	std::string instructions_;
+	std::string clang_format_;
 	std::unique_ptr<lsp_manager> lsp_manager_;
 };

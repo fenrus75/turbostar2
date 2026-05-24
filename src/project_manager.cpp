@@ -53,6 +53,36 @@ void project_manager::load_instructions()
 			event_logger::get_instance().log("Loaded project instructions from " + target.string());
 		}
 	}
+
+	fs::path clang_format_path = root / ".clang-format";
+	if (fs::exists(clang_format_path)) {
+		std::ifstream file(clang_format_path);
+		if (file.is_open()) {
+			std::string line;
+			std::string minified;
+			int line_count = 0;
+			while (std::getline(file, line)) {
+				// Trim leading whitespace
+				line.erase(0, line.find_first_not_of(" \t\r\n"));
+				// Skip empty lines and comments
+				if (!line.empty() && line[0] != '#') {
+					minified += line + "\n";
+					line_count++;
+				}
+				if (line_count > 100) {
+					event_logger::get_instance().log(
+					    ".clang-format too large (>100 active lines), ignoring for LLM prompt.");
+					minified.clear();
+					break;
+				}
+			}
+			if (!minified.empty()) {
+				clang_format_ = minified;
+				event_logger::get_instance().log("Loaded and minified .clang-format (" + std::to_string(line_count) +
+								 " lines)");
+			}
+		}
+	}
 }
 
 void project_manager::lsp_start(event_queue &queue)

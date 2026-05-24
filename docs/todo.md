@@ -2,6 +2,8 @@
 
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
 
+- take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
+
 - as part of our "terminal emulator" for the agent tab, we will need to "eat" escape codes
      to avoid corruption of the screen, at least the common ones and make the rest harmless (replace <esc> with a space)
 
@@ -99,6 +101,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented automatic `.clang-format` parsing and minification. A minified version (comments/empty lines removed, capped at 100 lines) is now appended to the system prompt of both the main agent and inline surgical agents, ensuring generated code aligns with project styling.
 - implemented persistent cursor positions across restarts with a 25-file LRU policy. File paths are now stored as absolute paths in `.turbostar_history` using a robust `x y path` format that handles spaces in filenames.
 - fixed a typo by renaming `AGENT.md` to `AGENTS.md` throughout the project management and documentation logic.
 - fixed an unused parameter warning in the `agent_window` constructor by removing the redundant `global_queue` parameter and updating all call sites.
