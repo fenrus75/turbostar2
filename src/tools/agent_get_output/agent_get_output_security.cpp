@@ -9,16 +9,17 @@ namespace tools
 
 struct agent_get_output_raw_args {
 	int id;
+	bool keep{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_output_raw_args, id);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_output_raw_args, id, keep);
 
 class agent_get_output_validator : public agentlib::tool_validator
 {
       public:
 	bool is_pure() const override
 	{
-		return true;
-	} // Only reading data
+		return false;
+	} // Changed to false because it might delete the agent
 
 	std::string get_name() const override
 	{
@@ -26,13 +27,20 @@ class agent_get_output_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Retrieves the entire interaction history (prompts, tool calls, and responses) of a specific subagent by its ID.";
+		return "Retrieves the interaction history of a subagent. By default, it also terminates the agent unless 'keep' is "
+		       "set to true.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {{"type", "object"},
-			{"properties", {{"id", {{"type", "integer"}, {"description", "The ID of the subagent to query."}}}}},
+			{"properties",
+			 {{"id", {{"type", "integer"}, {"description", "The ID of the subagent to query."}}},
+			  {"keep",
+			   {{"type", "boolean"},
+			    {"description", "If true, the subagent is kept alive after its output is retrieved. Defaults to false "
+					    "(auto-terminate)."},
+			    {"default", false}}}}},
 			{"required", nlohmann::json::array({"id"})}};
 	}
 
@@ -43,6 +51,7 @@ class agent_get_output_validator : public agentlib::tool_validator
 		try {
 			agent_get_output_raw_args raw_args = args_json.get<agent_get_output_raw_args>();
 			args_.id = raw_args.id;
+			args_.keep = raw_args.keep;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

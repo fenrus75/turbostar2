@@ -47,9 +47,15 @@ std::string agent_get_output_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	oss << "--- End of History ---\n";
-	oss << "If you are finished with this subagent, you should use the end_agent(" << target_agent->get_id()
-	    << ") tool to clean it up and free resources. Alternatively, you can send it new instructions using the message_agent("
-	    << target_agent->get_id() << ", \"<message>\") tool.";
+
+	if (!args_.keep) {
+		ctx.active_agent->remove_subagent(target_agent->get_id());
+		oss << "Agent " << std::to_string(args_.id) << " has been automatically terminated.";
+	} else {
+		oss << "If you are finished with this subagent, you should use the end_agent(" << target_agent->get_id()
+		    << ") tool to clean it up and free resources. Alternatively, you can send it new instructions using the message_agent("
+		    << target_agent->get_id() << ", \"<message>\") tool.";
+	}
 
 	return oss.str();
 }

@@ -8,6 +8,7 @@ namespace tools {
 
 struct agent_get_output_args {
     int id;
+    bool keep{false};
 };
 
 class agent_get_output_tool : public agentlib::llm_tool {
