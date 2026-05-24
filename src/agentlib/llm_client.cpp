@@ -140,7 +140,11 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 
 	if (!success) {
 		chat_delta error_delta;
-		error_delta.content = "Error: Streaming request failed.";
+		error_delta.content = "Error: Streaming request failed to " + transport_->get_base_url();
+		std::string last_err = transport_->get_last_error();
+		if (!last_err.empty()) {
+			error_delta.content += " (" + last_err + ")";
+		}
 		error_delta.is_final = true;
 		callback(error_delta);
 	}

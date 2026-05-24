@@ -4,6 +4,40 @@
 namespace agentlib
 {
 
+static std::string error_to_string(httplib::Error err)
+{
+	switch (err) {
+		case httplib::Error::Success:
+			return "Success";
+		case httplib::Error::Unknown:
+			return "Unknown error";
+		case httplib::Error::Connection:
+			return "Connection failed";
+		case httplib::Error::BindIPAddress:
+			return "Bind IP address failed";
+		case httplib::Error::Read:
+			return "Read failed";
+		case httplib::Error::Write:
+			return "Write failed";
+		case httplib::Error::ExceedRedirectCount:
+			return "Exceed redirect count";
+		case httplib::Error::Canceled:
+			return "Canceled";
+		case httplib::Error::SSLConnection:
+			return "SSL connection failed";
+		case httplib::Error::SSLLoadingCerts:
+			return "SSL loading certs failed";
+		case httplib::Error::SSLServerVerification:
+			return "SSL server verification failed";
+		case httplib::Error::UnsupportedMultipartBoundaryChars:
+			return "Unsupported multipart boundary characters";
+		case httplib::Error::Compression:
+			return "Compression failed";
+		default:
+			return "Internal httplib error code: " + std::to_string(static_cast<int>(err));
+	}
+}
+
 httplib_transport::httplib_transport(const std::string &base_url) : base_url_(base_url)
 {
 	cli_ = std::make_unique<httplib::Client>(base_url_);
@@ -33,9 +67,11 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 	if (res) {
 		response.status_code = res->status;
 		response.body = res->body;
+		last_error_ = "";
 	} else {
 		response.status_code = -1;
-		response.body = "Connection failed or cancelled";
+		last_error_ = error_to_string(res.error());
+		response.body = "Connection failed or cancelled: " + last_error_;
 	}
 	return response;
 }
@@ -58,7 +94,21 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 		res = cli_->send(req);
 	}
-	return res && res->status == 200;
+
+	if (!res) {
+		last_error_ = error_to_string(res.error());
+		return false;
+	}
+
+	if (res->status != 200) {
+		last_error_ = "HTTP " + std::to_string(res->status);
+		if (!res->body.empty())
+			last_error_ += ": " + res->body;
+		return false;
+	}
+
+	last_error_ = "";
+	return true;
 }
 
 } // namespace agentlib

@@ -26,6 +26,9 @@ public:
 
     // Returns the base URL of this transport for error reporting
     virtual std::string get_base_url() const = 0;
+
+    // Returns the last error message from the transport
+    virtual std::string get_last_error() const = 0;
 };
 
 } // namespace agentlib

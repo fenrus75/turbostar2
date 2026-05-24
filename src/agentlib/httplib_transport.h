@@ -20,9 +20,11 @@ public:
                      std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) override;
     void cancel() override;
     std::string get_base_url() const override { return base_url_; }
+    std::string get_last_error() const override { return last_error_; }
 
 private:
     std::string base_url_;
+    std::string last_error_;
     std::unique_ptr<httplib::Client> cli_;
     std::mutex mutex_;
 };

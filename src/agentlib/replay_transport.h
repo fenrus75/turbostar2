@@ -14,9 +14,11 @@ public:
     bool post_stream(const std::string& path, const std::string& json_body, 
                      std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) override;
     std::string get_base_url() const override { return "replay://" + playback_file_; }
+    std::string get_last_error() const override { return last_error_; }
 
 private:
     std::string playback_file_;
+    std::string last_error_;
     std::vector<nlohmann::json> log_array_;
     size_t current_index_ = 0;
 };

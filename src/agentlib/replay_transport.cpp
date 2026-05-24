@@ -41,9 +41,11 @@ transport_response replay_transport::post(const std::string & /*path*/, const st
 		} else {
 			res.body = body_json.dump();
 		}
+		last_error_ = "";
 	} else {
 		res.status_code = 404;
 		res.body = "{\"error\": \"End of playback file reached\"}";
+		last_error_ = "End of playback file reached";
 	}
 	return res;
 }
