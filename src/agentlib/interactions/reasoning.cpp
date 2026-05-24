@@ -8,32 +8,11 @@ std::vector<interaction_line> interaction_reasoning::format_lines(int width, bac
 {
 	int color = get_color_pair(interaction_role::thinking, bg);
 
-	if (get_age() > 5) {
-		// Return a single line separator spanning the width
-		std::vector<interaction_line> lines;
-		std::string horiz = "\xE2\x94\x80"; // ─
-		std::string title = " Agent Reasoning ";
-		int title_len = markdown_utils::utf8_length(title);
-
-		std::string line_text;
-		if (title_len >= width) {
-			for (int i = 0; i < width; ++i)
-				line_text += horiz;
-		} else {
-			int left_pad = (width - title_len) / 2;
-			int right_pad = width - title_len - left_pad;
-			for (int i = 0; i < left_pad; ++i)
-				line_text += horiz;
-			line_text += title;
-			for (int i = 0; i < right_pad; ++i)
-				line_text += horiz;
-		}
-		lines.push_back({line_text, color});
-		return lines;
-	}
-
 	std::string display_text = text_;
-	if (get_age() > 0) {
+	
+	if (get_age() > 5) {
+		display_text = "... (reasoning collapsed)";
+	} else if (get_age() > 0) {
 		size_t pos = 0;
 		int lines = 0;
 		while (lines < 3 && pos < display_text.length()) {
@@ -53,6 +32,7 @@ std::vector<interaction_line> interaction_reasoning::format_lines(int width, bac
 			display_text += "\n... (reasoning collapsed)";
 		}
 	}
+	
 	return wrap_text("", markdown_utils::align_all_tables(display_text, false), width, color);
 }
 
