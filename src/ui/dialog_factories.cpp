@@ -134,13 +134,30 @@ std::unique_ptr<dialog> create_force_quit_dialog()
 
 std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, const std::vector<std::string>& options)
 {
-	int height = 9 + options.size();
-	int width = std::max<int>(60, question.length() + 6);
+	std::vector<std::string> lines;
+	size_t start = 0;
+	size_t end;
+	while ((end = question.find('\n', start)) != std::string::npos) {
+		lines.push_back(question.substr(start, end - start));
+		start = end + 1;
+	}
+	lines.push_back(question.substr(start));
+
+	size_t max_line_len = 0;
+	for (const auto& l : lines) {
+		if (l.length() > max_line_len) max_line_len = l.length();
+	}
+
+	int height = 8 + lines.size() + options.size();
+	int width = std::max<int>(60, max_line_len + 6);
 	auto dlg = std::make_unique<dialog>("Question", width, height);
 
-	dlg->add_child(std::make_unique<ui_text_label>((width - question.length()) / 2, 2, question));
+	for (size_t i = 0; i < lines.size(); ++i) {
+		dlg->add_child(std::make_unique<ui_text_label>((width - lines[i].length()) / 2, 2 + i, lines[i]));
+	}
 
-	auto opt_group = std::make_unique<ui_radiobutton_group>("options", 3, 4, width - 6, options.size());
+	int start_y = 3 + lines.size();
+	auto opt_group = std::make_unique<ui_radiobutton_group>("options", 3, start_y, width - 6, options.size());
 	for (size_t i = 0; i < options.size(); ++i) {
 		std::string label = options[i];
 		if (label.length() > static_cast<size_t>(width - 10)) label = label.substr(0, width - 10);
@@ -148,7 +165,7 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, cons
 	}
 	dlg->add_child(std::move(opt_group));
 
-	int text_y = 4 + options.size();
+	int text_y = start_y + options.size();
 	dlg->add_child(std::make_unique<ui_text_label>(3, text_y, "Other:"));
 	
 	// Create the textbox, and hook it up so that when it gains focus, it auto-selects the "Other" option 
