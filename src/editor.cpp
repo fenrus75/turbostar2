@@ -125,7 +125,7 @@ void editor::new_agent_window()
 }
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 {
-	auto subagent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, std::move(subagent), global_queue_);
+	auto subagent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, std::move(subagent));
 	
 	windows_.push_back(std::move(subagent_win));
 	update_window_layout();

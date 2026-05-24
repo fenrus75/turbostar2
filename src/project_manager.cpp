@@ -33,7 +33,7 @@ void project_manager::load_instructions()
 	if (repo_root_.empty()) return;
 
 	fs::path root(repo_root_);
-	fs::path agent_md = root / "AGENT.md";
+	fs::path agent_md = root / "AGENTS.md";
 	fs::path gemini_md = root / "GEMINI.md";
 
 	fs::path target;

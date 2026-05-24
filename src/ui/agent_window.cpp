@@ -49,7 +49,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
     }
 }
 
-agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent, event_queue& global_queue)
+agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent)
     : window(id, x, y, width, height, existing_agent->get_name()), agent_(std::move(existing_agent))
 {
     set_background_color_pair(17);
