@@ -77,6 +77,7 @@ ui_sources = files(
   'ui/components/ui_button.cpp',
   'ui/components/ui_checkbox.cpp',
   'ui/components/ui_radio.cpp',
+  'ui/components/ui_ask_user_group.cpp',
   'ui/components/ui_group_box.cpp',
   'ui/components/ui_fileselector.cpp',
   'ui/components/ui_text_label.cpp',

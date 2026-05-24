@@ -8,6 +8,7 @@
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_group_box.h"
+#include "markdown_utils.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
@@ -161,16 +162,23 @@ std::unique_ptr<dialog> create_force_quit_dialog()
 	return std::make_unique<force_quit_dialog_impl>();
 }
 
+#include "ui/components/ui_ask_user_group.h"
+#include "ui/components/ui_text_label.h"
+
 std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, const std::vector<std::string> &options)
 {
+	std::string trimmed_q = question;
+	markdown_utils::trim_trailing_whitespace(trimmed_q);
+	while (!trimmed_q.empty() && isspace(trimmed_q.front())) trimmed_q.erase(0, 1);
+
 	std::vector<std::string> lines;
 	size_t start = 0;
 	size_t end;
-	while ((end = question.find('\n', start)) != std::string::npos) {
-		lines.push_back(question.substr(start, end - start));
+	while ((end = trimmed_q.find('\n', start)) != std::string::npos) {
+		lines.push_back(trimmed_q.substr(start, end - start));
 		start = end + 1;
 	}
-	lines.push_back(question.substr(start));
+	lines.push_back(trimmed_q.substr(start));
 
 	size_t max_line_len = 0;
 	for (const auto &l : lines) {
@@ -178,55 +186,39 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 			max_line_len = l.length();
 	}
 
-	int height = 8 + lines.size() + options.size();
-	int width = std::max<int>(60, max_line_len + 6);
+	int width = std::max<int>(70, max_line_len + 12);
+	
+	auto opt_group = std::make_unique<tools::ui_ask_user_group>("options", 0, 0, width - 4, options);
+	int options_height = opt_group->height();
+
+	// height calculation: 1 (top) + lines.size() + 1 (gap) + options_height + 3 (gap+buttons) + 2 (bottom/shadow)
+	int height = 7 + lines.size() + options_height;
 	auto dlg = std::make_unique<dialog>("Question", width, height);
 
 	for (size_t i = 0; i < lines.size(); ++i) {
-		dlg->add_child(std::make_unique<ui_text_label>((width - lines[i].length()) / 2, 2 + i, lines[i]));
+		dlg->add_child(std::make_unique<ui_text_label>((width - lines[i].length()) / 2, 1 + i, lines[i]));
 	}
 
-	int start_y = 3 + lines.size();
-	auto opt_group = std::make_unique<ui_radiobutton_group>("options", 3, start_y, width - 6, options.size());
-	for (size_t i = 0; i < options.size(); ++i) {
-		std::string label = options[i];
-		if (label.length() > static_cast<size_t>(width - 10)) {
-			label = label.substr(0, width - 10);
-		} else {
-			label.append(width - 10 - label.length(), ' ');
-		}
-		opt_group->add_child(std::make_unique<ui_radio_choice>(options[i], 0, i, label, '\0', i == 0));
-	}
+	int start_y = 2 + lines.size();
+	opt_group->set_bounds(2, start_y, width - 4, options_height);
 	dlg->add_child(std::move(opt_group));
 
-	int text_y = start_y + options.size();
-	dlg->add_child(std::make_unique<ui_text_label>(3, text_y, "Other:"));
-
-	// Create the textbox, and hook it up so that when it gains focus, it auto-selects the "Other" option
-	// (or just rely on the fact that if a custom string is entered, it overrides).
-	dlg->add_child(std::make_unique<ui_textbox>("custom_answer", 10, text_y, width - 13, ""));
-
-	int current_y = text_y + 2;
+	int btn_y = height - 3;
 	int btn_x_center = width / 2;
 
-	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x_center - 12, current_y, "   OK   ", 'O', [d = dlg.get()]() {
-		auto custom = d->get_value("custom_answer");
-		if (custom && !custom->empty()) {
-			d->set_result(*custom);
-		} else {
-			auto opt = d->get_value("options");
-			if (opt)
-				d->set_result(*opt);
-		}
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x_center - 12, btn_y, "   OK   ", 'O', [d = dlg.get()]() {
+		auto opt = d->get_value("options");
+		if (opt)
+			d->set_result(*opt);
 		d->set_action(dialog_result::confirmed);
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 2, current_y, " Cancel ", 'C', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 2, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
 
-	dlg->set_focus_by_name("btn_ok");
+	dlg->set_focus_by_name("options");
 	return dlg;
 }
 
