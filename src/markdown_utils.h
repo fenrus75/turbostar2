@@ -48,4 +48,9 @@ private:
  */
 size_t utf8_length(const std::string& s);
 
+/**
+ * @brief Detects and aligns all markdown tables in a block of text.
+ */
+std::string align_all_tables(const std::string& text, bool framed = false);
+
 } // namespace markdown_utils

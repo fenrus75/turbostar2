@@ -283,10 +283,10 @@ std::string project_manager::get_project_layout_markdown() const
 		}
 	}
 	return ss.str();
-	}
+}
 
-	std::string project_manager::get_project_knowledge_prompt() const
-	{
+std::string project_manager::get_project_knowledge_prompt() const
+{
 	std::string prompt;
 
 	std::string project_instr = get_project_instructions();
@@ -305,10 +305,9 @@ std::string project_manager::get_project_layout_markdown() const
 	}
 
 	return prompt;
-	}
+}
 
-	void project_manager::load_instructions()
-
+void project_manager::load_instructions()
 {
 	if (repo_root_.empty())
 		return;
