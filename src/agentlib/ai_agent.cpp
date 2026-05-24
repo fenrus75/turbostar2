@@ -256,13 +256,15 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 }
 void ai_agent::set_model(std::shared_ptr<ai_model> model)
 {
-	std::lock_guard lock(state_mutex_);
 	if (!model)
 		return;
 
-	model_ = std::move(model);
-	auto http_transport = std::make_shared<httplib_transport>(model_->get_url());
-	client_ = std::make_unique<llm_client>(http_transport);
+	{
+		std::lock_guard lock(state_mutex_);
+		model_ = std::move(model);
+		auto http_transport = std::make_shared<httplib_transport>(model_->get_url());
+		client_ = std::make_unique<llm_client>(http_transport);
+	}
 
 	add_interaction(std::make_shared<interaction_system_message>("Model switched to: " + model_->get_name() + " (" +
 								       model_->get_id() + ")"));
