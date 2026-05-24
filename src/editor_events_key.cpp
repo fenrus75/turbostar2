@@ -224,8 +224,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 		// 2. Status Bar Search Prompt
 		if (is_searching_prompt_) {
-			if (ev.key_code == 27) { // ESC
+			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				is_searching_prompt_ = false;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 				return;
 			}
 			std::string suggestion = get_search_autocomplete();
@@ -259,8 +262,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		// 2.5 Status Bar Search Options Prompt
 		if (is_search_options_prompt_) {
-			if (ev.key_code == 27) { // ESC
+			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				is_search_options_prompt_ = false;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 				return;
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {

@@ -12,9 +12,6 @@
 
 - fs_list_tests: give back a markdown table of valid test names (may only be possible after the first test run?)
 
-- allow <ESC> and Ctrl-C to exit/abort a ^KF search
-  (usability)
-
 - we need to tackle compaction at some point
 
 - investigate using PCH's in meson to speed up compiling of things that use
@@ -122,6 +119,7 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- fixed `^K F` (Find) prompt usability. Pressing `<ESC>` or `Ctrl-C` while typing a search query or search options now immediately aborts the search and clears the prompt from the status bar.
 - implemented ANSI escape code stripping in `interaction_terminal`. Terminals often output color codes or cursor movements (like `ls --color`) that garble the TUI. A fast scanner now "eats" standard ANSI CSI sequences (`\x1b[...]`) and replaces unknown/incomplete escapes with spaces, preventing UI corruption and potential security spoofing.
 - lowered the CPU priority of background language servers (`clangd`, `pylsp`) by launching them via `nice -n 10`. This prevents heavy indexing tasks from stuttering the editor UI.
 - implemented a fuzzy-search offset hint for `fs_replace_lines`. If the agent provides the wrong line number but the exact target string exists within +/- 10 lines, the tool now returns a helpful error message pointing the agent to the correct line, preventing it from getting "stuck" or needing to re-read the file.
