@@ -9,6 +9,11 @@ All UI elements define their `x` and `y` coordinates **relative to their parent 
 - This allows a complex widget (like a file selector) to be built once and placed anywhere inside a dialog.
 - The `ui_container` is responsible for translating these relative coordinates into absolute screen coordinates before calling its children.
 
+**⚠️ CRITICAL WARNING FOR CUSTOM UI ELEMENTS ⚠️**
+When implementing the `draw(int abs_x, int abs_y)` or `handle_event(..., int abs_x, int abs_y)` methods for a custom UI element, the `abs_x` and `abs_y` parameters **already include** the element's relative `x_` and `y_` offsets. 
+- **DO NOT** add your own `x_` and `y_` coordinates to `abs_x` or `abs_y` inside your implementation (e.g., `int start_x = abs_x + x_; // WRONG!`). 
+- Doing so causes a double-translation coordinate bug, rendering your element twice as far down and to the right as intended. Always use the provided `abs_x` and `abs_y` directly as the top-left starting point for rendering and hit-testing.
+
 ### Event Routing and Hit Testing
 Elements consume `editor_event` objects directly. Mouse events within the `editor_event` always carry absolute screen coordinates (`ev.mouse_x`, `ev.mouse_y`).
 Because children receive their own computed absolute coordinates (`abs_x`, `abs_y`) during the `handle_event` call, they can perform simple, foolproof hit-testing using the provided `contains_coordinate()` helper.
