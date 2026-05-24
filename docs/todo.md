@@ -1,9 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- usability: in the agent edit box, implement /quit command as a way to close the agent window
-  (we will need to add other common slash-commands over time so lets make this somewhat flexible)
-
-- a more powerful grep_search
 
 - the save changes dialog is sometimes to small for larger filenames. We need to dynamically grow it
   (very ugly screen corruption currently)
@@ -40,6 +36,9 @@
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
+
+
+- we need a non-ugly "ask_user" dialog box
 
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
@@ -119,6 +118,8 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- dynamically resize the "Save Changes" dialog to accommodate long filenames (up to the screen width). If the filename is still too long, a new `fs_utils::shorten_filename` helper intelligently truncates it by preserving the basename and root directories while replacing the middle with `....`.
+- implemented a more powerful `fs_find_in_files` tool for codebase-wide regex searches. It uses high-performance `mmap` zero-copy scanning for disk files and checks live, dirty editor buffers. Results are formatted as clean markdown, with a configurable cap (default 50) that falls back to listing filenames to protect context limits.
 - fixed `^K F` (Find) prompt usability. Pressing `<ESC>` or `Ctrl-C` while typing a search query or search options now immediately aborts the search and clears the prompt from the status bar.
 - implemented ANSI escape code stripping in `interaction_terminal`. Terminals often output color codes or cursor movements (like `ls --color`) that garble the TUI. A fast scanner now "eats" standard ANSI CSI sequences (`\x1b[...]`) and replaces unknown/incomplete escapes with spaces, preventing UI corruption and potential security spoofing.
 - lowered the CPU priority of background language servers (`clangd`, `pylsp`) by launching them via `nice -n 10`. This prevents heavy indexing tasks from stuttering the editor UI.
@@ -132,6 +133,7 @@
 - implemented persistent cursor positions across restarts with a 25-file LRU policy. File paths are now stored as absolute paths in `.turbostar_history` using a robust `x y path` format that handles spaces in filenames.
 - fixed a typo by renaming `AGENT.md` to `AGENTS.md` throughout the project management and documentation logic.
 - fixed an unused parameter warning in the `agent_window` constructor by removing the redundant `global_queue` parameter and updating all call sites.
+## 23-05-2026
 - fixed the `clangd` OOM issue by refactoring LSP management.
  The `lsp_manager` is now a component of the `project_manager` class, ensuring a single LSP instance per workspace. Access to LSP features is now mediated via delegation methods in `project_manager`, hiding implementation details and preventing redundant server launches.
 - implemented `git_push` with `force=true` support. When the agent attempts a force push, it requires explicit "Allow" or "Deny" confirmation from the user via the `prompt_user` dialog (permissions are not remembered).
