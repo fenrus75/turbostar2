@@ -263,6 +263,10 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `pid` *(integer, required)*: The Process ID (PID) of the crashed executable.
 
+### `crashdump_clear`
+*   **Description:** Deletes all crash dumps from the disk and clears the internal crash dump list. Use this to remove stale crash dumps after they have been investigated.
+*   **Arguments:** None.
+
 ---
 
 ## 10. SQLite Database Operations

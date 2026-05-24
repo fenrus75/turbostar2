@@ -133,6 +133,12 @@ test_sqlite_validation = executable('test_sqlite_validation',
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation)
 
+test_crashdump_clear = executable('test_crashdump_clear',
+  ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp'],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  include_directories: 'src')
+test('unit_crashdump_clear', test_crashdump_clear)
+
 # E2E tests (run via python)
 pymod = import('python')
 python = pymod.find_installation('python3', required: false)

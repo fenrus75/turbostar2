@@ -10,6 +10,13 @@
 - support for API keys for models -- need some basic security so that the keys don't leak out
    - including masking this config file in our sandbox
 
+- a project layout feature: At startup, spawn a thread that collects the subdirectories for our project (after a 100 msec delay)
+    - collects   "| directory name | files in this directory | header files in this directory | total files underneath |"
+    - sorts by total files
+    - reports the top 15 in a markdown table as part of the system prompt 
+	- to save tokens, no need to have the "underneath" column
+    - goal: give the agent an instant quick overview of the most important directories in the project
+
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
@@ -100,7 +107,8 @@
 
 # done items (move items here on completion)
 
-## 23-05-2026
+## 24-05-2026
+- implemented `crashdump_clear` tool to allow the agent to remove stale crash reports after investigation.
 - implemented automatic `.clang-format` parsing and minification. A minified version (comments/empty lines removed, capped at 100 lines) is now appended to the system prompt of both the main agent and inline surgical agents, ensuring generated code aligns with project styling.
 - implemented persistent cursor positions across restarts with a 25-file LRU policy. File paths are now stored as absolute paths in `.turbostar_history` using a robust `x y path` format that handles spaces in filenames.
 - fixed a typo by renaming `AGENT.md` to `AGENTS.md` throughout the project management and documentation logic.

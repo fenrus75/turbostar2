@@ -1,0 +1,2557 @@
+[
+  {
+    "path": "/v1/chat/completions",
+    "request": {
+      "messages": [
+        {
+          "content": "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.",
+          "role": "system"
+        },
+        {
+          "content": "Clear my crash dumps",
+          "role": "user"
+        }
+      ],
+      "model": "default-model",
+      "stream": false,
+      "tool_choice": "auto",
+      "tools": [
+        {
+          "function": {
+            "description": "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <skill_content> tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the <available_skills> section.\n\n<available_skills>\n[{\"description\":\">-   Profile and fix Linux performance problems using `perf`. Workflows: (A) hardware counters -- IPC, cache-miss, branch mispredictions; (B) hotspot profiling -- which functions and source lines consume CPU, with SIMD and accumulator detection; (C) cache-line contention -- false sharing, HITM, `perf c2c`; (D) core-count scaling -- dual-profile comparison, bottleneck categorization; (E) structured hotspot report with annotated source and pattern observations. Resolution strategies: TTAS spinlock, SIMD upconversion, parallel accumulator, structured false-sharing fix, per-CPU stats. Trigger on: perf, profiling, profile, hotspot, hotspots, cache miss, IPC, false sharing, HITM, scaling, core count, thread scaling, bottleneck, slow code, CPU bound, why is this slow, where does time go, does not scale. When in doubt, invoke this skill -- better to use it unnecessarily than to miss a performance opportunity.\",\"location\":\"skills://linux-perf/\",\"name\":\"linux-perf\"},{\"description\":\">-   Detect and fix x86/C/C++ performance patterns from source code or profiling   output (perf, VTune, flamegraphs). Invoke when the user asks to optimize,   review for performance, or write new SIMD/vectorized code — even without   profiling data. Trigger on: serial accumulator loops, narrow SIMD (xmm/ymm   that could be ymm/zmm), _mm* intrinsics, HITM/cmpxchg clusters, false   sharing, missing restrict or vzeroupper, or any request to write a fast   reduction, dot product, or CPU-dispatched function. Patterns: serial   accumulator, TTAS spinlock, SIMD upconversion (zipper), false sharing,   per-CPU stats, missing vzeroupper, missing restrict, CPU dispatch.\",\"location\":\"skills://performance-patterns/\",\"name\":\"performance-patterns\"},{\"description\":\"Install, run, parse, and optimize benchmarks from the Phoronix Test Suite (PTS). Use this skill whenever the user mentions \\\"phoronix\\\", \\\"pts/\\\", or \\\"phoronix-test-suite\\\", or asks to run, measure, improve, or optimize a PTS test — e.g., \\\"run pts/mt-dgemm\\\", \\\"optimize pts/compress-zstd\\\", \\\"what score does pts/x265 get\\\". Trigger immediately on any `pts/<testname>` reference, even if the user doesn't explicitly say \\\"phoronix\\\". Also trigger when the user asks to find or edit the source code of a PTS test.\",\"location\":\"skills://phoronix-test-suite/\",\"name\":\"phoronix-test-suite\"}]\n</available_skills>",
+            "name": "activate_skill",
+            "parameters": {
+              "properties": {
+                "name": {
+                  "description": "The name of the skill to activate.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Adds a new task to the AI agent's internal todo (task) list. Use this to track steps during complex multi-part requests.",
+            "name": "agent_add_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The description of the task to add.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Marks a task as complete in the AI agent's internal todo list. Provide an exact string match or a unique substring.",
+            "name": "agent_complete_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The exact task text or a unique substring to match.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes a task from the AI agent's internal todo list. Provide an exact string match or a unique substring.",
+            "name": "agent_delete_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The exact task text or a unique substring to match.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the entire interaction history (prompts, tool calls, and responses) of a specific subagent by its ID.",
+            "name": "agent_get_output",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all tasks currently in the AI agent's internal todo list, formatted as markdown checkboxes.",
+            "name": "agent_list_todos",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Sets a brief status message in the editor's status bar to inform the user of progress.",
+            "name": "agent_set_status",
+            "parameters": {
+              "properties": {
+                "message": {
+                  "description": "The brief status message (e.g., 'Analyzing code...').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns detailed status information about a specific subagent by its ID.",
+            "name": "agent_status",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the todo list with completion status of a specific subagent by its ID.",
+            "name": "agent_todo_status",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Ask the user a question to gather preferences or make decisions. A custom input 'Other' field is automatically provided.",
+            "name": "ask_user",
+            "parameters": {
+              "properties": {
+                "questions": {
+                  "items": {
+                    "properties": {
+                      "options": {
+                        "description": "Selectable choices. An 'Other' option is automatically added.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "question": {
+                        "description": "The complete question to ask the user.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "questions"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Clears all currently flagged errors and warnings from the editor UI.",
+            "name": "clear_all_errors",
+            "parameters": {
+              "properties": {},
+              "required": [],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Finds the definition(s) of a symbol at a specific location.",
+            "name": "code_get_definition",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Finds all references (usages) of a symbol across the project.",
+            "name": "code_get_references",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the semantic hierarchy of code blocks (function, class, etc.) containing a specific location.",
+            "name": "code_get_scope",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes all crash dumps from the disk and clears the internal crash dump list. Use this to remove stale crash dumps after they have been investigated.",
+            "name": "crashdump_clear",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the detailed backtrace and memory map of a specific crashdump by its ID.",
+            "name": "crashdump_get_info",
+            "parameters": {
+              "properties": {
+                "crash_id": {
+                  "description": "The Crash ID of the crashed executable.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "crash_id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns a markdown table of recent crashdumps (crashes) generated by commands in the sandbox. The table includes PID, Timestamp, Executable, and Signal.",
+            "name": "crashdump_list",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new subagent to delegate tasks to. The profile defines the agent's initial prompt and instructions.",
+            "name": "create_agent",
+            "parameters": {
+              "properties": {
+                "name": {
+                  "description": "A short, descriptive name for the subagent.",
+                  "type": "string"
+                },
+                "profile": {
+                  "description": "The initial prompt and system instructions for the subagent to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "profile"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Closes and terminates a specific subagent by its ID.",
+            "name": "end_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to terminate.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Flags a specific line in a file as an error or warning, creating an overlay in the editor UI.",
+            "name": "flag_as_error",
+            "parameters": {
+              "properties": {
+                "column": {
+                  "description": "The 1-based start column number of the error. Use 1 if unknown.",
+                  "type": "integer"
+                },
+                "error_string": {
+                  "description": "The description of the error.",
+                  "type": "string"
+                },
+                "filename": {
+                  "description": "The relative path to the file.",
+                  "type": "string"
+                },
+                "is_warning": {
+                  "description": "True if this is a warning, false if it is a hard error.",
+                  "type": "boolean"
+                },
+                "length": {
+                  "description": "The length of the error highlight in characters. Use 0 to highlight the whole line.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number of the error.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "filename",
+                "line",
+                "column",
+                "length",
+                "error_string",
+                "is_warning"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compiles a single file and returns the raw console output. Populates the workspace error list. Runs with terminal interaction.",
+            "name": "fs_compile_file",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file to compile, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the compile command, last compile time, and any build/LSP diagnostics for a specific file.",
+            "name": "fs_compile_info",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compiles the entire project and returns the raw console output. Populates the workspace error list. Runs with terminal interaction.",
+            "name": "fs_compile_project",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reports all files that currently have compilation errors/warnings or live LSP diagnostics.",
+            "name": "fs_compile_summary",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the size of a file in bytes.",
+            "name": "fs_file_size",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "List the contents of a directory as a Markdown table.",
+            "name": "fs_list_dir",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the directory, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Create a directory, including any necessary parent directories (like mkdir -p).",
+            "name": "fs_mkdir",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the directory to create, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size.",
+            "name": "fs_read_binary",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "size": {
+                  "description": "The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.",
+                  "type": "integer"
+                },
+                "start_offset": {
+                  "description": "The 0-based byte offset to start reading from. Defaults to 0.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000.",
+            "name": "fs_read_lines",
+            "parameters": {
+              "properties": {
+                "end_line": {
+                  "description": "The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "start_line": {
+                  "description": "The 1-based line number to start reading from. Defaults to 1 if omitted.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Search for a regular expression within a file and return matching lines as a Markdown table.",
+            "name": "fs_regexp_lines",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "pattern": {
+                  "description": "The C++ std::regex pattern to search for (e.g., 'function.*foo').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "pattern"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending line_number order.",
+            "name": "fs_replace_lines",
+            "parameters": {
+              "properties": {
+                "edits": {
+                  "description": "A list of edit operations. Operations MUST be sorted by line_number in DESCENDING order (e.g. edit line 100, then line 50) to prevent line shifting.",
+                  "items": {
+                    "properties": {
+                      "line_number": {
+                        "description": "The 1-based line number to target.",
+                        "type": "integer"
+                      },
+                      "original_text": {
+                        "description": "Required for 'remove' and 'replace'. The exact full content of the original line being modified. Used for safety verification. Pass empty string for 'add'.",
+                        "type": "string"
+                      },
+                      "replace_with": {
+                        "description": "Required for 'add' and 'replace'. The exact new content to insert or replace the line with. Pass empty string for 'remove'.",
+                        "type": "string"
+                      },
+                      "type": {
+                        "description": "The type of edit operation.",
+                        "enum": [
+                          "add",
+                          "remove",
+                          "replace"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "line_number",
+                      "type"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "path": {
+                  "description": "Path to the file to edit, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "edits"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Runs the project's test suite and returns the console output. Catch crashes and dumps backtraces. Runs with terminal interaction.",
+            "name": "fs_run_tests",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new file or completely overwrites an existing file with the provided content.",
+            "name": "fs_write_file",
+            "parameters": {
+              "properties": {
+                "content": {
+                  "description": "The entire complete content to write into the file.",
+                  "type": "string"
+                },
+                "force_overwrite": {
+                  "description": "Set to true to overwrite an existing file. Defaults to false.",
+                  "type": "boolean"
+                },
+                "path": {
+                  "description": "The path to the file to write, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "content"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.",
+            "name": "get_current_datetime",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the current temperature in a given location",
+            "name": "get_temperature",
+            "parameters": {
+              "properties": {
+                "location": {
+                  "description": "The city and state, e.g. San Francisco, CA",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "location"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Stages specific files or directories for the next commit (git add <paths>).",
+            "name": "git_add",
+            "parameters": {
+              "properties": {
+                "paths": {
+                  "description": "List of paths relative to the project root to stage (e.g., ['src/main.cpp', 'docs/']).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "paths"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Create a new git branch from the current HEAD.",
+            "name": "git_branch_create",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the new branch to create.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "List all git branches in the repository as a Markdown table, indicating the currently active branch.",
+            "name": "git_branch_list",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Switch to an existing git branch (git checkout <branch>).",
+            "name": "git_checkout_branch",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the branch to switch to.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Commit the currently staged changes with the provided commit message.",
+            "name": "git_commit",
+            "parameters": {
+              "properties": {
+                "message": {
+                  "description": "The commit message. Should follow conventional commit format if applicable.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compare the current working tree against another branch (git diff <branch>). Returns raw patch output.",
+            "name": "git_diff_from_branch",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the branch to compare against.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the staged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.",
+            "name": "git_diff_staged",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.",
+            "name": "git_diff_unstaged",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Initialize a new Git repository in the current project root. Fails if a .git directory already exists.",
+            "name": "git_init",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the last 10 commit messages in the repository (git log -n 10 --oneline).",
+            "name": "git_log",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Synchronize the current branch with the remote (git pull).",
+            "name": "git_pull",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Push the current branch to the remote repository. Note: force pushing requires explicit user approval.",
+            "name": "git_push",
+            "parameters": {
+              "properties": {
+                "force": {
+                  "description": "Optional: Whether to force push. Note: If set to true, the user will be prompted for explicit permission.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Discard uncommitted local changes to a file or directory (git checkout/restore <path>). Does not affect staged files.",
+            "name": "git_restore",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to restore, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files).",
+            "name": "git_status",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Unstage files that have been added to the Git index (git reset HEAD <paths>). Does not discard local file changes.",
+            "name": "git_unstage",
+            "parameters": {
+              "properties": {
+                "paths": {
+                  "description": "List of paths relative to the project root to unstage (e.g., ['src/main.cpp', 'docs/']).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "paths"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all active subagents managed by the current agent, returning a markdown table of ID, name, and status.",
+            "name": "list_agents",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.",
+            "name": "list_skills",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.",
+            "name": "list_tool_calls",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Sends a message or command to an active subagent, appending it to their processing queue.",
+            "name": "message_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent.",
+                  "type": "integer"
+                },
+                "message": {
+                  "description": "The text message or instruction to send.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Executes Python code. You MUST use print() statements to see output, as the script runs headlessly. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file).",
+            "name": "run_python",
+            "parameters": {
+              "properties": {
+                "code": {
+                  "description": "The raw Python code string to execute.",
+                  "type": "string"
+                },
+                "file_path": {
+                  "description": "The relative path to a Python script to execute.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval.",
+            "name": "run_shell_command",
+            "parameters": {
+              "properties": {
+                "command": {
+                  "description": "The exact shell command to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new persistent SQLite database for the project.",
+            "name": "sqlite_create_db",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to create (no paths or extensions).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes an existing SQLite database for the project.",
+            "name": "sqlite_delete_db",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to delete (no paths or extensions).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all persistent SQLite databases available for the project.",
+            "name": "sqlite_list_db",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Executes arbitrary SQL queries on a persistent SQLite database.",
+            "name": "sqlite_perform",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to query.",
+                  "type": "string"
+                },
+                "query": {
+                  "description": "The SQL command(s) to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database",
+                "query"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Pauses your execution until the specified subagent finishes its current task and returns to an idle state.",
+            "name": "wait_for_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to wait for.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources.",
+            "name": "web_fetch",
+            "parameters": {
+              "properties": {
+                "url": {
+                  "description": "The full URL to fetch (must start with http:// or https://).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "choices": [
+          {
+            "finish_reason": "tool_calls",
+            "index": 0,
+            "message": {
+              "content": "",
+              "reasoning_content": "The user wants to clear their crash dumps. I can see there's a function called `crashdump_clear` that \"Deletes all crash dumps from the disk and clears the internal crash dump list. Use this to remove stale crash dumps after they have been investigated.\"\n\nThis is exactly what the user is asking for, so I should call this function.\n",
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{}",
+                    "name": "crashdump_clear"
+                  },
+                  "id": "vtb0UUZJVoYHQZ8ko9tnHbWVdqekbeEg",
+                  "type": "function"
+                }
+              ]
+            }
+          }
+        ],
+        "created": 1779625444,
+        "id": "chatcmpl-biVr63jv3MeQUNOs3bN9kSeIITDIgrQH",
+        "model": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF:UD-Q4_K_XL",
+        "object": "chat.completion",
+        "system_fingerprint": "b9298-c0c7e147e",
+        "timings": {
+          "cache_n": 0,
+          "draft_n": 69,
+          "draft_n_accepted": 68,
+          "predicted_ms": 2203.492,
+          "predicted_n": 91,
+          "predicted_per_second": 41.29808503956447,
+          "predicted_per_token_ms": 24.214197802197805,
+          "prompt_ms": 10570.152,
+          "prompt_n": 6673,
+          "prompt_per_second": 631.3059641904865,
+          "prompt_per_token_ms": 1.5840179829162295
+        },
+        "usage": {
+          "completion_tokens": 91,
+          "prompt_tokens": 6673,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "total_tokens": 6764
+        }
+      },
+      "status_code": 200
+    },
+    "timestamp": 1779625444
+  },
+  {
+    "path": "/v1/chat/completions",
+    "request": {
+      "messages": [
+        {
+          "content": "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.",
+          "role": "system"
+        },
+        {
+          "content": "Clear my crash dumps",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{}",
+                "name": "crashdump_clear"
+              },
+              "id": "vtb0UUZJVoYHQZ8ko9tnHbWVdqekbeEg",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "Successfully cleared all crash dumps.",
+          "name": "crashdump_clear",
+          "role": "tool",
+          "tool_call_id": "vtb0UUZJVoYHQZ8ko9tnHbWVdqekbeEg"
+        }
+      ],
+      "model": "default-model",
+      "stream": false,
+      "tool_choice": "auto",
+      "tools": [
+        {
+          "function": {
+            "description": "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <skill_content> tags. These provide specialized guidance for the current task. Use this when you identify a task that matches a skill's description. ONLY use names exactly as they appear in the <available_skills> section.\n\n<available_skills>\n[{\"description\":\">-   Profile and fix Linux performance problems using `perf`. Workflows: (A) hardware counters -- IPC, cache-miss, branch mispredictions; (B) hotspot profiling -- which functions and source lines consume CPU, with SIMD and accumulator detection; (C) cache-line contention -- false sharing, HITM, `perf c2c`; (D) core-count scaling -- dual-profile comparison, bottleneck categorization; (E) structured hotspot report with annotated source and pattern observations. Resolution strategies: TTAS spinlock, SIMD upconversion, parallel accumulator, structured false-sharing fix, per-CPU stats. Trigger on: perf, profiling, profile, hotspot, hotspots, cache miss, IPC, false sharing, HITM, scaling, core count, thread scaling, bottleneck, slow code, CPU bound, why is this slow, where does time go, does not scale. When in doubt, invoke this skill -- better to use it unnecessarily than to miss a performance opportunity.\",\"location\":\"skills://linux-perf/\",\"name\":\"linux-perf\"},{\"description\":\">-   Detect and fix x86/C/C++ performance patterns from source code or profiling   output (perf, VTune, flamegraphs). Invoke when the user asks to optimize,   review for performance, or write new SIMD/vectorized code — even without   profiling data. Trigger on: serial accumulator loops, narrow SIMD (xmm/ymm   that could be ymm/zmm), _mm* intrinsics, HITM/cmpxchg clusters, false   sharing, missing restrict or vzeroupper, or any request to write a fast   reduction, dot product, or CPU-dispatched function. Patterns: serial   accumulator, TTAS spinlock, SIMD upconversion (zipper), false sharing,   per-CPU stats, missing vzeroupper, missing restrict, CPU dispatch.\",\"location\":\"skills://performance-patterns/\",\"name\":\"performance-patterns\"},{\"description\":\"Install, run, parse, and optimize benchmarks from the Phoronix Test Suite (PTS). Use this skill whenever the user mentions \\\"phoronix\\\", \\\"pts/\\\", or \\\"phoronix-test-suite\\\", or asks to run, measure, improve, or optimize a PTS test — e.g., \\\"run pts/mt-dgemm\\\", \\\"optimize pts/compress-zstd\\\", \\\"what score does pts/x265 get\\\". Trigger immediately on any `pts/<testname>` reference, even if the user doesn't explicitly say \\\"phoronix\\\". Also trigger when the user asks to find or edit the source code of a PTS test.\",\"location\":\"skills://phoronix-test-suite/\",\"name\":\"phoronix-test-suite\"}]\n</available_skills>",
+            "name": "activate_skill",
+            "parameters": {
+              "properties": {
+                "name": {
+                  "description": "The name of the skill to activate.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Adds a new task to the AI agent's internal todo (task) list. Use this to track steps during complex multi-part requests.",
+            "name": "agent_add_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The description of the task to add.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Marks a task as complete in the AI agent's internal todo list. Provide an exact string match or a unique substring.",
+            "name": "agent_complete_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The exact task text or a unique substring to match.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes a task from the AI agent's internal todo list. Provide an exact string match or a unique substring.",
+            "name": "agent_delete_todo",
+            "parameters": {
+              "properties": {
+                "text": {
+                  "description": "The exact task text or a unique substring to match.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the entire interaction history (prompts, tool calls, and responses) of a specific subagent by its ID.",
+            "name": "agent_get_output",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all tasks currently in the AI agent's internal todo list, formatted as markdown checkboxes.",
+            "name": "agent_list_todos",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Sets a brief status message in the editor's status bar to inform the user of progress.",
+            "name": "agent_set_status",
+            "parameters": {
+              "properties": {
+                "message": {
+                  "description": "The brief status message (e.g., 'Analyzing code...').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns detailed status information about a specific subagent by its ID.",
+            "name": "agent_status",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the todo list with completion status of a specific subagent by its ID.",
+            "name": "agent_todo_status",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to query.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Ask the user a question to gather preferences or make decisions. A custom input 'Other' field is automatically provided.",
+            "name": "ask_user",
+            "parameters": {
+              "properties": {
+                "questions": {
+                  "items": {
+                    "properties": {
+                      "options": {
+                        "description": "Selectable choices. An 'Other' option is automatically added.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "question": {
+                        "description": "The complete question to ask the user.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "questions"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Clears all currently flagged errors and warnings from the editor UI.",
+            "name": "clear_all_errors",
+            "parameters": {
+              "properties": {},
+              "required": [],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Finds the definition(s) of a symbol at a specific location.",
+            "name": "code_get_definition",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Finds all references (usages) of a symbol across the project.",
+            "name": "code_get_references",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the semantic hierarchy of code blocks (function, class, etc.) containing a specific location.",
+            "name": "code_get_scope",
+            "parameters": {
+              "properties": {
+                "character": {
+                  "description": "The 0-based character offset.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The file path.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "character"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes all crash dumps from the disk and clears the internal crash dump list. Use this to remove stale crash dumps after they have been investigated.",
+            "name": "crashdump_clear",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the detailed backtrace and memory map of a specific crashdump by its ID.",
+            "name": "crashdump_get_info",
+            "parameters": {
+              "properties": {
+                "crash_id": {
+                  "description": "The Crash ID of the crashed executable.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "crash_id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns a markdown table of recent crashdumps (crashes) generated by commands in the sandbox. The table includes PID, Timestamp, Executable, and Signal.",
+            "name": "crashdump_list",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new subagent to delegate tasks to. The profile defines the agent's initial prompt and instructions.",
+            "name": "create_agent",
+            "parameters": {
+              "properties": {
+                "name": {
+                  "description": "A short, descriptive name for the subagent.",
+                  "type": "string"
+                },
+                "profile": {
+                  "description": "The initial prompt and system instructions for the subagent to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "profile"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Closes and terminates a specific subagent by its ID.",
+            "name": "end_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to terminate.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Flags a specific line in a file as an error or warning, creating an overlay in the editor UI.",
+            "name": "flag_as_error",
+            "parameters": {
+              "properties": {
+                "column": {
+                  "description": "The 1-based start column number of the error. Use 1 if unknown.",
+                  "type": "integer"
+                },
+                "error_string": {
+                  "description": "The description of the error.",
+                  "type": "string"
+                },
+                "filename": {
+                  "description": "The relative path to the file.",
+                  "type": "string"
+                },
+                "is_warning": {
+                  "description": "True if this is a warning, false if it is a hard error.",
+                  "type": "boolean"
+                },
+                "length": {
+                  "description": "The length of the error highlight in characters. Use 0 to highlight the whole line.",
+                  "type": "integer"
+                },
+                "line": {
+                  "description": "The 1-based line number of the error.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "filename",
+                "line",
+                "column",
+                "length",
+                "error_string",
+                "is_warning"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compiles a single file and returns the raw console output. Populates the workspace error list. Runs with terminal interaction.",
+            "name": "fs_compile_file",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file to compile, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Retrieves the compile command, last compile time, and any build/LSP diagnostics for a specific file.",
+            "name": "fs_compile_info",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compiles the entire project and returns the raw console output. Populates the workspace error list. Runs with terminal interaction.",
+            "name": "fs_compile_project",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reports all files that currently have compilation errors/warnings or live LSP diagnostics.",
+            "name": "fs_compile_summary",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the size of a file in bytes.",
+            "name": "fs_file_size",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "List the contents of a directory as a Markdown table.",
+            "name": "fs_list_dir",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the directory, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Create a directory, including any necessary parent directories (like mkdir -p).",
+            "name": "fs_mkdir",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the directory to create, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size.",
+            "name": "fs_read_binary",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "size": {
+                  "description": "The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.",
+                  "type": "integer"
+                },
+                "start_offset": {
+                  "description": "The 0-based byte offset to start reading from. Defaults to 0.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000.",
+            "name": "fs_read_lines",
+            "parameters": {
+              "properties": {
+                "end_line": {
+                  "description": "The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned.",
+                  "type": "integer"
+                },
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "start_line": {
+                  "description": "The 1-based line number to start reading from. Defaults to 1 if omitted.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Search for a regular expression within a file and return matching lines as a Markdown table.",
+            "name": "fs_regexp_lines",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file, relative to the project root.",
+                  "type": "string"
+                },
+                "pattern": {
+                  "description": "The C++ std::regex pattern to search for (e.g., 'function.*foo').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "pattern"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending line_number order.",
+            "name": "fs_replace_lines",
+            "parameters": {
+              "properties": {
+                "edits": {
+                  "description": "A list of edit operations. Operations MUST be sorted by line_number in DESCENDING order (e.g. edit line 100, then line 50) to prevent line shifting.",
+                  "items": {
+                    "properties": {
+                      "line_number": {
+                        "description": "The 1-based line number to target.",
+                        "type": "integer"
+                      },
+                      "original_text": {
+                        "description": "Required for 'remove' and 'replace'. The exact full content of the original line being modified. Used for safety verification. Pass empty string for 'add'.",
+                        "type": "string"
+                      },
+                      "replace_with": {
+                        "description": "Required for 'add' and 'replace'. The exact new content to insert or replace the line with. Pass empty string for 'remove'.",
+                        "type": "string"
+                      },
+                      "type": {
+                        "description": "The type of edit operation.",
+                        "enum": [
+                          "add",
+                          "remove",
+                          "replace"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "line_number",
+                      "type"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "path": {
+                  "description": "Path to the file to edit, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "edits"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Runs the project's test suite and returns the console output. Catch crashes and dumps backtraces. Runs with terminal interaction.",
+            "name": "fs_run_tests",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new file or completely overwrites an existing file with the provided content.",
+            "name": "fs_write_file",
+            "parameters": {
+              "properties": {
+                "content": {
+                  "description": "The entire complete content to write into the file.",
+                  "type": "string"
+                },
+                "force_overwrite": {
+                  "description": "Set to true to overwrite an existing file. Defaults to false.",
+                  "type": "boolean"
+                },
+                "path": {
+                  "description": "The path to the file to write, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "content"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.",
+            "name": "get_current_datetime",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the current temperature in a given location",
+            "name": "get_temperature",
+            "parameters": {
+              "properties": {
+                "location": {
+                  "description": "The city and state, e.g. San Francisco, CA",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "location"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Stages specific files or directories for the next commit (git add <paths>).",
+            "name": "git_add",
+            "parameters": {
+              "properties": {
+                "paths": {
+                  "description": "List of paths relative to the project root to stage (e.g., ['src/main.cpp', 'docs/']).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "paths"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Create a new git branch from the current HEAD.",
+            "name": "git_branch_create",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the new branch to create.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "List all git branches in the repository as a Markdown table, indicating the currently active branch.",
+            "name": "git_branch_list",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Switch to an existing git branch (git checkout <branch>).",
+            "name": "git_checkout_branch",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the branch to switch to.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Commit the currently staged changes with the provided commit message.",
+            "name": "git_commit",
+            "parameters": {
+              "properties": {
+                "message": {
+                  "description": "The commit message. Should follow conventional commit format if applicable.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Compare the current working tree against another branch (git diff <branch>). Returns raw patch output.",
+            "name": "git_diff_from_branch",
+            "parameters": {
+              "properties": {
+                "branch_name": {
+                  "description": "The name of the branch to compare against.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch_name"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the staged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.",
+            "name": "git_diff_staged",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.",
+            "name": "git_diff_unstaged",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Initialize a new Git repository in the current project root. Fails if a .git directory already exists.",
+            "name": "git_init",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "View the last 10 commit messages in the repository (git log -n 10 --oneline).",
+            "name": "git_log",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Synchronize the current branch with the remote (git pull).",
+            "name": "git_pull",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Push the current branch to the remote repository. Note: force pushing requires explicit user approval.",
+            "name": "git_push",
+            "parameters": {
+              "properties": {
+                "force": {
+                  "description": "Optional: Whether to force push. Note: If set to true, the user will be prompted for explicit permission.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Discard uncommitted local changes to a file or directory (git checkout/restore <path>). Does not affect staged files.",
+            "name": "git_restore",
+            "parameters": {
+              "properties": {
+                "path": {
+                  "description": "The path to the file or directory to restore, relative to the project root.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files).",
+            "name": "git_status",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Unstage files that have been added to the Git index (git reset HEAD <paths>). Does not discard local file changes.",
+            "name": "git_unstage",
+            "parameters": {
+              "properties": {
+                "paths": {
+                  "description": "List of paths relative to the project root to unstage (e.g., ['src/main.cpp', 'docs/']).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "paths"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all active subagents managed by the current agent, returning a markdown table of ID, name, and status.",
+            "name": "list_agents",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.",
+            "name": "list_skills",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.",
+            "name": "list_tool_calls",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Sends a message or command to an active subagent, appending it to their processing queue.",
+            "name": "message_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent.",
+                  "type": "integer"
+                },
+                "message": {
+                  "description": "The text message or instruction to send.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Executes Python code. You MUST use print() statements to see output, as the script runs headlessly. Provide either 'code' (for direct execution) OR 'file_path' (to run an existing file).",
+            "name": "run_python",
+            "parameters": {
+              "properties": {
+                "code": {
+                  "description": "The raw Python code string to execute.",
+                  "type": "string"
+                },
+                "file_path": {
+                  "description": "The relative path to a Python script to execute.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval.",
+            "name": "run_shell_command",
+            "parameters": {
+              "properties": {
+                "command": {
+                  "description": "The exact shell command to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Creates a new persistent SQLite database for the project.",
+            "name": "sqlite_create_db",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to create (no paths or extensions).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Deletes an existing SQLite database for the project.",
+            "name": "sqlite_delete_db",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to delete (no paths or extensions).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Lists all persistent SQLite databases available for the project.",
+            "name": "sqlite_list_db",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Executes arbitrary SQL queries on a persistent SQLite database.",
+            "name": "sqlite_perform",
+            "parameters": {
+              "properties": {
+                "database": {
+                  "description": "The simple name of the database to query.",
+                  "type": "string"
+                },
+                "query": {
+                  "description": "The SQL command(s) to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "database",
+                "query"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Pauses your execution until the specified subagent finishes its current task and returns to an idle state.",
+            "name": "wait_for_agent",
+            "parameters": {
+              "properties": {
+                "id": {
+                  "description": "The ID of the subagent to wait for.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        },
+        {
+          "function": {
+            "description": "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources.",
+            "name": "web_fetch",
+            "parameters": {
+              "properties": {
+                "url": {
+                  "description": "The full URL to fetch (must start with http:// or https://).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "All crash dumps have been successfully cleared from your system.",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1779625445,
+        "id": "chatcmpl-gGYXJv6xoXBRnTuOgCTOOwgArrjgR17W",
+        "model": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF:UD-Q4_K_XL",
+        "object": "chat.completion",
+        "system_fingerprint": "b9298-c0c7e147e",
+        "timings": {
+          "cache_n": 6669,
+          "draft_n": 12,
+          "draft_n_accepted": 10,
+          "predicted_ms": 390.96,
+          "predicted_n": 14,
+          "predicted_per_second": 35.80928995293636,
+          "predicted_per_token_ms": 27.925714285714285,
+          "prompt_ms": 284.334,
+          "prompt_n": 44,
+          "prompt_per_second": 154.7475855859658,
+          "prompt_per_token_ms": 6.462136363636364
+        },
+        "usage": {
+          "completion_tokens": 14,
+          "prompt_tokens": 6713,
+          "prompt_tokens_details": {
+            "cached_tokens": 6669
+          },
+          "total_tokens": 6727
+        }
+      },
+      "status_code": 200
+    },
+    "timestamp": 1779625445
+  }
+]

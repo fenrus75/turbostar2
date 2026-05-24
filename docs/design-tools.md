@@ -88,6 +88,22 @@ This keeps the header file acting as built-in documentation for the tool's LLM i
 
 If a tool fails validation at either Stage 1 or Stage 2, the framework catches the failure and returns the explicit rejection string directly to the LLM as the tool's result. This allows the LLM to learn why an action was denied and attempt a different approach, rather than simply failing silently or aborting the agent loop.
 
+## Creating Tests with `agentcli`
+
+TurboStar provides a specialized utility, `agentcli`, for recording and replaying LLM interactions. This is the preferred way to create realistic test cases for new tools.
+
+### Recording an Interaction
+To record a live interaction with an LLM and save it as a JSON traffic log, use the `agentcli_record` binary:
+```bash
+./build/agentcli_record "Your prompt here" tests/data/my_tool_traffic.json
+```
+This will connect to the configured LLM, execute the tool calls, and save the entire request/response sequence.
+
+### Creating a Replay Test
+Once you have a traffic log, you can create a C++ unit test that uses `replay_transport` to verify the tool's behavior without needing a live LLM connection. 
+
+A template for creating these tests is available at `tests/unit/template_tool_test.cpp.example`. Refer to `tests/unit/test_todo_tools.cpp` for a complete, functional example of how to set up an `ai_agent` with a recorded traffic file for deterministic testing.
+
 ## Self-Registration
 
 Tools automatically register themselves with the central `tool_registry` at compile-time. There is no central factory file to maintain.

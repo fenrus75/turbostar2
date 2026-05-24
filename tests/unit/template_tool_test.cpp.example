@@ -1,0 +1,56 @@
+#include <cassert>
+#include <iostream>
+#include <memory>
+#include "../../src/agentlib/ai_agent.h"
+#include "../../src/agentlib/replay_transport.h"
+#include "../../src/event_queue.h"
+#include "../../src/agentlib/ai_model.h"
+
+/**
+ * TEMPLATE: Agent Tool Replay Test
+ * 
+ * This file serves as a template for creating new unit tests that verify
+ * agent tool interactions using recorded LLM traffic.
+ * 
+ * Workflow:
+ * 1. Record a live interaction using: 
+ *    ./build/agentcli_record "Your prompt" tests/data/your_tool_traffic.json
+ * 2. Copy this template to tests/unit/test_your_tool.cpp
+ * 3. Update the traffic file path and the assertions below.
+ */
+
+int main()
+{
+	event_queue q;
+	
+	// Create a model that points to the recorded traffic file
+    // Note: In the actual implementation, you might need to use a specific overload 
+    // or set the transport manually if ai_agent::create doesn't support paths directly yet.
+    // For now, we follow the pattern seen in test_todo_tools.cpp.
+	// auto agent = agentlib::ai_agent::create(1, "TestAgent", "tests/data/your_tool_traffic.json", &q, nullptr);
+
+    std::cout << "Starting replay test..." << std::endl;
+
+    /*
+	agent->submit_prompt("Your original prompt here");
+
+	// Process events until the agent_response arrives
+	bool done = false;
+	while (!done) {
+		if (auto ev = q.pop()) {
+			if (ev->type == event_type::agent_response) {
+				std::cout << "Response: " << ev->payload << std::endl;
+				done = true;
+			} else if (ev->type == event_type::agent_tool_update) {
+				// Tool execution progress
+			}
+		}
+	}
+    */
+
+	// 4. Verify the side effects of the tool call here
+	// assert(some_condition == true);
+
+	std::cout << "Template test passed (once implemented)!" << std::endl;
+	return 0;
+}
