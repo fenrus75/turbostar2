@@ -11,17 +11,17 @@ int agent_interaction::get_height(int width) const
 	return render(width).size();
 }
 
-const std::vector<interaction_line> &agent_interaction::render(int width) const
+const std::vector<interaction_line> &agent_interaction::render(int width, background_mode bg) const
 {
-	if (width != cached_width_) {
+	if (width != cached_width_ || bg != cached_bg_) {
 		if (!is_boxed_) {
-			cached_lines_ = format_lines(width);
+			cached_lines_ = format_lines(width, bg);
 		} else {
 			int inner_width = width - 4;
 			if (inner_width < 10)
 				inner_width = 10;
 
-			std::vector<interaction_line> inner_lines = format_lines(inner_width);
+			std::vector<interaction_line> inner_lines = format_lines(inner_width, bg);
 			cached_lines_.clear();
 
 			// Single line box drawing characters
@@ -33,6 +33,7 @@ const std::vector<interaction_line> &agent_interaction::render(int width) const
 			std::string bot_right = "\xE2\x94\x98";
 
 			std::string top_border = top_left;
+			int box_cp = get_color_pair(get_role(), bg);
 
 			if (!box_title_.empty()) {
 				std::string title_str = " " + box_title_ + " ";
@@ -62,7 +63,7 @@ const std::vector<interaction_line> &agent_interaction::render(int width) const
 
 			interaction_line top_line;
 			top_line.text = top_border;
-			top_line.color_pair = box_color_pair_;
+			top_line.color_pair = box_cp;
 			cached_lines_.push_back(top_line);
 
 			for (const auto &line : inner_lines) {
@@ -73,9 +74,9 @@ const std::vector<interaction_line> &agent_interaction::render(int width) const
 
 				interaction_line boxed_line = line;
 				boxed_line.prefix = vert + " ";
-				boxed_line.prefix_color_pair = box_color_pair_;
+				boxed_line.prefix_color_pair = box_cp;
 				boxed_line.suffix = std::string(pad_len, ' ') + " " + vert;
-				boxed_line.suffix_color_pair = box_color_pair_;
+				boxed_line.suffix_color_pair = box_cp;
 
 				cached_lines_.push_back(boxed_line);
 			}
@@ -87,10 +88,11 @@ const std::vector<interaction_line> &agent_interaction::render(int width) const
 
 			interaction_line bot_line;
 			bot_line.text = bot_border;
-			bot_line.color_pair = box_color_pair_;
+			bot_line.color_pair = box_cp;
 			cached_lines_.push_back(bot_line);
 		}
 		cached_width_ = width;
+		cached_bg_ = bg;
 	}
 	return cached_lines_;
 }

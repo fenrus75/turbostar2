@@ -37,17 +37,17 @@ std::string interaction_action::get_raw_text() const
 	return raw;
 }
 
-std::vector<interaction_line> interaction_action::format_lines(int width) const
+std::vector<interaction_line> interaction_action::format_lines(int width, background_mode bg) const
 {
-	int color = 33; // 33 is Bright Yellow on Cyan (Pending)
+	int color = get_color_pair(interaction_role::thinking, bg);
 	if (status_ == status::success)
-		color = 8; // 8 is Bright White on Cyan
+		color = get_color_pair(interaction_role::agent, bg);
 	else if (status_ == status::failure)
-		color = 35; // 35 is Bright Red on Cyan
+		color = get_color_pair(interaction_role::error, bg);
 
 	auto lines = wrap_text("", get_raw_text(), width, color);
 
-	auto extra_lines = format_extra_lines(width);
+	auto extra_lines = format_extra_lines(width, bg);
 	if (!extra_lines.empty()) {
 		lines.insert(lines.end(), extra_lines.begin(), extra_lines.end());
 	}

@@ -12,12 +12,13 @@ public:
     
     std::string get_raw_text() const override;
     interaction_type get_type() const override;
+    interaction_role get_role() const override;
 
     bool needs_subpanel_header() const override { return true; }
     std::string get_subpanel_label() const override { return title_; }
 
 protected:
-    std::vector<interaction_line> format_lines(int width) const override;
+    std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
 
 private:
     std::string title_;

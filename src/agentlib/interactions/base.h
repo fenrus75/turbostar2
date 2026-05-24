@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "agent_theme.h"
 
 namespace agentlib {
 
@@ -32,9 +33,10 @@ public:
     virtual ~agent_interaction() = default;
 
     virtual interaction_type get_type() const = 0;
+    virtual interaction_role get_role() const = 0;
 
     int get_height(int width) const;
-    const std::vector<interaction_line>& render(int width) const;
+    const std::vector<interaction_line>& render(int width, background_mode bg = background_mode::primary) const;
     virtual std::string get_raw_text() const = 0;
 
     void invalidate_cache() { cached_width_ = -1; }
@@ -61,13 +63,14 @@ public:
     virtual bool can_merge_with_previous(const agent_interaction& previous) const;
 
 protected:
-    virtual std::vector<interaction_line> format_lines(int width) const = 0;
+    virtual std::vector<interaction_line> format_lines(int width, background_mode bg) const = 0;
 
     // Helper for wrapping text with optional prefix
     static std::vector<interaction_line> wrap_text(const std::string& prefix, const std::string& text, int width, int color_pair);
 
 private:
     mutable int cached_width_{-1};
+    mutable background_mode cached_bg_{background_mode::primary};
     mutable std::vector<interaction_line> cached_lines_;
     bool is_boxed_ = false;
     int box_color_pair_ = 5;

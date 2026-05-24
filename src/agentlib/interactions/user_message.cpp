@@ -3,9 +3,10 @@
 namespace agentlib
 {
 
-std::vector<interaction_line> interaction_user_message::format_lines(int width) const
+std::vector<interaction_line> interaction_user_message::format_lines(int width, background_mode bg) const
 {
-	return wrap_text("> ", text_, width, 1);
+	int color = get_color_pair(interaction_role::user, bg);
+	return wrap_text("> ", text_, width, color);
 }
 
 } // namespace agentlib

@@ -7,11 +7,12 @@ class interaction_llm_response : public agent_interaction {
 public:
     explicit interaction_llm_response(std::string text) : text_(std::move(text)) {}
     interaction_type get_type() const override { return interaction_type::llm_response; }
+    interaction_role get_role() const override { return interaction_role::agent; }
     std::string get_raw_text() const override { return "LLM: " + text_; }
     const std::string& get_text() const { return text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
 protected:
-    std::vector<interaction_line> format_lines(int width) const override;
+    std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
 private:
     std::string text_;
 };

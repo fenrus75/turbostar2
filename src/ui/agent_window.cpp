@@ -189,17 +189,20 @@ void agent_window::draw_content() const
 		for (size_t i = 0; i < turn.items.size(); ++i) {
 			if (i > 0)
 				turn.height++; // Separator line
-			auto lines = turn.items[i]->render(inner_width);
+			// Calculate height with a dummy background mode, height doesn't change based on colors
+			auto lines = turn.items[i]->render(inner_width, background_mode::primary);
 			turn.height += lines.size();
 		}
 	}
 
 	int rendered_lines = 0;
 	int skip_lines = scroll_offset_;
+	int turn_idx = 0;
 
 	// Render turns backwards from the bottom
-	for (auto it = turns.rbegin(); it != turns.rend() && rendered_lines < available_height; ++it) {
+	for (auto it = turns.rbegin(); it != turns.rend() && rendered_lines < available_height; ++it, ++turn_idx) {
 		const auto &turn = *it;
+		background_mode bg = ((turns.size() - 1 - turn_idx) % 2 == 0) ? background_mode::primary : background_mode::alternate;
 
 		// If the whole turn is skipped, just decrement and move on
 		if (skip_lines >= turn.height) {
@@ -209,6 +212,7 @@ void agent_window::draw_content() const
 
 		// Generate all lines for this turn's box
 		std::vector<interaction_line> box_lines;
+		int box_cp = get_color_pair(turn.items.front()->get_role(), bg);
 
 		// Top border
 		interaction_line top_line;
@@ -216,7 +220,7 @@ void agent_window::draw_content() const
 		for (int i = 0; i < inner_width + 2; ++i)
 			top_line.text += horiz;
 		top_line.text += top_right;
-		top_line.color_pair = turn.color_pair;
+		top_line.color_pair = box_cp;
 		box_lines.push_back(top_line);
 
 		for (size_t i = 0; i < turn.items.size(); ++i) {
@@ -242,15 +246,15 @@ void agent_window::draw_content() const
 						sep_line.text += horiz;
 				}
 				sep_line.text += sep_right;
-				sep_line.color_pair = turn.color_pair;
+				sep_line.color_pair = box_cp;
 				box_lines.push_back(sep_line);
 			}
 
-			auto content = item->render(inner_width);
+			auto content = item->render(inner_width, bg);
 			for (const auto &line : content) {
 				interaction_line l = line;
 				l.prefix = vert + " ";
-				l.prefix_color_pair = turn.color_pair;
+				l.prefix_color_pair = box_cp;
 
 				int content_len = markdown_utils::utf8_length(line.text);
 				int pad_len = inner_width - content_len;
@@ -258,7 +262,7 @@ void agent_window::draw_content() const
 					pad_len = 0;
 
 				l.suffix = std::string(pad_len, ' ') + " " + vert;
-				l.suffix_color_pair = turn.color_pair;
+				l.suffix_color_pair = box_cp;
 				box_lines.push_back(l);
 			}
 		}
@@ -269,7 +273,7 @@ void agent_window::draw_content() const
 		for (int i = 0; i < inner_width + 2; ++i)
 			bot_line.text += horiz;
 		bot_line.text += bot_right;
-		bot_line.color_pair = turn.color_pair;
+		bot_line.color_pair = box_cp;
 		box_lines.push_back(bot_line);
 
 		// Render the visible lines of this turn box

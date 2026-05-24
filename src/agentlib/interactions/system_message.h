@@ -9,13 +9,15 @@ public:
         set_boxed(true, 2, "System Context"); // 2 is Red on White/Gray
     }
     interaction_type get_type() const override { return interaction_type::system_message; }
+    interaction_role get_role() const override { return interaction_role::system; }
     std::string get_raw_text() const override { return "System: " + text_; }
 
     bool can_merge_with_previous(const agent_interaction& previous) const override {
-        return dynamic_cast<const interaction_system_message*>(&previous) != nullptr;
+        return previous.get_type() == interaction_type::system_message;
     }
 protected:
-    std::vector<interaction_line> format_lines(int width) const override;
+    std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
+
 private:
     std::string text_;
 };

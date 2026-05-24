@@ -22,6 +22,9 @@ class interaction_fs_read_lines : public agentlib::interaction_action
 		update_text();
 	}
 
+	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
+	agentlib::interaction_role get_role() const override { return agentlib::interaction_role::agent; }
+
 	void set_total(size_t total)
 	{
 		total_ = total;

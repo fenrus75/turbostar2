@@ -25,16 +25,21 @@ std::string interaction_terminal::get_raw_text() const
 	return "[" + title_ + "]\n" + text_;
 }
 
+interaction_role interaction_terminal::get_role() const
+{
+	return interaction_role::terminal;
+}
+
 interaction_type interaction_terminal::get_type() const
 {
 	return interaction_type::terminal;
 }
 
 
-std::vector<interaction_line> interaction_terminal::format_lines(int width) const
+std::vector<interaction_line> interaction_terminal::format_lines(int width, background_mode bg) const
 {
-	// 29 is White on Black (Terminal Output)
-	return wrap_text("", text_, width, 29);
+	int color = get_color_pair(interaction_role::terminal, bg);
+	return wrap_text("", text_, width, color);
 }
 
 } // namespace agentlib

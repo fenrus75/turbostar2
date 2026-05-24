@@ -18,6 +18,7 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 	}
 
 	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
+	agentlib::interaction_role get_role() const override { return agentlib::interaction_role::agent; }
 
 	bool needs_subpanel_header() const override { return true; }
 	std::string get_subpanel_label() const override { return "Applying edits"; }
@@ -68,13 +69,14 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 	}
 
       protected:
-	std::vector<agentlib::interaction_line> format_lines(int width) const override
+	std::vector<agentlib::interaction_line> format_lines(int width, agentlib::background_mode bg) const override
 	{
-		auto lines = wrap_text("", call_text_, width, 3); // 3 is Yellow on Dark Blue
+		int label_color = get_color_pair(agentlib::interaction_role::thinking, bg);
+		auto lines = wrap_text("", call_text_, width, label_color);
 
 		if (!diff_lines_.empty()) {
 			// Draw a subtle separator
-			lines.push_back({std::string(std::min(width, 20), '-'), 8}); // 8 is Selection Cyan
+			lines.push_back({std::string(std::min(width, 20), '-'), label_color});
 
 			for (const auto &dl : diff_lines_) {
 				int color = 3; // Default Yellow on Dark Blue
@@ -95,9 +97,13 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 			}
 		}
 
-		if (!result_text_.empty() && result_text_.find("Successfully") != 0) {
-			lines.push_back({"", 3});
-			auto res_lines = wrap_text("", "-> " + result_text_, width, 10);
+		if (!result_text_.empty()) {
+			int res_color = get_color_pair(agentlib::interaction_role::agent, bg);
+			if (result_text_.find("Successfully") != 0) {
+				res_color = get_color_pair(agentlib::interaction_role::error, bg);
+			}
+			lines.push_back({"", res_color});
+			auto res_lines = wrap_text("", "-> " + result_text_, width, res_color);
 			lines.insert(lines.end(), res_lines.begin(), res_lines.end());
 		}
 		return lines;
