@@ -175,8 +175,33 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		}
 
 		if (actual_content.find(expected_prefix) != 0) {
-			out_error = "Verification Error at line " + std::to_string(edit.line_number) + ". \nExpected starting with: '" +
-				    expected_prefix + "'\nActual content: '" + actual_content + "'";
+			// Offset hint logic: check +/- 10 lines
+			int found_line = -1;
+			int check_radius = 10;
+			
+			// Start checking nearest lines first
+			for (int offset = 1; offset <= check_radius; ++offset) {
+				// Check down
+				int check_idx_down = idx + offset;
+				if (check_idx_down < static_cast<int>(lines.size()) && lines[check_idx_down].find(expected_prefix) == 0) {
+					found_line = check_idx_down + 1;
+					break;
+				}
+				// Check up
+				int check_idx_up = idx - offset;
+				if (check_idx_up >= 0 && lines[check_idx_up].find(expected_prefix) == 0) {
+					found_line = check_idx_up + 1;
+					break;
+				}
+			}
+
+			if (found_line != -1) {
+				out_error = "Verification Error: The string you provided is not on line " + std::to_string(edit.line_number) + 
+				            ", but it is on line " + std::to_string(found_line) + ". Please update your line_number and try again.";
+			} else {
+				out_error = "Verification Error at line " + std::to_string(edit.line_number) + ". \nExpected starting with: '" +
+					    expected_prefix + "'\nActual content: '" + actual_content + "'";
+			}
 			return false;
 		}
 	}

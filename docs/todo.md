@@ -1,10 +1,31 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- usability: in the agent edit box, implement /quit command as a way to close the agent window
+  (we will need to add other common slash-commands over time so lets make this somewhat flexible)
+
+- a more powerful grep_search
+
+- the save changes dialog is sometimes to small for larger filenames. We need to dynamically grow it
+  (very ugly screen corruption currently)
+
+- fs_run_tests: allow a list of strings of test names (optional) -- default is run all
+
+- fs_list_tests: give back a markdown table of valid test names (may only be possible after the first test run?)
+
+- allow <ESC> and Ctrl-C to exit/abort a ^KF search
+  (usability)
+
+- we need to tackle compaction at some point
+
+- investigate using PCH's in meson to speed up compiling of things that use
+  our json libraries
 
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
 
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
+
+- we should somehow start our language servers at a "nice" level
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
@@ -106,6 +127,8 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- implemented a fuzzy-search offset hint for `fs_replace_lines`. If the agent provides the wrong line number but the exact target string exists within +/- 10 lines, the tool now returns a helpful error message pointing the agent to the correct line, preventing it from getting "stuck" or needing to re-read the file.
+- implemented `/quit` slash command in the agent window. Typing `/quit` in the multiline edit box now immediately closes the agent window, providing a fast keyboard-driven workflow.
 - simplified `fs_read_lines` UI reporting: the tool now detects when a whole file is being read and displays "Read whole file (X lines)" instead of confusing line ranges (e.g., 1-10000 of 231).
 - implemented `pop_todo()` tool that returns and removes the first item from the agent's todo list, enabling sequential task management.
 - implemented a "project layout" feature that provides the agent with a markdown overview of the project's directory structure in the system prompt. This uses a background thread to inventory the project, counting source files, headers, and documentation/config files, selecting the most relevant directories (top 15-18) based on complexity and density.
