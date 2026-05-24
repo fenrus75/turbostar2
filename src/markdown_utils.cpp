@@ -289,4 +289,14 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 	return result;
 }
 
+void trim_trailing_whitespace(std::string &s)
+{
+	size_t last = s.find_last_not_of(" \t\r\n");
+	if (last == std::string::npos) {
+		s.clear();
+	} else {
+		s.erase(last + 1);
+	}
+}
+
 } // namespace markdown_utils

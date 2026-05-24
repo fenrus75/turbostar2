@@ -53,4 +53,9 @@ size_t utf8_length(const std::string& s);
  */
 std::string align_all_tables(const std::string& text, bool framed = false);
 
+/**
+ * @brief Removes trailing whitespace (spaces, tabs, newlines, carriage returns) from a string in-place.
+ */
+void trim_trailing_whitespace(std::string& s);
+
 } // namespace markdown_utils
