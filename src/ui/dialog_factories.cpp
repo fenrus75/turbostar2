@@ -160,7 +160,11 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, cons
 	auto opt_group = std::make_unique<ui_radiobutton_group>("options", 3, start_y, width - 6, options.size());
 	for (size_t i = 0; i < options.size(); ++i) {
 		std::string label = options[i];
-		if (label.length() > static_cast<size_t>(width - 10)) label = label.substr(0, width - 10);
+		if (label.length() > static_cast<size_t>(width - 10)) {
+			label = label.substr(0, width - 10);
+		} else {
+			label.append(width - 10 - label.length(), ' ');
+		}
 		opt_group->add_child(std::make_unique<ui_radio_choice>(options[i], 0, i, label, '\0', i == 0));
 	}
 	dlg->add_child(std::move(opt_group));
@@ -170,7 +174,7 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, cons
 	
 	// Create the textbox, and hook it up so that when it gains focus, it auto-selects the "Other" option 
 	// (or just rely on the fact that if a custom string is entered, it overrides).
-	dlg->add_child(std::make_unique<ui_textbox>("custom_answer", 10, text_y, width - 14, ""));
+	dlg->add_child(std::make_unique<ui_textbox>("custom_answer", 10, text_y, width - 13, ""));
 
 	int current_y = text_y + 2;
 	int btn_x_center = width / 2;
