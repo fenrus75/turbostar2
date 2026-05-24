@@ -20,6 +20,14 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned.
 
+### `fs_find_in_files`
+*   **Description:** Search for a regular expression across multiple files in the project. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
+*   **Arguments:**
+    *   `pattern` *(string, required)*: The RE2 regular expression to search for.
+    *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
+    *   `dir_path` *(string, optional)*: Restrict search to a specific directory path relative to project root. Defaults to the document root if omitted.
+    *   `max_results` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
+
 ### `fs_read_binary`
 *   **Description:** Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size.
 *   **Arguments:**
