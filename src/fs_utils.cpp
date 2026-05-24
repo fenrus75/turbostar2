@@ -323,6 +323,57 @@ bool is_safe_for_ui(const std::string &s)
 		}
 	}
 	return true;
-}
+	}
 
-} // namespace fs_utils
+	std::string shorten_filename(const std::string& filepath, int max_length) {
+	if (filepath.length() <= static_cast<size_t>(max_length)) {
+	return filepath;
+	}
+	if (max_length <= 4) {
+	return filepath.substr(filepath.length() - max_length);
+	}
+
+	std::filesystem::path p(filepath);
+	std::string basename = p.filename().string();
+
+	std::vector<std::string> parts;
+	for (const auto& part : p) {
+	parts.push_back(part.string());
+	}
+
+	if (parts.size() <= 2) {
+	std::string res = "...." + basename;
+	return res.substr(res.length() - max_length);
+	}
+
+	std::string first_dir = parts[0];
+	int start_idx = 1;
+	if (first_dir == "/" && parts.size() > 1) {
+	first_dir += parts[1];
+	start_idx = 2;
+	}
+
+	std::string result_right = "/" + basename;
+	int remaining_space = max_length - 4 - first_dir.length() - result_right.length();
+
+	if (remaining_space < 0) {
+	std::string full = filepath;
+	return "...." + full.substr(full.length() - (max_length - 4));
+	}
+
+	int current_idx = parts.size() - 2;
+	while (current_idx >= start_idx) {
+	std::string to_add = "/" + parts[current_idx];
+	if (remaining_space >= static_cast<int>(to_add.length())) {
+	result_right = to_add + result_right;
+	remaining_space -= to_add.length();
+	current_idx--;
+	} else {
+	break;
+	}
+	}
+
+	return first_dir + "...." + result_right;
+	}
+
+	} // namespace fs_utils

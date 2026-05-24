@@ -5,22 +5,39 @@
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
-	auto dlg = std::make_unique<dialog>("Unsaved Changes", 50, 8);
+	int max_dlg_width = COLS > 8 ? COLS - 8 : 50;
+	if (max_dlg_width > 120) max_dlg_width = 120; // reasonable upper bound
 
-	std::string msg = "Save changes to " + filename + "?";
-	int text_x = (50 - static_cast<int>(msg.length())) / 2;
+	int msg_overhead = 17; // "Save changes to " + "?"
+
+	std::string display_name = filename;
+	if (static_cast<int>(display_name.length()) + msg_overhead + 4 > max_dlg_width) {
+		int max_filename_len = max_dlg_width - msg_overhead - 4;
+		if (max_filename_len < 10) max_filename_len = 10;
+		display_name = fs_utils::shorten_filename(display_name, max_filename_len);
+	}
+
+	int desired_width = std::max(50, static_cast<int>(display_name.length()) + msg_overhead + 4);
+
+	auto dlg = std::make_unique<dialog>("Unsaved Changes", desired_width, 8);
+
+	std::string msg = "Save changes to " + display_name + "?";
+	int text_x = (desired_width - static_cast<int>(msg.length())) / 2;
 	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
 
 	int by = 8 - 3;
-	dlg->add_child(std::make_unique<ui_button>("btn_save", 4, by, "  Save  ", 'S', [d = dlg.get()]() {
+	int total_btn_width = 8 + 2 + 9 + 2 + 8; // 29 chars total
+	int btn_start_x = (desired_width - total_btn_width) / 2;
+
+	dlg->add_child(std::make_unique<ui_button>("btn_save", btn_start_x, by, "  Save  ", 'S', [d = dlg.get()]() {
 		d->set_result("save");
 		d->set_action(dialog_result::confirmed);
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_discard", 18, by, " Discard ", 'D', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_discard", btn_start_x + 10, by, " Discard ", 'D', [d = dlg.get()]() {
 		d->set_result("discard");
 		d->set_action(dialog_result::confirmed);
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 34, by, " Cancel ", 'C', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_start_x + 21, by, " Cancel ", 'C', [d = dlg.get()]() {
 		d->set_result("cancel");
 		d->set_action(dialog_result::cancelled);
 	}));

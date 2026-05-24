@@ -66,4 +66,14 @@ namespace fs_utils {
 	 * to prevent malicious agents from spoofing UI elements.
 	 */
 	bool is_safe_for_ui(const std::string& s);
-}
+
+	/**
+	 * @brief Shortens a filename to fit within a given max_length.
+	 * Rules:
+	 * 1. Keep the basename.
+	 * 2. If there's space, add the first directory (from the left).
+	 * 3. For all remaining space, go backwards from the right.
+	 * 4. Keep space for "...." (four dots) to indicate omission.
+	 */
+	std::string shorten_filename(const std::string& path, int max_length);
+	}
