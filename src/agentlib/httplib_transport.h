@@ -24,6 +24,7 @@ public:
 
 private:
     std::string base_url_;
+    std::string path_prefix_;
     std::string api_key_;
     std::string last_error_;
     std::unique_ptr<httplib::Client> cli_;

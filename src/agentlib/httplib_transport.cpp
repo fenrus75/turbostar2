@@ -41,7 +41,26 @@ static std::string error_to_string(httplib::Error err)
 httplib_transport::httplib_transport(const std::string &base_url, const std::string &api_key)
     : base_url_(base_url), api_key_(api_key)
 {
-	cli_ = std::make_unique<httplib::Client>(base_url_);
+	std::string host = base_url_;
+	size_t scheme_end = host.find("://");
+	size_t path_start = std::string::npos;
+	
+	if (scheme_end != std::string::npos) {
+		path_start = host.find('/', scheme_end + 3);
+	} else {
+		path_start = host.find('/');
+	}
+
+	if (path_start != std::string::npos) {
+		path_prefix_ = host.substr(path_start);
+		host = host.substr(0, path_start);
+		// Remove trailing slash from prefix if it exists to avoid double slashes later
+		if (path_prefix_.length() > 1 && path_prefix_.back() == '/') {
+			path_prefix_.pop_back();
+		}
+	}
+
+	cli_ = std::make_unique<httplib::Client>(host);
 	cli_->set_follow_location(true);
 }
 
@@ -68,7 +87,8 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 			headers.emplace("Authorization", "Bearer " + api_key_);
 		}
 
-		res = cli_->Post(path.c_str(), headers, json_body, "application/json");
+		std::string full_path = path_prefix_ + path;
+		res = cli_->Post(full_path.c_str(), headers, json_body, "application/json");
 	}
 
 	transport_response response;
@@ -95,7 +115,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 		httplib::Request req;
 		req.method = "POST";
-		req.path = path;
+		req.path = path_prefix_ + path;
 		req.body = json_body;
 		req.set_header("Content-Type", "application/json");
 		if (!api_key_.empty()) {
