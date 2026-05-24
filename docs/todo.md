@@ -41,10 +41,6 @@
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
 
-- should we send the initial system prompt and tool info as we open the agent window and not wait for the first user prompt?
-	- goal: reduce latency for first actual prompt
-	- current issue: we send an empty user prompt which may confuse the agent, if a GEMINI.md exists
-
 
 
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
@@ -93,6 +89,8 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- fixed the `ui_radio_choice` drawing logic so that the cyan background color extends fully behind the padded spaces to match the alignment box width.
+- fixed an LLM race condition by removing automatic `start_processing` upon `inject_context` for system prompts, ensuring the agent doesn't prematurely trigger without a user prompt.
 - implemented `run_shell_command` tool. Agents can execute arbitrary bash commands via an in-memory session permission system. A default system prompt strongly urges the use of built-in tools over shell commands to prevent nagging the user with security prompts. Commands containing ANSI escape characters are blocked.
 - implemented `web_fetch` tool. The agent can now fetch content from URLs using `curl`. Implemented a robust domain-based permission system (`allowed_domains.txt`) asking users for Once/Always/Deny/Deny Always approvals (blocking Always for local IPs).
 - the whole crashdump approach needs a rethink, the world is 100x more complex than assumed
@@ -230,4 +228,5 @@
 	- performance feature: avoids having to construct new objects all the time etc
 - our "target X" that we track for crossing shorter lines vertically does not get updated when the user presses the <END> key
   or ctrl-E
+	- slighlty annoying interaction issue-E
 	- slighlty annoying interaction issue
