@@ -172,6 +172,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `file_path` *(string, optional)*: The relative path to a Python script to execute.
     *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available).
 
+### `web_fetch`
+*   **Description:** Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.
+*   **Arguments:**
+    *   `url` *(string, required)*: The full URL to fetch (must start with http:// or https://).
+
 ---
 
 ## 7. Agent State & To-Do Management

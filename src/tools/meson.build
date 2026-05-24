@@ -43,6 +43,8 @@ tools_sources = files(
   'wait_for_agent/wait_for_agent_security.cpp',
   'run_python/run_python_entry.cpp',
   'run_python/run_python_security.cpp',
+  'web_fetch/web_fetch_entry.cpp',
+  'web_fetch/web_fetch_security.cpp',
   'crashdump_list/crashdump_list_entry.cpp',
   'crashdump_list/crashdump_list_security.cpp',
   'crashdump_get_info/crashdump_get_info_entry.cpp',

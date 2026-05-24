@@ -1,5 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- a "run" option to run the application from the menu, where we temporarily
+  exit ncurses (but catch crashes etc)
+
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
@@ -8,6 +11,7 @@
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
 
 - in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
+	- our cut down some wide columns to make things fit
 
 - when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
 
@@ -16,14 +20,10 @@
 
 - next set of tools for agents
     - next set of tools for agents
-        - request-access-to-denied file (to add to the security manager, will ask the user)
+      - request-access-to-denied file (to add to the security manager, will ask the user)
         - a set of LSP tools to help code navigation
-    	- code_lsp_rename
-        - a set of git ops
-    	- a set of git ops
-    		- git_create_pr(message)
     	- gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
-        - read memory, get registers
+	        - read memory, get registers
     - web_fetch(URI)
 	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
 	- needs a way to ask the user for permission
@@ -61,7 +61,6 @@
 
 - support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 
-- the whole crashdump approach needs a rethink, the world is 100x more complex than assumed
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
@@ -96,6 +95,8 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `web_fetch` tool. The agent can now fetch content from URLs using `curl`. Implemented a robust domain-based permission system (`allowed_domains.txt`) asking users for Once/Always/Deny/Deny Always approvals (blocking Always for local IPs).
+- the whole crashdump approach needs a rethink, the world is 100x more complex than assumed
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list
 	- this would be a great addition to our ^P menu, to spell check (and fix) text (for non code) or comments and user strings (for code)
 - disabled saving operations ("Save", "Save As", "Save All") for read-only buffers (like the Agent window), graying out the menu items and ignoring the respective keyboard shortcuts (`^KS`, `^KW`, `F2`).

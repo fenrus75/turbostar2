@@ -27,6 +27,11 @@ namespace fs_utils {
 	std::string execute_command_sync(const std::string& cmd);
 
 	/**
+	 * @brief Returns the global Turbostar cache directory (~/.cache/turbostar).
+	 */
+	std::string get_global_cache_dir();
+
+	/**
 	 * @brief Returns the safe, project-specific directory for storing SQLite databases.
 	 * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/ and creates the directory if it doesn't exist.
 	 */

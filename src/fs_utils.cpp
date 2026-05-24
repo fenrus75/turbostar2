@@ -178,6 +178,19 @@ namespace fs_utils {
 	        return runner.full_output;
 	}
 
+	std::string get_global_cache_dir() {
+		const char* home = std::getenv("HOME");
+		std::filesystem::path cache_dir;
+		if (home) {
+			cache_dir = std::filesystem::path(home) / ".cache" / "turbostar";
+		} else {
+			cache_dir = std::filesystem::path(".turbostar");
+		}
+		std::error_code ec;
+		std::filesystem::create_directories(cache_dir, ec);
+		return cache_dir.string();
+	}
+
 	std::string get_project_db_dir() {
 	        std::string repo_root = git_manager::get_instance().get_repository_root();
 	        if (repo_root.empty()) {
