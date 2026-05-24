@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- would be nice to store cursor position on a per file basis across restarts of turbostar. "joe" does this 
+
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc)
 
@@ -51,7 +53,6 @@
 
 # mid term items
 
-- we need an `fs_utils` helper to locate `libturbocatch.so` in a few key places (e.g., build directory, installation directory, etc) for reliable `LD_PRELOAD` injection.
 
 - support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 
@@ -89,6 +90,8 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `git_push` with `force=true` support. When the agent attempts a force push, it requires explicit "Allow" or "Deny" confirmation from the user via the `prompt_user` dialog (permissions are not remembered).
+- we need an `fs_utils` helper to locate `libturbocatch.so` in a few key places (e.g., build directory, installation directory, etc) for reliable `LD_PRELOAD` injection.
 - fixed the `ui_radio_choice` drawing logic so that the cyan background color extends fully behind the padded spaces to match the alignment box width.
 - fixed an LLM race condition by removing automatic `start_processing` upon `inject_context` for system prompts, ensuring the agent doesn't prematurely trigger without a user prompt.
 - implemented `run_shell_command` tool. Agents can execute arbitrary bash commands via an in-memory session permission system. A default system prompt strongly urges the use of built-in tools over shell commands to prevent nagging the user with security prompts. Commands containing ANSI escape characters are blocked.
