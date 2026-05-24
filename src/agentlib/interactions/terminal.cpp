@@ -4,19 +4,55 @@
 namespace agentlib
 {
 
-interaction_terminal::interaction_terminal(std::string title, std::string text) : title_(std::move(title)), text_(std::move(text))
+static std::string sanitize_terminal_output(const std::string& input) {
+	std::string output;
+	output.reserve(input.length());
+	size_t i = 0;
+	while (i < input.length()) {
+		if (input[i] == '\x1b') {
+			// Check for ANSI CSI sequence: ESC [ ... [a-zA-Z]
+			if (i + 1 < input.length() && input[i + 1] == '[') {
+				size_t j = i + 2;
+				while (j < input.length()) {
+					char c = input[j];
+					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+						// Found the end of the sequence
+						i = j + 1;
+						break;
+					}
+					j++;
+				}
+				if (j == input.length()) {
+					// Incomplete sequence at end of string, just replace ESC
+					output += ' ';
+					i++;
+				}
+			} else {
+				// Unknown escape sequence, replace ESC with space for safety
+				output += ' ';
+				i++;
+			}
+		} else {
+			output += input[i];
+			i++;
+		}
+	}
+	return output;
+}
+
+interaction_terminal::interaction_terminal(std::string title, std::string text) : title_(std::move(title)), text_(sanitize_terminal_output(text))
 {
 }
 
 void interaction_terminal::append_text(const std::string &t)
 {
-	text_ += t;
+	text_ += sanitize_terminal_output(t);
 	invalidate_cache();
 }
 
 void interaction_terminal::set_text(const std::string &t)
 {
-	text_ = t;
+	text_ = sanitize_terminal_output(t);
 	invalidate_cache();
 }
 

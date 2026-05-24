@@ -27,9 +27,6 @@
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
-- as part of our "terminal emulator" for the agent tab, we will need to "eat" escape codes
-     to avoid corruption of the screen, at least the common ones and make the rest harmless (replace <esc> with a space)
-
 - support for API keys for models -- need some basic security so that the keys don't leak out
    - including masking this config file in our sandbox
 
@@ -125,6 +122,7 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- implemented ANSI escape code stripping in `interaction_terminal`. Terminals often output color codes or cursor movements (like `ls --color`) that garble the TUI. A fast scanner now "eats" standard ANSI CSI sequences (`\x1b[...]`) and replaces unknown/incomplete escapes with spaces, preventing UI corruption and potential security spoofing.
 - lowered the CPU priority of background language servers (`clangd`, `pylsp`) by launching them via `nice -n 10`. This prevents heavy indexing tasks from stuttering the editor UI.
 - implemented a fuzzy-search offset hint for `fs_replace_lines`. If the agent provides the wrong line number but the exact target string exists within +/- 10 lines, the tool now returns a helpful error message pointing the agent to the correct line, preventing it from getting "stuck" or needing to re-read the file.
 - implemented `/quit` slash command in the agent window. Typing `/quit` in the multiline edit box now immediately closes the agent window, providing a fast keyboard-driven workflow.
