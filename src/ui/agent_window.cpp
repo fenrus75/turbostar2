@@ -148,20 +148,26 @@ void agent_window::draw_content() const
 		return;
 	}
 
-	// Group interactions into turns
+	// Group interactions into turns and pre-assign backgrounds
 	struct turn_group {
 		std::vector<std::shared_ptr<agent_interaction>> items;
 		int height{0};
-		int color_pair{1}; // Default white
+		background_mode bg{background_mode::light_blue};
 	};
 
 	std::vector<turn_group> turns;
+	int alternate_count = 0;
+
 	for (const auto &inter : interactions) {
 		if (turns.empty() || !inter->can_merge_with_previous(*turns.back().items.back())) {
 			turn_group new_turn;
 			new_turn.items.push_back(inter);
-			if (dynamic_cast<const interaction_system_message *>(inter.get())) {
-				new_turn.color_pair = 2; // Red on White/Gray
+			
+			if (inter->get_type() == interaction_type::system_message) {
+				new_turn.bg = background_mode::white;
+			} else {
+				new_turn.bg = (alternate_count % 2 == 0) ? background_mode::light_blue : background_mode::cyan;
+				alternate_count++;
 			}
 			turns.push_back(new_turn);
 		} else {
@@ -187,22 +193,22 @@ void agent_window::draw_content() const
 	for (auto &turn : turns) {
 		turn.height = 2; // Top and bottom borders
 		for (size_t i = 0; i < turn.items.size(); ++i) {
-			if (i > 0)
-				turn.height++; // Separator line
-			// Calculate height with a dummy background mode, height doesn't change based on colors
-			auto lines = turn.items[i]->render(inner_width, background_mode::primary);
+			if (i > 0) {
+				bool skip_separator = (turn.items[i-1]->get_type() == interaction_type::tool_call && turn.items[i]->get_type() == interaction_type::tool_result);
+				if (!skip_separator)
+					turn.height++; // Separator line
+			}
+			auto lines = turn.items[i]->render(inner_width, turn.bg);
 			turn.height += lines.size();
 		}
 	}
 
 	int rendered_lines = 0;
 	int skip_lines = scroll_offset_;
-	int turn_idx = 0;
 
 	// Render turns backwards from the bottom
-	for (auto it = turns.rbegin(); it != turns.rend() && rendered_lines < available_height; ++it, ++turn_idx) {
+	for (auto it = turns.rbegin(); it != turns.rend() && rendered_lines < available_height; ++it) {
 		const auto &turn = *it;
-		background_mode bg = ((turns.size() - 1 - turn_idx) % 2 == 0) ? background_mode::primary : background_mode::alternate;
 
 		// If the whole turn is skipped, just decrement and move on
 		if (skip_lines >= turn.height) {
@@ -212,7 +218,7 @@ void agent_window::draw_content() const
 
 		// Generate all lines for this turn's box
 		std::vector<interaction_line> box_lines;
-		int box_cp = get_color_pair(turn.items.front()->get_role(), bg);
+		int box_cp = get_color_pair(turn.items.front()->get_role(), turn.bg);
 
 		// Top border
 		interaction_line top_line;
@@ -226,31 +232,34 @@ void agent_window::draw_content() const
 		for (size_t i = 0; i < turn.items.size(); ++i) {
 			const auto &item = turn.items[i];
 			if (i > 0) {
-				// Separator line
-				interaction_line sep_line;
-				sep_line.text = sep_left;
-				if (item->needs_subpanel_header()) {
-					std::string label = " " + item->get_subpanel_label() + " ";
-					int label_len = markdown_utils::utf8_length(label);
-					int line_len = inner_width + 2;
-					int left_pad = (line_len - label_len) / 2;
-					int right_pad = line_len - label_len - left_pad;
+				bool skip_separator = (turn.items[i-1]->get_type() == interaction_type::tool_call && item->get_type() == interaction_type::tool_result);
+				if (!skip_separator) {
+					// Separator line
+					interaction_line sep_line;
+					sep_line.text = sep_left;
+					if (item->needs_subpanel_header()) {
+						std::string label = " " + item->get_subpanel_label() + " ";
+						int label_len = markdown_utils::utf8_length(label);
+						int line_len = inner_width + 2;
+						int left_pad = (line_len - label_len) / 2;
+						int right_pad = line_len - label_len - left_pad;
 
-					for (int j = 0; j < left_pad; ++j)
-						sep_line.text += horiz;
-					sep_line.text += label;
-					for (int j = 0; j < right_pad; ++j)
-						sep_line.text += horiz;
-				} else {
-					for (int j = 0; j < inner_width + 2; ++j)
-						sep_line.text += horiz;
+						for (int j = 0; j < left_pad; ++j)
+							sep_line.text += horiz;
+						sep_line.text += label;
+						for (int j = 0; j < right_pad; ++j)
+							sep_line.text += horiz;
+					} else {
+						for (int j = 0; j < inner_width + 2; ++j)
+							sep_line.text += horiz;
+					}
+					sep_line.text += sep_right;
+					sep_line.color_pair = box_cp;
+					box_lines.push_back(sep_line);
 				}
-				sep_line.text += sep_right;
-				sep_line.color_pair = box_cp;
-				box_lines.push_back(sep_line);
 			}
 
-			auto content = item->render(inner_width, bg);
+			auto content = item->render(inner_width, turn.bg);
 			for (const auto &line : content) {
 				interaction_line l = line;
 				l.prefix = vert + " ";
