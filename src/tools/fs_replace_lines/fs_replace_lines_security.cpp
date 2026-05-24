@@ -42,7 +42,7 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				return false;
 			}
 			if (edit.line_number >= prev_line) {
-				out_error = "Edits MUST be sorted in strictly DESCENDING order by line_number to prevent index shifting.";
+				out_error = "Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.";
 				return false;
 			}
 			prev_line = edit.line_number;
