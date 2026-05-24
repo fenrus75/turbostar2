@@ -629,20 +629,7 @@ void editor::launch_inline_agent(const std::string &prompt)
 				    ".\n"
 				    "Your task is to perform code transformations or reviews within this range.\n";
 
-	std::string project_instr = project_manager::get_instance().get_project_instructions();
-	if (!project_instr.empty()) {
-		system_prompt += "\nProject-specific instructions and engineering standards:\n" + project_instr + "\n";
-	}
-
-	std::string clang_format = project_manager::get_instance().get_clang_format();
-	if (!clang_format.empty()) {
-		system_prompt += "\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
-	}
-
-	std::string project_layout = project_manager::get_instance().get_project_layout_markdown();
-	if (!project_layout.empty()) {
-		system_prompt += "\n" + project_layout;
-	}
+	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 
 	if (!diagnostics_context.empty()) {
 		system_prompt += "\nThe following diagnostics (errors/warnings) are active near this range:\n" + diagnostics_context;

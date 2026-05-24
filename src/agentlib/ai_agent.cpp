@@ -231,7 +231,7 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 
 	add_interaction(std::make_shared<interaction_system_message>(content));
 
-	if (trigger_processing && (status_ == agent_status::idle || status_ == agent_status::waiting)) {
+	if (trigger_processing && status_ == agent_status::idle) {
 		start_processing();
 	}
 }
@@ -249,7 +249,9 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 		add_interaction(std::make_shared<interaction_user_message>(prompt_text));
 	}
 
-	start_processing();
+	if (status_ == agent_status::idle) {
+		start_processing();
+	}
 }
 
 void ai_agent::start_processing()
@@ -272,11 +274,8 @@ void ai_agent::start_processing()
 	}
 
 	std::thread([self = shared_from_this()]() {
-		std::vector<message> convo_copy;
-		{
-			std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-			convo_copy = self->conversation_;
-		}
+		size_t last_synced_index = 0;
+		std::vector<message> convo;
 
 		auto &registry = tool_registry::get_instance();
 		tool_context ctx;
@@ -303,6 +302,15 @@ void ai_agent::start_processing()
 			if (self->is_closed_)
 				return;
 
+			// Sync with shared conversation history
+			{
+				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				for (size_t i = last_synced_index; i < self->conversation_.size(); ++i) {
+					convo.push_back(self->conversation_[i]);
+				}
+				last_synced_index = self->conversation_.size();
+			}
+
 			self->set_status(agent_status::thinking);
 
 			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
@@ -312,7 +320,7 @@ void ai_agent::start_processing()
 			response_msg.role = "assistant";
 
 			self->client_->send_chat_stream(
-			    convo_copy,
+			    convo,
 			    [&](const chat_delta &delta) {
 				    if (self->is_closed_)
 					    return;
@@ -382,11 +390,16 @@ void ai_agent::start_processing()
 			if (self->is_closed_)
 				return;
 
-			if (!accumulated_tool_calls.empty()) {
-				response_msg.tool_calls = accumulated_tool_calls;
-				convo_copy.push_back(response_msg);
+			// Commit assistant response to shared history
+			{
+				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				self->conversation_.push_back(response_msg);
+				last_synced_index = self->conversation_.size();
+			}
+			convo.push_back(response_msg);
 
-				for (const auto &call : *response_msg.tool_calls) {
+			if (!accumulated_tool_calls.empty()) {
+				for (const auto &call : accumulated_tool_calls) {
 					if (self->is_closed_)
 						return;
 
@@ -509,12 +522,17 @@ void ai_agent::start_processing()
 					tool_msg.name = call.function.name;
 					tool_msg.tool_call_id = call.id;
 
-					convo_copy.push_back(tool_msg);
+					// Commit tool result to shared history
+					{
+						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+						self->conversation_.push_back(tool_msg);
+						last_synced_index = self->conversation_.size();
+					}
+					convo.push_back(tool_msg);
 				}
 				self->current_tool_.clear();
 				self->set_status(agent_status::thinking);
 			} else {
-				convo_copy.push_back(response_msg);
 				final_response = response_msg.content;
 				break;
 			}
@@ -523,15 +541,9 @@ void ai_agent::start_processing()
 		if (self->is_closed_)
 			return;
 
-		{
-			std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-			self->conversation_ = convo_copy;
-		}
-
 		self->set_status(agent_status::idle);
 
 		if (self->global_queue_) {
-
 			editor_event ev;
 			ev.type = event_type::agent_response;
 			ev.key_code = self->id_;
@@ -585,7 +597,7 @@ void ai_agent::start_processing()
 			system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
 			system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
 
-			parent->inject_context("system", system_msg, true);
+			parent->inject_context("user", system_msg, true);
 		}
 	}).detach();
 }

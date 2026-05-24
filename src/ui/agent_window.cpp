@@ -27,20 +27,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "security dialog for every action.\n"
 	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.";
 
-	std::string project_instr = project_manager::get_instance().get_project_instructions();
-	if (!project_instr.empty()) {
-		system_prompt += "\n\nProject-specific instructions and engineering standards:\n" + project_instr;
-	}
-
-	std::string clang_format = project_manager::get_instance().get_clang_format();
-	if (!clang_format.empty()) {
-		system_prompt += "\n\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
-	}
-
-	std::string project_layout = project_manager::get_instance().get_project_layout_markdown();
-	if (!project_layout.empty()) {
-		system_prompt += "\n" + project_layout;
-	}
+	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 
 	agent_->inject_context("system", system_prompt);
 

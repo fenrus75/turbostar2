@@ -1,6 +1,7 @@
 #include <sstream>
 #include "../../agentlib/ai_agent.h"
 #include "../../agentlib/interactions/llm_response.h"
+#include "../../project_manager.h"
 #include "agent_create.h"
 
 namespace tools
@@ -25,6 +26,9 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 	if (!new_agent) {
 		return "Error: Failed to create subagent.";
 	}
+
+	// Always inject base project knowledge into subagents
+	new_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 
 	if (!args_.profile.empty() && !args_.task.empty()) {
 		new_agent->inject_context("system", args_.profile);

@@ -283,8 +283,32 @@ std::string project_manager::get_project_layout_markdown() const
 		}
 	}
 	return ss.str();
-}
-void project_manager::load_instructions()
+	}
+
+	std::string project_manager::get_project_knowledge_prompt() const
+	{
+	std::string prompt;
+
+	std::string project_instr = get_project_instructions();
+	if (!project_instr.empty()) {
+		prompt += "\n\nProject-specific instructions and engineering standards:\n" + project_instr;
+	}
+
+	std::string clang_format = get_clang_format();
+	if (!clang_format.empty()) {
+		prompt += "\n\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
+	}
+
+	std::string project_layout = get_project_layout_markdown();
+	if (!project_layout.empty()) {
+		prompt += "\n" + project_layout;
+	}
+
+	return prompt;
+	}
+
+	void project_manager::load_instructions()
+
 {
 	if (repo_root_.empty())
 		return;

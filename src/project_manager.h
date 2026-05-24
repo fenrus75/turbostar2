@@ -48,7 +48,13 @@ class project_manager
 	 */
 	std::string get_project_layout_markdown() const;
 
+	/**
+	 * @brief Returns a unified markdown block containing all project-level knowledge (instructions, format, layout).
+	 */
+	std::string get_project_knowledge_prompt() const;
+
 	// LSP delegation methods
+
 	void lsp_start(event_queue &queue);
 	void lsp_stop();
 	void lsp_open_document(const std::string &filepath, const std::string &text);

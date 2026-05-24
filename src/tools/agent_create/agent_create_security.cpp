@@ -50,8 +50,8 @@ class agent_create_validator : public agentlib::tool_validator
 		      {"wait",
 		       {{"type", "boolean"},
 			{"description", "If true, the tool will wait for the subagent to complete its task and will return its "
-					"final response directly. Defaults to false (asynchronous).",
-			 "default", false}}}}},
+					"final response directly. Defaults to false (asynchronous)."},
+			{"default", false}}}}},
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 
