@@ -1,10 +1,10 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
 
-- new tool call: pop_todo(). takes the top todo item off the todo list and returns its value
-    - makes the todo list into an easier to manage task list
-
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
+
+- git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
+	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
@@ -106,6 +106,8 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- simplified `fs_read_lines` UI reporting: the tool now detects when a whole file is being read and displays "Read whole file (X lines)" instead of confusing line ranges (e.g., 1-10000 of 231).
+- implemented `pop_todo()` tool that returns and removes the first item from the agent's todo list, enabling sequential task management.
 - implemented a "project layout" feature that provides the agent with a markdown overview of the project's directory structure in the system prompt. This uses a background thread to inventory the project, counting source files, headers, and documentation/config files, selecting the most relevant directories (top 15-18) based on complexity and density.
 - implemented `crashdump_clear` tool to allow the agent to remove stale crash reports after investigation.
 - implemented automatic `.clang-format` parsing and minification. A minified version (comments/empty lines removed, capped at 100 lines) is now appended to the system prompt of both the main agent and inline surgical agents, ensuring generated code aligns with project styling.

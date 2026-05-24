@@ -28,11 +28,29 @@ class interaction_fs_read_lines : public agentlib::interaction_action
 		update_text();
 	}
 
+	void set_range(int start, int end)
+	{
+		start_ = start;
+		end_ = end;
+		update_text();
+	}
+
       private:
 	void update_text()
 	{
-		set_action_text(path_ + " \xE2\x86\x92 Read lines " + std::to_string(start_) + "-" + std::to_string(end_) + " of " +
-				std::to_string(total_));
+		if (total_ == 0) {
+			set_action_text(path_ + " \xE2\x86\x92 Reading...");
+			return;
+		}
+
+		int display_end = std::min<int>(end_, static_cast<int>(total_));
+
+		if (start_ == 1 && end_ >= static_cast<int>(total_)) {
+			set_action_text(path_ + " \xE2\x86\x92 Read whole file (" + std::to_string(total_) + " lines)");
+		} else {
+			set_action_text(path_ + " \xE2\x86\x92 Read lines " + std::to_string(start_) + "-" + std::to_string(display_end) +
+					" of " + std::to_string(total_));
+		}
 	}
 
 	std::string path_;
@@ -70,6 +88,10 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	// Write them back to args_ so helper methods use the bounded values
 	args_.start_line = start;
 	args_.end_line = end;
+
+	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+		custom_interaction->set_range(start, end);
+	}
 
 	// 2. Intercept VFS paths (skills://)
 	if (args_.safe_path.starts_with("skills://")) {
@@ -162,7 +184,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// 3. Fallback to direct disk access
+	// 4. Fallback to direct disk access
 	result_text = read_from_disk(total_lines);
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 		custom_interaction->set_total(total_lines);
