@@ -67,6 +67,7 @@ ui_sources = files(
   'editor_events_key.cpp',
   'ui/window.cpp',
   'ui/agent_window.cpp',
+  'ui/diff_window.cpp',
   'ui/agent_status_window.cpp',
   'ui/crashdump_window.cpp',
   'ui/ui_element.cpp',

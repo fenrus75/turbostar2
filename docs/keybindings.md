@@ -118,6 +118,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | :--- | :--- | :--- |
 | `^Q F` | Find Text | Opens the advanced Find dialog. |
 | `^Q A` | Replace Text | Opens the advanced Replace dialog. |
+| `^Q H` | Undo History | Opens the interactive Diff View for the document's undo stack. |
 
 ## Search Commands
 

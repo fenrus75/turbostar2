@@ -1,19 +1,9 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-
-- the save changes dialog is sometimes to small for larger filenames. We need to dynamically grow it
-  (very ugly screen corruption currently)
-
-- fs_run_tests: allow a list of strings of test names (optional) -- default is run all
-
-- fs_list_tests: give back a markdown table of valid test names (may only be possible after the first test run?)
-
 - we need to tackle compaction at some point
 
 - investigate using PCH's in meson to speed up compiling of things that use
   our json libraries
-
-- an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
 
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
@@ -21,7 +11,7 @@
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
 - support for API keys for models -- need some basic security so that the keys don't leak out
-   - including masking this config file in our sandbox
+   - including masking this config file in our sandbox (DONE)
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
@@ -47,9 +37,6 @@
 	- our cut down some wide columns to make things fit
 
 - when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
-
-- implement a generic "diff view" that can visualize the changes in the last undo group.
-  This is essential for reviewing automated edits from inline agent operations.
 
 - next set of tools for agents
     - next set of tools for agents
@@ -118,6 +105,9 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- implemented a comprehensive model configuration system. Users can now view, add, edit, and delete AI models via a new "Models..." dialog under the Options menu. Model configurations (including URLs, API keys, and costs) are persistently stored in `~/.cache/turbostar/models.json`. The system supports setting a default model, which is saved to the main `~/.turbostar` configuration file.
+- implemented `fs_list_tests` tool and updated `fs_run_tests` to support selective test execution. `project_manager` now parses `meson test --list` on demand to provide a list of known tests. `fs_run_tests` accepts an optional `test_names` array to run only specific tests. Both tools intelligently resolve the build directory relative to the repository root for robustness across different working directories.
+- implemented an interactive "Diff View" for document undo history (accessible via `^Q H`). It allows users to visualize changes between any two points in the undo stack using a unified diff format. The view supports "time travel" navigation with `[<< Prev]` and `[Next >>]` buttons (or arrow keys) and a `[Restore State]` option (or `Enter`) to roll the document back to the selected historical state. The diff context dynamically scales to fill available vertical space.
 - dynamically resize the "Save Changes" dialog to accommodate long filenames (up to the screen width). If the filename is still too long, a new `fs_utils::shorten_filename` helper intelligently truncates it by preserving the basename and root directories while replacing the middle with `....`.
 - implemented a more powerful `fs_find_in_files` tool for codebase-wide regex searches. It uses high-performance `mmap` zero-copy scanning for disk files and checks live, dirty editor buffers. Results are formatted as clean markdown, with a configurable cap (default 50) that falls back to listing filenames to protect context limits.
 - fixed `^K F` (Find) prompt usability. Pressing `<ESC>` or `Ctrl-C` while typing a search query or search options now immediately aborts the search and clears the prompt from the status bar.

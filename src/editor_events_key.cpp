@@ -73,6 +73,47 @@ void editor::resolve_dialog(dialog_result res)
 			if (active_dialog_->get_result() == "ok") {
 				apply_settings_from_dialog(*active_dialog_);
 			}
+		} else if (active_dialog_mode_ == dialog_mode::model_list) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "add") {
+				active_dialog_ = create_model_edit_dialog(nullptr);
+				active_dialog_mode_ = dialog_mode::model_edit;
+				editing_model_id_ = "";
+				set_focus(focus_target::dialog, "model_edit");
+				return;
+			} else if (res_str.starts_with("edit:")) {
+				std::string id = res_str.substr(5);
+				editing_model_id_ = id;
+				active_dialog_ =
+				    create_model_edit_dialog(agentlib::ai_model_registry::get_instance().get_model(id));
+				active_dialog_mode_ = dialog_mode::model_edit;
+				set_focus(focus_target::dialog, "model_edit");
+				return;
+			} else if (res_str.starts_with("delete:")) {
+				std::string id = res_str.substr(7);
+				agentlib::ai_model_registry::get_instance().remove_model(id);
+				agentlib::ai_model_registry::get_instance().save_models();
+				active_dialog_ = create_model_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_list;
+				set_focus(focus_target::dialog, "model_list");
+				return;
+			} else if (res_str.starts_with("default:")) {
+				std::string id = res_str.substr(8);
+				config_manager::get_instance().set_default_model_id(id);
+				config_manager::get_instance().save();
+				active_dialog_ = create_model_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_list;
+				set_focus(focus_target::dialog, "model_list");
+				return;
+			}
+		} else if (active_dialog_mode_ == dialog_mode::model_edit) {
+			if (active_dialog_->get_result() == "ok") {
+				apply_model_edit_from_dialog(*active_dialog_, editing_model_id_);
+			}
+			active_dialog_ = create_model_list_dialog();
+			active_dialog_mode_ = dialog_mode::model_list;
+			set_focus(focus_target::dialog, "model_list");
+			return;
 		} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "exit") {

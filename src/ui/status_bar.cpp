@@ -50,7 +50,7 @@ void status_bar::draw(const std::string &mode_help, const std::string &hover_tex
 		}
 
 		// Default status bar content like "F1 Help"
-		print_with_hotkeys("  ^F^1 Help");
+		print_with_hotkeys("  ^F^1 Help  ^Q^H History");
 	}
 
 	if (!hover_text.empty()) {

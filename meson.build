@@ -98,6 +98,12 @@ test_tool_infrastructure = executable('test_tool_infrastructure',
   include_directories: 'src')
 test('unit_tool_infrastructure', test_tool_infrastructure)
 
+test_tools = executable('test_tools',
+  'tests/unit/test_tools.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_tools', test_tools)
+
 test_file_security = executable('test_file_security',
   ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [],

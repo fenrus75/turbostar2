@@ -70,6 +70,18 @@ void editor::new_window(const std::string &filename)
 #include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/crashdump_window.h"
+#include "ui/diff_window.h"
+
+void editor::new_diff_window()
+{
+	auto doc = get_active_doc();
+	if (!doc)
+		return;
+	auto diff_win = std::make_unique<diff_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, doc, global_queue_);
+	windows_.push_back(std::move(diff_win));
+	update_window_layout();
+	activate_window(windows_.size() - 1);
+}
 
 void editor::update_window_layout()
 {
@@ -821,7 +833,7 @@ void editor::render()
 		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top "
 			      "V:End Q:Quit X:SaveExit F:Find";
 	} else if (q_block_mode_) {
-		status_help = "Q-Block: F:Find A:Replace";
+		status_help = "Q-Block: F:Find A:Replace H:History";
 	} else if (p_block_mode_) {
 		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (S)pell (U)ser: _";
 	} else if (is_inline_agent_prompt_) {

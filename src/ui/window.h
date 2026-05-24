@@ -61,7 +61,7 @@ class window
 	{
 		return title_;
 	}
-	std::string get_displayed_title() const;
+	virtual std::string get_displayed_title() const;
 	void set_title(const std::string &t)
 	{
 		title_ = t;
@@ -80,13 +80,14 @@ class window
 
       protected:
 	int x_, y_, width_, height_;
+	int id_;
+	int background_color_pair_{3};
 	virtual void draw_content() const;
 
       private:
 	void update_viewport() const;
 	void draw_border() const;
 
-	int id_;
 	std::string title_;
 	bool is_active_{false};
 
@@ -94,12 +95,12 @@ class window
 	int display_priority_{0};
 	bool is_visible_{true};
 
-	int background_color_pair_{3};
-
 	mutable int top_line_{0};
 	mutable int left_column_{0};
 
 	bool needs_render_{false};
+      protected:
 	std::shared_ptr<document> doc_;
+      private:
 	event_queue window_queue_;
 };

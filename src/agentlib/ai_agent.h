@@ -80,6 +80,7 @@ public:
     void set_read_only(bool ro) { read_only_ = ro; }
 
     void set_parent(std::weak_ptr<ai_agent> parent) { parent_agent_ = std::move(parent); }
+    event_queue* get_global_queue() const { return global_queue_; }
 
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);

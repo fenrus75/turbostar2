@@ -9,7 +9,7 @@ namespace tools {
 
 class fs_run_tests_tool : public agentlib::llm_tool {
 public:
-    fs_run_tests_tool();
+    fs_run_tests_tool(std::vector<std::string> test_names = {});
 
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
@@ -17,6 +17,7 @@ public:
 
 private:
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
+    std::vector<std::string> test_names_;
 };
 
 class fs_run_tests_validator : public agentlib::tool_validator {
@@ -27,7 +28,13 @@ public:
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},
-            {"properties", nlohmann::json::object()}
+            {"properties", {
+                {"test_names", {
+                    {"type", "array"},
+                    {"items", {{"type", "string"}}},
+                    {"description", "Optional list of specific test names to run. If omitted, runs all tests."}
+                }}
+            }}
         };
     }
 
@@ -36,8 +43,14 @@ protected:
         return true;
     }
 
-    std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json& /*args*/) const override {
-        return std::make_unique<fs_run_tests_tool>();
+    std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json& args) const override {
+        std::vector<std::string> tests;
+        if (args.contains("test_names") && args["test_names"].is_array()) {
+            for (const auto& t : args["test_names"]) {
+                tests.push_back(t.get<std::string>());
+            }
+        }
+        return std::make_unique<fs_run_tests_tool>(tests);
     }
 };
 

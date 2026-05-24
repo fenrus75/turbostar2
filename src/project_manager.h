@@ -69,6 +69,10 @@ class project_manager
 	std::vector<lsp_manager::location_info> lsp_query_definition(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
 
+	// Test management
+	std::vector<std::string> get_available_tests();
+	void refresh_available_tests();
+
       private:
 	project_manager() = default;
 
@@ -94,6 +98,9 @@ class project_manager
 	std::string instructions_;
 	std::string clang_format_;
 	std::unique_ptr<lsp_manager> lsp_manager_;
+
+	std::vector<std::string> available_tests_;
+	bool tests_ready_{false};
 
 	mutable std::mutex layout_mutex_;
 	project_layout layout_;

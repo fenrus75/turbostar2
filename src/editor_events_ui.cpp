@@ -131,6 +131,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::models_config) {
+		logger.log("Dispatching models_config event.");
+		active_dialog_ = create_model_list_dialog();
+		active_dialog_mode_ = dialog_mode::model_list;
+		set_focus(focus_target::dialog, "model_list");
+		return;
+	}
+
 	if (ev.type == event_type::open_agent) {
 		logger.log("Dispatching open_agent event.");
 		new_agent_window();

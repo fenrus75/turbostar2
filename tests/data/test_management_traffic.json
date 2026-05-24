@@ -1,0 +1,20 @@
+[
+  {
+    "response": {
+      "status_code": 200,
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_list\", \"type\": \"function\", \"function\": {\"name\": \"fs_list_tests\", \"arguments\": \"{}\"}}]}}]}"
+    }
+  },
+  {
+    "response": {
+      "status_code": 200,
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_run\", \"type\": \"function\", \"function\": {\"name\": \"fs_run_tests\", \"arguments\": \"{\\\"test_names\\\": [\\\"unit_event_logger\\\"]}\"}}]}}]}"
+    }
+  },
+  {
+    "response": {
+      "status_code": 200,
+      "body": "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": \"I have listed the tests and ran the event logger test successfully.\"}}]}"
+    }
+  }
+]

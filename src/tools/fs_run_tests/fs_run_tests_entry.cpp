@@ -1,13 +1,15 @@
 #include "../../config_manager.h"
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
+#include "../../project_manager.h"
 #include "../terminal_command_runner.h"
 #include "fs_run_tests.h"
 
 namespace tools
 {
 
-fs_run_tests_tool::fs_run_tests_tool()
+fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names)
+    : test_names_(std::move(test_names))
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Test Suite", "Running tests...");
 }
@@ -30,14 +32,34 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 
 	std::string build_system = config_manager::get_instance().get_build_system();
 	std::string build_dir = config_manager::get_instance().get_build_directory();
+	
+	std::string repo_root = project_manager::get_instance().get_repository_root();
+	std::filesystem::path build_path(build_dir);
+	if (build_path.is_relative()) {
+		build_path = std::filesystem::path(repo_root) / build_path;
+	}
+
 	std::string cmd;
 
 	if (build_system == "meson") {
-		cmd = "MESON_TESTTHREADS=2 meson test -C " + build_dir;
+		cmd = "MESON_TESTTHREADS=2 meson test -C " + build_path.string();
+		for (const auto &t : test_names_) {
+			cmd += " " + t;
+		}
 	} else if (build_system == "cmake") {
-		cmd = "ctest --test-dir " + build_dir;
+		cmd = "ctest --test-dir " + build_path.string();
+		if (!test_names_.empty()) {
+			cmd += " -R \"(";
+			for (size_t i = 0; i < test_names_.size(); ++i) {
+				cmd += test_names_[i];
+				if (i < test_names_.size() - 1)
+					cmd += "|";
+			}
+			cmd += ")\"";
+		}
 	} else if (build_system == "make") {
 		cmd = "make test -C " + build_dir;
+		// Make doesn't have a standard way to run individual tests via 'make test'
 	} else {
 		cmd = build_system + " test " + build_dir; // Fallback
 	}

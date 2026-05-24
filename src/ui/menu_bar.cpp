@@ -36,7 +36,7 @@ menu_bar::menu_bar()
 	      {"Compile File", event_type::compile_file, 'p', "^KP", false},
 	      {"Run Tests", event_type::run_tests, 't', "F8", false},
 	      {"View Crashdumps", event_type::open_crashdump_viewer, 'C', "", false}}},
-	    {"Options", 'p', {{"Preferences...", event_type::settings, 'p', "", false}}},
+	    {"Options", 'p', {{"Preferences...", event_type::settings, 'p', "", false}, {"Models...", event_type::models_config, 'M', "", false}}},
 	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},
 	    {"Agent", 'a', {{"Open Chat...", event_type::open_agent, 'o', "", false}}},
 	    {"Window", 'w', {}},

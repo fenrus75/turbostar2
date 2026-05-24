@@ -176,3 +176,45 @@ void document::redo()
 	lock.unlock();
 	notify_cursor_changed();
 }
+
+size_t document::get_undo_count() const
+{
+	std::shared_lock lock(mutex_);
+	return undo_stack_.size();
+}
+
+std::vector<std::string> document::get_lines_at_undo(size_t steps_back) const
+{
+	std::shared_lock lock(mutex_);
+	std::vector<std::string> lines;
+	lines.reserve(lines_.size());
+	for (const auto &l : lines_) {
+		lines.push_back(l->get_text());
+	}
+
+	if (steps_back == 0)
+		return lines;
+	if (steps_back > undo_stack_.size())
+		steps_back = undo_stack_.size();
+
+	for (size_t i = 0; i < steps_back; ++i) {
+		const auto &group = undo_stack_[undo_stack_.size() - 1 - i];
+		for (auto it = group.actions.rbegin(); it != group.actions.rend(); ++it) {
+			const auto &act = *it;
+			if (act.type == edit_action::action_type::replace_line) {
+				if (act.y < (int)lines.size()) {
+					lines[act.y] = act.saved_line->get_text();
+				}
+			} else if (act.type == edit_action::action_type::insert_line) {
+				if (act.y < (int)lines.size()) {
+					lines.erase(lines.begin() + act.y);
+				}
+			} else if (act.type == edit_action::action_type::delete_line) {
+				if (act.y <= (int)lines.size()) {
+					lines.insert(lines.begin() + act.y, act.saved_line->get_text());
+				}
+			}
+		}
+	}
+	return lines;
+}

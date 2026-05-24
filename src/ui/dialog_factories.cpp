@@ -2,6 +2,12 @@
 #include <ncurses.h>
 #include "config_manager.h"
 #include "fs_utils.h"
+#include "agentlib/ai_model.h"
+#include "ui/components/ui_listbox.h"
+#include "ui/components/ui_textbox.h"
+#include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_radio.h"
+#include "ui/components/ui_group_box.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
@@ -563,4 +569,147 @@ class file_dialog_impl : public dialog
 std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path)
 {
 	return std::make_unique<file_dialog_impl>(title, initial_path);
+}
+
+std::unique_ptr<dialog> create_model_list_dialog()
+{
+	auto dlg = std::make_unique<dialog>("AI Models", 60, 18);
+	auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+	std::string default_id = config_manager::get_instance().get_default_model_id();
+
+	std::vector<std::string> item_labels;
+	for (const auto &m : models) {
+		std::string prefix = (m->get_id() == default_id) ? "* " : "  ";
+		item_labels.push_back(prefix + m->get_id() + " - " + m->get_name());
+	}
+
+	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, nullptr);
+	lb->set_items(item_labels);
+	auto lb_ptr = lb.get();
+	dlg->add_child(std::move(lb));
+
+	int by = 14;
+	dlg->add_child(std::make_unique<ui_button>("btn_add", 4, by, "  Add  ", 'a', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("add");
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_edit", 12, by, "  Edit  ", 'e', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+			if (idx < (int)models.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("edit:" + models[idx]->get_id());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_delete", 22, by, " Delete ", 'd', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+			if (idx < (int)models.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("delete:" + models[idx]->get_id());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_default", 32, by, " Set Default ", 's', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+			if (idx < (int)models.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("default:" + models[idx]->get_id());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_close", 48, by, " Close ", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("model_list");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_model> model)
+{
+	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 16);
+
+	int lx = 4;
+	int tx = 16;
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 2, "ID:"));
+	dlg->add_child(std::make_unique<ui_textbox>("id", tx, 2, 44, model ? model->get_id() : ""));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 3, "Name:"));
+	dlg->add_child(std::make_unique<ui_textbox>("name", tx, 3, 44, model ? model->get_name() : ""));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 4, "URL:"));
+	dlg->add_child(std::make_unique<ui_textbox>("url", tx, 4, 44, model ? model->get_url() : ""));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 5, "API Key:"));
+	dlg->add_child(std::make_unique<ui_textbox>("api_key", tx, 5, 44, model ? model->get_api_key() : ""));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 6, "Purpose:"));
+	dlg->add_child(std::make_unique<ui_textbox>("purpose", tx, 6, 44, model ? model->get_purpose() : ""));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 7, "Tx Cost:"));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", tx, 7, 10, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0"));
+
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 8, "Rx Cost:"));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", tx, 8, 10, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0"));
+
+	int by = 12;
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 15, by, "   OK   ", 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 35, by, " Cancel ", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("id");
+	return dlg;
+}
+
+void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original_id)
+{
+	auto id_opt = dlg.get_value("id");
+	auto name_opt = dlg.get_value("name");
+	auto url_opt = dlg.get_value("url");
+	auto api_key_opt = dlg.get_value("api_key");
+	auto purpose_opt = dlg.get_value("purpose");
+	auto tx_cost_opt = dlg.get_value("cost_tx");
+	auto rx_cost_opt = dlg.get_value("cost_rx");
+
+	if (!id_opt || id_opt->empty())
+		return;
+
+	double tx_cost = 0.0;
+	double rx_cost = 0.0;
+	try {
+		if (tx_cost_opt)
+			tx_cost = std::stod(*tx_cost_opt);
+		if (rx_cost_opt)
+			rx_cost = std::stod(*rx_cost_opt);
+	} catch (...) {
+	}
+
+	auto &registry = agentlib::ai_model_registry::get_instance();
+
+	if (!original_id.empty() && original_id != *id_opt) {
+		registry.remove_model(original_id);
+	}
+
+	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
+							  purpose_opt ? *purpose_opt : "", tx_cost, rx_cost,
+							  api_key_opt ? *api_key_opt : "");
+	registry.update_model(model);
+	registry.save_models();
 }

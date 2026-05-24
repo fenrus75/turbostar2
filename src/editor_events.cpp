@@ -52,6 +52,10 @@ bool editor::handle_q_block_key(int key)
 		ev.type = event_type::replace;
 		global_queue_.push(ev);
 		return true;
+	} else if (c == 'h') {
+		logger.log("Q-block: Undo History");
+		new_diff_window();
+		return true;
 	}
 	return false;
 }
@@ -124,6 +128,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::redraw:
 		case event_type::about:
 		case event_type::settings:
+		case event_type::models_config:
 		case event_type::help:
 		case event_type::open_agent:
 		case event_type::open_subagent:

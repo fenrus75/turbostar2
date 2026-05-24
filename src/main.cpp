@@ -126,23 +126,32 @@ int main(int argc, char **argv)
 	init_pair(36, COLOR_WHITE + 8, COLOR_BLACK);	// Terminal Border (Bright White on Black)
 	init_pair(37, COLOR_BLACK + 8, COLOR_WHITE);	// Disabled Menu Item (Dark Gray on White)
 
-	// Agent interaction pairs (50-59: Primary background - White)
-	init_pair(50, COLOR_BLACK, COLOR_WHITE);
-	init_pair(51, COLOR_BLUE, COLOR_WHITE);
-	init_pair(52, COLOR_GREEN, COLOR_WHITE);
-	init_pair(53, COLOR_RED, COLOR_WHITE);
-	init_pair(54, COLOR_GREEN + 8, COLOR_WHITE);
-	init_pair(55, COLOR_RED + 8, COLOR_WHITE);
-	init_pair(56, COLOR_MAGENTA, COLOR_WHITE);
+	// Agent interaction pairs (50-59: Primary background - Light Blue)
+	init_pair(50, COLOR_BLACK, COLOR_BLUE + 8);
+	init_pair(51, COLOR_BLUE, COLOR_BLUE + 8);
+	init_pair(52, COLOR_YELLOW + 8, COLOR_BLUE + 8);
+	init_pair(53, COLOR_RED, COLOR_BLUE + 8);
+	init_pair(54, COLOR_GREEN + 8, COLOR_BLUE + 8);
+	init_pair(55, COLOR_RED + 8, COLOR_BLUE + 8);
+	init_pair(56, COLOR_MAGENTA, COLOR_BLUE + 8);
 
 	// Agent interaction pairs (60-69: Alternate background - Cyan)
 	init_pair(60, COLOR_BLACK, COLOR_CYAN);
 	init_pair(61, COLOR_BLUE, COLOR_CYAN);
-	init_pair(62, COLOR_GREEN, COLOR_CYAN);
+	init_pair(62, COLOR_YELLOW + 8, COLOR_CYAN);
 	init_pair(63, COLOR_RED, COLOR_CYAN);
 	init_pair(64, COLOR_GREEN + 8, COLOR_CYAN);
 	init_pair(65, COLOR_RED + 8, COLOR_CYAN);
 	init_pair(66, COLOR_MAGENTA, COLOR_CYAN);
+
+	// Agent interaction pairs (70-79: System background - White)
+	init_pair(70, COLOR_BLACK, COLOR_WHITE);
+	init_pair(71, COLOR_BLUE, COLOR_WHITE);
+	init_pair(72, COLOR_YELLOW + 8, COLOR_WHITE);
+	init_pair(73, COLOR_RED, COLOR_WHITE);
+	init_pair(74, COLOR_GREEN + 8, COLOR_WHITE);
+	init_pair(75, COLOR_RED + 8, COLOR_WHITE);
+	init_pair(76, COLOR_MAGENTA, COLOR_WHITE);
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000

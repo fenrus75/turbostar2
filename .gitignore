@@ -4,3 +4,7 @@ build/
 *gcov
 __pycache__/
 testrun/
+tmp/
+.cache/
+compile_commands.json
+*_backup.cpp

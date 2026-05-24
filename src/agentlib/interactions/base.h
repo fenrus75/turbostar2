@@ -36,7 +36,7 @@ public:
     virtual interaction_role get_role() const = 0;
 
     int get_height(int width) const;
-    const std::vector<interaction_line>& render(int width, background_mode bg = background_mode::primary) const;
+    const std::vector<interaction_line>& render(int width, background_mode bg = background_mode::light_blue) const;
     virtual std::string get_raw_text() const = 0;
 
     void invalidate_cache() { cached_width_ = -1; }
@@ -70,7 +70,7 @@ protected:
 
 private:
     mutable int cached_width_{-1};
-    mutable background_mode cached_bg_{background_mode::primary};
+    mutable background_mode cached_bg_{background_mode::light_blue};
     mutable std::vector<interaction_line> cached_lines_;
     bool is_boxed_ = false;
     int box_color_pair_ = 5;

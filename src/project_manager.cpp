@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
@@ -425,4 +426,64 @@ std::vector<lsp_manager::location_info> project_manager::lsp_query_references(co
 	if (lsp_manager_)
 		return lsp_manager_->query_references(filepath, line, character);
 	return {};
+}
+
+std::vector<std::string> project_manager::get_available_tests()
+{
+	if (!tests_ready_) {
+		refresh_available_tests();
+	}
+	return available_tests_;
+}
+
+void project_manager::refresh_available_tests()
+{
+	std::string build_system = config_manager::get_instance().get_build_system();
+	std::string build_dir = config_manager::get_instance().get_build_directory();
+	
+	fs::path build_path(build_dir);
+	if (build_path.is_relative()) {
+		build_path = fs::path(repo_root_) / build_path;
+	}
+
+	std::string cmd;
+
+	if (build_system == "meson") {
+		cmd = "meson test -C " + build_path.string() + " --list";
+	} else {
+		// Fallback or not supported for other systems yet
+		tests_ready_ = true;
+		available_tests_.clear();
+		return;
+	}
+
+	sync_command_runner runner;
+	runner.apply_internal_profile();
+	runner.set_project_dir(repo_root_);
+
+	std::string output = runner.execute_and_get_output(cmd);
+	if (runner.get_exit_code() != 0) {
+		event_logger::get_instance().log("Failed to list tests: " + output);
+		tests_ready_ = true;
+		available_tests_.clear();
+		return;
+	}
+
+	available_tests_.clear();
+	std::stringstream ss(output);
+	std::string line;
+	while (std::getline(ss, line)) {
+		if (line.empty())
+			continue;
+		// Trim potential whitespace
+		line.erase(0, line.find_first_not_of(" \t\r\n"));
+		line.erase(line.find_last_not_of(" \t\r\n") + 1);
+		if (!line.empty()) {
+			available_tests_.push_back(line);
+		}
+	}
+
+	std::sort(available_tests_.begin(), available_tests_.end());
+	tests_ready_ = true;
+	event_logger::get_instance().log("Refreshed available tests: " + std::to_string(available_tests_.size()) + " tests found.");
 }

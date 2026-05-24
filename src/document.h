@@ -135,6 +135,9 @@ class document
 
 	void undo();
 	void redo();
+
+	size_t get_undo_count() const;
+	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
 	
 	void apply_external_edits_json(const std::string& json_str);
 

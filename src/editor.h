@@ -55,6 +55,7 @@ class editor : public agentlib::document_provider
 	void new_window(const std::string &filename);
 	void new_agent_window();
 	void new_crashdump_window();
+	void new_diff_window();
 	void open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent);
 	void update_window_layout();
 	void activate_window(size_t index);
@@ -95,7 +96,7 @@ class editor : public agentlib::document_provider
 	bool q_block_mode_{false};
 	bool p_block_mode_{false};
 
-	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user };
+	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, model_list, model_edit };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;
@@ -123,9 +124,9 @@ class editor : public agentlib::document_provider
 
 	std::string transient_status_message_;
 	std::chrono::steady_clock::time_point transient_status_expiry_;
-	
-	std::string hover_text_;
 
+	std::string editing_model_id_;
+	std::string hover_text_;
 	std::string get_search_autocomplete() const;
 
 	bool is_running_{true};

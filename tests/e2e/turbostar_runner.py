@@ -121,6 +121,12 @@ class TurbostarRunner:
         self.assert_text_on_screen("K-Block:", timeout=2.0)
         self.send_raw_keys(cmd_char.encode('utf-8'))
 
+    def send_ctrlq(self, cmd_char):
+        self.send_raw_keys(b'\x11')
+        # Wait for the Q-block prompt to appear
+        self.assert_text_on_screen("Q-Block:", timeout=2.0)
+        self.send_raw_keys(cmd_char.encode('utf-8'))
+
     def send_mouse_click(self, x, y):
         """Send a left mouse click at the given 0-based terminal coordinates."""
         seq_down = f"\x1b[<0;{x+1};{y+1}M"

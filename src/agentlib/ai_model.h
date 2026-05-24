@@ -23,6 +23,13 @@ public:
     double get_cost_per_1m_tx() const { return cost_per_1m_tx_; }
     double get_cost_per_1m_rx() const { return cost_per_1m_rx_; }
 
+    void set_name(std::string name) { name_ = std::move(name); }
+    void set_url(std::string url) { url_ = std::move(url); }
+    void set_purpose(std::string purpose) { purpose_ = std::move(purpose); }
+    void set_api_key(std::string key) { api_key_ = std::move(key); }
+    void set_cost_per_1m_tx(double cost) { cost_per_1m_tx_ = cost; }
+    void set_cost_per_1m_rx(double cost) { cost_per_1m_rx_ = cost; }
+
     int get_global_tokens_tx() const { return global_tokens_tx_; }
     int get_global_tokens_rx() const { return global_tokens_rx_; }
     double get_global_cost() const { return global_cost_; }
@@ -51,6 +58,12 @@ public:
     void register_model(std::shared_ptr<ai_model> model);
     std::shared_ptr<ai_model> get_model(const std::string& id) const;
     std::vector<std::shared_ptr<ai_model>> get_all_models() const;
+
+    void remove_model(const std::string& id);
+    void update_model(std::shared_ptr<ai_model> model);
+
+    void load_models();
+    void save_models() const;
 
 private:
     ai_model_registry();

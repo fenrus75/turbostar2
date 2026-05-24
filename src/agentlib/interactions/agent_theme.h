@@ -15,15 +15,13 @@ enum class interaction_role {
 };
 
 enum class background_mode {
-    primary,    // White background
-    alternate   // Cyan background
+    light_blue, // Light Blue background (Primary)
+    cyan,       // Cyan background (Alternate)
+    white       // White background (System)
 };
 
 /**
  * @brief Returns the ncurses color pair for a given role and background mode.
- * 
- * Pairs 50-59 are for primary background.
- * Pairs 60-69 are for alternate background.
  */
 inline int get_color_pair(interaction_role role, background_mode bg) {
     if (role == interaction_role::terminal) return 29;    // White on Black
@@ -31,7 +29,9 @@ inline int get_color_pair(interaction_role role, background_mode bg) {
     if (role == interaction_role::diff_remove) return 31; // Bright Red on Blue
     if (role == interaction_role::header) return 32;      // Bright Cyan on Blue
     
-    int base = (bg == background_mode::primary) ? 50 : 60;
+    int base = 50;
+    if (bg == background_mode::cyan) base = 60;
+    if (bg == background_mode::white) base = 70;
     
     switch (role) {
         case interaction_role::agent:       return base + 0; // Black
@@ -39,7 +39,7 @@ inline int get_color_pair(interaction_role role, background_mode bg) {
         case interaction_role::thinking:    return base + 2; // Green
         case interaction_role::system:      return base + 3; // Red
         case interaction_role::error:       return base + 3; // Red
-        default: return 50; // Fallback to black on white
+        default: return base + 0;
     }
 }
 

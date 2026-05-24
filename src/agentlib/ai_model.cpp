@@ -1,4 +1,11 @@
 #include "ai_model.h"
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <algorithm>
+#include "../fs_utils.h"
+#include "../event_logger.h"
+
+using json = nlohmann::json;
 
 namespace agentlib
 {
@@ -27,22 +34,38 @@ ai_model_registry &ai_model_registry::get_instance()
 
 ai_model_registry::ai_model_registry()
 {
-	// Standard baseline models
-	register_model(
-	    std::make_shared<ai_model>("local-default", "Local Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0));
+	load_models();
+	if (models_.empty()) {
+		// Standard baseline models
+		register_model(
+		    std::make_shared<ai_model>("local-default", "Local Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0));
 
-	register_model(
-	    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00));
+		register_model(
+		    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00));
 
-	register_model(std::make_shared<ai_model>("claude-3-5-sonnet", "Claude 3.5 Sonnet", "https://api.anthropic.com/v1",
-						  "Fast and cheap coding", 3.00, 15.00));
+		register_model(std::make_shared<ai_model>("claude-3-5-sonnet", "Claude 3.5 Sonnet", "https://api.anthropic.com/v1",
+							  "Fast and cheap coding", 3.00, 15.00));
 
-	register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro",
-						  "https://generativelanguage.googleapis.com/v1beta/openai", "Huge context windows", 3.50,
-						  10.50));
+		register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro",
+							  "https://generativelanguage.googleapis.com/v1beta/openai", "Huge context windows", 3.50,
+							  10.50));
+		save_models();
+	}
 }
 
 void ai_model_registry::register_model(std::shared_ptr<ai_model> model)
+{
+	if (model) {
+		models_[model->get_id()] = std::move(model);
+	}
+}
+
+void ai_model_registry::remove_model(const std::string &id)
+{
+	models_.erase(id);
+}
+
+void ai_model_registry::update_model(std::shared_ptr<ai_model> model)
 {
 	if (model) {
 		models_[model->get_id()] = std::move(model);
@@ -66,6 +89,65 @@ std::vector<std::shared_ptr<ai_model>> ai_model_registry::get_all_models() const
 		result.push_back(model);
 	}
 	return result;
+}
+
+void ai_model_registry::load_models()
+{
+	std::string cache_dir = fs_utils::get_global_cache_dir();
+	std::string path = cache_dir + "/models.json";
+	std::ifstream file(path);
+	if (!file.is_open())
+		return;
+
+	try {
+		json data;
+		file >> data;
+		if (data.is_array()) {
+			for (const auto &item : data) {
+				std::string id = item.value("id", "");
+				std::string name = item.value("name", "");
+				std::string url = item.value("url", "");
+				std::string purpose = item.value("purpose", "");
+				std::string api_key = item.value("api_key", "");
+				double tx_cost = item.value("cost_tx", 0.0);
+				double rx_cost = item.value("cost_rx", 0.0);
+
+				if (!id.empty()) {
+					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key));
+				}
+			}
+		}
+		event_logger::get_instance().log("Loaded " + std::to_string(models_.size()) + " models from " + path);
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log("Failed to load models from " + path + ": " + e.what());
+	}
+}
+
+void ai_model_registry::save_models() const
+{
+	std::string cache_dir = fs_utils::get_global_cache_dir();
+	std::string path = cache_dir + "/models.json";
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Failed to open " + path + " for writing models.");
+		return;
+	}
+
+	json data = json::array();
+	for (const auto &[id, model] : models_) {
+		json item;
+		item["id"] = model->get_id();
+		item["name"] = model->get_name();
+		item["url"] = model->get_url();
+		item["purpose"] = model->get_purpose();
+		item["api_key"] = model->get_api_key();
+		item["cost_tx"] = model->get_cost_per_1m_tx();
+		item["cost_rx"] = model->get_cost_per_1m_rx();
+		data.push_back(item);
+	}
+
+	file << data.dump(4);
+	event_logger::get_instance().log("Saved " + std::to_string(models_.size()) + " models to " + path);
 }
 
 } // namespace agentlib
