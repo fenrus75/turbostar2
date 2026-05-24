@@ -12,7 +12,7 @@ namespace agentlib {
 
 class httplib_transport : public llm_transport {
 public:
-    explicit httplib_transport(const std::string& base_url);
+    explicit httplib_transport(const std::string& base_url, const std::string& api_key = "");
     ~httplib_transport() override;
     
     transport_response post(const std::string& path, const std::string& json_body) override;
@@ -24,6 +24,7 @@ public:
 
 private:
     std::string base_url_;
+    std::string api_key_;
     std::string last_error_;
     std::unique_ptr<httplib::Client> cli_;
     std::mutex mutex_;

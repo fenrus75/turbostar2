@@ -38,9 +38,11 @@ static std::string error_to_string(httplib::Error err)
 	}
 }
 
-httplib_transport::httplib_transport(const std::string &base_url) : base_url_(base_url)
+httplib_transport::httplib_transport(const std::string &base_url, const std::string &api_key)
+    : base_url_(base_url), api_key_(api_key)
 {
 	cli_ = std::make_unique<httplib::Client>(base_url_);
+	cli_->set_follow_location(true);
 }
 
 httplib_transport::~httplib_transport() = default;
@@ -60,7 +62,13 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 		std::lock_guard<std::mutex> lock(mutex_);
 		if (!cli_)
 			return {-1, "Client destroyed"};
-		res = cli_->Post(path.c_str(), json_body, "application/json");
+
+		httplib::Headers headers;
+		if (!api_key_.empty()) {
+			headers.emplace("Authorization", "Bearer " + api_key_);
+		}
+
+		res = cli_->Post(path.c_str(), headers, json_body, "application/json");
 	}
 
 	transport_response response;
@@ -90,6 +98,9 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		req.path = path;
 		req.body = json_body;
 		req.set_header("Content-Type", "application/json");
+		if (!api_key_.empty()) {
+			req.set_header("Authorization", "Bearer " + api_key_);
+		}
 		req.content_receiver = callback;
 
 		res = cli_->send(req);

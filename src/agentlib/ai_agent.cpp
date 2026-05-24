@@ -40,7 +40,7 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider)
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
 {
-	auto http_transport = std::make_shared<httplib_transport>(model_->get_url());
+	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 	client_ = std::make_unique<llm_client>(http_transport);
 }
 
@@ -262,7 +262,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 	{
 		std::lock_guard lock(state_mutex_);
 		model_ = std::move(model);
-		auto http_transport = std::make_shared<httplib_transport>(model_->get_url());
+		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 		client_ = std::make_unique<llm_client>(http_transport);
 	}
 
