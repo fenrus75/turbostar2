@@ -1,6 +1,9 @@
 #pragma once
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 #include "lsp_manager.h"
 
 /**
@@ -40,6 +43,11 @@ class project_manager
 		return clang_format_;
 	}
 
+	/**
+	 * @brief Returns a markdown representation of the project layout (top directories).
+	 */
+	std::string get_project_layout_markdown() const;
+
 	// LSP delegation methods
 	void lsp_start(event_queue &queue);
 	void lsp_stop();
@@ -59,9 +67,28 @@ class project_manager
 	project_manager() = default;
 
 	void load_instructions();
+	void inventory_project(std::stop_token stop);
+
+	struct directory_info {
+		std::string path;
+		int direct_files{0};
+		int direct_headers{0};
+		int direct_docs_config{0};
+		int total_files_underneath{0};
+		int depth{0};
+	};
+
+	struct project_layout {
+		std::vector<directory_info> top_directories;
+		bool ready{false};
+	};
 
 	std::string repo_root_;
 	std::string instructions_;
 	std::string clang_format_;
 	std::unique_ptr<lsp_manager> lsp_manager_;
+
+	mutable std::mutex layout_mutex_;
+	project_layout layout_;
+	std::jthread inventory_thread_;
 };

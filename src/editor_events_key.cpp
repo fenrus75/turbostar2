@@ -639,6 +639,11 @@ void editor::launch_inline_agent(const std::string &prompt)
 		system_prompt += "\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
 	}
 
+	std::string project_layout = project_manager::get_instance().get_project_layout_markdown();
+	if (!project_layout.empty()) {
+		system_prompt += "\n" + project_layout;
+	}
+
 	if (!diagnostics_context.empty()) {
 		system_prompt += "\nThe following diagnostics (errors/warnings) are active near this range:\n" + diagnostics_context;
 	}

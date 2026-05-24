@@ -1,9 +1,15 @@
 #include "project_manager.h"
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <set>
 #include <sstream>
+#include "config_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 
 namespace fs = std::filesystem;
@@ -27,6 +33,222 @@ void project_manager::initialize()
 	lsp_manager_ = std::make_unique<lsp_manager>();
 
 	load_instructions();
+
+	// Start the inventory thread with a 100ms delay
+	inventory_thread_ = std::jthread([this](std::stop_token stop) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		if (stop.stop_requested())
+			return;
+		inventory_project(stop);
+	});
+}
+
+static bool is_header(const fs::path &path)
+{
+	static const std::set<std::string> header_exts = {".h", ".hpp", ".hh", ".hxx"};
+	return header_exts.contains(path.extension().string());
+}
+
+static bool is_source(const fs::path &path)
+{
+	static const std::set<std::string> source_exts = {".c", ".cpp", ".cc", ".cxx", ".py", ".go", ".rs", ".js", ".ts",
+							  ".java", ".sh"};
+	return source_exts.contains(path.extension().string());
+}
+
+static bool is_doc_config(const fs::path &path)
+{
+	static const std::set<std::string> doc_exts = {".md", ".txt", ".json", ".yaml", ".yml", ".toml"};
+	static const std::set<std::string> doc_files = {"meson.build", "CMakeLists.txt", "Makefile", "Dockerfile", "GEMINI.md",
+							"AGENTS.md"};
+
+	if (doc_exts.contains(path.extension().string()))
+		return true;
+	if (doc_files.contains(path.filename().string()))
+		return true;
+	return false;
+}
+
+void project_manager::inventory_project(std::stop_token stop)
+{
+	auto start_time = std::chrono::steady_clock::now();
+	std::string build_dir = config_manager::get_instance().get_build_directory();
+	fs::path root(repo_root_);
+
+	std::map<std::string, directory_info> dir_map;
+	int dir_count = 0;
+
+	try {
+		for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied);
+		     it != fs::recursive_directory_iterator(); ++it) {
+			if (stop.stop_requested())
+				return;
+
+			const auto &path = it->path();
+			std::string rel_path = fs::relative(path, root).string();
+
+			// Skip hidden directories (like .git) and build directory
+			if (it->is_directory()) {
+				std::string name = path.filename().string();
+				if (name.front() == '.' || name == build_dir) {
+					it.disable_recursion_pending();
+					continue;
+				}
+
+				dir_count++;
+				if (dir_count > 50) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				}
+
+				dir_map[rel_path].path = rel_path;
+				dir_map[rel_path].depth = std::count(rel_path.begin(), rel_path.end(), fs::path::preferred_separator);
+			} else if (fs::is_regular_file(path)) {
+				bool header = is_header(path);
+				bool source = is_source(path);
+				bool doc = is_doc_config(path);
+
+				if (!header && !source && !doc)
+					continue;
+
+				// Update parent directory
+				std::string parent_rel = fs::relative(path.parent_path(), root).string();
+				if (parent_rel == ".") {
+					// Root directory files are handled separately or ignored in the table
+				} else {
+					auto &info = dir_map[parent_rel];
+					info.path = parent_rel; // Ensure path is set
+					if (header)
+						info.direct_headers++;
+					else if (source)
+						info.direct_files++;
+					else if (doc)
+						info.direct_docs_config++;
+				}
+
+				// Update all ancestors for total count
+				fs::path p = path.parent_path();
+				while (p != root && p.has_relative_path()) {
+					std::string ancestor_rel = fs::relative(p, root).string();
+					dir_map[ancestor_rel].total_files_underneath++;
+					p = p.parent_path();
+				}
+
+				// Periodically update the "ready" state with partial results if needed
+				// but for simplicity we'll just wait until the end or do it once per 100 files
+			}
+		}
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log("Error during project inventory: " + std::string(e.what()));
+	}
+
+	// Finalize Top 15/18
+	std::vector<directory_info> all_dirs;
+	for (auto &pair : dir_map) {
+		all_dirs.push_back(pair.second);
+	}
+
+	auto tie_breaker = [](const directory_info &a, const directory_info &b) {
+		if (a.depth != b.depth)
+			return a.depth < b.depth;
+		return a.path < b.path;
+	};
+
+	auto top_recursive = all_dirs;
+	std::sort(top_recursive.begin(), top_recursive.end(), [&](const directory_info &a, const directory_info &b) {
+		if (a.total_files_underneath != b.total_files_underneath)
+			return a.total_files_underneath > b.total_files_underneath;
+		return tie_breaker(a, b);
+	});
+
+	auto top_headers = all_dirs;
+	std::sort(top_headers.begin(), top_headers.end(), [&](const directory_info &a, const directory_info &b) {
+		if (a.direct_headers != b.direct_headers)
+			return a.direct_headers > b.direct_headers;
+		return tie_breaker(a, b);
+	});
+
+	auto top_source = all_dirs;
+	std::sort(top_source.begin(), top_source.end(), [&](const directory_info &a, const directory_info &b) {
+		if (a.direct_files != b.direct_files)
+			return a.direct_files > b.direct_files;
+		return tie_breaker(a, b);
+	});
+
+	auto top_docs = all_dirs;
+	std::sort(top_docs.begin(), top_docs.end(), [&](const directory_info &a, const directory_info &b) {
+		if (a.direct_docs_config != b.direct_docs_config)
+			return a.direct_docs_config > b.direct_docs_config;
+		return tie_breaker(a, b);
+	});
+
+	std::set<std::string> selected_paths;
+	std::vector<directory_info> result;
+
+	auto add_top = [&](const std::vector<directory_info> &list, size_t count, int min_val = 0) {
+		size_t added = 0;
+		for (const auto &info : list) {
+			if (added >= count)
+				break;
+			if (selected_paths.contains(info.path))
+				continue;
+
+			int val = 0;
+			if (&list == &top_recursive)
+				val = info.total_files_underneath;
+			else if (&list == &top_headers)
+				val = info.direct_headers;
+			else if (&list == &top_source)
+				val = info.direct_files;
+			else if (&list == &top_docs)
+				val = info.direct_docs_config;
+
+			if (val <= min_val)
+				continue;
+
+			result.push_back(info);
+			selected_paths.insert(info.path);
+			added++;
+		}
+	};
+
+	add_top(top_recursive, 5);
+	add_top(top_headers, 5);
+	add_top(top_source, 5);
+	add_top(top_docs, 3, 1); // Minimum 2 files for docs/config
+
+	// Final sort by path for display
+	std::sort(result.begin(), result.end(), [](const directory_info &a, const directory_info &b) {
+		return a.path < b.path;
+	});
+
+	{
+		std::lock_guard<std::mutex> lock(layout_mutex_);
+		layout_.top_directories = std::move(result);
+		layout_.ready = true;
+	}
+
+	auto end_time = std::chrono::steady_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+	event_logger::get_instance().log("Project inventory complete in " + std::to_string(duration.count()) +
+					 "ms. Indexed " + std::to_string(dir_count) + " directories.");
+}
+
+std::string project_manager::get_project_layout_markdown() const
+{
+	std::lock_guard<std::mutex> lock(layout_mutex_);
+	if (!layout_.ready || layout_.top_directories.empty())
+		return "";
+
+	std::stringstream ss;
+	ss << "\nProject Layout Overview:\n";
+	ss << "| Directory | Files | Headers | Docs/Config | Total Underneath |\n";
+	ss << "| :--- | :---: | :---: | :---: | :---: |\n";
+
+	for (const auto &dir : layout_.top_directories) {
+		ss << "| " << dir.path << " | " << dir.direct_files << " | " << dir.direct_headers << " | "
+		   << dir.direct_docs_config << " | " << dir.total_files_underneath << " |\n";
+	}
+	return ss.str();
 }
 void project_manager::load_instructions()
 {

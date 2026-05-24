@@ -139,6 +139,12 @@ test_crashdump_clear = executable('test_crashdump_clear',
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear)
 
+test_project_layout = executable('test_project_layout',
+  ['tests/unit/test_project_layout.cpp', 'src/project_manager.cpp', 'src/git_manager.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/fs_utils.cpp'],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  include_directories: 'src')
+test('unit_project_layout', test_project_layout)
+
 # E2E tests (run via python)
 pymod = import('python')
 python = pymod.find_installation('python3', required: false)

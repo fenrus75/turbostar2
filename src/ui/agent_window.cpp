@@ -36,6 +36,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	if (!clang_format.empty()) {
 		system_prompt += "\n\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
 	}
+
+	std::string project_layout = project_manager::get_instance().get_project_layout_markdown();
+	if (!project_layout.empty()) {
+		system_prompt += "\n" + project_layout;
+	}
+
 	agent_->inject_context("system", system_prompt);
 
 	set_background_color_pair(17); // Use cyan background to differentiate from normal editors
