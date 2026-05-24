@@ -1,11 +1,11 @@
 #include "git_manager.h"
+#include <array>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <array>
-#include "event_logger.h"
 #include "command_runner.h"
+#include "event_logger.h"
 
 namespace fs = std::filesystem;
 
@@ -97,7 +97,8 @@ void git_manager::worker_loop()
 			bool changed = false;
 			{
 				std::unique_lock lock(cache_mutex_);
-				if (status_cache_[req.filepath].status != info.status || status_cache_[req.filepath].branch != info.branch) {
+				if (status_cache_[req.filepath].status != info.status ||
+				    status_cache_[req.filepath].branch != info.branch) {
 					status_cache_[req.filepath] = info;
 					changed = true;
 				}

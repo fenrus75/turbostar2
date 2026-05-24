@@ -1,9 +1,9 @@
 #include "ui/components/ui_group_box.h"
-#include <ncurses.h>
-#include <ctype.h>
-#include "fs_utils.h"
-#include <sys/stat.h>
 #include <algorithm>
+#include <ctype.h>
+#include <ncurses.h>
+#include <sys/stat.h>
+#include "fs_utils.h"
 
 // --- ui_group_box ---
 
@@ -26,11 +26,11 @@ void ui_group_box::draw(int abs_x, int abs_y) const
 		mvaddstr(abs_y, abs_x, title_.c_str());
 	}
 	attrset(0);
-	
+
 	// Draw children
 	ui_container::draw(abs_x, abs_y);
 }
 
-#include "fs_utils.h"
-#include <sys/stat.h>
 #include <algorithm>
+#include <sys/stat.h>
+#include "fs_utils.h"

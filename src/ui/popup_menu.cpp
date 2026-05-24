@@ -1,15 +1,16 @@
 #include "ui/popup_menu.h"
-#include <ncurses.h>
 #include <cctype>
+#include <ncurses.h>
 
-popup_menu::popup_menu(int x, int y, const std::vector<popup_menu_item>& items)
-    : x_(x), y_(y), items_(items)
+popup_menu::popup_menu(int x, int y, const std::vector<popup_menu_item> &items) : x_(x), y_(y), items_(items)
 {
 	width_ = 15; // Minimum width
-	for (const auto& item : items_) {
+	for (const auto &item : items_) {
 		int w = item.name.length() + 4; // Margin + name
-		if (item.hotkey != 0) w += 2; // For potential display spacing
-		if (w > width_) width_ = w;
+		if (item.hotkey != 0)
+			w += 2; // For potential display spacing
+		if (w > width_)
+			width_ = w;
 	}
 	height_ = items_.size() + 2; // +2 for top/bottom borders
 
@@ -44,7 +45,7 @@ void popup_menu::draw() const
 	addstr("┐");
 
 	for (size_t i = 0; i < items_.size(); ++i) {
-		const auto& item = items_[i];
+		const auto &item = items_[i];
 		int row_y = y_ + 1 + i;
 		if (item.is_separator) {
 			mvaddstr(row_y, x_, "├");
@@ -54,7 +55,7 @@ void popup_menu::draw() const
 		} else {
 			bool selected = (static_cast<int>(i) == selected_idx_);
 			mvaddstr(row_y, x_, "│");
-			
+
 			if (selected)
 				attrset(COLOR_PAIR(14));
 			else
@@ -63,27 +64,32 @@ void popup_menu::draw() const
 			// Fill background
 			for (int j = 1; j < width_ - 1; ++j)
 				mvaddch(row_y, x_ + j, ' ');
-			
+
 			move(row_y, x_ + 1);
-			
+
 			// Find hotkey
 			size_t hotkey_pos = std::string::npos;
 			if (item.hotkey != 0) {
 				std::string lower_name = item.name;
-				for (char& c : lower_name) c = std::tolower(c);
+				for (char &c : lower_name)
+					c = std::tolower(c);
 				hotkey_pos = lower_name.find(std::tolower(item.hotkey));
 			}
 
 			// Draw name
 			for (size_t j = 0; j < item.name.length(); ++j) {
 				if (j == hotkey_pos) {
-					if (selected) attron(COLOR_PAIR(15));
-					else attron(COLOR_PAIR(2));
-					
+					if (selected)
+						attron(COLOR_PAIR(15));
+					else
+						attron(COLOR_PAIR(2));
+
 					addch(item.name[j]);
-					
-					if (selected) attron(COLOR_PAIR(14));
-					else attron(COLOR_PAIR(1));
+
+					if (selected)
+						attron(COLOR_PAIR(14));
+					else
+						attron(COLOR_PAIR(1));
 				} else {
 					addch(item.name[j]);
 				}
@@ -123,7 +129,7 @@ std::optional<int> popup_menu::handle_key(int key)
 	} else {
 		// Hotkeys
 		char c = std::tolower(static_cast<char>(key));
-		for (const auto& item : items_) {
+		for (const auto &item : items_) {
 			if (!item.is_separator && item.hotkey != 0 && std::tolower(item.hotkey) == c) {
 				return item.id;
 			}

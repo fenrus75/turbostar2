@@ -1,18 +1,18 @@
-#include "editor.h"
 #include <algorithm>
 #include <chrono>
-#include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "lsp_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "fs_utils.h"
 #include <fstream>
-#include <sstream>
 #include <lsp/json/json.h>
+#include <ncurses.h>
+#include <sstream>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "editor.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "history_manager.h"
+#include "lsp_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -49,5 +49,4 @@ void editor::dispatch_event_git(const editor_event &ev)
 		}
 		return;
 	}
-
 }

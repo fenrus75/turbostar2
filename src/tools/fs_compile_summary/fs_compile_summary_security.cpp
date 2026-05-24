@@ -1,7 +1,8 @@
-#include "fs_compile_summary.h"
 #include "../../agentlib/tool_registry.h"
+#include "fs_compile_summary.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(fs_compile_summary_validator)
 

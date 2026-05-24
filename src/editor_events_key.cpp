@@ -1,22 +1,21 @@
-#include "ui/dialog_factories.h"
-#include "editor.h"
 #include <algorithm>
 #include <chrono>
+#include <fstream>
+#include <lsp/json/json.h>
 #include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "project_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "fs_utils.h"
-#include "project_manager.h"
+#include <sstream>
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
-#include <fstream>
-#include <sstream>
-#include <lsp/json/json.h>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "editor.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "history_manager.h"
+#include "project_manager.h"
+#include "ui/dialog_factories.h"
 
 namespace fs = std::filesystem;
 
@@ -160,7 +159,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		hover_text_ = ""; // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
-	
+
 		// Global shortcuts
 		if (ev.key_code == KEY_F(1)) {
 			logger.log("Help shortcut pressed.");
@@ -211,7 +210,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			global_queue_.push(close_ev);
 			return;
 		}
-	
+
 		// 1. Modal Dialogs have highest priority
 		if (current_focus_ == focus_target::dialog && active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
@@ -230,17 +229,17 @@ void editor::dispatch_event_key(const editor_event &ev)
 				return;
 			}
 			std::string suggestion = get_search_autocomplete();
-			
+
 			if (ev.key_code == 9) { // TAB
 				if (!suggestion.empty()) {
 					search_input_buffer_ = suggestion;
 				}
 				return;
 			}
-	
+
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				current_search_.query = search_input_buffer_;
-				
+
 				is_searching_prompt_ = false;
 				is_search_options_prompt_ = true;
 				search_options_buffer_ = "";
@@ -257,7 +256,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
-	
+
 		// 2.5 Status Bar Search Options Prompt
 		if (is_search_options_prompt_) {
 			if (ev.key_code == 27) { // ESC
@@ -270,18 +269,22 @@ void editor::dispatch_event_key(const editor_event &ev)
 				current_search_.selected_text_only = false;
 				current_search_.ignore_case = false;
 				current_search_.from_cursor = true;
-				
+
 				bool is_replace = false;
 				for (char c : search_options_buffer_) {
 					char lc = std::tolower(c);
-					if (lc == 'b') current_search_.backward = true;
-					if (lc == 'k') current_search_.selected_text_only = true;
-					if (lc == 'i') current_search_.ignore_case = true;
-					if (lc == 'r') is_replace = true;
+					if (lc == 'b')
+						current_search_.backward = true;
+					if (lc == 'k')
+						current_search_.selected_text_only = true;
+					if (lc == 'i')
+						current_search_.ignore_case = true;
+					if (lc == 'r')
+						is_replace = true;
 				}
-				
+
 				history_manager::get_instance().add_search(current_search_.query);
-	
+
 				if (is_replace) {
 					is_search_options_prompt_ = false;
 					active_dialog_ = create_search_dialog("Replace", current_search_, true);
@@ -289,9 +292,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 					set_focus(focus_target::dialog, "menu_replace");
 					return;
 				}
-	
+
 				std::shared_ptr<document> active_doc = get_active_doc();
-	
+
 				if (active_doc && active_doc->find_next(current_search_)) {
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
@@ -308,7 +311,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 			if (!ev.utf8_char.empty() && ev.key_code >= 32) {
 				char c = std::tolower(ev.utf8_char[0]);
 				if (c == 'i' || c == 'r' || c == 'b' || c == 'k') {
-					if (search_options_buffer_.find(c) == std::string::npos && search_options_buffer_.find(std::toupper(c)) == std::string::npos) {
+					if (search_options_buffer_.find(c) == std::string::npos &&
+					    search_options_buffer_.find(std::toupper(c)) == std::string::npos) {
 						search_options_buffer_ += static_cast<char>(std::toupper(c));
 					}
 				}
@@ -316,7 +320,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return; // Consume all keys in prompt mode
 		}
-	
+
 		// 3. Status Bar Go to Line Prompt
 		if (is_going_to_line_prompt_) {
 			if (ev.key_code == 27) { // ESC
@@ -355,7 +359,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			handle_inline_agent_prompt_key(ev.key_code);
 			return;
 		}
-	
+
 		if (ev.key_code == 12) { // Ctrl-L
 			logger.log("Repeating last search.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -372,7 +376,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return;
 		}
-	
+
 		if (k_block_mode_) {
 			if (handle_k_block_key(ev.key_code)) {
 				k_block_mode_ = false;
@@ -380,7 +384,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			k_block_mode_ = false;
 		}
-	
+
 		if (q_block_mode_) {
 			if (handle_q_block_key(ev.key_code)) {
 				q_block_mode_ = false;
@@ -413,7 +417,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			logger.log("Entering P-block mode.");
 			p_block_mode_ = true;
 			return;
-		}	
+		}
 		if (ev.key_code == 31) { // Ctrl-_ (Undo)
 			logger.log("Undo requested.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -422,7 +426,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return;
 		}
-	
+
 		if (ev.key_code == 30) { // Ctrl-^ (Redo)
 			logger.log("Redo requested.");
 			std::shared_ptr<document> active_doc = get_active_doc();
@@ -431,10 +435,10 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return;
 		}
-	
+
 		if (ev.key_code < 0) { // Alt + key
 			char c = static_cast<char>(-ev.key_code);
-			
+
 			if (c == '=') {
 				logger.log("Alt-= pressed. Spawning popup menu.");
 				window *active_win = get_active_window();
@@ -445,17 +449,18 @@ void editor::dispatch_event_key(const editor_event &ev)
 					items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
 					items.push_back({0, "", 0, true});
 					items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
-					
-					active_popup_ = std::make_unique<popup_menu>(active_win->get_popup_button_x(), active_win->get_y() + 1, items);
+
+					active_popup_ =
+					    std::make_unique<popup_menu>(active_win->get_popup_button_x(), active_win->get_y() + 1, items);
 					set_focus(focus_target::popup, "alt_equal");
-					
+
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
 				}
 				return;
 			}
-			
+
 			if (c >= '0' && c <= '9') {
 				int target_idx;
 				if (c == '0') {
@@ -471,7 +476,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				return;
 			}
 		}
-	
+
 		// Route based on focus (Windows/Menu Bar/Popup)
 		if (current_focus_ == focus_target::popup && active_popup_) {
 			auto res = active_popup_->handle_key(ev.key_code);
@@ -479,13 +484,13 @@ void editor::dispatch_event_key(const editor_event &ev)
 				int id = res.value();
 				active_popup_.reset();
 				set_focus(focus_target::window, "popup_close");
-				
+
 				if (id != popup_menu::cancel_id) {
 					editor_event action_ev;
 					action_ev.type = static_cast<event_type>(id);
 					global_queue_.push(action_ev);
 				}
-				
+
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
@@ -505,7 +510,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					   "quit, use ^KQ or ^KX)");
 				return;
 			}
-	
+
 			// Route to active window
 			window *active_win = get_active_window();
 			if (active_win) {
@@ -518,7 +523,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 			int new_y = doc->get_cursor_y();
 			int new_x = doc->get_cursor_x();
 			if (new_y != old_y || new_x != old_x) {
-				if (!doc->get_filename().empty() && project_manager::get_instance().lsp_is_supported_file(doc->get_filename())) {
+				if (!doc->get_filename().empty() &&
+				    project_manager::get_instance().lsp_is_supported_file(doc->get_filename())) {
 					auto scope = doc->get_enclosing_scope();
 					bool outside = true;
 					if (scope) {
@@ -527,15 +533,15 @@ void editor::dispatch_event_key(const editor_event &ev)
 							outside = false;
 						}
 					}
-					
+
 					if (outside) {
-						project_manager::get_instance().lsp_request_selection_range(doc->get_filename(), new_y, new_x);
+						project_manager::get_instance().lsp_request_selection_range(doc->get_filename(), new_y,
+													    new_x);
 					}
 				}
 			}
 		}
 	}
-
 }
 
 void editor::handle_inline_agent_prompt_key(int key)
@@ -567,7 +573,8 @@ void editor::launch_inline_agent(const std::string &prompt)
 	logger.log("Launching inline agent with prompt: " + prompt);
 
 	std::shared_ptr<document> doc = get_active_doc();
-	if (!doc) return;
+	if (!doc)
+		return;
 
 	int cur_y = doc->get_cursor_y();
 	int cur_x = doc->get_cursor_x();
@@ -597,7 +604,7 @@ void editor::launch_inline_agent(const std::string &prompt)
 	// 2. Collect diagnostics in range
 	std::string diagnostics_context;
 	auto diags = doc->get_diagnostics();
-	for (const auto& diag : diags) {
+	for (const auto &diag : diags) {
 		if (diag.range.start_y + 1 >= start_line - 5 && diag.range.start_y + 1 <= end_line + 5) {
 			diagnostics_context += "- " + diag.message + " (line " + std::to_string(diag.range.start_y + 1) + ")\n";
 		}
@@ -612,13 +619,16 @@ void editor::launch_inline_agent(const std::string &prompt)
 	}
 
 	int agent_id = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count() % 1000000);
-	
+
 	auto agent = agentlib::ai_agent::create(agent_id, "InlineAssistant", model, &global_queue_, this);
-	
-	std::string system_prompt = "You are a headless surgical coding assistant. You are assisting the user with file '" + filename + "'.\n"
-		"The user's cursor or selection is in the target range: lines " + std::to_string(start_line) + " to " + std::to_string(end_line) + ".\n"
-		"Your task is to perform code transformations or reviews within this range.\n";
-	
+
+	std::string system_prompt = "You are a headless surgical coding assistant. You are assisting the user with file '" + filename +
+				    "'.\n"
+				    "The user's cursor or selection is in the target range: lines " +
+				    std::to_string(start_line) + " to " + std::to_string(end_line) +
+				    ".\n"
+				    "Your task is to perform code transformations or reviews within this range.\n";
+
 	std::string project_instr = project_manager::get_instance().get_project_instructions();
 	if (!project_instr.empty()) {
 		system_prompt += "\nProject-specific instructions and engineering standards:\n" + project_instr + "\n";
@@ -628,15 +638,17 @@ void editor::launch_inline_agent(const std::string &prompt)
 		system_prompt += "\nThe following diagnostics (errors/warnings) are active near this range:\n" + diagnostics_context;
 	}
 
-	system_prompt += "\nInstructions:\n"
-		"1. Use tool calls to perform the task. Do NOT provide a conversational response text.\n"
-		"2. Use 'fs_read_lines' to read the target range and surrounding context if needed.\n"
-		"3. For code refactoring: Use 'fs_replace_lines' to modify the code in the target range. Prefer surgical edits.\n"
-		"4. For spell checking/reviews: Use 'flag_as_error' to highlight spelling and grammatical mistakes. "
-		"Use 'error' (is_warning=false) for spelling mistakes and 'warning' (is_warning=true) for grammatical improvements. "
-		"Include the suggested improvement in the 'error_string' argument.\n"
-		"5. Use 'agent_set_status' to provide brief status updates (e.g., 'Analyzing...', 'Applying fixes...').\n"
-		"6. When finished, provide a final status update (e.g., 'Reformatted function.') and then simply stop. Do not ask for further instructions.";
+	system_prompt +=
+	    "\nInstructions:\n"
+	    "1. Use tool calls to perform the task. Do NOT provide a conversational response text.\n"
+	    "2. Use 'fs_read_lines' to read the target range and surrounding context if needed.\n"
+	    "3. For code refactoring: Use 'fs_replace_lines' to modify the code in the target range. Prefer surgical edits.\n"
+	    "4. For spell checking/reviews: Use 'flag_as_error' to highlight spelling and grammatical mistakes. "
+	    "Use 'error' (is_warning=false) for spelling mistakes and 'warning' (is_warning=true) for grammatical improvements. "
+	    "Include the suggested improvement in the 'error_string' argument.\n"
+	    "5. Use 'agent_set_status' to provide brief status updates (e.g., 'Analyzing...', 'Applying fixes...').\n"
+	    "6. When finished, provide a final status update (e.g., 'Reformatted function.') and then simply stop. Do not ask for further "
+	    "instructions.";
 
 	agent->inject_context("system", system_prompt);
 	agent->submit_prompt(prompt);
@@ -646,4 +658,3 @@ void editor::launch_inline_agent(const std::string &prompt)
 	transient_status_message_ = "Agent: Thinking...";
 	transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(10);
 }
-

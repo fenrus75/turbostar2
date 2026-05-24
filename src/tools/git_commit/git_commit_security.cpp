@@ -1,7 +1,8 @@
-#include "git_commit.h"
 #include "../../agentlib/tool_registry.h"
+#include "git_commit.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(git_commit_validator)
 

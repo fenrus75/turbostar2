@@ -3,8 +3,7 @@
 #include <ncurses.h>
 #include "event_logger.h"
 
-dialog::dialog(const std::string &title, int width, int height) 
-    : ui_container("dialog", 0, 0, width, height), title_(title)
+dialog::dialog(const std::string &title, int width, int height) : ui_container("dialog", 0, 0, width, height), title_(title)
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -14,7 +13,7 @@ dialog::dialog(const std::string &title, int width, int height)
 
 void dialog::draw(int /*abs_x*/, int /*abs_y*/) const
 {
-	// For legacy support when used as a pure ui_container, 
+	// For legacy support when used as a pure ui_container,
 	// we just map it to the legacy draw which utilizes x_ and y_
 	draw();
 }
@@ -50,7 +49,7 @@ dialog_result dialog::handle_key(int key)
 
 	if (key == 27 && action_ == dialog_result::pending) {
 		expecting_alt_char = true;
-		
+
 		// If we receive a standalone ESC, the editor doesn't actually send a second char.
 		// In our E2E runner, Alt+Key is sent as `send_keys('\x1b' + 'o')`, meaning 2 sequential keys.
 		// However, a pure ESC is sent as just `\x1b`.
@@ -63,9 +62,9 @@ dialog_result dialog::handle_key(int key)
 		// Actually, let's just process ESC immediately if it comes in! But then Alt+Key won't work.
 		// For the sake of the E2E test, let's just bypass this static hack and handle ESC directly if key==27.
 	}
-	
+
 	if (expecting_alt_char && key != 27) {
-		ev.key_code = -key; 
+		ev.key_code = -key;
 		expecting_alt_char = false;
 	}
 
@@ -73,7 +72,7 @@ dialog_result dialog::handle_key(int key)
 	this->handle_event(ev, x_, y_);
 
 	if (action_ == dialog_result::pending && key == 27) { // Standalone ESC or swallowed ESC
-		for (auto& child : children_) {
+		for (auto &child : children_) {
 			if (child->name() == "btn_cancel" || child->name() == "Cancel") {
 				child->set_pressed(true);
 			}
@@ -92,14 +91,14 @@ std::optional<dialog_result> dialog::handle_mouse(int mouse_x, int mouse_y)
 	ev.type = event_type::mouse_click;
 	ev.mouse_x = mouse_x;
 	ev.mouse_y = mouse_y;
-	
+
 	// Pass to the new container system
 	this->handle_event(ev, x_, y_);
-	
+
 	if (action_ != dialog_result::pending) {
 		return action_;
 	}
-	
+
 	return std::nullopt;
 }
 
@@ -147,7 +146,8 @@ void dialog::draw() const
 	attroff(COLOR_PAIR(11));
 
 	// Title
-	if (!title_.empty()) {		attron(COLOR_PAIR(1));
+	if (!title_.empty()) {
+		attron(COLOR_PAIR(1));
 		std::string displayed_title = " " + title_ + " ";
 		int title_x = x_ + (width_ - displayed_title.length()) / 2;
 		mvaddstr(y_, title_x, displayed_title.c_str());
@@ -157,4 +157,3 @@ void dialog::draw() const
 
 	ui_container::draw(x_, y_);
 }
-

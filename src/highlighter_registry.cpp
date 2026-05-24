@@ -7,7 +7,10 @@
 class default_highlighter : public syntax_highlighter
 {
       public:
-	bool supports_file(const std::string &) const override { return true; } // Fallback
+	bool supports_file(const std::string &) const override
+	{
+		return true;
+	} // Fallback
 	void highlight(std::shared_ptr<line> l) override
 	{
 		std::vector<syntax_attribute> attrs(l->length_in_chars(), syntax_attribute::normal);

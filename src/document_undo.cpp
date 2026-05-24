@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,15 +5,15 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 void document::begin_edit_group()
 {
@@ -27,7 +26,6 @@ void document::begin_edit_group()
 	}
 	edit_group_depth_++;
 }
-
 
 void document::end_edit_group()
 {
@@ -46,7 +44,6 @@ void document::end_edit_group()
 	}
 }
 
-
 void document::record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line)
 {
 	if (!is_recording_actions_)
@@ -55,7 +52,7 @@ void document::record_action(edit_action::action_type type, int y, std::shared_p
 	// Optimization: If the last action in the current group was a replace_line
 	// for the same line, don't record it again.
 	if (type == edit_action::action_type::replace_line && !current_action_group_.actions.empty()) {
-		const auto& last = current_action_group_.actions.back();
+		const auto &last = current_action_group_.actions.back();
 		if (last.type == edit_action::action_type::replace_line && last.y == y) {
 			return;
 		}
@@ -70,7 +67,6 @@ void document::record_action(edit_action::action_type type, int y, std::shared_p
 
 	current_action_group_.actions.push_back(act);
 }
-
 
 void document::undo()
 {
@@ -118,7 +114,7 @@ void document::undo()
 
 	std::reverse(inverse_group.actions.begin(), inverse_group.actions.end());
 	redo_stack_.push_back(inverse_group);
-	
+
 	set_modified();
 	is_recording_actions_ = true;
 	target_cursor_x_ = cursor_x_;
@@ -126,10 +122,10 @@ void document::undo()
 	notify_cursor_changed();
 }
 
-
 void document::redo()
 {
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	std::unique_lock lock(mutex_);
 	if (redo_stack_.empty())
 		return;

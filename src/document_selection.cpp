@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,15 +5,15 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 void document::set_selection_start()
 {
@@ -25,7 +24,6 @@ void document::set_selection_start()
 	notify_cursor_changed();
 }
 
-
 void document::set_selection_end()
 {
 	std::unique_lock lock(mutex_);
@@ -34,7 +32,6 @@ void document::set_selection_end()
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::set_selection(int start_y, int start_x, int end_y, int end_x)
 {
@@ -47,7 +44,6 @@ void document::set_selection(int start_y, int start_x, int end_y, int end_x)
 	notify_cursor_changed();
 }
 
-
 void document::clear_selection()
 {
 	std::unique_lock lock(mutex_);
@@ -56,7 +52,6 @@ void document::clear_selection()
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 std::vector<line> document::get_selection_block() const
 {
@@ -91,7 +86,6 @@ std::vector<line> document::get_selection_block() const
 	}
 	return block;
 }
-
 
 void document::delete_selection()
 {
@@ -128,7 +122,7 @@ void document::delete_selection()
 		for (int i = ey; i > sy; --i) {
 			record_action(edit_action::action_type::delete_line, i, lines_[i]);
 		}
-		
+
 		line tail_line("");
 		lines_[ey]->split_at(ex, tail_line);
 		line throwaway("");
@@ -150,7 +144,6 @@ void document::delete_selection()
 	notify_cursor_changed();
 }
 
-
 void document::copy_selection()
 {
 	std::unique_lock lock(mutex_);
@@ -163,7 +156,7 @@ void document::copy_selection()
 	std::vector<line> block = get_selection_block();
 	int tx = cursor_x_;
 	int ty = cursor_y_;
-	
+
 	begin_edit_group();
 	insert_block(block);
 	end_edit_group();
@@ -181,10 +174,10 @@ void document::copy_selection()
 	notify_cursor_changed();
 }
 
-
 void document::move_selection()
 {
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	std::unique_lock lock(mutex_);
 	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
 		lock.unlock();
@@ -242,15 +235,14 @@ void document::move_selection()
 	notify_cursor_changed();
 }
 
-
 void document::insert_block(const std::vector<line> &block)
 {
 	if (block.empty())
 		return;
-	
+
 	begin_edit_group();
 	record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
-	
+
 	line tail("");
 	lines_[cursor_y_]->split_at(cursor_x_, tail);
 	lines_[cursor_y_]->merge(block[0]);
@@ -262,7 +254,7 @@ void document::insert_block(const std::vector<line> &block)
 			record_action(edit_action::action_type::insert_line, cursor_y_ + i, nullptr);
 			mark_line_dirty(nl);
 		}
-		
+
 		record_action(edit_action::action_type::replace_line, cursor_y_ + block.size() - 1, lines_[cursor_y_ + block.size() - 1]);
 		lines_[cursor_y_ + block.size() - 1]->merge(tail);
 		mark_line_dirty(lines_[cursor_y_ + block.size() - 1]);
@@ -275,17 +267,15 @@ void document::insert_block(const std::vector<line> &block)
 		cursor_x_ += block[0].length_in_chars();
 	else
 		cursor_x_ = block.back().length_in_chars();
-		
+
 	end_edit_group();
 }
-
 
 bool document::has_selection() const
 {
 	std::shared_lock lock(mutex_);
 	return selection_start_y_ != -1 && selection_end_y_ != -1;
 }
-
 
 void document::get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const
 {
@@ -308,7 +298,6 @@ void document::get_selection_range(int &start_x, int &start_y, int &end_x, int &
 	get_selection_range_unlocked(start_x, start_y, end_x, end_y);
 }
 
-
 void document::adjust_selection_for_insert(int y, int x, int count)
 {
 	auto adjust = [&](int &sx, int &sy) {
@@ -320,7 +309,6 @@ void document::adjust_selection_for_insert(int y, int x, int count)
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
 }
-
 
 void document::adjust_selection_for_delete(int y, int x, int count)
 {
@@ -336,7 +324,6 @@ void document::adjust_selection_for_delete(int y, int x, int count)
 	adjust(selection_end_x_, selection_end_y_);
 }
 
-
 void document::adjust_selection_for_split(int y, int x)
 {
 	auto adjust = [&](int &sx, int &sy) {
@@ -350,7 +337,6 @@ void document::adjust_selection_for_split(int y, int x)
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
 }
-
 
 void document::adjust_selection_for_join(int y, int x)
 {
@@ -367,7 +353,6 @@ void document::adjust_selection_for_join(int y, int x)
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
 }
-
 
 void document::adjust_selection_for_line_delete(int y)
 {

@@ -1,7 +1,8 @@
-#include "git_restore.h"
 #include "../../agentlib/tool_registry.h"
+#include "git_restore.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(git_restore_validator)
 

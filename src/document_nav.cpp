@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,15 +5,15 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 void document::move_cursor(int dx, int dy)
 {
@@ -24,8 +23,7 @@ void document::move_cursor(int dx, int dy)
 		if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
 			cursor_y_--;
 			cursor_x_ = lines_[cursor_y_]->length_in_chars();
-		} else if (dx > 0 && cursor_x_ >= lines_[cursor_y_]->length_in_chars() &&
-			   cursor_y_ < line_count_unlocked() - 1) {
+		} else if (dx > 0 && cursor_x_ >= lines_[cursor_y_]->length_in_chars() && cursor_y_ < line_count_unlocked() - 1) {
 			cursor_y_++;
 			cursor_x_ = 0;
 		} else {
@@ -54,7 +52,6 @@ void document::move_cursor(int dx, int dy)
 	notify_cursor_changed();
 }
 
-
 void document::move_to_bol()
 {
 	std::unique_lock lock(mutex_);
@@ -63,7 +60,6 @@ void document::move_to_bol()
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::move_to_eol()
 {
@@ -76,7 +72,6 @@ void document::move_to_eol()
 	notify_cursor_changed();
 }
 
-
 void document::move_to_top()
 {
 	std::unique_lock lock(mutex_);
@@ -87,7 +82,6 @@ void document::move_to_top()
 	notify_cursor_changed();
 }
 
-
 void document::move_to_bottom()
 {
 	std::unique_lock lock(mutex_);
@@ -97,7 +91,6 @@ void document::move_to_bottom()
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::move_page_up(int page_height)
 {
@@ -112,7 +105,6 @@ void document::move_page_up(int page_height)
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::move_page_down(int page_height)
 {
@@ -129,7 +121,6 @@ void document::move_page_down(int page_height)
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::move_next_word()
 {
@@ -164,7 +155,6 @@ void document::move_next_word()
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::move_prev_word()
 {

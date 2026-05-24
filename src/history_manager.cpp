@@ -80,8 +80,8 @@ void history_manager::load()
 		}
 	}
 	event_logger::get_instance().log("Loaded history: " + std::to_string(searches_.size()) + " searches, " +
-					 std::to_string(files_.size()) + " files, " +
-					 std::to_string(cursor_memory_.size()) + " cursor positions.");
+					 std::to_string(files_.size()) + " files, " + std::to_string(cursor_memory_.size()) +
+					 " cursor positions.");
 }
 
 void history_manager::save() const

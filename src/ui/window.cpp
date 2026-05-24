@@ -1,7 +1,7 @@
 #include "ui/window.h"
 #include <ncurses.h>
-#include "event_logger.h"
 #include "build_error_manager.h"
+#include "event_logger.h"
 #include "git_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
@@ -169,7 +169,8 @@ bool window::process_events()
 				case 7: { // Ctrl-G (Matching bracket)
 					auto match = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
 					if (match) {
-						doc_->move_cursor(match->second - doc_->get_cursor_x(), match->first - doc_->get_cursor_y());
+						doc_->move_cursor(match->second - doc_->get_cursor_x(),
+								  match->first - doc_->get_cursor_y());
 						invalidate();
 					}
 					break;
@@ -289,7 +290,7 @@ void window::draw_content() const
 		std::string utf8_char;
 		utf8_char.reserve(4);
 
-		for (size_t char_idx = 0; ; ++char_idx) {
+		for (size_t char_idx = 0;; ++char_idx) {
 			int start_col = current_display_col;
 
 			// Determine character width and content
@@ -327,19 +328,21 @@ void window::draw_content() const
 					bool is_match = false;
 					if (match_pos) {
 						if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
-						    (doc_line_idx == doc_->get_cursor_y() && static_cast<int>(char_idx) == doc_->get_cursor_x())) {
+						    (doc_line_idx == doc_->get_cursor_y() &&
+						     static_cast<int>(char_idx) == doc_->get_cursor_x())) {
 							is_match = true;
 						}
 					}
 
 					bool is_lsp_highlight = false;
 					if (doc_) {
-						for (const auto& hl : doc_->get_lsp_highlights()) {
+						for (const auto &hl : doc_->get_lsp_highlights()) {
 							if (doc_line_idx > hl.start_y && doc_line_idx < hl.end_y) {
 								is_lsp_highlight = true;
 								break;
 							} else if (doc_line_idx == hl.start_y && doc_line_idx == hl.end_y) {
-								if (static_cast<int>(char_idx) >= hl.start_x && static_cast<int>(char_idx) < hl.end_x) {
+								if (static_cast<int>(char_idx) >= hl.start_x &&
+								    static_cast<int>(char_idx) < hl.end_x) {
 									is_lsp_highlight = true;
 									break;
 								}
@@ -359,12 +362,13 @@ void window::draw_content() const
 
 					int diagnostic_severity = 0;
 					if (doc_) {
-						for (const auto& diag : doc_->get_lsp_diagnostics()) {
+						for (const auto &diag : doc_->get_lsp_diagnostics()) {
 							if (doc_line_idx > diag.range.start_y && doc_line_idx < diag.range.end_y) {
 								diagnostic_severity = diag.severity;
 								break;
 							} else if (doc_line_idx == diag.range.start_y && doc_line_idx == diag.range.end_y) {
-								if (static_cast<int>(char_idx) >= diag.range.start_x && static_cast<int>(char_idx) < diag.range.end_x) {
+								if (static_cast<int>(char_idx) >= diag.range.start_x &&
+								    static_cast<int>(char_idx) < diag.range.end_x) {
 									diagnostic_severity = diag.severity;
 									break;
 								}
@@ -393,21 +397,24 @@ void window::draw_content() const
 					} else {
 						// Build error/warning might be active for this line as a sub-line highlight.
 						if (doc_) {
-							auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_safe_filename(), doc_line_idx);
+							auto build_err = build_error_manager::get_instance().find_error_at(
+							    doc_->get_safe_filename(), doc_line_idx);
 							if (build_err) {
-								if (build_err->end_column == 0 || (static_cast<int>(char_idx) >= build_err->column && static_cast<int>(char_idx) < build_err->end_column)) {
+								if (build_err->end_column == 0 ||
+								    (static_cast<int>(char_idx) >= build_err->column &&
+								     static_cast<int>(char_idx) < build_err->end_column)) {
 									pair = build_err->is_warning ? 28 : 27;
 								}
 							}
 						}
 					}
-					
+
 					// If no build error override happened, fallback to standard diagnostics/highlights
 					if (pair == line_bg_pair && line_bg_pair == background_color_pair_) {
-						if (diagnostic_severity == 1) { // Error
-							pair = 27; // White on Red
+						if (diagnostic_severity == 1) {	       // Error
+							pair = 27;		       // White on Red
 						} else if (diagnostic_severity == 2) { // Warning
-							pair = 28; // Black on Yellow
+							pair = 28;		       // Black on Yellow
 						} else if (is_lsp_highlight) {
 							pair = 25; // Normal on Magenta
 							if (attr == syntax_attribute::keyword)
@@ -430,7 +437,7 @@ void window::draw_content() const
 						attrset(COLOR_PAIR(pair));
 						last_attr_pair = pair;
 					}
-					
+
 					if (utf8_char == "\t") {
 						addch(' ');
 					} else {
@@ -505,8 +512,9 @@ void window::draw_border() const
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
 		git_info info = git_manager::get_instance().get_cached_info(doc_->get_filename());
 		std::string branch = doc_->get_git_branch();
-		if (branch.empty()) branch = "unknown";
-		
+		if (branch.empty())
+			branch = "unknown";
+
 		std::string indicator = "?";
 		int pair = 5;
 		if (info.status == git_status::clean) {
@@ -516,7 +524,7 @@ void window::draw_border() const
 			indicator = "✎";
 			pair = 21;
 		}
-		
+
 		mvaddstr(y_, x_ + 6, "[");
 		attron(COLOR_PAIR(5));
 		addstr(branch.c_str());
@@ -557,10 +565,12 @@ void window::draw_border() const
 	attroff(COLOR_PAIR(4));
 }
 
-int window::get_git_button_width() const {
+int window::get_git_button_width() const
+{
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
 		std::string branch = doc_->get_git_branch();
-		if (branch.empty()) branch = "unknown";
+		if (branch.empty())
+			branch = "unknown";
 		return branch.length() + 4;
 	}
 	return 0;

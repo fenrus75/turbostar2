@@ -45,7 +45,8 @@ void python_highlighter::highlight(std::shared_ptr<line> l)
 
 	// 1. Keywords
 	static const std::unique_ptr<re2::RE2> kw_regex = std::make_unique<re2::RE2>(
-	    "\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b");
+	    "\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|"
+	    "in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b");
 
 	re2::StringPiece input(text);
 	re2::StringPiece match;

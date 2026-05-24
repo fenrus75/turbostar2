@@ -104,7 +104,7 @@ int line::length_in_chars() const
 	return chars;
 }
 
-bool line::next_utf8_character(size_t &byte_offset, std::string& out_char) const
+bool line::next_utf8_character(size_t &byte_offset, std::string &out_char) const
 {
 	std::shared_lock lock(mutex_);
 	if (byte_offset >= text_.length()) {

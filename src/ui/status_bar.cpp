@@ -1,26 +1,28 @@
 #include "ui/status_bar.h"
 #include <ncurses.h>
 
-namespace {
-	void print_with_hotkeys(const std::string& str) {
-		bool highlight_next = false;
-		for (char c : str) {
-			if (c == '^' && !highlight_next) {
-				highlight_next = true;
-				continue;
-			}
-			if (highlight_next) {
-				attron(COLOR_PAIR(2));
-				addch(c);
-				attroff(COLOR_PAIR(2));
-				attron(COLOR_PAIR(1));
-				highlight_next = false;
-			} else {
-				addch(c);
-			}
+namespace
+{
+void print_with_hotkeys(const std::string &str)
+{
+	bool highlight_next = false;
+	for (char c : str) {
+		if (c == '^' && !highlight_next) {
+			highlight_next = true;
+			continue;
+		}
+		if (highlight_next) {
+			attron(COLOR_PAIR(2));
+			addch(c);
+			attroff(COLOR_PAIR(2));
+			attron(COLOR_PAIR(1));
+			highlight_next = false;
+		} else {
+			addch(c);
 		}
 	}
 }
+} // namespace
 
 void status_bar::draw(const std::string &mode_help, const std::string &hover_text, int cursor_x, int cursor_y) const
 {

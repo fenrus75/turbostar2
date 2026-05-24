@@ -1,13 +1,13 @@
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
-#include "../agentlib/llm_client.h"
-#include "../agentlib/tool_registry.h"
+#include "../agentlib/ai_agent.h"
 #include "../agentlib/httplib_transport.h"
+#include "../agentlib/llm_client.h"
 #include "../agentlib/recording_transport.h"
 #include "../agentlib/replay_transport.h"
 #include "../agentlib/skill_manager.h"
-#include "../agentlib/ai_agent.h"
+#include "../agentlib/tool_registry.h"
 #include "../event_queue.h"
 
 #include "../agentlib/ai_model.h"
@@ -15,89 +15,90 @@
 using namespace agentlib;
 using json = nlohmann::json;
 
-int main(int argc, char** argv) {
-    std::string prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
-    
-    const char* env_url = std::getenv("LLM_URL");
-    std::string url = env_url ? env_url : "http://192.168.1.55:8080";
-    
-    // Set up the transport chain
+int main(int argc, char **argv)
+{
+	std::string prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
+
+	const char *env_url = std::getenv("LLM_URL");
+	std::string url = env_url ? env_url : "http://192.168.1.55:8080";
+
+	// Set up the transport chain
 #if defined(LLM_TRANSPORT_REPLAY)
-    std::cout << "[Using Replay Transport]" << std::endl;
-    auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "llm_debug_traffic.json");
-    llm_client client(player);
+	std::cout << "[Using Replay Transport]" << std::endl;
+	auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "llm_debug_traffic.json");
+	llm_client client(player);
 #elif defined(LLM_TRANSPORT_RECORD)
-    std::cout << "[Using Recording Transport]" << std::endl;
-    auto http_transport = std::make_shared<httplib_transport>(url);
-    auto recorder = std::make_shared<recording_transport>(http_transport, argc > 2 ? argv[2] : "llm_debug_traffic.json");
-    llm_client client(recorder);
+	std::cout << "[Using Recording Transport]" << std::endl;
+	auto http_transport = std::make_shared<httplib_transport>(url);
+	auto recorder = std::make_shared<recording_transport>(http_transport, argc > 2 ? argv[2] : "llm_debug_traffic.json");
+	llm_client client(recorder);
 #else
-    std::cout << "[Using Standard HTTP Transport]" << std::endl;
-    auto http_transport = std::make_shared<httplib_transport>(url);
-    llm_client client(http_transport);
+	std::cout << "[Using Standard HTTP Transport]" << std::endl;
+	auto http_transport = std::make_shared<httplib_transport>(url);
+	llm_client client(http_transport);
 #endif
-    
-    tool_registry& registry = tool_registry::get_instance();
-    tool_context ctx;
-    event_queue q;
-    auto model = std::make_shared<ai_model>("cli-model", "CLI Model", url, "CLI Test", 0.0, 0.0);
-    auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
-    ctx.active_agent = test_agent.get();
 
-    agentlib::skill_manager::get_instance().initialize();
-    ctx.fs_security.set_working_directory(std::filesystem::current_path());
-    ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
-    ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
-    ctx.fs_security.set_vfs(agentlib::skill_manager::get_instance().get_vfs());
+	tool_registry &registry = tool_registry::get_instance();
+	tool_context ctx;
+	event_queue q;
+	auto model = std::make_shared<ai_model>("cli-model", "CLI Model", url, "CLI Test", 0.0, 0.0);
+	auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
+	ctx.active_agent = test_agent.get();
 
-    // 2. We ask a question that triggers the tool
-    prompt = (argc > 1) ? argv[1] : "Replace line 2 of tests/unit/poem.txt with 'The birds are resting soft and still.'";
-    std::cout << "Connecting to: " << url << std::endl;
-    std::cout << "Prompt: " << prompt << "\n" << std::endl;
-    
-    std::vector<message> conversation;
-    
-    message system_msg;
-    system_msg.role = "system";
-    system_msg.content = "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.";
-    conversation.push_back(system_msg);
+	agentlib::skill_manager::get_instance().initialize();
+	ctx.fs_security.set_working_directory(std::filesystem::current_path());
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
+	ctx.fs_security.set_vfs(agentlib::skill_manager::get_instance().get_vfs());
 
-    message user_msg;
-    user_msg.role = "user";
-    user_msg.content = prompt;
-    conversation.push_back(user_msg);
+	// 2. We ask a question that triggers the tool
+	prompt = (argc > 1) ? argv[1] : "Replace line 2 of tests/unit/poem.txt with 'The birds are resting soft and still.'";
+	std::cout << "Connecting to: " << url << std::endl;
+	std::cout << "Prompt: " << prompt << "\n" << std::endl;
 
-    while (true) {
-        agentlib::llm_chat_response chat_res = client.send_chat(conversation, &registry);
-        message response = chat_res.msg;
+	std::vector<message> conversation;
 
-        if (response.tool_calls && !response.tool_calls->empty()) {
-            std::cout << "LLM requested tool calls." << std::endl;
-            // The LLM's assistant message needs to be added to the history
-            conversation.push_back(response);
+	message system_msg;
+	system_msg.role = "system";
+	system_msg.content = "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.";
+	conversation.push_back(system_msg);
 
-            for (const auto& call : *response.tool_calls) {
-                std::cout << "Executing tool: " << call.function.name << std::endl;
-                
-                // 3. We now pass the tool_context down to the execution layer
-                std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
-                
-                std::cout << "[Tool Result] " << tool_result << std::endl;
+	message user_msg;
+	user_msg.role = "user";
+	user_msg.content = prompt;
+	conversation.push_back(user_msg);
 
-                message tool_msg;
-                tool_msg.role = "tool";
-                tool_msg.content = tool_result;
-                tool_msg.name = call.function.name;
-                tool_msg.tool_call_id = call.id;
-                
-                conversation.push_back(tool_msg);
-            }
-            // Loop back to send the tool result(s) to the LLM
-        } else {
-            std::cout << "\nLLM Final Response:\n" << response.content << std::endl;
-            break;
-        }
-    }
+	while (true) {
+		agentlib::llm_chat_response chat_res = client.send_chat(conversation, &registry);
+		message response = chat_res.msg;
 
-    return 0;
+		if (response.tool_calls && !response.tool_calls->empty()) {
+			std::cout << "LLM requested tool calls." << std::endl;
+			// The LLM's assistant message needs to be added to the history
+			conversation.push_back(response);
+
+			for (const auto &call : *response.tool_calls) {
+				std::cout << "Executing tool: " << call.function.name << std::endl;
+
+				// 3. We now pass the tool_context down to the execution layer
+				std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
+
+				std::cout << "[Tool Result] " << tool_result << std::endl;
+
+				message tool_msg;
+				tool_msg.role = "tool";
+				tool_msg.content = tool_result;
+				tool_msg.name = call.function.name;
+				tool_msg.tool_call_id = call.id;
+
+				conversation.push_back(tool_msg);
+			}
+			// Loop back to send the tool result(s) to the LLM
+		} else {
+			std::cout << "\nLLM Final Response:\n" << response.content << std::endl;
+			break;
+		}
+	}
+
+	return 0;
 }

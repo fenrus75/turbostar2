@@ -1,7 +1,7 @@
 #include "config_manager.h"
 #include <cstdlib>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include "event_logger.h"
 
 namespace fs = std::filesystem;
@@ -32,7 +32,7 @@ void config_manager::load()
 	while (std::getline(file, line)) {
 		if (line.empty() || line[0] == '#' || line[0] == ';')
 			continue;
-		
+
 		size_t eq = line.find('=');
 		if (eq == std::string::npos)
 			continue;
@@ -86,6 +86,6 @@ void config_manager::save()
 	file << "compile_on_save=" << (compile_on_save_ ? "true" : "false") << "\n";
 	file << "paranoid_mode=" << (paranoid_mode_ ? "true" : "false") << "\n";
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
-	
+
 	event_logger::get_instance().log("Configuration saved to " + path);
 }

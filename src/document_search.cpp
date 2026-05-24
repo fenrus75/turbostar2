@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -7,15 +6,15 @@
 #include <mutex>
 #include <re2/re2.h>
 #include <re2/stringpiece.h>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 bool document::find_next(const search_params &params, bool is_repeat)
 {
@@ -73,14 +72,15 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		if (params.whole_words && !params.regex) {
 			pattern = "\\b" + pattern + "\\b";
 		}
-		
+
 		// If literal search, escape it for RE2
 		if (!params.regex && !params.whole_words) {
 			pattern = re2::RE2::QuoteMeta(pattern);
 		}
 
 		re2::RE2 re(pattern, options);
-		if (!re.ok()) return -1;
+		if (!re.ok())
+			return -1;
 
 		int best_found_char_idx = -1;
 		size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
@@ -99,7 +99,8 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		size_t search_start = 0;
 		while (re.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 			search_start = (match.data() - input.data()) + match.size();
-			if (match.size() == 0) search_start++; // prevent infinite loop
+			if (match.size() == 0)
+				search_start++; // prevent infinite loop
 
 			size_t byte_pos = match.data() - line_text.data();
 
@@ -109,11 +110,16 @@ bool document::find_next(const search_params &params, bool is_repeat)
 					size_t current_byte = 0;
 					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
 						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-						if (c < 0x80) current_byte += 1;
-						else if ((c & 0xE0) == 0xC0) current_byte += 2;
-						else if ((c & 0xE0) == 0xE0) current_byte += 3;
-						else if ((c & 0xF0) == 0xF0) current_byte += 4;
-						else current_byte += 1;
+						if (c < 0x80)
+							current_byte += 1;
+						else if ((c & 0xE0) == 0xC0)
+							current_byte += 2;
+						else if ((c & 0xE0) == 0xE0)
+							current_byte += 3;
+						else if ((c & 0xF0) == 0xF0)
+							current_byte += 4;
+						else
+							current_byte += 1;
 						found_char_idx++;
 					}
 					best_found_char_idx = found_char_idx;
@@ -124,11 +130,16 @@ bool document::find_next(const search_params &params, bool is_repeat)
 					size_t current_byte = 0;
 					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
 						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-						if (c < 0x80) current_byte += 1;
-						else if ((c & 0xE0) == 0xC0) current_byte += 2;
-						else if ((c & 0xE0) == 0xE0) current_byte += 3;
-						else if ((c & 0xF0) == 0xF0) current_byte += 4;
-						else current_byte += 1;
+						if (c < 0x80)
+							current_byte += 1;
+						else if ((c & 0xE0) == 0xC0)
+							current_byte += 2;
+						else if ((c & 0xE0) == 0xE0)
+							current_byte += 3;
+						else if ((c & 0xF0) == 0xF0)
+							current_byte += 4;
+						else
+							current_byte += 1;
 						found_char_idx++;
 					}
 					return found_char_idx;
@@ -179,7 +190,6 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	return false;
 }
 
-
 std::optional<std::pair<int, int>> document::find_matching_bracket(int start_y, int start_x) const
 {
 	std::shared_lock lock(mutex_);
@@ -194,40 +204,58 @@ std::optional<std::pair<int, int>> document::find_matching_bracket(int start_y, 
 	char target_char = 0;
 	bool forward = true;
 
-	if (start_char == '(') { target_char = ')'; forward = true; }
-	else if (start_char == '[') { target_char = ']'; forward = true; }
-	else if (start_char == '{') { target_char = '}'; forward = true; }
-	else if (start_char == ')') { target_char = '('; forward = false; }
-	else if (start_char == ']') { target_char = '['; forward = false; }
-	else if (start_char == '}') { target_char = '{'; forward = false; }
-	else return std::nullopt;
+	if (start_char == '(') {
+		target_char = ')';
+		forward = true;
+	} else if (start_char == '[') {
+		target_char = ']';
+		forward = true;
+	} else if (start_char == '{') {
+		target_char = '}';
+		forward = true;
+	} else if (start_char == ')') {
+		target_char = '(';
+		forward = false;
+	} else if (start_char == ']') {
+		target_char = '[';
+		forward = false;
+	} else if (start_char == '}') {
+		target_char = '{';
+		forward = false;
+	} else
+		return std::nullopt;
 
 	int depth = 0;
 	if (forward) {
 		for (int y = start_y; y < line_count_unlocked(); ++y) {
 			std::string l_text = lines_[y]->get_text();
 			for (int x = (y == start_y ? start_x : 0); x < static_cast<int>(l_text.length()); ++x) {
-				if (l_text[x] == start_char) depth++;
-				else if (l_text[x] == target_char) depth--;
-				
-				if (depth == 0) return std::make_pair(y, x);
+				if (l_text[x] == start_char)
+					depth++;
+				else if (l_text[x] == target_char)
+					depth--;
+
+				if (depth == 0)
+					return std::make_pair(y, x);
 			}
 		}
 	} else {
 		for (int y = start_y; y >= 0; --y) {
 			std::string l_text = lines_[y]->get_text();
 			for (int x = (y == start_y ? start_x : static_cast<int>(l_text.length()) - 1); x >= 0; --x) {
-				if (l_text[x] == start_char) depth++;
-				else if (l_text[x] == target_char) depth--;
-				
-				if (depth == 0) return std::make_pair(y, x);
+				if (l_text[x] == start_char)
+					depth++;
+				else if (l_text[x] == target_char)
+					depth--;
+
+				if (depth == 0)
+					return std::make_pair(y, x);
 			}
 		}
 	}
 
 	return std::nullopt;
 }
-
 
 void document::select_enclosing_scope()
 {
@@ -238,7 +266,7 @@ void document::select_enclosing_scope()
 	while (sy >= 0) {
 		std::string text = lines_[sy]->get_text();
 		int start_x = (sy == cursor_y_) ? std::min(sx, static_cast<int>(text.length()) - 1) : static_cast<int>(text.length()) - 1;
-		
+
 		for (int x = start_x; x >= 0; --x) {
 			if (text[x] == '{') {
 				// Potential start. Find match.

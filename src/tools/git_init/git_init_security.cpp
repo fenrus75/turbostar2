@@ -1,7 +1,8 @@
-#include "git_init.h"
 #include "../../agentlib/tool_registry.h"
+#include "git_init.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(git_init_validator)
 

@@ -1,7 +1,7 @@
 #include "markdown_highlighter.h"
 #include <filesystem>
-#include <re2/re2.h>
 #include <memory>
+#include <re2/re2.h>
 
 bool markdown_highlighter::supports_file(const std::string &filename) const
 {
@@ -36,7 +36,8 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 		size_t search_start = 0;
 		while (bold_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 			search_start = (match.data() - input.data()) + match.size();
-			if (match.size() == 0) search_start++;
+			if (match.size() == 0)
+				search_start++;
 			size_t byte_pos = match.data() - text.data();
 			size_t byte_len = match.length();
 
@@ -65,7 +66,7 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 				}
 			}
 		}
-		
+
 		// List items (- or *) at start of line
 		// Just a simple check for leading space then - or *
 		size_t first_non_space = text.find_first_not_of(" \t");

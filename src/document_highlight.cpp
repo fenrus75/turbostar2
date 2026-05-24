@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,15 +5,15 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 void document::mark_line_dirty(std::shared_ptr<line> l)
 {
@@ -22,7 +21,6 @@ void document::mark_line_dirty(std::shared_ptr<line> l)
 	dirty_lines_.push(l);
 	dirty_cv_.notify_one();
 }
-
 
 void document::highlighter_thread_loop()
 {
@@ -52,12 +50,10 @@ void document::highlighter_thread_loop()
 	}
 }
 
-
 void document::refresh_highlighter()
 {
 	active_highlighter_ = highlighter_registry::get_instance().get_highlighter_for_file(filename_);
 }
-
 
 void document::process_line_highlight(std::shared_ptr<line> l)
 {

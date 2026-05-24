@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,20 +5,21 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
 
 namespace fs = std::filesystem;
-
 
 void document::insert_char(const std::string &utf8_char)
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -35,11 +35,11 @@ void document::insert_char(const std::string &utf8_char)
 	notify_cursor_changed();
 }
 
-
 void document::backspace()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (cursor_x_ > 0) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -74,11 +74,11 @@ void document::backspace()
 	notify_cursor_changed();
 }
 
-
 void document::delete_char()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < line_char_len) {
 		begin_edit_group();
@@ -106,11 +106,11 @@ void document::delete_char()
 	notify_cursor_changed();
 }
 
-
 void document::delete_to_eol()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	int count = line_char_len - cursor_x_;
 	if (count > 0) {
@@ -129,11 +129,11 @@ void document::delete_to_eol()
 	notify_cursor_changed();
 }
 
-
 void document::delete_to_bol()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	int count = cursor_x_;
 	if (count > 0) {
 		begin_edit_group();
@@ -152,11 +152,11 @@ void document::delete_to_bol()
 	notify_cursor_changed();
 }
 
-
 void document::delete_word_forward()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ >= line_char_len) {
 		lock.unlock();
@@ -187,11 +187,11 @@ void document::delete_word_forward()
 	notify_cursor_changed();
 }
 
-
 void document::delete_word_backward()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (cursor_x_ == 0) {
 		lock.unlock();
 		notify_cursor_changed();
@@ -222,24 +222,24 @@ void document::delete_word_backward()
 	notify_cursor_changed();
 }
 
-
 void document::split_line()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
-		
+
 		adjust_selection_for_split(cursor_y_, cursor_x_);
 		auto new_l = std::make_shared<line>("");
 		lines_[cursor_y_]->split_at(cursor_x_, *new_l);
 		mark_line_dirty(lines_[cursor_y_]);
 		mark_line_dirty(new_l);
 		lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
-		
+
 		record_action(edit_action::action_type::insert_line, cursor_y_ + 1, nullptr);
-		
+
 		cursor_y_++;
 		cursor_x_ = 0;
 		set_modified();
@@ -250,11 +250,10 @@ void document::split_line()
 	notify_cursor_changed();
 }
 
-
 void document::append_line(const std::string &text)
 {
 	std::unique_lock lock(mutex_);
-	
+
 	// If the document is just a single empty line, replace it.
 	if (lines_.size() == 1 && lines_[0]->get_text().empty()) {
 		lines_[0] = std::make_shared<line>(text);
@@ -264,7 +263,7 @@ void document::append_line(const std::string &text)
 		lines_.push_back(l);
 		mark_line_dirty(l);
 	}
-	
+
 	cursor_y_ = static_cast<int>(lines_.size() - 1);
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	target_cursor_x_ = cursor_x_;
@@ -273,7 +272,6 @@ void document::append_line(const std::string &text)
 	lock.unlock();
 	notify_cursor_changed();
 }
-
 
 void document::trim_top_lines(int max_lines)
 {
@@ -294,25 +292,27 @@ void document::trim_top_lines(int max_lines)
 
 	if (selection_start_y_ != -1) {
 		selection_start_y_ -= lines_to_remove;
-		if (selection_start_y_ < 0) selection_start_y_ = 0;
+		if (selection_start_y_ < 0)
+			selection_start_y_ = 0;
 	}
 	if (selection_end_y_ != -1) {
 		selection_end_y_ -= lines_to_remove;
-		if (selection_end_y_ < 0) selection_end_y_ = 0;
+		if (selection_end_y_ < 0)
+			selection_end_y_ = 0;
 	}
 
 	target_cursor_x_ = cursor_x_;
-	
+
 	set_modified();
 	lock.unlock();
 	notify_cursor_changed();
 }
 
-
 void document::delete_line()
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (line_count_unlocked() <= 1) {
 		begin_edit_group();
 		record_action(edit_action::action_type::replace_line, 0, lines_[0]);
@@ -345,14 +345,14 @@ void document::delete_line()
 	notify_cursor_changed();
 }
 
-
 void document::insert_text(const std::string &text)
 {
 	std::unique_lock lock(mutex_);
-	if (is_read_only()) return;
-	
+	if (is_read_only())
+		return;
+
 	begin_edit_group();
-	
+
 	size_t i = 0;
 	while (i < text.length()) {
 		if (text[i] == '\n' || text[i] == '\r') {
@@ -368,7 +368,7 @@ void document::insert_text(const std::string &text)
 				cursor_y_++;
 				cursor_x_ = 0;
 			}
-			if (text[i] == '\r' && i + 1 < text.length() && text[i+1] == '\n') {
+			if (text[i] == '\r' && i + 1 < text.length() && text[i + 1] == '\n') {
 				i++;
 			}
 			i++;
@@ -376,13 +376,19 @@ void document::insert_text(const std::string &text)
 			if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 				size_t char_len = 0;
 				unsigned char c = static_cast<unsigned char>(text[i]);
-				if (c < 0x80) char_len = 1;
-				else if ((c & 0xe0) == 0xc0) char_len = 2;
-				else if ((c & 0xf0) == 0xe0) char_len = 3;
-				else if ((c & 0xf8) == 0xf0) char_len = 4;
-				else char_len = 1;
+				if (c < 0x80)
+					char_len = 1;
+				else if ((c & 0xe0) == 0xc0)
+					char_len = 2;
+				else if ((c & 0xf0) == 0xe0)
+					char_len = 3;
+				else if ((c & 0xf8) == 0xf0)
+					char_len = 4;
+				else
+					char_len = 1;
 
-				if (i + char_len > text.length()) char_len = text.length() - i;
+				if (i + char_len > text.length())
+					char_len = text.length() - i;
 				std::string utf8_char = text.substr(i, char_len);
 
 				record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
@@ -396,7 +402,7 @@ void document::insert_text(const std::string &text)
 			}
 		}
 	}
-	
+
 	set_modified();
 	end_edit_group();
 	target_cursor_x_ = cursor_x_;

@@ -1,13 +1,13 @@
 #include "ui/ui_element.h"
-#include <ncurses.h>
 #include <ctype.h>
+#include <ncurses.h>
 #include "event_logger.h"
 
 void ui_container::add_child(std::unique_ptr<ui_element> child)
 {
 	child->set_parent(this);
 	children_.push_back(std::move(child));
-	
+
 	// If it's the first child, give it focus by default
 	if (!focused_child_ && !children_.empty()) {
 		focused_child_ = children_.back().get();
@@ -31,7 +31,7 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			return true;
 		}
 	}
-	
+
 	// 1b. If it was a key press and the focused child didn't handle it, broadcast to others (for hotkeys)
 	if (ev.type == event_type::key_press) {
 		for (const auto &child : children_) {
@@ -42,14 +42,14 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			}
 		}
 	}
-	
+
 	// 2. Mouse events: check all children based on coordinates
 	if (ev.type == event_type::mouse_click) {
 		for (const auto &child : children_) {
 			int child_abs_x = abs_x + child->x();
 			int child_abs_y = abs_y + child->y();
-			
-			// Even if the child doesn't contain the coord right now, we pass drag/up events down 
+
+			// Even if the child doesn't contain the coord right now, we pass drag/up events down
 			// because they might be capturing the mouse. Let the child decide.
 			// For down events, we strictly filter by bounding box.
 			bool pass_event = false;
@@ -57,14 +57,15 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				pass_event = child->contains_coordinate(ev.mouse_x, ev.mouse_y, child_abs_x, child_abs_y);
 			} else {
 				// For now, pass all mouse up/drag to all children, let them filter if they don't care
-				pass_event = true; 
+				pass_event = true;
 			}
 
 			if (pass_event) {
 				if (child->handle_event(ev, child_abs_x, child_abs_y)) {
 					// Auto-focus the clicked child
 					if (ev.type == event_type::mouse_click && focused_child_ != child.get()) {
-						if (focused_child_) focused_child_->set_focus(false);
+						if (focused_child_)
+							focused_child_->set_focus(false);
 						focused_child_ = child.get();
 						focused_child_->set_focus(true);
 					}
@@ -95,7 +96,8 @@ std::optional<std::string> ui_container::get_value(const std::string &target_nam
 	}
 	for (const auto &child : children_) {
 		auto val = child->get_value(target_name);
-		if (val) return val;
+		if (val)
+			return val;
 	}
 	return std::nullopt;
 }
@@ -104,7 +106,8 @@ std::optional<std::string> ui_container::get_pressed_element_name() const
 {
 	for (const auto &child : children_) {
 		auto val = child->get_pressed_element_name();
-		if (val) return val;
+		if (val)
+			return val;
 	}
 	return std::nullopt;
 }
@@ -119,15 +122,18 @@ void ui_container::set_focus(bool focus)
 
 bool ui_container::focus_first()
 {
-	for (auto& child : children_) {
+	for (auto &child : children_) {
 		if (child->focus_first()) {
-			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			if (focused_child_ && focused_child_ != child.get())
+				focused_child_->set_focus(false);
 			focused_child_ = child.get();
 			focused_child_->set_focus(true);
 			return true;
 		}
-		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" && child->name() != "scope_group" && child->name() != "orig_group") { // hacky way to check focusable
-			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" &&
+		    child->name() != "scope_group" && child->name() != "orig_group") { // hacky way to check focusable
+			if (focused_child_ && focused_child_ != child.get())
+				focused_child_->set_focus(false);
 			focused_child_ = child.get();
 			focused_child_->set_focus(true);
 			return true;
@@ -139,15 +145,18 @@ bool ui_container::focus_first()
 bool ui_container::focus_last()
 {
 	for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
-		auto& child = *it;
+		auto &child = *it;
 		if (child->focus_last()) {
-			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+			if (focused_child_ && focused_child_ != child.get())
+				focused_child_->set_focus(false);
 			focused_child_ = child.get();
 			focused_child_->set_focus(true);
 			return true;
 		}
-		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" && child->name() != "scope_group" && child->name() != "orig_group") {
-			if (focused_child_ && focused_child_ != child.get()) focused_child_->set_focus(false);
+		if (child->name() != "text" && child->name() != "opt_group" && child->name() != "dir_group" &&
+		    child->name() != "scope_group" && child->name() != "orig_group") {
+			if (focused_child_ && focused_child_ != child.get())
+				focused_child_->set_focus(false);
 			focused_child_ = child.get();
 			focused_child_->set_focus(true);
 			return true;
@@ -158,17 +167,20 @@ bool ui_container::focus_last()
 
 bool ui_container::focus_next()
 {
-	if (children_.empty()) return false;
-	
-	if (focused_child_) {
-		if (focused_child_->focus_next()) return true;
+	if (children_.empty())
+		return false;
 
-		auto it = std::find_if(children_.begin(), children_.end(), 
-			[this](const std::unique_ptr<ui_element>& p) { return p.get() == focused_child_; });
-		
+	if (focused_child_) {
+		if (focused_child_->focus_next())
+			return true;
+
+		auto it = std::find_if(children_.begin(), children_.end(),
+				       [this](const std::unique_ptr<ui_element> &p) { return p.get() == focused_child_; });
+
 		auto next_it = it;
-		if (next_it != children_.end()) ++next_it;
-		
+		if (next_it != children_.end())
+			++next_it;
+
 		while (next_it != children_.end()) {
 			if ((*next_it)->focus_first()) {
 				focused_child_->set_focus(false);
@@ -176,7 +188,8 @@ bool ui_container::focus_next()
 				focused_child_->set_focus(true);
 				return true;
 			}
-			if ((*next_it)->name() != "text" && (*next_it)->name() != "opt_group" && (*next_it)->name() != "dir_group" && (*next_it)->name() != "scope_group" && (*next_it)->name() != "orig_group") {
+			if ((*next_it)->name() != "text" && (*next_it)->name() != "opt_group" && (*next_it)->name() != "dir_group" &&
+			    (*next_it)->name() != "scope_group" && (*next_it)->name() != "orig_group") {
 				focused_child_->set_focus(false);
 				focused_child_ = next_it->get();
 				focused_child_->set_focus(true);
@@ -184,14 +197,15 @@ bool ui_container::focus_next()
 			}
 			++next_it;
 		}
-		
+
 		// If we are the root dialog, wrap around
-		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" || name_ == "Replace") {
+		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" ||
+		    name_ == "Replace") {
 			focused_child_->set_focus(false);
 			focus_first();
 			return true;
 		}
-		
+
 		return false;
 	} else {
 		return focus_first();
@@ -200,14 +214,16 @@ bool ui_container::focus_next()
 
 bool ui_container::focus_previous()
 {
-	if (children_.empty()) return false;
-	
-	if (focused_child_) {
-		if (focused_child_->focus_previous()) return true;
+	if (children_.empty())
+		return false;
 
-		auto it = std::find_if(children_.begin(), children_.end(), 
-			[this](const std::unique_ptr<ui_element>& p) { return p.get() == focused_child_; });
-		
+	if (focused_child_) {
+		if (focused_child_->focus_previous())
+			return true;
+
+		auto it = std::find_if(children_.begin(), children_.end(),
+				       [this](const std::unique_ptr<ui_element> &p) { return p.get() == focused_child_; });
+
 		if (it != children_.begin()) {
 			auto prev_it = std::prev(it);
 			while (true) {
@@ -217,23 +233,27 @@ bool ui_container::focus_previous()
 					focused_child_->set_focus(true);
 					return true;
 				}
-				if ((*prev_it)->name() != "text" && (*prev_it)->name() != "opt_group" && (*prev_it)->name() != "dir_group" && (*prev_it)->name() != "scope_group" && (*prev_it)->name() != "orig_group") {
+				if ((*prev_it)->name() != "text" && (*prev_it)->name() != "opt_group" &&
+				    (*prev_it)->name() != "dir_group" && (*prev_it)->name() != "scope_group" &&
+				    (*prev_it)->name() != "orig_group") {
 					focused_child_->set_focus(false);
 					focused_child_ = prev_it->get();
 					focused_child_->set_focus(true);
 					return true;
 				}
-				if (prev_it == children_.begin()) break;
+				if (prev_it == children_.begin())
+					break;
 				--prev_it;
 			}
 		}
-		
-		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" || name_ == "Replace") {
+
+		if (name_ == "dialog" || name_ == "Force Quit" || name_ == "Question" || name_ == "Unsaved Changes" || name_ == "Find" ||
+		    name_ == "Replace") {
 			focused_child_->set_focus(false);
 			focus_last();
 			return true;
 		}
-		
+
 		return false;
 	} else {
 		return focus_last();
@@ -259,9 +279,3 @@ void ui_container::set_focus_by_name(const std::string &child_name)
 		}
 	}
 }
-
-
-
-
-
-

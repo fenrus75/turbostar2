@@ -1,11 +1,11 @@
 /**
  * @file editor_events.cpp
  * @brief Central event dispatching logic for the Turbostar editor.
- * 
+ *
  * NOTE: Due to its size, the event handling implementation has been split into logical sub-modules
  * based on the `event_type` enum. If you are looking for specific event logic, please check
  * the corresponding file:
- * 
+ *
  * - `editor_events_build.cpp`: Compilation and test running (event_type::compile, run_tests, etc.)
  * - `editor_events_file.cpp`: File I/O operations (event_type::load, save, save_as, save_all)
  * - `editor_events_git.cpp`: Git integration (event_type::git_add, git_refresh)
@@ -17,21 +17,21 @@
  * - `editor_events_window.cpp`: Window management (event_type::close_window, next_window)
  */
 
-#include "editor.h"
 #include <algorithm>
 #include <chrono>
-#include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "lsp_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "fs_utils.h"
 #include <fstream>
-#include <sstream>
 #include <lsp/json/json.h>
+#include <ncurses.h>
+#include <sstream>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "editor.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "history_manager.h"
+#include "lsp_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -172,16 +172,13 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::key_press:
 			dispatch_event_key(ev);
 			break;
-		case event_type::paste:
-			{
-				window *active_win = get_active_window();
-				if (active_win) {
-					active_win->get_queue().push(ev);
-				}
+		case event_type::paste: {
+			window *active_win = get_active_window();
+			if (active_win) {
+				active_win->get_queue().push(ev);
 			}
-			break;
+		} break;
 		default:
 			break;
 	}
 }
-

@@ -5,48 +5,42 @@
 
 menu_bar::menu_bar()
 {
-	categories_ = {{"File",
-			'f',
-			{{"New", event_type::new_doc, 'n', "^KN", false},
-			 {"Open...", event_type::load, 'o', "^KE", false},
-			 {"Save", event_type::save, 's', "^KS", false},
-			 {"Save as...", event_type::save_as, 'a', "^KW", false},
-			 {"Save All", event_type::save_all, 'v', "^KA", false},
-			 {"", event_type::key_press, 0, "", true},
-			 menu_item("Exit", event_type::quit, 'x', "^KQ", false)}},
-		       {"Edit",
-			'e',
-			{
-			    {"Delete Line", event_type::key_press, 25, 'y', "^Y", false},
-			    {"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
-			    {"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
-			    {"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
-			    {"", event_type::key_press, 0, "", true},
-			    {"Format Document", event_type::format_doc, 'f', "^KJ", false},
-			}},
-		       {"Search",
-			's',
-			{{"Find...", event_type::find, 'f', "^KF", false},
-			 {"Replace...", event_type::replace, 'r', "^QA", false},
-			 {"Find next", event_type::key_press, 12, 'l', "^L", false}}},
-		       {"Tools",
-			't',
-			{{"Compile", event_type::compile, 'c', "F9", false},
-			 {"Compile File", event_type::compile_file, 'p', "^KP", false},
-			 {"Run Tests", event_type::run_tests, 't', "F8", false},
-			 {"View Crashdumps", event_type::open_crashdump_viewer, 'C', "", false}}},
-		       {"Options",
-			'p',
-			{{"Preferences...", event_type::settings, 'p', "", false}}},
-		       {"Git",
-			'g',
-			{{"Git add", event_type::git_add, 'a', "", false},
-			 {"Git refresh", event_type::git_refresh, 'r', "", false}}},
-		       {"Agent",
-			'a',
-			{{"Open Chat...", event_type::open_agent, 'o', "", false}}},
-		       {"Window", 'w', {}},
-		       {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"About...", event_type::about, 'a', "", false}}}};
+	categories_ = {
+	    {"File",
+	     'f',
+	     {{"New", event_type::new_doc, 'n', "^KN", false},
+	      {"Open...", event_type::load, 'o', "^KE", false},
+	      {"Save", event_type::save, 's', "^KS", false},
+	      {"Save as...", event_type::save_as, 'a', "^KW", false},
+	      {"Save All", event_type::save_all, 'v', "^KA", false},
+	      {"", event_type::key_press, 0, "", true},
+	      menu_item("Exit", event_type::quit, 'x', "^KQ", false)}},
+	    {"Edit",
+	     'e',
+	     {
+		 {"Delete Line", event_type::key_press, 25, 'y', "^Y", false},
+		 {"Delete to EOL", event_type::key_press, 10, 'j', "^J", false},
+		 {"Delete Word Forward", event_type::key_press, 23, 'w', "^W", false},
+		 {"Delete Word Backward", event_type::key_press, 15, 'o', "^O", false},
+		 {"", event_type::key_press, 0, "", true},
+		 {"Format Document", event_type::format_doc, 'f', "^KJ", false},
+	     }},
+	    {"Search",
+	     's',
+	     {{"Find...", event_type::find, 'f', "^KF", false},
+	      {"Replace...", event_type::replace, 'r', "^QA", false},
+	      {"Find next", event_type::key_press, 12, 'l', "^L", false}}},
+	    {"Tools",
+	     't',
+	     {{"Compile", event_type::compile, 'c', "F9", false},
+	      {"Compile File", event_type::compile_file, 'p', "^KP", false},
+	      {"Run Tests", event_type::run_tests, 't', "F8", false},
+	      {"View Crashdumps", event_type::open_crashdump_viewer, 'C', "", false}}},
+	    {"Options", 'p', {{"Preferences...", event_type::settings, 'p', "", false}}},
+	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},
+	    {"Agent", 'a', {{"Open Chat...", event_type::open_agent, 'o', "", false}}},
+	    {"Window", 'w', {}},
+	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"About...", event_type::about, 'a', "", false}}}};
 }
 
 bool menu_bar::handle_alt_key(char c, event_queue &queue)
@@ -346,7 +340,7 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 {
 	if (active_category_ != -1 && y > 0) {
 		const auto &cat = categories_[active_category_];
-		
+
 		int col = 1;
 		int drop_col = 1;
 		for (int i = 0; i < active_category_; ++i) {
@@ -371,7 +365,8 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 				const auto &item = cat.items[selected_item_];
 				ev.type = item.action;
 				ev.key_code = item.action_key_code;
-				event_logger::get_instance().log("Menu (mouse) pushing event: " + std::to_string(static_cast<int>(ev.type)));
+				event_logger::get_instance().log("Menu (mouse) pushing event: " +
+								 std::to_string(static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();
 			}
@@ -397,7 +392,8 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 				} else {
 					active_category_ = static_cast<int>(i);
 					selected_item_ = 0;
-					if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
+					if (!categories_[active_category_].items.empty() &&
+					    categories_[active_category_].items[0].is_separator) {
 						find_next_item();
 					}
 					event_logger::get_instance().log("Menu activated (mouse): " + categories_[active_category_].name);
@@ -406,7 +402,7 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 			}
 			col += width;
 		}
-		
+
 		// Clicked on empty space in menu bar
 		if (active_category_ != -1) {
 			close_menu();

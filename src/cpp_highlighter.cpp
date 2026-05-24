@@ -22,7 +22,8 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	    // Types
 	    "int|char|bool|float|double|void|auto|size_t|ssize_t|wchar_t|char8_t|char16_t|char32_t|"
 	    "int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t|"
-	    "std|string|string_view|vector|map|unordered_map|set|unordered_set|optional|variant|any|tuple|pair|unique_ptr|shared_ptr|weak_ptr|"
+	    "std|string|string_view|vector|map|unordered_map|set|unordered_set|optional|variant|any|tuple|pair|unique_ptr|shared_ptr|weak_"
+	    "ptr|"
 	    // Qualifiers & Specifiers
 	    "const|constexpr|consteval|constinit|volatile|mutable|static|extern|inline|virtual|override|final|explicit|friend|"
 	    "public|protected|private|"
@@ -46,7 +47,8 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	size_t search_start = 0;
 	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
-		if (match.size() == 0) search_start++;
+		if (match.size() == 0)
+			search_start++;
 		size_t byte_pos = match.data() - text.data();
 		size_t byte_len = match.length();
 
@@ -87,7 +89,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 			break;
 		}
 	}
-	
+
 	for (int i = 0; i < trailing_spaces; ++i) {
 		if (attrs.size() > static_cast<size_t>(i)) {
 			attrs[attrs.size() - 1 - i] = syntax_attribute::trailing_space;

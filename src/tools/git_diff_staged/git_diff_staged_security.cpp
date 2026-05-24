@@ -1,7 +1,8 @@
-#include "git_diff_staged.h"
 #include "../../agentlib/tool_registry.h"
+#include "git_diff_staged.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(git_diff_staged_validator)
 

@@ -1,25 +1,26 @@
-#include "ui/dialog_factories.h"
 #include "editor.h"
 #include <algorithm>
 #include <chrono>
-#include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "project_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "crashdump_manager.h"
-#include "fs_utils.h"
 #include <fstream>
+#include <lsp/json/json.h>
+#include <ncurses.h>
 #include <sstream>
 #include <thread>
-#include <lsp/json/json.h>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "crashdump_manager.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "history_manager.h"
+#include "project_manager.h"
+#include "ui/dialog_factories.h"
 
 namespace fs = std::filesystem;
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately, bool no_lsp)
+editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately,
+	       bool no_lsp)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
@@ -65,15 +66,16 @@ void editor::new_window(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
-#include "ui/agent_window.h"
-#include "ui/agent_status_window.h"
-#include "ui/crashdump_window.h"
 #include "agentlib/ai_model.h"
+#include "ui/agent_status_window.h"
+#include "ui/agent_window.h"
+#include "ui/crashdump_window.h"
 
-void editor::update_window_layout() {
+void editor::update_window_layout()
+{
 	bool has_agent = false;
-	for (const auto& win : windows_) {
-		if (dynamic_cast<agent_window*>(win.get()) != nullptr) {
+	for (const auto &win : windows_) {
+		if (dynamic_cast<agent_window *>(win.get()) != nullptr) {
 			has_agent = true;
 			break;
 		}
@@ -83,8 +85,8 @@ void editor::update_window_layout() {
 		int agent_w = (COLS * 70) / 100;
 		int status_w = COLS - agent_w;
 
-		for (auto& win : windows_) {
-			if (auto asw = dynamic_cast<agent_status_window*>(win.get())) {
+		for (auto &win : windows_) {
+			if (auto asw = dynamic_cast<agent_status_window *>(win.get())) {
 				asw->set_bounds(agent_w, 1, status_w, LINES - 2);
 				asw->invalidate();
 			} else {
@@ -95,7 +97,7 @@ void editor::update_window_layout() {
 		}
 	} else {
 		// Normal full screen
-		for (auto& win : windows_) {
+		for (auto &win : windows_) {
 			win->set_bounds(0, 1, COLS, LINES - 2);
 			win->invalidate();
 		}
@@ -111,9 +113,11 @@ void editor::new_agent_window()
 		model = agentlib::ai_model_registry::get_instance().get_model("gpt-4o");
 	}
 
-	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this);
+	auto main_agent_win =
+	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this);
 
-	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2, "Agent Status", main_agent_win->get_agent(), global_queue_);
+	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2,
+								"Agent Status", main_agent_win->get_agent(), global_queue_);
 
 	windows_.push_back(std::move(main_agent_win));
 	windows_.push_back(std::move(status_win));
@@ -125,8 +129,9 @@ void editor::new_agent_window()
 }
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 {
-	auto subagent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, std::move(subagent));
-	
+	auto subagent_win =
+	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, std::move(subagent));
+
 	windows_.push_back(std::move(subagent_win));
 	update_window_layout();
 
@@ -156,7 +161,7 @@ void editor::activate_window(size_t index)
 void editor::update_window_menu()
 {
 	std::vector<menu_item> items;
-	
+
 	items.push_back(menu_item("Close", event_type::close_window, 0, 'c', "Alt+F3", false));
 	items.push_back(menu_item("", event_type::key_press, 0, 0, "", true)); // Separator
 
@@ -230,82 +235,104 @@ std::string editor::get_search_autocomplete() const
 	return "";
 }
 
-namespace {
-class editor_document_snapshot : public agentlib::document_snapshot {
-public:
-    editor_document_snapshot(std::vector<std::string> lines, std::vector<diagnostic_info> diagnostics) 
-        : lines_(std::move(lines)) 
-    {
-        for (const auto& d : diagnostics) {
-            agentlib::diagnostic_snapshot ds;
-            ds.line = d.range.start_y;
-            ds.column = d.range.start_x;
-            ds.message = d.message;
-            ds.source = "LSP";
-            switch (d.severity) {
-                case 1: ds.severity = "Error"; break;
-                case 2: ds.severity = "Warning"; break;
-                case 3: ds.severity = "Information"; break;
-                case 4: ds.severity = "Hint"; break;
-                default: ds.severity = "Unknown"; break;
-            }
-            diagnostics_.push_back(ds);
-        }
-    }
-    
-    size_t get_line_count() const override { return lines_.size(); }
-    std::string get_line_text(size_t index) const override {
-        if (index < lines_.size()) return lines_[index];
-        return "";
-    }
-    std::vector<agentlib::diagnostic_snapshot> get_diagnostics() const override {
-        return diagnostics_;
-    }
-private:
-    std::vector<std::string> lines_;
-    std::vector<agentlib::diagnostic_snapshot> diagnostics_;
+namespace
+{
+class editor_document_snapshot : public agentlib::document_snapshot
+{
+      public:
+	editor_document_snapshot(std::vector<std::string> lines, std::vector<diagnostic_info> diagnostics) : lines_(std::move(lines))
+	{
+		for (const auto &d : diagnostics) {
+			agentlib::diagnostic_snapshot ds;
+			ds.line = d.range.start_y;
+			ds.column = d.range.start_x;
+			ds.message = d.message;
+			ds.source = "LSP";
+			switch (d.severity) {
+				case 1:
+					ds.severity = "Error";
+					break;
+				case 2:
+					ds.severity = "Warning";
+					break;
+				case 3:
+					ds.severity = "Information";
+					break;
+				case 4:
+					ds.severity = "Hint";
+					break;
+				default:
+					ds.severity = "Unknown";
+					break;
+			}
+			diagnostics_.push_back(ds);
+		}
+	}
+
+	size_t get_line_count() const override
+	{
+		return lines_.size();
+	}
+	std::string get_line_text(size_t index) const override
+	{
+		if (index < lines_.size())
+			return lines_[index];
+		return "";
+	}
+	std::vector<agentlib::diagnostic_snapshot> get_diagnostics() const override
+	{
+		return diagnostics_;
+	}
+
+      private:
+	std::vector<std::string> lines_;
+	std::vector<agentlib::diagnostic_snapshot> diagnostics_;
 };
 } // namespace
 
-std::vector<std::string> editor::get_open_document_paths() const {
-    std::vector<std::string> paths;
-    for (const auto& doc : documents_) {
-        std::string doc_path = doc->get_filename();
-        if (doc_path.empty()) continue;
-        
-        try {
-            std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
-            paths.push_back(p.string());
-        } catch (...) {
-            // Ignore invalid paths
-        }
-    }
-    return paths;
+std::vector<std::string> editor::get_open_document_paths() const
+{
+	std::vector<std::string> paths;
+	for (const auto &doc : documents_) {
+		std::string doc_path = doc->get_filename();
+		if (doc_path.empty())
+			continue;
+
+		try {
+			std::filesystem::path p = std::filesystem::weakly_canonical(doc_path);
+			paths.push_back(p.string());
+		} catch (...) {
+			// Ignore invalid paths
+		}
+	}
+	return paths;
 }
 
-std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string& safe_path) const {
-    std::filesystem::path target_p(safe_path);
-    for (const auto& doc : documents_) {
-        std::string doc_path = doc->get_filename();
-        if (doc_path.empty()) continue;
-        
-        try {
-            std::filesystem::path p(doc_path);
-            if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
-                if (std::filesystem::equivalent(p, target_p)) {
-                    return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
-                }
-            }
-            
-            // Fallback for non-existent files or if equivalent fails (e.g. relative vs absolute)
-            if (std::filesystem::weakly_canonical(p).string() == std::filesystem::weakly_canonical(target_p).string()) {
-                return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
-            }
-        } catch (...) {
-            // Ignore invalid paths
-        }
-    }
-    return nullptr;
+std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string &safe_path) const
+{
+	std::filesystem::path target_p(safe_path);
+	for (const auto &doc : documents_) {
+		std::string doc_path = doc->get_filename();
+		if (doc_path.empty())
+			continue;
+
+		try {
+			std::filesystem::path p(doc_path);
+			if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
+				if (std::filesystem::equivalent(p, target_p)) {
+					return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
+				}
+			}
+
+			// Fallback for non-existent files or if equivalent fails (e.g. relative vs absolute)
+			if (std::filesystem::weakly_canonical(p).string() == std::filesystem::weakly_canonical(target_p).string()) {
+				return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
+			}
+		} catch (...) {
+			// Ignore invalid paths
+		}
+	}
+	return nullptr;
 }
 
 editor::~editor()
@@ -378,7 +405,7 @@ void editor::run()
 				}
 			} else {
 				// Character or ESC sequence
-				if (wch == 27) { // ESC sequence
+				if (wch == 27) {    // ESC sequence
 					timeout(0); // Non-blocking for sequence check
 					wint_t next_wch;
 					int next_res = get_wch(&next_wch);
@@ -387,7 +414,8 @@ void editor::run()
 						wint_t seq_wch;
 						while (get_wch(&seq_wch) != ERR) {
 							seq += (char)seq_wch;
-							if (seq_wch == '~' || seq.length() > 10) break;
+							if (seq_wch == '~' || seq.length() > 10)
+								break;
 						}
 
 						if (seq == "200~") {
@@ -412,10 +440,14 @@ void editor::run()
 								paste_buffer_ += seq;
 							} else {
 								int key = 0;
-								if (seq == "A") key = KEY_UP;
-								else if (seq == "B") key = KEY_DOWN;
-								else if (seq == "C") key = KEY_RIGHT;
-								else if (seq == "D") key = KEY_LEFT;
+								if (seq == "A")
+									key = KEY_UP;
+								else if (seq == "B")
+									key = KEY_DOWN;
+								else if (seq == "C")
+									key = KEY_RIGHT;
+								else if (seq == "D")
+									key = KEY_LEFT;
 
 								if (key != 0) {
 									ev.type = event_type::key_press;
@@ -430,7 +462,8 @@ void editor::run()
 							paste_buffer_ += (char)27;
 							char buf[8];
 							int len = wctomb(buf, next_wch);
-							if (len > 0) paste_buffer_.append(buf, len);
+							if (len > 0)
+								paste_buffer_.append(buf, len);
 						} else {
 							ev.type = event_type::key_press;
 							ev.key_code = -static_cast<int>(next_wch);
@@ -483,7 +516,7 @@ void editor::run()
 	}
 
 	// Save cursor and project history on exit
-	for (const auto& doc : documents_) {
+	for (const auto &doc : documents_) {
 		if (doc && !doc->get_filename().empty() && doc->has_nondefault_filename() && !doc->is_read_only()) {
 			history_manager::get_instance().set_cursor_pos(doc->get_filename(), doc->get_cursor_x(), doc->get_cursor_y());
 		}
@@ -637,11 +670,8 @@ bool editor::handle_k_block_key(int key)
 	} else if (c == ']') {
 		logger.log("K-block: Expand Selection (LSP)");
 		if (active_doc && !active_doc->get_filename().empty()) {
-			project_manager::get_instance().lsp_request_selection_range(
-				active_doc->get_filename(),
-				active_doc->get_cursor_y(),
-				active_doc->get_cursor_x()
-			);
+			project_manager::get_instance().lsp_request_selection_range(active_doc->get_filename(), active_doc->get_cursor_y(),
+										    active_doc->get_cursor_x());
 		}
 		return true;
 	} else if (c == '[' || c == '{') {
@@ -724,18 +754,18 @@ void editor::render()
 
 	// 2. Windows (Z-Index Managed)
 	window *active_win = get_active_window();
-	
+
 	// Create a list of raw pointers to sort
-	std::vector<window*> sorted_windows;
-	for (auto& w : windows_) {
+	std::vector<window *> sorted_windows;
+	for (auto &w : windows_) {
 		sorted_windows.push_back(w.get());
 	}
 
 	// Sort: highest priority first. If priority is equal, newest timestamp first.
-	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window* a, window* b) {
+	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
 		int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
 		int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
-		
+
 		if (priority_a != priority_b) {
 			return priority_a > priority_b;
 		}
@@ -743,18 +773,16 @@ void editor::render()
 	});
 
 	// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
-	// For simplicity in this text editor (and since windows are mostly rectangles), 
+	// For simplicity in this text editor (and since windows are mostly rectangles),
 	// a window is fully occluded if it's completely inside another single window above it.
 	for (size_t i = 0; i < sorted_windows.size(); ++i) {
-		window* w = sorted_windows[i];
+		window *w = sorted_windows[i];
 		w->set_visible(true); // Default to visible
-		
+
 		// Check if fully covered by any single window above it
 		for (size_t j = 0; j < i; ++j) {
-			window* above = sorted_windows[j];
-			if (above->is_visible() && 
-			    w->get_x() >= above->get_x() && 
-			    w->get_y() >= above->get_y() &&
+			window *above = sorted_windows[j];
+			if (above->is_visible() && w->get_x() >= above->get_x() && w->get_y() >= above->get_y() &&
 			    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
 			    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
 				w->set_visible(false);
@@ -814,20 +842,24 @@ void editor::render()
 	std::string diag_text = "";
 	if (active_win && active_win->get_document()) {
 		auto doc = active_win->get_document();
-		for (const auto& diag : doc->get_lsp_diagnostics()) {
+		for (const auto &diag : doc->get_lsp_diagnostics()) {
 			if (cur_y > diag.range.start_y && cur_y < diag.range.end_y) {
-				diag_text = diag.message; break;
+				diag_text = diag.message;
+				break;
 			} else if (cur_y == diag.range.start_y && cur_y == diag.range.end_y) {
 				if (cur_x >= diag.range.start_x && cur_x <= diag.range.end_x) {
-					diag_text = diag.message; break;
+					diag_text = diag.message;
+					break;
 				}
 			} else if (cur_y == diag.range.start_y && cur_x >= diag.range.start_x) {
-				diag_text = diag.message; break;
+				diag_text = diag.message;
+				break;
 			} else if (cur_y == diag.range.end_y && cur_x <= diag.range.end_x) {
-				diag_text = diag.message; break;
+				diag_text = diag.message;
+				break;
 			}
 		}
-		
+
 		// If no LSP diagnostic, check for GCC build errors
 		if (diag_text.empty()) {
 			auto build_err = build_error_manager::get_instance().find_error_at(doc->get_safe_filename(), cur_y);
@@ -839,31 +871,35 @@ void editor::render()
 
 	std::string combined_hover = hover_text_;
 	if (!diag_text.empty()) {
-		if (!combined_hover.empty()) combined_hover += " | ";
+		if (!combined_hover.empty())
+			combined_hover += " | ";
 		combined_hover += diag_text;
 	}
 
 	// Find active agent status
 	std::string agent_status_text = "";
-	for (const auto& win : windows_) {
-		if (auto aw = dynamic_cast<agent_window*>(win.get())) {
+	for (const auto &win : windows_) {
+		if (auto aw = dynamic_cast<agent_window *>(win.get())) {
 			auto agent = aw->get_agent();
 			if (agent && agent->get_status() != agentlib::agent_status::idle) {
-				agent_status_text = "Agent: " + agentlib::agent_status_to_string(agent->get_status(), agent->get_current_tool());
+				agent_status_text =
+				    "Agent: " + agentlib::agent_status_to_string(agent->get_status(), agent->get_current_tool());
 				break;
 			}
 		}
 	}
 
 	if (!agent_status_text.empty()) {
-		if (!combined_hover.empty()) combined_hover += " | ";
+		if (!combined_hover.empty())
+			combined_hover += " | ";
 		combined_hover += agent_status_text;
 	}
 
 	// Check for transient status message
 	if (!transient_status_message_.empty()) {
 		if (std::chrono::steady_clock::now() < transient_status_expiry_) {
-			if (!combined_hover.empty()) combined_hover += " | ";
+			if (!combined_hover.empty())
+				combined_hover += " | ";
 			combined_hover += "[ " + transient_status_message_ + " ]";
 		} else {
 			transient_status_message_ = "";
@@ -891,10 +927,11 @@ void editor::render()
 	refresh();
 }
 
-bool editor::apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) {
-    editor_event ev;
-    ev.type = event_type::apply_edits;
-    ev.payload = safe_path + "\n" + edits_json_payload;
-    global_queue_.push(ev);
-    return true;
+bool editor::apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload)
+{
+	editor_event ev;
+	ev.type = event_type::apply_edits;
+	ev.payload = safe_path + "\n" + edits_json_payload;
+	global_queue_.push(ev);
+	return true;
 }

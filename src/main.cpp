@@ -5,11 +5,11 @@
 #include <ncurses.h>
 #include <string>
 #include "CLI11.hpp"
+#include "agentlib/skill_manager.h"
+#include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
-#include "config_manager.h"
 #include "project_manager.h"
-#include "agentlib/skill_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -52,7 +52,8 @@ int main(int argc, char **argv)
 			std::ofstream default_config(config_path);
 			if (default_config.is_open()) {
 				default_config << "# Turbostar Configuration File\n";
-				default_config << "# Currently no default settings are applied, but this file is ready for future options.\n";
+				default_config
+				    << "# Currently no default settings are applied, but this file is ready for future options.\n";
 			}
 		} catch (...) {
 			// Ignore errors creating default config
@@ -98,32 +99,32 @@ int main(int argc, char **argv)
 	init_pair(11, COLOR_WHITE + 8,
 		  COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(16, COLOR_YELLOW + 8,
-		  COLOR_WHITE);			     // Dialog Hotkeys (Bright Yellow on Gray)
-	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);  // Syntax: Keyword
-	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN); // Syntax: Selected Keyword
-	init_pair(14, COLOR_BLACK, COLOR_GREEN);     // Selected Menu Item
-	init_pair(15, COLOR_RED, COLOR_GREEN);	     // Hotkey on Selected Menu
-	init_pair(17, COLOR_BLACK, COLOR_CYAN);	     // Dialog Group Box Content
-	init_pair(18, COLOR_YELLOW + 8, COLOR_CYAN); // Dialog Group Box Hotkeys
-	init_pair(19, COLOR_BLACK, COLOR_GREEN);     // Focused Widget
-	init_pair(20, COLOR_GREEN + 8, COLOR_BLUE);  // Git Clean (Green on Blue)
-	init_pair(21, COLOR_YELLOW + 8, COLOR_BLUE); // Git Dirty (Yellow on Blue)
-	init_pair(22, COLOR_CYAN + 8, COLOR_BLUE);   // Syntax: Heading
-	init_pair(23, COLOR_YELLOW + 8, COLOR_BLUE); // Syntax: Bold
-	init_pair(24, COLOR_GREEN + 8, COLOR_BLUE);  // Syntax: List Item
+		  COLOR_WHITE);				// Dialog Hotkeys (Bright Yellow on Gray)
+	init_pair(12, COLOR_WHITE + 8, COLOR_BLUE);	// Syntax: Keyword
+	init_pair(13, COLOR_YELLOW + 8, COLOR_CYAN);	// Syntax: Selected Keyword
+	init_pair(14, COLOR_BLACK, COLOR_GREEN);	// Selected Menu Item
+	init_pair(15, COLOR_RED, COLOR_GREEN);		// Hotkey on Selected Menu
+	init_pair(17, COLOR_BLACK, COLOR_CYAN);		// Dialog Group Box Content
+	init_pair(18, COLOR_YELLOW + 8, COLOR_CYAN);	// Dialog Group Box Hotkeys
+	init_pair(19, COLOR_BLACK, COLOR_GREEN);	// Focused Widget
+	init_pair(20, COLOR_GREEN + 8, COLOR_BLUE);	// Git Clean (Green on Blue)
+	init_pair(21, COLOR_YELLOW + 8, COLOR_BLUE);	// Git Dirty (Yellow on Blue)
+	init_pair(22, COLOR_CYAN + 8, COLOR_BLUE);	// Syntax: Heading
+	init_pair(23, COLOR_YELLOW + 8, COLOR_BLUE);	// Syntax: Bold
+	init_pair(24, COLOR_GREEN + 8, COLOR_BLUE);	// Syntax: List Item
 	init_pair(25, COLOR_YELLOW + 8, COLOR_MAGENTA); // LSP Highlight (Normal)
-	init_pair(26, COLOR_WHITE + 8, COLOR_MAGENTA);  // LSP Highlight (Keyword)
-	init_pair(27, COLOR_WHITE + 8, COLOR_RED);      // LSP Error (White on Red)
-	init_pair(28, COLOR_BLACK, COLOR_YELLOW);       // LSP Warning (Black on Yellow)
-	init_pair(29, COLOR_WHITE, COLOR_BLACK);        // Terminal Output (White on Black)
-	init_pair(30, COLOR_GREEN + 8, COLOR_BLUE);     // Diff Add (Bright Green on Blue)
-	init_pair(31, COLOR_RED + 8, COLOR_BLUE);       // Diff Delete (Bright Red on Blue)
-	init_pair(32, COLOR_CYAN + 8, COLOR_BLUE);      // Diff Header (Bright Cyan on Blue)
-	init_pair(33, COLOR_YELLOW + 8, COLOR_CYAN);    // Read Lines Pending (Bright Yellow on Cyan)
-	init_pair(34, COLOR_GREEN + 8, COLOR_CYAN);     // Read Lines Success (Bright Green on Cyan)
-	init_pair(35, COLOR_RED + 8, COLOR_CYAN);       // Read Lines Failure (Bright Red on Cyan)
-	init_pair(36, COLOR_WHITE + 8, COLOR_BLACK);    // Terminal Border (Bright White on Black)
-	init_pair(37, COLOR_BLACK + 8, COLOR_WHITE);    // Disabled Menu Item (Dark Gray on White)
+	init_pair(26, COLOR_WHITE + 8, COLOR_MAGENTA);	// LSP Highlight (Keyword)
+	init_pair(27, COLOR_WHITE + 8, COLOR_RED);	// LSP Error (White on Red)
+	init_pair(28, COLOR_BLACK, COLOR_YELLOW);	// LSP Warning (Black on Yellow)
+	init_pair(29, COLOR_WHITE, COLOR_BLACK);	// Terminal Output (White on Black)
+	init_pair(30, COLOR_GREEN + 8, COLOR_BLUE);	// Diff Add (Bright Green on Blue)
+	init_pair(31, COLOR_RED + 8, COLOR_BLUE);	// Diff Delete (Bright Red on Blue)
+	init_pair(32, COLOR_CYAN + 8, COLOR_BLUE);	// Diff Header (Bright Cyan on Blue)
+	init_pair(33, COLOR_YELLOW + 8, COLOR_CYAN);	// Read Lines Pending (Bright Yellow on Cyan)
+	init_pair(34, COLOR_GREEN + 8, COLOR_CYAN);	// Read Lines Success (Bright Green on Cyan)
+	init_pair(35, COLOR_RED + 8, COLOR_CYAN);	// Read Lines Failure (Bright Red on Cyan)
+	init_pair(36, COLOR_WHITE + 8, COLOR_BLACK);	// Terminal Border (Bright White on Black)
+	init_pair(37, COLOR_BLACK + 8, COLOR_WHITE);	// Disabled Menu Item (Dark Gray on White)
 
 	if (can_change_color()) {
 		// Red, Green, Blue values are on a scale of 0 to 1000
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
 	nonl();
 	noecho();
 	keypad(stdscr, TRUE);
-	
+
 	// Enable mouse tracking for clicks
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	// Tell the terminal to send mouse events (works for some xterm-compatible terms)

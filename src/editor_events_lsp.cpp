@@ -1,18 +1,18 @@
-#include "editor.h"
 #include <algorithm>
 #include <chrono>
-#include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "lsp_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "fs_utils.h"
 #include <fstream>
-#include <sstream>
 #include <lsp/json/json.h>
+#include <ncurses.h>
+#include <sstream>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "editor.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "history_manager.h"
+#include "lsp_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -41,10 +41,10 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc && !ev.highlight_ranges.empty()) {
 			int total_lines = static_cast<int>(active_doc->line_count());
-			
+
 			// Always find and update the "optimal" enclosing scope (largest not whole file)
-			const text_range* enclosing = nullptr;
-			for (const auto& range : ev.highlight_ranges) {
+			const text_range *enclosing = nullptr;
+			for (const auto &range : ev.highlight_ranges) {
 				int range_height = range.end_y - range.start_y;
 				// If range is almost the whole file (say > 95%), we stop at the previous one
 				if (range_height >= total_lines - 2 && enclosing != nullptr) {
@@ -59,9 +59,10 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 			if (pending_inline_agent_task_.active) {
 				// Special logic for headless agent: Use the enclosing scope we just found
 				if (enclosing) {
-					active_doc->set_selection(enclosing->start_y, enclosing->start_x, enclosing->end_y, enclosing->end_x);
+					active_doc->set_selection(enclosing->start_y, enclosing->start_x, enclosing->end_y,
+								  enclosing->end_x);
 				}
-				
+
 				launch_inline_agent(pending_inline_agent_task_.prompt);
 				pending_inline_agent_task_.active = false;
 				active_doc->clear_selection(); // Clear it after launch so user doesn't see it lingering
@@ -73,23 +74,22 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 					active_doc->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
 				}
 
-				for (const auto& range : ev.highlight_ranges) {
+				for (const auto &range : ev.highlight_ranges) {
 					if (!has_sel) {
 						active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
 						break;
 					} else {
-						if (range.start_y < sel_start_y || 
+						if (range.start_y < sel_start_y ||
 						    (range.start_y == sel_start_y && range.start_x < sel_start_x) ||
-						    range.end_y > sel_end_y ||
-						    (range.end_y == sel_end_y && range.end_x > sel_end_x)) {
-						    
-						    active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
-						    break;
+						    range.end_y > sel_end_y || (range.end_y == sel_end_y && range.end_x > sel_end_x)) {
+
+							active_doc->set_selection(range.start_y, range.start_x, range.end_y, range.end_x);
+							break;
 						}
 					}
 				}
 			}
-			
+
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
@@ -107,5 +107,4 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		}
 		return;
 	}
-
 }

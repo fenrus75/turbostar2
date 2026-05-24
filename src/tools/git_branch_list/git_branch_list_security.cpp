@@ -1,7 +1,8 @@
-#include "git_branch_list.h"
 #include "../../agentlib/tool_registry.h"
+#include "git_branch_list.h"
 
-namespace tools {
+namespace tools
+{
 
 REGISTER_TOOL(git_branch_list_validator)
 

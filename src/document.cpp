@@ -1,10 +1,10 @@
 /**
  * @file document.cpp
  * @brief Core document management and file I/O for Turbostar.
- * 
+ *
  * NOTE: Due to its size, the document implementation has been split into logical sub-modules.
  * If you are looking for specific functionality, please check the corresponding file:
- * 
+ *
  * - `document_edit.cpp`: Text modification (insert, delete, split, append lines)
  * - `document_format.cpp`: Code formatting (clang-format integration)
  * - `document_highlight.cpp`: Syntax highlighting and background thread processing
@@ -15,21 +15,21 @@
  */
 
 #include "document.h"
-#include "history_manager.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <regex>
-#include "event_logger.h"
 #include "config_manager.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
+#include "history_manager.h"
 #include "project_manager.h"
-#include "fs_utils.h"
-#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 
@@ -98,17 +98,20 @@ bool document::load_from_file(const std::string &filename)
 	current_action_group_.actions.clear();
 	edit_group_depth_ = 0;
 
-	event_logger::get_instance().log("Document loaded from: " + filename + " (" +
-					 std::to_string(line_count_unlocked()) + " lines)");
+	event_logger::get_instance().log("Document loaded from: " + filename + " (" + std::to_string(line_count_unlocked()) + " lines)");
 
 	auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
 	if (pos_opt) {
 		cursor_x_ = pos_opt->x;
 		cursor_y_ = pos_opt->y;
-		if (cursor_y_ >= line_count_unlocked()) cursor_y_ = line_count_unlocked() - 1;
-		if (cursor_y_ < 0) cursor_y_ = 0;
-		if (cursor_x_ > lines_[cursor_y_]->length_in_chars()) cursor_x_ = lines_[cursor_y_]->length_in_chars();
-		if (cursor_x_ < 0) cursor_x_ = 0;
+		if (cursor_y_ >= line_count_unlocked())
+			cursor_y_ = line_count_unlocked() - 1;
+		if (cursor_y_ < 0)
+			cursor_y_ = 0;
+		if (cursor_x_ > lines_[cursor_y_]->length_in_chars())
+			cursor_x_ = lines_[cursor_y_]->length_in_chars();
+		if (cursor_x_ < 0)
+			cursor_x_ = 0;
 		target_cursor_x_ = cursor_x_;
 	}
 
@@ -118,7 +121,6 @@ bool document::load_from_file(const std::string &filename)
 	notify_cursor_changed();
 	return true;
 }
-
 
 void document::insert_file(const std::string &filename)
 {
@@ -147,7 +149,6 @@ void document::insert_file(const std::string &filename)
 	notify_cursor_changed();
 }
 
-
 bool document::save()
 {
 	std::shared_lock lock(mutex_);
@@ -167,7 +168,6 @@ bool document::save()
 
 	return save_to_file(fname);
 }
-
 
 bool document::save_to_file(const std::string &filename)
 {
@@ -212,7 +212,6 @@ bool document::save_to_file(const std::string &filename)
 	return true;
 }
 
-
 void document::clear()
 {
 	std::unique_lock lock(mutex_);
@@ -228,7 +227,7 @@ void document::clear()
 	cursor_y_ = 0;
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
-	
+
 	undo_stack_.clear();
 	redo_stack_.clear();
 	current_action_group_.actions.clear();
@@ -250,7 +249,6 @@ const std::string &document::get_safe_filename() const
 	return safe_filename_;
 }
 
-
 bool document::has_nondefault_filename() const
 {
 	std::shared_lock lock(mutex_);
@@ -258,13 +256,11 @@ bool document::has_nondefault_filename() const
 	return !filename_.empty() && filename_ != "unknown.txt";
 }
 
-
 bool document::is_modified() const
 {
 	std::shared_lock lock(mutex_);
 	return modified_;
 }
-
 
 void document::clear_modified()
 {
@@ -282,13 +278,11 @@ void document::set_read_only(bool ro)
 	}
 }
 
-
 std::string document::get_git_branch() const
 {
 	std::shared_lock lock(mutex_);
 	return git_branch_;
 }
-
 
 void document::set_git_branch(const std::string &branch)
 {
@@ -296,13 +290,11 @@ void document::set_git_branch(const std::string &branch)
 	git_branch_ = branch;
 }
 
-
 int document::line_count() const
 {
 	std::shared_lock lock(mutex_);
 	return line_count_unlocked();
 }
-
 
 size_t document::get_line_count() const
 {
@@ -310,12 +302,10 @@ size_t document::get_line_count() const
 	return static_cast<size_t>(line_count_unlocked());
 }
 
-
 int document::line_count_unlocked() const
 {
 	return static_cast<int>(lines_.size());
 }
-
 
 std::shared_ptr<line> document::get_line(int index) const
 {
@@ -330,7 +320,7 @@ std::vector<std::string> document::get_all_lines() const
 	std::shared_lock lock(mutex_);
 	std::vector<std::string> result;
 	result.reserve(lines_.size());
-	for (const auto& l : lines_) {
+	for (const auto &l : lines_) {
 		result.push_back(l->get_text());
 	}
 	return result;
@@ -348,13 +338,11 @@ int document::get_cursor_x() const
 	return cursor_x_;
 }
 
-
 int document::get_cursor_y() const
 {
 	std::shared_lock lock(mutex_);
 	return cursor_y_;
 }
-
 
 std::string document::get_text_all() const
 {
@@ -369,13 +357,14 @@ std::string document::get_text_all() const
 	return full_text;
 }
 
-
 std::string document::get_word_under_cursor() const
 {
 	std::shared_lock lock(mutex_);
-	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size())) return "";
+	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size()))
+		return "";
 	std::string text = lines_[cursor_y_]->get_text();
-	if (text.empty() || cursor_x_ < 0 || cursor_x_ > static_cast<int>(text.length())) return "";
+	if (text.empty() || cursor_x_ < 0 || cursor_x_ > static_cast<int>(text.length()))
+		return "";
 
 	int start = cursor_x_;
 	while (start > 0) {
@@ -416,7 +405,7 @@ void document::notify_cursor_changed() const
 			std::unique_lock lock2(mutex_);
 			lsp_highlights_.clear();
 			lock2.unlock();
-			
+
 			request_redraw();
 		}
 	}
@@ -442,7 +431,6 @@ void document::notify_cursor_changed() const
 	event_logger::get_instance().log(msg);
 }
 
-
 void document::request_redraw() const
 {
 	editor_event ev;
@@ -452,18 +440,17 @@ void document::request_redraw() const
 
 void document::set_modified()
 {
-	if (read_only_) return;
+	if (read_only_)
+		return;
 	modified_ = true;
 	lsp_diagnostics_.clear();
 }
-
 
 bool document::is_space_at(int y, int x) const
 {
 	std::shared_lock lock(mutex_);
 	return is_space_at_unlocked(y, x);
 }
-
 
 bool document::is_space_at_unlocked(int y, int x) const
 {
@@ -475,23 +462,28 @@ bool document::is_space_at_unlocked(int y, int x) const
 	return false;
 }
 
-void document::apply_external_edits_json(const std::string& json_str) {
-	if (is_read_only()) return;
+void document::apply_external_edits_json(const std::string &json_str)
+{
+	if (is_read_only())
+		return;
 	try {
 		auto j = nlohmann::json::parse(json_str);
-		if (!j.is_array()) return;
-		
+		if (!j.is_array())
+			return;
+
 		std::unique_lock lock(mutex_);
 		begin_edit_group();
 
 		auto adjust_all = [&](int edit_idx, int delta) {
 			auto adj = [&](int &x, int &y) {
-				if (y == -1) return;
+				if (y == -1)
+					return;
 				if (y > edit_idx) {
 					y += delta;
 				} else if (y == edit_idx) {
 					// If the line we are on is deleted, move to previous or snap to start
-					if (delta < 0) x = 0;
+					if (delta < 0)
+						x = 0;
 					// If we are replacing/adding, we'll end up at the start of the new block
 					// but let's try to be less jumpy.
 				}
@@ -500,16 +492,18 @@ void document::apply_external_edits_json(const std::string& json_str) {
 			adj(selection_start_x_, selection_start_y_);
 			adj(selection_end_x_, selection_end_y_);
 		};
-		
+
 		// The edits must be descending to avoid index shifts
-		for (const auto& edit : j) {
-			if (!edit.contains("line_number") || !edit.contains("type")) continue;
-			
+		for (const auto &edit : j) {
+			if (!edit.contains("line_number") || !edit.contains("type"))
+				continue;
+
 			int idx = edit["line_number"].get<int>() - 1;
 			std::string type = edit["type"].get<std::string>();
-			
-			if (idx < 0 || idx >= static_cast<int>(lines_.size())) continue;
-			
+
+			if (idx < 0 || idx >= static_cast<int>(lines_.size()))
+				continue;
+
 			if (type == "remove") {
 				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 				lines_.erase(lines_.begin() + idx);
@@ -523,11 +517,12 @@ void document::apply_external_edits_json(const std::string& json_str) {
 					new_lines.push_back(std::make_shared<line>(""));
 				} else {
 					while (std::getline(ss, part)) {
-						if (!part.empty() && part.back() == '\r') part.pop_back();
+						if (!part.empty() && part.back() == '\r')
+							part.pop_back();
 						new_lines.push_back(std::make_shared<line>(part));
 					}
 				}
-				
+
 				for (size_t i = 0; i < new_lines.size(); ++i) {
 					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
@@ -537,7 +532,7 @@ void document::apply_external_edits_json(const std::string& json_str) {
 			} else if (type == "replace" && edit.contains("replace_with")) {
 				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 				lines_.erase(lines_.begin() + idx);
-				
+
 				std::string newstring = edit["replace_with"].get<std::string>();
 				std::stringstream ss(newstring);
 				std::string part;
@@ -546,11 +541,12 @@ void document::apply_external_edits_json(const std::string& json_str) {
 					new_lines.push_back(std::make_shared<line>(""));
 				} else {
 					while (std::getline(ss, part)) {
-						if (!part.empty() && part.back() == '\r') part.pop_back();
+						if (!part.empty() && part.back() == '\r')
+							part.pop_back();
 						new_lines.push_back(std::make_shared<line>(part));
 					}
 				}
-				
+
 				for (size_t i = 0; i < new_lines.size(); ++i) {
 					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
@@ -559,13 +555,17 @@ void document::apply_external_edits_json(const std::string& json_str) {
 				adjust_all(idx, static_cast<int>(new_lines.size()) - 1);
 			}
 		}
-		
+
 		// Ensure cursor is still in bounds
-		if (cursor_y_ < 0) cursor_y_ = 0;
-		if (cursor_y_ >= static_cast<int>(lines_.size())) cursor_y_ = static_cast<int>(lines_.size()) - 1;
-		if (cursor_x_ < 0) cursor_x_ = 0;
+		if (cursor_y_ < 0)
+			cursor_y_ = 0;
+		if (cursor_y_ >= static_cast<int>(lines_.size()))
+			cursor_y_ = static_cast<int>(lines_.size()) - 1;
+		if (cursor_x_ < 0)
+			cursor_x_ = 0;
 		int line_len = lines_[cursor_y_]->length_in_chars();
-		if (cursor_x_ > line_len) cursor_x_ = line_len;
+		if (cursor_x_ > line_len)
+			cursor_x_ = line_len;
 
 		target_cursor_x_ = cursor_x_;
 

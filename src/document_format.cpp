@@ -1,4 +1,3 @@
-#include "document.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -6,20 +5,21 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
-#include "event_logger.h"
+#include "command_runner.h"
 #include "config_manager.h"
+#include "document.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
-#include "fs_utils.h"
-#include "command_runner.h"
 
 namespace fs = std::filesystem;
 
-
 void document::format_range(int start_y, int end_y)
 {
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	if (start_y < 0 || end_y >= line_count_unlocked() || start_y > end_y)
 		return;
 
@@ -46,8 +46,8 @@ void document::format_range(int start_y, int end_y)
 
 	// Determine style
 	std::string style = config_manager::get_instance().get_clang_format_style();
-	
-	// Check if a .clang-format file exists in the project. 
+
+	// Check if a .clang-format file exists in the project.
 	// Policy: If a .clang-format file exists in the file's directory or any parent, it always wins.
 	bool force_file = false;
 	fs::path search_path;
@@ -71,7 +71,7 @@ void document::format_range(int start_y, int end_y)
 
 	// Run clang-format
 	std::string cmd = "clang-format " + style_arg + " -i " + temp_path;
-	
+
 	sync_command_runner runner;
 	runner.apply_internal_profile();
 	int exit_code = runner.execute(cmd);
@@ -114,7 +114,7 @@ void document::format_range(int start_y, int end_y)
 	// Replace the range
 	std::unique_lock lock(mutex_);
 	begin_edit_group();
-	
+
 	// 1. Insert new lines
 	for (size_t i = 0; i < formatted_block.size(); ++i) {
 		auto nl = std::make_shared<line>(formatted_block[i]);
@@ -122,7 +122,7 @@ void document::format_range(int start_y, int end_y)
 		record_action(edit_action::action_type::insert_line, start_y + static_cast<int>(i), nullptr);
 		mark_line_dirty(nl);
 	}
-	
+
 	// 2. Delete old lines (now shifted forward by formatted_block.size())
 	int old_start = start_y + static_cast<int>(formatted_block.size());
 	int num_to_delete = end_y - start_y + 1;
@@ -130,10 +130,10 @@ void document::format_range(int start_y, int end_y)
 		record_action(edit_action::action_type::delete_line, old_start, lines_[old_start]);
 		lines_.erase(lines_.begin() + old_start);
 	}
-	
+
 	cursor_y_ = start_y;
 	cursor_x_ = 0;
-	
+
 	end_edit_group();
 	set_modified();
 	target_cursor_x_ = cursor_x_;
@@ -141,10 +141,10 @@ void document::format_range(int start_y, int end_y)
 	notify_cursor_changed();
 }
 
-
 void document::format_paragraph()
 {
-	if (is_read_only()) return;
+	if (is_read_only())
+		return;
 	std::unique_lock lock(mutex_);
 	if (lines_.empty())
 		return;

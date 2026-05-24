@@ -1,26 +1,30 @@
-#include "git_pull.h"
 #include "../../fs_utils.h"
+#include "git_pull.h"
 
-namespace tools {
+namespace tools
+{
 
-git_pull_tool::git_pull_tool() 
-    : llm_tool_action("Pulling from remote") {}
-
-bool git_pull_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const {
-    return true;
+git_pull_tool::git_pull_tool() : llm_tool_action("Pulling from remote")
+{
 }
 
-std::string git_pull_tool::execute(agentlib::tool_context& ctx) {
-    std::string cmd = "git pull";
-    std::string output = fs_utils::execute_command_sync(cmd);
+bool git_pull_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
+{
+	return true;
+}
 
-    if (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos) {
-        set_success(ctx, "Git pull successful");
-        return "Successfully pulled from remote:\n```\n" + output + "\n```";
-    }
+std::string git_pull_tool::execute(agentlib::tool_context &ctx)
+{
+	std::string cmd = "git pull";
+	std::string output = fs_utils::execute_command_sync(cmd);
 
-    set_failure(ctx, "Git pull failed");
-    return "Failed to pull from remote:\n```\n" + output + "\n```";
+	if (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos) {
+		set_success(ctx, "Git pull successful");
+		return "Successfully pulled from remote:\n```\n" + output + "\n```";
+	}
+
+	set_failure(ctx, "Git pull failed");
+	return "Failed to pull from remote:\n```\n" + output + "\n```";
 }
 
 } // namespace tools

@@ -1,21 +1,21 @@
-#include "ui/dialog_factories.h"
-#include "editor.h"
 #include <algorithm>
 #include <chrono>
-#include <ncurses.h>
-#include "event_logger.h"
-#include "history_manager.h"
-#include "config_manager.h"
-#include "git_manager.h"
-#include "lsp_manager.h"
-#include "gcc_log_parser.h"
-#include "build_error_manager.h"
-#include "fs_utils.h"
-#include "ui/agent_window.h"
-#include "help_text.h"
 #include <fstream>
-#include <sstream>
 #include <lsp/json/json.h>
+#include <ncurses.h>
+#include <sstream>
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "editor.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "gcc_log_parser.h"
+#include "git_manager.h"
+#include "help_text.h"
+#include "history_manager.h"
+#include "lsp_manager.h"
+#include "ui/agent_window.h"
+#include "ui/dialog_factories.h"
 
 namespace fs = std::filesystem;
 
@@ -25,22 +25,22 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::force_quit) {
 		logger.log("Dispatching force_quit event.");
-		
+
 		bool any_dirty = false;
-		for (const auto& doc : documents_) {
+		for (const auto &doc : documents_) {
 			if (doc->is_modified()) {
 				any_dirty = true;
 				break;
 			}
 		}
-		
+
 		if (any_dirty) {
 			active_dialog_ = create_force_quit_dialog();
 			active_dialog_mode_ = dialog_mode::force_quit_prompt;
 			set_focus(focus_target::dialog, "force_quit");
 			return;
 		}
-		
+
 		is_running_ = false;
 		return;
 	}
@@ -48,7 +48,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	if (ev.type == event_type::quit) {
 		logger.log("Dispatching quit event.");
 		is_quitting_ = true;
-		
+
 		// If no windows, just exit
 		if (windows_.empty()) {
 			is_running_ = false;
@@ -56,16 +56,17 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 
 		// Check if any documents are modified. If so, prompt for the first modified document.
-		for (const auto& doc : documents_) {
+		for (const auto &doc : documents_) {
 			if (doc && doc->is_modified() && !doc->is_read_only()) {
 				std::string fname = doc->get_filename();
-				if (fname.empty()) fname = "untitled.txt";
-				
+				if (fname.empty())
+					fname = "untitled.txt";
+
 				// Make sure we only prompt if we aren't already prompting
 				if (active_dialog_mode_ != dialog_mode::save_prompt) {
 					active_dialog_ = create_save_prompt_dialog(fname);
 					active_dialog_mode_ = dialog_mode::save_prompt;
-					
+
 					// Important: pass a flag in the dialog payload so we know we are in a quit loop
 					set_focus(focus_target::dialog, "quit_all");
 				}
@@ -103,14 +104,15 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 
 		auto doc = std::make_shared<document>(global_queue_, "Help");
-		
-		std::stringstream ss(reinterpret_cast<const char*>(help_text_md));
+
+		std::stringstream ss(reinterpret_cast<const char *>(help_text_md));
 		std::string line;
 		while (std::getline(ss, line)) {
-			if (!line.empty() && line.back() == '\r') line.pop_back();
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
 			doc->append_line(line);
 		}
-		
+
 		doc->set_read_only(true);
 		documents_.push_back(doc);
 
@@ -143,32 +145,33 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::open_subagent) {
 		logger.log("Dispatching open_subagent event for agent ID: " + std::to_string(ev.key_code));
-		
+
 		int target_id = ev.key_code;
-		
+
 		// 1. Check if an agent window for this subagent already exists
 		for (size_t i = 0; i < windows_.size(); ++i) {
-			if (auto aw = dynamic_cast<agent_window*>(windows_[i].get())) {
+			if (auto aw = dynamic_cast<agent_window *>(windows_[i].get())) {
 				if (aw->get_agent()->get_id() == target_id) {
 					activate_window(i);
 					return;
 				}
 			}
 		}
-		
+
 		// 2. Window doesn't exist, we need to find the subagent and spawn a window
 		std::shared_ptr<agentlib::ai_agent> found_subagent = nullptr;
-		for (auto& win : windows_) {
+		for (auto &win : windows_) {
 			// Find a status window or main agent window that knows about this subagent
-			if (auto aw = dynamic_cast<agent_window*>(win.get())) {
-				for (auto& sub : aw->get_agent()->get_subagents()) {
+			if (auto aw = dynamic_cast<agent_window *>(win.get())) {
+				for (auto &sub : aw->get_agent()->get_subagents()) {
 					if (sub->get_id() == target_id) {
 						found_subagent = sub;
 						break;
 					}
 				}
 			}
-			if (found_subagent) break;
+			if (found_subagent)
+				break;
 		}
 
 		if (found_subagent) {
@@ -182,8 +185,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	if (ev.type == event_type::agent_response) {
 		logger.log("Dispatching agent_response event.");
 		// Find the active agent window
-		for (auto& win : windows_) {
-			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
+		for (auto &win : windows_) {
+			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
 				if (agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
 					break;
@@ -196,8 +199,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	if (ev.type == event_type::agent_tool_update) {
 		logger.log("Dispatching agent_tool_update event.");
 		// Find the active agent window
-		for (auto& win : windows_) {
-			if (auto agent_win = dynamic_cast<agent_window*>(win.get())) {
+		for (auto &win : windows_) {
+			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
 				if (agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
 					break;
@@ -217,7 +220,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 			// Find the document
 			std::shared_ptr<document> target_doc = nullptr;
-			for (const auto& doc : documents_) {
+			for (const auto &doc : documents_) {
 				std::string doc_path = doc->get_filename();
 				if (!doc_path.empty()) {
 					try {
@@ -225,7 +228,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 							target_doc = doc;
 							break;
 						}
-					} catch (...) {}
+					} catch (...) {
+					}
 				}
 			}
 
@@ -254,10 +258,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::agent_response) {
 		// Clean up headless agent if it exists
-		headless_agents_.erase(std::remove_if(headless_agents_.begin(), headless_agents_.end(),
-			[&ev](const std::shared_ptr<agentlib::ai_agent>& agent) {
-				return agent->get_id() == ev.key_code;
-			}), headless_agents_.end());
+		headless_agents_.erase(
+		    std::remove_if(headless_agents_.begin(), headless_agents_.end(),
+				   [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) { return agent->get_id() == ev.key_code; }),
+		    headless_agents_.end());
 		return;
 	}
 
