@@ -27,7 +27,7 @@
 #include "config_manager.h"
 #include "git_manager.h"
 #include "highlighter_registry.h"
-#include "lsp_manager.h"
+#include "project_manager.h"
 #include "fs_utils.h"
 #include <nlohmann/json.hpp>
 
@@ -114,7 +114,7 @@ bool document::load_from_file(const std::string &filename)
 
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
-	lsp_manager::get_instance().open_document(filename, get_text_all());
+	project_manager::get_instance().lsp_open_document(filename, get_text_all());
 	notify_cursor_changed();
 	return true;
 }
@@ -207,7 +207,7 @@ bool document::save_to_file(const std::string &filename)
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
-	lsp_manager::get_instance().update_document(filename, get_text_all());
+	project_manager::get_instance().lsp_update_document(filename, get_text_all());
 	notify_cursor_changed();
 	return true;
 }
@@ -409,8 +409,8 @@ void document::notify_cursor_changed() const
 	if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
 		last_hover_word_ = word;
 		if (!word.empty()) {
-			lsp_manager::get_instance().request_hover(filename_, cursor_y_, cursor_x_);
-			lsp_manager::get_instance().request_document_highlight(filename_, cursor_y_, cursor_x_);
+			project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
+			project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
 		} else {
 			// Clear highlights if we moved off a word
 			std::unique_lock lock2(mutex_);

@@ -7,7 +7,7 @@
 #include "history_manager.h"
 #include "config_manager.h"
 #include "git_manager.h"
-#include "lsp_manager.h"
+#include "project_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "crashdump_manager.h"
@@ -26,7 +26,7 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 	git_manager::get_instance().start(global_queue_);
 	bool lsp_allowed = !no_lsp && config_manager::get_instance().is_lsp_enabled();
 	if (lsp_allowed) {
-		lsp_manager::get_instance().start(global_queue_);
+		project_manager::get_instance().lsp_start(global_queue_);
 	}
 
 	std::string repo_root = git_manager::get_instance().get_repository_root();
@@ -310,7 +310,7 @@ std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std
 
 editor::~editor()
 {
-	lsp_manager::get_instance().stop();
+	project_manager::get_instance().lsp_stop();
 	git_manager::get_instance().stop();
 }
 
@@ -637,7 +637,7 @@ bool editor::handle_k_block_key(int key)
 	} else if (c == ']') {
 		logger.log("K-block: Expand Selection (LSP)");
 		if (active_doc && !active_doc->get_filename().empty()) {
-			lsp_manager::get_instance().request_selection_range(
+			project_manager::get_instance().lsp_request_selection_range(
 				active_doc->get_filename(),
 				active_doc->get_cursor_y(),
 				active_doc->get_cursor_x()

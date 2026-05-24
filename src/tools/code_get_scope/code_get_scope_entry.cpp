@@ -1,5 +1,5 @@
 #include "code_get_scope.h"
-#include "../../lsp_manager.h"
+#include "../../project_manager.h"
 #include "../../fs_utils.h"
 
 namespace tools {
@@ -11,11 +11,11 @@ std::string code_get_scope_tool::execute(agentlib::tool_context& ctx) {
         return "Error: " + error;
     }
 
-    if (!lsp_manager::get_instance().is_supported_file(safe_path)) {
+    if (!project_manager::get_instance().lsp_is_supported_file(safe_path)) {
         return "Error: LSP is not supported for this file type.";
     }
 
-    auto ranges = lsp_manager::get_instance().query_selection_ranges(safe_path, args_.line - 1, args_.character);
+    auto ranges = project_manager::get_instance().lsp_query_selection_ranges(safe_path, args_.line - 1, args_.character);
     if (ranges.empty()) {
         return "Error: Could not determine scope for the given location.";
     }

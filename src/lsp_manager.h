@@ -21,7 +21,8 @@ namespace lsp {
 class lsp_manager
 {
       public:
-	static lsp_manager &get_instance();
+	lsp_manager();
+	~lsp_manager();
 
 	void start(event_queue &queue);
 	void stop();
@@ -44,9 +45,6 @@ class lsp_manager
 	std::vector<location_info> query_references(const std::string &filepath, int line, int character);
 
       private:
-	lsp_manager() = default;
-	~lsp_manager();
-
 	struct server_instance {
 		std::string language_id;
 		std::unique_ptr<lsp::Process> process;
@@ -60,6 +58,7 @@ class lsp_manager
 	server_instance* get_server_for_file(const std::string& filepath);
 
 	std::vector<std::unique_ptr<server_instance>> servers_;
+	std::mutex servers_mutex_;
 	event_queue *global_queue_{nullptr};
 	
 	std::mutex doc_mutex_;

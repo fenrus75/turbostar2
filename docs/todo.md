@@ -2,7 +2,12 @@
 
 - would be nice to store cursor position on a per file basis across restarts of turbostar. "joe" does this 
 
+- we need to use AGENTS.md not AGENT.md throughout (typo)
+
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
+
+- as part of our "terminal emulator" for the agent tab, we will need to "eat" escape codes
+     to avoid corruption of the screen
 
 - support for API keys for models -- need some basic security so that the keys don't leak out
    - including masking this config file in our sandbox
@@ -101,6 +106,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- fixed the `clangd` OOM issue by refactoring LSP management. The `lsp_manager` is now a component of the `project_manager` class, ensuring a single LSP instance per workspace. Access to LSP features is now mediated via delegation methods in `project_manager`, hiding implementation details and preventing redundant server launches.
 - implemented `git_push` with `force=true` support. When the agent attempts a force push, it requires explicit "Allow" or "Deny" confirmation from the user via the `prompt_user` dialog (permissions are not remembered).
 - we need an `fs_utils` helper to locate `libturbocatch.so` in a few key places (e.g., build directory, installation directory, etc) for reliable `LD_PRELOAD` injection.
 - fixed the `ui_radio_choice` drawing logic so that the cyan background color extends fully behind the padded spaces to match the alignment box width.

@@ -7,7 +7,7 @@
 #include "history_manager.h"
 #include "config_manager.h"
 #include "git_manager.h"
-#include "lsp_manager.h"
+#include "project_manager.h"
 #include "gcc_log_parser.h"
 #include "build_error_manager.h"
 #include "fs_utils.h"
@@ -518,7 +518,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			int new_y = doc->get_cursor_y();
 			int new_x = doc->get_cursor_x();
 			if (new_y != old_y || new_x != old_x) {
-				if (!doc->get_filename().empty() && lsp_manager::get_instance().is_supported_file(doc->get_filename())) {
+				if (!doc->get_filename().empty() && project_manager::get_instance().lsp_is_supported_file(doc->get_filename())) {
 					auto scope = doc->get_enclosing_scope();
 					bool outside = true;
 					if (scope) {
@@ -529,7 +529,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					}
 					
 					if (outside) {
-						lsp_manager::get_instance().request_selection_range(doc->get_filename(), new_y, new_x);
+						project_manager::get_instance().lsp_request_selection_range(doc->get_filename(), new_y, new_x);
 					}
 				}
 			}
@@ -586,11 +586,11 @@ void editor::launch_inline_agent(const std::string &prompt)
 		auto scope = doc->get_enclosing_scope();
 		start_line = scope->start_y + 1;
 		end_line = scope->end_y + 1;
-	} else if (!filename.empty() && lsp_manager::get_instance().is_supported_file(filename)) {
+	} else if (!filename.empty() && project_manager::get_instance().lsp_is_supported_file(filename)) {
 		// No cached scope, need to wait for LSP
 		logger.log("No cached scope for inline agent. Querying LSP.");
 		pending_inline_agent_task_ = {prompt, true};
-		lsp_manager::get_instance().request_selection_range(filename, cur_y, cur_x);
+		project_manager::get_instance().lsp_request_selection_range(filename, cur_y, cur_x);
 		return;
 	}
 

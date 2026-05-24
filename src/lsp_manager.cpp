@@ -16,10 +16,8 @@
 
 namespace fs = std::filesystem;
 
-lsp_manager &lsp_manager::get_instance()
+lsp_manager::lsp_manager()
 {
-	static lsp_manager instance;
-	return instance;
 }
 
 lsp_manager::~lsp_manager()
@@ -114,6 +112,7 @@ void lsp_manager::start(event_queue &queue)
 
 void lsp_manager::stop()
 {
+	std::lock_guard<std::mutex> lock(servers_mutex_);
 	for (auto& server : servers_) {
 		if (!server->is_running) continue;
 
@@ -152,6 +151,7 @@ lsp_manager::server_instance* lsp_manager::get_server_for_file(const std::string
 	
 	if (lang_id.empty()) return nullptr;
 	
+	std::lock_guard<std::mutex> lock(servers_mutex_);
 	for (auto& server : servers_) {
 		if (server->language_id == lang_id && server->is_running) {
 			return server.get();
@@ -161,7 +161,7 @@ lsp_manager::server_instance* lsp_manager::get_server_for_file(const std::string
 	// Try to start the server on demand
 	if (lang_id == "cpp") {
 		std::string build_dir = config_manager::get_instance().get_build_directory();
-		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir}, "cpp");
+		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir, "-j=4", "--malloc-trim"}, "cpp");
 	} else if (lang_id == "python") {
 		start_server("pylsp", {}, "python");
 	}
