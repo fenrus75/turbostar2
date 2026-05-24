@@ -57,6 +57,7 @@ public:
 
     void add_todo(const std::string& task);
     std::vector<todo_item> get_todos() const;
+    std::optional<std::string> pop_todo();
     bool mark_todo_complete(const std::string& text_match, std::string& out_error);
     bool delete_todo(const std::string& text_match, std::string& out_error);
 

@@ -103,6 +103,25 @@ std::vector<todo_item> ai_agent::get_todos() const
 	return todos_;
 }
 
+std::optional<std::string> ai_agent::pop_todo()
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	if (todos_.empty())
+		return std::nullopt;
+
+	std::string text = todos_.front().text;
+	todos_.erase(todos_.begin());
+
+	if (global_queue_) {
+		editor_event tool_ev;
+		tool_ev.type = event_type::agent_tool_update;
+		tool_ev.key_code = id_;
+		global_queue_->push(tool_ev);
+	}
+
+	return text;
+}
+
 void ai_agent::add_active_skill(const std::string &skill_name)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
