@@ -16,10 +16,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 {
     agent_ = ai_agent::create(id, "Agent", std::move(model), &global_queue, doc_provider);
 
+    std::string system_prompt = "You are an expert AI programming assistant.\n"
+        "Your goal is to help the user navigate, understand, and safely modify this codebase.\n"
+        "You have access to a suite of highly optimized, secure, and syntax-aware tools.\n"
+        "STRONGLY PREFER using built-in tools (e.g., fs_read_lines, fs_replace_lines, sqlite_perform, git_status) over the generic `run_shell_command` tool.\n"
+        "Built-in tools are faster, automatically format their output for you, and do not require the user to manually approve a security dialog for every action.\n"
+        "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.";
+
     std::string project_instr = project_manager::get_instance().get_project_instructions();
     if (!project_instr.empty()) {
-        agent_->inject_context("system", "Project-specific instructions and engineering standards:\n" + project_instr);
+        system_prompt += "\n\nProject-specific instructions and engineering standards:\n" + project_instr;
     }
+    
+    agent_->inject_context("system", system_prompt);
 
     set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 

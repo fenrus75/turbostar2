@@ -3,6 +3,9 @@
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc)
 
+- the ui radio box primitive has a space between ( ) and the choice text, which is fine, however that space
+  does not have the same background color (cyan) as the ( ) and the choice text, which is not fine, it looks very sloppy.
+
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
@@ -24,15 +27,10 @@
         - a set of LSP tools to help code navigation
     	- gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
 	        - read memory, get registers
-    - web_fetch(URI)
-	- need permission manager for which domains the user has allowed - stored in a new config file somewhere
-	- needs a way to ask the user for permission
-        - probably a popen to /usr/bin/curl as that should get all the https certs right
     - crashdump; 
 	- crashdump_read_memory(nr, location, size)
 	- crashdump_gdb(nr, command) (over time -- likely to come later)
     - enter_plan_mode, exit_plan_mode
-    - run_shell_command
 
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
@@ -95,6 +93,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented `run_shell_command` tool. Agents can execute arbitrary bash commands via an in-memory session permission system. A default system prompt strongly urges the use of built-in tools over shell commands to prevent nagging the user with security prompts. Commands containing ANSI escape characters are blocked.
 - implemented `web_fetch` tool. The agent can now fetch content from URLs using `curl`. Implemented a robust domain-based permission system (`allowed_domains.txt`) asking users for Once/Always/Deny/Deny Always approvals (blocking Always for local IPs).
 - the whole crashdump approach needs a rethink, the world is 100x more complex than assumed
 - "Spell check document" option in the Agent window that just runs a prompt and updates the document error list

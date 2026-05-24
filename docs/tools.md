@@ -177,6 +177,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `url` *(string, required)*: The full URL to fetch (must start with http:// or https://).
 
+### `run_shell_command`
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval.
+*   **Arguments:**
+    *   `command` *(string, required)*: The exact shell command to execute.
+
 ---
 
 ## 7. Agent State & To-Do Management
