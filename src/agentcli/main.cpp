@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     std::string prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
     
     const char* env_url = std::getenv("LLM_URL");
-    std::string url = env_url ? env_url : "http://192.168.1.42:8080";
+    std::string url = env_url ? env_url : "http://192.168.1.55:8080";
     
     // Set up the transport chain
 #if defined(LLM_TRANSPORT_REPLAY)

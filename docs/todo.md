@@ -2,6 +2,17 @@
 
 - would be nice to store cursor position on a per file basis across restarts of turbostar. "joe" does this 
 
+- an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
+
+- support for API keys for models -- need some basic security so that the keys don't leak out
+   - including masking this config file in our sandbox
+
+- style estimator : use clang-fmt with various options to approximate/detect the coding style, and then send as a summary to the LLM as part of system prompt
+
+- automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
+	- need to parse class hierarchy - base classes over derived
+
+
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc)
 
