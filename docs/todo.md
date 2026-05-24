@@ -1,5 +1,9 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+
+- new tool call: pop_todo(). takes the top todo item off the todo list and returns its value
+    - makes the todo list into an easier to manage task list
+
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format

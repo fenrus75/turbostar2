@@ -57,12 +57,16 @@ void ai_agent::close()
 
 void ai_agent::set_status(agent_status s, int target_id)
 {
-	status_ = s;
-	if (s == agent_status::waiting) {
-		waiting_on_id_ = target_id;
-	} else {
-		waiting_on_id_ = -1;
+	{
+		std::lock_guard<std::mutex> lock(state_mutex_);
+		status_ = s;
+		if (s == agent_status::waiting) {
+			waiting_on_id_ = target_id;
+		} else {
+			waiting_on_id_ = -1;
+		}
 	}
+	status_cv_.notify_all();
 
 	if (global_queue_) {
 		editor_event tool_ev;
@@ -70,6 +74,14 @@ void ai_agent::set_status(agent_status s, int target_id)
 		tool_ev.key_code = id_;
 		global_queue_->push(tool_ev);
 	}
+}
+
+void ai_agent::wait_until_idle()
+{
+	std::unique_lock<std::mutex> lock(state_mutex_);
+	status_cv_.wait(lock, [this]() {
+		return status_ == agent_status::idle || status_ == agent_status::error;
+	});
 }
 
 void ai_agent::cancel_current_task()
@@ -291,7 +303,7 @@ void ai_agent::start_processing()
 			if (self->is_closed_)
 				return;
 
-			self->status_ = agent_status::thinking;
+			self->set_status(agent_status::thinking);
 
 			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
 			std::shared_ptr<interaction_llm_response> current_response = nullptr;
@@ -379,7 +391,7 @@ void ai_agent::start_processing()
 						return;
 
 					self->current_tool_ = call.function.name;
-					self->status_ = agent_status::tool_execution;
+					self->set_status(agent_status::tool_execution);
 
 					std::string arg_preview;
 					try {
@@ -500,7 +512,7 @@ void ai_agent::start_processing()
 					convo_copy.push_back(tool_msg);
 				}
 				self->current_tool_.clear();
-				self->status_ = agent_status::thinking;
+				self->set_status(agent_status::thinking);
 			} else {
 				convo_copy.push_back(response_msg);
 				final_response = response_msg.content;
@@ -516,9 +528,10 @@ void ai_agent::start_processing()
 			self->conversation_ = convo_copy;
 		}
 
-		self->status_ = agent_status::idle;
+		self->set_status(agent_status::idle);
 
 		if (self->global_queue_) {
+
 			editor_event ev;
 			ev.type = event_type::agent_response;
 			ev.key_code = self->id_;

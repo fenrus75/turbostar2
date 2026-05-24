@@ -6,6 +6,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <condition_variable>
 #include "llm_client.h"
 #include "tool_registry.h"
 #include "document_provider.h"
@@ -49,6 +50,9 @@ public:
     // Explicitly set the status, optionally with a target ID if waiting
     void set_status(agent_status s, int target_id = -1);
     
+    // Blocks until the agent's status is idle or error
+    void wait_until_idle();
+
     int get_waiting_on_id() const { return waiting_on_id_; }
 
     void add_todo(const std::string& task);
@@ -96,6 +100,7 @@ private:
     document_provider* doc_provider_;
 
     std::mutex state_mutex_;
+    std::condition_variable status_cv_;
     std::vector<todo_item> todos_;
     std::vector<std::shared_ptr<ai_agent>> subagents_;
     std::vector<std::string> active_skills_;

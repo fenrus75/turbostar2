@@ -10,8 +10,10 @@ namespace tools
 struct agent_create_raw_args {
 	std::string name;
 	std::string profile;
+	std::string task;
+	bool wait{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_create_raw_args, name, profile);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_create_raw_args, name, profile, task, wait);
 
 class agent_create_validator : public agentlib::tool_validator
 {
@@ -27,7 +29,8 @@ class agent_create_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Creates a new subagent to delegate tasks to. The profile defines the agent's initial prompt and instructions.";
+		return "Creates a new subagent to delegate tasks to. You must provide either a 'task' (user request) or a 'profile' "
+		       "(system instructions), or both.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -37,8 +40,19 @@ class agent_create_validator : public agentlib::tool_validator
 		    {"properties",
 		     {{"name", {{"type", "string"}, {"description", "A short, descriptive name for the subagent."}}},
 		      {"profile",
-		       {{"type", "string"}, {"description", "The initial prompt and system instructions for the subagent to execute."}}}}},
-		    {"required", nlohmann::json::array({"name", "profile"})}};
+		       {{"type", "string"},
+			{"description", "System instructions and personality profile for the subagent. Optional if 'task' is "
+					"provided."}}},
+		      {"task",
+		       {{"type", "string"},
+			{"description", "The initial task or request for the subagent to perform. Optional if 'profile' is "
+					"provided."}}},
+		      {"wait",
+		       {{"type", "boolean"},
+			{"description", "If true, the tool will wait for the subagent to complete its task and will return its "
+					"final response directly. Defaults to false (asynchronous).",
+			 "default", false}}}}},
+		    {"required", nlohmann::json::array({"name"})}};
 	}
 
       protected:
@@ -51,12 +65,14 @@ class agent_create_validator : public agentlib::tool_validator
 				out_error = "Agent name cannot be empty.";
 				return false;
 			}
-			if (raw_args.profile.empty()) {
-				out_error = "Agent profile cannot be empty.";
+			if (raw_args.profile.empty() && raw_args.task.empty()) {
+				out_error = "You must provide either a 'profile' or a 'task' to create an agent.";
 				return false;
 			}
 			args_.name = raw_args.name;
 			args_.profile = raw_args.profile;
+			args_.task = raw_args.task;
+			args_.wait = raw_args.wait;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

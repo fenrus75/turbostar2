@@ -9,6 +9,8 @@ namespace tools {
 struct agent_create_args {
     std::string name;
     std::string profile;
+    std::string task;
+    bool wait{false};
 };
 
 class agent_create_tool : public agentlib::llm_tool {
