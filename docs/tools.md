@@ -46,6 +46,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file.
 
+### `fs_list_tests`
+*   **Description:** Returns a markdown table of all available test names in the project.
+*   **Arguments:** None.
+
 ---
 
 ## 2. File System Mutation
@@ -68,6 +72,11 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `path` *(string, required)*: The path to the file to write, relative to the project root.
     *   `content` *(string, required)*: The entire complete content to write into the file.
     *   `force_overwrite` *(boolean, optional)*: Set to true to overwrite an existing file. Defaults to false.
+
+### `fs_mkdir`
+*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p).
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the directory to create, relative to the project root.
 
 ---
 
@@ -169,6 +178,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
 
+### `get_temperature`
+*   **Description:** Get the current temperature in a given location.
+*   **Arguments:**
+    *   `location` *(string, required)*: The city and state, e.g. 'San Francisco, CA'.
+
 ### `list_tool_calls`
 *   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.
 *   **Arguments:** None.
@@ -213,15 +227,21 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `text` *(string, required)*: The exact task text or a unique substring to match.
 
+### `pop_todo`
+*   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
+*   **Arguments:** None.
+
 ---
 
 ## 8. Subagent Orchestration
 
 ### `create_agent`
-*   **Description:** Creates a new subagent to delegate tasks to.
+*   **Description:** Creates a new subagent to delegate tasks to. You must provide either a `task` (user request) or a `profile` (system instructions), or both.
 *   **Arguments:**
     *   `name` *(string, required)*: A short, descriptive name for the subagent.
-    *   `profile` *(string, required)*: The initial prompt and system instructions for the subagent.
+    *   `profile` *(string, optional)*: System instructions and personality profile for the subagent. Required if `task` is omitted.
+    *   `task` *(string, optional)*: The initial task or request for the subagent to perform. Required if `profile` is omitted.
+    *   `wait` *(boolean, optional)*: If true, the tool will wait for the subagent to complete its task and will return its final response directly. Defaults to false (asynchronous).
 
 ### `list_agents`
 *   **Description:** Lists all active subagents managed by the current agent. Returns a Markdown table of ID, Name, and Status.
@@ -298,3 +318,79 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `database` *(string, required)*: The simple name of the database to query.
     *   `query` *(string, required)*: The SQL command(s) to execute.
+
+---
+
+## 11. Git Operations
+
+These tools allow the agent to interact with the project's Git repository.
+
+### `git_status`
+*   **Description:** Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files).
+*   **Arguments:** None.
+
+### `git_add`
+*   **Description:** Stages specific files or directories for the next commit (git add <paths>).
+*   **Arguments:**
+    *   `paths` *(array of strings, required)*: List of paths relative to the project root to stage (e.g., ['src/main.cpp', 'docs/']).
+
+### `git_unstage`
+*   **Description:** Unstage files that have been added to the Git index (git reset HEAD <paths>). Does not discard local file changes.
+*   **Arguments:**
+    *   `paths` *(array of strings, required)*: List of paths relative to the project root to unstage.
+
+### `git_commit`
+*   **Description:** Commit the currently staged changes with the provided commit message.
+*   **Arguments:**
+    *   `message` *(string, required)*: The commit message.
+
+### `git_diff_unstaged`
+*   **Description:** View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
+
+### `git_diff_staged`
+*   **Description:** View the staged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
+
+### `git_log`
+*   **Description:** View the last 10 commit messages in the repository (git log -n 10 --oneline).
+*   **Arguments:** None.
+
+### `git_branch_list`
+*   **Description:** List all git branches in the repository as a Markdown table, indicating the currently active branch.
+*   **Arguments:** None.
+
+### `git_branch_create`
+*   **Description:** Create a new git branch from the current HEAD.
+*   **Arguments:**
+    *   `branch_name` *(string, required)*: The name of the new branch to create.
+
+### `git_checkout_branch`
+*   **Description:** Switch to an existing git branch (git checkout <branch>).
+*   **Arguments:**
+    *   `branch_name` *(string, required)*: The name of the branch to switch to.
+
+### `git_diff_from_branch`
+*   **Description:** Compare the current working tree against another branch (git diff <branch>). Returns raw patch output.
+*   **Arguments:**
+    *   `branch_name` *(string, required)*: The name of the branch to compare against.
+
+### `git_pull`
+*   **Description:** Synchronize the current branch with the remote (git pull).
+*   **Arguments:** None.
+
+### `git_push`
+*   **Description:** Push the current branch to the remote repository. Note: force pushing requires explicit user approval.
+*   **Arguments:**
+    *   `force` *(boolean, optional)*: Whether to force push.
+
+### `git_restore`
+*   **Description:** Discard uncommitted local changes to a file or directory (git checkout/restore <path>). Does not affect staged files.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file or directory to restore.
+
+### `git_init`
+*   **Description:** Initialize a new Git repository in the current project root. Fails if a .git directory already exists.
+*   **Arguments:** None.
