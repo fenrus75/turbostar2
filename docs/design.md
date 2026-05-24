@@ -168,3 +168,6 @@ All tools exposed to the LLM agent must strictly adhere to the following archite
   - **Stage 2 (Runtime Contextual):** Validations that require access to the instantiated tool state or dynamic runtime context (e.g., verifying a file exists before modifying it).
 - **Hard Rule:** Raw LLM-provided JSON payloads must NEVER be passed directly to execution logic or external processes without first passing the centralized schema and type validations.
 - **Sandboxed Execution:** External command tools (like compile scripts or arbitrary python scripts) must use the `command_runner` profiles which inherently map to isolated `systemd-run` environments.
+
+## Profiling and Debugging
+- **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
