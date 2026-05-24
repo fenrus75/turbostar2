@@ -38,7 +38,7 @@ menu_bar::menu_bar()
 	      {"View Crashdumps", event_type::open_crashdump_viewer, 'C', "", false}}},
 	    {"Options", 'p', {{"Preferences...", event_type::settings, 'p', "", false}, {"Models...", event_type::models_config, 'M', "", false}}},
 	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},
-	    {"Agent", 'a', {{"Open Chat...", event_type::open_agent, 'o', "", false}}},
+	    {"Agent", 'a', {{"Open Chat...", event_type::open_agent, 'o', "", false}, {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
 	    {"Window", 'w', {}},
 	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"About...", event_type::about, 'a', "", false}}}};
 }

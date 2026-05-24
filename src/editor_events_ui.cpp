@@ -139,6 +139,27 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::agent_switch_model) {
+		int target_id = ev.key_code;
+		if (target_id == 0) {
+			window *active_win = get_active_window();
+			if (dynamic_cast<agent_window *>(active_win)) {
+				target_id = active_win->get_id();
+			}
+		}
+
+		if (target_id != 0) {
+			logger.log("Dispatching agent_switch_model event for agent ID " + std::to_string(target_id));
+			switching_agent_id_ = target_id;
+			active_dialog_ = create_model_selection_dialog();
+			active_dialog_mode_ = dialog_mode::model_selection;
+			set_focus(focus_target::dialog, "model_selection");
+		} else {
+			logger.log("agent_switch_model ignored: no active agent window.");
+		}
+		return;
+	}
+
 	if (ev.type == event_type::open_agent) {
 		logger.log("Dispatching open_agent event.");
 		new_agent_window();

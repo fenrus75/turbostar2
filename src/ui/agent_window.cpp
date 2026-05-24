@@ -56,6 +56,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text == "/model") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::agent_switch_model;
+			ev.key_code = id; // Pass the window ID
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -93,6 +106,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			editor_event ev;
 			ev.type = event_type::close_window;
 			ev.key_code = id; // Pass the window ID so the dispatcher knows which one to close
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
+		if (trimmed_text == "/model") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::agent_switch_model;
+			ev.key_code = id; // Pass the window ID
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(ev);
 			} else {

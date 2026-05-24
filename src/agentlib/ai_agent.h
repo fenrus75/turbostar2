@@ -65,6 +65,7 @@ public:
     void remove_subagent(int id);
     std::vector<std::shared_ptr<ai_agent>> get_subagents() const;
 
+    void set_model(std::shared_ptr<ai_model> model);
     std::shared_ptr<ai_model> get_model() const { return model_; }
     int get_tokens_tx() const { return tokens_tx_; }
     int get_tokens_rx() const { return tokens_rx_; }

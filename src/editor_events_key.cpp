@@ -15,6 +15,7 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
+#include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 
 namespace fs = std::filesystem;
@@ -114,6 +115,23 @@ void editor::resolve_dialog(dialog_result res)
 			active_dialog_mode_ = dialog_mode::model_list;
 			set_focus(focus_target::dialog, "model_list");
 			return;
+		} else if (active_dialog_mode_ == dialog_mode::model_selection) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str != "cancel" && switching_agent_id_ != -1) {
+				auto new_model = agentlib::ai_model_registry::get_instance().get_model(res_str);
+				if (new_model) {
+					for (auto &win : windows_) {
+						if (win->get_id() == switching_agent_id_) {
+							auto awin = dynamic_cast<agent_window *>(win.get());
+							if (awin && awin->get_agent()) {
+								awin->get_agent()->set_model(new_model);
+								break;
+							}
+						}
+					}
+				}
+			}
+			switching_agent_id_ = -1;
 		} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "exit") {

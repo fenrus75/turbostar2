@@ -583,7 +583,15 @@ std::unique_ptr<dialog> create_model_list_dialog()
 		item_labels.push_back(prefix + m->get_id() + " - " + m->get_name());
 	}
 
-	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, nullptr);
+	auto on_submit = [d = dlg.get()](int idx) {
+		auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+		if (idx >= 0 && idx < (int)models.size()) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result("edit:" + models[idx]->get_id());
+		}
+	};
+
+	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, on_submit);
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
 	dlg->add_child(std::move(lb));
@@ -628,6 +636,50 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	}));
 
 	dlg->add_child(std::make_unique<ui_button>("btn_close", 48, by, " Close ", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("model_list");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_model_selection_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Select Model", 60, 18);
+	auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+
+	std::vector<std::string> item_labels;
+	for (const auto &m : models) {
+		item_labels.push_back("  " + m->get_id() + " - " + m->get_name());
+	}
+
+	auto on_submit = [d = dlg.get()](int idx) {
+		auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+		if (idx >= 0 && idx < (int)models.size()) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result(models[idx]->get_id());
+		}
+	};
+
+	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, on_submit);
+	lb->set_items(item_labels);
+	auto lb_ptr = lb.get();
+	dlg->add_child(std::move(lb));
+
+	int by = 14;
+	dlg->add_child(std::make_unique<ui_button>("btn_select", 10, by, "  Select  ", 's', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
+			if (idx < (int)models.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result(models[idx]->get_id());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 35, by, "  Cancel  ", 'c', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));

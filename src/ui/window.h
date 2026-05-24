@@ -35,6 +35,7 @@ class window
 	int get_y() const { return y_; }
 	int get_width() const { return width_; }
 	int get_height() const { return height_; }
+	int get_id() const { return id_; }
 	void set_bounds(int x, int y, int width, int height) {
 		x_ = x;
 		y_ = y;

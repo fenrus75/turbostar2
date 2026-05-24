@@ -96,7 +96,7 @@ class editor : public agentlib::document_provider
 	bool q_block_mode_{false};
 	bool p_block_mode_{false};
 
-	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, model_list, model_edit };
+	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, model_list, model_edit, model_selection };
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;
@@ -105,16 +105,16 @@ class editor : public agentlib::document_provider
 	search_params current_search_;
 	bool is_searching_prompt_{false};
 	std::string search_input_buffer_;
-	
+
 	bool is_search_options_prompt_{false};
 	std::string search_options_buffer_;
 
 	bool is_going_to_line_prompt_{false};
 	std::string line_input_buffer_;
-	
+
 	bool is_inline_agent_prompt_{false};
 	std::string inline_agent_input_buffer_;
-	
+
 	struct pending_task {
 		std::string prompt;
 		bool active{false};
@@ -126,6 +126,8 @@ class editor : public agentlib::document_provider
 	std::chrono::steady_clock::time_point transient_status_expiry_;
 
 	std::string editing_model_id_;
+	int switching_agent_id_{-1};
+
 	std::string hover_text_;
 	std::string get_search_autocomplete() const;
 
