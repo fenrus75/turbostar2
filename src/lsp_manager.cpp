@@ -30,7 +30,14 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 	auto server = std::make_unique<server_instance>();
 	server->language_id = language_id;
 	try {
-		server->process = std::make_unique<lsp::Process>(name, args);
+		// Launch the LSP server with a lower CPU priority using 'nice'
+		// This keeps the editor UI responsive during heavy background indexing.
+		std::vector<std::string> nice_args = {"-n", "10", name};
+		for (const auto &arg : args) {
+			nice_args.push_back(arg);
+		}
+		
+		server->process = std::make_unique<lsp::Process>("nice", nice_args);
 		server->connection = std::make_unique<lsp::Connection>(server->process->stdIO());
 		server->message_handler = std::make_unique<lsp::MessageHandler>(*(server->connection));
 		server->is_running.store(true);

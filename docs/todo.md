@@ -25,8 +25,6 @@
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
 
-- we should somehow start our language servers at a "nice" level
-
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
 - as part of our "terminal emulator" for the agent tab, we will need to "eat" escape codes
@@ -127,6 +125,7 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- lowered the CPU priority of background language servers (`clangd`, `pylsp`) by launching them via `nice -n 10`. This prevents heavy indexing tasks from stuttering the editor UI.
 - implemented a fuzzy-search offset hint for `fs_replace_lines`. If the agent provides the wrong line number but the exact target string exists within +/- 10 lines, the tool now returns a helpful error message pointing the agent to the correct line, preventing it from getting "stuck" or needing to re-read the file.
 - implemented `/quit` slash command in the agent window. Typing `/quit` in the multiline edit box now immediately closes the agent window, providing a fast keyboard-driven workflow.
 - simplified `fs_read_lines` UI reporting: the tool now detects when a whole file is being read and displays "Read whole file (X lines)" instead of confusing line ranges (e.g., 1-10000 of 231).
