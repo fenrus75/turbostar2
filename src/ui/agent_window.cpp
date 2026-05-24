@@ -33,8 +33,31 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 	set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 
-	input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this](const std::string &text) {
+	input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this, id](const std::string &text) {
+		std::string trimmed_text = text;
+		size_t first = trimmed_text.find_first_not_of(" \t\r\n");
+		if (first != std::string::npos) {
+			trimmed_text.erase(0, first);
+			trimmed_text.erase(trimmed_text.find_last_not_of(" \t\r\n") + 1);
+		} else {
+			trimmed_text.clear();
+		}
+
+		if (trimmed_text == "/quit") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::close_window;
+			ev.key_code = id; // Pass the window ID so the dispatcher knows which one to close
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
 		agent_->submit_prompt(text);
+		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
 		invalidate();
 	});
@@ -55,8 +78,31 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 {
 	set_background_color_pair(17);
 
-	input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this](const std::string &text) {
+	input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this, id](const std::string &text) {
+		std::string trimmed_text = text;
+		size_t first = trimmed_text.find_first_not_of(" \t\r\n");
+		if (first != std::string::npos) {
+			trimmed_text.erase(0, first);
+			trimmed_text.erase(trimmed_text.find_last_not_of(" \t\r\n") + 1);
+		} else {
+			trimmed_text.clear();
+		}
+
+		if (trimmed_text == "/quit") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::close_window;
+			ev.key_code = id; // Pass the window ID so the dispatcher knows which one to close
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
 		agent_->submit_prompt(text);
+		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
 		invalidate();
 	});
