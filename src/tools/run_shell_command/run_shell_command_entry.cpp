@@ -79,29 +79,12 @@ std::string run_shell_command_tool::execute(agentlib::tool_context& ctx) {
 
     // Permission granted
     terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
+    runner.apply_strict_agent_profile();
     runner.set_enable_crash_catcher(true);
     runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
-    // Execute via sh -c so that pipes/redirects work, but pass it securely
-    std::string safe_cmd = "sh -c " + command_; // command is not user input but we might want to do a script temp file instead
-    
-    // Actually, writing to a temp file script is much safer for avoiding shell expansion issues
-    std::filesystem::path temp_dir = std::filesystem::path(fs_utils::get_project_tmp_dir());
-    std::filesystem::path script_file = temp_dir / ("shell_cmd_" + std::to_string(std::hash<std::string>{}(command_)) + ".sh");
-    
-    std::ofstream out(script_file);
-    if (!out) {
-        return "Error: Failed to create temporary script file.";
-    }
-    out << "#!/bin/sh\n" << command_ << "\n";
-    out.close();
-
-    std::filesystem::permissions(script_file, std::filesystem::perms::owner_exec | std::filesystem::perms::owner_read);
-
-    runner.execute(script_file.string());
-    
-    std::error_code ec;
-    std::filesystem::remove(script_file, ec);
+    // Execute directly: command_runner automatically escapes and wraps it via systemd-run ... -- bash -c '...'
+    runner.execute(command_);
 
     std::string output = runner.get_final_output();
 
