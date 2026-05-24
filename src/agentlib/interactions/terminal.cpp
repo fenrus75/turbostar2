@@ -1,11 +1,11 @@
 #include "terminal.h"
+#include "../../markdown_utils.h"
 
 namespace agentlib
 {
 
 interaction_terminal::interaction_terminal(std::string title, std::string text) : title_(std::move(title)), text_(std::move(text))
 {
-	set_boxed(true, 36, title_); // 36 is Bright White on Black (Terminal Border)
 }
 
 void interaction_terminal::append_text(const std::string &t)
@@ -39,7 +39,14 @@ interaction_type interaction_terminal::get_type() const
 std::vector<interaction_line> interaction_terminal::format_lines(int width, background_mode bg) const
 {
 	int color = get_color_pair(interaction_role::terminal, bg);
-	return wrap_text("", text_, width, color);
+	auto lines = wrap_text("", text_, width, color);
+	for (auto &line : lines) {
+		int len = markdown_utils::utf8_length(line.text);
+		if (len < width) {
+			line.text += std::string(width - len, ' ');
+		}
+	}
+	return lines;
 }
 
 } // namespace agentlib

@@ -106,8 +106,24 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 				escaped_code += c;
 		}
 		full_cmd = "echo '" + escaped_code + "' | " + base_cmd;
+		
+		if (interaction_) {
+			std::string display_cmd = base_cmd + "<inline code>";
+			if (display_cmd.find("PYTHONUNBUFFERED=1 ") == 0) {
+				display_cmd = display_cmd.substr(19);
+			}
+			std::dynamic_pointer_cast<agentlib::interaction_terminal>(interaction_)->set_title(display_cmd);
+		}
 	} else {
 		full_cmd = base_cmd + "'" + script_path + "'";
+		
+		if (interaction_) {
+			std::string display_cmd = base_cmd + *args_.file_path;
+			if (display_cmd.find("PYTHONUNBUFFERED=1 ") == 0) {
+				display_cmd = display_cmd.substr(19);
+			}
+			std::dynamic_pointer_cast<agentlib::interaction_terminal>(interaction_)->set_title(display_cmd);
+		}
 	}
 
 	size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();

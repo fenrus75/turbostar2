@@ -9,6 +9,7 @@ public:
     
     void append_text(const std::string& t);
     void set_text(const std::string& t);
+    void set_title(const std::string& title) { title_ = title; invalidate_cache(); }
     
     std::string get_raw_text() const override;
     interaction_type get_type() const override;

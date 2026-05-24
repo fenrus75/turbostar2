@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include "../../agentlib/interactions/base.h"
+#include "../../markdown_utils.h"
 #include "fs_replace_lines.h"
 
 namespace tools
@@ -13,8 +14,7 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
       public:
 	interaction_fs_replace_lines(const std::string &path, size_t num_edits)
 	{
-		set_boxed(true, 5, path); // 5 is Window Border color pair
-		call_text_ = "Applying " + std::to_string(num_edits) + " operation" + (num_edits == 1 ? "" : "s");
+		call_text_ = "Applying " + std::to_string(num_edits) + " operation" + (num_edits == 1 ? "" : "s") + " to " + path;
 	}
 
 	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
@@ -34,7 +34,6 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 		std::string title = path;
 		if (is_buffer)
 			title += " (edit buffer)";
-		set_boxed(true, 5, title);
 	}
 
 	void set_diff(const std::vector<std::string> &before, const std::vector<std::string> &after)
@@ -81,7 +80,7 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 			for (const auto &dl : diff_lines_) {
 				int color = 3; // Default Yellow on Dark Blue
 				if (dl.empty()) {
-					lines.push_back({"", color});
+					lines.push_back({std::string(width, ' '), color});
 					continue;
 				}
 
@@ -106,6 +105,14 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 			auto res_lines = wrap_text("", "-> " + result_text_, width, res_color);
 			lines.insert(lines.end(), res_lines.begin(), res_lines.end());
 		}
+
+		for (auto &line : lines) {
+			int len = markdown_utils::utf8_length(line.text);
+			if (len < width) {
+				line.text += std::string(width - len, ' ');
+			}
+		}
+
 		return lines;
 	}
 
