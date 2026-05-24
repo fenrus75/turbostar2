@@ -26,7 +26,8 @@ void ui_radio_choice::draw(int abs_x, int abs_y) const
 	}
 	addch(')');
 	
-	mvaddstr(abs_y, abs_x + 4, text_.c_str());
+	addch(' ');
+	addstr(text_.c_str());
 	
 	if (hotkey_ != '\0') {
 		size_t hk_pos = text_.find(hotkey_);

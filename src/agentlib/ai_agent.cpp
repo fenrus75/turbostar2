@@ -184,7 +184,7 @@ void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction) {
     interactions_.push_back(std::move(interaction));
 }
 
-void ai_agent::inject_context(const std::string& role, const std::string& content) {
+void ai_agent::inject_context(const std::string& role, const std::string& content, bool trigger_processing) {
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
         message context_msg;
@@ -195,9 +195,7 @@ void ai_agent::inject_context(const std::string& role, const std::string& conten
 
     add_interaction(std::make_shared<interaction_system_message>(content));
 
-    // If the agent is idle or waiting, wake it up to process this new context.
-    if (status_ == agent_status::idle || status_ == agent_status::waiting) {
-        // Start processing without adding a user message
+    if (trigger_processing && (status_ == agent_status::idle || status_ == agent_status::waiting)) {
         start_processing();
     }
 }
@@ -535,7 +533,7 @@ void ai_agent::start_processing() {
             system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
             system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
 
-            parent->inject_context("system", system_msg);
+            parent->inject_context("system", system_msg, true);
         }
     }).detach();
 }
