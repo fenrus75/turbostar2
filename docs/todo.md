@@ -73,6 +73,12 @@
 
 # mid term items
 
+- gdbserver notes on how to debug an application nicely
+	terminal 1:	gdbserver :1234 ./my_program
+	terminal 2:	gdb ./my_program
+			target remote localhost:1234
+			continue (etc)
+
 
 - support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
 

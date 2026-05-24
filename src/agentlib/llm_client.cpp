@@ -6,13 +6,14 @@ using json = nlohmann::json;
 namespace agentlib
 {
 
-llm_client::llm_client(std::shared_ptr<llm_transport> transport) : transport_(std::move(transport))
+llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string model_id)
+    : transport_(std::move(transport)), model_id_(std::move(model_id))
 {
 }
 
 llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry)
 {
-	json payload = {{"model", "default-model"}, {"messages", conversation}, {"stream", false}};
+	json payload = {{"model", model_id_}, {"messages", conversation}, {"stream", false}};
 
 	if (registry) {
 		json tools_json = registry->get_tools_json();
@@ -65,7 +66,7 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 				  const tool_registry *registry)
 {
 	json payload = {
-	    {"model", "default-model"}, {"messages", conversation}, {"stream", true}, {"stream_options", {{"include_usage", true}}}};
+	    {"model", model_id_}, {"messages", conversation}, {"stream", true}, {"stream_options", {{"include_usage", true}}}};
 
 	if (registry) {
 		json tools_json = registry->get_tools_json();

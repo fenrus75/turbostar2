@@ -10,7 +10,7 @@ namespace agentlib {
 
 class llm_client {
 public:
-    explicit llm_client(std::shared_ptr<llm_transport> transport);
+    explicit llm_client(std::shared_ptr<llm_transport> transport, std::string model_id);
 
     llm_chat_response send_chat(const std::vector<message>& conversation, const tool_registry* registry = nullptr);
 
@@ -22,6 +22,7 @@ public:
 
 private:
     std::shared_ptr<llm_transport> transport_;
+    std::string model_id_;
 };
 
 } // namespace agentlib

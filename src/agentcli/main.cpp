@@ -25,17 +25,18 @@ int main(int argc, char **argv)
 	// Set up the transport chain
 #if defined(LLM_TRANSPORT_REPLAY)
 	std::cout << "[Using Replay Transport]" << std::endl;
-	auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "llm_debug_traffic.json");
-	llm_client client(player);
+	auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "tests/data/todo_traffic.json");
+	llm_client client(player, "gpt-4o");
+
 #elif defined(LLM_TRANSPORT_RECORD)
 	std::cout << "[Using Recording Transport]" << std::endl;
 	auto http_transport = std::make_shared<httplib_transport>(url);
 	auto recorder = std::make_shared<recording_transport>(http_transport, argc > 2 ? argv[2] : "llm_debug_traffic.json");
-	llm_client client(recorder);
+	llm_client client(recorder, "gpt-4o");
 #else
 	std::cout << "[Using Standard HTTP Transport]" << std::endl;
 	auto http_transport = std::make_shared<httplib_transport>(url);
-	llm_client client(http_transport);
+	llm_client client(http_transport, "gpt-4o");
 #endif
 
 	tool_registry &registry = tool_registry::get_instance();
