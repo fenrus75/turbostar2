@@ -65,8 +65,7 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
 				  const tool_registry *registry)
 {
-	json payload = {
-	    {"model", model_id_}, {"messages", conversation}, {"stream", true}, {"stream_options", {{"include_usage", true}}}};
+	json payload = {{"model", model_id_}, {"messages", conversation}, {"stream", true}};
 
 	if (registry) {
 		json tools_json = registry->get_tools_json();

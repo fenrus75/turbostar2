@@ -108,6 +108,8 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 				    std::function<bool(const char *data, size_t len, size_t off, size_t total)> callback)
 {
 	httplib::Result res;
+	std::string error_body;
+	int status_code = 0;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		if (!cli_)
@@ -121,7 +123,19 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		if (!api_key_.empty()) {
 			req.set_header("Authorization", "Bearer " + api_key_);
 		}
-		req.content_receiver = callback;
+
+		req.response_handler = [&](const httplib::Response &response) {
+			status_code = response.status;
+			return true;
+		};
+
+		req.content_receiver = [&](const char *data, size_t len, size_t off, size_t total) {
+			if (status_code != 200) {
+				error_body.append(data, len);
+				return true;
+			}
+			return callback(data, len, off, total);
+		};
 
 		res = cli_->send(req);
 	}
@@ -133,8 +147,11 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 	if (res->status != 200) {
 		last_error_ = "HTTP " + std::to_string(res->status);
-		if (!res->body.empty())
+		if (!error_body.empty()) {
+			last_error_ += ": " + error_body;
+		} else if (!res->body.empty()) {
 			last_error_ += ": " + res->body;
+		}
 		return false;
 	}
 
