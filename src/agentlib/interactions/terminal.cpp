@@ -22,8 +22,14 @@ void interaction_terminal::set_text(const std::string &t)
 
 std::string interaction_terminal::get_raw_text() const
 {
-	return "Terminal [" + title_ + "]:\n" + text_;
+	return "[" + title_ + "]\n" + text_;
 }
+
+interaction_type interaction_terminal::get_type() const
+{
+	return interaction_type::terminal;
+}
+
 
 std::vector<interaction_line> interaction_terminal::format_lines(int width) const
 {

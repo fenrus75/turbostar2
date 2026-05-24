@@ -214,4 +214,24 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	return lines;
 }
 
+bool agent_interaction::can_merge_with_previous(const agent_interaction &previous) const
+{
+	interaction_type my_type = get_type();
+	interaction_type prev_type = previous.get_type();
+
+	// System messages only merge with each other
+	if (my_type == interaction_type::system_message) {
+		return prev_type == interaction_type::system_message;
+	}
+
+	// User messages only merge with each other
+	if (my_type == interaction_type::user_message) {
+		return prev_type == interaction_type::user_message;
+	}
+
+	// Everything else merges into the current turn, provided the current turn
+	// isn't a system message block.
+	return prev_type != interaction_type::system_message;
+}
+
 } // namespace agentlib

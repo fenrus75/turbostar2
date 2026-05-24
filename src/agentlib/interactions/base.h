@@ -6,6 +6,18 @@
 
 namespace agentlib {
 
+enum class interaction_type {
+    system_message,
+    user_message,
+    reasoning,
+    llm_response,
+    tool_call,
+    tool_result,
+    terminal,
+    action,
+    unknown
+};
+
 struct interaction_line {
     std::string text;
     int color_pair;
@@ -18,6 +30,8 @@ struct interaction_line {
 class agent_interaction {
 public:
     virtual ~agent_interaction() = default;
+
+    virtual interaction_type get_type() const = 0;
 
     int get_height(int width) const;
     const std::vector<interaction_line>& render(int width) const;
@@ -40,6 +54,11 @@ public:
             invalidate_cache(); 
         }
     }
+
+    // Sub-panel metadata for grouped rendering
+    virtual bool needs_subpanel_header() const { return false; }
+    virtual std::string get_subpanel_label() const { return ""; }
+    virtual bool can_merge_with_previous(const agent_interaction& previous) const;
 
 protected:
     virtual std::vector<interaction_line> format_lines(int width) const = 0;

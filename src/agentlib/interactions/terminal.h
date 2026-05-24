@@ -11,6 +11,10 @@ public:
     void set_text(const std::string& t);
     
     std::string get_raw_text() const override;
+    interaction_type get_type() const override;
+
+    bool needs_subpanel_header() const override { return true; }
+    std::string get_subpanel_label() const override { return title_; }
 
 protected:
     std::vector<interaction_line> format_lines(int width) const override;

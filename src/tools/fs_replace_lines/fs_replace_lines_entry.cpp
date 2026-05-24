@@ -17,6 +17,11 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 		call_text_ = "Applying " + std::to_string(num_edits) + " operation" + (num_edits == 1 ? "" : "s");
 	}
 
+	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
+
+	bool needs_subpanel_header() const override { return true; }
+	std::string get_subpanel_label() const override { return "Applying edits"; }
+
 	void set_result(const std::string &res)
 	{
 		result_text_ = res;

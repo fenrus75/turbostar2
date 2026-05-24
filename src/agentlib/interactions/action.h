@@ -9,6 +9,8 @@ public:
 
     explicit interaction_action(std::string action_text);
 
+    interaction_type get_type() const override { return interaction_type::action; }
+
     void set_status(status s, const std::string& result_message = "");
     void set_action_text(const std::string& text);
 

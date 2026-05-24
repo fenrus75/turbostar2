@@ -6,6 +6,7 @@ namespace agentlib {
 class interaction_llm_response : public agent_interaction {
 public:
     explicit interaction_llm_response(std::string text) : text_(std::move(text)) {}
+    interaction_type get_type() const override { return interaction_type::llm_response; }
     std::string get_raw_text() const override { return "LLM: " + text_; }
     const std::string& get_text() const { return text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
