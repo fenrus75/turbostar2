@@ -80,6 +80,7 @@ class project_manager
 
 	struct project_layout {
 		std::vector<directory_info> top_directories;
+		std::vector<std::string> key_files;
 		bool ready{false};
 	};
 

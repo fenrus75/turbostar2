@@ -203,7 +203,7 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 		d->set_result("cancel");
 	}));
 
-	dlg->set_focus_by_name("options");
+	dlg->set_focus_by_name("btn_ok");
 	return dlg;
 }
 

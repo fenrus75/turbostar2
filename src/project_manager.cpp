@@ -76,7 +76,12 @@ void project_manager::inventory_project(std::stop_token stop)
 	fs::path root(repo_root_);
 
 	std::map<std::string, directory_info> dir_map;
+	std::vector<std::string> key_files;
 	int dir_count = 0;
+
+	// Initial set of potential key files in root
+	static const std::set<std::string> root_key_filenames = {"meson.build", "CMakeLists.txt", "configure.ac", "Makefile",
+								 "README.md",   "TODO.md"};
 
 	try {
 		for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied);
@@ -87,10 +92,13 @@ void project_manager::inventory_project(std::stop_token stop)
 			const auto &path = it->path();
 			std::string rel_path = fs::relative(path, root).string();
 
-			// Skip hidden directories (like .git) and build directory
+			// Skip hidden directories (like .git), build directories, and temp directories
 			if (it->is_directory()) {
 				std::string name = path.filename().string();
-				if (name.front() == '.' || name == build_dir) {
+				bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root;
+
+				if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
+				    (is_top_level && name.starts_with("build"))) {
 					it.disable_recursion_pending();
 					continue;
 				}
@@ -103,6 +111,15 @@ void project_manager::inventory_project(std::stop_token stop)
 				dir_map[rel_path].path = rel_path;
 				dir_map[rel_path].depth = std::count(rel_path.begin(), rel_path.end(), fs::path::preferred_separator);
 			} else if (fs::is_regular_file(path)) {
+				std::string filename = path.filename().string();
+				if (filename.empty() || filename.back() == '~')
+					continue;
+
+				// Check for root-level key files
+				if (path.parent_path() == root && root_key_filenames.contains(filename)) {
+					key_files.push_back(filename);
+				}
+
 				bool header = is_header(path);
 				bool source = is_source(path);
 				bool doc = is_doc_config(path);
@@ -112,11 +129,9 @@ void project_manager::inventory_project(std::stop_token stop)
 
 				// Update parent directory
 				std::string parent_rel = fs::relative(path.parent_path(), root).string();
-				if (parent_rel == ".") {
-					// Root directory files are handled separately or ignored in the table
-				} else {
+				if (parent_rel != ".") {
 					auto &info = dir_map[parent_rel];
-					info.path = parent_rel; // Ensure path is set
+					info.path = parent_rel;
 					if (header)
 						info.direct_headers++;
 					else if (source)
@@ -132,9 +147,6 @@ void project_manager::inventory_project(std::stop_token stop)
 					dir_map[ancestor_rel].total_files_underneath++;
 					p = p.parent_path();
 				}
-
-				// Periodically update the "ready" state with partial results if needed
-				// but for simplicity we'll just wait until the end or do it once per 100 files
 			}
 		}
 	} catch (const std::exception &e) {
@@ -214,16 +226,29 @@ void project_manager::inventory_project(std::stop_token stop)
 	add_top(top_recursive, 5);
 	add_top(top_headers, 5);
 	add_top(top_source, 5);
-	add_top(top_docs, 3, 1); // Minimum 2 files for docs/config
+	add_top(top_docs, 3, 1);
+
+	// Try to find 'main' using common paths
+	static const std::vector<std::string> common_mains = {"src/main.cpp", "src/main.c", "main.cpp", "main.c"};
+	for (const auto &m : common_mains) {
+		if (fs::exists(root / m)) {
+			key_files.push_back(m);
+			break;
+		}
+	}
 
 	// Final sort by path for display
 	std::sort(result.begin(), result.end(), [](const directory_info &a, const directory_info &b) {
 		return a.path < b.path;
 	});
 
+	std::sort(key_files.begin(), key_files.end());
+	key_files.erase(std::unique(key_files.begin(), key_files.end()), key_files.end());
+
 	{
 		std::lock_guard<std::mutex> lock(layout_mutex_);
 		layout_.top_directories = std::move(result);
+		layout_.key_files = std::move(key_files);
 		layout_.ready = true;
 	}
 
@@ -236,17 +261,26 @@ void project_manager::inventory_project(std::stop_token stop)
 std::string project_manager::get_project_layout_markdown() const
 {
 	std::lock_guard<std::mutex> lock(layout_mutex_);
-	if (!layout_.ready || layout_.top_directories.empty())
+	if (!layout_.ready || (layout_.top_directories.empty() && layout_.key_files.empty()))
 		return "";
 
 	std::stringstream ss;
-	ss << "\nProject Layout Overview:\n";
-	ss << "| Directory | Files | Headers | Docs/Config | Total Underneath |\n";
-	ss << "| :--- | :---: | :---: | :---: | :---: |\n";
+	if (!layout_.top_directories.empty()) {
+		ss << "\nProject Layout Overview:\n";
+		ss << "| Directory | Files | Headers | Docs/Config | Total Underneath |\n";
+		ss << "| :--- | :---: | :---: | :---: | :---: |\n";
 
-	for (const auto &dir : layout_.top_directories) {
-		ss << "| " << dir.path << " | " << dir.direct_files << " | " << dir.direct_headers << " | "
-		   << dir.direct_docs_config << " | " << dir.total_files_underneath << " |\n";
+		for (const auto &dir : layout_.top_directories) {
+			ss << "| " << dir.path << " | " << dir.direct_files << " | " << dir.direct_headers << " | "
+			   << dir.direct_docs_config << " | " << dir.total_files_underneath << " |\n";
+		}
+	}
+
+	if (!layout_.key_files.empty()) {
+		ss << "\nKey Files:\n";
+		for (const auto &f : layout_.key_files) {
+			ss << "- " << f << "\n";
+		}
 	}
 	return ss.str();
 }

@@ -14,6 +14,7 @@
 
 - automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
 	- need to parse class hierarchy - base classes over derived
+	- this is an extension to the existing "Key files' section which is currently only path based
 
 
 - a "run" option to run the application from the menu, where we temporarily
