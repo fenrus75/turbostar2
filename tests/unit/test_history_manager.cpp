@@ -34,7 +34,7 @@ void test_history_manager() {
     hm.add_file("file2.txt");
     auto files = hm.get_files();
     assert(files.size() >= 2);
-    assert(files[0] == "file2.txt");
+    assert(files[0] == fs::absolute("file2.txt").lexically_normal().string());
 
     // 5. Test unknown.txt ignore
     prev_size = hm.get_files().size();
@@ -58,8 +58,9 @@ void test_history_manager() {
     hm.load();
     assert(hm.get_searches().size() == 1);
     assert(hm.get_searches()[0] == "persist1");
-    assert(hm.get_files().size() == 1);
-    assert(hm.get_files()[0] == "persist2.txt");
+    auto files_after = hm.get_files();
+    assert(files_after.size() == 1);
+    assert(files_after[0] == fs::absolute("persist2.txt").lexically_normal().string());
 
     // Clean up
     fs::remove("/tmp/non_existent_turbostar_test_dir/.turbostar_history");
@@ -85,6 +86,39 @@ void test_history_manager() {
     hm.add_file("");
     hm.add_file("unknown.txt");
     assert(hm.get_files().size() == prev_size);
+
+    // 11. Test Cursor Position Persistence and LRU
+    setenv("HOME", test_dir.c_str(), 1);
+    hm.load();
+    hm.set_cursor_pos("cursor_file.txt", 10, 20);
+    auto pos = hm.get_cursor_pos("cursor_file.txt");
+    assert(pos.has_value());
+    assert(pos->x == 10);
+    assert(pos->y == 20);
+
+    hm.save();
+    hm.load();
+    pos = hm.get_cursor_pos("cursor_file.txt");
+    assert(pos.has_value());
+    assert(pos->x == 10);
+    assert(pos->y == 20);
+
+    // Test LRU for cursor memory
+    for (int i = 0; i < 30; ++i) {
+        hm.set_cursor_pos("file_" + std::to_string(i) + ".txt", i, i);
+    }
+    // file_0 should be evicted (30 items total, limit 25, 29, 28, 27, 26, 25 are newest)
+    // Wait, the order was file_0, file_1, ..., file_29.
+    // file_29 is newest. file_0 is oldest.
+    assert(!hm.get_cursor_pos("file_0.txt").has_value());
+    assert(hm.get_cursor_pos("file_29.txt").has_value());
+
+    // 12. Test path normalization
+    hm.set_cursor_pos("./norm.txt", 5, 5);
+    std::string norm_abs = fs::absolute("./norm.txt").lexically_normal().string();
+    pos = hm.get_cursor_pos(norm_abs);
+    assert(pos.has_value());
+    assert(pos->x == 5);
 
     std::cout << "history_manager unit tests passed!\n";
 }

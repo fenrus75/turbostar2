@@ -1,11 +1,9 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
-- would be nice to store cursor position on a per file basis across restarts of turbostar. "joe" does this 
-
 - an model configuration file, and a menu/dialog box to add more, and activate/deactivate models
 
 - as part of our "terminal emulator" for the agent tab, we will need to "eat" escape codes
-     to avoid corruption of the screen
+     to avoid corruption of the screen, at least the common ones and make the rest harmless (replace <esc> with a space)
 
 - support for API keys for models -- need some basic security so that the keys don't leak out
    - including masking this config file in our sandbox
@@ -18,9 +16,6 @@
 
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc)
-
-- the ui radio box primitive has a space between ( ) and the choice text, which is fine, however that space
-  does not have the same background color (cyan) as the ( ) and the choice text, which is not fine, it looks very sloppy.
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
@@ -104,6 +99,7 @@
 # done items (move items here on completion)
 
 ## 23-05-2026
+- implemented persistent cursor positions across restarts with a 25-file LRU policy. File paths are now stored as absolute paths in `.turbostar_history` using a robust `x y path` format that handles spaces in filenames.
 - fixed a typo by renaming `AGENT.md` to `AGENTS.md` throughout the project management and documentation logic.
 - fixed an unused parameter warning in the `agent_window` constructor by removing the redundant `global_queue` parameter and updating all call sites.
 - fixed the `clangd` OOM issue by refactoring LSP management.

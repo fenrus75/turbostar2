@@ -42,7 +42,9 @@ class history_manager
 	std::deque<std::string> searches_;
 	std::deque<std::string> files_;
 	std::unordered_map<std::string, cursor_pos> cursor_memory_;
+	std::deque<std::string> cursor_lru_;
 	std::unordered_map<std::string, std::vector<std::string>> project_files_;
 	
 	const size_t max_history_items_ = 50;
+	const size_t max_cursor_memory_ = 25;
 };
