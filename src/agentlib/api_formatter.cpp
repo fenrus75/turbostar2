@@ -152,7 +152,12 @@ std::string gemini_formatter::build_chat_payload(const std::string& model_id, co
                     } catch (...) {
                         func_call["args"] = json::object();
                     }
-                    parts_array.push_back({{"functionCall", func_call}});
+                    
+                    json part_obj = {{"functionCall", func_call}};
+                    if (tc.signature) {
+                        part_obj["thoughtSignature"] = *tc.signature;
+                    }
+                    parts_array.push_back(part_obj);
                 }
                 json content_obj = {
                     {"role", "model"},
@@ -247,11 +252,12 @@ chat_delta gemini_formatter::parse_stream_chunk(const std::string& json_chunk) c
                             auto fc = part["functionCall"];
                             tool_call tc;
                             tc.type = "function";
-                            // Gemini doesn't always provide a call ID, generate a dummy one if needed
-                            tc.id = "call_" + std::to_string(std::rand()); 
                             tc.function.name = fc.value("name", "");
                             if (fc.contains("args")) {
                                 tc.function.arguments = fc["args"].dump();
+                            }
+                            if (part.contains("thoughtSignature")) {
+                                tc.signature = part["thoughtSignature"].get<std::string>();
                             }
                             if (!delta.tool_calls) delta.tool_calls = std::vector<tool_call>();
                             delta.tool_calls->push_back(tc);
@@ -300,10 +306,12 @@ llm_chat_response gemini_formatter::parse_sync_response(const std::string& json_
                             auto fc = part["functionCall"];
                             tool_call tc;
                             tc.type = "function";
-                            tc.id = "call_" + std::to_string(std::rand()); 
                             tc.function.name = fc.value("name", "");
                             if (fc.contains("args")) {
                                 tc.function.arguments = fc["args"].dump();
+                            }
+                            if (part.contains("thoughtSignature")) {
+                                tc.signature = part["thoughtSignature"].get<std::string>();
                             }
                             if (!chat_response.msg.tool_calls) chat_response.msg.tool_calls = std::vector<tool_call>();
                             chat_response.msg.tool_calls->push_back(tc);

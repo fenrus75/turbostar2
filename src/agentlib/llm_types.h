@@ -16,8 +16,20 @@ struct tool_call {
     std::string id;
     std::string type;
     function_call function;
+    std::optional<std::string> signature;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(tool_call, id, type, function);
+
+inline void to_json(nlohmann::json& j, const tool_call& p) {
+    j = nlohmann::json{{"id", p.id}, {"type", p.type}, {"function", p.function}};
+    if (p.signature) j["signature"] = *p.signature;
+}
+
+inline void from_json(const nlohmann::json& j, tool_call& p) {
+    j.at("id").get_to(p.id);
+    j.at("type").get_to(p.type);
+    j.at("function").get_to(p.function);
+    if (j.contains("signature")) p.signature = j.at("signature").get<std::string>();
+}
 
 struct message {
     std::string role;
