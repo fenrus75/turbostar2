@@ -255,9 +255,12 @@ These tools provide semantic understanding of code by leveraging the Language Se
 
 ### `message_agent`
 *   **Description:** Sends a message or command to an active subagent.
+*   **Security:**
+    *   Maximum message length: 100KB (prevents DoS attacks)
+    *   Validates target agent exists and is a direct child of the calling agent
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent.
-    *   `message` *(string, required)*: The text message or instruction to send.
+    *   `message` *(string, required)*: The text message or instruction to send (max 100KB).
 
 ### `wait_for_agent`
 *   **Description:** Pauses execution until the specified subagent becomes idle.
