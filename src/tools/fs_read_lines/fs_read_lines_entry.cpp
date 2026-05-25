@@ -126,7 +126,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 								    : view.substr(start_pos, end_pos - start_pos);
 
 					if (current_line >= args_.start_line && current_line <= args_.end_line) {
-						ss << line << "\n";
+						ss << current_line << ": " << line << "\n";
 					} else if (current_line > args_.end_line) {
 						break;
 					}
@@ -215,7 +215,7 @@ std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot *
 	}
 
 	for (int i = start_idx; i <= end_idx; ++i) {
-		ss << doc->get_line_text(i) << "\n";
+		ss << (i + 1) << ": " << doc->get_line_text(i) << "\n";
 	}
 
 	return ss.str();
@@ -282,7 +282,7 @@ std::string fs_read_lines_tool::read_from_disk(size_t &out_total_lines) const
 		if (!line.empty() && line.back() == '\r') {
 			line.pop_back();
 		}
-		ss << line << "\n";
+		ss << current_line << ": " << line << "\n";
 		current_line++;
 	}
 

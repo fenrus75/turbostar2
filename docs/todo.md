@@ -15,6 +15,10 @@
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
+- we need to consider splitting some of our headers into public and private parts; too often a small edit leads to a recompile
+  of most of the project
+    - base.h is pretty bad this way, it really should be split
+
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
