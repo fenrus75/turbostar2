@@ -521,21 +521,14 @@ void ai_agent::start_processing()
 					}
 
 					std::string result_preview = tool_result;
-					if (result_preview.find("Stage 1 Security Violation:") != 0 &&
-					    result_preview.find("Execution Error:") != 0 &&
-					    result_preview.find("Error parsing tool arguments:") != 0) {
-						size_t newline_pos = result_preview.find('\n');
-						if (newline_pos != std::string::npos) {
-							result_preview = result_preview.substr(0, newline_pos) + " ...";
-						}
-						if (result_preview.length() > 300) {
-							result_preview = result_preview.substr(0, 297) + "...";
-						}
+					if (result_preview.length() > 1024) {
+						result_preview = result_preview.substr(0, 1021) + "...";
 					}
 
 					if (!is_silent && !custom_interaction) {
 						self->add_interaction(std::make_shared<interaction_tool_result>(call.function.name, result_preview));
-						if (self->global_queue_) {							editor_event result_ev;
+						if (self->global_queue_) {
+							editor_event result_ev;
 							result_ev.type = event_type::agent_tool_update;
 							result_ev.key_code = self->id_;
 							self->global_queue_->push(result_ev);
