@@ -7,6 +7,7 @@
 #include <set>
 #include <sstream>
 #include <nlohmann/json.hpp>
+#include <re2/re2.h>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -705,19 +706,59 @@ void project_manager::software_map_loop(std::stop_token stop)
 		}
 
 		if (needs_seed) {
-			auto symbols = lsp_query_workspace_symbols("");
-			if (!symbols.empty()) {
-				std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
-				software_map_.symbols.clear();
-				software_map_.name_to_indices.clear();
-				for (const auto &sym : symbols) {
-					// Ignore standard library and system headers to avoid noise
-					if (sym.location.path.starts_with("/usr/")) {
+			// Phase 1: Regex Seeding from Headers
+			std::set<std::string> seed_names;
+			RE2 class_regex("^\\s*(?:class|struct)\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
+			fs::path root(repo_root_);
+			std::string build_dir = config_manager::get_instance().get_build_directory();
+
+			try {
+				for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied);
+				     it != fs::recursive_directory_iterator(); ++it) {
+					if (stop.stop_requested())
+						return;
+					const auto &path = it->path();
+					if (it->is_directory()) {
+						std::string name = path.filename().string();
+						bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root;
+						if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
+						    (is_top_level && name.starts_with("build"))) {
+							it.disable_recursion_pending();
+						}
 						continue;
 					}
+					if (is_header(path)) {
+						std::ifstream file(path);
+						std::string line;
+						while (std::getline(file, line)) {
+							std::string class_name;
+							if (RE2::PartialMatch(line, class_regex, &class_name)) {
+								seed_names.insert(class_name);
+							}
+						}
+					}
+				}
+			} catch (...) {
+			}
 
-					// Filter for Class(5), Method(6), Interface(11), Function(12), Struct(22)
+			auto process_symbols = [&](const std::vector<lsp_manager::symbol_info> &symbols) {
+				std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
+				for (const auto &sym : symbols) {
+					if (sym.location.path.starts_with("/usr/"))
+						continue;
+
 					if (sym.kind == 5 || sym.kind == 6 || sym.kind == 11 || sym.kind == 12 || sym.kind == 22) {
+						// Simple deduplication
+						bool exists = false;
+						for (const auto &ex : software_map_.symbols) {
+							if (ex.name == sym.name && ex.location.path == sym.location.path) {
+								exists = true;
+								break;
+							}
+						}
+						if (exists)
+							continue;
+
 						software_map_symbol sms;
 						sms.name = sym.name;
 						sms.kind = sym.kind;
@@ -726,24 +767,38 @@ void project_manager::software_map_loop(std::stop_token stop)
 						sms.accumulated_count = 0;
 						sms.is_seed = true;
 						sms.is_sampled = false;
-						
-						// Slight boost for headers and root level files
+
 						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
-							sms.accumulated_count = 5; 
+							sms.accumulated_count = 5;
 						}
-						
+
 						software_map_.symbols.push_back(sms);
 						software_map_.name_to_indices[sym.name].push_back(software_map_.symbols.size() - 1);
 					}
 				}
-				software_map_.ready = true;
-				
-				// Release lock to save
-				lock.unlock();
-				save_software_map();
-				update_software_map_markdown();
+			};
+
+			// Phase 2: Targeted LSP resolution for regex seeds
+			for (const auto &name : seed_names) {
+				if (stop.stop_requested())
+					return;
+				auto symbols = lsp_query_workspace_symbols(name);
+				process_symbols(symbols);
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			}
-			std::this_thread::sleep_for(std::chrono::seconds(5)); // Give it a breather after big query
+
+			// Phase 3: Broad LSP scan fallback
+			auto broad_symbols = lsp_query_workspace_symbols("");
+			process_symbols(broad_symbols);
+
+			{
+				std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
+				software_map_.ready = true;
+			}
+			save_software_map();
+			update_software_map_markdown();
+
+			std::this_thread::sleep_for(std::chrono::seconds(5));
 			continue;
 		}
 
