@@ -90,6 +90,7 @@ private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
     void start_processing();
+    void compact_ephemeral_errors(std::vector<message>& convo);
 
     int id_;
     std::string name_;

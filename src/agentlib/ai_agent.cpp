@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include "../config_manager.h"
 #include "../event_queue.h"
+#include "../event_logger.h"
 #include "../git_manager.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
@@ -567,6 +568,9 @@ void ai_agent::start_processing()
 						last_synced_index = self->conversation_.size();
 					}
 					convo.push_back(tool_msg);
+					
+					// Attempt to zap transient failure loops now that a tool has completed
+					self->compact_ephemeral_errors(convo);
 				}
 				self->current_tool_.clear();
 				self->set_status(agent_status::thinking);
@@ -657,6 +661,84 @@ void ai_agent::save_conversation(const std::string& filepath) const
 	std::ofstream file(filepath);
 	if (file.is_open()) {
 		file << root.dump(4);
+	}
+}
+
+void ai_agent::compact_ephemeral_errors(std::vector<message>& convo)
+{
+	bool compacted = false;
+	
+	while (convo.size() >= 4) {
+		auto it_n0 = convo.end() - 1;
+		auto it_n1 = convo.end() - 2;
+		auto it_n2 = convo.end() - 3;
+		auto it_n3 = convo.end() - 4;
+
+		if (it_n0->role != "tool") break;
+		if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1) break;
+		if (it_n2->role != "tool") break;
+		if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1) break;
+
+		if (!it_n0->name || !it_n2->name) break;
+		if (*it_n0->name != *it_n2->name) break;
+
+		std::string tool_name = *it_n0->name;
+		if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name) break;
+
+		auto is_error = [](const std::string& content) {
+			return content.starts_with("Error:") || 
+			       content.starts_with("Verification Error:") ||
+			       content.starts_with("Stage 1 Security Violation:") ||
+			       content.starts_with("Stage 2 Security Violation:");
+		};
+
+		if (is_error(it_n0->content)) break; // N-0 must be a success
+		if (!is_error(it_n2->content)) break; // N-2 must be a failure
+
+		// We have a match! ZAP N-3 and N-2, and strip N-1
+		it_n1->content.clear();
+		// Reasoning isn't part of standard message serialization currently, but if we add it, we'd clear it here.
+		// Wait, message struct doesn't have reasoning_content right now, it's only in chat_delta!
+		// The assistant's reasoning is actually shoved into `content` in OpenAI format or it's dropped if not requested.
+		
+		convo.erase(it_n3, it_n1); // Erases N-3 and N-2
+		compacted = true;
+	}
+
+	if (compacted) {
+		// Sync the exact same mutations to the global conversation array
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		while (conversation_.size() >= 4) {
+			auto it_n0 = conversation_.end() - 1;
+			auto it_n1 = conversation_.end() - 2;
+			auto it_n2 = conversation_.end() - 3;
+			auto it_n3 = conversation_.end() - 4;
+
+			if (it_n0->role != "tool") break;
+			if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1) break;
+			if (it_n2->role != "tool") break;
+			if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1) break;
+
+			if (!it_n0->name || !it_n2->name) break;
+			if (*it_n0->name != *it_n2->name) break;
+
+			std::string tool_name = *it_n0->name;
+			if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name) break;
+
+			auto is_error = [](const std::string& content) {
+				return content.starts_with("Error:") || 
+				       content.starts_with("Verification Error:") ||
+				       content.starts_with("Stage 1 Security Violation:") ||
+				       content.starts_with("Stage 2 Security Violation:");
+			};
+
+			if (is_error(it_n0->content)) break;
+			if (!is_error(it_n2->content)) break;
+
+			it_n1->content.clear();
+			conversation_.erase(it_n3, it_n1);
+		}
+		event_logger::get_instance().log("Agent " + name_ + " zapped ephemeral errors from context.");
 	}
 }
 
