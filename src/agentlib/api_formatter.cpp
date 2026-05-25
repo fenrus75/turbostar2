@@ -14,6 +14,11 @@ std::unique_ptr<api_formatter> api_formatter::create(api_type type) {
 
 // --- openai_formatter ---
 
+std::string openai_formatter::get_endpoint_path(const std::string& /*model_id*/, bool /*stream*/) const {
+    // OpenAI and its shims typically use the standard chat completions path
+    return "/v1/chat/completions";
+}
+
 std::string openai_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool stream) const {
     json payload = {{"model", model_id}, {"messages", convo}, {"stream", stream}};
 
@@ -100,6 +105,16 @@ llm_chat_response openai_formatter::parse_sync_response(const std::string& json_
 }
 
 // --- gemini_formatter ---
+
+std::string gemini_formatter::get_endpoint_path(const std::string& model_id, bool stream) const {
+    std::string path = "/v1beta/models/" + model_id;
+    if (stream) {
+        path += ":streamGenerateContent?alt=sse";
+    } else {
+        path += ":generateContent";
+    }
+    return path;
+}
 
 std::string gemini_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool stream) const {
     (void)model_id; // Gemini expects model in the URL path, not payload

@@ -15,8 +15,9 @@ llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string mod
 llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry)
 {
 	std::string body = formatter_->build_chat_payload(model_id_, conversation, registry, false);
+	std::string endpoint = formatter_->get_endpoint_path(model_id_, false);
 
-	auto res = transport_->post("/v1/chat/completions", body);
+	auto res = transport_->post(endpoint, body);
 
 	if (res.status_code == 200) {
 		return formatter_->parse_sync_response(res.body);
@@ -34,10 +35,11 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 				  const tool_registry *registry)
 {
 	std::string body = formatter_->build_chat_payload(model_id_, conversation, registry, true);
+	std::string endpoint = formatter_->get_endpoint_path(model_id_, true);
 	std::string line_buffer;
 
 	bool success =
-	    transport_->post_stream("/v1/chat/completions", body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
+	    transport_->post_stream(endpoint, body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
 		    line_buffer.append(data, len);
 
 		    size_t pos;
