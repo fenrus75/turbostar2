@@ -548,8 +548,17 @@ void project_manager::update_software_map_markdown()
 
 	{
 		std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
+		
+		bool has_non_zero = false;
 		for (const auto &sym : software_map_.symbols) {
-			if (sym.accumulated_count == 0)
+			if (sym.accumulated_count > 0) {
+				has_non_zero = true;
+				break;
+			}
+		}
+
+		for (const auto &sym : software_map_.symbols) {
+			if (has_non_zero && sym.accumulated_count == 0)
 				continue;
 
 			if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) {

@@ -495,13 +495,19 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 
 std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const std::string &query)
 {
-	std::lock_guard<std::mutex> lock(servers_mutex_);
 	server_instance *active_server = nullptr;
-	for (auto &srv : servers_) {
-		if (srv->is_running) {
-			active_server = srv.get();
-			break;
+	{
+		std::lock_guard<std::mutex> lock(servers_mutex_);
+		for (auto &srv : servers_) {
+			if (srv->is_running) {
+				active_server = srv.get();
+				break;
+			}
 		}
+	}
+
+	if (!active_server) {
+		active_server = get_server_for_file("dummy.cpp");
 	}
 
 	if (!active_server)
@@ -518,47 +524,49 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 		    std::move(params),
 		    [promise](const lsp::requests::Workspace_Symbol::Result &res) {
 			    std::vector<symbol_info> out;
-			    if (!res.isNull()) {
-				    const auto& variant_val = res.value();
-				    if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(variant_val)) {
-					    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(variant_val);
-					    for (const auto &sym : arr) {
-						    symbol_info info;
-						    info.name = sym.name;
-						    info.kind = static_cast<int>(sym.kind);
-						    info.location.path = sym.location.uri.path();
-						    info.location.range = {static_cast<int>(sym.location.range.start.line),
-									   static_cast<int>(sym.location.range.start.character),
-									   static_cast<int>(sym.location.range.end.line),
-									   static_cast<int>(sym.location.range.end.character)};
-						    out.push_back(info);
-					    }
-				    } else if (std::holds_alternative<lsp::Array<lsp::WorkspaceSymbol>>(variant_val)) {
-					    const auto &arr = std::get<lsp::Array<lsp::WorkspaceSymbol>>(variant_val);
-					    for (const auto &sym : arr) {
-						    symbol_info info;
-						    info.name = sym.name;
-						    info.kind = static_cast<int>(sym.kind);
-						    if (std::holds_alternative<lsp::Location>(sym.location)) {
-							    const auto &loc = std::get<lsp::Location>(sym.location);
-							    info.location.path = loc.uri.path();
-							    info.location.range = {static_cast<int>(loc.range.start.line), 
-										   static_cast<int>(loc.range.start.character),
-										   static_cast<int>(loc.range.end.line), 
-										   static_cast<int>(loc.range.end.character)};
+			    try {
+				    if (!res.isNull()) {
+					    const auto& variant_val = res.value();
+					    if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(variant_val)) {
+						    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(variant_val);
+						    for (const auto &sym : arr) {
+							    symbol_info info;
+							    info.name = sym.name;
+							    info.kind = static_cast<int>(sym.kind);
+							    info.location.path = sym.location.uri.path();
+							    info.location.range = {static_cast<int>(sym.location.range.start.line),
+										   static_cast<int>(sym.location.range.start.character),
+										   static_cast<int>(sym.location.range.end.line),
+										   static_cast<int>(sym.location.range.end.character)};
 							    out.push_back(info);
+						    }
+					    } else if (std::holds_alternative<lsp::Array<lsp::WorkspaceSymbol>>(variant_val)) {
+						    const auto &arr = std::get<lsp::Array<lsp::WorkspaceSymbol>>(variant_val);
+						    for (const auto &sym : arr) {
+							    symbol_info info;
+							    info.name = sym.name;
+							    info.kind = static_cast<int>(sym.kind);
+							    if (std::holds_alternative<lsp::Location>(sym.location)) {
+								    const auto &loc = std::get<lsp::Location>(sym.location);
+								    info.location.path = loc.uri.path();
+								    info.location.range = {static_cast<int>(loc.range.start.line), 
+											   static_cast<int>(loc.range.start.character),
+											   static_cast<int>(loc.range.end.line), 
+											   static_cast<int>(loc.range.end.character)};
+								    out.push_back(info);
+							    }
 						    }
 					    }
 				    }
-			    }
-			    promise->set_value(out);
+				    promise->set_value(out);
+			    } catch (...) {}
 		    },
 		    [promise](const lsp::ResponseError &err) {
 			    (void)err;
-			    promise->set_value({});
+			    try { promise->set_value({}); } catch (...) {}
 		    });
 	} catch (...) {
-		promise->set_value({});
+		try { promise->set_value({}); } catch (...) {}
 	}
 
 	if (future.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
@@ -586,18 +594,20 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 		server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareCallHierarchy>(
 		    std::move(params),
 		    [promise_prep](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
-			    if (!res.isNull()) {
-				    promise_prep->set_value(res.value());
-			    } else {
-				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
-			    }
+			    try {
+				    if (!res.isNull()) {
+					    promise_prep->set_value(res.value());
+				    } else {
+					    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+				    }
+			    } catch (...) {}
 		    },
 		    [promise_prep](const lsp::ResponseError &err) {
 			    (void)err;
-			    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+			    try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{}); } catch (...) {}
 		    });
 	} catch (...) {
-		promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+		try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{}); } catch (...) {}
 	}
 
 	if (future_prep.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
@@ -618,34 +628,36 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 		server->message_handler->sendRequest<lsp::requests::CallHierarchy_OutgoingCalls>(
 		    std::move(params),
 		    [promise_out](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
-			    std::vector<call_hierarchy_item> out;
-			    if (!res.isNull()) {
-				    for (const auto &call : res.value()) {
-					    call_hierarchy_item item;
-					    item.name = call.to.name;
-					    item.kind = static_cast<int>(call.to.kind);
-					    if (call.to.detail)
-						    item.detail = *call.to.detail;
-					    item.uri = call.to.uri.path();
-					    item.range = {static_cast<int>(call.to.range.start.line), 
-									  static_cast<int>(call.to.range.start.character),
-							  		  static_cast<int>(call.to.range.end.line), 
-									  static_cast<int>(call.to.range.end.character)};
-					    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
-								    		static_cast<int>(call.to.selectionRange.start.character),
-								    		static_cast<int>(call.to.selectionRange.end.line),
-								    		static_cast<int>(call.to.selectionRange.end.character)};
-					    out.push_back(item);
+			    try {
+				    std::vector<call_hierarchy_item> out;
+				    if (!res.isNull()) {
+					    for (const auto &call : res.value()) {
+						    call_hierarchy_item item;
+						    item.name = call.to.name;
+						    item.kind = static_cast<int>(call.to.kind);
+						    if (call.to.detail)
+							    item.detail = *call.to.detail;
+						    item.uri = call.to.uri.path();
+						    item.range = {static_cast<int>(call.to.range.start.line), 
+										  static_cast<int>(call.to.range.start.character),
+								  		  static_cast<int>(call.to.range.end.line), 
+										  static_cast<int>(call.to.range.end.character)};
+						    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
+									    		static_cast<int>(call.to.selectionRange.start.character),
+									    		static_cast<int>(call.to.selectionRange.end.line),
+									    		static_cast<int>(call.to.selectionRange.end.character)};
+						    out.push_back(item);
+					    }
 				    }
-			    }
-			    promise_out->set_value(out);
+				    promise_out->set_value(out);
+			    } catch (...) {}
 		    },
 		    [promise_out](const lsp::ResponseError &err) {
 			    (void)err;
-			    promise_out->set_value({});
+			    try { promise_out->set_value({}); } catch (...) {}
 		    });
 	} catch (...) {
-		promise_out->set_value({});
+		try { promise_out->set_value({}); } catch (...) {}
 	}
 
 	if (future_out.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
@@ -672,18 +684,20 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 		server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareTypeHierarchy>(
 		    std::move(params),
 		    [promise_prep](const lsp::requests::TextDocument_PrepareTypeHierarchy::Result &res) {
-			    if (!res.isNull()) {
-				    promise_prep->set_value(res.value());
-			    } else {
-				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
-			    }
+			    try {
+				    if (!res.isNull()) {
+					    promise_prep->set_value(res.value());
+				    } else {
+					    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+				    }
+			    } catch (...) {}
 		    },
 		    [promise_prep](const lsp::ResponseError &err) {
 			    (void)err;
-			    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+			    try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{}); } catch (...) {}
 		    });
 	} catch (...) {
-		promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+		try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{}); } catch (...) {}
 	}
 
 	if (future_prep.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
@@ -704,34 +718,36 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 		server->message_handler->sendRequest<lsp::requests::TypeHierarchy_Supertypes>(
 		    std::move(params),
 		    [promise_sup](const lsp::requests::TypeHierarchy_Supertypes::Result &res) {
-			    std::vector<type_hierarchy_item> out;
-			    if (!res.isNull()) {
-				    for (const auto &call : res.value()) {
-					    type_hierarchy_item item;
-					    item.name = call.name;
-					    item.kind = static_cast<int>(call.kind);
-					    if (call.detail)
-						    item.detail = *call.detail;
-					    item.uri = call.uri.path();
-					    item.range = {static_cast<int>(call.range.start.line), 
-									  static_cast<int>(call.range.start.character),
-							  		  static_cast<int>(call.range.end.line), 
-									  static_cast<int>(call.range.end.character)};
-					    item.selection_range = {static_cast<int>(call.selectionRange.start.line),
-								    		static_cast<int>(call.selectionRange.start.character),
-								    		static_cast<int>(call.selectionRange.end.line),
-								    		static_cast<int>(call.selectionRange.end.character)};
-					    out.push_back(item);
+			    try {
+				    std::vector<type_hierarchy_item> out;
+				    if (!res.isNull()) {
+					    for (const auto &call : res.value()) {
+						    type_hierarchy_item item;
+						    item.name = call.name;
+						    item.kind = static_cast<int>(call.kind);
+						    if (call.detail)
+							    item.detail = *call.detail;
+						    item.uri = call.uri.path();
+						    item.range = {static_cast<int>(call.range.start.line), 
+										  static_cast<int>(call.range.start.character),
+								  		  static_cast<int>(call.range.end.line), 
+										  static_cast<int>(call.range.end.character)};
+						    item.selection_range = {static_cast<int>(call.selectionRange.start.line),
+									    		static_cast<int>(call.selectionRange.start.character),
+									    		static_cast<int>(call.selectionRange.end.line),
+									    		static_cast<int>(call.selectionRange.end.character)};
+						    out.push_back(item);
+					    }
 				    }
-			    }
-			    promise_sup->set_value(out);
+				    promise_sup->set_value(out);
+			    } catch (...) {}
 		    },
 		    [promise_sup](const lsp::ResponseError &err) {
 			    (void)err;
-			    promise_sup->set_value({});
+			    try { promise_sup->set_value({}); } catch (...) {}
 		    });
 	} catch (...) {
-		promise_sup->set_value({});
+		try { promise_sup->set_value({}); } catch (...) {}
 	}
 
 	if (future_sup.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
