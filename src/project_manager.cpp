@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <nlohmann/json.hpp>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -14,6 +15,12 @@
 #include "git_manager.h"
 
 namespace fs = std::filesystem;
+
+// JSON serialization macros for software map types
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(lsp_manager::location_info, path, range);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(project_manager::software_map_symbol, name, kind, location, looked_up_count, accumulated_count,
+				   is_seed, is_sampled, base_classes);
 
 project_manager &project_manager::get_instance()
 {
@@ -603,8 +610,71 @@ std::string project_manager::get_software_map_markdown() const
 	return md;
 }
 
+void project_manager::save_software_map()
+{
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (cache_root.empty())
+		return;
+
+	fs::path cache_path = fs::path(cache_root) / "software_map.json";
+
+	nlohmann::json j;
+	{
+		std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
+		j["symbols"] = software_map_.symbols;
+		j["git_head_hash"] = software_map_.git_head_hash;
+		j["ready"] = software_map_.ready;
+	}
+
+	std::ofstream file(cache_path);
+	if (file.is_open()) {
+		file << j.dump(4);
+	}
+}
+
+void project_manager::load_software_map()
+{
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (cache_root.empty())
+		return;
+
+	fs::path cache_path = fs::path(cache_root) / "software_map.json";
+	if (!fs::exists(cache_path))
+		return;
+
+	try {
+		std::ifstream file(cache_path);
+		if (!file.is_open())
+			return;
+
+		nlohmann::json j;
+		file >> j;
+
+		std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
+		software_map_.symbols = j.at("symbols").get<std::vector<software_map_symbol>>();
+		if (j.contains("git_head_hash"))
+			software_map_.git_head_hash = j.at("git_head_hash").get<std::string>();
+		if (j.contains("ready"))
+			software_map_.ready = j.at("ready").get<bool>();
+
+		// Rebuild the lookup map
+		software_map_.name_to_indices.clear();
+		for (size_t i = 0; i < software_map_.symbols.size(); ++i) {
+			software_map_.name_to_indices[software_map_.symbols[i].name].push_back(i);
+		}
+		
+		event_logger::get_instance().log("Loaded Software Map from cache (" + std::to_string(software_map_.symbols.size()) + " symbols).");
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log("Failed to load Software Map from cache: " + std::string(e.what()));
+	}
+}
+
 void project_manager::software_map_loop(std::stop_token stop)
 {
+	load_software_map();
+
+	int sample_counter = 0;
+
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
 			std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -650,6 +720,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 					}
 				}
 				software_map_.ready = true;
+				
+				// Release lock to save
+				lock.unlock();
+				save_software_map();
 			}
 			std::this_thread::sleep_for(std::chrono::seconds(5)); // Give it a breather after big query
 			continue;
@@ -725,6 +799,12 @@ void project_manager::software_map_loop(std::stop_token stop)
 					}
 				}
 			}
+		}
+
+		// Periodically save
+		if (++sample_counter >= 20) {
+			sample_counter = 0;
+			save_software_map();
 		}
 
 		// Rate limit sampling

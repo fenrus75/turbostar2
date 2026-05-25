@@ -32,6 +32,12 @@ namespace fs_utils {
 	std::string get_global_cache_dir();
 
 	/**
+	 * @brief Returns the base cache directory for the current project.
+	 * Resolves to ~/.cache/turbostar/projects/<hash>/ and creates the directory if it doesn't exist.
+	 */
+	std::string get_project_cache_root();
+
+	/**
 	 * @brief Returns the safe, project-specific directory for storing SQLite databases.
 	 * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/ and creates the directory if it doesn't exist.
 	 */

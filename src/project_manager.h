@@ -80,6 +80,26 @@ class project_manager
 
 	// Software Map (Background LSP)
 	std::string get_software_map_markdown() const;
+	void save_software_map();
+	void load_software_map();
+
+	struct software_map_symbol {
+		std::string name;
+		int kind; // LSP SymbolKind (5=Class, 12=Function, etc)
+		lsp_manager::location_info location;
+		int looked_up_count{0};
+		int accumulated_count{0};
+		bool is_seed{true}; // True if found via initial workspace/symbol scan
+		bool is_sampled{false}; // True if exact references and outgoing calls have been verified
+		std::string base_classes;
+	};
+
+	struct software_map_data {
+		std::string git_head_hash;
+		std::vector<software_map_symbol> symbols;
+		std::unordered_map<std::string, std::vector<size_t>> name_to_indices;
+		bool ready{false};
+	};
 
       private:
 	project_manager() = default;
@@ -100,24 +120,6 @@ class project_manager
 	struct project_layout {
 		std::vector<directory_info> top_directories;
 		std::vector<std::string> key_files;
-		bool ready{false};
-	};
-
-	struct software_map_symbol {
-		std::string name;
-		int kind; // LSP SymbolKind (5=Class, 12=Function, etc)
-		lsp_manager::location_info location;
-		int looked_up_count{0};
-		int accumulated_count{0};
-		bool is_seed{true}; // True if found via initial workspace/symbol scan
-		bool is_sampled{false}; // True if exact references and outgoing calls have been verified
-		std::string base_classes;
-	};
-
-	struct software_map_data {
-		std::string git_head_hash;
-		std::vector<software_map_symbol> symbols;
-		std::unordered_map<std::string, std::vector<size_t>> name_to_indices;
 		bool ready{false};
 	};
 

@@ -192,7 +192,6 @@ std::string execute_command_sync(const std::string &cmd)
 	runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
 	return runner.full_output;
 }
-
 std::string get_global_cache_dir()
 {
 	const char *home = std::getenv("HOME");
@@ -202,12 +201,14 @@ std::string get_global_cache_dir()
 	} else {
 		cache_dir = std::filesystem::path(".turbostar");
 	}
+
 	std::error_code ec;
 	std::filesystem::create_directories(cache_dir, ec);
+
 	return cache_dir.string();
 }
 
-std::string get_project_db_dir()
+std::string get_project_cache_root()
 {
 	std::string repo_root = git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
@@ -217,13 +218,7 @@ std::string get_project_db_dir()
 	std::hash<std::string> hasher;
 	size_t hash = hasher(repo_root);
 
-	const char *home = std::getenv("HOME");
-	std::filesystem::path cache_dir;
-	if (home) {
-		cache_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "dbs";
-	} else {
-		cache_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "dbs";
-	}
+	std::filesystem::path cache_dir = std::filesystem::path(get_global_cache_dir()) / "projects" / std::to_string(hash);
 
 	std::error_code ec;
 	std::filesystem::create_directories(cache_dir, ec);
@@ -231,6 +226,15 @@ std::string get_project_db_dir()
 	return cache_dir.string();
 }
 
+std::string get_project_db_dir()
+{
+	std::filesystem::path db_dir = std::filesystem::path(get_project_cache_root()) / "dbs";
+
+	std::error_code ec;
+	std::filesystem::create_directories(db_dir, ec);
+
+	return db_dir.string();
+}
 std::string get_project_tmp_dir()
 {
 	std::string repo_root = git_manager::get_instance().get_repository_root();
