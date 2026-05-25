@@ -739,6 +739,55 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     increment_stat("context_pages_out");
 }
 
+std::string ai_agent::get_memory_index() const
+{
+    std::string history_dir = fs_utils::get_project_history_dir(name_);
+    if (!std::filesystem::exists(history_dir)) {
+        return "Memory index is empty (no history directory).";
+    }
+
+    std::stringstream out;
+    out << "Agent Memory Index (Paged-Out Milestones):\n";
+    int count = 0;
+
+    for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".json") {
+            try {
+                std::ifstream f(entry.path());
+                nlohmann::json root;
+                f >> root;
+
+                std::string milestone_id = root.value("milestone_id", "unknown");
+                std::string title = root.value("title", "Untitled");
+                
+                int est_tokens = 0;
+                if (root.contains("conversation")) {
+                    std::string conv_dump = root["conversation"].dump();
+                    est_tokens = conv_dump.length() / 4; // Very rough token estimate
+                }
+
+                out << "- [" << milestone_id << "] " << title << " (~" << est_tokens << " tokens)\n";
+                if (root.contains("tags") && root["tags"].is_array() && !root["tags"].empty()) {
+                    out << "  Tags: ";
+                    for (size_t i = 0; i < root["tags"].size(); ++i) {
+                        out << root["tags"][i].get<std::string>() << (i < root["tags"].size() - 1 ? ", " : "");
+                    }
+                    out << "\n";
+                }
+                count++;
+            } catch (...) {
+                // Ignore parse errors for individual files
+            }
+        }
+    }
+
+    if (count == 0) {
+        return "Memory index is empty (no saved milestones).";
+    }
+
+    return out.str();
+}
+
 void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 	bool compacted = false;
 	

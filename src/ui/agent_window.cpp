@@ -102,6 +102,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			invalidate();
 			return;
 		}
+
+		if (trimmed_text.starts_with("/memory")) {
+			input_box_->set_buffer(""); // Clear the box
+			std::string mem_index = agent_->get_memory_index();
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(mem_index));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -185,6 +194,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				}
 			}
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(stats_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		if (trimmed_text.starts_with("/memory")) {
+			input_box_->set_buffer(""); // Clear the box
+			std::string mem_index = agent_->get_memory_index();
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(mem_index));
 			scroll_offset_ = 0;
 			invalidate();
 			return;

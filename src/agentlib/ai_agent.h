@@ -88,6 +88,7 @@ public:
 
     void save_conversation(const std::string& filepath) const;
     void page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    std::string get_memory_index() const;
 
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
