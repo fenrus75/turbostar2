@@ -500,14 +500,21 @@ void document::apply_external_edits_json(const std::string &json_str)
 
 			int idx = edit["line_number"].get<int>() - 1;
 			std::string type = edit["type"].get<std::string>();
+			int lines_to_remove = edit.value("lines_to_remove", 1);
 
 			if (idx < 0 || idx >= static_cast<int>(lines_.size()))
 				continue;
 
+			if (idx + lines_to_remove > static_cast<int>(lines_.size())) {
+				lines_to_remove = static_cast<int>(lines_.size()) - idx;
+			}
+
 			if (type == "remove") {
-				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
-				lines_.erase(lines_.begin() + idx);
-				adjust_all(idx, -1);
+				for (int i = 0; i < lines_to_remove; ++i) {
+					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
+					lines_.erase(lines_.begin() + idx);
+				}
+				adjust_all(idx, -lines_to_remove);
 			} else if (type == "add" && edit.contains("replace_with")) {
 				std::string newstring = edit["replace_with"].get<std::string>();
 				std::stringstream ss(newstring);
@@ -530,8 +537,10 @@ void document::apply_external_edits_json(const std::string &json_str)
 				}
 				adjust_all(idx, static_cast<int>(new_lines.size()));
 			} else if (type == "replace" && edit.contains("replace_with")) {
-				record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
-				lines_.erase(lines_.begin() + idx);
+				for (int i = 0; i < lines_to_remove; ++i) {
+					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
+					lines_.erase(lines_.begin() + idx);
+				}
 
 				std::string newstring = edit["replace_with"].get<std::string>();
 				std::stringstream ss(newstring);
@@ -552,7 +561,7 @@ void document::apply_external_edits_json(const std::string &json_str)
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
-				adjust_all(idx, static_cast<int>(new_lines.size()) - 1);
+				adjust_all(idx, static_cast<int>(new_lines.size()) - lines_to_remove);
 			}
 		}
 

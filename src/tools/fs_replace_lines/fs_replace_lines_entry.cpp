@@ -167,14 +167,32 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			return false;
 		}
 
-		std::string actual_content = lines[idx];
-		std::string expected_prefix = edit.original_text;
+		std::vector<std::string> expected_lines;
+		std::stringstream ss(edit.original_text);
+		std::string part;
+		while (std::getline(ss, part)) {
+			if (!part.empty() && part.back() == '\r') part.pop_back();
+			expected_lines.push_back(part);
+		}
+		if (expected_lines.empty()) expected_lines.push_back("");
 
-		while (!expected_prefix.empty() && std::isspace(expected_prefix.back())) {
-			expected_prefix.pop_back();
+		if (idx + static_cast<int>(expected_lines.size()) > static_cast<int>(lines.size())) {
+			out_error = "Verification Error: Multi-line original_text extends beyond the end of the file.";
+			return false;
 		}
 
-		if (actual_content.find(expected_prefix) != 0) {
+		bool block_matches = true;
+		for (size_t i = 0; i < expected_lines.size(); ++i) {
+			std::string actual = lines[idx + i];
+			std::string expected = expected_lines[i];
+			while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
+			if (actual.find(expected) != 0) {
+				block_matches = false;
+				break;
+			}
+		}
+
+		if (!block_matches) {
 			// Offset hint logic: check +/- 10 lines
 			int found_line = -1;
 			int check_radius = 10;
@@ -183,24 +201,48 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			for (int offset = 1; offset <= check_radius; ++offset) {
 				// Check down
 				int check_idx_down = idx + offset;
-				if (check_idx_down < static_cast<int>(lines.size()) && lines[check_idx_down].find(expected_prefix) == 0) {
-					found_line = check_idx_down + 1;
-					break;
+				if (check_idx_down + static_cast<int>(expected_lines.size()) <= static_cast<int>(lines.size())) {
+					bool match = true;
+					for (size_t i = 0; i < expected_lines.size(); ++i) {
+						std::string actual = lines[check_idx_down + i];
+						std::string expected = expected_lines[i];
+						while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
+						if (actual.find(expected) != 0) {
+							match = false;
+							break;
+						}
+					}
+					if (match) {
+						found_line = check_idx_down + 1;
+						break;
+					}
 				}
 				// Check up
 				int check_idx_up = idx - offset;
-				if (check_idx_up >= 0 && lines[check_idx_up].find(expected_prefix) == 0) {
-					found_line = check_idx_up + 1;
-					break;
+				if (check_idx_up >= 0) {
+					bool match = true;
+					for (size_t i = 0; i < expected_lines.size(); ++i) {
+						std::string actual = lines[check_idx_up + i];
+						std::string expected = expected_lines[i];
+						while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
+						if (actual.find(expected) != 0) {
+							match = false;
+							break;
+						}
+					}
+					if (match) {
+						found_line = check_idx_up + 1;
+						break;
+					}
 				}
 			}
 
 			if (found_line != -1) {
-				out_error = "Verification Error: The string you provided is not on line " + std::to_string(edit.line_number) + 
-				            ", but it is on line " + std::to_string(found_line) + ". Please update your line_number and try again.";
+				out_error = "Verification Error: The block you provided is not at line " + std::to_string(edit.line_number) + 
+				            ", but it matches starting at line " + std::to_string(found_line) + ". Please update your line_number.";
 			} else {
 				out_error = "Verification Error at line " + std::to_string(edit.line_number) + ". \nExpected starting with: '" +
-					    expected_prefix + "'\nActual content: '" + actual_content + "'";
+					    expected_lines[0] + "'\nActual content: '" + lines[idx] + "'";
 			}
 			return false;
 		}
