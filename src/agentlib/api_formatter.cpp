@@ -171,13 +171,22 @@ std::string gemini_formatter::build_chat_payload(const std::string& model_id, co
 
     payload["contents"] = contents;
 
+    json tools_array = json::array();
+
     if (registry) {
-        json tools_json = registry->get_gemini_tools_json();
-        if (!tools_json.empty()) {
-            payload["tools"] = tools_json;
-            // Gemini doesn't use "tool_choice": "auto" in the same way, but it's optional
+        json local_tools = registry->get_gemini_tools_json();
+        if (!local_tools.empty()) {
+            // local_tools is already an array of tool objects (e.g. [{"functionDeclarations": [...]}])
+            for (const auto& item : local_tools) {
+                tools_array.push_back(item);
+            }
         }
     }
+
+    // Always append the server-side Google Search tool for Gemini models
+    tools_array.push_back({{"googleSearch", json::object()}});
+
+    payload["tools"] = tools_array;
 
     return payload.dump();
 }
