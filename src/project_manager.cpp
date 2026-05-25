@@ -42,6 +42,14 @@ void project_manager::initialize()
 			return;
 		inventory_project(stop);
 	});
+
+	// Start the software map thread with a 2000ms delay to let the LSP warm up
+	software_map_thread_ = std::jthread([this](std::stop_token stop) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+		if (stop.stop_requested())
+			return;
+		software_map_loop(stop);
+	});
 }
 
 static bool is_header(const fs::path &path)
@@ -428,6 +436,20 @@ std::vector<lsp_manager::location_info> project_manager::lsp_query_references(co
 	return {};
 }
 
+std::vector<lsp_manager::symbol_info> project_manager::lsp_query_workspace_symbols(const std::string &query)
+{
+	if (lsp_manager_)
+		return lsp_manager_->query_workspace_symbols(query);
+	return {};
+}
+
+std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line, int character)
+{
+	if (lsp_manager_)
+		return lsp_manager_->query_call_hierarchy_outgoing(filepath, line, character);
+	return {};
+}
+
 std::vector<std::string> project_manager::get_available_tests()
 {
 	if (!tests_ready_) {
@@ -486,4 +508,46 @@ void project_manager::refresh_available_tests()
 	std::sort(available_tests_.begin(), available_tests_.end());
 	tests_ready_ = true;
 	event_logger::get_instance().log("Refreshed available tests: " + std::to_string(available_tests_.size()) + " tests found.");
+}
+
+std::string project_manager::get_software_map_markdown() const
+{
+	std::lock_guard<std::mutex> lock(software_map_mutex_);
+	if (!software_map_.ready || software_map_.symbols.empty()) {
+		return "Software Map is currently building or empty.";
+	}
+
+	std::string md = "## Automatic Software Map\n\n";
+	md += "| Symbol Name | Type | Importance | File Location |\n";
+	md += "| :--- | :--- | :--- | :--- |\n";
+
+	int limit = 50;
+	int count = 0;
+	for (const auto &sym : software_map_.symbols) {
+		if (count++ >= limit) break;
+		
+		std::string kind_str = "Unknown";
+		if (sym.kind == 5 || sym.kind == 22) kind_str = "Class/Struct";
+		else if (sym.kind == 12) kind_str = "Function";
+		
+		md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | `" + sym.location.path + "` |\n";
+	}
+	
+	return md;
+}
+
+void project_manager::software_map_loop(std::stop_token stop)
+{
+	while (!stop.stop_requested()) {
+		if (!config_manager::get_instance().is_software_map_enabled()) {
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+			continue;
+		}
+
+		// TODO: Initial seed logic
+		// TODO: Random sampling logic
+		// TODO: Cache invalidation
+
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 }

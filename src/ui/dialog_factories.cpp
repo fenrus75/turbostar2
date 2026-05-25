@@ -406,6 +406,8 @@ std::unique_ptr<dialog> create_settings_dialog()
 						     config_manager::get_instance().is_compile_on_save()));
 	dlg->add_child(std::make_unique<ui_checkbox>("log_all_tools", 4, 19, "Log all agent tool calls (debug)", 'g',
 						     config_manager::get_instance().is_log_all_tool_calls()));
+	dlg->add_child(std::make_unique<ui_checkbox>("software_map", 4, 20, "Auto Software Map (Background LSP)", 'M',
+						     config_manager::get_instance().is_software_map_enabled()));
 
 	// Buttons
 	dlg->add_child(std::make_unique<ui_button>("btn_ok", 10, 22, "  OK  ", 'o', [d = dlg.get()]() {
@@ -462,6 +464,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto log_tools = dlg.get_value("log_all_tools");
 	if (log_tools)
 		cfg.set_log_all_tool_calls(*log_tools == "true");
+
+	auto sw_map = dlg.get_value("software_map");
+	if (sw_map)
+		cfg.set_software_map_enabled(*sw_map == "true");
 
 	cfg.save();
 }

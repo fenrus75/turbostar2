@@ -492,3 +492,19 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 	} catch (...) {
 	}
 }
+
+std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const std::string &query)
+{
+	(void)query;
+	// Stub implementation for now
+	return {};
+}
+
+std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line, int character)
+{
+	(void)filepath;
+	(void)line;
+	(void)character;
+	// Stub implementation for now
+	return {};
+}

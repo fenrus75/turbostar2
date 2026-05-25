@@ -68,16 +68,22 @@ class project_manager
 	std::vector<text_range> lsp_query_selection_ranges(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_definition(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
+	std::vector<lsp_manager::symbol_info> lsp_query_workspace_symbols(const std::string &query);
+	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
 
 	// Test management
 	std::vector<std::string> get_available_tests();
 	void refresh_available_tests();
+
+	// Software Map (Background LSP)
+	std::string get_software_map_markdown() const;
 
       private:
 	project_manager() = default;
 
 	void load_instructions();
 	void inventory_project(std::stop_token stop);
+	void software_map_loop(std::stop_token stop);
 
 	struct directory_info {
 		std::string path;
@@ -94,6 +100,21 @@ class project_manager
 		bool ready{false};
 	};
 
+	struct software_map_symbol {
+		std::string name;
+		int kind; // LSP SymbolKind (5=Class, 12=Function, etc)
+		lsp_manager::location_info location;
+		int looked_up_count{0};
+		int accumulated_count{0};
+		bool is_seed{true}; // True if found via initial workspace/symbol scan
+	};
+
+	struct software_map_data {
+		std::string git_head_hash;
+		std::vector<software_map_symbol> symbols;
+		bool ready{false};
+	};
+
 	std::string repo_root_;
 	std::string instructions_;
 	std::string clang_format_;
@@ -105,4 +126,8 @@ class project_manager
 	mutable std::mutex layout_mutex_;
 	project_layout layout_;
 	std::jthread inventory_thread_;
+
+	mutable std::mutex software_map_mutex_;
+	software_map_data software_map_;
+	std::jthread software_map_thread_;
 };
