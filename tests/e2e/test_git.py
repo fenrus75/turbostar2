@@ -15,8 +15,8 @@ def test_git_integration():
         os.makedirs(repo_dir, exist_ok=True)
         
         subprocess.run(['git', 'init'], cwd=repo_dir, capture_output=True)
-        subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=repo_dir, capture_output=True)
-        subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=repo_dir, capture_output=True)
+        subprocess.run(['git', 'config', 'user.email', 'arjanvandeven@gmail.com'], cwd=repo_dir, capture_output=True)
+        subprocess.run(['git', 'config', 'user.name', 'Arjan van de Ven'], cwd=repo_dir, capture_output=True)
         
         file_path = os.path.join(repo_dir, 'test.txt')
         with open(file_path, 'w') as f:
