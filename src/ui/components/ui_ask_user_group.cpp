@@ -198,6 +198,16 @@ bool ui_ask_user_group::handle_event(const editor_event& ev, int /*abs_x*/, int 
                 return true;
             }
         }
+    } else if (ev.type == event_type::paste) {
+        if (selected_index_ == (int)items_.size() - 1 && has_focus_) {
+            std::string sanitized = ev.payload;
+            sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
+            sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
+            
+            other_text_.insert(cursor_pos_, sanitized);
+            cursor_pos_ += sanitized.length();
+            return true;
+        }
     }
     return false;
 }

@@ -2,8 +2,6 @@
 
 - we need to tackle compaction at some point
 
-- implement /model for the agent window, which lets you pick which model to use for the session
-
 - when cut and pasting in a modal dialog, the paste goes to the document underneath
 	- option: turn off block paste while in a modal dialog
 

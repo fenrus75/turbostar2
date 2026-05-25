@@ -138,6 +138,13 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 			update_scroll();
 			return true;
 		}
+	} else if (ev.type == event_type::paste) {
+		if (has_focus_) {
+			buffer_.insert(cursor_pos_, ev.payload);
+			cursor_pos_ += ev.payload.length();
+			update_scroll();
+			return true;
+		}
 	}
 	return false;
 }

@@ -25,8 +25,8 @@ void ui_container::draw(int abs_x, int abs_y) const
 
 bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
-	// 1. Give focused child first chance at keyboard events
-	if (focused_child_ && ev.type == event_type::key_press) {
+	// 1. Give focused child first chance at keyboard events and paste events
+	if (focused_child_ && (ev.type == event_type::key_press || ev.type == event_type::paste)) {
 		if (focused_child_->handle_event(ev, abs_x + focused_child_->x(), abs_y + focused_child_->y())) {
 			return true;
 		}

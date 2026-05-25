@@ -154,6 +154,19 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 	}
 
+	if (ev.type == event_type::paste) {
+		if (has_focus_) {
+			std::string sanitized = ev.payload;
+			// Strip newlines for a single-line textbox
+			sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
+			sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
+			
+			buffer_.insert(cursor_pos_, sanitized);
+			cursor_pos_ += sanitized.length();
+			return true;
+		}
+	}
+
 	if (ev.type == event_type::mouse_click) {
 		if (contains_coordinate(ev.mouse_x, ev.mouse_y, abs_x, abs_y)) {
 			int click_offset = ev.mouse_x - abs_x;

@@ -179,9 +179,13 @@ void editor::dispatch(const editor_event &ev)
 			dispatch_event_key(ev);
 			break;
 		case event_type::paste: {
-			window *active_win = get_active_window();
-			if (active_win) {
-				active_win->get_queue().push(ev);
+			if (active_dialog_mode_ != dialog_mode::none && active_dialog_) {
+				active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
+			} else {
+				window *active_win = get_active_window();
+				if (active_win) {
+					active_win->get_queue().push(ev);
+				}
 			}
 		} break;
 		default:
