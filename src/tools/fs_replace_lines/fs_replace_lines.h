@@ -64,11 +64,11 @@ public:
                             }},
                             {"original_text", {
                                 {"type", "string"},
-                                {"description", "Required for 'remove' and 'replace'. The exact full content of the original line being modified. Used for safety verification. Pass empty string for 'add'."}
+                                {"description", "Required for 'remove' and 'replace'. The exact full content of the SINGLE original line being modified. Do NOT provide multiple lines. Used for safety verification. Pass empty string for 'add'."}
                             }},
                             {"replace_with", {
                                 {"type", "string"},
-                                {"description", "Required for 'add' and 'replace'. The exact new content to insert or replace the line with. Pass empty string for 'remove'."}
+                                {"description", "Required for 'add' and 'replace'. The new content to insert or replace the line with. You MAY use newline characters (\\n) here to insert multiple lines. Pass empty string for 'remove'."}
                             }}
                         }},
                         {"required", nlohmann::json::array({"line_number", "type"})}
