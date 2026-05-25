@@ -24,7 +24,7 @@ bool fs_write_file_tool::validate_runtime(const agentlib::tool_context &ctx, std
 	if (ctx.doc_provider) {
 		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
 		if (doc_snapshot) {
-			out_error = "Error: This file is currently open in the user's editor. You cannot overwrite an actively edited "
+			out_error = "Error: This file is currently open in the user's editor. You cannot overwrite or append to an actively edited "
 				    "file. Please ask the user to close it.";
 			return false;
 		}
@@ -32,8 +32,8 @@ bool fs_write_file_tool::validate_runtime(const agentlib::tool_context &ctx, std
 
 	// 2. Existence Check
 	if (std::filesystem::exists(args_.safe_path)) {
-		if (!args_.force_overwrite) {
-			out_error = "Error: File already exists. Set force_overwrite to true if you explicitly want to overwrite it.";
+		if (!args_.force_overwrite && !args_.append) {
+			out_error = "Error: File already exists. Set force_overwrite to true if you explicitly want to overwrite it, or append to true to safely append.";
 			return false;
 		}
 	}
@@ -46,7 +46,29 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 	auto custom_interaction = std::dynamic_pointer_cast<agentlib::interaction_action>(interaction_);
 
 	try {
-		std::ofstream out(args_.safe_path, std::ios::binary);
+		bool file_exists = std::filesystem::exists(args_.safe_path);
+		bool inject_newline = false;
+
+		// If appending and the file exists and is not empty, check the last byte
+		if (args_.append && file_exists && std::filesystem::file_size(args_.safe_path) > 0) {
+			std::ifstream in(args_.safe_path, std::ios::binary);
+			if (in.is_open()) {
+				in.seekg(-1, std::ios_base::end);
+				char last_char;
+				in.get(last_char);
+				if (last_char != '\n') {
+					inject_newline = true;
+				}
+				in.close();
+			}
+		}
+
+		std::ios_base::openmode mode = std::ios::binary;
+		if (args_.append) {
+			mode |= std::ios::app;
+		}
+
+		std::ofstream out(args_.safe_path, mode);
 		if (!out.is_open()) {
 			if (custom_interaction)
 				custom_interaction->set_status(agentlib::interaction_action::status::failure,
@@ -56,6 +78,10 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Could not open file for writing.";
 		}
 
+		if (inject_newline) {
+			out << "\n";
+		}
+		
 		out << args_.content;
 		out.close();
 
@@ -63,6 +89,10 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 			custom_interaction->set_status(agentlib::interaction_action::status::success);
 		if (ctx.trigger_ui_update)
 			ctx.trigger_ui_update();
+		
+		if (args_.append) {
+			return "Successfully appended to " + args_.path;
+		}
 		return "Successfully wrote to " + args_.path;
 	} catch (const std::exception &e) {
 		if (custom_interaction)

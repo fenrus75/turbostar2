@@ -67,11 +67,12 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
         *   `replace_with` *(string, optional)*: Required for `add` and `replace`. The exact new content to insert or replace the line with. Pass empty string for `remove`.
 
 ### `fs_write_file`
-*   **Description:** Creates a new file or completely overwrites an existing file with the provided content.
+*   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file to write, relative to the project root.
-    *   `content` *(string, required)*: The entire complete content to write into the file.
-    *   `force_overwrite` *(boolean, optional)*: Set to true to overwrite an existing file. Defaults to false.
+    *   `content` *(string, required)*: The entire complete content to write into the file, or content to append.
+    *   `force_overwrite` *(boolean, optional)*: Set to true to overwrite an existing file. Defaults to false. Mutually exclusive with `append`.
+    *   `append` *(boolean, optional)*: Set to true to safely append `content` to the end of an existing file. Defaults to false. Mutually exclusive with `force_overwrite`.
 
 ### `fs_mkdir`
 *   **Description:** Create a directory, including any necessary parent directories (like mkdir -p).

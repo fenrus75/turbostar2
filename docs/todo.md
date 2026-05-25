@@ -15,9 +15,6 @@
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
-- support for API keys for models -- need some basic security so that the keys don't leak out
-   - including masking this config file in our sandbox (DONE)
-
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
@@ -116,6 +113,7 @@
 # done items (move items here on completion)
 
 ## 24-05-2026
+- implemented an `append` flag for `fs_write_file`. This provides agents with a secure, 0-turn way to append data to logs, configs, or source files without risking destructive overwrites or needing complex `fs_replace_lines` schemas. The tool automatically injects a missing newline (`\n`) if the target file does not end with one to prevent concatenating lines.
 - implemented a comprehensive model configuration system. Users can now view, add, edit, and delete AI models via a new "Models..." dialog under the Options menu. Model configurations (including URLs, API keys, and costs) are persistently stored in `~/.cache/turbostar/models.json`. The system supports setting a default model, which is saved to the main `~/.turbostar` configuration file.
 - implemented `fs_list_tests` tool and updated `fs_run_tests` to support selective test execution. `project_manager` now parses `meson test --list` on demand to provide a list of known tests. `fs_run_tests` accepts an optional `test_names` array to run only specific tests. Both tools intelligently resolve the build directory relative to the repository root for robustness across different working directories.
 - implemented an interactive "Diff View" for document undo history (accessible via `^Q H`). It allows users to visualize changes between any two points in the undo stack using a unified diff format. The view supports "time travel" navigation with `[<< Prev]` and `[Next >>]` buttons (or arrow keys) and a `[Restore State]` option (or `Enter`) to roll the document back to the selected historical state. The diff context dynamically scales to fill available vertical space.

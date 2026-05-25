@@ -11,10 +11,11 @@ struct fs_write_file_raw_args {
 	std::string path;
 	std::string content;
 	bool force_overwrite = false;
+	bool append = false;
 };
 
 // Map JSON to the raw struct
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_write_file_raw_args, path, content, force_overwrite);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_write_file_raw_args, path, content, force_overwrite, append);
 
 bool fs_write_file_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
 						 std::string &out_error) const
@@ -27,6 +28,11 @@ bool fs_write_file_validator::validate_args_impl(const nlohmann::json &raw_json,
 			return false;
 		}
 
+		if (parsed.force_overwrite && parsed.append) {
+			out_error = "Cannot set both force_overwrite and append to true. They are mutually exclusive.";
+			return false;
+		}
+
 		// CRITICAL: Perform the file security manager check (access_type::write)
 		std::string canonical_path;
 		if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::write, canonical_path, out_error)) {
@@ -36,6 +42,7 @@ bool fs_write_file_validator::validate_args_impl(const nlohmann::json &raw_json,
 		args_.path = parsed.path;
 		args_.content = parsed.content;
 		args_.force_overwrite = parsed.force_overwrite;
+		args_.append = parsed.append;
 		args_.safe_path = canonical_path;
 
 		return true;

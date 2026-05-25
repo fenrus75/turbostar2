@@ -9,6 +9,7 @@ struct fs_write_file_args {
     std::string path;
     std::string content;
     bool force_overwrite;
+    bool append;
     std::string safe_path;
 };
 
@@ -28,7 +29,7 @@ private:
 class fs_write_file_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_write_file"; }
-    std::string get_description() const override { return "Creates a new file or completely overwrites an existing file with the provided content."; }
+    std::string get_description() const override { return "Creates a new file, overwrites an existing file, or safely appends content to an existing file."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {
@@ -40,11 +41,15 @@ public:
                 }},
                 {"content", {
                     {"type", "string"},
-                    {"description", "The entire complete content to write into the file."}
+                    {"description", "The entire complete content to write into the file, or content to append."}
                 }},
                 {"force_overwrite", {
                     {"type", "boolean"},
-                    {"description", "Set to true to overwrite an existing file. Defaults to false."}
+                    {"description", "Set to true to overwrite an existing file. Defaults to false. Mutually exclusive with append."}
+                }},
+                {"append", {
+                    {"type", "boolean"},
+                    {"description", "Set to true to safely append content to the end of an existing file. Defaults to false. Mutually exclusive with force_overwrite."}
                 }}
             }},
             {"required", nlohmann::json::array({"path", "content"})}
