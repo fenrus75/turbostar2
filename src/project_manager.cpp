@@ -517,18 +517,23 @@ std::string project_manager::get_software_map_markdown() const
 		return "Software Map is currently building or empty.";
 	}
 
+	std::vector<software_map_symbol> sorted_symbols = software_map_.symbols;
+	std::sort(sorted_symbols.begin(), sorted_symbols.end(), [](const software_map_symbol &a, const software_map_symbol &b) {
+		return a.accumulated_count > b.accumulated_count;
+	});
+
 	std::string md = "## Automatic Software Map\n\n";
 	md += "| Symbol Name | Type | Importance | File Location |\n";
 	md += "| :--- | :--- | :--- | :--- |\n";
 
 	int limit = 50;
 	int count = 0;
-	for (const auto &sym : software_map_.symbols) {
+	for (const auto &sym : sorted_symbols) {
 		if (count++ >= limit) break;
 		
 		std::string kind_str = "Unknown";
-		if (sym.kind == 5 || sym.kind == 22) kind_str = "Class/Struct";
-		else if (sym.kind == 12) kind_str = "Function";
+		if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) kind_str = "Class/Struct";
+		else if (sym.kind == 12 || sym.kind == 6) kind_str = "Function";
 		
 		md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | `" + sym.location.path + "` |\n";
 	}
@@ -538,16 +543,94 @@ std::string project_manager::get_software_map_markdown() const
 
 void project_manager::software_map_loop(std::stop_token stop)
 {
+	size_t current_sample_index = 0;
+
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
 			std::this_thread::sleep_for(std::chrono::seconds(5));
 			continue;
 		}
 
-		// TODO: Initial seed logic
-		// TODO: Random sampling logic
-		// TODO: Cache invalidation
+		bool needs_seed = false;
+		{
+			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			needs_seed = !software_map_.ready || software_map_.symbols.empty();
+		}
 
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		if (needs_seed) {
+			auto symbols = lsp_query_workspace_symbols("");
+			if (!symbols.empty()) {
+				std::lock_guard<std::mutex> lock(software_map_mutex_);
+				software_map_.symbols.clear();
+				for (const auto &sym : symbols) {
+					// Filter for Class(5), Method(6), Interface(11), Function(12), Struct(22)
+					if (sym.kind == 5 || sym.kind == 6 || sym.kind == 11 || sym.kind == 12 || sym.kind == 22) {
+						software_map_symbol sms;
+						sms.name = sym.name;
+						sms.kind = sym.kind;
+						sms.location = sym.location;
+						sms.looked_up_count = 0;
+						sms.accumulated_count = 0;
+						sms.is_seed = true;
+						
+						// Slight boost for headers and root level files
+						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
+							sms.accumulated_count = 5; 
+						}
+						
+						software_map_.symbols.push_back(sms);
+					}
+				}
+				software_map_.ready = true;
+			}
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // Give it a breather after big query
+			continue;
+		}
+
+		software_map_symbol target_sym;
+		size_t target_idx = 0;
+
+		{
+			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			if (software_map_.symbols.empty()) continue;
+
+			if (current_sample_index >= software_map_.symbols.size()) {
+				current_sample_index = 0;
+			}
+			target_idx = current_sample_index++;
+			target_sym = software_map_.symbols[target_idx];
+		}
+
+		// Perform queries OUTSIDE the lock
+		auto refs = lsp_query_references(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+		int inbound_count = refs.size();
+
+		auto outgoing = lsp_query_call_hierarchy_outgoing(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+
+		// Update stats INSIDE the lock
+		{
+			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			// Ensure index is still valid (in case cache was reset)
+			if (target_idx < software_map_.symbols.size() && software_map_.symbols[target_idx].name == target_sym.name) {
+				software_map_.symbols[target_idx].looked_up_count = inbound_count;
+				// Boost accumulated count by exact inbound count once we verify it
+				software_map_.symbols[target_idx].accumulated_count += inbound_count;
+			}
+
+			// Propagate outbound importance
+			for (const auto &out_call : outgoing) {
+				for (auto &sym : software_map_.symbols) {
+					// We match by URI for safety, but out_call.uri might be absolute or relative depending on LSP.
+					// Simplest match for now is name and substring matching the path.
+					if (sym.name == out_call.name && (sym.location.path == out_call.uri || out_call.uri.ends_with(sym.location.path))) {
+						sym.accumulated_count++;
+						break; // Found it, move to next outgoing call
+					}
+				}
+			}
+		}
+
+		// Rate limit sampling
+		std::this_thread::sleep_for(std::chrono::milliseconds(300));
 	}
 }
