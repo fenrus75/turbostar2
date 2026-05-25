@@ -600,7 +600,7 @@ void project_manager::update_software_map_markdown()
 			}
 
 			std::string bases = sym.base_classes.empty() ? "-" : sym.base_classes;
-			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + "` |\n";
+			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + ":" + std::to_string(sym.location.range.start_y + 1) + "` |\n";
 			classes_shown++;
 		}
 		md += "\n";
@@ -624,7 +624,7 @@ void project_manager::update_software_map_markdown()
 					rel_path.erase(0, 1);
 			}
 
-			md += "| `" + sym.name + "` | `" + rel_path + "` |\n";
+			md += "| `" + sym.name + "` | `" + rel_path + ":" + std::to_string(sym.location.range.start_y + 1) + "` |\n";
 			funcs_shown++;
 		}
 	}
