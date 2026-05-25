@@ -642,6 +642,11 @@ void project_manager::save_software_map()
 		j["ready"] = software_map_.ready;
 	}
 
+	{
+		std::shared_lock<std::shared_mutex> lock(software_map_markdown_mutex_);
+		j["markdown_cache"] = software_map_markdown_cache_;
+	}
+
 	std::ofstream file(cache_path);
 	if (file.is_open()) {
 		file << j.dump(4);
@@ -678,12 +683,19 @@ void project_manager::load_software_map()
 		for (size_t i = 0; i < software_map_.symbols.size(); ++i) {
 			software_map_.name_to_indices[software_map_.symbols[i].name].push_back(i);
 		}
-		
+
 		event_logger::get_instance().log("Loaded Software Map from cache (" + std::to_string(software_map_.symbols.size()) + " symbols).");
-		lock.unlock();
-		update_software_map_markdown();
-	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Failed to load Software Map from cache: " + std::string(e.what()));
+
+		{
+			std::unique_lock<std::shared_mutex> lock_md(software_map_markdown_mutex_);
+			if (j.contains("markdown_cache"))
+				software_map_markdown_cache_ = j.at("markdown_cache").get<std::string>();
+		}
+
+		if (software_map_markdown_cache_.empty()) {
+			update_software_map_markdown();
+		}
+		} catch (const std::exception &e) {		event_logger::get_instance().log("Failed to load Software Map from cache: " + std::string(e.what()));
 	}
 }
 
