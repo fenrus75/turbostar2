@@ -26,6 +26,8 @@ When an anchor is triggered, the preceding bulk of the conversation is collapsed
 2.  **Pointer Injection:** The massive block of turns is then purged from the active array and replaced with a single, highly dense `system` message summarizing the milestone, appended with an Archival Pointer: 
     *`[SYSTEM MEMORY: Milestone Reached] Time: 8:00 AM. Action: git_commit. Summary: Fixed memory leak in lsp_manager. Raw history archive: milestone_5`*
 3.  **Context Restoration (Virtual Paging):** By providing a dedicated tool like `agent_restore_milestone_context(milestone_id)`, the agent gains the ability to perform a true "task switch." If it needs to resume work on a deeply historical task, it can call this tool. Assuming the token budget allows, the C++ backend will deserialize the archive and natively re-inject the historical conversational turns back into the agent's active memory array, operating exactly like virtual memory paging for an OS.
+4.  **Cross-Session Persistence:** Because history is serialized, when the user closes and restarts the editor, the agent begins with a fully "paged-out" context. It is provided a lightweight index of past milestones, allowing it to instantly task-switch back into yesterday's context by paging it in, providing true multi-day persistence without the token overhead.
+5.  **Hierarchical Milestone Indexing:** Over months of development, a flat list of milestones will itself become too large. Archival pointers will be structured hierarchically (e.g., `Epic -> Task -> Milestone`) or indexed via embeddings, allowing the agent to use tools like `agent_search_milestones` to query its own long-term memory gracefully.
 
 ## 3. Proactive (Cache-Preserving) Compaction
 
