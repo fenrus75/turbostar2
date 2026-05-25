@@ -1,4 +1,5 @@
 #include "agent_mark_milestone.h"
+#include "../../agentlib/ai_agent.h"
 #include "../../agentlib/interactions/system_message.h"
 
 namespace tools {
@@ -15,8 +16,11 @@ bool agent_mark_milestone_tool::validate_runtime(const agentlib::tool_context& /
     return true;
 }
 
-std::string agent_mark_milestone_tool::execute(agentlib::tool_context& /*ctx*/) {
-    return "Milestone successfully recorded. The system has noted your transition.";
+std::string agent_mark_milestone_tool::execute(agentlib::tool_context& ctx) {
+    if (ctx.active_agent) {
+        ctx.active_agent->snapshot_milestone(args_.title, args_.summary, args_.tags);
+    }
+    return "Milestone successfully recorded and written to disk. The system has noted your transition.";
 }
 
 } // namespace tools

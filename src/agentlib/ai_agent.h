@@ -88,6 +88,12 @@ public:
 
     void save_conversation(const std::string& filepath) const;
     void page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    void snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    bool page_in_context(const std::string& milestone_id);
+    
+    void save_active_state() const;
+    bool load_active_state();
+
     std::string get_memory_index() const;
 
 private:

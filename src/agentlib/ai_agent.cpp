@@ -35,11 +35,58 @@ std::string agent_status_to_string(agent_status status, const std::string &tool_
 }
 
 std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue,
-					   document_provider *doc_provider)
+                                           document_provider *doc_provider)
 {
-	return std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
+	auto agent = std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
+	// Don't auto-load active state automatically here because it might overwrite system prompts injected right after creation.
+	// We'll let the window/caller decide when to load. Actually, if we load it here, it will be an empty shell if not found.
+	return agent;
 }
 
+bool ai_agent::page_in_context(const std::string& milestone_id)
+{
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/" + milestone_id + ".json";
+	if (!std::filesystem::exists(filepath)) return false;
+
+	try {
+		std::ifstream file(filepath);
+		nlohmann::json root;
+		file >> root;
+
+		if (root.contains("conversation") && root["conversation"].is_array()) {
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+
+			// Find the pointer message to replace it
+			auto it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& msg) {
+				return msg.role == "system" && msg.content.find("Raw history archive: " + milestone_id) != std::string::npos;
+			});
+
+			std::vector<message> loaded_msgs;
+			for (const auto& item : root["conversation"]) {
+				message msg;
+				from_json(item, msg);
+				loaded_msgs.push_back(msg);
+			}
+
+			if (it != conversation_.end()) {
+				// Replace the pointer with the actual messages
+				it = conversation_.erase(it);
+				conversation_.insert(it, loaded_msgs.begin(), loaded_msgs.end());
+			} else {
+				// If pointer not found, just append to the end
+				conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
+			}
+
+			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + milestone_id);
+			increment_stat("context_pages_in");
+			return true;
+		}
+	} catch (const std::exception& e) {
+		event_logger::get_instance().log("Failed to page in context: " + std::string(e.what()));
+	}
+	return false;
+}
 ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider)
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
 {
@@ -52,12 +99,49 @@ ai_agent::~ai_agent()
 	close();
 }
 
+void ai_agent::save_active_state() const
+{
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/active_state.json";
+	save_conversation(filepath);
+}
+
+bool ai_agent::load_active_state()
+{
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/active_state.json";
+	if (!std::filesystem::exists(filepath)) return false;
+
+	try {
+		std::ifstream file(filepath);
+		nlohmann::json root;
+		file >> root;
+
+		if (root.contains("conversation") && root["conversation"].is_array()) {
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			conversation_.clear();
+			for (const auto& item : root["conversation"]) {
+				message msg;
+				from_json(item, msg);
+				conversation_.push_back(msg);
+			}
+			event_logger::get_instance().log("Agent " + name_ + " restored active state from " + filepath);
+			return true;
+		}
+	} catch (const std::exception& e) {
+		event_logger::get_instance().log("Failed to restore active state: " + std::string(e.what()));
+	}
+	return false;
+}
+
 void ai_agent::close()
 {
+	if (!is_closed_) {
+		save_active_state();
+	}
 	is_closed_ = true;
 	cancel_current_task();
 }
-
 void ai_agent::set_status(agent_status s, int target_id)
 {
 	{
@@ -674,6 +758,40 @@ void ai_agent::save_conversation(const std::string& filepath) const
         if (file.is_open()) {
                 file << root.dump(4);
         }
+}
+
+void ai_agent::snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+{
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+
+    if (conversation_.empty()) return;
+
+    nlohmann::json block_array = nlohmann::json::array();
+    for (const auto& msg : conversation_) {
+        nlohmann::json m_json;
+        to_json(m_json, msg);
+        block_array.push_back(m_json);
+    }
+
+    auto now = std::chrono::system_clock::now();
+    auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    std::string milestone_id = "milestone_" + std::to_string(epoch);
+
+    std::string history_dir = fs_utils::get_project_history_dir(name_);
+    std::string filepath = history_dir + "/" + milestone_id + ".json";
+
+    nlohmann::json root;
+    root["milestone_id"] = milestone_id;
+    root["title"] = title;
+    root["summary"] = summary;
+    root["tags"] = tags;
+    root["conversation"] = block_array;
+
+    std::ofstream file(filepath);
+    if (file.is_open()) {
+        file << root.dump(4);
+        event_logger::get_instance().log("Snapshot written to " + milestone_id);
+    }
 }
 
 void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)

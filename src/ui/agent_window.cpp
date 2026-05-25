@@ -34,6 +34,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 
 	agent_->inject_context("system", system_prompt);
+	
+	// Load the active state from the previous session if it exists.
+	// This inherently gives us Cross-Session Persistence as per the design doc.
+	if (agent_->load_active_state()) {
+		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
+	}
 
 	set_background_color_pair(17); // Use cyan background to differentiate from normal editors
 
@@ -111,6 +117,34 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			invalidate();
 			return;
 		}
+
+		if (trimmed_text.starts_with("/pageout ")) {
+			input_box_->set_buffer("");
+			try {
+				int n = std::stoi(trimmed_text.substr(9));
+				agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+			} catch (...) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns>"));
+			}
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		if (trimmed_text.starts_with("/pagein ")) {
+			input_box_->set_buffer("");
+			std::string milestone_id = trimmed_text.substr(8);
+			if (agent_->page_in_context(milestone_id)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + milestone_id));
+			} else {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + milestone_id));
+			}
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+		
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -207,6 +241,34 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			invalidate();
 			return;
 		}
+
+		if (trimmed_text.starts_with("/pageout ")) {
+			input_box_->set_buffer("");
+			try {
+				int n = std::stoi(trimmed_text.substr(9));
+				agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+			} catch (...) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns>"));
+			}
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		if (trimmed_text.starts_with("/pagein ")) {
+			input_box_->set_buffer("");
+			std::string milestone_id = trimmed_text.substr(8);
+			if (agent_->page_in_context(milestone_id)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + milestone_id));
+			} else {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + milestone_id));
+			}
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+		
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
