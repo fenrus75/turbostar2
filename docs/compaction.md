@@ -32,6 +32,7 @@ The absolute best way to manage context without breaking the API prompt cache is
     *   *Constraint 2 (The Multi-Strike Rule):* The zapping applies to "fail -> think -> pass" and extended "fail -> think -> fail -> pass" apology loops. However, if the loop is aborted (the agent gives up), the history must be preserved for external debugging.
     *   *Risk Consideration:* Zapping the intermediate "think" blocks destroys any generalized meta-knowledge the agent deduced during the failure (e.g., "Ah, I must always use absolute paths in this project").
 *   **Tool Call Merging (Context Coalescing):** If an agent performs sequential, adjacent operations—such as requesting lines 1-100 of a file, and immediately following up with a request for lines 101-149—these distinct turns can be intercepted and coalesced into a single historical record (a single tool call requesting lines 1-149 and returning the combined output). This eliminates the redundant JSON schema overhead and assistant thought headers between the disjointed calls.
+*   **ANSI Clear Screen Semantics:** If an agent executes a terminal command and the resulting payload contains an ANSI "Clear Screen" escape sequence (e.g., `\033[2J` or `\033[H`), we treat this as a semantic reset signal from the program. We can proactively truncate all terminal output that occurred *prior* to that escape sequence before committing the result to the conversation history, naturally eliminating stale UI renders or splash screens.
 
 ## 4. Retroactive Pruning Strategies
 
