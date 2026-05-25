@@ -2,7 +2,9 @@
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
 #include "../../project_manager.h"
+#include "../../agentlib/ai_agent.h"
 #include "../terminal_command_runner.h"
+#include "../output_filter.h"
 #include "fs_run_tests.h"
 
 namespace tools
@@ -70,6 +72,16 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	std::string output = runner.get_final_output();
 	runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
 	size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+
+	// Apply output filters to summarize/prune execution logs proactively
+	std::vector<std::shared_ptr<output_filter>> filters;
+	filters.push_back(std::make_shared<meson_test_filter>());
+	int lines_removed = 0;
+	output = apply_output_filters(cmd, output, filters, &lines_removed);
+
+	if (lines_removed > 0 && ctx.active_agent) {
+		ctx.active_agent->increment_stat("test_lines_pruned", lines_removed);
+	}
 
 	if (crashes_after > crashes_before) {
 		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +

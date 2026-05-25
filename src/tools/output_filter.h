@@ -65,6 +65,47 @@ public:
     }
 };
 
+// Filter that compresses successful Meson test steps
+class meson_test_filter : public output_filter {
+public:
+    bool is_applicable(const std::string& command, const std::string& /*raw_output*/) const override {
+        return command.find("meson test") != std::string::npos;
+    }
+
+    int apply(std::vector<std::string>& lines) const override {
+        if (lines.empty()) return 0;
+
+        auto is_success_line = [](const std::string& line) {
+            // E.g.: " 1/66 unit_event_logger                OK              0.01s"
+            if (line.find(" OK ") == std::string::npos) return false;
+            
+            size_t start = 0;
+            while (start < line.length() && std::isspace(line[start])) start++;
+            if (start >= line.length() || !std::isdigit(line[start])) return false;
+            
+            size_t slash = line.find('/', start);
+            if (slash == std::string::npos) return false;
+            
+            return true;
+        };
+
+        std::vector<std::string> new_lines;
+        int removed_count = 0;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            bool current_is_success = is_success_line(lines[i]);
+            bool next_is_success = (i + 1 < lines.size()) ? is_success_line(lines[i+1]) : false;
+
+            if (current_is_success && next_is_success) {
+                removed_count++;
+                continue;
+            }
+            new_lines.push_back(lines[i]);
+        }
+        lines = std::move(new_lines);
+        return removed_count;
+    }
+};
+
 inline std::string apply_output_filters(const std::string& command, const std::string& raw_output, const std::vector<std::shared_ptr<output_filter>>& filters, int* out_removed_count = nullptr) {
     std::vector<std::shared_ptr<output_filter>> applicable_filters;
     for (const auto& filter : filters) {
