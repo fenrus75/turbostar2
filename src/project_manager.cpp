@@ -457,6 +457,13 @@ std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hi
 	return {};
 }
 
+std::vector<lsp_manager::type_hierarchy_item> project_manager::lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line, int character)
+{
+	if (lsp_manager_)
+		return lsp_manager_->query_type_hierarchy_supertypes(filepath, line, character);
+	return {};
+}
+
 std::vector<std::string> project_manager::get_available_tests()
 {
 	if (!tests_ready_) {
@@ -524,34 +531,73 @@ std::string project_manager::get_software_map_markdown() const
 		return "Software Map is currently building or empty.";
 	}
 
-	std::vector<software_map_symbol> sorted_symbols = software_map_.symbols;
-	std::sort(sorted_symbols.begin(), sorted_symbols.end(), [](const software_map_symbol &a, const software_map_symbol &b) {
+	std::vector<software_map_symbol> classes;
+	std::vector<software_map_symbol> functions;
+
+	for (const auto &sym : software_map_.symbols) {
+		if (sym.accumulated_count == 0) continue;
+		
+		if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) {
+			classes.push_back(sym);
+		} else if (sym.kind == 12 || sym.kind == 6) {
+			functions.push_back(sym);
+		}
+	}
+
+	auto sort_desc = [](const software_map_symbol &a, const software_map_symbol &b) {
 		return a.accumulated_count > b.accumulated_count;
-	});
+	};
+
+	std::sort(classes.begin(), classes.end(), sort_desc);
+	std::sort(functions.begin(), functions.end(), sort_desc);
 
 	std::string md = "## Automatic Software Map\n\n";
-	md += "| Symbol Name | Type | Importance | File Location |\n";
-	md += "| :--- | :--- | :--- | :--- |\n";
+	
+	int total_limit = 50;
+	int class_limit = 25;
+	int classes_shown = 0;
 
-	int limit = 50;
-	int count = 0;
-	for (const auto &sym : sorted_symbols) {
-		if (sym.accumulated_count == 0) continue;
-		if (count++ >= limit) break;
-		
-		std::string kind_str = "Unknown";
-		if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) kind_str = "Class/Struct";
-		else if (sym.kind == 12 || sym.kind == 6) kind_str = "Function";
-		
-		std::string rel_path = sym.location.path;
-		if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
-			rel_path = rel_path.substr(repo_root_.length());
-			if (!rel_path.empty() && rel_path.front() == '/') {
-				rel_path.erase(0, 1);
+	// Classes Table
+	if (!classes.empty()) {
+		md += "### Key Classes & Structs\n";
+		md += "| Class Name | Type | Importance | Base Class(es) | File Location |\n";
+		md += "| :--- | :--- | :--- | :--- | :--- |\n";
+		for (const auto &sym : classes) {
+			if (classes_shown >= class_limit) break;
+			std::string kind_str = (sym.kind == 5) ? "Class" : (sym.kind == 22 ? "Struct" : "Interface");
+			
+			std::string rel_path = sym.location.path;
+			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
+				rel_path = rel_path.substr(repo_root_.length());
+				if (!rel_path.empty() && rel_path.front() == '/') rel_path.erase(0, 1);
 			}
+			
+			std::string bases = sym.base_classes.empty() ? "-" : sym.base_classes;
+			md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | " + bases + " | `" + rel_path + "` |\n";
+			classes_shown++;
 		}
+		md += "\n";
+	}
 
-		md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | `" + rel_path + "` |\n";
+	// Functions Table
+	if (!functions.empty()) {
+		md += "### Key Functions & Methods\n";
+		md += "| Function Name | Importance | File Location |\n";
+		md += "| :--- | :--- | :--- |\n";
+		int func_limit = total_limit - classes_shown;
+		int funcs_shown = 0;
+		for (const auto &sym : functions) {
+			if (funcs_shown >= func_limit) break;
+			
+			std::string rel_path = sym.location.path;
+			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
+				rel_path = rel_path.substr(repo_root_.length());
+				if (!rel_path.empty() && rel_path.front() == '/') rel_path.erase(0, 1);
+			}
+
+			md += "| `" + sym.name + "` | " + std::to_string(sym.accumulated_count) + " | `" + rel_path + "` |\n";
+			funcs_shown++;
+		}
 	}
 	
 	return md;
@@ -628,6 +674,11 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 		auto outgoing = lsp_query_call_hierarchy_outgoing(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
 
+		std::vector<lsp_manager::type_hierarchy_item> supertypes;
+		if (target_sym.kind == 5 || target_sym.kind == 22 || target_sym.kind == 11) {
+			supertypes = lsp_query_type_hierarchy_supertypes(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+		}
+
 		// Update stats INSIDE the lock
 		{
 			std::lock_guard<std::mutex> lock(software_map_mutex_);
@@ -636,6 +687,15 @@ void project_manager::software_map_loop(std::stop_token stop)
 				software_map_.symbols[target_idx].looked_up_count = inbound_count;
 				// Boost accumulated count by exact inbound count once we verify it
 				software_map_.symbols[target_idx].accumulated_count += inbound_count;
+
+				if (!supertypes.empty()) {
+					std::string bases;
+					for (size_t i = 0; i < supertypes.size(); ++i) {
+						bases += supertypes[i].name;
+						if (i < supertypes.size() - 1) bases += ", ";
+					}
+					software_map_.symbols[target_idx].base_classes = bases;
+				}
 			}
 
 			// Propagate outbound importance

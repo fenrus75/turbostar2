@@ -1,7 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
 - we need to tackle compaction at some point
-
+- use --background-index on clangd to have a persistent index
 - when cut and pasting in a modal dialog, the paste goes to the document underneath
 	- option: turn off block paste while in a modal dialog
 

@@ -61,6 +61,16 @@ class lsp_manager
 	};
 	std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
 
+	struct type_hierarchy_item {
+		std::string name;
+		int kind;
+		std::string detail;
+		std::string uri;
+		text_range range;
+		text_range selection_range;
+	};
+	std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
+
       private:
 	struct server_instance {
 		std::string language_id;

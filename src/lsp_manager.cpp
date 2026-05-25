@@ -653,3 +653,89 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 	}
 	return {};
 }
+
+std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line, int character)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server)
+		return {};
+
+	auto promise_prep = std::make_shared<std::promise<lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>>>();
+	auto future_prep = promise_prep->get_future();
+
+	try {
+		auto params = lsp::requests::TextDocument_PrepareTypeHierarchy::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(filepath);
+		params.position.line = static_cast<lsp::uint>(line);
+		params.position.character = static_cast<lsp::uint>(character);
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareTypeHierarchy>(
+		    std::move(params),
+		    [promise_prep](const lsp::requests::TextDocument_PrepareTypeHierarchy::Result &res) {
+			    if (!res.isNull()) {
+				    promise_prep->set_value(res.value());
+			    } else {
+				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+			    }
+		    },
+		    [promise_prep](const lsp::ResponseError &err) {
+			    (void)err;
+			    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+		    });
+	} catch (...) {
+		promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+	}
+
+	if (future_prep.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
+		return {};
+	}
+
+	auto prep_res = future_prep.get();
+	if (!prep_res || prep_res->empty())
+		return {};
+
+	auto promise_sup = std::make_shared<std::promise<std::vector<type_hierarchy_item>>>();
+	auto future_sup = promise_sup->get_future();
+
+	try {
+		auto params = lsp::requests::TypeHierarchy_Supertypes::Params();
+		params.item = prep_res->front();
+
+		server->message_handler->sendRequest<lsp::requests::TypeHierarchy_Supertypes>(
+		    std::move(params),
+		    [promise_sup](const lsp::requests::TypeHierarchy_Supertypes::Result &res) {
+			    std::vector<type_hierarchy_item> out;
+			    if (!res.isNull()) {
+				    for (const auto &call : res.value()) {
+					    type_hierarchy_item item;
+					    item.name = call.name;
+					    item.kind = static_cast<int>(call.kind);
+					    if (call.detail)
+						    item.detail = *call.detail;
+					    item.uri = call.uri.path();
+					    item.range = {static_cast<int>(call.range.start.line), 
+									  static_cast<int>(call.range.start.character),
+							  		  static_cast<int>(call.range.end.line), 
+									  static_cast<int>(call.range.end.character)};
+					    item.selection_range = {static_cast<int>(call.selectionRange.start.line),
+								    		static_cast<int>(call.selectionRange.start.character),
+								    		static_cast<int>(call.selectionRange.end.line),
+								    		static_cast<int>(call.selectionRange.end.character)};
+					    out.push_back(item);
+				    }
+			    }
+			    promise_sup->set_value(out);
+		    },
+		    [promise_sup](const lsp::ResponseError &err) {
+			    (void)err;
+			    promise_sup->set_value({});
+		    });
+	} catch (...) {
+		promise_sup->set_value({});
+	}
+
+	if (future_sup.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+		return future_sup.get();
+	}
+	return {};
+}

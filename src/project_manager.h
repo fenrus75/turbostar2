@@ -70,6 +70,7 @@ class project_manager
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::symbol_info> lsp_query_workspace_symbols(const std::string &query);
 	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
+	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
 
 	// Test management
 	std::vector<std::string> get_available_tests();
@@ -107,6 +108,7 @@ class project_manager
 		int looked_up_count{0};
 		int accumulated_count{0};
 		bool is_seed{true}; // True if found via initial workspace/symbol scan
+		std::string base_classes;
 	};
 
 	struct software_map_data {
