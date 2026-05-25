@@ -779,6 +779,7 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
     std::string filepath = history_dir + "/" + milestone_id + ".json";
+    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
 
     nlohmann::json root;
     root["milestone_id"] = milestone_id;
@@ -791,6 +792,19 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     if (file.is_open()) {
         file << root.dump(4);
         event_logger::get_instance().log("Snapshot written to " + milestone_id);
+    }
+    
+    nlohmann::json meta;
+    meta["milestone_id"] = milestone_id;
+    meta["title"] = title;
+    meta["summary"] = summary;
+    meta["tags"] = tags;
+    meta["created_at_epoch"] = epoch;
+    meta["estimated_tokens"] = block_array.dump().length() / 4;
+    
+    std::ofstream meta_file(meta_filepath);
+    if (meta_file.is_open()) {
+        meta_file << meta.dump(4);
     }
 }
 
@@ -815,6 +829,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
     std::string filepath = history_dir + "/" + milestone_id + ".json";
+    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
 
     nlohmann::json root;
     root["milestone_id"] = milestone_id;
@@ -830,6 +845,19 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     } else {
         event_logger::get_instance().log("Failed to write milestone archive to " + filepath);
         return; // Don't delete history if we couldn't save it
+    }
+
+    nlohmann::json meta;
+    meta["milestone_id"] = milestone_id;
+    meta["title"] = title;
+    meta["summary"] = summary;
+    meta["tags"] = tags;
+    meta["created_at_epoch"] = epoch;
+    meta["estimated_tokens"] = block_array.dump().length() / 4;
+    
+    std::ofstream meta_file(meta_filepath);
+    if (meta_file.is_open()) {
+        meta_file << meta.dump(4);
     }
 
     // 2. Replace the block with the summary pointer
@@ -869,7 +897,9 @@ std::string ai_agent::get_memory_index() const
     int count = 0;
 
     for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".json") {
+        std::string filename = entry.path().filename().string();
+        // Only read the _metadata.json files to avoid loading massive conversation arrays into memory
+        if (entry.is_regular_file() && filename.ends_with("_metadata.json")) {
             try {
                 std::ifstream f(entry.path());
                 nlohmann::json root;
@@ -877,12 +907,7 @@ std::string ai_agent::get_memory_index() const
 
                 std::string milestone_id = root.value("milestone_id", "unknown");
                 std::string title = root.value("title", "Untitled");
-                
-                int est_tokens = 0;
-                if (root.contains("conversation")) {
-                    std::string conv_dump = root["conversation"].dump();
-                    est_tokens = conv_dump.length() / 4; // Very rough token estimate
-                }
+                int est_tokens = root.value("estimated_tokens", 0);
 
                 out << "- [" << milestone_id << "] " << title << " (~" << est_tokens << " tokens)\n";
                 if (root.contains("tags") && root["tags"].is_array() && !root["tags"].empty()) {
