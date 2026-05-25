@@ -29,6 +29,10 @@ class agent_add_todo_validator : public agentlib::single_string_tool_validator
 	bool validate_string_arg(const std::string & /*arg*/, const agentlib::tool_context & /*ctx*/,
 				 std::string & /*out_error*/) const override
 	{
+		if (arg.length() > 1024) {
+			out_error = "Todo text is too long (max 1024 characters).";
+			return false;
+		}
 		return true;
 	}
 

@@ -14,6 +14,10 @@ bool agent_add_todo_tool::validate_runtime(const agentlib::tool_context &ctx, st
 		out_error = "Execution Error: No active agent context available.";
 		return false;
 	}
+	if (ctx.active_agent->is_read_only()) {
+		out_error = "Execution Error: Agent is in read-only mode.";
+		return false;
+	}
 	if (text_.empty()) {
 		out_error = "Execution Error: Todo text cannot be empty.";
 		return false;
