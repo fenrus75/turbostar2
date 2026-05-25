@@ -198,10 +198,9 @@ std::string gemini_formatter::build_chat_payload(const std::string& model_id, co
         }
     }
 
-    // Always append the server-side Google Search tool for Gemini models
-    tools_array.push_back({{"googleSearch", json::object()}});
-
-    payload["tools"] = tools_array;
+    if (!tools_array.empty()) {
+        payload["tools"] = tools_array;
+    }
 
     return payload.dump();
 }
