@@ -536,13 +536,22 @@ std::string project_manager::get_software_map_markdown() const
 	int limit = 50;
 	int count = 0;
 	for (const auto &sym : sorted_symbols) {
+		if (sym.accumulated_count == 0) continue;
 		if (count++ >= limit) break;
 		
 		std::string kind_str = "Unknown";
 		if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) kind_str = "Class/Struct";
 		else if (sym.kind == 12 || sym.kind == 6) kind_str = "Function";
 		
-		md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | `" + sym.location.path + "` |\n";
+		std::string rel_path = sym.location.path;
+		if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
+			rel_path = rel_path.substr(repo_root_.length());
+			if (!rel_path.empty() && rel_path.front() == '/') {
+				rel_path.erase(0, 1);
+			}
+		}
+
+		md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | `" + rel_path + "` |\n";
 	}
 	
 	return md;
@@ -570,6 +579,11 @@ void project_manager::software_map_loop(std::stop_token stop)
 				std::lock_guard<std::mutex> lock(software_map_mutex_);
 				software_map_.symbols.clear();
 				for (const auto &sym : symbols) {
+					// Ignore standard library and system headers to avoid noise
+					if (sym.location.path.starts_with("/usr/")) {
+						continue;
+					}
+
 					// Filter for Class(5), Method(6), Interface(11), Function(12), Struct(22)
 					if (sym.kind == 5 || sym.kind == 6 || sym.kind == 11 || sym.kind == 12 || sym.kind == 22) {
 						software_map_symbol sms;
