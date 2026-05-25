@@ -526,7 +526,7 @@ void project_manager::refresh_available_tests()
 
 std::string project_manager::get_software_map_markdown() const
 {
-	std::lock_guard<std::mutex> lock(software_map_mutex_);
+	std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
 	if (!software_map_.ready || software_map_.symbols.empty()) {
 		return "Software Map is currently building or empty.";
 	}
@@ -605,8 +605,6 @@ std::string project_manager::get_software_map_markdown() const
 
 void project_manager::software_map_loop(std::stop_token stop)
 {
-	size_t current_sample_index = 0;
-
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
 			std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -615,15 +613,16 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 		bool needs_seed = false;
 		{
-			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
 			needs_seed = !software_map_.ready || software_map_.symbols.empty();
 		}
 
 		if (needs_seed) {
 			auto symbols = lsp_query_workspace_symbols("");
 			if (!symbols.empty()) {
-				std::lock_guard<std::mutex> lock(software_map_mutex_);
+				std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
 				software_map_.symbols.clear();
+				software_map_.name_to_indices.clear();
 				for (const auto &sym : symbols) {
 					// Ignore standard library and system headers to avoid noise
 					if (sym.location.path.starts_with("/usr/")) {
@@ -639,6 +638,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 						sms.looked_up_count = 0;
 						sms.accumulated_count = 0;
 						sms.is_seed = true;
+						sms.is_sampled = false;
 						
 						// Slight boost for headers and root level files
 						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
@@ -646,6 +646,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 						}
 						
 						software_map_.symbols.push_back(sms);
+						software_map_.name_to_indices[sym.name].push_back(software_map_.symbols.size() - 1);
 					}
 				}
 				software_map_.ready = true;
@@ -655,17 +656,30 @@ void project_manager::software_map_loop(std::stop_token stop)
 		}
 
 		software_map_symbol target_sym;
-		size_t target_idx = 0;
+		size_t target_idx = (size_t)-1;
 
 		{
-			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
 			if (software_map_.symbols.empty()) continue;
 
-			if (current_sample_index >= software_map_.symbols.size()) {
-				current_sample_index = 0;
+			// Find the highest priority unsampled symbol
+			int best_score = -1;
+			for (size_t i = 0; i < software_map_.symbols.size(); ++i) {
+				if (!software_map_.symbols[i].is_sampled && software_map_.symbols[i].accumulated_count > best_score) {
+					best_score = software_map_.symbols[i].accumulated_count;
+					target_idx = i;
+				}
 			}
-			target_idx = current_sample_index++;
+
+			if (target_idx == (size_t)-1) {
+				// All symbols sampled. We could reset them all if there was file churn, 
+				// but for now we'll just wait.
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				continue;
+			}
+
 			target_sym = software_map_.symbols[target_idx];
+			software_map_.symbols[target_idx].is_sampled = true; // Mark as sampled immediately so we don't pick it again if we fail
 		}
 
 		// Perform queries OUTSIDE the lock
@@ -681,7 +695,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 		// Update stats INSIDE the lock
 		{
-			std::lock_guard<std::mutex> lock(software_map_mutex_);
+			std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
 			// Ensure index is still valid (in case cache was reset)
 			if (target_idx < software_map_.symbols.size() && software_map_.symbols[target_idx].name == target_sym.name) {
 				software_map_.symbols[target_idx].looked_up_count = inbound_count;
@@ -700,12 +714,14 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 			// Propagate outbound importance
 			for (const auto &out_call : outgoing) {
-				for (auto &sym : software_map_.symbols) {
-					// We match by URI for safety, but out_call.uri might be absolute or relative depending on LSP.
-					// Simplest match for now is name and substring matching the path.
-					if (sym.name == out_call.name && (sym.location.path == out_call.uri || out_call.uri.ends_with(sym.location.path))) {
-						sym.accumulated_count++;
-						break; // Found it, move to next outgoing call
+				auto it = software_map_.name_to_indices.find(out_call.name);
+				if (it != software_map_.name_to_indices.end()) {
+					for (size_t idx : it->second) {
+						auto &sym = software_map_.symbols[idx];
+						if (sym.location.path == out_call.uri || out_call.uri.ends_with(sym.location.path)) {
+							sym.accumulated_count++;
+							break; // Found it, move to next outgoing call
+						}
 					}
 				}
 			}

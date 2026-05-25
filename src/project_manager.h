@@ -1,9 +1,11 @@
 #pragma once
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include "lsp_manager.h"
 
 /**
@@ -108,12 +110,14 @@ class project_manager
 		int looked_up_count{0};
 		int accumulated_count{0};
 		bool is_seed{true}; // True if found via initial workspace/symbol scan
+		bool is_sampled{false}; // True if exact references and outgoing calls have been verified
 		std::string base_classes;
 	};
 
 	struct software_map_data {
 		std::string git_head_hash;
 		std::vector<software_map_symbol> symbols;
+		std::unordered_map<std::string, std::vector<size_t>> name_to_indices;
 		bool ready{false};
 	};
 
@@ -129,7 +133,7 @@ class project_manager
 	project_layout layout_;
 	std::jthread inventory_thread_;
 
-	mutable std::mutex software_map_mutex_;
+	mutable std::shared_mutex software_map_mutex_;
 	software_map_data software_map_;
 	std::jthread software_map_thread_;
 };
