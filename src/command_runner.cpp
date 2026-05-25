@@ -159,7 +159,11 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	}
 
 	for (const auto &p : extra_rw_paths_) {
-		cmd += "-p ReadWritePaths=" + p + " ";
+		if (home_access_ == home_access_t::hidden) {
+			cmd += "-p BindPaths=" + p + " ";
+		} else {
+			cmd += "-p ReadWritePaths=" + p + " ";
+		}
 	}
 	for (const auto &p : extra_ro_paths_) {
 		if (home_access_ == home_access_t::hidden) {
@@ -175,6 +179,23 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	const char *home_env = std::getenv("HOME");
 	if (home_env) {
 		std::string home(home_env);
+		
+		// Expose ccache directories if they exist so compilation works inside sandbox
+		std::vector<std::string> ccache_paths = {home + "/.cache/ccache", home + "/.ccache"};
+		const char *ccache_env = std::getenv("CCACHE_DIR");
+		if (ccache_env) {
+			ccache_paths.push_back(ccache_env);
+		}
+		for (const auto &p : ccache_paths) {
+			if (fs::exists(p)) {
+				if (home_access_ == home_access_t::hidden) {
+					cmd += "-p BindPaths=" + p + " ";
+				} else {
+					cmd += "-p ReadWritePaths=" + p + " ";
+				}
+			}
+		}
+
 		std::vector<std::string> sensitive = {home + "/.ssh", home + "/.env", home + "/.aws", home + "/.gnupg",
 						      home + "/.gemini/keys", home + "/.cache/turbostar/models.json"};
 		for (const auto &s : sensitive) {

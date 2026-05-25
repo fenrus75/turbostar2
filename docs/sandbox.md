@@ -46,6 +46,7 @@ systemd-run --user --pty --pipe --wait \
 *   **`home_access == hidden`** -> `-p ProtectHome=tmpfs`
 *   **`project_dir != ""`** -> `-p "WorkingDirectory=<project_dir>"` and `-p "BindPaths=<project_dir>"` (if home is tmpfs) and `-p ReadWritePaths=<project_dir>`
 *   **`extra_ro_paths`** -> `-p ReadOnlyPaths=...` (or `BindReadOnlyPaths` if home is tmpfs)
+*   **`ccache` auto-binding**: The runner automatically checks `~/.cache/ccache`, `~/.ccache`, and `$CCACHE_DIR` and implicitly adds `-p BindPaths=...` to ensure compilations don't fail when the systemd sandbox masks the home directory.
 
 ## Future Profiles
 
