@@ -7,6 +7,7 @@
 #include "../event_queue.h"
 #include "../event_logger.h"
 #include "../git_manager.h"
+#include "../fs_utils.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
 
@@ -657,26 +658,88 @@ void ai_agent::start_processing()
 
 void ai_agent::save_conversation(const std::string& filepath) const
 {
-	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	nlohmann::json root;
-	root["agent_id"] = id_;
-	root["agent_name"] = name_;
-	nlohmann::json conv_array = nlohmann::json::array();
-	for (const auto& msg : conversation_) {
-		nlohmann::json m_json;
-		to_json(m_json, msg);
-		conv_array.push_back(m_json);
-	}
-	root["conversation"] = conv_array;
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        nlohmann::json root;
+        root["agent_id"] = id_;
+        root["agent_name"] = name_;
+        nlohmann::json conv_array = nlohmann::json::array();
+        for (const auto& msg : conversation_) {
+                nlohmann::json m_json;
+                to_json(m_json, msg);
+                conv_array.push_back(m_json);
+        }
+        root["conversation"] = conv_array;
 
-	std::ofstream file(filepath);
-	if (file.is_open()) {
-		file << root.dump(4);
-	}
+        std::ofstream file(filepath);
+        if (file.is_open()) {
+                file << root.dump(4);
+        }
 }
 
-void ai_agent::compact_ephemeral_errors(std::vector<message>& convo)
+void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
 {
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+
+    if (start_index >= end_index || end_index > conversation_.size()) return;
+
+    // 1. Serialize the block
+    nlohmann::json block_array = nlohmann::json::array();
+    for (size_t i = start_index; i < end_index; ++i) {
+        nlohmann::json m_json;
+        to_json(m_json, conversation_[i]);
+        block_array.push_back(m_json);
+    }
+
+    // Generate an ID for this milestone (timestamp or random hash)
+    auto now = std::chrono::system_clock::now();
+    auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    std::string milestone_id = "milestone_" + std::to_string(epoch);
+
+    std::string history_dir = fs_utils::get_project_history_dir(name_);
+    std::string filepath = history_dir + "/" + milestone_id + ".json";
+
+    nlohmann::json root;
+    root["milestone_id"] = milestone_id;
+    root["title"] = title;
+    root["summary"] = summary;
+    root["tags"] = tags;
+    root["conversation"] = block_array;
+
+    std::ofstream file(filepath);
+    if (file.is_open()) {
+        file << root.dump(4);
+        file.close();
+    } else {
+        event_logger::get_instance().log("Failed to write milestone archive to " + filepath);
+        return; // Don't delete history if we couldn't save it
+    }
+
+    // 2. Replace the block with the summary pointer
+    std::stringstream pointer_msg;
+    pointer_msg << "[SYSTEM MEMORY: Milestone Reached]\n";
+    pointer_msg << "Title: " << title << "\n";
+    pointer_msg << "Summary: " << summary << "\n";
+    if (!tags.empty()) {
+        pointer_msg << "Tags: [";
+        for (size_t i = 0; i < tags.size(); ++i) {
+            pointer_msg << tags[i] << (i < tags.size() - 1 ? ", " : "");
+        }
+        pointer_msg << "]\n";
+    }
+    pointer_msg << "Raw history archive: " << milestone_id;
+
+    message summary_msg;
+    summary_msg.role = "system";
+    summary_msg.content = pointer_msg.str();
+
+    conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
+    conversation_.insert(conversation_.begin() + start_index, summary_msg);
+
+    event_logger::get_instance().log("Paged out " + std::to_string(end_index - start_index) + " turns to " + milestone_id);
+    increment_stat("context_pages_out");
+}
+
+void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 	bool compacted = false;
 	
 	while (convo.size() >= 4) {

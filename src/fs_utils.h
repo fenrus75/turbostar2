@@ -50,8 +50,12 @@ namespace fs_utils {
 	std::string get_project_tmp_dir();
 
 	/**
-	 * @brief Returns a safe, project-specific directory for storing crash dumps.
-	 * Resolves to ~/.cache/turbostar/projects/<hash>/dumps/ and creates the directory if it doesn't exist.
+	 * @brief Returns a safe, project-specific directory for storing agent conversation history archives.
+	 * Resolves to ~/.cache/turbostar/projects/<hash>/history/<agent_name>/ and creates the directory if it doesn't exist.
+	 */
+	std::string get_project_history_dir(const std::string& agent_name = "main");
+	/**
+	 * @brief Returns a safe, project-specific directory for storing crash dumps.	 * Resolves to ~/.cache/turbostar/projects/<hash>/dumps/ and creates the directory if it doesn't exist.
 	 */
 	std::string get_project_dump_dir();
 	/**

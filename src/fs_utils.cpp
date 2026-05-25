@@ -257,9 +257,33 @@ std::string get_project_tmp_dir()
 	std::filesystem::create_directories(tmp_dir, ec);
 
 	return tmp_dir.string();
-}
+	}
 
-std::string get_project_dump_dir()
+	std::string get_project_history_dir(const std::string& agent_name)
+	{
+	std::string repo_root = git_manager::get_instance().get_repository_root();
+	if (repo_root.empty()) {
+	        repo_root = std::filesystem::current_path().string();
+	}
+
+	std::hash<std::string> hasher;
+	size_t hash = hasher(repo_root);
+
+	const char *home = std::getenv("HOME");
+	std::filesystem::path history_dir;
+	if (home) {
+	        history_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "history" / agent_name;
+	} else {
+	        history_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "history" / agent_name;
+	}
+
+	std::error_code ec;
+	std::filesystem::create_directories(history_dir, ec);
+
+	return history_dir.string();
+	}
+
+	std::string get_project_dump_dir()
 {
 	std::string repo_root = git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
