@@ -6,56 +6,24 @@ using json = nlohmann::json;
 namespace agentlib
 {
 
-llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string model_id)
+llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string model_id, api_type type)
     : transport_(std::move(transport)), model_id_(std::move(model_id))
 {
+	formatter_ = api_formatter::create(type);
 }
 
 llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry)
 {
-	json payload = {{"model", model_id_}, {"messages", conversation}, {"stream", false}};
-
-	if (registry) {
-		json tools_json = registry->get_tools_json();
-		if (!tools_json.empty()) {
-			payload["tools"] = tools_json;
-			payload["tool_choice"] = "auto";
-		}
-	}
-
-	std::string body = payload.dump();
+	std::string body = formatter_->build_chat_payload(model_id_, conversation, registry, false);
 
 	auto res = transport_->post("/v1/chat/completions", body);
 
-	llm_chat_response chat_response;
-	chat_response.msg.role = "assistant";
-
 	if (res.status_code == 200) {
-		try {
-			json response = json::parse(res.body);
-			if (response.contains("model")) {
-				chat_response.model = response["model"].get<std::string>();
-			}
-			if (response.contains("usage")) {
-				auto usage = response["usage"];
-				if (usage.contains("prompt_tokens"))
-					chat_response.usage.prompt_tokens = usage["prompt_tokens"].get<int>();
-				if (usage.contains("completion_tokens"))
-					chat_response.usage.completion_tokens = usage["completion_tokens"].get<int>();
-				if (usage.contains("total_tokens"))
-					chat_response.usage.total_tokens = usage["total_tokens"].get<int>();
-			}
-			if (response.contains("choices") && !response["choices"].empty()) {
-				auto msg_json = response["choices"][0]["message"];
-				chat_response.msg = msg_json.get<message>();
-				return chat_response;
-			}
-		} catch (const std::exception &e) {
-			chat_response.msg.content = "Error parsing response JSON: " + std::string(e.what());
-			return chat_response;
-		}
+		return formatter_->parse_sync_response(res.body);
 	}
 
+	llm_chat_response chat_response;
+	chat_response.msg.role = "assistant";
 	std::string target_url = transport_ ? transport_->get_base_url() : "unknown";
 	chat_response.msg.content = "Error connecting to LLM server at " + target_url + ". Status: " + std::to_string(res.status_code) +
 				    "\nResponse body: " + res.body;
@@ -65,17 +33,7 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
 				  const tool_registry *registry)
 {
-	json payload = {{"model", model_id_}, {"messages", conversation}, {"stream", true}};
-
-	if (registry) {
-		json tools_json = registry->get_tools_json();
-		if (!tools_json.empty()) {
-			payload["tools"] = tools_json;
-			payload["tool_choice"] = "auto";
-		}
-	}
-
-	std::string body = payload.dump();
+	std::string body = formatter_->build_chat_payload(model_id_, conversation, registry, true);
 	std::string line_buffer;
 
 	bool success =
@@ -89,50 +47,11 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 
 			    if (line.rfind("data: ", 0) == 0) {
 				    std::string json_str = line.substr(6);
-				    if (json_str == "[DONE]") {
-					    chat_delta delta;
-					    delta.is_final = true;
+				    chat_delta delta = formatter_->parse_stream_chunk(json_str);
+				    if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final) {
 					    callback(delta);
-					    return true;
 				    }
-
-				    try {
-					    json chunk = json::parse(json_str);
-					    chat_delta delta;
-
-					    if (chunk.contains("usage") && !chunk["usage"].is_null()) {
-						    auto usage = chunk["usage"];
-						    if (usage.contains("prompt_tokens"))
-							    delta.usage.prompt_tokens = usage["prompt_tokens"].get<int>();
-						    if (usage.contains("completion_tokens"))
-							    delta.usage.completion_tokens = usage["completion_tokens"].get<int>();
-						    if (usage.contains("total_tokens"))
-							    delta.usage.total_tokens = usage["total_tokens"].get<int>();
-					    }
-
-					    if (chunk.contains("choices") && !chunk["choices"].empty()) {
-						    auto choice = chunk["choices"][0];
-						    if (choice.contains("delta")) {
-							    auto d = choice["delta"];
-							    if (d.contains("role"))
-								    delta.role = d["role"].get<std::string>();
-							    if (d.contains("content") && !d["content"].is_null())
-								    delta.content = d["content"].get<std::string>();
-							    if (d.contains("reasoning_content") && !d["reasoning_content"].is_null()) {
-								    delta.reasoning_content = d["reasoning_content"].get<std::string>();
-							    }
-							    if (d.contains("tool_calls")) {
-								    delta.tool_calls = d["tool_calls"].get<std::vector<tool_call>>();
-							    }
-						    }
-						    if (choice.contains("finish_reason") && !choice["finish_reason"].is_null()) {
-							    delta.is_final = true;
-						    }
-					    }
-					    callback(delta);
-				    } catch (...) {
-					    // Ignore malformed chunks
-				    }
+				    if (delta.is_final) return true;
 			    }
 		    }
 		    return true;

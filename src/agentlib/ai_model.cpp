@@ -38,17 +38,17 @@ ai_model_registry::ai_model_registry()
 	if (models_.empty()) {
 		// Standard baseline models
 		register_model(
-		    std::make_shared<ai_model>("local-default", "Local Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0));
+		    std::make_shared<ai_model>("local-default", "Local Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0, "", api_type::openai));
 
 		register_model(
-		    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00));
+		    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00, "", api_type::openai));
 
 		register_model(std::make_shared<ai_model>("claude-3-5-sonnet", "Claude 3.5 Sonnet", "https://api.anthropic.com/v1",
-							  "Fast and cheap coding", 3.00, 15.00));
+							  "Fast and cheap coding", 3.00, 15.00, "", api_type::openai));
 
 		register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro",
-							  "https://generativelanguage.googleapis.com/v1beta/openai", "Huge context windows", 3.50,
-							  10.50));
+							  "https://generativelanguage.googleapis.com", "Huge context windows", 3.50,
+							  10.50, "", api_type::gemini));
 		save_models();
 	}
 }
@@ -111,9 +111,14 @@ void ai_model_registry::load_models()
 				std::string api_key = item.value("api_key", "");
 				double tx_cost = item.value("cost_tx", 0.0);
 				double rx_cost = item.value("cost_rx", 0.0);
+				std::string type_str = item.value("api_type", "openai");
+				api_type type = api_type::openai;
+				if (type_str == "gemini") {
+					type = api_type::gemini;
+				}
 
 				if (!id.empty()) {
-					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key));
+					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type));
 				}
 			}
 		}
@@ -143,6 +148,7 @@ void ai_model_registry::save_models() const
 		item["api_key"] = model->get_api_key();
 		item["cost_tx"] = model->get_cost_per_1m_tx();
 		item["cost_rx"] = model->get_cost_per_1m_rx();
+		item["api_type"] = (model->get_api_type() == api_type::gemini) ? "gemini" : "openai";
 		data.push_back(item);
 	}
 

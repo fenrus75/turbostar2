@@ -36,6 +36,23 @@ nlohmann::json tool_registry::get_tools_json() const
 	return tools_array;
 }
 
+nlohmann::json tool_registry::get_gemini_tools_json() const
+{
+	nlohmann::json tools_array = nlohmann::json::array();
+	for (const auto &[name, factory] : validator_factories_) {
+		auto validator = factory();
+		nlohmann::json func_decl = {
+			{"name", validator->get_name()},
+			{"description", validator->get_description()},
+			{"parameters", validator->get_parameters_schema()}
+		};
+		tools_array.push_back(func_decl);
+	}
+	return nlohmann::json::array({
+		{ {"functionDeclarations", tools_array} }
+	});
+}
+
 bool tool_registry::is_tool_silent(const std::string &name) const
 {
 	auto it = validator_factories_.find(name);

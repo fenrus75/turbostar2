@@ -688,7 +688,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 
 std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_model> model)
 {
-	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 16);
+	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 18);
 
 	int lx = 4;
 	int tx = 16;
@@ -714,7 +714,14 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	dlg->add_child(std::make_unique<ui_text_label>(lx, 8, "Rx Cost:"));
 	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", tx, 8, 10, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0"));
 
-	int by = 12;
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 10, "API Format:"));
+	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1);
+	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", 0, 0, " OpenAI ", 'O', !is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", 12, 0, " Gemini ", 'G', is_gemini));
+	dlg->add_child(std::move(type_radio));
+
+	int by = 14;
 	dlg->add_child(std::make_unique<ui_button>("btn_ok", 15, by, "   OK   ", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -737,6 +744,7 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	auto purpose_opt = dlg.get_value("purpose");
 	auto tx_cost_opt = dlg.get_value("cost_tx");
 	auto rx_cost_opt = dlg.get_value("cost_rx");
+	auto api_type_opt = dlg.get_value("api_type");
 
 	if (!id_opt || id_opt->empty())
 		return;
@@ -751,6 +759,11 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	} catch (...) {
 	}
 
+	agentlib::api_type type = agentlib::api_type::openai;
+	if (api_type_opt && *api_type_opt == "gemini") {
+		type = agentlib::api_type::gemini;
+	}
+
 	auto &registry = agentlib::ai_model_registry::get_instance();
 
 	if (!original_id.empty() && original_id != *id_opt) {
@@ -759,7 +772,7 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 
 	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
 							  purpose_opt ? *purpose_opt : "", tx_cost, rx_cost,
-							  api_key_opt ? *api_key_opt : "");
+							  api_key_opt ? *api_key_opt : "", type);
 	registry.update_model(model);
 	registry.save_models();
 }
