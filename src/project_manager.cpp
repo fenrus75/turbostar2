@@ -773,6 +773,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 					if (sym.location.path.find(build_dir_str) != std::string::npos || sym.location.path.find("/build") != std::string::npos)
 						continue;
 
+					// Filter out absurdly long identifiers (likely noise/macros)
+					if (sym.name.length() > 40)
+						continue;
+
 					if (sym.kind == 5 || sym.kind == 6 || sym.kind == 11 || sym.kind == 12 || sym.kind == 22) {
 						// Simple deduplication
 						bool exists = false;
