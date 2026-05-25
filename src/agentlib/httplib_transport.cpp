@@ -84,8 +84,11 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 
 		httplib::Headers headers;
 		if (!api_key_.empty()) {
-			headers.emplace("Authorization", "Bearer " + api_key_);
-			headers.emplace("x-goog-api-key", api_key_);
+			if (base_url_.find("googleapis.com") != std::string::npos) {
+				headers.emplace("x-goog-api-key", api_key_);
+			} else {
+				headers.emplace("Authorization", "Bearer " + api_key_);
+			}
 		}
 
 		std::string full_path = path;
@@ -141,8 +144,11 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		req.body = json_body;
 		req.set_header("Content-Type", "application/json");
 		if (!api_key_.empty()) {
-			req.set_header("Authorization", "Bearer " + api_key_);
-			req.set_header("x-goog-api-key", api_key_);
+			if (base_url_.find("googleapis.com") != std::string::npos) {
+				req.set_header("x-goog-api-key", api_key_);
+			} else {
+				req.set_header("Authorization", "Bearer " + api_key_);
+			}
 		}
 
 		req.response_handler = [&](const httplib::Response &response) {
