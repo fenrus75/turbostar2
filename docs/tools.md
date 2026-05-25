@@ -63,8 +63,8 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `edits` *(array of objects, required)*: A list of edit operations.
         *   `line_number` *(integer, required)*: The 1-based line number to target.
         *   `type` *(string, required)*: The type of edit operation (`add`, `remove`, `replace`).
-        *   `original_text` *(string, optional)*: Required for `remove` and `replace`. The exact full content of the original line being modified. Used for safety verification. Pass empty string for `add`.
-        *   `replace_with` *(string, optional)*: Required for `add` and `replace`. The exact new content to insert or replace the line with. Pass empty string for `remove`.
+        *   `original_text` *(string, optional)*: Required for `remove` and `replace`. The exact full content of the original line(s) being modified. You MAY provide multiple lines separated by \n to replace entire blocks of code. Used for safety verification. Pass empty string for `add`.
+        *   `replace_with` *(string, optional)*: Required for `add` and `replace`. The new content to insert or replace the line with. You MAY use newline characters (\n) here to insert multiple lines. Pass empty string for `remove`.
 
 ### `fs_write_file`
 *   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
