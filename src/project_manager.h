@@ -107,6 +107,7 @@ class project_manager
 	void load_instructions();
 	void inventory_project(std::stop_token stop);
 	void software_map_loop(std::stop_token stop);
+	void update_software_map_markdown();
 
 	struct directory_info {
 		std::string path;
@@ -138,4 +139,7 @@ class project_manager
 	mutable std::shared_mutex software_map_mutex_;
 	software_map_data software_map_;
 	std::jthread software_map_thread_;
+
+	mutable std::shared_mutex software_map_markdown_mutex_;
+	std::string software_map_markdown_cache_;
 };

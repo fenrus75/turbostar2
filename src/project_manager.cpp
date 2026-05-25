@@ -533,21 +533,29 @@ void project_manager::refresh_available_tests()
 
 std::string project_manager::get_software_map_markdown() const
 {
-	std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
-	if (!software_map_.ready || software_map_.symbols.empty()) {
+	std::shared_lock<std::shared_mutex> lock(software_map_markdown_mutex_);
+	if (software_map_markdown_cache_.empty()) {
 		return "Software Map is currently building or empty.";
 	}
+	return software_map_markdown_cache_;
+}
 
+void project_manager::update_software_map_markdown()
+{
 	std::vector<software_map_symbol> classes;
 	std::vector<software_map_symbol> functions;
 
-	for (const auto &sym : software_map_.symbols) {
-		if (sym.accumulated_count == 0) continue;
-		
-		if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) {
-			classes.push_back(sym);
-		} else if (sym.kind == 12 || sym.kind == 6) {
-			functions.push_back(sym);
+	{
+		std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
+		for (const auto &sym : software_map_.symbols) {
+			if (sym.accumulated_count == 0)
+				continue;
+
+			if (sym.kind == 5 || sym.kind == 22 || sym.kind == 11) {
+				classes.push_back(sym);
+			} else if (sym.kind == 12 || sym.kind == 6) {
+				functions.push_back(sym);
+			}
 		}
 	}
 
@@ -559,7 +567,7 @@ std::string project_manager::get_software_map_markdown() const
 	std::sort(functions.begin(), functions.end(), sort_desc);
 
 	std::string md = "## Automatic Software Map\n\n";
-	
+
 	int total_limit = 50;
 	int class_limit = 25;
 	int classes_shown = 0;
@@ -570,15 +578,17 @@ std::string project_manager::get_software_map_markdown() const
 		md += "| Class Name | Type | Base Class(es) | File Location |\n";
 		md += "| :--- | :--- | :--- | :--- |\n";
 		for (const auto &sym : classes) {
-			if (classes_shown >= class_limit) break;
+			if (classes_shown >= class_limit)
+				break;
 			std::string kind_str = (sym.kind == 5) ? "Class" : (sym.kind == 22 ? "Struct" : "Interface");
-			
+
 			std::string rel_path = sym.location.path;
 			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
 				rel_path = rel_path.substr(repo_root_.length());
-				if (!rel_path.empty() && rel_path.front() == '/') rel_path.erase(0, 1);
+				if (!rel_path.empty() && rel_path.front() == '/')
+					rel_path.erase(0, 1);
 			}
-			
+
 			std::string bases = sym.base_classes.empty() ? "-" : sym.base_classes;
 			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + "` |\n";
 			classes_shown++;
@@ -594,20 +604,25 @@ std::string project_manager::get_software_map_markdown() const
 		int func_limit = total_limit - classes_shown;
 		int funcs_shown = 0;
 		for (const auto &sym : functions) {
-			if (funcs_shown >= func_limit) break;
-			
+			if (funcs_shown >= func_limit)
+				break;
+
 			std::string rel_path = sym.location.path;
 			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
 				rel_path = rel_path.substr(repo_root_.length());
-				if (!rel_path.empty() && rel_path.front() == '/') rel_path.erase(0, 1);
+				if (!rel_path.empty() && rel_path.front() == '/')
+					rel_path.erase(0, 1);
 			}
 
 			md += "| `" + sym.name + "` | `" + rel_path + "` |\n";
 			funcs_shown++;
 		}
 	}
-	
-	return md;
+
+	{
+		std::unique_lock<std::shared_mutex> lock(software_map_markdown_mutex_);
+		software_map_markdown_cache_ = std::move(md);
+	}
 }
 
 void project_manager::save_software_map()
@@ -664,6 +679,8 @@ void project_manager::load_software_map()
 		}
 		
 		event_logger::get_instance().log("Loaded Software Map from cache (" + std::to_string(software_map_.symbols.size()) + " symbols).");
+		lock.unlock();
+		update_software_map_markdown();
 	} catch (const std::exception &e) {
 		event_logger::get_instance().log("Failed to load Software Map from cache: " + std::string(e.what()));
 	}
@@ -724,6 +741,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 				// Release lock to save
 				lock.unlock();
 				save_software_map();
+				update_software_map_markdown();
 			}
 			std::this_thread::sleep_for(std::chrono::seconds(5)); // Give it a breather after big query
 			continue;
@@ -805,6 +823,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 		if (++sample_counter >= 20) {
 			sample_counter = 0;
 			save_software_map();
+			update_software_map_markdown();
 		}
 
 		// Rate limit sampling
