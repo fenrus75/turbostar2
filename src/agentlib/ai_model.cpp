@@ -116,9 +116,10 @@ void ai_model_registry::load_models()
 				if (type_str == "gemini") {
 					type = api_type::gemini;
 				}
+				int max_tokens = item.value("max_context_tokens", 250000);
 
 				if (!id.empty()) {
-					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type));
+					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type, max_tokens));
 				}
 			}
 		}
@@ -149,6 +150,7 @@ void ai_model_registry::save_models() const
 		item["cost_tx"] = model->get_cost_per_1m_tx();
 		item["cost_rx"] = model->get_cost_per_1m_rx();
 		item["api_type"] = (model->get_api_type() == api_type::gemini) ? "gemini" : "openai";
+		item["max_context_tokens"] = model->get_max_context_tokens();
 		data.push_back(item);
 	}
 

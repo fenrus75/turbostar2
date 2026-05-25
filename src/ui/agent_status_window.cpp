@@ -64,13 +64,31 @@ void agent_status_window::draw_content() const
 	// 1. Telemetry Section
 	if (agent_->get_model()) {
 		print_line(start_x, current_y++, "Model: " + agent_->get_model()->get_name());
+		
+		int max_tokens = agent_->get_model()->get_max_context_tokens();
+		int tx_tokens = agent_->get_tokens_tx();
+		
+		std::stringstream ctx_stream;
+		ctx_stream << "Ctx: " << tx_tokens << " / " << max_tokens;
+		print_line(start_x, current_y++, ctx_stream.str());
+		
+		// Draw Progress Bar
+		int bar_width = max_width - 2;
+		if (bar_width > 0) {
+			int fill_width = static_cast<int>((static_cast<double>(tx_tokens) / max_tokens) * bar_width);
+			if (fill_width > bar_width) fill_width = bar_width;
+			
+			std::string bar = "[";
+			for (int i = 0; i < bar_width; ++i) {
+				if (i < fill_width) bar += "=";
+				else bar += " ";
+			}
+			bar += "]";
+			print_line(start_x, current_y++, bar);
+		}
 	} else {
 		print_line(start_x, current_y++, "Model: Unknown");
 	}
-
-	std::stringstream tx_stream;
-	tx_stream << "Tx: " << agent_->get_tokens_tx() << " tokens";
-	print_line(start_x, current_y++, tx_stream.str());
 
 	std::stringstream rx_stream;
 	rx_stream << "Rx: " << agent_->get_tokens_rx() << " tokens";
