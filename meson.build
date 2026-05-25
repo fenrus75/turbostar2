@@ -163,6 +163,11 @@ test_project_layout = executable('test_project_layout',
   include_directories: 'src')
 test('unit_project_layout', test_project_layout)
 
+test_output_filter = executable('test_output_filter',
+  ['tests/unit/test_output_filter.cpp'],
+  include_directories: 'src')
+test('unit_output_filter', test_output_filter)
+
 # E2E tests (run via python)
 pymod = import('python')
 python = pymod.find_installation('python3', required: false)

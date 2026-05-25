@@ -2,6 +2,7 @@
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
 #include "../terminal_command_runner.h"
+#include "../output_filter.h"
 #include "fs_compile_project.h"
 
 namespace tools
@@ -48,6 +49,11 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	std::string output = runner.get_final_output();
 	runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
 	size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+
+	// Apply output filters to summarize/prune execution logs proactively
+	std::vector<std::shared_ptr<output_filter>> filters;
+	filters.push_back(std::make_shared<test_delete_me_filter>());
+	output = apply_output_filters(cmd, output, filters);
 
 	if (crashes_after > crashes_before) {
 		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
