@@ -136,6 +136,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::open_crashdump_viewer:
 		case event_type::agent_response:
 		case event_type::agent_tool_update:
+		case event_type::agent_save_history:
 		case event_type::apply_edits:
 		case event_type::prompt_user:
 		case event_type::set_transient_status:

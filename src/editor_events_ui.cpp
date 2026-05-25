@@ -166,6 +166,30 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::agent_save_history) {
+		logger.log("Dispatching agent_save_history event.");
+		std::shared_ptr<agentlib::ai_agent> active_agent = nullptr;
+		if (current_focus_ == focus_target::window || current_focus_ == focus_target::popup) {
+			if (auto aw = dynamic_cast<agent_window *>(get_active_window())) {
+				active_agent = aw->get_agent();
+			}
+		}
+		if (active_agent) {
+			std::string filepath = "tmp/agent_chat_" + std::to_string(active_agent->get_id()) + ".json";
+			active_agent->save_conversation(filepath);
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "Saved conversation to " + filepath;
+			global_queue_.push(status_ev);
+		} else {
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "Error: No active agent window.";
+			global_queue_.push(status_ev);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::open_crashdump_viewer) {
 		logger.log("Dispatching open_crashdump_viewer event.");
 		new_crashdump_window();

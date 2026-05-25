@@ -51,6 +51,7 @@ enum class event_type {
 	open_subagent, ///< Request to open a specific subagent chat window (key_code is agent ID)
 	open_crashdump_viewer, ///< Request to open the crashdump viewer
 	agent_switch_model, ///< Request to switch the model for a specific agent
+	agent_save_history, ///< Request to save the active agent's history to a JSON file
 	apply_edits, ///< Request to apply JSON-serialized LLM edits to the live document
 	prompt_user, ///< Request to prompt the user with a question and options
 	paste, ///< A bracketed paste event

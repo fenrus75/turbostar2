@@ -8,6 +8,7 @@
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
+#include "ui/agent_window.h"
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
 #include "git_manager.h"
@@ -130,11 +131,17 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						}
 
 						std::vector<popup_menu_item> items;
-						items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
-						items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
-						items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
-						items.push_back({0, "", 0, true});
-						items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+						if (dynamic_cast<agent_window*>(w)) {
+							items.push_back({static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
+							items.push_back({0, "", 0, true});
+							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+						} else {
+							items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
+							items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
+							items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+							items.push_back({0, "", 0, true});
+							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+						}
 
 						active_popup_ =
 						    std::make_unique<popup_menu>(w->get_popup_button_x(), w->get_y() + 1, items);
