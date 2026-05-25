@@ -426,6 +426,10 @@ void ai_agent::start_processing()
 			if (self->is_closed_)
 				return;
 
+			if (!accumulated_tool_calls.empty()) {
+				response_msg.tool_calls = accumulated_tool_calls;
+			}
+
 			// Commit assistant response to shared history
 			{
 				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
