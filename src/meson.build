@@ -99,21 +99,25 @@ help_text_h = custom_target('help_text.h',
 libturbostar_core = static_library('turbostar_core',
   core_sources,
   include_directories : inc,
+  cpp_pch : 'pch/pch.h',
   dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep])
 
 libagentlib = static_library('agentlib',
   agentlib_sources,
   include_directories : inc,
+  cpp_pch : 'pch/pch.h',
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep])
 
 libtools = static_library('tools',
   tools_sources,
   include_directories : inc,
+  cpp_pch : 'pch/pch.h',
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep])
 
 libturbostar_ui = static_library('turbostar_ui',
   ui_sources + [help_text_h],
   include_directories : inc,
+  cpp_pch : 'pch/pch.h',
   dependencies : [ncurses, thread_dep, nlohmann_json_dep, lsp_dep])
 
 # Expose dependencies for easy linking
