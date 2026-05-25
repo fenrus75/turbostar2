@@ -495,16 +495,161 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 
 std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const std::string &query)
 {
-	(void)query;
-	// Stub implementation for now
+	std::lock_guard<std::mutex> lock(servers_mutex_);
+	server_instance *active_server = nullptr;
+	for (auto &srv : servers_) {
+		if (srv->is_running) {
+			active_server = srv.get();
+			break;
+		}
+	}
+
+	if (!active_server)
+		return {};
+
+	auto promise = std::make_shared<std::promise<std::vector<symbol_info>>>();
+	auto future = promise->get_future();
+
+	try {
+		auto params = lsp::requests::Workspace_Symbol::Params();
+		params.query = query;
+
+		active_server->message_handler->sendRequest<lsp::requests::Workspace_Symbol>(
+		    std::move(params),
+		    [promise](const lsp::requests::Workspace_Symbol::Result &res) {
+			    std::vector<symbol_info> out;
+			    if (!res.isNull()) {
+				    const auto& variant_val = res.value();
+				    if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(variant_val)) {
+					    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(variant_val);
+					    for (const auto &sym : arr) {
+						    symbol_info info;
+						    info.name = sym.name;
+						    info.kind = static_cast<int>(sym.kind);
+						    info.location.path = sym.location.uri.path();
+						    info.location.range = {static_cast<int>(sym.location.range.start.line),
+									   static_cast<int>(sym.location.range.start.character),
+									   static_cast<int>(sym.location.range.end.line),
+									   static_cast<int>(sym.location.range.end.character)};
+						    out.push_back(info);
+					    }
+				    } else if (std::holds_alternative<lsp::Array<lsp::WorkspaceSymbol>>(variant_val)) {
+					    const auto &arr = std::get<lsp::Array<lsp::WorkspaceSymbol>>(variant_val);
+					    for (const auto &sym : arr) {
+						    symbol_info info;
+						    info.name = sym.name;
+						    info.kind = static_cast<int>(sym.kind);
+						    if (std::holds_alternative<lsp::Location>(sym.location)) {
+							    const auto &loc = std::get<lsp::Location>(sym.location);
+							    info.location.path = loc.uri.path();
+							    info.location.range = {static_cast<int>(loc.range.start.line), 
+										   static_cast<int>(loc.range.start.character),
+										   static_cast<int>(loc.range.end.line), 
+										   static_cast<int>(loc.range.end.character)};
+							    out.push_back(info);
+						    }
+					    }
+				    }
+			    }
+			    promise->set_value(out);
+		    },
+		    [promise](const lsp::ResponseError &err) {
+			    (void)err;
+			    promise->set_value({});
+		    });
+	} catch (...) {
+		promise->set_value({});
+	}
+
+	if (future.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+		return future.get();
+	}
 	return {};
 }
 
-std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line,
+											 int character)
 {
-	(void)filepath;
-	(void)line;
-	(void)character;
-	// Stub implementation for now
+	auto server = get_server_for_file(filepath);
+	if (!server)
+		return {};
+
+	auto promise_prep = std::make_shared<std::promise<lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>>>();
+	auto future_prep = promise_prep->get_future();
+
+	try {
+		auto params = lsp::requests::TextDocument_PrepareCallHierarchy::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(filepath);
+		params.position.line = static_cast<lsp::uint>(line);
+		params.position.character = static_cast<lsp::uint>(character);
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareCallHierarchy>(
+		    std::move(params),
+		    [promise_prep](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
+			    if (!res.isNull()) {
+				    promise_prep->set_value(res.value());
+			    } else {
+				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+			    }
+		    },
+		    [promise_prep](const lsp::ResponseError &err) {
+			    (void)err;
+			    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+		    });
+	} catch (...) {
+		promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+	}
+
+	if (future_prep.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
+		return {};
+	}
+
+	auto prep_res = future_prep.get();
+	if (!prep_res || prep_res->empty())
+		return {};
+
+	auto promise_out = std::make_shared<std::promise<std::vector<call_hierarchy_item>>>();
+	auto future_out = promise_out->get_future();
+
+	try {
+		auto params = lsp::requests::CallHierarchy_OutgoingCalls::Params();
+		params.item = prep_res->front();
+
+		server->message_handler->sendRequest<lsp::requests::CallHierarchy_OutgoingCalls>(
+		    std::move(params),
+		    [promise_out](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
+			    std::vector<call_hierarchy_item> out;
+			    if (!res.isNull()) {
+				    for (const auto &call : res.value()) {
+					    call_hierarchy_item item;
+					    item.name = call.to.name;
+					    item.kind = static_cast<int>(call.to.kind);
+					    if (call.to.detail)
+						    item.detail = *call.to.detail;
+					    item.uri = call.to.uri.path();
+					    item.range = {static_cast<int>(call.to.range.start.line), 
+									  static_cast<int>(call.to.range.start.character),
+							  		  static_cast<int>(call.to.range.end.line), 
+									  static_cast<int>(call.to.range.end.character)};
+					    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
+								    		static_cast<int>(call.to.selectionRange.start.character),
+								    		static_cast<int>(call.to.selectionRange.end.line),
+								    		static_cast<int>(call.to.selectionRange.end.character)};
+					    out.push_back(item);
+				    }
+			    }
+			    promise_out->set_value(out);
+		    },
+		    [promise_out](const lsp::ResponseError &err) {
+			    (void)err;
+			    promise_out->set_value({});
+		    });
+	} catch (...) {
+		promise_out->set_value({});
+	}
+
+	if (future_out.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+		return future_out.get();
+	}
 	return {};
 }
