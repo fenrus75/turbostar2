@@ -19,14 +19,13 @@ An anchor point indicates that a major task or context shift has occurred. Trigg
 2.  **Temporal Gaps:** If the time between the last interaction and a new user prompt exceeds a threshold (e.g., 4 hours), it strongly implies a new session/focus.
 3.  **LLM Self-Reporting:** An explicit, zero-cost tool (e.g., `agent_mark_milestone`) that the agent calls when it believes it has resolved the core request or is pivoting to a new architectural feature.
 
-### Action on Anchor (The Archival Pointer)
+### Action on Anchor (The Archival Pointer & Context Paging)
 When an anchor is triggered, the preceding bulk of the conversation is collapsed to save tokens, but it is **not permanently destroyed**. 
 
-1.  **Serialization:** The collapsed history is serialized into a Markdown file (e.g., `.cache/turbostar/history/milestone_5.md`) within the project's local workspace.
+1.  **Serialization:** The collapsed history is serialized into an archival file (e.g., `.cache/turbostar/history/milestone_5.json`) within the project's local workspace.
 2.  **Pointer Injection:** The massive block of turns is then purged from the active array and replaced with a single, highly dense `system` message summarizing the milestone, appended with an Archival Pointer: 
-    *`[SYSTEM MEMORY: Milestone Reached] Time: 8:00 AM. Action: git_commit. Summary: Fixed memory leak in lsp_manager. Raw history archive: .cache/turbostar/history/milestone_5.md`*
-
-By combining the summary with a literal file path, the agent enjoys the token savings of amnesia but retains the ability to "recover" its perfect long-term memory at any time simply by executing `fs_read_lines` on the archival file if it needs to deeply investigate a past decision.
+    *`[SYSTEM MEMORY: Milestone Reached] Time: 8:00 AM. Action: git_commit. Summary: Fixed memory leak in lsp_manager. Raw history archive: milestone_5`*
+3.  **Context Restoration (Virtual Paging):** By providing a dedicated tool like `agent_restore_milestone_context(milestone_id)`, the agent gains the ability to perform a true "task switch." If it needs to resume work on a deeply historical task, it can call this tool. Assuming the token budget allows, the C++ backend will deserialize the archive and natively re-inject the historical conversational turns back into the agent's active memory array, operating exactly like virtual memory paging for an OS.
 
 ## 3. Proactive (Cache-Preserving) Compaction
 
