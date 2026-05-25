@@ -67,9 +67,13 @@ void agent_status_window::draw_content() const
 		
 		int max_tokens = agent_->get_model()->get_max_context_tokens();
 		int tx_tokens = agent_->get_tokens_tx();
+		int cached_tokens = agent_->get_tokens_cached();
 		
 		std::stringstream ctx_stream;
 		ctx_stream << "Ctx: " << tx_tokens << " / " << max_tokens;
+		if (cached_tokens > 0) {
+			ctx_stream << " (Cached: " << cached_tokens << ")";
+		}
 		print_line(start_x, current_y++, ctx_stream.str());
 		
 		// Draw Progress Bar

@@ -62,6 +62,7 @@ struct llm_usage {
     int prompt_tokens{0};
     int completion_tokens{0};
     int total_tokens{0};
+    int cached_tokens{0};
 };
 
 struct llm_chat_response {

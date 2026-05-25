@@ -412,6 +412,7 @@ void ai_agent::start_processing()
 				    if (delta.usage.total_tokens > 0) {
 					    self->tokens_tx_ += delta.usage.prompt_tokens;
 					    self->tokens_rx_ += delta.usage.completion_tokens;
+					    self->tokens_cached_ = delta.usage.cached_tokens; // Update to latest cached amount
 
 					    double turn_cost = self->model_->calculate_and_record_cost(delta.usage.prompt_tokens,
 												       delta.usage.completion_tokens);

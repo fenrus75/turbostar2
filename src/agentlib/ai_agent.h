@@ -69,6 +69,7 @@ public:
     std::shared_ptr<ai_model> get_model() const { return model_; }
     int get_tokens_tx() const { return tokens_tx_; }
     int get_tokens_rx() const { return tokens_rx_; }
+    int get_tokens_cached() const { return tokens_cached_; }
     double get_estimated_cost() const { return estimated_cost_; }
     
     void add_active_skill(const std::string& skill_name);
@@ -113,6 +114,7 @@ private:
 
     std::atomic<int> tokens_tx_{0};
     std::atomic<int> tokens_rx_{0};
+    std::atomic<int> tokens_cached_{0};
     std::atomic<double> estimated_cost_{0.0};
 
     mutable std::mutex conversation_mutex_;

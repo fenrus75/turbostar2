@@ -46,6 +46,8 @@ chat_delta openai_formatter::parse_stream_chunk(const std::string& json_chunk) c
             auto usage = chunk["usage"];
             if (usage.contains("prompt_tokens"))
                 delta.usage.prompt_tokens = usage["prompt_tokens"].get<int>();
+            if (usage.contains("prompt_tokens_details") && usage["prompt_tokens_details"].contains("cached_tokens"))
+                delta.usage.cached_tokens = usage["prompt_tokens_details"]["cached_tokens"].get<int>();
             if (usage.contains("completion_tokens"))
                 delta.usage.completion_tokens = usage["completion_tokens"].get<int>();
             if (usage.contains("total_tokens"))
@@ -89,6 +91,8 @@ llm_chat_response openai_formatter::parse_sync_response(const std::string& json_
             auto usage = response["usage"];
             if (usage.contains("prompt_tokens"))
                 chat_response.usage.prompt_tokens = usage["prompt_tokens"].get<int>();
+            if (usage.contains("prompt_tokens_details") && usage["prompt_tokens_details"].contains("cached_tokens"))
+                chat_response.usage.cached_tokens = usage["prompt_tokens_details"]["cached_tokens"].get<int>();
             if (usage.contains("completion_tokens"))
                 chat_response.usage.completion_tokens = usage["completion_tokens"].get<int>();
             if (usage.contains("total_tokens"))
@@ -228,6 +232,8 @@ chat_delta gemini_formatter::parse_stream_chunk(const std::string& json_chunk) c
             auto usage = chunk["usageMetadata"];
             if (usage.contains("promptTokenCount"))
                 delta.usage.prompt_tokens = usage["promptTokenCount"].get<int>();
+            if (usage.contains("cachedContentTokenCount"))
+                delta.usage.cached_tokens = usage["cachedContentTokenCount"].get<int>();
             if (usage.contains("candidatesTokenCount"))
                 delta.usage.completion_tokens = usage["candidatesTokenCount"].get<int>();
             if (usage.contains("totalTokenCount"))
@@ -285,6 +291,8 @@ llm_chat_response gemini_formatter::parse_sync_response(const std::string& json_
             auto usage = chunk["usageMetadata"];
             if (usage.contains("promptTokenCount"))
                 chat_response.usage.prompt_tokens = usage["promptTokenCount"].get<int>();
+            if (usage.contains("cachedContentTokenCount"))
+                chat_response.usage.cached_tokens = usage["cachedContentTokenCount"].get<int>();
             if (usage.contains("candidatesTokenCount"))
                 chat_response.usage.completion_tokens = usage["candidatesTokenCount"].get<int>();
             if (usage.contains("totalTokenCount"))
