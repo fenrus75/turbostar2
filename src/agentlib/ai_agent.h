@@ -71,9 +71,11 @@ public:
     int get_tokens_rx() const { return tokens_rx_; }
     int get_tokens_cached() const { return tokens_cached_; }
     double get_estimated_cost() const { return estimated_cost_; }
-    
     void add_active_skill(const std::string& skill_name);
     std::vector<std::string> get_active_skills() const;
+
+    void increment_stat(const std::string& key, int amount = 1);
+    std::map<std::string, int> get_stats() const;
 
     const std::vector<std::shared_ptr<agent_interaction>>& get_interactions() const { return interactions_; }
     void add_interaction(std::shared_ptr<agent_interaction> interaction);
@@ -117,6 +119,9 @@ private:
     std::atomic<int> tokens_rx_{0};
     std::atomic<int> tokens_cached_{0};
     std::atomic<double> estimated_cost_{0.0};
+
+    mutable std::mutex stats_mutex_;
+    std::map<std::string, int> stats_;
 
     mutable std::mutex conversation_mutex_;
     std::vector<message> conversation_;

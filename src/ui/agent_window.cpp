@@ -75,7 +75,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string tmp_dir = fs_utils::get_project_tmp_dir();
 			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
 			agent_->save_conversation(filepath);
-			
+
 			// Show a system message that it was saved
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
 			scroll_offset_ = 0;
@@ -83,6 +83,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/stats")) {
+			input_box_->set_buffer(""); // Clear the box
+			auto stats = agent_->get_stats();
+			std::string stats_str = "Agent Statistics:\n";
+			if (stats.empty()) {
+				stats_str += "  (No stats recorded yet)";
+			} else {
+				for (const auto& [key, value] : stats) {
+					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
+				}
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(stats_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -146,7 +162,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string tmp_dir = fs_utils::get_project_tmp_dir();
 			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
 			agent_->save_conversation(filepath);
-			
+
 			// Show a system message that it was saved
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
 			scroll_offset_ = 0;
@@ -154,6 +170,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/stats")) {
+			input_box_->set_buffer(""); // Clear the box
+			auto stats = agent_->get_stats();
+			std::string stats_str = "Agent Statistics:\n";
+			if (stats.empty()) {
+				stats_str += "  (No stats recorded yet)";
+			} else {
+				for (const auto& [key, value] : stats) {
+					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
+				}
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(stats_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;

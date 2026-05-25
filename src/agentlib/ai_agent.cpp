@@ -141,12 +141,23 @@ void ai_agent::add_active_skill(const std::string &skill_name)
 
 std::vector<std::string> ai_agent::get_active_skills() const
 {
-	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
-	return active_skills_;
+        std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+        return active_skills_;
 }
 
-bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error)
+void ai_agent::increment_stat(const std::string& key, int amount)
 {
+	std::lock_guard<std::mutex> lock(stats_mutex_);
+	stats_[key] += amount;
+}
+
+std::map<std::string, int> ai_agent::get_stats() const
+{
+	std::lock_guard<std::mutex> lock(stats_mutex_);
+	return stats_;
+}
+
+bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error){
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	int match_idx = -1;
 	for (size_t i = 0; i < todos_.size(); ++i) {
@@ -702,6 +713,7 @@ void ai_agent::compact_ephemeral_errors(std::vector<message>& convo)
 		// The assistant's reasoning is actually shoved into `content` in OpenAI format or it's dropped if not requested.
 		
 		convo.erase(it_n3, it_n1); // Erases N-3 and N-2
+		increment_stat("ephemeral_errors_zapped");
 		compacted = true;
 	}
 
