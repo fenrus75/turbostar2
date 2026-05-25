@@ -8,6 +8,7 @@ namespace tools {
 struct agent_mark_milestone_args {
     std::string title;
     std::string summary;
+    std::vector<std::string> tags;
 };
 
 class agent_mark_milestone_tool : public agentlib::llm_tool {

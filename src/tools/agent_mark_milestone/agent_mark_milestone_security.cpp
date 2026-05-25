@@ -3,7 +3,7 @@
 
 namespace tools {
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_mark_milestone_args, title, summary);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_mark_milestone_args, title, summary, tags);
 
 nlohmann::json agent_mark_milestone_validator::get_parameters_schema() const {
     return {
@@ -16,6 +16,11 @@ nlohmann::json agent_mark_milestone_validator::get_parameters_schema() const {
             {"summary", {
                 {"type", "string"},
                 {"description", "A concise summary of the work that was just completed and the goal of the new phase."}
+            }},
+            {"tags", {
+                {"type", "array"},
+                {"items", {{"type", "string"}}},
+                {"description", "An optional list of semantic tags (e.g., ['ui-refactor', 'memory-leak']) to label this milestone. You can assign the same tags to multiple milestones to group them together for easy bulk-restoration later."}
             }}
         }},
         {"required", nlohmann::json::array({"title", "summary"})}
