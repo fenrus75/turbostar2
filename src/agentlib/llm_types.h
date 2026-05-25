@@ -25,10 +25,10 @@ inline void to_json(nlohmann::json& j, const tool_call& p) {
 }
 
 inline void from_json(const nlohmann::json& j, tool_call& p) {
-    j.at("id").get_to(p.id);
-    j.at("type").get_to(p.type);
-    j.at("function").get_to(p.function);
-    if (j.contains("signature")) p.signature = j.at("signature").get<std::string>();
+    if (j.contains("id") && !j["id"].is_null()) p.id = j["id"].get<std::string>();
+    if (j.contains("type") && !j["type"].is_null()) p.type = j["type"].get<std::string>();
+    if (j.contains("function") && !j["function"].is_null()) p.function = j["function"].get<function_call>();
+    if (j.contains("signature") && !j["signature"].is_null()) p.signature = j["signature"].get<std::string>();
 }
 
 struct message {
