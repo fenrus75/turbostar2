@@ -1,6 +1,7 @@
 #include "ai_agent.h"
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <nlohmann/json.hpp>
 #include "../config_manager.h"
 #include "../event_queue.h"
@@ -627,6 +628,26 @@ void ai_agent::start_processing()
 			parent->inject_context("user", system_msg, true);
 		}
 	}).detach();
+}
+
+void ai_agent::save_conversation(const std::string& filepath) const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	nlohmann::json root;
+	root["agent_id"] = id_;
+	root["agent_name"] = name_;
+	nlohmann::json conv_array = nlohmann::json::array();
+	for (const auto& msg : conversation_) {
+		nlohmann::json m_json;
+		to_json(m_json, msg);
+		conv_array.push_back(m_json);
+	}
+	root["conversation"] = conv_array;
+
+	std::ofstream file(filepath);
+	if (file.is_open()) {
+		file << root.dump(4);
+	}
 }
 
 } // namespace agentlib

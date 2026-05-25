@@ -5,6 +5,7 @@
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
 #include "config_manager.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "markdown_utils.h"
 #include "project_manager.h"
@@ -69,6 +70,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/save")) {
+			input_box_->set_buffer(""); // Clear the box
+			std::string tmp_dir = fs_utils::get_project_tmp_dir();
+			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			agent_->save_conversation(filepath);
+			
+			// Show a system message that it was saved
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -124,6 +138,19 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			} else {
 				get_queue().push(ev);
 			}
+			return;
+		}
+
+		if (trimmed_text.starts_with("/save")) {
+			input_box_->set_buffer(""); // Clear the box
+			std::string tmp_dir = fs_utils::get_project_tmp_dir();
+			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			agent_->save_conversation(filepath);
+			
+			// Show a system message that it was saved
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
+			scroll_offset_ = 0;
+			invalidate();
 			return;
 		}
 

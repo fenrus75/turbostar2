@@ -83,6 +83,8 @@ public:
     void set_parent(std::weak_ptr<ai_agent> parent) { parent_agent_ = std::move(parent); }
     event_queue* get_global_queue() const { return global_queue_; }
 
+    void save_conversation(const std::string& filepath) const;
+
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
@@ -113,7 +115,7 @@ private:
     std::atomic<int> tokens_rx_{0};
     std::atomic<double> estimated_cost_{0.0};
 
-    std::mutex conversation_mutex_;
+    mutable std::mutex conversation_mutex_;
     std::vector<message> conversation_;
     std::unique_ptr<llm_client> client_;
 };
