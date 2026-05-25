@@ -88,6 +88,7 @@ public:
 
     void save_conversation(const std::string& filepath) const;
     void page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    void page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
     void snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
     bool page_in_context(const std::string& milestone_id);
     

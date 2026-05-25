@@ -906,6 +906,62 @@ std::string ai_agent::get_memory_index() const
     return out.str();
 }
 
+void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+{
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+    
+    if (conversation_.size() < 3) return; // Nothing to compress
+    
+    size_t end_index = conversation_.size() - 2; // Default to current
+    
+    // 1. Find the upper boundary
+    if (!target_milestone_id.empty()) {
+        bool found = false;
+        // Search backwards for the specific milestone marker
+        for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
+            if (conversation_[i].role == "system" && conversation_[i].content.find(target_milestone_id) != std::string::npos) {
+                end_index = i; // The boundary is exactly at the target milestone
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            event_logger::get_instance().log("Failed to find target milestone: " + target_milestone_id);
+            return;
+        }
+    } else {
+        // If no target provided, scan backwards to find the most recent milestone marker
+        for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
+            if (conversation_[i].role == "system" && conversation_[i].content.find("Milestone Marked") != std::string::npos) {
+                end_index = i;
+                break;
+            }
+        }
+    }
+    
+    size_t start_index = 1; // Default to after the root system prompt
+    
+    // 2. Find the lower boundary
+    if (!include_all_prior && end_index > 0) {
+        // Scan backward from end_index to find the previous milestone/system marker
+        for (int i = static_cast<int>(end_index) - 1; i >= 0; --i) {
+            if (conversation_[i].role == "system" || conversation_[i].role == "user") {
+                start_index = i + 1;
+                break;
+            }
+        }
+    }
+    
+    if (start_index >= end_index) {
+        event_logger::get_instance().log("Context too small to page out naturally.");
+        return;
+    }
+    
+    // Unlock and delegate to the core paging function
+    conversation_mutex_.unlock();
+    page_out_context(start_index, end_index, title, summary, tags);
+}
+
 void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 	bool compacted = false;
 	

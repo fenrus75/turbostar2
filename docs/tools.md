@@ -234,6 +234,20 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `title` *(string, required)*: A short title for the completed task or the new milestone.
     *   `summary` *(string, required)*: A concise summary of the work that was just completed and the goal of the new phase.
 
+### `agent_compress_history`
+*   **Description:** Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed.
+*   **Arguments:**
+    *   `title` *(string, required)*: A short title for the milestone you are archiving.
+    *   `summary` *(string, required)*: A concise summary of the history being paged out.
+    *   `tags` *(array of strings, optional)*: Semantic tags to label this archive.
+    *   `target_milestone_id` *(string, optional)*: The exact ID of the milestone or system message (e.g., 'milestone_123') that acts as the UPPER boundary. If omitted, pages out the active/current block.
+    *   `include_all_prior` *(boolean, optional)*: If true, ignores the lower boundary and compresses everything from the target back to the system prompt.
+
+### `agent_restore_context`
+*   **Description:** Pages in a previously saved context archive (milestone). Use this if you need to resume work on an old task or look up historical context. Find the milestone_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.
+*   **Arguments:**
+    *   `milestone_id` *(string, required)*: The exact ID of the milestone to restore.
+
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
 *   **Arguments:** None.
