@@ -1,6 +1,7 @@
 #include "../../config_manager.h"
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
+#include "../../agentlib/ai_agent.h"
 #include "../terminal_command_runner.h"
 #include "../output_filter.h"
 #include "fs_compile_project.h"
@@ -53,7 +54,12 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	// Apply output filters to summarize/prune execution logs proactively
 	std::vector<std::shared_ptr<output_filter>> filters;
 	filters.push_back(std::make_shared<meson_compile_filter>());
-	output = apply_output_filters(cmd, output, filters);
+	int lines_removed = 0;
+	output = apply_output_filters(cmd, output, filters, &lines_removed);
+
+	if (lines_removed > 0 && ctx.active_agent) {
+		ctx.active_agent->increment_stat("build_lines_pruned", lines_removed);
+	}
 
 	if (crashes_after > crashes_before) {
 		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +

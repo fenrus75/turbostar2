@@ -15,7 +15,8 @@ public:
     virtual bool is_applicable(const std::string& command, const std::string& raw_output) const = 0;
 
     // Process the vector of lines in-place, removing or summarizing lines as needed
-    virtual void apply(std::vector<std::string>& lines) const = 0;
+    // Returns the number of lines removed.
+    virtual int apply(std::vector<std::string>& lines) const = 0;
 };
 
 // Filter that compresses successful Meson/Ninja compilation steps
@@ -25,8 +26,8 @@ public:
         return command.find("meson compile") != std::string::npos || command.find("ninja") != std::string::npos;
     }
 
-    void apply(std::vector<std::string>& lines) const override {
-        if (lines.empty()) return;
+    int apply(std::vector<std::string>& lines) const override {
+        if (lines.empty()) return 0;
 
         auto is_progress_line = [](const std::string& line) {
             if (line.length() < 5 || line[0] != '[') return false;
@@ -46,6 +47,7 @@ public:
         };
 
         std::vector<std::string> new_lines;
+        int removed_count = 0;
         for (size_t i = 0; i < lines.size(); ++i) {
             bool current_is_progress = is_progress_line(lines[i]);
             bool next_is_progress = (i + 1 < lines.size()) ? is_progress_line(lines[i+1]) : false;
@@ -53,15 +55,17 @@ public:
             // If this line is a progress line AND the next line is ALSO a progress line,
             // it means this compile step succeeded silently with no warnings/errors. We drop it.
             if (current_is_progress && next_is_progress) {
+                removed_count++;
                 continue;
             }
             new_lines.push_back(lines[i]);
         }
         lines = std::move(new_lines);
+        return removed_count;
     }
 };
 
-inline std::string apply_output_filters(const std::string& command, const std::string& raw_output, const std::vector<std::shared_ptr<output_filter>>& filters) {
+inline std::string apply_output_filters(const std::string& command, const std::string& raw_output, const std::vector<std::shared_ptr<output_filter>>& filters, int* out_removed_count = nullptr) {
     std::vector<std::shared_ptr<output_filter>> applicable_filters;
     for (const auto& filter : filters) {
         if (filter->is_applicable(command, raw_output)) {
@@ -85,8 +89,13 @@ inline std::string apply_output_filters(const std::string& command, const std::s
     bool ends_with_newline = !raw_output.empty() && raw_output.back() == '\n';
     
     // Apply filters
+    int total_removed = 0;
     for (const auto& filter : applicable_filters) {
-        filter->apply(lines);
+        total_removed += filter->apply(lines);
+    }
+    
+    if (out_removed_count) {
+        *out_removed_count = total_removed;
     }
     
     // Rejoin
