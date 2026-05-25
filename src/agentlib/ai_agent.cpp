@@ -500,7 +500,7 @@ void ai_agent::start_processing()
 							self->add_interaction(custom_interaction);
 						} else {
 							self->add_interaction(std::make_shared<interaction_tool_call>(
-							    call.function.name + "(" + arg_preview + ")"));
+							    call.function.name, call.function.name + "(" + arg_preview + ")"));
 						}
 						if (self->global_queue_) {
 							editor_event tool_ev;
@@ -534,9 +534,8 @@ void ai_agent::start_processing()
 					}
 
 					if (!is_silent && !custom_interaction) {
-						self->add_interaction(std::make_shared<interaction_tool_result>(result_preview));
-						if (self->global_queue_) {
-							editor_event result_ev;
+						self->add_interaction(std::make_shared<interaction_tool_result>(call.function.name, result_preview));
+						if (self->global_queue_) {							editor_event result_ev;
 							result_ev.type = event_type::agent_tool_update;
 							result_ev.key_code = self->id_;
 							self->global_queue_->push(result_ev);

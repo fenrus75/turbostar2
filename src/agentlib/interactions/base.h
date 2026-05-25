@@ -34,6 +34,7 @@ public:
 
     virtual interaction_type get_type() const = 0;
     virtual interaction_role get_role() const = 0;
+    virtual std::string get_grouping_key() const { return ""; }
 
     int get_height(int width) const;
     const std::vector<interaction_line>& render(int width, background_mode bg = background_mode::light_blue) const;

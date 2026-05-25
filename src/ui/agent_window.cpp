@@ -266,7 +266,17 @@ void agent_window::draw_content() const
 		turn.height = 2; // Top and bottom borders
 		for (size_t i = 0; i < turn.items.size(); ++i) {
 			if (i > 0) {
-				bool skip_separator = (turn.items[i-1]->get_type() == interaction_type::tool_call && turn.items[i]->get_type() == interaction_type::tool_result);
+				bool skip_separator = false;
+				auto prev_type = turn.items[i-1]->get_type();
+				auto curr_type = turn.items[i]->get_type();
+				if (prev_type == interaction_type::tool_call && curr_type == interaction_type::tool_result) {
+					skip_separator = true;
+				} else if (prev_type == curr_type && (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
+					if (turn.items[i-1]->get_grouping_key() == turn.items[i]->get_grouping_key()) {
+						skip_separator = true;
+					}
+				}
+
 				if (!skip_separator)
 					turn.height++; // Separator line
 			}
@@ -304,7 +314,17 @@ void agent_window::draw_content() const
 		for (size_t i = 0; i < turn.items.size(); ++i) {
 			const auto &item = turn.items[i];
 			if (i > 0) {
-				bool skip_separator = (turn.items[i-1]->get_type() == interaction_type::tool_call && item->get_type() == interaction_type::tool_result);
+				bool skip_separator = false;
+				auto prev_type = turn.items[i-1]->get_type();
+				auto curr_type = item->get_type();
+				if (prev_type == interaction_type::tool_call && curr_type == interaction_type::tool_result) {
+					skip_separator = true;
+				} else if (prev_type == curr_type && (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
+					if (turn.items[i-1]->get_grouping_key() == item->get_grouping_key()) {
+						skip_separator = true;
+					}
+				}
+
 				if (!skip_separator) {
 					// Separator line
 					interaction_line sep_line;
