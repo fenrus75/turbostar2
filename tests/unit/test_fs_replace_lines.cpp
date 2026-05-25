@@ -55,7 +55,7 @@ int main()
 			  {{{"line_number", 1}, {"type", "replace"}, {"original_text", "Line 3"}, {"replace_with", "Fail"}}})}};
 
 	std::string bad_result = registry.execute_tool("fs_replace_lines", bad_args.dump(), ctx);
-	assert(bad_result.find("Verification Error: The string you provided is not on line 1, but it is on line 3.") != std::string::npos);
+	assert(bad_result.find("Verification Error: The block you provided is not at line 1, but it matches starting at line 3.") != std::string::npos);
 
 	std::remove(test_file.c_str());
 
