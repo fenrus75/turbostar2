@@ -27,6 +27,7 @@ When an anchor is triggered, the preceding bulk of the conversation is collapsed
 The absolute best way to manage context without breaking the API prompt cache is to prevent bloat from entering the history in the first place.
 
 *   **Instant Tool Summarization:** If a high-volume tool (like a build script or test runner) executes successfully, we intercept the payload *before* it is appended to the conversation history. For example, a successful `fs_compile_project` that generates 5,000 lines of OK messages is instantly parsed and reduced to: `"Build succeeded. [0 Errors]. Warnings: <list of warnings>"`. By shrinking the payload proactively, the prompt cache builds upon the summarized version, entirely avoiding the cache invalidation penalty of retroactive pruning.
+*   **Ephemeral Error Zapping (Inner Correction Loop):** When an agent triggers a transient error (e.g., a Stage 1 Security Violation for bad arguments, or a syntax error), the failure and the agent's retry attempts are held in a temporary buffer. Once the agent successfully corrects the call, the entire failure loop is "zapped" (discarded). Only the final, successful tool call is committed to the permanent conversation history. While this sacrifices knowledge of "negative constraints" (why it failed), it prevents "apology loops," maintains a pristine cache prefix, and saves long-term cached-read costs.
 
 ## 4. Retroactive Pruning Strategies
 
