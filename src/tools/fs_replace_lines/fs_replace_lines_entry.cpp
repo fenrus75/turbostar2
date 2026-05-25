@@ -330,32 +330,31 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 
 	// 2. Apply edits (Guaranteed descending order and verified by validator)
 	for (const auto &edit : args_.edits) {
-		int idx = edit.line_number - 1;
+	        int idx = edit.line_number - 1;
 
-		if (edit.type == "remove") {
-			lines.erase(lines.begin() + idx);
-		} else if (edit.type == "add") {
-			// Split newstring by newlines to support multiline insertions
-			std::vector<std::string> new_parts;
-			if (edit.replace_with.empty()) {
-				new_parts.push_back("");
-			} else {
-				std::stringstream ss(edit.replace_with);
-				std::string part;
-				while (std::getline(ss, part)) {
-					if (!part.empty() && part.back() == '\r')
-						part.pop_back();
-					new_parts.push_back(part);
-				}
-			}
-			lines.insert(lines.begin() + idx, new_parts.begin(), new_parts.end());
+	        if (edit.type == "remove") {
+	                lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
+	        } else if (edit.type == "add") {
+	                // Split newstring by newlines to support multiline insertions
+	                std::vector<std::string> new_parts;
+	                if (edit.replace_with.empty()) {
+	                        new_parts.push_back("");
+	                } else {
+	                        std::stringstream ss(edit.replace_with);
+	                        std::string part;
+	                        while (std::getline(ss, part)) {
+	                                if (!part.empty() && part.back() == '\r')
+	                                        part.pop_back();
+	                                new_parts.push_back(part);
+	                        }
+	                }
+	                lines.insert(lines.begin() + idx, new_parts.begin(), new_parts.end());
 
-		} else if (edit.type == "replace") {
-			// Replace the current line with the new lines
-			lines.erase(lines.begin() + idx);
+	        } else if (edit.type == "replace") {
+	                // Replace the current line with the new lines
+	                lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
 
-			std::vector<std::string> new_parts;
-			if (edit.replace_with.empty()) {
+	                std::vector<std::string> new_parts;			if (edit.replace_with.empty()) {
 				new_parts.push_back("");
 			} else {
 				std::stringstream ss(edit.replace_with);
