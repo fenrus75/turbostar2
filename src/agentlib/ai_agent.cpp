@@ -41,7 +41,7 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
 {
 	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
-	client_ = std::make_unique<llm_client>(http_transport, model_->get_id());
+	client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 }
 
 ai_agent::~ai_agent()
@@ -263,7 +263,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		std::lock_guard lock(state_mutex_);
 		model_ = std::move(model);
 		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
-		client_ = std::make_unique<llm_client>(http_transport, model_->get_id());
+		client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
 
 	add_interaction(std::make_shared<interaction_system_message>("Model switched to: " + model_->get_name() + " (" +

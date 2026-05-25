@@ -117,6 +117,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 {
 	httplib::Result res;
 	std::string error_body;
+	std::string requested_path;
 	int status_code = 0;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -125,7 +126,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 		httplib::Request req;
 		req.method = "POST";
-		
+
 		std::string full_path = path;
 		if (!path_prefix_.empty()) {
 			if (path.starts_with(path_prefix_)) {
@@ -134,6 +135,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 				full_path = path_prefix_ + path;
 			}
 		}
+		requested_path = full_path;
 		req.path = full_path;
 
 		req.body = json_body;
@@ -160,20 +162,19 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 	}
 
 	if (!res) {
-		last_error_ = error_to_string(res.error());
+		last_error_ = error_to_string(res.error()) + " (Path: " + requested_path + ")";
 		return false;
 	}
 
 	if (res->status != 200) {
-		last_error_ = "HTTP " + std::to_string(res->status);
+		last_error_ = "HTTP " + std::to_string(res->status) + " [Path: " + requested_path + "]";
 		if (!error_body.empty()) {
-			last_error_ += ": " + error_body;
+			last_error_ += "\nBody: " + error_body;
 		} else if (!res->body.empty()) {
-			last_error_ += ": " + res->body;
+			last_error_ += "\nBody: " + res->body;
 		}
 		return false;
 	}
-
 	last_error_ = "";
 	return true;
 }
