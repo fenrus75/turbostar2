@@ -80,6 +80,13 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				edit.replace_with = edit_json.value("replace_with", "");
 			}
 
+			if (!edit.original_text.empty()) {
+				int newlines = std::count(edit.original_text.begin(), edit.original_text.end(), '\n');
+				edit.lines_to_remove = newlines + 1;
+			} else {
+				edit.lines_to_remove = 1;
+			}
+
 			parsed_edits.push_back(edit);
 		}
 

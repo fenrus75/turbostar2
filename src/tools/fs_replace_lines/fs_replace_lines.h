@@ -11,6 +11,7 @@ struct edit_operation {
     std::string type; // "add", "remove", "replace"
     std::string original_text; // Empty if not used
     std::string replace_with; // Empty if not used
+    int lines_to_remove{1}; // Calculated from newlines in original_text
 };
 
 struct fs_replace_args {
@@ -64,7 +65,7 @@ public:
                             }},
                             {"original_text", {
                                 {"type", "string"},
-                                {"description", "Required for 'remove' and 'replace'. The exact full content of the SINGLE original line being modified. Do NOT provide multiple lines. Used for safety verification. Pass empty string for 'add'."}
+                                {"description", "Required for 'remove' and 'replace'. The exact full content of the original line(s) being modified. You MAY provide multiple lines separated by \\n to replace entire blocks of code. Used for safety verification. Pass empty string for 'add'."}
                             }},
                             {"replace_with", {
                                 {"type", "string"},

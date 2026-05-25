@@ -391,14 +391,19 @@ void ai_agent::start_processing()
 				    }
 
 				    if (delta.tool_calls) {
-					    for (const auto &tc : *delta.tool_calls) {
+					    for (auto tc : *delta.tool_calls) {
 						    if (tc.id.empty() && !accumulated_tool_calls.empty()) {
 							    auto &last = accumulated_tool_calls.back();
 							    if (!tc.function.name.empty())
 								    last.function.name += tc.function.name;
 							    if (!tc.function.arguments.empty())
 								    last.function.arguments += tc.function.arguments;
+							    if (tc.signature)
+								    last.signature = tc.signature;
 						    } else {
+							    if (tc.id.empty()) {
+								    tc.id = "call_" + std::to_string(std::rand());
+							    }
 							    accumulated_tool_calls.push_back(tc);
 						    }
 					    }

@@ -22,9 +22,13 @@ bool sqlite_create_db_tool::validate_runtime(const agentlib::tool_context & /*ct
 std::string sqlite_create_db_tool::execute(agentlib::tool_context & /*ctx*/)
 {
 	std::string db_dir = fs_utils::get_project_db_dir();
-	std::string db_path = (std::filesystem::path(db_dir) / (database_ + ".db")).string();
+	std::filesystem::path db_path = std::filesystem::path(db_dir) / (database_ + ".db");
+	if (std::filesystem::exists(db_path)) {
+		return "Error: Database '" + database_ + "' already exists.";
+	}
 
 	sqlite3 *db = nullptr;
+
 	int rc = sqlite3_open(db_path.c_str(), &db);
 	if (rc != SQLITE_OK) {
 		std::string err = sqlite3_errmsg(db);

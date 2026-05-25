@@ -57,6 +57,12 @@ class agent_set_status_validator : public agentlib::tool_validator
 		}
 
 		std::string msg = args["message"].get<std::string>();
+		const size_t MAX_STATUS_LENGTH = 256;
+		if (msg.length() > MAX_STATUS_LENGTH) {
+			out_error = "Security Violation: Status message too long.";
+			return false;
+		}
+
 		if (!fs_utils::is_safe_for_ui(msg)) {
 			out_error = "Security Violation: Status message contains unsafe control characters or escape sequences.";
 			return false;
