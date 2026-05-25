@@ -18,6 +18,20 @@ std::string fs_file_size_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
 		std::error_code ec;
+
+		// SECURITY CHECK: Verify the path points to a regular file
+		// This prevents querying directories, devices, sockets, or other special files
+		auto status = std::filesystem::status(safe_path_, ec);
+		if (ec) {
+			set_failure(ctx, ec.message());
+			return "Error checking file status: " + ec.message();
+		}
+
+		if (!std::filesystem::is_regular_file(status)) {
+			set_failure(ctx, "Path is not a regular file");
+			return "Error: The specified path is not a regular file (it may be a directory, device, or special file)";
+		}
+
 		auto size = std::filesystem::file_size(safe_path_, ec);
 		if (ec) {
 			set_failure(ctx, ec.message());
