@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) in random order
 
+- critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
+
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - we need to tackle compaction at some point
@@ -19,6 +21,15 @@
   of most of the project
     - base.h is pretty bad this way, it really should be split
 
+
+- --exit-immediately to take an optional "seconds" argument for > 1 second delays
+
+- an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
+
+- a "--model <name>" command line option to pick a specific model
+
+ - (agent + model options combined with --exit-immediately opens op a set of extra options for testing things, like for memory leaks etc)
+
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
@@ -32,7 +43,6 @@
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
-
 
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
@@ -79,14 +89,11 @@
 			continue (etc)
 
 
-- support `git_push` with `force=true` by utilizing the `ask_user` tool to require explicit human authorization before execution.
-
+- a github:// VFS namespace
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 
 - MCP support
-
-- send per repository instructions to the LLM at startup similar to GEMINI.md -- or we use exactly GEMINI.md
 
 # long term items   
 
