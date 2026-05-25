@@ -2,7 +2,7 @@ import json
 import sys
 import argparse
 
-def analyze_chat(filepath, turn=None):
+def analyze_chat(filepath, turn=None, extract_turns=None):
     try:
         with open(filepath, 'r') as f:
             data = json.load(f)
@@ -12,6 +12,22 @@ def analyze_chat(filepath, turn=None):
 
     conversation = data.get('conversation', [])
     
+    if extract_turns is not None:
+        extracted = []
+        for t in extract_turns:
+            if 0 <= t < len(conversation):
+                extracted.append(conversation[t])
+            else:
+                print(f"Warning: Turn {t} out of bounds.")
+        
+        out_data = {
+            "agent_name": data.get("agent_name"),
+            "agent_id": data.get("agent_id"),
+            "conversation": extracted
+        }
+        print(json.dumps(out_data, indent=4))
+        return
+
     if turn is not None:
         if turn < 0 or turn >= len(conversation):
             print(f"Error: Turn {turn} is out of bounds (0 to {len(conversation) - 1})")
@@ -68,6 +84,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Analyze Turbostar Agent JSON chat logs")
     parser.add_argument("path", help="Path to the JSON log file (e.g. agent_chat_2.json)")
     parser.add_argument("--turn", type=int, help="Dump the raw JSON of a specific turn number", default=None)
+    parser.add_argument("--extract", type=int, nargs='+', help="Extract a list of turn numbers and dump them as a new valid JSON chat log", default=None)
     args = parser.parse_args()
     
-    analyze_chat(args.path, args.turn)
+    analyze_chat(args.path, turn=args.turn, extract_turns=args.extract)
