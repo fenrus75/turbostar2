@@ -228,6 +228,12 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `text` *(string, required)*: The exact task text or a unique substring to match.
 
+### `agent_mark_milestone`
+*   **Description:** Used to signal that a major task is complete or that you are pivoting to a completely new area. This helps the system manage long-term memory and context windows efficiently by compressing old history.
+*   **Arguments:**
+    *   `title` *(string, required)*: A short title for the completed task or the new milestone.
+    *   `summary` *(string, required)*: A concise summary of the work that was just completed and the goal of the new phase.
+
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
 *   **Arguments:** None.

@@ -15,6 +15,8 @@ tools_sources = files(
   'agent_list_todos/agent_list_todos_security.cpp',
   'agent_complete_todo/agent_complete_todo_entry.cpp',
   'agent_complete_todo/agent_complete_todo_security.cpp',
+  'agent_mark_milestone/agent_mark_milestone_entry.cpp',
+  'agent_mark_milestone/agent_mark_milestone_security.cpp',
   'agent_pop_todo/agent_pop_todo_entry.cpp',
   'agent_pop_todo/agent_pop_todo_security.cpp',
   'agent_delete_todo/agent_delete_todo_entry.cpp',
