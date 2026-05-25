@@ -809,6 +809,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 						int depth_bonus = std::max(0, 10 - num_slashes);
 						sms.accumulated_count = depth_bonus;
 
+						if (sym.location.range.start_y > 1000) {
+							sms.accumulated_count = std::max(0, sms.accumulated_count - 2);
+						}
+
 						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
 							sms.accumulated_count += 5;
 						}
