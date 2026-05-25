@@ -763,9 +763,14 @@ void project_manager::software_map_loop(std::stop_token stop)
 			}
 
 			auto process_symbols = [&](const std::vector<lsp_manager::symbol_info> &symbols) {
+				std::string build_dir_str = "/" + build_dir + "/";
 				std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
 				for (const auto &sym : symbols) {
 					if (sym.location.path.starts_with("/usr/"))
+						continue;
+						
+					// Filter out anything in a build directory
+					if (sym.location.path.find(build_dir_str) != std::string::npos || sym.location.path.find("/build") != std::string::npos)
 						continue;
 
 					if (sym.kind == 5 || sym.kind == 6 || sym.kind == 11 || sym.kind == 12 || sym.kind == 22) {
@@ -875,13 +880,29 @@ void project_manager::software_map_loop(std::stop_token stop)
 					for (size_t i = 0; i < supertypes.size(); ++i) {
 						bases += supertypes[i].name;
 						if (i < supertypes.size() - 1) bases += ", ";
+
+						// Propagate Elo-style importance upwards to base classes
+						auto it = software_map_.name_to_indices.find(supertypes[i].name);
+						if (it != software_map_.name_to_indices.end()) {
+							for (size_t idx : it->second) {
+								auto &base_sym = software_map_.symbols[idx];
+								if (base_sym.location.path == supertypes[i].uri || supertypes[i].uri.ends_with(base_sym.location.path)) {
+									base_sym.accumulated_count += 3; // Extra weight for being a base class
+									break;
+								}
+							}
+						}
 					}
 					software_map_.symbols[target_idx].base_classes = bases;
 				}
 			}
 
 			// Propagate outbound importance
+			std::string build_dir_str = "/" + config_manager::get_instance().get_build_directory() + "/";
 			for (const auto &out_call : outgoing) {
+				if (out_call.uri.find(build_dir_str) != std::string::npos || out_call.uri.find("/build") != std::string::npos || out_call.uri.starts_with("/usr/"))
+					continue;
+					
 				auto it = software_map_.name_to_indices.find(out_call.name);
 				if (it != software_map_.name_to_indices.end()) {
 					for (size_t idx : it->second) {
