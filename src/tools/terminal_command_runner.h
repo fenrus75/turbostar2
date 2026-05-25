@@ -13,6 +13,39 @@ class terminal_parser {
 public:
     void process_chunk(const std::string& chunk) {
         full_output_ += chunk;
+        
+        // Handle ANSI Clear Screen: \033[2J (Clear entire screen) or \033c (Reset device)
+        size_t clear_pos = full_output_.rfind("\033[2J");
+        size_t reset_pos = full_output_.rfind("\033c");
+        size_t wipe_pos = std::string::npos;
+        
+        if (clear_pos != std::string::npos) wipe_pos = clear_pos + 4;
+        if (reset_pos != std::string::npos && (wipe_pos == std::string::npos || reset_pos + 2 > wipe_pos)) {
+            wipe_pos = reset_pos + 2;
+        }
+
+        if (wipe_pos != std::string::npos) {
+            // A clear screen signal was detected. Wipe everything before it.
+            full_output_ = full_output_.substr(wipe_pos);
+            display_lines_.clear();
+            current_line_.clear();
+            
+            // Re-process the remaining output to rebuild the UI display lines
+            for (char c : full_output_) {
+                if (c == '\n') {
+                    display_lines_.push_back(current_line_);
+                    if (display_lines_.size() > 15) display_lines_.pop_front();
+                    current_line_.clear();
+                } else if (c == '\r') {
+                    current_line_.clear();
+                } else {
+                    current_line_ += c;
+                }
+            }
+            return;
+        }
+
+        // If no clear screen was found, just process the new chunk normally
         for (char c : chunk) {
             if (c == '\n') {
                 display_lines_.push_back(current_line_);
