@@ -33,17 +33,22 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 	std::string repo_root = git_manager::get_instance().get_repository_root();
 
 	if (filenames.empty()) {
+		bool loaded_files = false;
 		if (!repo_root.empty()) {
 			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(repo_root);
 			if (!proj_files.empty()) {
 				for (const auto &f : proj_files) {
 					new_window(f);
 				}
-			} else {
-				new_window("");
+				loaded_files = true;
 			}
-		} else {
+		} 
+		
+		if (!loaded_files) {
 			new_window("");
+			active_dialog_ = create_welcome_dialog();
+			active_dialog_mode_ = dialog_mode::welcome;
+			set_focus(focus_target::dialog, "welcome");
 		}
 	} else {
 		for (const auto &f : filenames) {

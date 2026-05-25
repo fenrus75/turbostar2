@@ -82,6 +82,70 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 	return dlg;
 }
 
+class welcome_dialog_impl : public dialog
+{
+      public:
+	welcome_dialog_impl(const std::string &title, int width, int height) : dialog(title, width, height) {}
+
+	dialog_result handle_key(int key) override
+	{
+		// Cancel on any keypress to dismiss the welcome screen
+		if (key != KEY_MOUSE) {
+			action_ = dialog_result::cancelled;
+		}
+		return action_;
+	}
+	
+	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override
+	{
+		if (ev.type == event_type::key_press) {
+			action_ = dialog_result::cancelled;
+			return true;
+		} else if (ev.type == event_type::mouse_click) {
+			action_ = dialog_result::cancelled;
+			return true;
+		}
+		return dialog::handle_event(ev, abs_x, abs_y);
+	}
+};
+
+std::unique_ptr<dialog> create_welcome_dialog()
+{
+	std::vector<std::string> lines = {
+		"TurboStar",
+		"",
+		"Version " TURBOSTAR_VERSION,
+		"",
+		"Copyright (c) 2026 by",
+		"Arjan van de Ven"
+	};
+	
+	int width = 36;
+	for (const auto &line : lines) {
+		if (static_cast<int>(line.length()) + 6 > width) {
+			width = static_cast<int>(line.length()) + 6;
+		}
+	}
+	int height = lines.size() + 6;
+	auto dlg = std::make_unique<welcome_dialog_impl>("About", width, height);
+
+	for (size_t i = 0; i < lines.size(); ++i) {
+		int text_x = (width - static_cast<int>(lines[i].length())) / 2;
+		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
+	}
+
+	std::string ok_text = "  OK  ";
+	int btn_x = (width - static_cast<int>(ok_text.length())) / 2;
+	int btn_y = height - 3;
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x, btn_y, ok_text, 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("ok");
+	}));
+
+	dlg->set_focus_by_name("btn_ok");
+	return dlg;
+}
+
 class force_quit_dialog_impl : public dialog
 {
       public:
