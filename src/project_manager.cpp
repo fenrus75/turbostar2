@@ -790,12 +790,23 @@ void project_manager::software_map_loop(std::stop_token stop)
 						sms.kind = sym.kind;
 						sms.location = sym.location;
 						sms.looked_up_count = 0;
-						sms.accumulated_count = 0;
 						sms.is_seed = true;
 						sms.is_sampled = false;
 
+						std::string rel_path = sym.location.path;
+						if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
+							rel_path = rel_path.substr(repo_root_.length());
+							if (!rel_path.empty() && rel_path.front() == '/') {
+								rel_path.erase(0, 1);
+							}
+						}
+
+						int num_slashes = std::count(rel_path.begin(), rel_path.end(), '/');
+						int depth_bonus = std::max(0, 10 - num_slashes);
+						sms.accumulated_count = depth_bonus;
+
 						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
-							sms.accumulated_count = 5;
+							sms.accumulated_count += 5;
 						}
 
 						software_map_.symbols.push_back(sms);
