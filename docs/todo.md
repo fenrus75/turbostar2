@@ -3,7 +3,7 @@
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - we need to tackle compaction at some point
-- use --background-index on clangd to have a persistent index
+
 - when cut and pasting in a modal dialog, the paste goes to the document underneath
 	- option: turn off block paste while in a modal dialog
 
@@ -33,8 +33,6 @@
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
 
-
-- we need a non-ugly "ask_user" dialog box
 
 - exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
    -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
@@ -115,6 +113,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 25-05-2026
+- use --background-index on clangd to have a persistent index
 
 ## 24-05-2026
 - implemented an `append` flag for `fs_write_file`. This provides agents with a secure, 0-turn way to append data to logs, configs, or source files without risking destructive overwrites or needing complex `fs_replace_lines` schemas. The tool automatically injects a missing newline (`\n`) if the target file does not end with one to prevent concatenating lines.
