@@ -18,17 +18,46 @@ public:
     virtual void apply(std::vector<std::string>& lines) const = 0;
 };
 
-// Test filter that removes lines containing "FILTER TEST DELETE ME"
-class test_delete_me_filter : public output_filter {
+// Filter that compresses successful Meson/Ninja compilation steps
+class meson_compile_filter : public output_filter {
 public:
-    bool is_applicable(const std::string& /*command*/, const std::string& raw_output) const override {
-        return raw_output.find("FILTER TEST DELETE ME") != std::string::npos;
+    bool is_applicable(const std::string& command, const std::string& /*raw_output*/) const override {
+        return command.find("meson compile") != std::string::npos || command.find("ninja") != std::string::npos;
     }
 
     void apply(std::vector<std::string>& lines) const override {
-        lines.erase(std::remove_if(lines.begin(), lines.end(), [](const std::string& line) {
-            return line.find("FILTER TEST DELETE ME") != std::string::npos;
-        }), lines.end());
+        if (lines.empty()) return;
+
+        auto is_progress_line = [](const std::string& line) {
+            if (line.length() < 5 || line[0] != '[') return false;
+            size_t end_bracket = line.find(']');
+            if (end_bracket == std::string::npos) return false;
+            size_t slash = line.find('/');
+            if (slash == std::string::npos || slash > end_bracket) return false;
+            
+            // Verify everything between brackets are digits and a slash
+            for (size_t i = 1; i < slash; ++i) {
+                if (!std::isdigit(line[i])) return false;
+            }
+            for (size_t i = slash + 1; i < end_bracket; ++i) {
+                if (!std::isdigit(line[i])) return false;
+            }
+            return true;
+        };
+
+        std::vector<std::string> new_lines;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            bool current_is_progress = is_progress_line(lines[i]);
+            bool next_is_progress = (i + 1 < lines.size()) ? is_progress_line(lines[i+1]) : false;
+
+            // If this line is a progress line AND the next line is ALSO a progress line,
+            // it means this compile step succeeded silently with no warnings/errors. We drop it.
+            if (current_is_progress && next_is_progress) {
+                continue;
+            }
+            new_lines.push_back(lines[i]);
+        }
+        lines = std::move(new_lines);
     }
 };
 

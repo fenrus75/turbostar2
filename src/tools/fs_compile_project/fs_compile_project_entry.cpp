@@ -52,7 +52,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 	// Apply output filters to summarize/prune execution logs proactively
 	std::vector<std::shared_ptr<output_filter>> filters;
-	filters.push_back(std::make_shared<test_delete_me_filter>());
+	filters.push_back(std::make_shared<meson_compile_filter>());
 	output = apply_output_filters(cmd, output, filters);
 
 	if (crashes_after > crashes_before) {
