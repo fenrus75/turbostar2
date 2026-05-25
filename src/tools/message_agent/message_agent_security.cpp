@@ -49,6 +49,15 @@ class message_agent_validator : public agentlib::tool_validator
 				out_error = "Message cannot be empty.";
 				return false;
 			}
+
+			// SECURITY CHECK: Enforce maximum message length to prevent DoS attacks
+			constexpr size_t MAX_MESSAGE_LENGTH = 100 * 1024; // 100KB limit
+			if (raw_args.message.length() > MAX_MESSAGE_LENGTH) {
+				out_error = "Message exceeds maximum allowed length of " + std::to_string(MAX_MESSAGE_LENGTH) +
+				            " bytes (" + std::to_string(raw_args.message.length()) + " bytes provided).";
+				return false;
+			}
+
 			args_.id = raw_args.id;
 			args_.message = raw_args.message;
 			return true;
