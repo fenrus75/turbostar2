@@ -313,6 +313,13 @@ std::string project_manager::get_project_knowledge_prompt() const
 		prompt += "\n" + project_layout;
 	}
 
+	if (config_manager::get_instance().is_software_map_enabled()) {
+		std::string software_map = get_software_map_markdown();
+		if (!software_map.empty()) {
+			prompt += "\n" + software_map;
+		}
+	}
+
 	return prompt;
 }
 
