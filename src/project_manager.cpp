@@ -567,8 +567,8 @@ std::string project_manager::get_software_map_markdown() const
 	// Classes Table
 	if (!classes.empty()) {
 		md += "### Key Classes & Structs\n";
-		md += "| Class Name | Type | Importance | Base Class(es) | File Location |\n";
-		md += "| :--- | :--- | :--- | :--- | :--- |\n";
+		md += "| Class Name | Type | Base Class(es) | File Location |\n";
+		md += "| :--- | :--- | :--- | :--- |\n";
 		for (const auto &sym : classes) {
 			if (classes_shown >= class_limit) break;
 			std::string kind_str = (sym.kind == 5) ? "Class" : (sym.kind == 22 ? "Struct" : "Interface");
@@ -580,7 +580,7 @@ std::string project_manager::get_software_map_markdown() const
 			}
 			
 			std::string bases = sym.base_classes.empty() ? "-" : sym.base_classes;
-			md += "| `" + sym.name + "` | " + kind_str + " | " + std::to_string(sym.accumulated_count) + " | " + bases + " | `" + rel_path + "` |\n";
+			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + "` |\n";
 			classes_shown++;
 		}
 		md += "\n";
@@ -589,8 +589,8 @@ std::string project_manager::get_software_map_markdown() const
 	// Functions Table
 	if (!functions.empty()) {
 		md += "### Key Functions & Methods\n";
-		md += "| Function Name | Importance | File Location |\n";
-		md += "| :--- | :--- | :--- |\n";
+		md += "| Function Name | File Location |\n";
+		md += "| :--- | :--- |\n";
 		int func_limit = total_limit - classes_shown;
 		int funcs_shown = 0;
 		for (const auto &sym : functions) {
@@ -602,7 +602,7 @@ std::string project_manager::get_software_map_markdown() const
 				if (!rel_path.empty() && rel_path.front() == '/') rel_path.erase(0, 1);
 			}
 
-			md += "| `" + sym.name + "` | " + std::to_string(sym.accumulated_count) + " | `" + rel_path + "` |\n";
+			md += "| `" + sym.name + "` | `" + rel_path + "` |\n";
 			funcs_shown++;
 		}
 	}
