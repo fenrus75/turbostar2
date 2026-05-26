@@ -799,7 +799,15 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     }
 
     auto now = std::chrono::system_clock::now();
-    auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    
+    const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
+    if (mock_epoch_env) {
+        try {
+            epoch = std::stoll(mock_epoch_env);
+        } catch (...) {}
+    }
+    
     std::string milestone_id = "milestone_" + std::to_string(epoch);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
@@ -849,7 +857,15 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 
     // Generate an ID for this milestone (timestamp or random hash)
     auto now = std::chrono::system_clock::now();
-    auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    
+    const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
+    if (mock_epoch_env) {
+        try {
+            epoch = std::stoll(mock_epoch_env);
+        } catch (...) {}
+    }
+    
     std::string milestone_id = "milestone_" + std::to_string(epoch);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);

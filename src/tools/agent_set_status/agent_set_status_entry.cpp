@@ -63,6 +63,12 @@ class agent_set_status_validator : public agentlib::tool_validator
 			return false;
 		}
 
+		// Security check: Reject empty or whitespace-only messages
+		if (msg.empty() || msg.find_first_not_of(" \t\n\r") == std::string::npos) {
+			out_error = "Security Violation: Status message cannot be empty or whitespace-only.";
+			return false;
+		}
+
 		if (!fs_utils::is_safe_for_ui(msg)) {
 			out_error = "Security Violation: Status message contains unsafe control characters or escape sequences.";
 			return false;

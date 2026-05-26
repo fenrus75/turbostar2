@@ -4,7 +4,13 @@
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
+- fs_find_in_files pretty print the output
+
+- add a "clean" argument to fs_compile* so that the agent can force a clean
+  full build
+
 - we need to tackle compaction at some point
+   -- we're keeping notes in `docs/compaction.md`
 
 - when cut and pasting in a modal dialog, the paste goes to the document underneath
 	- option: turn off block paste while in a modal dialog

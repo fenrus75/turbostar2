@@ -98,6 +98,15 @@ public:
     std::string get_memory_index() const;
     void compact_ephemeral_errors(std::vector<message>& convo);
 
+    std::vector<message> get_conversation() const {
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        return conversation_;
+    }
+    void set_conversation(const std::vector<message>& c) {
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        conversation_ = c;
+    }
+
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
