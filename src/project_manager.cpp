@@ -943,6 +943,6 @@ void project_manager::software_map_loop(std::stop_token stop)
 		}
 
 		// Rate limit sampling
-		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		std::this_thread::sleep_for(std::chrono::milliseconds(30));
 	}
 }

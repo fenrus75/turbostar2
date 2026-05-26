@@ -2,6 +2,10 @@
 
 - critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
 
+- build fail: meson does not check for "dtl" being installed
+
+- need to deal with the critical review comments in `review-line.md`
+
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - fs_find_in_files pretty print the output
