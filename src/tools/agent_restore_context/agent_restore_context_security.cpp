@@ -3,7 +3,7 @@
 
 namespace tools {
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_restore_context_args, milestone_id, strip_reasoning);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_restore_context_args, milestone_id, compression_level);
 
 nlohmann::json agent_restore_context_validator::get_parameters_schema() const {
     return {
@@ -13,9 +13,9 @@ nlohmann::json agent_restore_context_validator::get_parameters_schema() const {
                 {"type", "string"},
                 {"description", "The exact ID of the milestone to restore (e.g., 'milestone_1716652800')."}
             }},
-            {"strip_reasoning", {
-                {"type", "boolean"},
-                {"description", "Optional. Defaults to true. If true, strips out the agent's internal 'thinking' text from the restored history to save massive token amounts. If false, restores the raw, uncompressed archive exactly as it was."}
+            {"compression_level", {
+                {"type", "integer"},
+                {"description", "Optional. 0=Raw, 1=Think-Free (default), 2=Terminal Truncated, 3=Highly Aggressive. Adjusts how much bloat is stripped from the archive before loading it into your context."}
             }}
         }},
         {"required", nlohmann::json::array({"milestone_id"})}

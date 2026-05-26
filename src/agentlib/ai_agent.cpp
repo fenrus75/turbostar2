@@ -43,7 +43,7 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 	return agent;
 }
 
-bool ai_agent::page_in_context(const std::string& milestone_id)
+bool ai_agent::page_in_context(const std::string& milestone_id, int compression_level)
 {
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + milestone_id + ".json";
@@ -66,6 +66,23 @@ bool ai_agent::page_in_context(const std::string& milestone_id)
 			for (const auto& item : root["conversation"]) {
 				message msg;
 				from_json(item, msg);
+				
+				// Level 1: Strip explicit reasoning content natively provided by models like DeepSeek.
+				if (compression_level >= 1 && msg.role == "assistant") {
+					if (msg.reasoning_content) {
+						msg.reasoning_content.reset();
+						increment_stat("explicit_think_blocks_stripped");
+					}
+				}
+				
+				// Level 2: Strip conversational pseudo-reasoning (used by GPT-4o/Gemini) if a tool call was made.
+				if (compression_level >= 2 && msg.role == "assistant") {
+					if (msg.tool_calls && !msg.tool_calls->empty() && !msg.content.empty()) {
+						msg.content.clear();
+						increment_stat("pseudo_think_blocks_stripped");
+					}
+				}
+				
 				loaded_msgs.push_back(msg);
 			}
 
@@ -468,6 +485,10 @@ void ai_agent::start_processing()
 						    self->add_interaction(current_reasoning);
 					    }
 					    current_reasoning->append_text(delta.reasoning_content);
+					    if (!response_msg.reasoning_content) {
+						    response_msg.reasoning_content = "";
+					    }
+					    *response_msg.reasoning_content += delta.reasoning_content;
 					    if (self->global_queue_) {
 						    editor_event ev;
 						    ev.type = event_type::agent_tool_update;

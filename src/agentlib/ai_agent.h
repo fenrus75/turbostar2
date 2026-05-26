@@ -90,18 +90,18 @@ public:
     void page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
     void page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
     void snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
-    bool page_in_context(const std::string& milestone_id);
+    bool page_in_context(const std::string& milestone_id, int compression_level = 1);
     
     void save_active_state() const;
     bool load_active_state();
 
     std::string get_memory_index() const;
+    void compact_ephemeral_errors(std::vector<message>& convo);
 
 private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
     void start_processing();
-    void compact_ephemeral_errors(std::vector<message>& convo);
 
     int id_;
     std::string name_;

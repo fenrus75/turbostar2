@@ -7,7 +7,7 @@ namespace tools {
 
 struct agent_restore_context_args {
     std::string milestone_id;
-    bool strip_reasoning{true};
+    int compression_level{1};
 };
 
 class agent_restore_context_tool : public agentlib::llm_tool {

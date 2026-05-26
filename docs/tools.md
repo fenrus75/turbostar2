@@ -247,6 +247,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Pages in a previously saved context archive (milestone). Use this if you need to resume work on an old task or look up historical context. Find the milestone_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.
 *   **Arguments:**
     *   `milestone_id` *(string, required)*: The exact ID of the milestone to restore.
+    *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Strip explicit reasoning fields. `2` = Strip pseudo-reasoning from tool calls. `3` = Truncate terminal outputs. Defaults to `1`.
 
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
