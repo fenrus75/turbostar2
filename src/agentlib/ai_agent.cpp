@@ -960,8 +960,13 @@ void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bo
         }
     } else {
         // If no target provided, scan backwards to find the most recent milestone marker
+        // We look for either the tool result from agent_mark_milestone OR a previously injected pointer.
         for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-            if (conversation_[i].role == "system" && conversation_[i].content.find("Milestone Marked") != std::string::npos) {
+            if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_milestone") {
+                end_index = i;
+                break;
+            }
+            if (conversation_[i].role == "system" && conversation_[i].content.find("Milestone Reached") != std::string::npos) {
                 end_index = i;
                 break;
             }
