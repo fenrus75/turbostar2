@@ -18,7 +18,7 @@ bool agent_restore_context_tool::validate_runtime(const agentlib::tool_context& 
 
 std::string agent_restore_context_tool::execute(agentlib::tool_context& ctx) {
     if (ctx.active_agent) {
-        if (ctx.active_agent->page_in_context(args_.milestone_id)) {
+        if (ctx.active_agent->page_in_context(args_.milestone_id, args_.strip_reasoning)) {
             return "Context successfully restored. The previous conversation history has been injected into your active memory.";
         } else {
             return "Error: Could not find or load milestone archive: " + args_.milestone_id;
