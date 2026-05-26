@@ -1,4 +1,4 @@
-# short term items (fixes needed -- agents can automatically add todo items to this section) in random order
+# short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 - critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
 
@@ -16,6 +16,12 @@
 - implement http proxies in cpp-httplib
 	http_proxy and https_proxy env variables
 	no_proxy?
+```cpp
+    httplib::Client cli("http://target-site.com");
+
+    // Set proxy host and port
+    cli.set_proxy("your-proxy-host.com", 8080);
+```
 
 - add an optional "clean" argument to fs_compile* so that the agent can force a clean
   full build
@@ -30,7 +36,8 @@
 
 - cut and pasting into the AI agent window prompt does not work
 
-- can't type at all in the AI agent window when the agent is thinking -- better to let type and queue up the response
+- can't type at all in the AI agent window when the agent is thinking -- better to let the user type and queue up the response
+	-- otherwise / commands do not work, including /save
 
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
