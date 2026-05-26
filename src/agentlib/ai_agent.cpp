@@ -137,6 +137,10 @@ bool ai_agent::load_active_state()
 void ai_agent::close()
 {
 	if (!is_closed_) {
+		// Implicit Milestone: Page out all uncompressed history when the editor closes
+		// so the agent boots up "fresh" (but with pointers) next session.
+		page_out_prior_context("", true, "End of Session", "The user closed the editor or agent window. This session was automatically paged out.", {"session-end"});
+		
 		save_active_state();
 	}
 	is_closed_ = true;
