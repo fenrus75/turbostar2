@@ -29,6 +29,9 @@
 - need to consider running the e2e tests via "uv" as they use a non-standard pip library
 	- this causes all tests to fail in github, but also in our sandbox
 
+- set "uv" working directory: 
+	"uv run --project /path/to/project my_script.py"
+
 - we have a delay at exit -- annoying to the user
 
 - we need to tackle compaction at some point
