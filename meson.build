@@ -239,6 +239,12 @@ if python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_compaction', python,
+    args: ['-m', 'pytest', join_paths(meson.project_source_root(), 'tests/e2e/test_compaction.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_selection', python,
     args: [join_paths(meson.project_source_root(), 'tests/e2e/test_selection.py')],
     env: e2e_env,

@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <CLI11.hpp>
 #include "../agentlib/ai_agent.h"
 #include "../agentlib/httplib_transport.h"
 #include "../agentlib/llm_client.h"
@@ -17,7 +18,28 @@ using json = nlohmann::json;
 
 int main(int argc, char **argv)
 {
-	std::string prompt = (argc > 1) ? argv[1] : "How cold is it outside in San Francisco, CA?";
+	CLI::App app{"Turbostar Agent CLI for E2E Testing"};
+	
+	std::string prompt = "How cold is it outside in San Francisco, CA?";
+	std::string replay_file = "tests/data/todo_traffic.json";
+	std::string dump_state_file = "";
+	std::string project_dir = "";
+	long long mock_epoch = 0;
+
+	app.add_option("-p,--prompt", prompt, "The initial user prompt to send to the agent");
+	app.add_option("-r,--replay", replay_file, "Traffic file for replay/record modes");
+	app.add_option("--dump-state", dump_state_file, "Dump the final conversation state to this JSON file before exiting");
+	app.add_option("--project-dir", project_dir, "Override the project root directory for isolated sandboxing");
+	app.add_option("--mock-epoch", mock_epoch, "Force a deterministic timestamp for milestone archives");
+
+	CLI11_PARSE(app, argc, argv);
+
+	if (!project_dir.empty()) {
+		setenv("TURBOSTAR_TEST_PROJECT_DIR", project_dir.c_str(), 1);
+	}
+	if (mock_epoch > 0) {
+		setenv("TURBOSTAR_TEST_MOCK_EPOCH", std::to_string(mock_epoch).c_str(), 1);
+	}
 
 	const char *env_url = std::getenv("LLM_URL");
 	std::string url = env_url ? env_url : "http://192.168.1.55:8080";
@@ -25,13 +47,13 @@ int main(int argc, char **argv)
 	// Set up the transport chain
 #if defined(LLM_TRANSPORT_REPLAY)
 	std::cout << "[Using Replay Transport]" << std::endl;
-	auto player = std::make_shared<replay_transport>(argc > 2 ? argv[2] : "tests/data/todo_traffic.json");
+	auto player = std::make_shared<replay_transport>(replay_file);
 	llm_client client(player, "gpt-4o");
 
 #elif defined(LLM_TRANSPORT_RECORD)
 	std::cout << "[Using Recording Transport]" << std::endl;
 	auto http_transport = std::make_shared<httplib_transport>(url);
-	auto recorder = std::make_shared<recording_transport>(http_transport, argc > 2 ? argv[2] : "llm_debug_traffic.json");
+	auto recorder = std::make_shared<recording_transport>(http_transport, replay_file);
 	llm_client client(recorder, "gpt-4o");
 #else
 	std::cout << "[Using Standard HTTP Transport]" << std::endl;
@@ -52,8 +74,6 @@ int main(int argc, char **argv)
 	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
 	ctx.fs_security.set_vfs(agentlib::skill_manager::get_instance().get_vfs());
 
-	// 2. We ask a question that triggers the tool
-	prompt = (argc > 1) ? argv[1] : "Replace line 2 of tests/unit/poem.txt with 'The birds are resting soft and still.'";
 	std::cout << "Connecting to: " << url << std::endl;
 	std::cout << "Prompt: " << prompt << "\n" << std::endl;
 
@@ -61,7 +81,7 @@ int main(int argc, char **argv)
 
 	message system_msg;
 	system_msg.role = "system";
-	system_msg.content = "You are a helpful assistant. You must use the provided fs_replace_lines tool to edit files.";
+	system_msg.content = "You are a helpful assistant. You must use the provided tools to complete tasks.";
 	conversation.push_back(system_msg);
 
 	message user_msg;
@@ -72,6 +92,11 @@ int main(int argc, char **argv)
 	while (true) {
 		agentlib::llm_chat_response chat_res = client.send_chat(conversation, &registry);
 		message response = chat_res.msg;
+		
+		// If the response is completely empty (often happens in E2E replays if the transport is exhausted)
+		if (response.content.empty() && (!response.tool_calls || response.tool_calls->empty())) {
+			break;
+		}
 
 		if (response.tool_calls && !response.tool_calls->empty()) {
 			std::cout << "LLM requested tool calls." << std::endl;
@@ -81,8 +106,13 @@ int main(int argc, char **argv)
 			for (const auto &call : *response.tool_calls) {
 				std::cout << "Executing tool: " << call.function.name << std::endl;
 
-				// 3. We now pass the tool_context down to the execution layer
+				// Sync state to agent before execution (so tools can modify it)
+				test_agent->set_conversation(conversation);
+
 				std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
+				
+				// Sync state back from agent (in case it paged out)
+				conversation = test_agent->get_conversation();
 
 				std::cout << "[Tool Result] " << tool_result << std::endl;
 
@@ -94,10 +124,36 @@ int main(int argc, char **argv)
 
 				conversation.push_back(tool_msg);
 			}
-			// Loop back to send the tool result(s) to the LLM
+			
+			// Compact ephemeral errors
+			test_agent->set_conversation(conversation);
+			test_agent->compact_ephemeral_errors(conversation);
+			// compact_ephemeral_errors mutates BOTH the passed array and the internal array.
+			// But just to be safe, sync back.
+			conversation = test_agent->get_conversation();
+			
 		} else {
 			std::cout << "\nLLM Final Response:\n" << response.content << std::endl;
 			break;
+		}
+	}
+
+	if (!dump_state_file.empty()) {
+		nlohmann::json root;
+		root["stats"] = test_agent->get_stats();
+		
+		nlohmann::json conv_array = nlohmann::json::array();
+		for (const auto& msg : conversation) {
+			nlohmann::json m_json;
+			to_json(m_json, msg);
+			conv_array.push_back(m_json);
+		}
+		root["conversation"] = conv_array;
+
+		std::ofstream file(dump_state_file);
+		if (file.is_open()) {
+			file << root.dump(4);
+			std::cout << "Dumped final state to " << dump_state_file << std::endl;
 		}
 	}
 
