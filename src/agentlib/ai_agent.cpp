@@ -95,6 +95,29 @@ bool ai_agent::page_in_context(const std::string& milestone_id, int compression_
 				conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
 			}
 
+			// Update access time
+			auto now = std::chrono::system_clock::now();
+			long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+			const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
+			if (mock_epoch_env) {
+				try { epoch = std::stoll(mock_epoch_env); } catch (...) {}
+			}
+
+			if (milestone_index_.find(milestone_id) != milestone_index_.end()) {
+				milestone_index_[milestone_id].last_accessed_epoch = epoch;
+			}
+			
+			// Update the metadata file
+			std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+			try {
+				std::ifstream mfile(meta_filepath);
+				nlohmann::json meta_root;
+				mfile >> meta_root;
+				meta_root["last_accessed_epoch"] = epoch;
+				std::ofstream mfile_out(meta_filepath);
+				mfile_out << meta_root.dump(4);
+			} catch (...) {}
+
 			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + milestone_id);
 			increment_stat("context_pages_in");
 			return true;
@@ -792,10 +815,29 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     if (conversation_.empty()) return;
 
     nlohmann::json block_array = nlohmann::json::array();
+    int l0_chars = 0;
+    int l1_chars = 0;
+    int l2_chars = 0;
+    
     for (const auto& msg : conversation_) {
         nlohmann::json m_json;
         to_json(m_json, msg);
         block_array.push_back(m_json);
+        
+        int msg_chars = m_json.dump().length();
+        l0_chars += msg_chars;
+        
+        int r_chars = 0;
+        if (msg.reasoning_content) {
+            r_chars = msg.reasoning_content->length();
+        }
+        l1_chars += (msg_chars - r_chars);
+        
+        int pseudo_r_chars = 0;
+        if (msg.role == "assistant" && msg.tool_calls && !msg.tool_calls->empty()) {
+            pseudo_r_chars = msg.content.length();
+        }
+        l2_chars += (msg_chars - r_chars - pseudo_r_chars);
     }
 
     auto now = std::chrono::system_clock::now();
@@ -833,12 +875,27 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     meta["summary"] = summary;
     meta["tags"] = tags;
     meta["created_at_epoch"] = epoch;
-    meta["estimated_tokens"] = block_array.dump().length() / 4;
+    meta["last_accessed_epoch"] = epoch;
+    meta["tokens_level_0"] = l0_chars / 4;
+    meta["tokens_level_1"] = l1_chars / 4;
+    meta["tokens_level_2"] = l2_chars / 4;
     
     std::ofstream meta_file(meta_filepath);
     if (meta_file.is_open()) {
         meta_file << meta.dump(4);
     }
+    
+    milestone_index_entry mi;
+    mi.id = milestone_id;
+    mi.title = title;
+    mi.summary = summary;
+    mi.tags = tags;
+    mi.created_at_epoch = epoch;
+    mi.last_accessed_epoch = epoch;
+    mi.tokens_level_0 = l0_chars / 4;
+    mi.tokens_level_1 = l1_chars / 4;
+    mi.tokens_level_2 = l2_chars / 4;
+    milestone_index_[milestone_id] = mi;
 }
 
 void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
@@ -849,10 +906,31 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 
     // 1. Serialize the block
     nlohmann::json block_array = nlohmann::json::array();
+    int l0_chars = 0;
+    int l1_chars = 0;
+    int l2_chars = 0;
+    
     for (size_t i = start_index; i < end_index; ++i) {
         nlohmann::json m_json;
         to_json(m_json, conversation_[i]);
         block_array.push_back(m_json);
+        
+        int msg_chars = m_json.dump().length();
+        l0_chars += msg_chars;
+        
+        int r_chars = 0;
+        if (conversation_[i].reasoning_content) {
+            r_chars = conversation_[i].reasoning_content->length();
+        }
+        
+        l1_chars += (msg_chars - r_chars);
+        
+        int pseudo_r_chars = 0;
+        if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
+            pseudo_r_chars = conversation_[i].content.length();
+        }
+        
+        l2_chars += (msg_chars - r_chars - pseudo_r_chars);
     }
 
     // Generate an ID for this milestone (timestamp or random hash)
@@ -894,12 +972,27 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     meta["summary"] = summary;
     meta["tags"] = tags;
     meta["created_at_epoch"] = epoch;
-    meta["estimated_tokens"] = block_array.dump().length() / 4;
+    meta["last_accessed_epoch"] = epoch;
+    meta["tokens_level_0"] = l0_chars / 4;
+    meta["tokens_level_1"] = l1_chars / 4;
+    meta["tokens_level_2"] = l2_chars / 4;
     
     std::ofstream meta_file(meta_filepath);
     if (meta_file.is_open()) {
         meta_file << meta.dump(4);
     }
+    
+    milestone_index_entry mi;
+    mi.id = milestone_id;
+    mi.title = title;
+    mi.summary = summary;
+    mi.tags = tags;
+    mi.created_at_epoch = epoch;
+    mi.last_accessed_epoch = epoch;
+    mi.tokens_level_0 = l0_chars / 4;
+    mi.tokens_level_1 = l1_chars / 4;
+    mi.tokens_level_2 = l2_chars / 4;
+    milestone_index_[milestone_id] = mi;
 
     // 2. Replace the block with the summary pointer
     std::stringstream pointer_msg;
@@ -926,47 +1019,72 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     increment_stat("context_pages_out");
 }
 
-std::string ai_agent::get_memory_index() const
+void ai_agent::load_milestone_index()
 {
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+    milestone_index_.clear();
+    
     std::string history_dir = fs_utils::get_project_history_dir(name_);
-    if (!std::filesystem::exists(history_dir)) {
-        return "Memory index is empty (no history directory).";
-    }
-
-    std::stringstream out;
-    out << "Agent Memory Index (Paged-Out Milestones):\n";
-    int count = 0;
+    if (!std::filesystem::exists(history_dir)) return;
 
     for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
         std::string filename = entry.path().filename().string();
-        // Only read the _metadata.json files to avoid loading massive conversation arrays into memory
         if (entry.is_regular_file() && filename.ends_with("_metadata.json")) {
             try {
                 std::ifstream f(entry.path());
                 nlohmann::json root;
                 f >> root;
 
-                std::string milestone_id = root.value("milestone_id", "unknown");
-                std::string title = root.value("title", "Untitled");
-                int est_tokens = root.value("estimated_tokens", 0);
-
-                out << "- [" << milestone_id << "] " << title << " (~" << est_tokens << " tokens)\n";
-                if (root.contains("tags") && root["tags"].is_array() && !root["tags"].empty()) {
-                    out << "  Tags: ";
-                    for (size_t i = 0; i < root["tags"].size(); ++i) {
-                        out << root["tags"][i].get<std::string>() << (i < root["tags"].size() - 1 ? ", " : "");
+                milestone_index_entry mi;
+                mi.id = root.value("milestone_id", "unknown");
+                mi.title = root.value("title", "Untitled");
+                mi.summary = root.value("summary", "");
+                mi.created_at_epoch = root.value("created_at_epoch", 0LL);
+                mi.last_accessed_epoch = root.value("last_accessed_epoch", mi.created_at_epoch);
+                mi.tokens_level_0 = root.value("tokens_level_0", 0);
+                mi.tokens_level_1 = root.value("tokens_level_1", 0);
+                mi.tokens_level_2 = root.value("tokens_level_2", 0);
+                
+                if (root.contains("tags") && root["tags"].is_array()) {
+                    for (const auto& tag : root["tags"]) {
+                        mi.tags.push_back(tag.get<std::string>());
                     }
-                    out << "\n";
                 }
-                count++;
-            } catch (...) {
-                // Ignore parse errors for individual files
-            }
+                
+                milestone_index_[mi.id] = mi;
+            } catch (...) {}
         }
     }
+}
 
-    if (count == 0) {
+std::string ai_agent::get_memory_index() const
+{
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+    if (milestone_index_.empty()) {
         return "Memory index is empty (no saved milestones).";
+    }
+
+    std::stringstream out;
+    out << "Agent Memory Index (Paged-Out Milestones):\n";
+
+    // Sort milestones by creation date
+    std::vector<const milestone_index_entry*> sorted;
+    for (const auto& pair : milestone_index_) {
+        sorted.push_back(&pair.second);
+    }
+    std::sort(sorted.begin(), sorted.end(), [](const milestone_index_entry* a, const milestone_index_entry* b) {
+        return a->created_at_epoch < b->created_at_epoch;
+    });
+
+    for (const auto* mi : sorted) {
+        out << "- [" << mi->id << "] " << mi->title << " (~" << mi->tokens_level_1 << " tokens paged-out)\n";
+        if (!mi->tags.empty()) {
+            out << "  Tags: ";
+            for (size_t i = 0; i < mi->tags.size(); ++i) {
+                out << mi->tags[i] << (i < mi->tags.size() - 1 ? ", " : "");
+            }
+            out << "\n";
+        }
     }
 
     return out.str();

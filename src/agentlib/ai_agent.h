@@ -32,6 +32,20 @@ struct todo_item {
     bool completed{false};
 };
 
+struct milestone_index_entry {
+    std::string id;
+    std::string title;
+    std::string summary;
+    std::vector<std::string> tags;
+    long long created_at_epoch{0};
+    long long last_accessed_epoch{0};
+    
+    // Exact token estimates calculated at serialization time
+    int tokens_level_0{0}; // Raw
+    int tokens_level_1{0}; // Think-Free (Native)
+    int tokens_level_2{0}; // Think-Free (Native + Pseudo)
+};
+
 class ai_agent : public std::enable_shared_from_this<ai_agent> {
 public:
     static std::shared_ptr<ai_agent> create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
@@ -95,6 +109,7 @@ public:
     void save_active_state() const;
     bool load_active_state();
 
+    void load_milestone_index();
     std::string get_memory_index() const;
     void compact_ephemeral_errors(std::vector<message>& convo);
 
@@ -143,6 +158,7 @@ private:
 
     mutable std::mutex conversation_mutex_;
     std::vector<message> conversation_;
+    std::map<std::string, milestone_index_entry> milestone_index_;
     std::unique_ptr<llm_client> client_;
 };
 
