@@ -52,6 +52,7 @@ Before a full Anchor reset is required, smaller, highly surgical pruning techniq
 *   **Terminal Output Screenshotting (Head/Tail):** Massive outputs (compilers, test suites) rarely need 10,000 lines of context. Using Turbostar's native `gcc_log_parser`, we can identify errors and aggressively truncate the output. We retain the first 20 lines (Head), the specific error blocks, and the last 20 lines (Tail). 
 *   **Temporal Decay for Terminals:** The older a terminal output gets, the more aggressively it is truncated. A compile from 1 turn ago might keep 500 lines; a compile from 10 turns ago shrinks to just 25 lines.
 
-## 5. Advanced Future Heuristics
+## 5. Advanced Future Heuristics / TODOs
 
+*   **Automated Decision Engine (Memory Eviction):** Currently, the `agent_mark_milestone` tool explicitly separates *snapshotting* (saving to disk) from *paging out* (deleting from active RAM). Snapshots should always be taken immediately upon task completion for persistence. However, paging out should ideally be managed by a background Decision Engine. This engine would dynamically monitor the agent's active token usage against its `max_context_tokens` limit. When the budget gets tight, the engine evaluates existing snapshotted milestones and autonomously evicts (pages out) the oldest or least relevant ones, providing the LLM with seamless, automated garbage collection.
 *   **Local DNN Context Scorer:** A lightweight, local neural network (e.g., a simple Multi-Layer Perceptron running locally in C++) that evaluates the semantic relevance of each turn. Instead of hardcoded rules, the DNN recommends which specific tool outputs or reasoning blocks are safe to collapse without damaging the agent's current logical trajectory.
