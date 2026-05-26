@@ -120,6 +120,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/milestone")) {
+			input_box_->set_buffer("");
+			std::string title = "User Milestone";
+			if (trimmed_text.length() > 11) {
+				title = trimmed_text.substr(11);
+			}
+			
+			// We trigger a proactive context compaction. It scans backwards and compresses
+			// everything up to the previous milestone.
+			agent_->page_out_prior_context("", false, title, "User manually triggered milestone: " + title, {"manual-milestone"});
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/pageout ")) {
 			input_box_->set_buffer("");
 			try {
@@ -239,6 +255,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			input_box_->set_buffer(""); // Clear the box
 			std::string mem_index = agent_->get_memory_index();
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(mem_index));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		if (trimmed_text.starts_with("/milestone")) {
+			input_box_->set_buffer("");
+			std::string title = "User Milestone";
+			if (trimmed_text.length() > 11) {
+				title = trimmed_text.substr(11);
+			}
+			
+			// We trigger a proactive context compaction. It scans backwards and compresses
+			// everything up to the previous milestone.
+			agent_->page_out_prior_context("", false, title, "User manually triggered milestone: " + title, {"manual-milestone"});
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
