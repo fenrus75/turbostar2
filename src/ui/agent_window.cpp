@@ -26,10 +26,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "`run_shell_command` tool.\n"
 	    "Built-in tools are faster, automatically format their output for you, and do not require the user to manually approve a "
 	    "security dialog for every action.\n"
-	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.\n"
-	    "IMPORTANT MEMORY MANAGEMENT: When you have resolved the user's core request, completed a major task, or are pivoting to a "
-	    "completely new architectural feature, you MUST call the `agent_mark_milestone` tool. This acts as a semantic boundary, "
-	    "allowing the system to aggressively compress old conversational history, preserving your context window limits and saving costs.";
+	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.\n\n"
+	    "*** CRITICAL DIRECTIVE: MEMORY MANAGEMENT ***\n"
+	    "Your context window is strictly limited. To prevent crashing and save costs, you MUST manually drop memory anchors.\n"
+	    "If the user says 'let's move on', 'next task', or introduces a completely unrelated topic or goal, YOU MUST immediately "
+	    "call the `agent_mark_milestone` tool BEFORE starting the new work. This allows the system to compress old history.\n"
+	    "Do NOT wait to be asked. Proactively call it whenever a logical chapter of work concludes.";
 
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 
