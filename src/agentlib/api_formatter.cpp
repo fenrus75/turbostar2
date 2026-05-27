@@ -21,6 +21,10 @@ std::string openai_formatter::get_endpoint_path(const std::string& /*model_id*/,
 
 std::string openai_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool stream) const {
     json payload = {{"model", model_id}, {"messages", convo}, {"stream", stream}};
+    
+    if (stream) {
+        payload["stream_options"] = {{"include_usage", true}};
+    }
 
     if (registry) {
         json tools_json = registry->get_tools_json();
