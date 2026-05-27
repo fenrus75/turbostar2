@@ -96,6 +96,9 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 
 bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y*/)
 {
+	std::string orig_buffer = buffer_;
+	bool handled = false;
+
 	if (ev.type == event_type::key_press) {
 		int key = ev.key_code;
 
@@ -104,25 +107,25 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 				buffer_.erase(cursor_pos_ - 1, 1);
 				cursor_pos_--;
 				update_scroll();
-				return true;
+				handled = true;
 			}
 		} else if (key == KEY_DC) { // Delete
 			if (cursor_pos_ < (int)buffer_.length()) {
 				buffer_.erase(cursor_pos_, 1);
 				update_scroll();
-				return true;
+				handled = true;
 			}
 		} else if (key == KEY_LEFT) {
 			if (cursor_pos_ > 0) {
 				cursor_pos_--;
 				update_scroll();
-				return true;
+				handled = true;
 			}
 		} else if (key == KEY_RIGHT) {
 			if (cursor_pos_ < (int)buffer_.length()) {
 				cursor_pos_++;
 				update_scroll();
-				return true;
+				handled = true;
 			}
 		} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 			if (on_submit_ && !buffer_.empty()) {
@@ -131,20 +134,24 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 				cursor_pos_ = 0;
 				update_scroll();
 			}
-			return true;
+			handled = true;
 		} else if (key >= 32 && key <= 126) {
 			buffer_.insert(cursor_pos_, 1, static_cast<char>(key));
 			cursor_pos_++;
 			update_scroll();
-			return true;
+			handled = true;
 		}
 	} else if (ev.type == event_type::paste) {
 		if (has_focus_) {
 			buffer_.insert(cursor_pos_, ev.payload);
 			cursor_pos_ += ev.payload.length();
 			update_scroll();
-			return true;
+			handled = true;
 		}
 	}
-	return false;
+	
+	if (handled && buffer_ != orig_buffer && on_change_) {
+		on_change_(buffer_);
+	}
+	return handled;
 }

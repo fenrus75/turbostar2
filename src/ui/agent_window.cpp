@@ -111,6 +111,24 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/help")) {
+			input_box_->set_buffer("");
+			std::string help_str = "Available Commands:\n"
+			                       "  /help             - Show this help message\n"
+			                       "  /quit             - Close the agent window\n"
+			                       "  /save             - Save the active context to disk manually\n"
+			                       "  /stats            - Show compaction and performance statistics\n"
+			                       "  /memory           - List all paged-out history archives\n"
+			                       "  /milestone [text] - Drop a semantic anchor and compress history manually\n"
+			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
+			                       "  /pagein <id>      - Restore an archived milestone into active memory\n"
+			                       "  /model            - Switch the AI model for this agent";
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/memory")) {
 			input_box_->set_buffer(""); // Clear the box
 			std::string mem_index = agent_->get_memory_index();
@@ -167,6 +185,29 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
 		invalidate();
+	});
+
+	input_box_->set_on_change([this](const std::string &text) {
+		if (text.starts_with("/")) {
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "Commands: /help /quit /save /stats /memory /milestone /pageout /pagein /model";
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(status_ev);
+			} else {
+				get_queue().push(status_ev);
+			}
+		} else if (text.empty() || text.length() == 1) {
+			// Clear status when empty or back to 1 char without slash
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "";
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(status_ev);
+			} else {
+				get_queue().push(status_ev);
+			}
+		}
 	});
 
 	// List available skills at startup for the user
@@ -251,6 +292,24 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/help")) {
+			input_box_->set_buffer("");
+			std::string help_str = "Available Commands:\n"
+			                       "  /help             - Show this help message\n"
+			                       "  /quit             - Close the agent window\n"
+			                       "  /save             - Save the active context to disk manually\n"
+			                       "  /stats            - Show compaction and performance statistics\n"
+			                       "  /memory           - List all paged-out history archives\n"
+			                       "  /milestone [text] - Drop a semantic anchor and compress history manually\n"
+			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
+			                       "  /pagein <id>      - Restore an archived milestone into active memory\n"
+			                       "  /model            - Switch the AI model for this agent";
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/memory")) {
 			input_box_->set_buffer(""); // Clear the box
 			std::string mem_index = agent_->get_memory_index();
@@ -307,6 +366,29 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
 		invalidate();
+	});
+
+	input_box_->set_on_change([this](const std::string &text) {
+		if (text.starts_with("/")) {
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "Commands: /help /quit /save /stats /memory /milestone /pageout /pagein /model";
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(status_ev);
+			} else {
+				get_queue().push(status_ev);
+			}
+		} else if (text.empty() || text.length() == 1) {
+			// Clear status when empty or back to 1 char without slash
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "";
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(status_ev);
+			} else {
+				get_queue().push(status_ev);
+			}
+		}
 	});
 }
 
