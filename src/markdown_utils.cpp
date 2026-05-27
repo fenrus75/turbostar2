@@ -1,6 +1,5 @@
 #include "markdown_utils.h"
 #include <algorithm>
-#include <iostream>
 #include <sstream>
 
 namespace markdown_utils
@@ -95,7 +94,6 @@ std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 			current += c;
 			escaped = false;
 		} else if (c == '\\') {
-			current += c;
 			escaped = true;
 		} else if (c == '|') {
 			tokens.push_back(trim(current));
@@ -125,14 +123,14 @@ size_t utf8_length(const std::string &s)
 		unsigned char c = static_cast<unsigned char>(s[offset]);
 		if (c < 0x80)
 			offset += 1;
-		else if ((c & 0xE0) == 0xC0)
+		else if ((c & 0xE0) == 0xC0 && offset + 1 < s.length())
 			offset += 2;
-		else if ((c & 0xF0) == 0xE0)
+		else if ((c & 0xF0) == 0xE0 && offset + 2 < s.length())
 			offset += 3;
-		else if ((c & 0xF8) == 0xF0)
+		else if ((c & 0xF8) == 0xF0 && offset + 3 < s.length())
 			offset += 4;
 		else
-			offset += 1;
+			offset += 1; // Invalid or truncated sequence, just advance 1 byte to not infinite loop
 		chars++;
 	}
 	return chars;
@@ -173,6 +171,7 @@ std::string align_all_tables(const std::string &text, bool framed)
 	}
 
 	std::string result;
+	result.reserve(text.size() + processed_lines.size());
 	for (size_t i = 0; i < processed_lines.size(); ++i) {
 		result += processed_lines[i];
 		if (i < processed_lines.size() - 1)
