@@ -87,8 +87,17 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/save")) {
 			input_box_->set_buffer(""); // Clear the box
-			std::string tmp_dir = fs_utils::get_project_tmp_dir();
-			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			std::string filepath;
+			if (trimmed_text.length() > 6) {
+				filepath = trimmed_text.substr(6);
+				markdown_utils::trim_trailing_whitespace(filepath);
+			}
+			
+			if (filepath.empty()) {
+				std::string tmp_dir = fs_utils::get_project_tmp_dir();
+				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			}
+			
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
@@ -277,8 +286,17 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/save")) {
 			input_box_->set_buffer(""); // Clear the box
-			std::string tmp_dir = fs_utils::get_project_tmp_dir();
-			std::string filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			std::string filepath;
+			if (trimmed_text.length() > 6) {
+				filepath = trimmed_text.substr(6);
+				markdown_utils::trim_trailing_whitespace(filepath);
+			}
+			
+			if (filepath.empty()) {
+				std::string tmp_dir = fs_utils::get_project_tmp_dir();
+				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
+			}
+			
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
