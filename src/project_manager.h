@@ -20,6 +20,7 @@ class project_manager
 	 * @brief Initializes the project manager by locating the repository root and loading instructions.
 	 */
 	void initialize();
+	void shutdown();
 
 	/**
 	 * @brief Returns the absolute path to the project/repository root.

@@ -729,7 +729,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
-			std::this_thread::sleep_for(std::chrono::seconds(5));
+			for (int i = 0; i < 50; ++i) {
+				if (stop.stop_requested()) return;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
 			continue;
 		}
 
@@ -856,7 +859,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 			save_software_map();
 			update_software_map_markdown();
 
-			std::this_thread::sleep_for(std::chrono::seconds(5));
+			for (int i = 0; i < 50; ++i) {
+				if (stop.stop_requested()) return;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
 			continue;
 		}
 
@@ -879,7 +885,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 			if (target_idx == (size_t)-1) {
 				// All symbols sampled. We could reset them all if there was file churn, 
 				// but for now we'll just wait.
-				std::this_thread::sleep_for(std::chrono::seconds(5));
+				for (int i = 0; i < 50; ++i) {
+					if (stop.stop_requested()) return;
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				}
 				continue;
 			}
 
@@ -889,14 +898,17 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 		// Perform queries OUTSIDE the lock
 		auto refs = lsp_query_references(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+		if (stop.stop_requested()) return;
 		int inbound_count = refs.size();
 
 		auto outgoing = lsp_query_call_hierarchy_outgoing(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+		if (stop.stop_requested()) return;
 
 		std::vector<lsp_manager::type_hierarchy_item> supertypes;
 		if (target_sym.kind == 5 || target_sym.kind == 22 || target_sym.kind == 11) {
 			supertypes = lsp_query_type_hierarchy_supertypes(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
 		}
+		if (stop.stop_requested()) return;
 
 		// Update stats INSIDE the lock
 		{
@@ -958,4 +970,12 @@ void project_manager::software_map_loop(std::stop_token stop)
 		// Rate limit sampling
 		std::this_thread::sleep_for(std::chrono::milliseconds(30));
 	}
+}
+void project_manager::shutdown()
+{
+	if (lsp_manager_) {
+		lsp_manager_->stop();
+	}
+	inventory_thread_.request_stop();
+	software_map_thread_.request_stop();
 }

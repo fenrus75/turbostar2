@@ -183,6 +183,7 @@ int main(int argc, char **argv)
 	main_editor.run();
 
 	logger.log("Exiting application loop.");
+	project_manager::get_instance().shutdown();
 
 	// Disable mouse tracking and bracketed paste mode
 	printf("\033[?1000l\033[?2004l\n");
