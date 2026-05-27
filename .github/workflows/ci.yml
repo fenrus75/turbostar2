@@ -7,8 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y meson ninja-build libncursesw5-dev python3 libcpp-httplib-dev nlohmann-json3-dev libre2-dev libsqlite3-dev
+        run: sudo apt-get update && sudo apt-get install -y meson ninja-build libncursesw5-dev python3 libcpp-httplib-dev nlohmann-json3-dev libre2-dev libsqlite3-dev libdtl-dev
       - name: Build
         run: meson setup build && ninja -C build
       - name: Test
