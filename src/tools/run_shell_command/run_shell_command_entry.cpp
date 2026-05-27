@@ -4,6 +4,7 @@
 #include <mutex>
 #include <unordered_map>
 #include "../../agentlib/tool_context.h"
+#include "../../agentlib/ai_agent.h"
 #include "../../fs_utils.h"
 #include "../terminal_command_runner.h"
 #include "run_shell_command.h"
@@ -90,13 +91,35 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 	runner->set_timeout(args_.timeout);
 
 	if (args_.is_async) {
-		std::thread([runner, cmd = args_.command]() {
+		std::weak_ptr<agentlib::ai_agent> weak_agent;
+		if (ctx.active_agent) {
+			// Need to convert raw ptr to shared_ptr if possible. Oh wait, ai_agent inherits from enable_shared_from_this.
+			weak_agent = ctx.active_agent->shared_from_this();
+		}
+		std::string captured_tool_call_id = ctx.tool_call_id;
+
+		std::thread([runner, cmd = args_.command, weak_agent, captured_tool_call_id]() {
 			runner->execute(cmd);
-			if (runner->get_final_output().empty()) {
-				// The terminal interaction will have been updated by on_output_chunk, but we can append a completion message if needed, though usually empty is fine.
+			
+			if (auto agent = weak_agent.lock()) {
+				std::string output = runner->get_final_output();
+				if (output.empty()) {
+					output = "Command finished successfully with no output.";
+				}
+				
+				if (output.length() > 20000) {
+					output = output.substr(output.length() - 20000);
+					output = "\n...[output truncated due to length]...\n" + output;
+				}
+				
+				std::string formatted_injection = "\n\n--- ASYNC COMMAND COMPLETED ---\n```\n" + output + "\n```";
+				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
+				
+				// Wake up the LLM
+				agent->inject_context("system", "The background task 'run_shell_command' (" + cmd + ") has completed. I updated your previous tool result with the output.", true);
 			}
 		}).detach();
-		return "Command started in background.";
+		return "Command started in background. The output will be injected here when it completes.";
 	}
 
 	// Execute directly: command_runner automatically escapes and wraps it via systemd-run ... -- bash -c '...'

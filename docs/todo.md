@@ -9,10 +9,6 @@
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
 
-- on an async run_shell_command, when it completes, we should inject the
-  actual output in the context in the spot that we first replied to the
-  function call
-
 - set "uv" working directory: 
 
 - we need to tackle compaction at some point

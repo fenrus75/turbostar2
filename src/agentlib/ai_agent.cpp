@@ -654,6 +654,7 @@ void ai_agent::start_processing()
 						}
 					};
 
+					ctx.tool_call_id = call.id;
 					auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
 					std::string tool_result;
 					std::shared_ptr<agent_interaction> custom_interaction;
@@ -1253,6 +1254,25 @@ void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 		}
 		event_logger::get_instance().log("Agent " + name_ + " zapped ephemeral errors from context.");
 	}
+}
+
+void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::string& new_content)
+{
+    std::lock_guard<std::mutex> lock(conversation_mutex_);
+    for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
+        if (it->role == "tool" && it->tool_call_id == tool_call_id) {
+            it->content = new_content;
+            
+            // Also notify the UI that context changed silently
+            if (global_queue_) {
+                editor_event ev;
+                ev.type = event_type::agent_tool_update;
+                ev.key_code = id_;
+                global_queue_->push(ev);
+            }
+            return;
+        }
+    }
 }
 
 } // namespace agentlib

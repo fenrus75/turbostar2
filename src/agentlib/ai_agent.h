@@ -53,6 +53,7 @@ public:
 
     void submit_prompt(const std::string& prompt_text);
     void inject_context(const std::string& role, const std::string& content, bool trigger_processing = false);
+    void replace_tool_result(const std::string& tool_call_id, const std::string& new_content);
     void cancel_current_task();
     void close();
 
@@ -97,6 +98,13 @@ public:
     bool is_read_only() const { return read_only_; }
     void set_read_only(bool ro) { read_only_ = ro; }
 
+    bool is_planning() const { return is_planning_.load(); }
+    void set_planning(bool planning, size_t start_index = 0) { 
+        is_planning_.store(planning); 
+        if (planning) planning_start_index_ = start_index;
+    }
+    size_t get_planning_start_index() const { return planning_start_index_; }
+
     void set_parent(std::weak_ptr<ai_agent> parent) { parent_agent_ = std::move(parent); }
     event_queue* get_global_queue() const { return global_queue_; }
 
@@ -134,6 +142,8 @@ private:
     std::string current_tool_;
     std::atomic<bool> is_closed_{false};
     std::atomic<bool> read_only_{false};
+    std::atomic<bool> is_planning_{false};
+    size_t planning_start_index_{0};
     std::atomic<int> waiting_on_id_{-1};
 
     std::weak_ptr<ai_agent> parent_agent_;
