@@ -113,7 +113,7 @@ void document::format_range(int start_y, int end_y)
 
 	// Replace the range
 	std::unique_lock lock(mutex_);
-	begin_edit_group();
+	begin_edit_group("Format code");
 
 	// 1. Insert new lines
 	for (size_t i = 0; i < formatted_block.size(); ++i) {

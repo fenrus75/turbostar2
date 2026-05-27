@@ -206,7 +206,14 @@ void diff_window::draw_content() const
 
     // Draw status line
     attron(COLOR_PAIR(8));
-    mvprintw(y_ + height_ - 3, x_ + 1, " Step %zu of %zu ", current_undo_step_ + 1, max_undo_steps_);
+    std::string step_str = " Step " + std::to_string(current_undo_step_ + 1) + " of " + std::to_string(max_undo_steps_) + " ";
+    if (doc_) {
+        std::string name = doc_->get_undo_name(current_undo_step_ + 1);
+        if (!name.empty()) {
+            step_str += "- " + name + " ";
+        }
+    }
+    mvprintw(y_ + height_ - 3, x_ + 1, "%s", step_str.c_str());
     attroff(COLOR_PAIR(8));
 
     // Draw buttons

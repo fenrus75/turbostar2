@@ -114,7 +114,7 @@ void document::delete_selection_unlocked()
                 ey = selection_start_y_;
         }
 
-        begin_edit_group();
+        begin_edit_group("Delete selection");
 
         if (sy == ey) {
                 record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
@@ -159,7 +159,7 @@ void document::copy_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
-	begin_edit_group();
+	begin_edit_group("Copy selection");
 	insert_block(block);
 	end_edit_group();
 
@@ -204,7 +204,7 @@ void document::move_selection()
 		tx = sx;
 	}
 
-	begin_edit_group();
+	begin_edit_group("Move selection");
 
 	delete_selection_unlocked();
 

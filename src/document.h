@@ -27,6 +27,7 @@ struct edit_action {
 };
 
 struct action_group {
+	std::string name;
 	std::vector<edit_action> actions;
 	int cursor_y_before{0};
 	int cursor_x_before{0};
@@ -136,6 +137,7 @@ class document
 
 	size_t get_undo_count() const;
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
+	std::string get_undo_name(size_t steps_back) const;
 	
 	void apply_external_edits_json(const std::string& json_str);
 
@@ -197,7 +199,7 @@ class document
 	int selection_end_y_{-1};
 
 	// Undo/Redo logic
-	void begin_edit_group();
+	void begin_edit_group(const std::string& name = "");
 	void end_edit_group();
 	void record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line);
 

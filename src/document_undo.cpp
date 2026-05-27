@@ -15,14 +15,18 @@
 
 namespace fs = std::filesystem;
 
-void document::begin_edit_group()
+void document::begin_edit_group(const std::string& name)
 {
 	if (!is_recording_actions_)
 		return;
 	if (edit_group_depth_ == 0) {
 		current_action_group_.actions.clear();
+		current_action_group_.name = name;
 		current_action_group_.cursor_y_before = cursor_y_;
 		current_action_group_.cursor_x_before = cursor_x_;
+	} else if (!name.empty() && current_action_group_.name.empty()) {
+		// allow naming an active edit group if it doesn't have one yet
+		current_action_group_.name = name;
 	}
 	edit_group_depth_++;
 }
@@ -215,4 +219,13 @@ std::vector<std::string> document::get_lines_at_undo(size_t steps_back) const
 		}
 	}
 	return lines;
+}
+
+std::string document::get_undo_name(size_t steps_back) const
+{
+	std::shared_lock lock(mutex_);
+	if (steps_back == 0 || undo_stack_.empty() || steps_back > undo_stack_.size())
+		return "";
+		
+	return undo_stack_[undo_stack_.size() - steps_back].name;
 }

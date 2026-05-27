@@ -139,7 +139,7 @@ bool document::insert_file(const std::string &filename)
                 return true;
 
         std::unique_lock lock(mutex_);
-        begin_edit_group();
+        begin_edit_group("Insert file");
         insert_block(block);
         end_edit_group();
         lock.unlock();
@@ -476,7 +476,7 @@ void document::apply_external_edits_json(const std::string &json_str)
 			return;
 
 		std::unique_lock lock(mutex_);
-		begin_edit_group();
+		begin_edit_group("Apply agent edits");
 
 		auto adjust_all = [&](int edit_idx, int delta) {
 			auto adj = [&](int &x, int &y) {

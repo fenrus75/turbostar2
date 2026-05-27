@@ -91,8 +91,6 @@
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
     - low priority
 
-- undo segments need an optional name, and we can ask the AI for a description
-    - search/replace is another automatic name
 
 - better undo batching than "every keypress"
 
@@ -204,3 +202,6 @@
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 	https://raw.githubusercontent.com/torvalds/linux/refs/heads/master/.clang-format
 	- we should write it out if this style is selected, if there is no clang-format yet
+
+- undo segments need an optional name, and we can ask the AI for a description
+    - search/replace is another automatic name
