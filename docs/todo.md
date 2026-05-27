@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- build fail: meson does not check for "dtl" being installed
-
 - need to deal with the critical review comments in `review-line.md`
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
@@ -168,6 +166,7 @@
 # done items (move items here on completion)
 
 ## 26-05-2026
+- build fail: meson does not check for "dtl" being installed
 - cut and pasting into the AI agent window prompt does not work
 - critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
 

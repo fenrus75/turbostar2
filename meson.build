@@ -12,6 +12,10 @@ if not ncurses_dep.found()
 
 endif
 
+if not cc.has_header('dtl/dtl.hpp')
+  error('dtl/dtl.hpp is required but not found. Please install libdtl-dev (or equivalent).')
+endif
+
 httplib_dep = dependency('cpp-httplib', required : true)
 nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
