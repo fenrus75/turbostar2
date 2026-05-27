@@ -17,8 +17,8 @@ class build_error_manager
 	void clear();
 	void add_error(const build_error &err);
 	
-	const std::vector<build_error>& get_errors() const;
-	
+	std::vector<build_error> get_errors() const;
+
 	std::optional<build_error> get_next_error();
 	void reset_navigation();
 
@@ -26,12 +26,10 @@ class build_error_manager
 
 	std::time_t get_last_compile_time() const;
 
-      private:
+	private:
 	build_error_manager() = default;
-	
+
 	std::vector<build_error> errors_;
-	std::atomic<bool> has_errors_{false};
 	int current_index_{-1};
 	mutable std::mutex mutex_;
-	std::time_t last_compile_time_{0};
-};
+	std::time_t last_compile_time_{0};};
