@@ -18,6 +18,10 @@ bool git_commit_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, s
 
 std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 {
+	if (ctx.doc_provider) {
+		ctx.doc_provider->save_all_documents();
+	}
+
 	// Check if there is anything to commit first
 	std::string check_cmd = "git --no-pager diff --staged --quiet";
 	std::string check_output = fs_utils::execute_command_sync(check_cmd);

@@ -40,6 +40,8 @@ public:
     bool apply_live_edits(const std::string& /*safe_path*/, const std::string& /*edits_json_payload*/) override {
         return false;
     }
+    
+    void save_all_documents() override {}
 };
 
 int main() {

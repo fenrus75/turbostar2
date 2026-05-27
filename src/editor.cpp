@@ -969,3 +969,20 @@ bool editor::apply_live_edits(const std::string &safe_path, const std::string &e
 	global_queue_.push(ev);
 	return true;
 }
+
+void editor::save_all_documents()
+{
+	for (auto &doc : documents_) {
+		if (doc && doc->is_modified() && !doc->get_filename().empty()) {
+			doc->save();
+			history_manager::get_instance().add_file(doc->get_filename());
+			for (auto &w : windows_) {
+				if (w->get_document() == doc) {
+					w->set_title(doc->get_filename());
+					break;
+				}
+			}
+		}
+	}
+	update_window_menu();
+}

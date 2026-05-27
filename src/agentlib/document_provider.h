@@ -39,6 +39,10 @@ public:
 
     // Dispatches a batch of edits to the main UI thread to be applied to the live document.
     virtual bool apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) = 0;
+
+    // Forces the editor to save all open, modified documents to disk synchronously.
+    // Useful before invoking external tools (compilers, git) that expect the disk to be up-to-date.
+    virtual void save_all_documents() = 0;
 };
 
 } // namespace agentlib

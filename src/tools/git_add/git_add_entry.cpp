@@ -16,6 +16,10 @@ bool git_add_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std:
 
 std::string git_add_tool::execute(agentlib::tool_context &ctx)
 {
+	if (ctx.doc_provider) {
+		ctx.doc_provider->save_all_documents();
+	}
+
 	if (safe_paths_.empty()) {
 		set_failure(ctx, "No paths provided");
 		return "Failed: No paths provided to git add.";

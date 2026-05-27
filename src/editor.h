@@ -50,6 +50,7 @@ class editor : public agentlib::document_provider
 	std::vector<std::string> get_open_document_paths() const override;
 	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string& safe_path) const override;
 	bool apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) override;
+	void save_all_documents() override;
 
       private:
 	void new_window(const std::string &filename);

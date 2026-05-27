@@ -24,9 +24,6 @@
 - we need to tackle compaction at some point
    -- we're keeping notes in `docs/compaction.md`
 
-- git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
-	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
-          likewise for compile etc tasks
 
 
 - (agent + model options combined with --exit-immediately opens op a set of extra options for testing things, like for memory leaks etc)
@@ -207,3 +204,7 @@
 
 - format markdown block (` `  or ``` ... ```) in a different color/style in the
   agent output screen (or bold or ..)
+
+- git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
+	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
+          likewise for compile etc tasks
