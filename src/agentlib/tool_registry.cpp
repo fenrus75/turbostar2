@@ -26,10 +26,19 @@ nlohmann::json tool_registry::get_tools_json() const
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
+		std::string desc = validator->get_description();
+		if (validator->is_pure()) {
+			desc += " [Read-Only: Safe for Plan Mode]";
+		} else if (validator->get_name() == "exit_plan_mode") {
+			desc += " [State-Modifying: Allowed in Plan Mode]";
+		} else {
+			desc += " [State-Modifying: Blocked in Plan Mode]";
+		}
+
 		nlohmann::json tool_schema = {{"type", "function"},
 					      {"function",
 					       {{"name", validator->get_name()},
-						{"description", validator->get_description()},
+						{"description", desc},
 						{"parameters", validator->get_parameters_schema()}}}};
 		tools_array.push_back(tool_schema);
 	}
@@ -41,9 +50,18 @@ nlohmann::json tool_registry::get_gemini_tools_json() const
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
+		std::string desc = validator->get_description();
+		if (validator->is_pure()) {
+			desc += " [Read-Only: Safe for Plan Mode]";
+		} else if (validator->get_name() == "exit_plan_mode") {
+			desc += " [State-Modifying: Allowed in Plan Mode]";
+		} else {
+			desc += " [State-Modifying: Blocked in Plan Mode]";
+		}
+
 		nlohmann::json func_decl = {
 			{"name", validator->get_name()},
-			{"description", validator->get_description()},
+			{"description", desc},
 			{"parameters", validator->get_parameters_schema()}
 		};
 		tools_array.push_back(func_decl);
@@ -79,6 +97,12 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
 		res.error_message =
 		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+		return res;
+	}
+
+	if (ctx.active_agent && ctx.active_agent->is_planning() && !validator->is_pure() && name != "exit_plan_mode") {
+		res.error_message =
+		    "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name + "'. You must call exit_plan_mode first.";
 		return res;
 	}
 

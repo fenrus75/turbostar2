@@ -148,6 +148,8 @@ void ai_agent::save_active_state() const
 
 bool ai_agent::load_active_state()
 {
+	load_milestone_index();
+
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/active_state.json";
 	if (!std::filesystem::exists(filepath)) return false;
