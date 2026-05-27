@@ -29,16 +29,13 @@ int main(int argc, char **argv)
 	bool debug_mode = false;
 	bool no_lsp = false;
 	bool exit_immediately = false;
-	double exit_delay_seconds = 1.0;  // default delay when --exit-immediately is used
 	std::string debug_string;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
-	app.add_flag("--exit-immediately", exit_immediately, "Exit after N seconds (use --exit-delay to customize)");
-	app.add_option("--exit-delay", exit_delay_seconds, "Delay in seconds when --exit-immediately is used (default: 1)")
-		->check(CLI::Range(0.0, 3600.0));  // 0 to 3600 seconds
+	app.add_flag("--exit-immediately", exit_immediately, "Exit after 1 second");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filenames", filenames, "Files to edit");
 	app.set_version_flag("--version", TURBOSTAR_VERSION);
@@ -180,8 +177,7 @@ int main(int argc, char **argv)
 
 	project_manager::get_instance().initialize();
 
-	double actual_delay = exit_immediately ? exit_delay_seconds : 0.0;
-	editor main_editor(debug_mode, debug_string, filenames, actual_delay, no_lsp);
+	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");

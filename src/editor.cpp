@@ -19,9 +19,9 @@
 
 namespace fs = std::filesystem;
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_delay,
+editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, bool exit_immediately,
 	       bool no_lsp)
-    : exit_delay_(exit_delay), debug_mode_(debug_mode), debug_string_(debug_string)
+    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
@@ -368,11 +368,9 @@ void editor::run()
 	auto start_time = std::chrono::steady_clock::now();
 
 	while (is_running_) {
-		if (exit_delay_ > 0.0) {
+		if (exit_immediately_) {
 			auto now = std::chrono::steady_clock::now();
-			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
-			auto delay_ms = static_cast<long long>(exit_delay_ * 1000.0);
-			if (elapsed_ms > delay_ms) {
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > 1000) {
 				is_running_ = false;
 			}
 		}
