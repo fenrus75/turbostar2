@@ -283,9 +283,13 @@ void ai_agent::increment_stat(const std::string& key, int amount)
 std::map<std::string, int> ai_agent::get_stats() const
 {
 	std::lock_guard<std::mutex> lock(stats_mutex_);
-	return stats_;
+	std::map<std::string, int> out = stats_;
+	out["tokens_tx"] = tokens_tx_.load();
+	out["tokens_rx"] = tokens_rx_.load();
+	out["tokens_cached"] = tokens_cached_.load();
+	out["estimated_cost_cents"] = static_cast<int>(estimated_cost_.load() * 100);
+	return out;
 }
-
 bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error){
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	int match_idx = -1;
