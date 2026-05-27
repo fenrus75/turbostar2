@@ -14,10 +14,12 @@
   -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
   -- context usage is also shown as 0 which should come from our own data!
 
-- need to consider running the e2e tests via "uv" as they use a non-standard pip library
-	- this causes all tests to fail in github, but also in our sandbox
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
+
+- on an async run_shell_command, when it completes, we should inject the
+  actual output in the context in the spot that we first replied to the
+  function call
 
 - set "uv" working directory: 
 
@@ -183,3 +185,8 @@
 - implemented `/quit` slash command in the agent window. Typing `/quit` in the multiline edit box now immediately closes the agent window, providing a fast keyboard-driven workflow.
 - simplified `fs_read_lines` UI reporting: the tool now detects when a whole file is being read and displays "Read whole file (X lines)" instead of confusing line ranges (e.g., 1-10000 of 231).
 - implemented `pop_todo()` tool that returns and removes the first item from the agent's todo list, enabling sequential task management.
+
+# Done (long term)
+
+- need to consider running the e2e tests via "uv" as they use a non-standard pip library
+	- this causes all tests to fail in github, but also in our sandbox
