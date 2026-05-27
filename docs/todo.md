@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
-
 - build fail: meson does not check for "dtl" being installed
 
 - need to deal with the critical review comments in `review-line.md`
@@ -9,6 +7,10 @@
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - fs_find_in_files pretty print the output  -- gemini likes to call this
+
+- we should never ever send / commands to the agent
+
+- implement /help that lists all /commands
 
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -166,6 +168,7 @@
 # done items (move items here on completion)
 
 ## 26-05-2026
+- critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
 
 ## 25-05-2026
 - use --background-index on clangd to have a persistent index
