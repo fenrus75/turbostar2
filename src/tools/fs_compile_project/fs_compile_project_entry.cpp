@@ -9,41 +9,49 @@
 namespace tools
 {
 
-fs_compile_project_tool::fs_compile_project_tool()
+fs_compile_project_tool::fs_compile_project_tool(fs_compile_project_args args) : args_(std::move(args))
 {
-	interaction_ = std::make_shared<agentlib::interaction_terminal>("Compilation", "Compiling project...");
+        interaction_ = std::make_shared<agentlib::interaction_terminal>("Compilation", "Compiling project...");
 }
 
 std::shared_ptr<agentlib::agent_interaction> fs_compile_project_tool::get_interaction() const
 {
-	return interaction_;
+        return interaction_;
 }
 
 bool fs_compile_project_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
 {
-	return true;
+        return true;
 }
 
 std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 {
-	terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
-	runner.set_enable_crash_catcher(true);
-	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+        terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
+        runner.set_enable_crash_catcher(true);
+        runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
-	std::string build_system = config_manager::get_instance().get_build_system();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
-	std::string cmd;
+        std::string build_system = config_manager::get_instance().get_build_system();
+        std::string build_dir = config_manager::get_instance().get_build_directory();
+        std::string cmd;
 
-	if (build_system == "meson") {
-		cmd = "meson compile -C " + build_dir;
-	} else if (build_system == "cmake") {
-		cmd = "cmake --build " + build_dir;
-	} else if (build_system == "make") {
-		cmd = "make -C " + build_dir;
-	} else {
-		cmd = build_system + " " + build_dir; // Fallback
-	}
-
+        if (build_system == "meson") {
+                cmd = "meson compile -C " + build_dir;
+                if (args_.clean) {
+                        cmd = "ninja -C " + build_dir + " clean && " + cmd;
+                }
+        } else if (build_system == "cmake") {
+                cmd = "cmake --build " + build_dir;
+                if (args_.clean) {
+                        cmd = "cmake --build " + build_dir + " --target clean && " + cmd;
+                }
+        } else if (build_system == "make") {
+                cmd = "make -C " + build_dir;
+                if (args_.clean) {
+                        cmd = "make -C " + build_dir + " clean && " + cmd;
+                }
+        } else {
+                cmd = build_system + " " + build_dir; // Fallback
+        }
 	size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
 	runner.execute(cmd);
 

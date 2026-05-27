@@ -180,6 +180,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			invalidate();
 			return;
 		}
+
+		// Block unknown slash commands from hitting the LLM
+		if (trimmed_text.starts_with("/")) {
+			input_box_->set_buffer("");
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Unknown command. Type /help for a list of available commands."));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
 		
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
@@ -357,6 +366,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			} else {
 				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + milestone_id));
 			}
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		// Block unknown slash commands from hitting the LLM
+		if (trimmed_text.starts_with("/")) {
+			input_box_->set_buffer("");
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Unknown command. Type /help for a list of available commands."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;

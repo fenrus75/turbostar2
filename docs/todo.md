@@ -31,6 +31,8 @@
 - need to consider running the e2e tests via "uv" as they use a non-standard pip library
 	- this causes all tests to fail in github, but also in our sandbox
 
+- a live agent context diagnostics screen showing basically our history datastructure live, as it happens
+
 - set "uv" working directory: 
 	"uv run --project /path/to/project my_script.py"
 
