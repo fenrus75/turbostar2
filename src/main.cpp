@@ -190,5 +190,6 @@ int main(int argc, char **argv)
 
 	endwin();
 
+	logger.log("Application exiting main().");
 	return 0;
 }

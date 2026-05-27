@@ -135,6 +135,7 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "exit") {
+				event_logger::get_instance().log("Application exit requested (source: force_quit dialog).");
 				is_running_ = false;
 			} else if (res_str == "save_all") {
 				editor_event save_all_ev;

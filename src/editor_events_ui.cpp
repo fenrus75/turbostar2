@@ -42,6 +42,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			return;
 		}
 
+		logger.log("Application exit requested (source: force_quit clean).");
 		is_running_ = false;
 		return;
 	}
@@ -52,6 +53,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		// If no windows, just exit
 		if (windows_.empty()) {
+			logger.log("Application exit requested (source: quit clean, no windows).");
 			is_running_ = false;
 			return;
 		}
@@ -76,6 +78,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 
 		// If no documents are modified (or they have been saved/discarded), it is safe to exit.
+		logger.log("Application exit requested (source: quit clean, no dirty docs).");
 		is_running_ = false;
 		return;
 	}

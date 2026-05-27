@@ -372,6 +372,7 @@ void editor::run()
 		if (exit_immediately_ >= 0.0) {
 			auto now = std::chrono::steady_clock::now();
 			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > static_cast<long long>(exit_immediately_ * 1000.0)) {
+				event_logger::get_instance().log("Application exit requested (source: --exit-immediately timer).");
 				is_running_ = false;
 			}
 		}
