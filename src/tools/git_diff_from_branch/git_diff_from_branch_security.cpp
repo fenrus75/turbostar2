@@ -8,8 +8,7 @@ namespace tools
 bool git_diff_from_branch_validator::validate_string_arg(const std::string &arg, const agentlib::tool_context & /*ctx*/,
 							 std::string &out_error) const
 {
-	if (!fs_utils::is_shell_safe(arg)) {
-		out_error = "Branch name contains invalid or unsafe shell characters.";
+	if (!fs_utils::is_shell_safe(arg, true)) {		out_error = "Branch name contains invalid or unsafe shell characters.";
 		return false;
 	}
 	return true;

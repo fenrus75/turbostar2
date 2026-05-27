@@ -319,7 +319,7 @@ bool is_valid_db_name(const std::string &name)
 	return true;
 }
 
-bool is_shell_safe(const std::string &s)
+bool is_shell_safe(const std::string &s, bool allow_tilde)
 {
 	if (s.empty())
 		return false;
@@ -332,14 +332,17 @@ bool is_shell_safe(const std::string &s)
 	// Strict allowlist: Alphanumeric, slash, dot, underscore, hyphen, equals, colon, plus, comma, at-sign.
 	// Explicity excludes: Space, quote marks, ampersand, pipe, redirect, semicolon, backtick, dollar, braces, etc.
 	for (char c : s) {
-		if (!std::isalnum(c) && c != '/' && c != '.' && c != '_' && c != '-' && c != '=' && c != ':' && c != '+' && c != ',' &&
-		    c != '@') {
+		bool is_safe = std::isalnum(c) || c == '/' || c == '.' || c == '_' || c == '-' || 
+		               c == '=' || c == ':' || c == '+' || c == ',' || c == '@';
+		if (allow_tilde && c == '~') {
+		    is_safe = true;
+		}
+		if (!is_safe) {
 			return false;
 		}
 	}
 	return true;
 }
-
 bool is_safe_for_ui(const std::string &s)
 {
 	for (unsigned char c : s) {

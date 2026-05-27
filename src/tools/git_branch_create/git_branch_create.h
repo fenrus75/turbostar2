@@ -28,7 +28,7 @@ public:
     
 protected:
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& /*ctx*/, std::string& out_error) const override {
-        if (!fs_utils::is_shell_safe(arg)) {
+        if (!fs_utils::is_shell_safe(arg, true)) {
             out_error = "Branch name contains invalid or unsafe shell characters.";
             return false;
         }

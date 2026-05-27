@@ -69,8 +69,7 @@ namespace fs_utils {
 	 * Enforces a strict allowlist of alphanumeric characters and specific safe punctuation
 	 * to prevent shell injection (;, |, $, `, &) and directory traversal (..).
 	 */
-	bool is_shell_safe(const std::string& s);
-
+	bool is_shell_safe(const std::string& s, bool allow_tilde = false);
 	/**
 	 * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable characters or ANSI escape sequences
 	 * to prevent malicious agents from spoofing UI elements.
