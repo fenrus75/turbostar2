@@ -75,5 +75,4 @@ class git_manager
 
 	mutable std::mutex cache_mutex_;
 	std::unordered_map<std::string, git_info> status_cache_;
-	event_queue *global_queue_{nullptr};
-};
+	std::atomic<event_queue*> global_queue_{nullptr};};

@@ -29,33 +29,38 @@ void git_manager::start(event_queue &queue)
 
 void git_manager::stop()
 {
-	stop_thread_ = true;
-	cv_.notify_all();
-	if (worker_thread_.joinable()) {
-		worker_thread_.join();
-	}
+        stop_thread_ = true;
+        cv_.notify_all();
+        if (worker_thread_.joinable()) {
+                worker_thread_.join();
+        }
+        global_queue_.store(nullptr);
 }
-
 void git_manager::request_status(const std::string &filepath)
 {
-	if (filepath.empty() || filepath == "unknown.txt")
-		return;
+        if (filepath.empty() || filepath == "unknown.txt")
+                return;
 
-	std::unique_lock lock(queue_mutex_);
-	pending_requests_.push({request_type::status, filepath});
-	cv_.notify_one();
+        std::unique_lock lock(queue_mutex_);
+        if (pending_requests_.size() >= 1000) {
+            return;
+        }
+        pending_requests_.push({request_type::status, filepath});
+        cv_.notify_one();
 }
 
 void git_manager::git_add(const std::string &filepath)
 {
-	if (filepath.empty() || filepath == "unknown.txt")
-		return;
+        if (filepath.empty() || filepath == "unknown.txt")
+                return;
 
-	std::unique_lock lock(queue_mutex_);
-	pending_requests_.push({request_type::add, filepath});
-	cv_.notify_one();
+        std::unique_lock lock(queue_mutex_);
+        if (pending_requests_.size() >= 1000) {
+            return;
+        }
+        pending_requests_.push({request_type::add, filepath});
+        cv_.notify_one();
 }
-
 git_info git_manager::get_cached_info(const std::string &filepath) const
 {
 	std::unique_lock lock(cache_mutex_);
@@ -96,20 +101,23 @@ void git_manager::worker_loop()
 
 			bool changed = false;
 			{
-				std::unique_lock lock(cache_mutex_);
-				if (status_cache_[req.filepath].status != info.status ||
-				    status_cache_[req.filepath].branch != info.branch) {
-					status_cache_[req.filepath] = info;
-					changed = true;
-				}
+			        std::unique_lock lock(cache_mutex_);
+			        git_info& cached = status_cache_[req.filepath];
+			        if (cached.status != info.status || cached.branch != info.branch) {
+			                if (cached.branch != info.branch && !info.branch.empty()) {
+			                        event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + req.filepath);
+			                }
+			                cached = info;
+			                changed = true;
+			        }
 			}
 
-			if (changed && global_queue_) {
-				editor_event ev;
-				ev.type = event_type::git_status_updated;
-				global_queue_->push(ev);
-			}
-		} else if (req.type == request_type::add) {
+			event_queue* queue = global_queue_.load();
+			if (changed && queue) {
+			        editor_event ev;
+			        ev.type = event_type::git_status_updated;
+			        queue->push(ev);
+			}		} else if (req.type == request_type::add) {
 			run_git_add_cmd(req.filepath);
 			// After add, refresh status
 			request_status(req.filepath);
@@ -133,29 +141,30 @@ void git_manager::run_git_add_cmd(const std::string &filepath)
 
 git_info git_manager::run_git_status_cmd(const std::string &filepath)
 {
-	git_info info;
+        git_info info;
 
-	if (!fs::exists(filepath))
-		return info;
+        if (!fs::exists(filepath)) {
+                std::unique_lock lock(cache_mutex_);
+                status_cache_.erase(filepath);
+                return info;
+        }
 
-	fs::path p(filepath);
-	std::string dir = p.parent_path().string();
-	std::string file = p.filename().string();
-	if (dir.empty())
-		dir = ".";
+        fs::path p(filepath);
+        std::string dir = p.parent_path().string();
+        std::string file = p.filename().string();
+        if (dir.empty())
+                dir = ".";
 
-	// Fetch branch
-	std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
-	sync_command_runner branch_runner;
-	branch_runner.apply_internal_profile();
-	std::string branch_res = branch_runner.execute_and_get_output(branch_cmd);
-	if (!branch_res.empty()) {
-		info.branch = branch_res;
-		if (!info.branch.empty() && info.branch.back() == '\n')
-			info.branch.pop_back();
-	}
-	event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + filepath);
-
+        // Fetch branch
+        std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
+        sync_command_runner branch_runner;
+        branch_runner.apply_internal_profile();
+        std::string branch_res = branch_runner.execute_and_get_output(branch_cmd);
+        if (!branch_res.empty()) {
+                info.branch = branch_res;
+                if (!info.branch.empty() && info.branch.back() == '\n')
+                        info.branch.pop_back();
+        }
 	// Use -C to run git from the file's directory, so it correctly finds the repo.
 	std::string cmd = "git -C " + dir + " status --porcelain -u " + file + " 2>/dev/null";
 	sync_command_runner status_runner;
