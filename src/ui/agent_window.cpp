@@ -438,6 +438,13 @@ bool agent_window::process_events()
 					scroll_offset_ = 0;
 				needs_render = true;
 			}
+		} else if (ev->type == event_type::paste) {
+			if ((agent_->get_status() != agent_status::idle)) {
+				continue; // Ignore input while waiting
+			}
+			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
+				needs_render = true;
+			}
 		}
 	}
 
