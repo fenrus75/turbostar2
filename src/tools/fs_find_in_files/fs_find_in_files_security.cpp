@@ -25,6 +25,11 @@ nlohmann::json fs_find_in_files_validator::get_parameters_schema() const {
                 {"type", "integer"},
                 {"description", "Cap the total number of detailed matches (line content + number) to prevent blowing out the context window. Defaults to 50."},
                 {"default", 50}
+            }},
+            {"context_lines", {
+                {"type", "integer"},
+                {"description", "Number of lines of context to include before and after the match. Defaults to 0 (only the matching line). Max is 10."},
+                {"default", 0}
             }}
         }},
         {"required", nlohmann::json::array({"pattern"})}
@@ -47,6 +52,9 @@ bool fs_find_in_files_validator::validate_args_impl(const nlohmann::json& raw_ar
         }
         
         args_.max_results = raw_args.value("max_results", 50);
+        args_.context_lines = raw_args.value("context_lines", 0);
+        if (args_.context_lines < 0) args_.context_lines = 0;
+        if (args_.context_lines > 10) args_.context_lines = 10;
 
         if (args_.pattern.empty()) {
             out_error = "Pattern cannot be empty.";

@@ -15,6 +15,7 @@ struct fs_find_in_files_args {
     std::optional<std::string> include_ext;
     std::optional<std::string> dir_path;
     int max_results{50};
+    int context_lines{0};
     
     // Resolved safe path
     std::string safe_dir_path;

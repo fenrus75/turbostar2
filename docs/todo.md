@@ -22,8 +22,6 @@
 
 - set "uv" working directory: 
 
-- fs_find_in_files -- allow an option to get a few lines of context in the return
-     - need to decide on error format
 
 
 - we have a delay at exit -- annoying to the user
@@ -33,6 +31,7 @@
 
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
+          likewise for compile etc tasks
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
@@ -48,6 +47,10 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
+
+- per project turbostar setting file
+	- coding style, build system and the like are really per project -
+	  the global settings are just a default for per project
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
@@ -95,6 +98,7 @@
 
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
+    - low priority
 
 - undo segments need an optional name, and we can ask the AI for a description
     - search/replace is another automatic name
@@ -190,3 +194,6 @@
 	- this causes all tests to fail in github, but also in our sandbox
 - a cost goal per model "free" (e.g. local inference), vs "paid" (cost per token) so we can adjust our context compaction
     algorithms to optimize with the goal in mind
+
+- fs_find_in_files -- allow an option to get a few lines of context in the return
+     - need to decide on error format

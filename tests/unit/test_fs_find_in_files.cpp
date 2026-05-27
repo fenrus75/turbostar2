@@ -78,6 +78,29 @@ int main() {
     assert(res2.find("Found 1 matches across 1 files") != std::string::npos);
     assert(res2.find("dirty buffer") != std::string::npos); // Should match the mock buffer, not disk
 
+
+    // Test 3: Context Lines
+    tools::fs_find_in_files_args args3;
+    args3.pattern = "hello";
+    args3.safe_dir_path = temp_dir.string();
+    args3.context_lines = 1;
+    tools::fs_find_in_files_tool tool3(args3);
+    
+    std::string res3 = tool3.execute(ctx);
+    std::cout << "RES3:\n" << res3 << std::endl;
+    assert(res3.find("Match near Line 1:") != std::string::npos);
+    assert(res3.find("1: line 1 modified") != std::string::npos);
+    assert(res3.find("3: line 3") != std::string::npos);
+
+    // Test 4: Overlapping Context Lines
+    doc_prov.mock_lines = {"line 1", "hello block 1", "hello block 2", "line 4"};
+    std::string res4 = tool3.execute(ctx);
+    std::cout << "RES4:\n" << res4 << std::endl;
+    // Should merge into a single block
+    assert(res4.find("Match near Line 1:") != std::string::npos);
+    assert(res4.find("Match near Line 3:") == std::string::npos); // Should be merged!
+    assert(res4.find("4: line 4") != std::string::npos);
+
     fs::remove_all(temp_dir);
     std::cout << "fs_find_in_files unit test passed!\n";
     return 0;

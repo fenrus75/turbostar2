@@ -88,77 +88,96 @@ std::string fs_find_in_files_tool::execute(agentlib::tool_context& ctx) {
             std::string abs_path_str = path.string();
             std::string rel_path_str = fs::relative(path, root_path).string();
 
+            std::vector<std::string> file_lines;
+            bool read_success = false;
+
             // 1. Check if the file is an open editor buffer
             if (open_files.contains(abs_path_str) && ctx.doc_provider) {
                 auto snapshot = ctx.doc_provider->get_open_document(abs_path_str);
                 if (snapshot) {
                     for (size_t i = 0; i < snapshot->get_line_count(); ++i) {
-                        std::string line_text = snapshot->get_line_text(i);
-                        if (RE2::PartialMatch(line_text, *compiled_regex_)) {
-                            if (total_detailed_matches < args_.max_results) {
-                                detailed_matches[rel_path_str].push_back({static_cast<int>(i + 1), line_text});
-                                total_detailed_matches++;
-                            } else {
-                                overflow_files.insert(rel_path_str);
-                                break; // Stop detailed scanning for this file, just record it has a match
-                            }
-                        }
+                        file_lines.push_back(snapshot->get_line_text(i));
                     }
+                    read_success = true;
                 }
             } 
-            // 2. Fallback to mmap disk read
+            // 2. Fallback to direct disk read
             else {
-                int fd = open(abs_path_str.c_str(), O_RDONLY);
-                if (fd != -1) {
-                    struct stat sb;
-                    if (fstat(fd, &sb) == 0 && sb.st_size > 0 && sb.st_size < 50 * 1024 * 1024) { // Ignore empty or >50MB files
-                        void* addr = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-                        if (addr != MAP_FAILED) {
-                            const char* data = static_cast<const char*>(addr);
-                            size_t size = sb.st_size;
-                            
-                            // Check if it's likely a binary file (contains null bytes in first chunk)
+                struct stat sb;
+                if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size > 0 && sb.st_size < 50 * 1024 * 1024) {
+                    std::ifstream file(abs_path_str, std::ios::binary);
+                    if (file) {
+                        std::string buffer(sb.st_size, ' ');
+                        if (file.read(buffer.data(), sb.st_size)) {
+                            // Quick binary check
                             bool is_binary = false;
-                            size_t check_len = std::min<size_t>(size, 1024);
+                            size_t check_len = std::min<size_t>(sb.st_size, 1024);
                             for (size_t i = 0; i < check_len; ++i) {
-                                if (data[i] == '\0') {
+                                if (buffer[i] == '\0') {
                                     is_binary = true;
                                     break;
                                 }
                             }
 
                             if (!is_binary) {
-                                size_t pos = 0;
-                                int line_number = 1;
-                                while (pos < size) {
-                                    const char* nl = static_cast<const char*>(memchr(data + pos, '\n', size - pos));
-                                    size_t len = nl ? (nl - (data + pos)) : (size - pos);
-                                    
-                                    re2::StringPiece sp(data + pos, len);
-                                    if (RE2::PartialMatch(sp, *compiled_regex_)) {
-                                        if (total_detailed_matches < args_.max_results) {
-                                            std::string line_str(data + pos, len);
-                                            // Handle potential \r
-                                            if (!line_str.empty() && line_str.back() == '\r') {
-                                                line_str.pop_back();
-                                            }
-                                            detailed_matches[rel_path_str].push_back({line_number, line_str});
-                                            total_detailed_matches++;
-                                        } else {
-                                            overflow_files.insert(rel_path_str);
-                                            break;
-                                        }
+                                std::string line;
+                                std::istringstream iss(buffer);
+                                while (std::getline(iss, line)) {
+                                    if (!line.empty() && line.back() == '\r') {
+                                        line.pop_back();
                                     }
-                                    
-                                    if (!nl) break;
-                                    pos += len + 1;
-                                    line_number++;
+                                    file_lines.push_back(line);
                                 }
+                                read_success = true;
                             }
-                            munmap(addr, sb.st_size);
                         }
                     }
-                    close(fd);
+                }
+            }
+
+            if (read_success) {
+                std::vector<int> match_lines;
+                for (size_t i = 0; i < file_lines.size(); ++i) {
+                    if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
+                        if (total_detailed_matches < args_.max_results) {
+                            match_lines.push_back(i + 1);
+                            total_detailed_matches++;
+                        } else {
+                            overflow_files.insert(rel_path_str);
+                            break;
+                        }
+                    }
+                }
+                
+                if (!match_lines.empty()) {
+                    auto& matches = detailed_matches[rel_path_str];
+                    
+                    // Merge overlapping match blocks
+                    std::vector<std::pair<int, int>> merged_blocks; // start_line, end_line (1-based)
+                    for (int match_line : match_lines) {
+                        int block_start = std::max(1, match_line - args_.context_lines);
+                        int block_end = std::min(static_cast<int>(file_lines.size()), match_line + args_.context_lines);
+                        
+                        if (merged_blocks.empty()) {
+                            merged_blocks.push_back({block_start, block_end});
+                        } else {
+                            auto& last_block = merged_blocks.back();
+                            if (block_start <= last_block.second + 1) { // Overlaps or is adjacent
+                                last_block.second = std::max(last_block.second, block_end);
+                            } else {
+                                merged_blocks.push_back({block_start, block_end});
+                            }
+                        }
+                    }
+                    
+                    // Format blocks
+                    for (const auto& block : merged_blocks) {
+                        std::stringstream block_ss;
+                        for (int i = block.first; i <= block.second; ++i) {
+                            block_ss << i << ": " << file_lines[i - 1] << "\n";
+                        }
+                        matches.push_back({block.first, block_ss.str()});
+                    }
                 }
             }
             
@@ -188,11 +207,33 @@ std::string fs_find_in_files_tool::execute(agentlib::tool_context& ctx) {
         ss << "### `" << file << "`\n";
         for (const auto& match : matches) {
             std::string content = match.second;
-            // Truncate excessively long lines
-            if (content.length() > 200) {
-                content = content.substr(0, 197) + "...";
+            // Truncate excessively long blocks to protect context window, but be generous for context
+            if (content.length() > 2000) {
+                content = content.substr(0, 1997) + "...";
             }
-            ss << "* **Line " << match.first << ":** `" << escape_markdown(content) << "`\n";
+            
+            if (args_.context_lines == 0) {
+                // Legacy bullet-point format for 0 context lines to save tokens
+                std::string single_line = content;
+                if (!single_line.empty() && single_line.back() == '\n') single_line.pop_back(); // Remove trailing newline
+                size_t colon_pos = single_line.find(": ");
+                if (colon_pos != std::string::npos) {
+                    single_line = single_line.substr(colon_pos + 2);
+                }
+                ss << "* **Line " << match.first << ":** `" << escape_markdown(single_line) << "`\n";
+            } else {
+                // New multi-line block format
+                ss << "**Match near Line " << match.first << ":**\n";
+                // Optionally extract extension for syntax highlighting
+                std::string ext = "";
+                size_t dot_pos = file.find_last_of('.');
+                if (dot_pos != std::string::npos && dot_pos < file.length() - 1) {
+                    ext = file.substr(dot_pos + 1);
+                }
+                ss << "```" << ext << "\n" << content;
+                if (!content.empty() && content.back() != '\n') ss << "\n";
+                ss << "```\n";
+            }
         }
         ss << "\n";
     }
