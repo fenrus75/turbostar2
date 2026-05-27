@@ -14,6 +14,7 @@
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 
@@ -251,12 +252,15 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::agent_tool_update) {
 		logger.log("Dispatching agent_tool_update event.");
-		// Find the active agent window
+		// Find the active agent window and agent status window
 		for (auto &win : windows_) {
 			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
 				if (agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
-					break;
+				}
+			} else if (auto status_win = dynamic_cast<agent_status_window *>(win.get())) {
+				if (status_win->get_agent() && status_win->get_agent()->get_id() == ev.key_code) {
+					status_win->invalidate();
 				}
 			}
 		}

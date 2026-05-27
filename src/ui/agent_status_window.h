@@ -15,6 +15,7 @@ public:
     void set_cursor_position() const override;
 
     void set_agent(std::shared_ptr<agentlib::ai_agent> agent) { agent_ = std::move(agent); invalidate(); }
+    std::shared_ptr<agentlib::ai_agent> get_agent() const { return agent_; }
 
 private:
     std::shared_ptr<agentlib::ai_agent> agent_;
