@@ -1,20 +1,18 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- need to deal with the critical review comments in `review-line.md`
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - fs_find_in_files pretty print the output  -- gemini likes to call this
 
-- we should never ever send / commands to the agent
-
-- implement /help that lists all /commands
+- perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
 
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 
 - the live agent status window does not seem to update with tokens used anymore
   -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
+  -- context usage is also shown as 0 which should come from our own data!
 
 - need to consider running the e2e tests via "uv" as they use a non-standard pip library
 	- this causes all tests to fail in github, but also in our sandbox
@@ -22,7 +20,6 @@
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
 
 - set "uv" working directory: 
-	"uv run --project /path/to/project my_script.py"
 
 - we have a delay at exit -- annoying to the user
 
@@ -153,6 +150,9 @@
 # done items (move items here on completion)
 
 ## 26-05-2026
+- need to deal with the critical review comments in `review-line.md`
+- we should never ever send / commands to the agent
+- implement /help that lists all /commands
 - implement http proxies in cpp-httplib using http_proxy and https_proxy env variables
 - can't type at all in the AI agent window when the agent is thinking -- better to let the user type and queue up the response
 - build fail: meson does not check for "dtl" being installed
