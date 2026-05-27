@@ -13,19 +13,6 @@
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 
-- implement http proxies in cpp-httplib
-	http_proxy and https_proxy env variables
-	no_proxy?
-```cpp
-    httplib::Client cli("http://target-site.com");
-
-    // Set proxy host and port
-    cli.set_proxy("your-proxy-host.com", 8080);
-```
-
-- add an optional "clean" argument to fs_compile* so that the agent can force a clean
-  full build
-
 - the live agent status window does not seem to update with tokens used anymore
   -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
 
@@ -166,6 +153,7 @@
 # done items (move items here on completion)
 
 ## 26-05-2026
+- implement http proxies in cpp-httplib using http_proxy and https_proxy env variables
 - can't type at all in the AI agent window when the agent is thinking -- better to let the user type and queue up the response
 - build fail: meson does not check for "dtl" being installed
 - cut and pasting into the AI agent window prompt does not work

@@ -62,8 +62,36 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 
 	cli_ = std::make_unique<httplib::Client>(host);
 	cli_->set_follow_location(true);
-}
 
+	// Optional proxy support via environment variables
+	const char* env_proxy = std::getenv("https_proxy");
+	if (!env_proxy) env_proxy = std::getenv("http_proxy");
+
+	if (env_proxy) {
+	        std::string proxy(env_proxy);
+	        size_t scheme_pos = proxy.find("://");
+	        if (scheme_pos != std::string::npos) {
+	                proxy = proxy.substr(scheme_pos + 3);
+	        }
+
+	        size_t port_pos = proxy.find(':');
+	        std::string p_host = proxy;
+	        int p_port = 80;
+
+	        if (port_pos != std::string::npos) {
+	                p_host = proxy.substr(0, port_pos);
+	                try {
+	                        p_port = std::stoi(proxy.substr(port_pos + 1));
+	                } catch (...) {}
+	        }
+
+	        if (!p_host.empty() && p_host.back() == '/') {
+	                p_host.pop_back();
+	        }
+
+	        cli_->set_proxy(p_host, p_port);
+	}
+}
 httplib_transport::~httplib_transport() = default;
 
 void httplib_transport::cancel()
