@@ -21,6 +21,13 @@
 
 - set "uv" working directory: 
 
+- fs_find_in_files -- allow an option to get a few lines of context in the return
+     - need to decide on error format
+
+- critical: run_shell_command needs a timeout value as optional argument, default 300
+
+- optional: run_shell_command can use a async optional argument, default False
+
 - we have a delay at exit -- annoying to the user
 
 - we need to tackle compaction at some point

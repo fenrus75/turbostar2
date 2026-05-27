@@ -84,11 +84,25 @@ class terminal_command_runner : public command_runner {
 public:
     terminal_command_runner(std::shared_ptr<agentlib::interaction_terminal> interaction, 
                             std::function<void()> trigger_update)
-        : interaction_(interaction), trigger_update_(std::move(trigger_update)) {}
+        : interaction_(interaction), trigger_update_(std::move(trigger_update)) {
+        start_time_ = std::chrono::steady_clock::now();
+    }
 
     std::string get_final_output() const { return parser_.get_full_output(); }
+    
+    void set_timeout(int seconds) { timeout_seconds_ = seconds; }
 
 protected:
+    bool should_continue() const override {
+        if (timeout_seconds_ > 0) {
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count() > timeout_seconds_) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     void on_output_chunk(const std::string& chunk) override {
         parser_.process_chunk(chunk);
         if (interaction_) {
@@ -102,6 +116,8 @@ private:
     terminal_parser parser_;
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
     std::function<void()> trigger_update_;
+    std::chrono::time_point<std::chrono::steady_clock> start_time_;
+    int timeout_seconds_{0};
 };
 
 } // namespace tools
