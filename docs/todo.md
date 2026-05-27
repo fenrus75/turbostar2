@@ -34,6 +34,10 @@
           likewise for compile etc tasks
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
+	https://raw.githubusercontent.com/torvalds/linux/refs/heads/master/.clang-format
+	- we should write it out if this style is selected, if there is no clang-format yet
+
+
 
 
 - an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
@@ -48,9 +52,6 @@
 	- ... more to come over time so we need to make this extensible
 
 
-- per project turbostar setting file
-	- coding style, build system and the like are really per project -
-	  the global settings are just a default for per project
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
@@ -198,3 +199,10 @@
 - fs_find_in_files -- allow an option to get a few lines of context in the return
      - need to decide on error format
 - we have a delay at exit -- annoying to the user
+- we need to have project level .turbostar files so we can have per project overrides.
+ 	-	the settings dialog will need to grow a "save as global defaults" button - default save should be per project
+	- we load the global first then per project, so that it overlays
+
+- per project turbostar setting file
+	- coding style, build system and the like are really per project -
+	  the global settings are just a default for per project
