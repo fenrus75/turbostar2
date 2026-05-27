@@ -35,21 +35,21 @@ class lsp_manager
 	bool is_supported_file(const std::string &filepath) const;
 
 	// Synchronous queries for tools
-	std::vector<text_range> query_selection_ranges(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &filepath, int line, int character);
 
 	struct location_info {
 		std::string path;
 		text_range range;
 	};
-	std::vector<location_info> query_definition(const std::string &filepath, int line, int character);
-	std::vector<location_info> query_references(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character);
 
 	struct symbol_info {
 		std::string name;
 		int kind;
 		location_info location;
 	};
-	std::vector<symbol_info> query_workspace_symbols(const std::string &query);
+	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query);
 
 	struct call_hierarchy_item {
 		std::string name;
@@ -59,7 +59,7 @@ class lsp_manager
 		text_range range;
 		text_range selection_range;
 	};
-	std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
 
 	struct type_hierarchy_item {
 		std::string name;
@@ -69,7 +69,7 @@ class lsp_manager
 		text_range range;
 		text_range selection_range;
 	};
-	std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
 
       private:
 	struct server_instance {
@@ -82,9 +82,9 @@ class lsp_manager
 	};
 
 	void start_server(const std::string& name, const std::vector<std::string>& args, const std::string& language_id);
-	server_instance* get_server_for_file(const std::string& filepath);
+	std::shared_ptr<server_instance> get_server_for_file(const std::string& filepath);
 
-	std::vector<std::unique_ptr<server_instance>> servers_;
+	std::vector<std::shared_ptr<server_instance>> servers_;
 	std::mutex servers_mutex_;
 	event_queue *global_queue_{nullptr};
 	
