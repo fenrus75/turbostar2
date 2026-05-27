@@ -11,7 +11,7 @@ int main()
 
 	auto match = logger.get_latest_matching_message("specific");
 	assert(match.has_value());
-	assert(*match == "Unit test event 2 - specific string");
+	assert(match->find("Unit test event 2 - specific string") != std::string::npos);
 
 	auto no_match = logger.get_latest_matching_message("nonexistent");
 	assert(!no_match.has_value());

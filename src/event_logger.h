@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <chrono>
 
 class event_logger
 {
@@ -15,7 +16,7 @@ class event_logger
 	std::optional<std::string> get_latest_matching_message(const std::string &substring) const;
 
       private:
-	event_logger() = default;
+	event_logger();
 	~event_logger();
 	event_logger(const event_logger &) = delete;
 	event_logger &operator=(const event_logger &) = delete;
@@ -23,4 +24,5 @@ class event_logger
 	std::vector<std::string> events;
 	mutable std::mutex mutex_;
 	std::ofstream log_stream_;
+	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 };

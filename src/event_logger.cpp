@@ -1,5 +1,11 @@
 #include "event_logger.h"
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
+
+event_logger::event_logger() : start_time_(std::chrono::steady_clock::now())
+{
+}
 
 event_logger &event_logger::get_instance()
 {
@@ -22,10 +28,17 @@ void event_logger::set_log_file(const std::string &filename)
 
 void event_logger::log(const std::string &message)
 {
+	auto now = std::chrono::steady_clock::now();
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
+
+	std::ostringstream ss;
+	ss << "[" << std::setw(6) << std::setfill('0') << ms << "ms] " << message;
+	std::string formatted_message = ss.str();
+
 	std::lock_guard<std::mutex> lock(mutex_);
-	events.push_back(message);
+	events.push_back(formatted_message);
 	if (log_stream_.is_open()) {
-		log_stream_ << message << std::endl;
+		log_stream_ << formatted_message << std::endl;
 	}
 }
 
