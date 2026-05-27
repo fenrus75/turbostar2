@@ -43,6 +43,7 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 		server->is_running.store(true);
 
 		server->message_thread = std::thread([s = server.get()]() {
+			event_logger::get_instance().log("Thread started: lsp_manager message_thread");
 			try {
 				while (s->is_running.load()) {
 					s->message_handler->processIncomingMessages();
@@ -51,6 +52,7 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 				s->is_running.store(false);
 				event_logger::get_instance().log("LSP message loop error: " + std::string(e.what()));
 			}
+			event_logger::get_instance().log("Thread exited: lsp_manager message_thread");
 		});
 
 		auto initializeParams = lsp::requests::Initialize::Params();

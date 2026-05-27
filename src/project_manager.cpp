@@ -45,18 +45,22 @@ void project_manager::initialize()
 
 	// Start the inventory thread with a 100ms delay
 	inventory_thread_ = std::jthread([this](std::stop_token stop) {
+		event_logger::get_instance().log("Thread started: project_manager inventory_thread");
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		if (stop.stop_requested())
-			return;
-		inventory_project(stop);
+		if (!stop.stop_requested()) {
+			inventory_project(stop);
+		}
+		event_logger::get_instance().log("Thread exited: project_manager inventory_thread");
 	});
 
 	// Start the software map thread with a 2000ms delay to let the LSP warm up
 	software_map_thread_ = std::jthread([this](std::stop_token stop) {
+		event_logger::get_instance().log("Thread started: project_manager software_map_thread");
 		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-		if (stop.stop_requested())
-			return;
-		software_map_loop(stop);
+		if (!stop.stop_requested()) {
+			software_map_loop(stop);
+		}
+		event_logger::get_instance().log("Thread exited: project_manager software_map_thread");
 	});
 }
 

@@ -455,6 +455,7 @@ void ai_agent::start_processing()
 	}
 
 	std::thread([self = shared_from_this()]() {
+		event_logger::get_instance().log("Thread started: ai_agent main loop (" + std::to_string(self->id_) + ")");
 		size_t last_synced_index = 0;
 		std::vector<message> convo;
 
@@ -480,8 +481,10 @@ void ai_agent::start_processing()
 		std::string final_response;
 
 		while (true) {
-			if (self->is_closed_)
+			if (self->is_closed_) {
+				event_logger::get_instance().log("Thread exited: ai_agent main loop (" + std::to_string(self->id_) + ") [closed early]");
 				return;
+			}
 
 			// Sync with shared conversation history
 			{
@@ -578,8 +581,10 @@ void ai_agent::start_processing()
 			    },
 			    &registry);
 
-			if (self->is_closed_)
+			if (self->is_closed_) {
+				event_logger::get_instance().log("Thread exited: ai_agent main loop (" + std::to_string(self->id_) + ") [closed early]");
 				return;
+			}
 
 			if (!accumulated_tool_calls.empty()) {
 				response_msg.tool_calls = accumulated_tool_calls;
@@ -595,8 +600,10 @@ void ai_agent::start_processing()
 
 			if (!accumulated_tool_calls.empty()) {
 				for (const auto &call : accumulated_tool_calls) {
-					if (self->is_closed_)
+					if (self->is_closed_) {
+						event_logger::get_instance().log("Thread exited: ai_agent main loop (" + std::to_string(self->id_) + ") [closed in callback]");
 						return;
+					}
 
 					self->current_tool_ = call.function.name;
 					self->set_status(agent_status::tool_execution);
@@ -740,8 +747,10 @@ void ai_agent::start_processing()
 			}
 		}
 
-		if (self->is_closed_)
+		if (self->is_closed_) {
+			event_logger::get_instance().log("Thread exited: ai_agent main loop (" + std::to_string(self->id_) + ") [closed at end]");
 			return;
+		}
 
 		self->set_status(agent_status::idle);
 
@@ -779,7 +788,7 @@ void ai_agent::start_processing()
 			}
 
 			nlohmann::json notification_json = {{"event", "SubagentStop"},
-							    {"agent_id", self->id_},
+							    {"agent_id", std::to_string(self->id_)},
 							    {"name", self->name_},
 							    {"status", "completed"},
 							    {"result", {{"summary", summary_text}, {"output_path", "`" + uri + "`"}}}};

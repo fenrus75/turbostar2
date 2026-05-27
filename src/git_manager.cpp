@@ -85,44 +85,46 @@ std::string git_manager::get_repository_root() const
 
 void git_manager::worker_loop()
 {
-	while (!stop_thread_) {
-		git_request req;
-		{
-			std::unique_lock lock(queue_mutex_);
-			cv_.wait(lock, [this] { return !pending_requests_.empty() || stop_thread_; });
-			if (stop_thread_)
-				break;
-			req = pending_requests_.front();
-			pending_requests_.pop();
-		}
+	event_logger::get_instance().log("Thread started: git_manager worker_loop");
+        while (!stop_thread_) {
+                git_request req;
+                {
+                        std::unique_lock lock(queue_mutex_);
+                        cv_.wait(lock, [this] { return !pending_requests_.empty() || stop_thread_; });
+                        if (stop_thread_)
+                                break;
+                        req = pending_requests_.front();
+                        pending_requests_.pop();
+                }
 
-		if (req.type == request_type::status) {
-			git_info info = run_git_status_cmd(req.filepath);
+                if (req.type == request_type::status) {
+                        git_info info = run_git_status_cmd(req.filepath);
 
-			bool changed = false;
-			{
-			        std::unique_lock lock(cache_mutex_);
-			        git_info& cached = status_cache_[req.filepath];
-			        if (cached.status != info.status || cached.branch != info.branch) {
-			                if (cached.branch != info.branch && !info.branch.empty()) {
-			                        event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + req.filepath);
-			                }
-			                cached = info;
-			                changed = true;
-			        }
-			}
+                        bool changed = false;
+                        {
+                                std::unique_lock lock(cache_mutex_);
+                                git_info& cached = status_cache_[req.filepath];
+                                if (cached.status != info.status || cached.branch != info.branch) {
+                                        if (cached.branch != info.branch && !info.branch.empty()) {
+                                                event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + req.filepath);
+                                        }
+                                        cached = info;
+                                        changed = true;
+                                }
+                        }
 
-			event_queue* queue = global_queue_.load();
-			if (changed && queue) {
-			        editor_event ev;
-			        ev.type = event_type::git_status_updated;
-			        queue->push(ev);
-			}		} else if (req.type == request_type::add) {
-			run_git_add_cmd(req.filepath);
-			// After add, refresh status
-			request_status(req.filepath);
-		}
-	}
+                        event_queue* queue = global_queue_.load();
+                        if (changed && queue) {
+                                editor_event ev;
+                                ev.type = event_type::git_status_updated;
+                                queue->push(ev);
+                        }               } else if (req.type == request_type::add) {
+                        run_git_add_cmd(req.filepath);
+                        // After add, refresh status
+                        request_status(req.filepath);
+                }
+        }
+	event_logger::get_instance().log("Thread exited: git_manager worker_loop");
 }
 
 void git_manager::run_git_add_cmd(const std::string &filepath)
