@@ -12,6 +12,7 @@ search_params extract_search_params(const dialog& dlg, const search_params& init
 std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines);
 std::unique_ptr<dialog> create_welcome_dialog();
 std::unique_ptr<dialog> create_ask_user_dialog(const std::string& question, const std::vector<std::string>& options);
+std::unique_ptr<dialog> create_plan_approval_dialog(const std::string& plan_text);
 std::unique_ptr<dialog> create_force_quit_dialog();
 std::unique_ptr<dialog> create_settings_dialog();
 void apply_settings_from_dialog(const dialog& dlg);

@@ -8,6 +8,7 @@
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_group_box.h"
+#include "ui/components/ui_multiline_edit.h"
 #include "markdown_utils.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
@@ -220,6 +221,54 @@ class force_quit_dialog_impl : public dialog
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	int remaining_seconds_{5};
 };
+
+std::unique_ptr<dialog> create_plan_approval_dialog(const std::string& plan_text)
+{
+        int width = 80;
+        int height = 30;
+        auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
+
+        int plan_height = 15;
+        dlg->add_child(std::make_unique<ui_text_label>(2, 1, "Proposed Plan:"));
+        
+        // Use a multiline edit for the plan text so it is scrollable
+        auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 2, 2, width - 4, plan_height, nullptr);
+        plan_box->set_buffer(plan_text);
+        dlg->add_child(std::move(plan_box));
+
+        int feedback_y = 3 + plan_height;
+        dlg->add_child(std::make_unique<ui_text_label>(2, feedback_y, "Comments / Feedback (optional if approving, required if rejecting):"));
+        
+        int feedback_height = 5;
+        auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 2, feedback_y + 1, width - 4, feedback_height, nullptr);
+        dlg->add_child(std::move(feedback_box));
+
+        int btn_y = height - 3;
+        int btn_x_center = width / 2;
+
+        dlg->add_child(std::make_unique<ui_button>("btn_approve", btn_x_center - 20, btn_y, " Approve ", 'A', [d = dlg.get()]() {
+                d->set_action(dialog_result::confirmed);
+                d->set_result("Approved");
+        }));
+
+        dlg->add_child(std::make_unique<ui_button>("btn_reject", btn_x_center - 5, btn_y, " Reject ", 'R', [d = dlg.get()]() {
+                auto fb = d->get_value("feedback");
+                if (fb && !fb->empty()) {
+                    d->set_action(dialog_result::confirmed); // Confirming the dialog closes it
+                    d->set_result(*fb); // Send feedback as result
+                } else {
+                    // Cannot reject without feedback
+                }
+        }));
+
+        dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 10, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
+                d->set_action(dialog_result::cancelled);
+                d->set_result("cancel");
+        }));
+
+        dlg->set_focus_by_name("btn_approve");
+        return dlg;
+}
 
 std::unique_ptr<dialog> create_force_quit_dialog()
 {

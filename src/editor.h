@@ -97,7 +97,8 @@ class editor : public agentlib::document_provider
 	bool q_block_mode_{false};
 	bool p_block_mode_{false};
 
-	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, model_list, model_edit, model_selection, welcome };	dialog_mode active_dialog_mode_{dialog_mode::none};
+	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, approve_plan, model_list, model_edit, model_selection, welcome };
+	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;

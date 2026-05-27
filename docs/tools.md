@@ -419,3 +419,17 @@ These tools allow the agent to interact with the project's Git repository.
 ### `git_init`
 *   **Description:** Initialize a new Git repository in the current project root. Fails if a .git directory already exists.
 *   **Arguments:** None.
+
+## 8. Agent Mode Management
+
+### `enter_plan_mode`
+*   **Description:** Switch to Plan Mode to safely research, design, and plan complex changes using read-only tools.
+*   **Arguments:**
+    *   `reason` *(string, optional)*: Short reason explaining why you are entering plan mode.
+
+### `exit_plan_mode`
+*   **Description:** Exit Plan Mode and request user approval for the finalized plan. Upon approval, modifying tools will be unlocked.
+*   **Arguments:**
+    *   `plan_title` *(string, required)*: A short title for the plan (1-5 words).
+    *   `plan_summary` *(string, required)*: The complete, step-by-step finalized plan to present to the user.
+    *   `page_out_history` *(boolean, optional)*: If true, compresses all exploratory work done since entering Plan Mode into a single milestone on disk, leaving only the plan in the active context window to save tokens. Strongly recommended.

@@ -1,4 +1,8 @@
 tools_sources = files(
+  'enter_plan_mode/enter_plan_mode_entry.cpp',
+  'enter_plan_mode/enter_plan_mode_security.cpp',
+  'exit_plan_mode/exit_plan_mode_entry.cpp',
+  'exit_plan_mode/exit_plan_mode_security.cpp',
   'sqlite_create_db/sqlite_create_db_entry.cpp',
   'sqlite_create_db/sqlite_create_db_security.cpp',
   'sqlite_delete_db/sqlite_delete_db_entry.cpp',

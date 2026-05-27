@@ -2,14 +2,10 @@
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
-- fs_find_in_files pretty print the output  -- gemini likes to call this
-
 - perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
 
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
-
-
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
 
@@ -19,28 +15,15 @@
 
 - set "uv" working directory: 
 
-
-
 - we need to tackle compaction at some point
    -- we're keeping notes in `docs/compaction.md`
-
-
-
-- (agent + model options combined with --exit-immediately opens op a set of extra options for testing things, like for memory leaks etc)
 
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-
-
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
-
-- automatic software map : markdown tables with key classes and functions, and where they are defined and implemented
-	- need to parse class hierarchy - base classes over derived
-	- this is an extension to the existing "Key files' section which is currently only path based
-
 
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc)
@@ -48,9 +31,6 @@
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
-
-- exit is not always instant when using the agent -- it seems we wait for some agent interaction to finish?
-   -- we either need to abort, or figure out how to get ourselves to a background state (which is tricky with threading)
 
 - in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
 	- our cut down some wide columns to make things fit
@@ -66,8 +46,6 @@
     - crashdump; 
 	- crashdump_read_memory(nr, location, size)
 	- crashdump_gdb(nr, command) (over time -- likely to come later)
-    - enter_plan_mode, exit_plan_mode
-
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
@@ -208,3 +186,4 @@
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
           likewise for compile etc tasks
+- - enter_plan_mode, exit_plan_mode
