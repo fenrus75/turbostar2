@@ -19,6 +19,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 
 	if (ev.type == event_type::compile) {
 		logger.log("Dispatching compile event.");
+		save_all_documents();
 
 		// If we don't have a build process or it's not running
 		if (!current_build_process_ || !current_build_process_->is_running()) {
@@ -81,6 +82,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 
 	if (ev.type == event_type::compile_file) {
 		logger.log("Dispatching compile_file event.");
+		save_all_documents();
 
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (!active_doc || active_doc->get_filename().empty()) {
@@ -140,6 +142,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 
 	if (ev.type == event_type::run_tests) {
 		logger.log("Dispatching run_tests event.");
+		save_all_documents();
 
 		if (!current_build_process_ || !current_build_process_->is_running()) {
 			size_t test_win_idx = static_cast<size_t>(-1);

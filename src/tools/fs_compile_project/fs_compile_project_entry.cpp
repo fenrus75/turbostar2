@@ -26,6 +26,10 @@ bool fs_compile_project_tool::validate_runtime(const agentlib::tool_context & /*
 
 std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 {
+        if (ctx.doc_provider) {
+                ctx.doc_provider->save_all_documents();
+        }
+
         terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
         runner.set_enable_crash_catcher(true);
         runner.set_project_dir(ctx.fs_security.get_working_directory().string());
