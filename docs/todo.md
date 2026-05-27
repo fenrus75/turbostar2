@@ -40,9 +40,6 @@
 
 
 
-- an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
-
-- a "--model <name>" command line option to pick a specific model as default for sessions
 
 - (agent + model options combined with --exit-immediately opens op a set of extra options for testing things, like for memory leaks etc)
 
@@ -206,3 +203,7 @@
 - per project turbostar setting file
 	- coding style, build system and the like are really per project -
 	  the global settings are just a default for per project
+
+- an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
+
+- a "--model <name>" command line option to pick a specific model as default for sessions

@@ -32,6 +32,8 @@ int main(int argc, char **argv)
 	bool no_welcome = false;
 	double exit_immediately = -1.0;
 	std::string debug_string;
+	std::string agent_prompt;
+	std::string override_model_id;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
@@ -40,6 +42,8 @@ int main(int argc, char **argv)
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
+	app.add_option("--agent", agent_prompt, "Start an agent window immediately and send this prompt");
+	app.add_option("--model", override_model_id, "Pick a specific AI model to use for the session");
 	app.add_option("filenames", filenames, "Files to edit");
 	app.set_version_flag("--version", TURBOSTAR_VERSION);
 
@@ -189,7 +193,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome);
+	if (!override_model_id.empty()) {
+		config_manager::get_instance().set_default_model_id(override_model_id);
+	}
+
+	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome, agent_prompt);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");

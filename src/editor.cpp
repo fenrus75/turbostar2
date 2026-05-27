@@ -20,8 +20,8 @@
 namespace fs = std::filesystem;
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately,
-	       bool no_lsp, bool no_welcome)
-    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
+	       bool no_lsp, bool no_welcome, std::string initial_agent_prompt)
+    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string), initial_agent_prompt_(std::move(initial_agent_prompt))
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
@@ -46,7 +46,7 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 
 		if (!loaded_files) {
 			new_window("");
-			if (!no_welcome) {
+			if (!no_welcome && initial_agent_prompt_.empty()) {
 				active_dialog_ = create_welcome_dialog();
 				active_dialog_mode_ = dialog_mode::welcome;
 				set_focus(focus_target::dialog, "welcome");
@@ -361,6 +361,21 @@ editor::~editor()
 
 void editor::run()
 {
+	if (!initial_agent_prompt_.empty()) {
+		new_agent_window();
+		// Look for the agent window we just created to send the message
+		for (auto &win : windows_) {
+			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
+				if (auto agent = agent_win->get_agent()) {
+					agent->submit_prompt(initial_agent_prompt_);
+				}
+				break;
+			}
+		}
+		// Clear it so we don't send it again
+		initial_agent_prompt_.clear();
+	}
+
 	render();
 
 	// Set ncurses getch timeout to 50ms to allow background events to
