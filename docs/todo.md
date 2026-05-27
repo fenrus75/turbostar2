@@ -19,8 +19,6 @@
 
 - set "uv" working directory: 
 
-- format markdown block (` `  or ``` ... ```) in a different color/style in the
-  agent output screen (or bold or ..)
 
 
 - we need to tackle compaction at some point
@@ -206,3 +204,6 @@
 - the live agent status window does not seem to update with tokens used anymore
   -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
   -- context usage is also shown as 0 which should come from our own data!
+
+- format markdown block (` `  or ``` ... ```) in a different color/style in the
+  agent output screen (or bold or ..)
