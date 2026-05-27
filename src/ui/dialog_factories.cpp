@@ -752,7 +752,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 
 std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_model> model)
 {
-	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 18);
+	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 20);
 
 	int lx = 4;
 	int tx = 16;
@@ -785,7 +785,17 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", 12, 0, " Gemini ", 'G', is_gemini));
 	dlg->add_child(std::move(type_radio));
 
-	int by = 14;
+	dlg->add_child(std::make_unique<ui_text_label>(lx, 12, "Cost Model:"));
+	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", tx, 12, 45, 1);
+	bool is_free = model && model->get_cost_type() == agentlib::model_cost_type::free_local;
+	bool is_req = model && model->get_cost_type() == agentlib::model_cost_type::paid_per_request;
+	bool is_tok = !is_free && !is_req;
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("free_local", 0, 0, " Free ", 'F', is_free));
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_token", 10, 0, " /Token ", 'T', is_tok));
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_request", 22, 0, " /Request ", 'R', is_req));
+	dlg->add_child(std::move(cost_radio));
+
+	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_ok", 15, by, "   OK   ", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -809,6 +819,7 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	auto tx_cost_opt = dlg.get_value("cost_tx");
 	auto rx_cost_opt = dlg.get_value("cost_rx");
 	auto api_type_opt = dlg.get_value("api_type");
+	auto cost_type_opt = dlg.get_value("cost_type");
 
 	if (!id_opt || id_opt->empty())
 		return;
@@ -828,6 +839,12 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 		type = agentlib::api_type::gemini;
 	}
 
+	agentlib::model_cost_type cost_type = agentlib::model_cost_type::paid_per_token;
+	if (cost_type_opt) {
+		if (*cost_type_opt == "free_local") cost_type = agentlib::model_cost_type::free_local;
+		else if (*cost_type_opt == "paid_per_request") cost_type = agentlib::model_cost_type::paid_per_request;
+	}
+
 	auto &registry = agentlib::ai_model_registry::get_instance();
 
 	if (!original_id.empty() && original_id != *id_opt) {
@@ -836,7 +853,7 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 
 	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
 							  purpose_opt ? *purpose_opt : "", tx_cost, rx_cost,
-							  api_key_opt ? *api_key_opt : "", type);
+							  api_key_opt ? *api_key_opt : "", type, 250000, cost_type);
 	registry.update_model(model);
 	registry.save_models();
 }

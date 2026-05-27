@@ -1,6 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - fs_find_in_files pretty print the output  -- gemini likes to call this
@@ -26,9 +25,6 @@
 - fs_find_in_files -- allow an option to get a few lines of context in the return
      - need to decide on error format
 
-- critical: run_shell_command needs a timeout value as optional argument, default 300
-
-- optional: run_shell_command can use a async optional argument, default False
 
 - we have a delay at exit -- annoying to the user
 
@@ -40,7 +36,6 @@
 
 - take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
 
-- --exit-immediately to take an optional "seconds" argument for > 1 second delays
 
 - an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
 
@@ -53,8 +48,6 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-- a cost goal per model "free" (e.g. local inference), vs "paid" (cost per token) so we can adjust our context compaction
-    algorithms to optimize with the goal in mind
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
@@ -158,6 +151,11 @@
 
 # done items (move items here on completion)
 
+## 27-05-2026
+- critical: run_shell_command needs a timeout value as optional argument, default 300
+- optional: run_shell_command can use a async optional argument, default False
+- --exit-immediately to take an optional "seconds" argument for > 1 second delays
+
 ## 26-05-2026
 - need to deal with the critical review comments in `review-line.md`
 - we should never ever send / commands to the agent
@@ -190,3 +188,5 @@
 
 - need to consider running the e2e tests via "uv" as they use a non-standard pip library
 	- this causes all tests to fail in github, but also in our sandbox
+- a cost goal per model "free" (e.g. local inference), vs "paid" (cost per token) so we can adjust our context compaction
+    algorithms to optimize with the goal in mind

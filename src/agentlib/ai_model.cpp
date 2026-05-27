@@ -117,9 +117,16 @@ void ai_model_registry::load_models()
 					type = api_type::gemini;
 				}
 				int max_tokens = item.value("max_context_tokens", 250000);
+				std::string cost_type_str = item.value("cost_type", "paid_per_token");
+				model_cost_type cost_type = model_cost_type::paid_per_token;
+				if (cost_type_str == "free_local") {
+					cost_type = model_cost_type::free_local;
+				} else if (cost_type_str == "paid_per_request") {
+					cost_type = model_cost_type::paid_per_request;
+				}
 
 				if (!id.empty()) {
-					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type, max_tokens));
+					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type, max_tokens, cost_type));
 				}
 			}
 		}
@@ -151,6 +158,12 @@ void ai_model_registry::save_models() const
 		item["cost_rx"] = model->get_cost_per_1m_rx();
 		item["api_type"] = (model->get_api_type() == api_type::gemini) ? "gemini" : "openai";
 		item["max_context_tokens"] = model->get_max_context_tokens();
+
+		std::string cost_type_str = "paid_per_token";
+		if (model->get_cost_type() == model_cost_type::free_local) cost_type_str = "free_local";
+		else if (model->get_cost_type() == model_cost_type::paid_per_request) cost_type_str = "paid_per_request";
+		item["cost_type"] = cost_type_str;
+
 		data.push_back(item);
 	}
 

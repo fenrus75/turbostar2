@@ -13,11 +13,17 @@ enum class api_type {
     gemini
 };
 
+enum class model_cost_type {
+    free_local,
+    paid_per_token,
+    paid_per_request
+};
+
 class ai_model {
 public:
-    ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx, std::string api_key = "", api_type type = api_type::openai, int max_context_tokens = 250000)
+    ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx, std::string api_key = "", api_type type = api_type::openai, int max_context_tokens = 250000, model_cost_type cost_type = model_cost_type::paid_per_token)
         : id_(std::move(id)), name_(std::move(name)), url_(std::move(url)), purpose_(std::move(purpose)), 
-          cost_per_1m_tx_(cost_per_1m_tx), cost_per_1m_rx_(cost_per_1m_rx), api_key_(std::move(api_key)), type_(type), max_context_tokens_(max_context_tokens) {}
+          cost_per_1m_tx_(cost_per_1m_tx), cost_per_1m_rx_(cost_per_1m_rx), api_key_(std::move(api_key)), type_(type), max_context_tokens_(max_context_tokens), cost_type_(cost_type) {}
 
     std::string get_id() const { return id_; }
     std::string get_name() const { return name_; }
@@ -26,6 +32,7 @@ public:
     std::string get_api_key() const { return api_key_; }
     api_type get_api_type() const { return type_; }
     int get_max_context_tokens() const { return max_context_tokens_; }
+    model_cost_type get_cost_type() const { return cost_type_; }
 
     double get_cost_per_1m_tx() const { return cost_per_1m_tx_; }
     double get_cost_per_1m_rx() const { return cost_per_1m_rx_; }
@@ -36,6 +43,7 @@ public:
     void set_api_key(std::string key) { api_key_ = std::move(key); }
     void set_api_type(api_type type) { type_ = type; }
     void set_max_context_tokens(int max_tokens) { max_context_tokens_ = max_tokens; }
+    void set_cost_type(model_cost_type cost_type) { cost_type_ = cost_type; }
     void set_cost_per_1m_tx(double cost) { cost_per_1m_tx_ = cost; }
     void set_cost_per_1m_rx(double cost) { cost_per_1m_rx_ = cost; }
 
@@ -56,6 +64,7 @@ private:
     std::string api_key_;
     api_type type_;
     int max_context_tokens_;
+    model_cost_type cost_type_;
 
     std::atomic<int> global_tokens_tx_{0};
     std::atomic<int> global_tokens_rx_{0};
