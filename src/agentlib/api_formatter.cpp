@@ -124,7 +124,7 @@ std::string gemini_formatter::get_endpoint_path(const std::string& model_id, boo
     return path;
 }
 
-std::string gemini_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool stream) const {
+std::string gemini_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool /*stream*/) const {
     (void)model_id; // Gemini expects model in the URL path, not payload
     json payload = json::object();
 

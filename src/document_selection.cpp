@@ -211,7 +211,9 @@ void document::move_selection()
 	cursor_x_ = tx;
 	cursor_y_ = ty;
 	if (cursor_y_ >= line_count_unlocked())
-	        cursor_y_ = line_count_unlocked() - 1;	int line_len = lines_[cursor_y_]->length_in_chars();
+		cursor_y_ = line_count_unlocked() - 1;
+	
+	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_len)
 		cursor_x_ = line_len;
 

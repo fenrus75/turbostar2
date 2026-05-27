@@ -9,7 +9,7 @@ fs_mkdir_tool::fs_mkdir_tool(std::string safe_path) : llm_tool_action("Creating 
 {
 }
 
-bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
 	if (safe_path_.starts_with("skills://")) {
 		out_error = "Cannot create directories in virtual file system.";
