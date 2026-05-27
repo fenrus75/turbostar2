@@ -139,16 +139,29 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	std::stringstream ss(full_text);
 	std::string line;
 	bool first = true;
+	bool in_code_block = false;
+
+	int base_color = (color_pair >= 50 && color_pair < 80) ? (color_pair / 10) * 10 : 50;
+	int code_color = base_color + 6;
 
 	while (std::getline(ss, line)) {
 		if (!line.empty() && line.back() == '\r')
 			line.pop_back();
 
+		if (line.starts_with("```")) {
+			in_code_block = !in_code_block;
+		}
+		
+		int current_color = in_code_block ? code_color : color_pair;
+		if (!in_code_block && line.starts_with("```")) {
+			current_color = code_color; // Color the closing backticks as code too
+		}
+
 		std::string current_prefix = first ? prefix : std::string(prefix_utf8_len, ' ');
 		int available_width = width - prefix_utf8_len;
 
 		if (line.empty()) {
-			lines.push_back({current_prefix, color_pair});
+			lines.push_back({current_prefix, current_color});
 			first = false;
 			continue;
 		}
@@ -195,7 +208,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			if (chunk_byte_len == 0)
 				break; // Safety net
 
-			lines.push_back({current_prefix + line.substr(byte_idx, chunk_byte_len), color_pair});
+			lines.push_back({current_prefix + line.substr(byte_idx, chunk_byte_len), current_color});
 
 			byte_idx += chunk_byte_len;
 

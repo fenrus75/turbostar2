@@ -48,14 +48,13 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 			    line_buffer.erase(0, pos + 1);
 
 			    if (line.rfind("data: ", 0) == 0) {
-				    std::string json_str = line.substr(6);
-				    chat_delta delta = formatter_->parse_stream_chunk(json_str);
-				    if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final) {
-					    callback(delta);
-				    }
-				    if (delta.is_final) return true;
-			    }
-		    }
+			            std::string json_str = line.substr(6);
+			            chat_delta delta = formatter_->parse_stream_chunk(json_str);
+			            if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final || delta.usage.total_tokens > 0) {
+			                    callback(delta);
+			            }
+			            if (delta.is_final) return true;
+			    }		    }
 		    return true;
 	    });
 

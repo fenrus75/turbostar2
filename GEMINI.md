@@ -14,6 +14,7 @@ Top design documentation: `docs/design.md`
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
+- read `.clang-format` on startup
 
 ## Documentation Files
 The `docs/` directory contains crucial context. Keep these files updated as we make changes to the system:
@@ -55,5 +56,4 @@ tem.
 
 # Dependencies
 - CLI11 (header-only) for command-line parsing.
-
 

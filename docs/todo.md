@@ -9,9 +9,6 @@
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 
-- the live agent status window does not seem to update with tokens used anymore
-  -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
-  -- context usage is also shown as 0 which should come from our own data!
 
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
@@ -205,3 +202,7 @@
 
 - undo segments need an optional name, and we can ask the AI for a description
     - search/replace is another automatic name
+
+- the live agent status window does not seem to update with tokens used anymore
+  -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
+  -- context usage is also shown as 0 which should come from our own data!

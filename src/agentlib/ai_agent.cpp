@@ -753,6 +753,7 @@ void ai_agent::start_processing()
 		}
 
 		self->set_status(agent_status::idle);
+		event_logger::get_instance().log("Agent " + std::to_string(self->id_) + " went idle. Cumulative tokens: Tx=" + std::to_string(self->tokens_tx_) + " Rx=" + std::to_string(self->tokens_rx_) + " Cached=" + std::to_string(self->tokens_cached_));
 
 		if (self->global_queue_) {
 			editor_event ev;
