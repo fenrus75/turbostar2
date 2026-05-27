@@ -20,8 +20,8 @@ def test_settings_dialog():
         # 2. Select "Google" style (hotkey 'G')
         runner.send_keys(KEY_ESC + 'g')
         
-        # 3. Confirm with OK button (hotkey 'O')
-        runner.send_keys(KEY_ESC + 'o')
+        # 3. Confirm with Save Global button (hotkey 'v')
+        runner.send_keys(KEY_ESC + 'v')
         
         # 4. Quit and verify config file
         

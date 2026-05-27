@@ -474,20 +474,18 @@ std::unique_ptr<dialog> create_settings_dialog()
 						     config_manager::get_instance().is_software_map_enabled()));
 
 	// Buttons
-	dlg->add_child(std::make_unique<ui_button>("btn_ok", 10, 22, "  OK  ", 'o', [d = dlg.get()]() {
-		d->set_action(dialog_result::confirmed);
-		d->set_result("ok");
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 22, " OK (Save Project) ", 'O', [d = dlg.get()]() {
+	        d->set_action(dialog_result::confirmed);
+	        d->set_result("ok");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 25, 22, " Cancel ", 'c', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
+	dlg->add_child(std::make_unique<ui_button>("btn_global", 26, 22, " Save Global ", 'v', [d = dlg.get()]() {
+	        d->set_action(dialog_result::confirmed);
+	        d->set_result("save_global");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_help", 40, 22, " Help ", 'h', [d = dlg.get()]() {
-		// Not currently hooked up to help system inside dialog, but returning help result
-		d->set_action(dialog_result::confirmed);
-		d->set_result("help");
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 42, 22, " Cancel ", 'C', [d = dlg.get()]() {
+	        d->set_action(dialog_result::cancelled);
+	        d->set_result("cancel");
 	}));
-
 	dlg->set_focus_by_name("style_group");
 
 	return dlg;
@@ -533,7 +531,7 @@ void apply_settings_from_dialog(const dialog &dlg)
 	if (sw_map)
 		cfg.set_software_map_enabled(*sw_map == "true");
 
-	cfg.save();
+	// Note: We don't save here anymore. The key event handler does it so it knows whether to save global or project.
 }
 // Ensure the #include "config_manager.h" is not duplicated if it's already there
 

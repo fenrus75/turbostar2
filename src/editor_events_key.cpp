@@ -71,8 +71,21 @@ void editor::resolve_dialog(dialog_result res)
 				active_ask_user_promise_.reset();
 			}
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
-			if (active_dialog_->get_result() == "ok") {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "ok" || res_str == "save_global") {
 				apply_settings_from_dialog(*active_dialog_);
+				
+				if (res_str == "save_global") {
+					config_manager::get_instance().save_global();
+				} else {
+					std::string cache_root = fs_utils::get_project_cache_root();
+					if (!cache_root.empty()) {
+						config_manager::get_instance().save_project(cache_root);
+					} else {
+						// Fallback to global if we are not in a project
+						config_manager::get_instance().save_global();
+					}
+				}
 			}
 		} else if (active_dialog_mode_ == dialog_mode::model_list) {
 			std::string res_str = active_dialog_->get_result();
@@ -101,7 +114,14 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (res_str.starts_with("default:")) {
 				std::string id = res_str.substr(8);
 				config_manager::get_instance().set_default_model_id(id);
-				config_manager::get_instance().save();
+				
+				std::string cache_root = fs_utils::get_project_cache_root();
+				if (!cache_root.empty()) {
+					config_manager::get_instance().save_project(cache_root);
+				} else {
+					config_manager::get_instance().save_global();
+				}
+				
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
 				set_focus(focus_target::dialog, "model_list");

@@ -10,6 +10,7 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "project_manager.h"
+#include "fs_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -178,6 +179,15 @@ int main(int argc, char **argv)
 	logger.log("UI initialized.");
 
 	project_manager::get_instance().initialize();
+
+	// Load project-specific configuration overlay if available
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (!cache_root.empty()) {
+		std::string project_config_path = fs::path(cache_root) / "config.ini";
+		if (fs::exists(project_config_path)) {
+			config_manager::get_instance().load_from_file(project_config_path);
+		}
+	}
 
 	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome);
 	main_editor.run();

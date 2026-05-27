@@ -23,7 +23,16 @@ std::string config_manager::get_config_file_path() const
 
 void config_manager::load()
 {
-	std::string path = get_config_file_path();
+	// 1. Load global config
+	std::string global_path = get_config_file_path();
+	load_from_file(global_path);
+
+	// 2. Load project config if available (we determine this later or let main trigger it)
+	// For now, load() just loads global. main.cpp will orchestrate project overlay after git_manager is ready.
+}
+
+void config_manager::load_from_file(const std::string &path)
+{
 	std::ifstream file(path);
 	if (!file.is_open())
 		return;
@@ -60,7 +69,7 @@ void config_manager::load()
 			compile_on_save_ = (value == "true" || value == "1");
 		} else if (key == "software_map_enabled") {
 			software_map_enabled_ = (value == "true" || value == "1");
-		} else if (key == "default_model_id" or key == "llm_url") {
+		} else if (key == "default_model_id" || key == "llm_url") {
 			default_model_id_ = value;
 		} else if (key == "log_all_tool_calls") {
 			log_all_tool_calls_ = (value == "true" || value == "1");
@@ -69,9 +78,21 @@ void config_manager::load()
 	event_logger::get_instance().log("Configuration loaded from " + path);
 }
 
-void config_manager::save()
+void config_manager::save_global()
 {
 	std::string path = get_config_file_path();
+	save_project(path); // Re-use the logic but with the global path
+}
+
+void config_manager::save_project(const std::string &target_path)
+{
+	std::string path = target_path;
+
+	// If it's a directory (like a repo root), append config.ini
+	if (fs::is_directory(path) || (!fs::exists(path) && path.find(".turbostar") == std::string::npos && path.find("config.ini") == std::string::npos)) {
+		path = fs::path(path) / "config.ini";
+	}
+
 	std::ofstream file(path);
 	if (!file.is_open()) {
 		event_logger::get_instance().log("Failed to save configuration to " + path);

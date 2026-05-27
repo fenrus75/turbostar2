@@ -11,8 +11,9 @@ class config_manager
 	static config_manager &get_instance();
 
 	void load();
-	void save();
-
+	void load_from_file(const std::string &path);
+	void save_global();
+	void save_project(const std::string &project_root);
 	std::string get_clang_format_style() const { return clang_format_style_; }
 	void set_clang_format_style(const std::string &style) { clang_format_style_ = style; }
 
