@@ -121,36 +121,33 @@ bool document::load_from_file(const std::string &filename)
 	notify_cursor_changed();
 	return true;
 }
-
-void document::insert_file(const std::string &filename)
+bool document::insert_file(const std::string &filename)
 {
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		event_logger::get_instance().log("Insert File failed: Could not open file " + filename);
-		return;
-	}
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+                event_logger::get_instance().log("Insert File failed: Could not open file " + filename);
+                return false;
+        }
 
-	std::vector<line> block;
-	std::string line_text;
-	while (std::getline(file, line_text)) {
-		block.emplace_back(line_text);
-	}
+        std::vector<line> block;
+        std::string line_text;
+        while (std::getline(file, line_text)) {
+                block.emplace_back(line_text);
+        }
 
-	if (block.empty())
-		return;
+        if (block.empty())
+                return true;
 
-	std::unique_lock lock(mutex_);
-	begin_edit_group();
-	insert_block(block);
-	end_edit_group();
-	set_modified();
-	target_cursor_x_ = cursor_x_;
-	lock.unlock();
-	notify_cursor_changed();
-}
+        std::unique_lock lock(mutex_);
+        begin_edit_group();
+        insert_block(block);
+        end_edit_group();
+        lock.unlock();
+        notify_cursor_changed();
+        return true;
+        }
 
-bool document::save()
-{
+        bool document::save(){
 	std::shared_lock lock(mutex_);
 	std::string fname = filename_;
 	bool modified = modified_;
@@ -394,22 +391,29 @@ std::string document::get_word_under_cursor() const
 
 void document::notify_cursor_changed() const
 {
-	std::string word = get_word_under_cursor();
-	if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
-		last_hover_word_ = word;
-		if (!word.empty()) {
-			project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
-			project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
-		} else {
-			// Clear highlights if we moved off a word
-			std::unique_lock lock2(mutex_);
-			lsp_highlights_.clear();
-			lock2.unlock();
+        std::string word = get_word_under_cursor();
+        bool changed = false;
+        {
+                std::unique_lock lock(mutex_);
+                if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
+                        last_hover_word_ = word;
+                        changed = true;
+                }
+        }
 
-			request_redraw();
-		}
-	}
+        if (changed) {
+                if (!word.empty()) {
+                        project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
+                        project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
+                } else {
+                        // Clear highlights if we moved off a word
+                        std::unique_lock lock2(mutex_);
+                        lsp_highlights_.clear();
+                        lock2.unlock();
 
+                        request_redraw();
+                }
+        }
 	std::shared_lock lock(mutex_);
 	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
 	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cur_disp_x + 1);

@@ -89,61 +89,63 @@ std::vector<line> document::get_selection_block() const
 
 void document::delete_selection()
 {
-	std::unique_lock lock(mutex_);
-	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
-		lock.unlock();
-		notify_cursor_changed();
-		return;
-	}
-
-	int sx, sy, ex, ey;
-	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
-		sx = selection_start_x_;
-		sy = selection_start_y_;
-		ex = selection_end_x_;
-		ey = selection_end_y_;
-	} else {
-		sx = selection_end_x_;
-		sy = selection_end_y_;
-		ex = selection_start_x_;
-		ey = selection_start_y_;
-	}
-
-	begin_edit_group();
-
-	if (sy == ey) {
-		record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
-		for (int i = 0; i < (ex - sx); ++i)
-			lines_[sy]->remove_at(sx);
-		mark_line_dirty(lines_[sy]);
-	} else {
-		record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
-		// Record deletions in reverse order so undo (which reverses) inserts them correctly
-		for (int i = ey; i > sy; --i) {
-			record_action(edit_action::action_type::delete_line, i, lines_[i]);
-		}
-
-		line tail_line("");
-		lines_[ey]->split_at(ex, tail_line);
-		line throwaway("");
-		lines_[sy]->split_at(sx, throwaway);
-		lines_[sy]->merge(tail_line);
-		mark_line_dirty(lines_[sy]);
-		lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
-	}
-
-	end_edit_group();
-
-	cursor_x_ = sx;
-	cursor_y_ = sy;
-	selection_start_x_ = selection_start_y_ = -1;
-	selection_end_x_ = selection_end_y_ = -1;
-	set_modified();
-	target_cursor_x_ = cursor_x_;
-	lock.unlock();
-	notify_cursor_changed();
+        std::unique_lock lock(mutex_);
+        delete_selection_unlocked();
+        lock.unlock();
+        notify_cursor_changed();
 }
 
+void document::delete_selection_unlocked()
+{
+        if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+                return;
+        }
+
+        int sx, sy, ex, ey;
+        if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
+                sx = selection_start_x_;
+                sy = selection_start_y_;
+                ex = selection_end_x_;
+                ey = selection_end_y_;
+        } else {
+                sx = selection_end_x_;
+                sy = selection_end_y_;
+                ex = selection_start_x_;
+                ey = selection_start_y_;
+        }
+
+        begin_edit_group();
+
+        if (sy == ey) {
+                record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
+                for (int i = 0; i < (ex - sx); ++i)
+                        lines_[sy]->remove_at(sx);
+                mark_line_dirty(lines_[sy]);
+        } else {
+                record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
+                // Record deletions in reverse order so undo (which reverses) inserts them correctly
+                for (int i = ey; i > sy; --i) {
+                        record_action(edit_action::action_type::delete_line, i, lines_[i]);
+                }
+
+                line tail_line("");
+                lines_[ey]->split_at(ex, tail_line);
+                line throwaway("");
+                lines_[sy]->split_at(sx, throwaway);
+                lines_[sy]->merge(tail_line);
+                mark_line_dirty(lines_[sy]);
+                lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
+        }
+
+        end_edit_group();
+
+        cursor_x_ = sx;
+        cursor_y_ = sy;
+        selection_start_x_ = selection_start_y_ = -1;
+        selection_end_x_ = selection_end_y_ = -1;
+        set_modified();
+        target_cursor_x_ = cursor_x_;
+}
 void document::copy_selection()
 {
 	std::unique_lock lock(mutex_);
@@ -204,15 +206,12 @@ void document::move_selection()
 
 	begin_edit_group();
 
-	lock.unlock();
-	delete_selection();
-	lock.lock();
+	delete_selection_unlocked();
 
 	cursor_x_ = tx;
 	cursor_y_ = ty;
 	if (cursor_y_ >= line_count_unlocked())
-		cursor_y_ = line_count_unlocked() - 1;
-	int line_len = lines_[cursor_y_]->length_in_chars();
+	        cursor_y_ = line_count_unlocked() - 1;	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_len)
 		cursor_x_ = line_len;
 

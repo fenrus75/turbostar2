@@ -59,8 +59,7 @@ class document
 	~document();
 
 	bool load_from_file(const std::string &filename);
-	void insert_file(const std::string &filename);
-	bool save();
+	bool insert_file(const std::string &filename);	bool save();
 	bool save_to_file(const std::string &filename);
 	void clear();
 	const std::string &get_filename() const;
@@ -122,10 +121,9 @@ class document
 
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;
+	void delete_selection_unlocked();
 
-	void notify_cursor_changed() const;
-
-	bool find_next(const search_params &params, bool is_repeat = false);
+	void notify_cursor_changed() const;	bool find_next(const search_params &params, bool is_repeat = false);
 
 	void format_range(int start_y, int end_y);
 	void format_paragraph();

@@ -36,8 +36,7 @@ void document::end_edit_group()
 		current_action_group_.cursor_y_after = cursor_y_;
 		current_action_group_.cursor_x_after = cursor_x_;
 		undo_stack_.push_back(current_action_group_);
-		if (undo_stack_.size() > max_undo_steps_) {
-			undo_stack_.pop_front();
+		if (undo_stack_.size() > static_cast<size_t>(max_undo_steps_)) {			undo_stack_.pop_front();
 		}
 		redo_stack_.clear();
 		current_action_group_.actions.clear();
@@ -124,12 +123,11 @@ void document::undo()
 
 void document::redo()
 {
-	if (is_read_only())
-		return;
-	std::unique_lock lock(mutex_);
-	if (redo_stack_.empty())
-		return;
-
+        std::unique_lock lock(mutex_);
+        if (read_only_)
+                return;
+        if (redo_stack_.empty())
+                return;
 	is_recording_actions_ = false;
 	action_group group = redo_stack_.back();
 	redo_stack_.pop_back();
