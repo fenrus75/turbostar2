@@ -22,7 +22,8 @@
 
 - set "uv" working directory: 
 
-
+- format markdown block (` `  or ``` ... ```) in a different color/style in the
+  agent output screen (or bold or ..)
 
 - we have a delay at exit -- annoying to the user
 

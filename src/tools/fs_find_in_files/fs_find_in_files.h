@@ -7,6 +7,7 @@
 #include <re2/re2.h>
 #include "../../agentlib/llm_tool.h"
 #include "../../agentlib/tool_validator.h"
+#include "../../agentlib/interactions/tool_interaction.h"
 
 namespace tools {
 
@@ -25,12 +26,14 @@ class fs_find_in_files_tool : public agentlib::llm_tool {
 public:
     explicit fs_find_in_files_tool(fs_find_in_files_args args);
 
+    std::shared_ptr<agentlib::agent_interaction> get_interaction() const override { return interaction_; }
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
 
 private:
     fs_find_in_files_args args_;
     mutable std::unique_ptr<re2::RE2> compiled_regex_;
+    std::shared_ptr<agentlib::interaction_fs_find_in_files> interaction_;
     
     std::string escape_markdown(const std::string& text) const;
 };

@@ -17,6 +17,7 @@ namespace tools {
 fs_find_in_files_tool::fs_find_in_files_tool(fs_find_in_files_args args) : args_(std::move(args)) {
     RE2::Options options;
     compiled_regex_ = std::make_unique<RE2>(args_.pattern, options);
+    interaction_ = std::make_shared<agentlib::interaction_fs_find_in_files>(args_.pattern);
 }
 
 std::string fs_find_in_files_tool::escape_markdown(const std::string& text) const {
@@ -246,7 +247,13 @@ std::string fs_find_in_files_tool::execute(agentlib::tool_context& ctx) {
         }
     }
 
-    return ss.str();
+    std::string result_str = ss.str();
+    interaction_->set_result(result_str);
+    if (ctx.trigger_ui_update) {
+        ctx.trigger_ui_update();
+    }
+
+    return result_str;
 }
 
 } // namespace tools
