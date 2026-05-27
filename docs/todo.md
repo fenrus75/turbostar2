@@ -27,6 +27,7 @@
   full build
 
 - the live agent status window does not seem to update with tokens used anymore
+  -- verified via /stats that the backend atomic counters (tokens_tx, etc.) are remaining at 0. This means `api_formatter.cpp` is failing to parse the `usage` block from OpenAI/Gemini streams.
 
 - need to consider running the e2e tests via "uv" as they use a non-standard pip library
 	- this causes all tests to fail in github, but also in our sandbox
