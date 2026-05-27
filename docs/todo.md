@@ -25,7 +25,6 @@
 - format markdown block (` `  or ``` ... ```) in a different color/style in the
   agent output screen (or bold or ..)
 
-- we have a delay at exit -- annoying to the user
 
 - we need to tackle compaction at some point
    -- we're keeping notes in `docs/compaction.md`
@@ -198,3 +197,4 @@
 
 - fs_find_in_files -- allow an option to get a few lines of context in the return
      - need to decide on error format
+- we have a delay at exit -- annoying to the user
