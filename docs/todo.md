@@ -33,13 +33,6 @@
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
           likewise for compile etc tasks
 
-- take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
-	https://raw.githubusercontent.com/torvalds/linux/refs/heads/master/.clang-format
-	- we should write it out if this style is selected, if there is no clang-format yet
-
-
-
-
 
 - (agent + model options combined with --exit-immediately opens op a set of extra options for testing things, like for memory leaks etc)
 
@@ -207,3 +200,7 @@
 - an --agent "string" command line option that 1) starts in the agent window and 2) sends the "string" as first user message
 
 - a "--model <name>" command line option to pick a specific model as default for sessions
+
+- take the linux-kernel .clang-format, build it into our binary and add a linux-kernel style to the preference dialog for clang-format
+	https://raw.githubusercontent.com/torvalds/linux/refs/heads/master/.clang-format
+	- we should write it out if this style is selected, if there is no clang-format yet

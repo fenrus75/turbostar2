@@ -17,6 +17,7 @@
 #include "project_manager.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
+#include "linux_clang_format.h"
 
 namespace fs = std::filesystem;
 
@@ -74,9 +75,22 @@ void editor::resolve_dialog(dialog_result res)
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "ok" || res_str == "save_global") {
 				apply_settings_from_dialog(*active_dialog_);
-				
-				if (res_str == "save_global") {
-					config_manager::get_instance().save_global();
+
+				// Handle Linux Kernel formatting style special case
+				if (config_manager::get_instance().get_clang_format_style() == "Linux Kernel") {
+					std::string repo_root = git_manager::get_instance().get_repository_root();
+					std::string target_dir = repo_root.empty() ? std::filesystem::current_path().string() : repo_root;
+					std::filesystem::path format_file = std::filesystem::path(target_dir) / ".clang-format";
+					if (!std::filesystem::exists(format_file)) {
+						std::ofstream out(format_file);
+						if (out.is_open()) {
+							out << LINUX_CLANG_FORMAT;
+							event_logger::get_instance().log("Wrote Linux Kernel .clang-format to " + format_file.string());
+						}
+					}
+				}
+
+				if (res_str == "save_global") {					config_manager::get_instance().save_global();
 				} else {
 					std::string cache_root = fs_utils::get_project_cache_root();
 					if (!cache_root.empty()) {
