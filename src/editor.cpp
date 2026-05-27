@@ -20,8 +20,8 @@
 namespace fs = std::filesystem;
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately,
-	       bool no_lsp, bool no_welcome, std::string initial_agent_prompt)
-    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string), initial_agent_prompt_(std::move(initial_agent_prompt))
+	       bool no_lsp, bool no_welcome, std::string initial_agent_prompt, bool fresh_agent)
+    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string), initial_agent_prompt_(std::move(initial_agent_prompt)), fresh_agent_(fresh_agent)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
@@ -132,7 +132,7 @@ void editor::new_agent_window()
 	}
 
 	auto main_agent_win =
-	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this);
+	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this, fresh_agent_);
 
 	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2,
 								"Agent Status", main_agent_win->get_agent(), global_queue_);

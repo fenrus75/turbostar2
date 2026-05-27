@@ -115,7 +115,7 @@ public:
     bool page_in_context(const std::string& milestone_id, int compression_level = 1);
     
     void save_active_state() const;
-    bool load_active_state();
+    bool load_active_state(bool fresh_agent = false);
 
     void load_milestone_index();
     std::string get_memory_index() const;

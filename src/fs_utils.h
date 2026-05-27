@@ -5,6 +5,11 @@
 
 namespace fs_utils {
 	/**
+	 * @brief Sets an override project directory, useful for isolating tests.
+	 */
+	void set_override_project_dir(const std::string& path);
+
+	/**
 	 * @brief Safely returns the absolute path. If a filesystem error occurs, 
 	 * it logs the error and returns the original path as a fallback.
 	 */

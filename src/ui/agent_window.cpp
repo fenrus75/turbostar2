@@ -13,7 +13,7 @@
 using namespace agentlib;
 
 agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_model> model,
-			   event_queue &global_queue, agentlib::document_provider *doc_provider)
+			   event_queue &global_queue, agentlib::document_provider *doc_provider, bool fresh_agent)
     : window(id, x, y, width, height, "Agent Chat")
 {
 	agent_ = ai_agent::create(id, "Agent", std::move(model), &global_queue, doc_provider);
@@ -40,11 +40,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 
 	agent_->inject_context("system", system_prompt);
-	
+
 	// Load the active state from the previous session if it exists.
 	// This inherently gives us Cross-Session Persistence as per the design doc.
-	if (agent_->load_active_state()) {
-		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
+	if (agent_->load_active_state(fresh_agent)) {		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
 	}
 
 	set_background_color_pair(17); // Use cyan background to differentiate from normal editors

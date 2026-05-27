@@ -18,6 +18,12 @@
 
 namespace fs_utils
 {
+static std::string g_override_project_dir;
+
+void set_override_project_dir(const std::string& path) {
+    g_override_project_dir = path;
+}
+
 std::filesystem::path safe_absolute(const std::filesystem::path &p)
 {
 	if (p.empty()) {
@@ -210,8 +216,7 @@ std::string get_global_cache_dir()
 
 std::string get_project_cache_root()
 {
-	const char* test_dir = std::getenv("TURBOSTAR_TEST_PROJECT_DIR");
-	std::string repo_root = test_dir ? test_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
 	        repo_root = std::filesystem::current_path().string();
 	}
@@ -237,8 +242,7 @@ std::string get_project_db_dir()
 }
 std::string get_project_tmp_dir()
 {
-	const char* test_dir = std::getenv("TURBOSTAR_TEST_PROJECT_DIR");
-	std::string repo_root = test_dir ? test_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
 	        repo_root = std::filesystem::current_path().string();
 	}
@@ -261,8 +265,7 @@ std::string get_project_tmp_dir()
 
 	std::string get_project_history_dir(const std::string& agent_name)
 	{
-	const char* test_dir = std::getenv("TURBOSTAR_TEST_PROJECT_DIR");
-	std::string repo_root = test_dir ? test_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
 	        repo_root = std::filesystem::current_path().string();
 	}
@@ -285,8 +288,7 @@ std::string get_project_tmp_dir()
 
 	std::string get_project_dump_dir()
 {
-	const char* test_dir = std::getenv("TURBOSTAR_TEST_PROJECT_DIR");
-	std::string repo_root = test_dir ? test_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
 	        repo_root = std::filesystem::current_path().string();
 	}

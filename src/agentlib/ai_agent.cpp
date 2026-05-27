@@ -146,8 +146,13 @@ void ai_agent::save_active_state() const
 	save_conversation(filepath);
 }
 
-bool ai_agent::load_active_state()
+bool ai_agent::load_active_state(bool fresh_agent)
 {
+	if (fresh_agent) {
+		event_logger::get_instance().log("--fresh-agent is set, skipping history load.");
+		return false;
+	}
+
 	load_milestone_index();
 
 	std::string history_dir = fs_utils::get_project_history_dir(name_);

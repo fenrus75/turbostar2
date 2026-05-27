@@ -34,12 +34,16 @@ int main(int argc, char **argv)
 	std::string debug_string;
 	std::string agent_prompt;
 	std::string override_model_id;
+	std::string project_dir;
+	bool fresh_agent = false;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
+	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
+	app.add_option("--project-dir", project_dir, "Override the project directory (useful for testing isolated environments)");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("--agent", agent_prompt, "Start an agent window immediately and send this prompt");
@@ -68,6 +72,11 @@ int main(int argc, char **argv)
 	}
 
 	CLI11_PARSE(app, argc, argv);
+
+	if (!project_dir.empty()) {
+		fs_utils::set_override_project_dir(project_dir);
+	}
+	
 
 	config_manager::get_instance().load();
 	agentlib::skill_manager::get_instance().initialize();
@@ -197,7 +206,7 @@ int main(int argc, char **argv)
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
 
-	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome, agent_prompt);
+	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome, agent_prompt, fresh_agent);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");
