@@ -411,8 +411,9 @@ bool agent_window::process_events()
 				if (key == 27) {
 					agent_->cancel_current_task();
 					needs_render = true;
+					continue;
 				}
-				continue; // Ignore input while waiting
+				// We no longer block input while waiting! Users can queue up responses.
 			}
 
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
@@ -439,9 +440,6 @@ bool agent_window::process_events()
 				needs_render = true;
 			}
 		} else if (ev->type == event_type::paste) {
-			if ((agent_->get_status() != agent_status::idle)) {
-				continue; // Ignore input while waiting
-			}
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}

@@ -720,6 +720,18 @@ void ai_agent::start_processing()
 				self->set_status(agent_status::thinking);
 			} else {
 				final_response = response_msg.content;
+				
+				bool more_user_input = false;
+				{
+				    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				    if (last_synced_index < self->conversation_.size()) {
+				        more_user_input = true;
+				    }
+				}
+				if (more_user_input) {
+				    continue; // Loop around to instantly process the queued user prompt!
+				}
+				
 				break;
 			}
 		}

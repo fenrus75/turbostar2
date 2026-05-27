@@ -39,9 +39,6 @@
 - we need to tackle compaction at some point
    -- we're keeping notes in `docs/compaction.md`
 
-- can't type at all in the AI agent window when the agent is thinking -- better to let the user type and queue up the response
-	-- otherwise / commands do not work, including /save
-
 - git_add tool and git_commit tool for files that are in the editor but not saved -- we need to decide   
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
 
@@ -166,6 +163,7 @@
 # done items (move items here on completion)
 
 ## 26-05-2026
+- can't type at all in the AI agent window when the agent is thinking -- better to let the user type and queue up the response
 - build fail: meson does not check for "dtl" being installed
 - cut and pasting into the AI agent window prompt does not work
 - critical: In the various git commands, we check branch names etc for correctness but we must accept HEAD~1 and the like, today we reject this due to the ~ character!
