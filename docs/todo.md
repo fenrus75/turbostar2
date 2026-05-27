@@ -5,6 +5,8 @@
 
 - fs_find_in_files pretty print the output  -- gemini likes to call this
 
+- fs_find_in_files -- allow an option to get a few lines of context in the return
+
 - perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
 
 - github copilot oauth authentication
