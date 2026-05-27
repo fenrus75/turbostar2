@@ -26,8 +26,8 @@ int main(int argc, char **argv)
 	std::string project_dir = "";
 	long long mock_epoch = 0;
 
-	app.add_option("-p,--prompt", prompt, "The initial user prompt to send to the agent");
-	app.add_option("-r,--replay", replay_file, "Traffic file for replay/record modes");
+	app.add_option("prompt,-p,--prompt", prompt, "The initial user prompt to send to the agent");
+	app.add_option("replay,-r,--replay", replay_file, "Traffic file for replay/record modes");
 	app.add_option("--dump-state", dump_state_file, "Dump the final conversation state to this JSON file before exiting");
 	app.add_option("--project-dir", project_dir, "Override the project root directory for isolated sandboxing");
 	app.add_option("--mock-epoch", mock_epoch, "Force a deterministic timestamp for milestone archives");
@@ -69,9 +69,11 @@ int main(int argc, char **argv)
 	ctx.active_agent = test_agent.get();
 
 	agentlib::skill_manager::get_instance().initialize();
-	ctx.fs_security.set_working_directory(std::filesystem::current_path());
-	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
-	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::write);
+	
+	std::filesystem::path workspace_root = project_dir.empty() ? std::filesystem::current_path() : std::filesystem::path(project_dir);
+	ctx.fs_security.set_working_directory(workspace_root);
+	ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
+	ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
 	ctx.fs_security.set_vfs(agentlib::skill_manager::get_instance().get_vfs());
 
 	std::cout << "Connecting to: " << url << std::endl;

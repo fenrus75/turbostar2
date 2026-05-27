@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 	std::string log_file;
 	bool debug_mode = false;
 	bool no_lsp = false;
+	bool no_welcome = false;
 	double exit_immediately = -1.0;
 	std::string debug_string;
 	std::vector<std::string> filenames;
@@ -35,6 +36,7 @@ int main(int argc, char **argv)
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
+	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
 	app.add_option("filenames", filenames, "Files to edit");
@@ -177,7 +179,7 @@ int main(int argc, char **argv)
 
 	project_manager::get_instance().initialize();
 
-	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp);
+	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");

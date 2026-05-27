@@ -45,6 +45,10 @@ def create_traffic_file(tmp_path, name, responses):
     return path
 
 def test_ephemeral_error_zapping(tmp_path):
+    mock_file = os.path.join(tmp_path, "mock_file.txt")
+    with open(mock_file, "w") as f:
+        f.write("mock content\nline 2")
+
     # Mock sequence: 
     # 1. Agent makes bad tool call
     # 2. Agent makes good tool call (same tool)
@@ -57,7 +61,7 @@ def test_ephemeral_error_zapping(tmp_path):
         {
             "role": "assistant",
             "content": "Oops, my bad. Let me fix that.",
-            "tool_calls": [{"id": "call_2", "type": "function", "function": {"name": "fs_read_lines", "arguments": "{\"path\":\"tests/unit/test_fs_file_size.cpp\"}"}}]
+            "tool_calls": [{"id": "call_2", "type": "function", "function": {"name": "fs_read_lines", "arguments": "{\"path\":\"mock_file.txt\"}"}}]
         }
     ])
     
@@ -66,8 +70,10 @@ def test_ephemeral_error_zapping(tmp_path):
     
     # Verify the stats
     stats = state.get("stats", {})
-    assert stats.get("ephemeral_errors_zapped", 0) == 1
-    
+    if stats.get("ephemeral_errors_zapped", 0) != 1:
+        print(f"STDOUT:\n{stdout}")
+        print(f"STATE:\n{state}")
+        assert False, "ephemeral_errors_zapped was not 1"    
     # Verify conversation history
     conv = state.get("conversation", [])
     # 1 system, 1 user, 1 assistant (stripped), 1 tool success

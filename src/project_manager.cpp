@@ -62,28 +62,25 @@ void project_manager::initialize()
 
 static bool is_header(const fs::path &path)
 {
-	static const std::set<std::string> header_exts = {".h", ".hpp", ".hh", ".hxx"};
-	return header_exts.contains(path.extension().string());
+	std::string ext = path.extension().string();
+	return ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx";
 }
 
 static bool is_source(const fs::path &path)
 {
-	static const std::set<std::string> source_exts = {".c", ".cpp", ".cc", ".cxx", ".py", ".go", ".rs", ".js", ".ts",
-							  ".java", ".sh"};
-	return source_exts.contains(path.extension().string());
+	std::string ext = path.extension().string();
+	return ext == ".c" || ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" || 
+	       ext == ".go" || ext == ".rs" || ext == ".js" || ext == ".ts" || ext == ".java" || ext == ".sh";
 }
-
 static bool is_doc_config(const fs::path &path)
 {
-	static const std::set<std::string> doc_exts = {".md", ".txt", ".json", ".yaml", ".yml", ".toml"};
-	static const std::set<std::string> doc_files = {"meson.build", "CMakeLists.txt", "Makefile", "Dockerfile", "GEMINI.md",
-							"AGENTS.md"};
+	std::string ext = path.extension().string();
+	if (ext == ".md" || ext == ".txt" || ext == ".json" || ext == ".yaml" || ext == ".yml" || ext == ".toml")
+		return true;
 
-	if (doc_exts.contains(path.extension().string()))
-		return true;
-	if (doc_files.contains(path.filename().string()))
-		return true;
-	return false;
+	std::string filename = path.filename().string();
+	return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "Makefile" ||
+	       filename == "Dockerfile" || filename == "GEMINI.md" || filename == "AGENTS.md";
 }
 
 void project_manager::inventory_project(std::stop_token stop)
@@ -97,8 +94,10 @@ void project_manager::inventory_project(std::stop_token stop)
 	int dir_count = 0;
 
 	// Initial set of potential key files in root
-	static const std::set<std::string> root_key_filenames = {"meson.build", "CMakeLists.txt", "configure.ac", "Makefile",
-								 "README.md",   "TODO.md"};
+	auto is_root_key_file = [](const std::string& filename) {
+		return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "configure.ac" || 
+		       filename == "Makefile" || filename == "README.md" || filename == "TODO.md";
+	};
 
 	try {
 		for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied);
@@ -133,7 +132,7 @@ void project_manager::inventory_project(std::stop_token stop)
 					continue;
 
 				// Check for root-level key files
-				if (path.parent_path() == root && root_key_filenames.contains(filename)) {
+				if (path.parent_path() == root && is_root_key_file(filename)) {
 					key_files.push_back(filename);
 				}
 

@@ -53,7 +53,7 @@ class TurbostarRunner:
         exe_path = './turbostar'
         log_path_abs = os.path.abspath(self.log_path)
 
-        cmd = [exe_path, '--log', log_path_abs]
+        cmd = [exe_path, '--log', log_path_abs, '--no-welcome-screen']
         if not use_lsp:
             cmd.append('--no-lsp')
 

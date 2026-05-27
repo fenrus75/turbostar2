@@ -20,7 +20,7 @@
 namespace fs = std::filesystem;
 
 editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately,
-	       bool no_lsp)
+	       bool no_lsp, bool no_welcome)
     : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string)
 {
 	history_manager::get_instance().load();
@@ -43,15 +43,16 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 				loaded_files = true;
 			}
 		} 
-		
+
 		if (!loaded_files) {
 			new_window("");
-			active_dialog_ = create_welcome_dialog();
-			active_dialog_mode_ = dialog_mode::welcome;
-			set_focus(focus_target::dialog, "welcome");
+			if (!no_welcome) {
+				active_dialog_ = create_welcome_dialog();
+				active_dialog_mode_ = dialog_mode::welcome;
+				set_focus(focus_target::dialog, "welcome");
+			}
 		}
-	} else {
-		for (const auto &f : filenames) {
+	} else {		for (const auto &f : filenames) {
 			new_window(f);
 		}
 	}

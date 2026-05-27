@@ -469,18 +469,27 @@ void editor::dispatch_event_key(const editor_event &ev)
 		if (ev.key_code == 11) { // Ctrl-K
 			logger.log("Entering K-block mode.");
 			k_block_mode_ = true;
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 			return;
 		}
 
 		if (ev.key_code == 17) { // Ctrl-Q
 			logger.log("Entering Q-block mode.");
 			q_block_mode_ = true;
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 			return;
 		}
 
 		if (ev.key_code == 16) { // Ctrl-P
 			logger.log("Entering P-block mode.");
 			p_block_mode_ = true;
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
 			return;
 		}
 		if (ev.key_code == 31) { // Ctrl-_ (Undo)

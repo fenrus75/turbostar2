@@ -31,7 +31,7 @@ enum class focus_target { menu_bar, window, dialog, popup };
 class editor : public agentlib::document_provider
 {
       public:
-	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately, bool no_lsp = false);
+	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately, bool no_lsp = false, bool no_welcome = false);
 	~editor();
 
 	/**

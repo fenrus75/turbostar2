@@ -226,7 +226,7 @@ std::string fs_read_lines_tool::read_from_disk(size_t &out_total_lines) const
 	out_total_lines = 0;
 	struct stat sb;
 	if (stat(args_.safe_path.c_str(), &sb) == -1) {
-		return "Error: File does not exist or cannot be accessed.";
+		return "Error: File does not exist or cannot be accessed: " + args_.safe_path;
 	}
 
 	// Skip excessively large files to prevent RAM exhaustion
