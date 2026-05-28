@@ -115,6 +115,7 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- implemented visual memory compaction progress bar and token budget display on the horizontal separator line in the AI agent window.
 - built the background `compaction_engine` (memory eviction decision engine) using progressive tiered compaction and LRU access sequencing to dynamically page out/evict history down to target token budgets.
 - refactored context compaction, boundary tracking, and standardized episode states with `set_episode_state` allowing level 0-2 shifts and level 99 eviction.
 - implemented a new `agent_set_timer(seconds)` tool that runs a background timer and injects a `"previously set timer expired"` system message when it fires if the agent is idle.
