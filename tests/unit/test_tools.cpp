@@ -111,8 +111,10 @@ int main() {
     auto convo_after_evict = agent->get_conversation();
     bool found_anchor_again = false;
     for (const auto& msg : convo_after_evict) {
-        // Turns should be gone (no msg should have episode_id == "episode_2")
-        assert(msg.episode_id != "episode_2");
+        // Turns should be gone (no active level 0-2 turns should remain; only the level 99 anchor is allowed)
+        if (msg.episode_id == "episode_2") {
+            assert(msg.episode_level == 99);
+        }
         if (msg.role == "system" && msg.content.find("Raw history archive: episode_2") != std::string::npos) {
             found_anchor_again = true;
         }

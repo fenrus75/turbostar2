@@ -47,6 +47,12 @@ struct episode_index_entry {
     int tokens_level_2{0}; // Think-Free (Native + Pseudo)
 };
 
+struct compaction_segment {
+    std::string label;
+    int uncompacted_tokens{0};
+    int current_level{0};
+};
+
 class ai_agent : public std::enable_shared_from_this<ai_agent> {
 public:
     static std::shared_ptr<ai_agent> create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
@@ -86,6 +92,8 @@ public:
     int get_tokens_tx() const { return tokens_tx_; }
     int get_tokens_rx() const { return tokens_rx_; }
     int get_tokens_cached() const { return tokens_cached_; }
+    int get_active_tokens() const { return active_tokens_.load(); }
+    std::vector<compaction_segment> get_compaction_segments() const;
     double get_estimated_cost() const { return estimated_cost_; }
     void add_active_skill(const std::string& skill_name);
     std::vector<std::string> get_active_skills() const;
@@ -171,6 +179,7 @@ private:
     std::atomic<int> tokens_tx_{0};
     std::atomic<int> tokens_rx_{0};
     std::atomic<int> tokens_cached_{0};
+    std::atomic<int> active_tokens_{0};
     std::atomic<double> estimated_cost_{0.0};
 
     mutable std::mutex stats_mutex_;

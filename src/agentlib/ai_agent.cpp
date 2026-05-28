@@ -136,6 +136,8 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			message anchor_msg;
 			anchor_msg.role = "system";
 			anchor_msg.content = pointer_msg.str();
+			anchor_msg.episode_id = episode_id;
+			anchor_msg.episode_level = 99;
 
 			auto next_it = conversation_.erase(first_it, last_it);
 			conversation_.insert(next_it, anchor_msg);
@@ -1189,6 +1191,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     message summary_msg;
     summary_msg.role = "system";
     summary_msg.content = pointer_msg.str();
+    summary_msg.episode_id = episode_id;
+    summary_msg.episode_level = 99;
 
     conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
     conversation_.insert(conversation_.begin() + start_index, summary_msg);
@@ -1529,6 +1533,8 @@ void ai_agent::evaluate_compaction()
 			}
 		}
 
+		active_tokens_.store(current_active_tokens);
+
 		if (current_active_tokens <= upper_bound) {
 			return; // No compaction needed
 		}
@@ -1659,6 +1665,69 @@ void ai_agent::summary_worker_loop()
         }
     }
     event_logger::get_instance().log("Thread exited: ai_agent summary worker");
+}
+
+std::vector<compaction_segment> ai_agent::get_compaction_segments() const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	std::vector<compaction_segment> segments;
+
+	std::string current_ep_id = "";
+	compaction_segment current_seg;
+	bool in_episode = false;
+
+	for (const auto& msg : conversation_) {
+		if (!msg.episode_id.empty()) {
+			if (in_episode && msg.episode_id == current_ep_id) {
+				if (msg.episode_level != -1) {
+					current_seg.current_level = msg.episode_level;
+				}
+			} else {
+				if (!current_ep_id.empty() || in_episode) {
+					segments.push_back(current_seg);
+				}
+				current_ep_id = msg.episode_id;
+				in_episode = true;
+				current_seg.label = "";
+				current_seg.uncompacted_tokens = 0;
+				current_seg.current_level = (msg.episode_level != -1) ? msg.episode_level : 0;
+
+				auto it = episode_index_.find(current_ep_id);
+				if (it != episode_index_.end()) {
+					current_seg.label = it->second.title;
+					current_seg.uncompacted_tokens = it->second.tokens_level_0;
+				} else {
+					current_seg.label = current_ep_id;
+					current_seg.uncompacted_tokens = 0;
+				}
+			}
+		} else {
+			int msg_tokens = compaction_engine::estimate_message_tokens(msg);
+			if (!in_episode && !segments.empty() && segments.back().label == "Recent") {
+				segments.back().uncompacted_tokens += msg_tokens;
+			} else {
+				if (in_episode || !current_ep_id.empty()) {
+					segments.push_back(current_seg);
+					in_episode = false;
+					current_ep_id = "";
+				}
+				if (!segments.empty() && segments.back().label == "Recent") {
+					segments.back().uncompacted_tokens += msg_tokens;
+				} else {
+					compaction_segment recent_seg;
+					recent_seg.label = "Recent";
+					recent_seg.uncompacted_tokens = msg_tokens;
+					recent_seg.current_level = 0;
+					segments.push_back(recent_seg);
+				}
+			}
+		}
+	}
+	if (in_episode || !current_ep_id.empty()) {
+		segments.push_back(current_seg);
+	}
+
+	return segments;
 }
 
 } // namespace agentlib

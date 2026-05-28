@@ -1,7 +1,10 @@
 #include "ui/agent_window.h"
 #include "event_logger.h"
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
 #include <ncurses.h>
+#include <sstream>
 #include <nlohmann/json.hpp>
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
@@ -788,9 +791,99 @@ void agent_window::draw_content() const
 		int input_box_y = y_ + height_ - 4;
 		int separator_y = input_box_y - 1;
 
-		attrset(COLOR_PAIR(get_background_color_pair()));
-		for (int i = 0; i < max_width; ++i) {
-			mvaddch(separator_y, start_x + i, ACS_HLINE);
+		int active_tokens = 0;
+		int max_tokens = 250000;
+		std::vector<compaction_segment> segments;
+		if (agent_) {
+			active_tokens = agent_->get_active_tokens();
+			if (agent_->get_model()) {
+				max_tokens = agent_->get_model()->get_max_context_tokens();
+			}
+			segments = agent_->get_compaction_segments();
+		}
+
+		int total_uncompacted = 0;
+		for (const auto& seg : segments) {
+			total_uncompacted += seg.uncompacted_tokens;
+		}
+
+		if (total_uncompacted <= 0) {
+			attrset(COLOR_PAIR(get_background_color_pair()));
+			for (int i = 0; i < max_width; ++i) {
+				mvaddch(separator_y, start_x + i, ACS_HLINE);
+			}
+		} else {
+			struct col_info {
+				std::string utf8_char{"\xE2\x94\x80"};
+				int color_pair{3};
+			};
+			std::vector<col_info> cols(max_width);
+			for (int i = 0; i < max_width; ++i) {
+				cols[i].color_pair = get_background_color_pair();
+			}
+
+			int accumulated_chars = 0;
+			for (size_t idx = 0; idx < segments.size(); ++idx) {
+				const auto& seg = segments[idx];
+				int seg_width = static_cast<int>(std::round(static_cast<double>(seg.uncompacted_tokens) / total_uncompacted * max_width));
+				int start_col = accumulated_chars;
+				accumulated_chars += seg_width;
+				int end_col = (idx == segments.size() - 1) ? max_width : accumulated_chars;
+				if (end_col > max_width) end_col = max_width;
+				if (start_col > max_width) start_col = max_width;
+
+				std::string utf8_char = "\xE2\x94\x80";
+				int cp = get_background_color_pair();
+
+				if (seg.current_level == 0) {
+					utf8_char = "\xE2\x96\x88"; // █
+					cp = 30;
+				} else if (seg.current_level == 1) {
+					utf8_char = "\xE2\x96\x92"; // ▒
+					cp = 21;
+				} else if (seg.current_level == 2) {
+					utf8_char = "\xE2\x96\x91"; // ░
+					cp = 32;
+				} else if (seg.current_level == 99) {
+					utf8_char = "\xC2\xB7"; // ·
+					cp = 4;
+				}
+
+				for (int col = start_col; col < end_col; ++col) {
+					cols[col] = {utf8_char, cp};
+				}
+			}
+
+			auto format_tokens = [](int tokens) -> std::string {
+				if (tokens >= 1000) {
+					double k = tokens / 1000.0;
+					if (k >= 100.0) {
+						return std::to_string(static_cast<int>(std::round(k))) + "k";
+					} else {
+						std::stringstream ss;
+						ss << std::fixed << std::setprecision(1) << k << "k";
+						return ss.str();
+					}
+				}
+				return std::to_string(tokens);
+			};
+
+			std::string budget_text = " [ " + format_tokens(active_tokens) + " / " + format_tokens(max_tokens) + " ] ";
+			int budget_len = budget_text.length();
+			int budget_start_col = max_width - budget_len - 2;
+			if (budget_start_col < 0) {
+				budget_start_col = 0;
+			}
+
+			for (int col = 0; col < max_width; ++col) {
+				if (col >= budget_start_col && col < budget_start_col + budget_len) {
+					attrset(COLOR_PAIR(5));
+					mvprintw(separator_y, start_x + col, "%c", budget_text[col - budget_start_col]);
+				} else {
+					attrset(COLOR_PAIR(cols[col].color_pair));
+					mvprintw(separator_y, start_x + col, "%s", cols[col].utf8_char.c_str());
+				}
+			}
 		}
 
 		input_box_->set_bounds(start_x, input_box_y, max_width, 3);
