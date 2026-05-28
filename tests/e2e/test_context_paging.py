@@ -83,6 +83,11 @@ def test_context_paging(tmp_path):
     assert len(milestones) >= 3, f"Expected at least 3 milestones, found {len(milestones)}"
 
 if __name__ == "__main__":
+    import sys
+    if os.environ.get("RUN_SLOW_E2E") != "1":
+        print("Skipping slow test. Set RUN_SLOW_E2E=1 to run.")
+        sys.exit(77)
+
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         test_context_paging(tmpdirname)
