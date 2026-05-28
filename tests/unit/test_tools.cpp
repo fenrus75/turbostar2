@@ -144,6 +144,77 @@ int main() {
     assert(planned[0].target_level == 1);
     std::cout << "Compaction engine planning logic verified successfully!" << std::endl;
 
+    std::cout << "\nTesting tool call boundary protection during page_out_context..." << std::endl;
+    {
+        auto agent3 = ai_agent::create(3, "TestAgent3", model, &q, nullptr);
+        std::vector<message> convo;
+        // 0: system prompt
+        message sys_msg;
+        sys_msg.role = "system";
+        sys_msg.content = "System prompt";
+        convo.push_back(sys_msg);
+
+        // 1: enter_plan_mode assistant message with tool call
+        message ast_enter;
+        ast_enter.role = "assistant";
+        ast_enter.content = "Enter plan mode";
+        tool_call tc_enter;
+        tc_enter.id = "call_enter";
+        tc_enter.function.name = "enter_plan_mode";
+        tc_enter.function.arguments = "{}";
+        ast_enter.tool_calls = {tc_enter};
+        convo.push_back(ast_enter);
+        
+        // 2: enter_plan_mode tool response
+        message tool_enter;
+        tool_enter.role = "tool";
+        tool_enter.tool_call_id = "call_enter";
+        tool_enter.name = "enter_plan_mode";
+        tool_enter.content = "Entered plan mode.";
+        convo.push_back(tool_enter);
+
+        // 3: user message inside plan mode
+        message user_msg;
+        user_msg.role = "user";
+        user_msg.content = "Some research";
+        convo.push_back(user_msg);
+
+        // 4: exit_plan_mode assistant message with tool call
+        message ast_exit;
+        ast_exit.role = "assistant";
+        ast_exit.content = "Exit plan mode";
+        tool_call tc_exit;
+        tc_exit.id = "call_exit";
+        tc_exit.function.name = "exit_plan_mode";
+        tc_exit.function.arguments = "{}";
+        ast_exit.tool_calls = {tc_exit};
+        convo.push_back(ast_exit);
+
+        agent3->set_conversation(convo);
+
+        // Page out context from index 2 to 5.
+        // Index 2 is the tool response of enter_plan_mode (part of [1, 2]).
+        // Index 4 is the assistant message of exit_plan_mode (part of [4, 5] since response is pending).
+        agent3->page_out_context(2, 5, "Plan Archive", "Testing plan archiving", {"test"});
+
+        auto resulting_convo = agent3->get_conversation();
+        std::cout << "Resulting conversation size: " << resulting_convo.size() << std::endl;
+        for (size_t i = 0; i < resulting_convo.size(); ++i) {
+            std::cout << i << ": " << resulting_convo[i].role << " - " << resulting_convo[i].content.substr(0, 40) << std::endl;
+        }
+
+        assert(resulting_convo.size() == 5);
+        assert(resulting_convo[1].role == "assistant");
+        assert(resulting_convo[1].tool_calls && resulting_convo[1].tool_calls->at(0).id == "call_enter");
+        assert(resulting_convo[2].role == "tool");
+        assert(resulting_convo[2].tool_call_id == "call_enter");
+        assert(resulting_convo[3].role == "system" && resulting_convo[3].content.find("Episode Archived") != std::string::npos);
+        assert(resulting_convo[4].role == "assistant");
+        assert(resulting_convo[4].tool_calls && resulting_convo[4].tool_calls->at(0).id == "call_exit");
+        std::cout << "Tool call boundary protection verified successfully!" << std::endl;
+    }
+
     std::cout << "\nAll test tools verified!" << std::endl;
     return 0;
 }
+

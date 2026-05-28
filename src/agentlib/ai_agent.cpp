@@ -1112,12 +1112,74 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
 
-    // Adjust boundaries to avoid splitting assistant tool calls and their responses
-    while (start_index < end_index && conversation_[start_index].role == "tool") {
-        start_index++;
+    // Identify all tool call groups in conversation_
+    // A group is a pair of {g_start, g_end} (inclusive)
+    // If a tool call in the assistant message is missing a response in the current conversation,
+    // the group is pending and extends to the current end of the conversation (g_end = conversation_.size()).
+    std::vector<std::pair<size_t, size_t>> tool_groups;
+    for (size_t i = 0; i < conversation_.size(); ++i) {
+        if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
+            size_t g_start = i;
+            size_t g_end = i;
+            bool has_pending = false;
+            std::set<std::string> ids;
+            for (const auto& tc : *conversation_[i].tool_calls) {
+                ids.insert(tc.id);
+            }
+            
+            for (size_t j = i + 1; j < conversation_.size(); ++j) {
+                if (conversation_[j].role == "tool" && conversation_[j].tool_call_id && ids.count(*conversation_[j].tool_call_id) > 0) {
+                    g_end = j;
+                }
+            }
+            
+            for (const auto& tc : *conversation_[i].tool_calls) {
+                bool found = false;
+                for (size_t j = i + 1; j < conversation_.size(); ++j) {
+                    if (conversation_[j].role == "tool" && conversation_[j].tool_call_id && *conversation_[j].tool_call_id == tc.id) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    has_pending = true;
+                    break;
+                }
+            }
+            
+            if (has_pending) {
+                g_end = conversation_.size();
+            }
+            
+            tool_groups.push_back({g_start, g_end});
+        }
     }
-    while (end_index < conversation_.size() && conversation_[end_index].role == "tool") {
-        end_index++;
+
+    // Adjust boundaries iteratively until no partial intersection remains
+    bool adjusted = true;
+    while (adjusted) {
+        adjusted = false;
+        for (const auto& group : tool_groups) {
+            size_t g_start = group.first;
+            size_t g_end = group.second;
+
+            if (start_index < end_index) {
+                size_t active_end = end_index - 1;
+                if (g_start <= active_end && g_end >= start_index) {
+                    if (g_start >= start_index && g_end <= active_end) {
+                        continue;
+                    }
+                    if (g_start < start_index) {
+                        start_index = g_end + 1;
+                        adjusted = true;
+                    }
+                    if (g_end > active_end) {
+                        end_index = g_start;
+                        adjusted = true;
+                    }
+                }
+            }
+        }
     }
 
     if (start_index >= end_index || end_index > conversation_.size()) return;
@@ -1357,7 +1419,7 @@ void ai_agent::page_out_prior_context(const std::string& target_episode_id, bool
         // We look for either the tool result from agent_mark_episode OR a previously injected pointer.
         for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
             if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_episode") {
-                end_index = i;
+                end_index = i + 1;
                 break;
             }
             if (conversation_[i].role == "system" && conversation_[i].content.find("Episode Archived") != std::string::npos) {
@@ -1505,6 +1567,13 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
     }
 
     if (recent_chars > 192000) {
+        if (!convo.empty()) {
+            const auto& last_msg = convo.back();
+            if (last_msg.role == "tool" || (last_msg.role == "assistant" && last_msg.tool_calls && !last_msg.tool_calls->empty())) {
+                // Wait until the conversation is back to a quiet state before inserting the marker
+                return;
+            }
+        }
         event_logger::get_instance().log("Context size exceeds 48k tokens. Forcing auto-episode boundary.");
         {
             std::lock_guard<std::mutex> lock(conversation_mutex_);

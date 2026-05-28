@@ -30,7 +30,8 @@ std::string enter_plan_mode_tool::execute(agentlib::tool_context& ctx)
         return "You are already in Plan Mode.";
     }
 
-    size_t current_index = ctx.active_agent->get_conversation().size();
+    size_t convo_size = ctx.active_agent->get_conversation().size();
+    size_t current_index = convo_size > 0 ? convo_size - 1 : 0;
     ctx.active_agent->set_planning(true, current_index);
 
     return "Plan Mode entered. You may now explore the codebase using read-only tools to formulate a plan.";
