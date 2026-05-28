@@ -138,5 +138,7 @@ tools_sources = files(
   'flag_as_error/flag_as_error_entry.cpp',
   'flag_as_error/flag_as_error_security.cpp',
   'clear_all_errors/clear_all_errors_entry.cpp',
-  'clear_all_errors/clear_all_errors_security.cpp'
+  'clear_all_errors/clear_all_errors_security.cpp',
+  'agent_set_timer/agent_set_timer_entry.cpp',
+  'agent_set_timer/agent_set_timer_security.cpp'
 )

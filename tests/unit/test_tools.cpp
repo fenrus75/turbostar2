@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/ai_agent.h"
 #include "../../src/project_manager.h"
 #include "../../src/config_manager.h"
 #include "../../src/git_manager.h"
@@ -35,6 +36,14 @@ int main() {
     assert(run_result.find("meson test") != std::string::npos);
     assert(run_result.find("unit_event_logger") != std::string::npos);
     assert(run_result.find("OK") != std::string::npos || run_result.find("PASS") != std::string::npos || run_result.find("exit status 0") != std::string::npos);
+
+    std::cout << "\nTesting agent_set_timer..." << std::endl;
+    auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+    auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
+    ctx.active_agent = agent.get();
+    std::string timer_result = registry.execute_tool("agent_set_timer", "{\"seconds\": 1}", ctx);
+    std::cout << "Result:\n" << timer_result << std::endl;
+    assert(timer_result.find("Timer set for 1 seconds.") != std::string::npos);
 
     std::cout << "\nAll test tools verified!" << std::endl;
     return 0;

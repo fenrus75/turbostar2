@@ -94,6 +94,29 @@ void test_tool_call_recovery()
 	assert(convo2[5].role == "assistant");
 	assert(convo2[5].content == "Follow-up answer");
 
+	// 6. Test orphaned tool response discarding
+	nlohmann::json mock_state_orphaned = {
+		{"conversation", nlohmann::json::array({
+			{{"role", "system"}, {"content", "System prompt"}},
+			{{"role", "user"}, {"content", "Hello"}},
+			{{"role", "tool"}, {"content", "Orphaned tool response"}, {"tool_call_id", "call_orphan"}, {"name", "fs_read_lines"}}
+		})}
+	};
+
+	std::ofstream out3(filepath);
+	out3 << mock_state_orphaned.dump();
+	out3.close();
+
+	auto agent3 = agentlib::ai_agent::create(1, "TestAgent", model, &q, nullptr);
+	bool loaded3 = agent3->load_active_state();
+	assert(loaded3);
+
+	auto convo3 = agent3->get_conversation();
+	// Convo3 should have only 2 messages: system, user. The orphaned tool response must be discarded!
+	assert(convo3.size() == 2);
+	assert(convo3[0].role == "system");
+	assert(convo3[1].role == "user");
+
 	// Clean up
 	std::filesystem::remove_all(test_dir);
 	std::cout << "test_tool_call_recovery unit test passed successfully!" << std::endl;

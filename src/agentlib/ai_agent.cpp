@@ -226,9 +226,12 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				}
 			}
 
-			// 3. Append any orphan tool responses just in case (should not happen in valid states)
-			for (const auto& pair : tool_responses) {
-				normalized_convo.push_back(pair.second);
+			// 3. Discard any orphan tool responses to prevent API sequencing violations.
+			// These are tool messages that have no matching assistant tool call in the loaded context
+			// (e.g. because the assistant message was paged out / compressed).
+			if (!tool_responses.empty()) {
+				event_logger::get_instance().log("Discarded " + std::to_string(tool_responses.size()) +
+					" orphaned tool response(s) with no matching assistant tool call in active context.");
 			}
 
 			conversation_ = std::move(normalized_convo);

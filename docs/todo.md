@@ -12,8 +12,7 @@
 - it is getting unwieldy to pass a series of bools down to the editor constructor for each new command line options
      - we should just make a struct for them all, so that we just add to the struct in the future
 
-- a new tool call   set_timer(timeout in seconds)
-	what it does is, internally we set a timer, and when the timeout triggers, IF the agent is idle, we inject a new system message with "previously set timer expired", which allows the agent to resume execution
+
 
 - give fs_compile* an "async" optional parameter
 
@@ -117,6 +116,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 28-05-28
+- implemented a new `agent_set_timer(seconds)` tool that runs a background timer and injects a `"previously set timer expired"` system message when it fires if the agent is idle.
 
 ## 27-05-2026
 - critical: run_shell_command needs a timeout value as optional argument, default 300

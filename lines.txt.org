@@ -1,0 +1,10 @@
+line 1  a random poem
+line 2  the mouse is in the house
+line 3  cars drive on roads
+line 4	the world is a blue sphere
+line 5  agents run the world
+line 6  the soccer world cup is in June
+line 7  the tree is leaning a lot
+line 8  wind blowing through the foliage
+line 9  driveway paint glimmers in the night
+
