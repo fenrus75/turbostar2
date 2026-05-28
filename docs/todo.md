@@ -115,6 +115,7 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- implemented automatic injection of the archived episodes summary table at startup for new agent sessions to ensure context awareness of paged out history.
 - implemented the `agent_list_episodes` tool returning a 2-column markdown table showing episode IDs and reactivation hints.
 - implemented visual memory compaction progress bar and token budget display on the horizontal separator line in the AI agent window.
 - built the background `compaction_engine` (memory eviction decision engine) using progressive tiered compaction and LRU access sequencing to dynamically page out/evict history down to target token budgets.
