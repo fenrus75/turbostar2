@@ -26,11 +26,19 @@ std::string agent_list_episodes_tool::execute(agentlib::tool_context &ctx)
 
 	std::vector<const agentlib::episode_index_entry*> sorted;
 	for (const auto &pair : episodes) {
+		if (pair.second.reactivation_hint.find("Trivial or extremely brief") != std::string::npos) {
+			continue;
+		}
 		sorted.push_back(&pair.second);
 	}
 	std::sort(sorted.begin(), sorted.end(), [](const agentlib::episode_index_entry* a, const agentlib::episode_index_entry* b) {
 		return a->episode_seq < b->episode_seq;
 	});
+
+	if (sorted.empty()) {
+		set_success(ctx, "0 episodes");
+		return "No archived episodes found.";
+	}
 
 	std::ostringstream oss;
 	oss << "| Episode | When to Resume |\n";

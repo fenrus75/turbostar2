@@ -1861,13 +1861,20 @@ void ai_agent::inject_archived_episodes_summary()
 	oss << "The following past episodes have been paged out to disk to save context budget:\n\n";
 	oss << "| Episode | When to Resume |\n";
 	oss << "|---|---|\n";
+	bool has_any = false;
 	for (const auto* mi : sorted) {
+		if (mi->reactivation_hint.find("Trivial or extremely brief") != std::string::npos) {
+			continue;
+		}
 		std::string hint = mi->reactivation_hint;
 		if (hint.empty()) {
 			hint = "(No reactivation hint available)";
 		}
 		oss << "| " << mi->id << " | " << hint << " |\n";
+		has_any = true;
 	}
+	if (!has_any) return;
+
 	oss << "\nIf you need to retrieve the detailed history or code changes from any of these past episodes, you can restore them into your active context by calling the `agent_restore_context` tool with the corresponding Episode ID (e.g. `agent_restore_context(\"episode_1\", 1)`).";
 
 	message msg;

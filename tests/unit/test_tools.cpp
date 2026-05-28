@@ -64,6 +64,14 @@ int main() {
     assert(populated_mem.find("think-free+pseudo") != std::string::npos);
 
     std::cout << "\nTesting agent_list_episodes..." << std::endl;
+    // 1. Set to trivial to verify filtering
+    agent->update_episode_hint("episode_1", "Trivial or extremely brief episode.");
+    std::string list_episodes_trivial = registry.execute_tool("list_episodes", "{}", ctx);
+    std::cout << "Trivial Result:\n" << list_episodes_trivial << std::endl;
+    assert(list_episodes_trivial.find("episode_1") == std::string::npos);
+    assert(list_episodes_trivial.find("Trivial or extremely brief") == std::string::npos);
+
+    // 2. Set to non-trivial and verify listing works
     agent->update_episode_hint("episode_1", "Resume when user asks about testing");
     std::string list_episodes_result = registry.execute_tool("agent_list_episodes", "{}", ctx);
     std::cout << "Result:\n" << list_episodes_result << std::endl;
@@ -78,17 +86,39 @@ int main() {
     assert(list_episodes_alias_result.find("Resume when user asks about testing") != std::string::npos);
 
     std::cout << "\nTesting inject_archived_episodes_summary..." << std::endl;
+    // With non-trivial hint, a summary message should be injected
+    size_t convo_size_before = agent->get_conversation().size();
     agent->inject_archived_episodes_summary();
     auto convo_with_summary = agent->get_conversation();
+    assert(convo_with_summary.size() == convo_size_before + 1);
     bool found_summary_msg = false;
     for (const auto& msg : convo_with_summary) {
         if (msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Archived Episodes Directory]") != std::string::npos) {
             found_summary_msg = true;
             assert(msg.content.find("agent_restore_context") != std::string::npos);
             assert(msg.content.find("episode_1") != std::string::npos);
+            assert(msg.content.find("Resume when user asks about testing") != std::string::npos);
         }
     }
     assert(found_summary_msg);
+
+    // If we make it trivial, no summary should be injected (size remains same)
+    // First clear conversation to clean up the previous summary
+    agent->set_conversation(convo_with_summary); // reset
+    agent->update_episode_hint("episode_1", "Trivial or extremely brief episode.");
+    // We clean up the injected summary from the conversation so we can verify no new summary is added
+    auto cleaned_convo = agent->get_conversation();
+    cleaned_convo.erase(std::remove_if(cleaned_convo.begin(), cleaned_convo.end(), [](const message& m) {
+        return m.role == "system" && m.content.find("[SYSTEM MEMORY: Archived Episodes Directory]") != std::string::npos;
+    }), cleaned_convo.end());
+    agent->set_conversation(cleaned_convo);
+
+    size_t size_before_trivial = agent->get_conversation().size();
+    agent->inject_archived_episodes_summary();
+    assert(agent->get_conversation().size() == size_before_trivial); // No summary added because all are trivial
+    
+    // Set hint back to normal
+    agent->update_episode_hint("episode_1", "Resume when user asks about testing");
 
     std::cout << "\nTesting set_episode_state (paging in, shifting levels, and evicting)..." << std::endl;
     // Page out the turns to create episode_2
