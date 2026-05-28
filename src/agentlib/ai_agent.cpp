@@ -183,37 +183,55 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				conversation_.push_back(msg);
 			}
 
-			// Detect if there are any tool calls from the assistant that lack a corresponding tool response.
-			// This happens if the session was closed/killed mid-tool execution.
-			// The LLM will reject any new user input if we don't resolve these pending tool calls.
-			struct pending_tool_info {
-				std::string name;
-			};
-			std::map<std::string, pending_tool_info> pending_tool_calls;
+			// Normalizer: Ensure that every tool response message immediately follows
+			// the assistant message containing its tool_call definition.
+			// This satisfies the strict sequencing required by LLM APIs (OpenAI/Gemini/Jinja templates).
+			std::vector<message> normalized_convo;
+			std::map<std::string, message> tool_responses;
+
+			// 1. Extract all tool responses
 			for (const auto& msg : conversation_) {
+				if (msg.role == "tool" && msg.tool_call_id) {
+					tool_responses[*msg.tool_call_id] = msg;
+				}
+			}
+
+			// 2. Reconstruct the conversation in the correct order
+			for (const auto& msg : conversation_) {
+				if (msg.role == "tool") {
+					// Skip tool messages; they will be inserted right after their corresponding assistant messages
+					continue;
+				}
+
+				normalized_convo.push_back(msg);
+
 				if (msg.role == "assistant" && msg.tool_calls) {
 					for (const auto& tc : *msg.tool_calls) {
-						pending_tool_calls[tc.id] = pending_tool_info{tc.function.name};
-					}
-				} else if (msg.role == "tool") {
-					if (msg.tool_call_id) {
-						pending_tool_calls.erase(*msg.tool_call_id);
+						auto it = tool_responses.find(tc.id);
+						if (it != tool_responses.end()) {
+							normalized_convo.push_back(it->second);
+							tool_responses.erase(it);
+						} else {
+							// Pending tool call with no response: Create an abort message
+							message abort_msg;
+							abort_msg.role = "tool";
+							abort_msg.tool_call_id = tc.id;
+							abort_msg.name = tc.function.name;
+							abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
+							normalized_convo.push_back(abort_msg);
+
+							event_logger::get_instance().log("Aborted pending tool call: " + tc.id + " (" + tc.function.name + ")");
+						}
 					}
 				}
 			}
 
-			if (!pending_tool_calls.empty()) {
-				event_logger::get_instance().log("Detected " + std::to_string(pending_tool_calls.size()) +
-					" pending tool call(s) with no response. Aborting them to avoid LLM rejection.");
-				for (const auto& pair : pending_tool_calls) {
-					message abort_msg;
-					abort_msg.role = "tool";
-					abort_msg.tool_call_id = pair.first;
-					abort_msg.name = pair.second.name;
-					abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
-					conversation_.push_back(abort_msg);
-				}
+			// 3. Append any orphan tool responses just in case (should not happen in valid states)
+			for (const auto& pair : tool_responses) {
+				normalized_convo.push_back(pair.second);
 			}
+
+			conversation_ = std::move(normalized_convo);
 
 			event_logger::get_instance().log("Agent " + name_ + " restored active state from " + filepath);
 			return true;

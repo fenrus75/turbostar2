@@ -56,6 +56,44 @@ void test_tool_call_recovery()
 	assert(*last_msg.name == "fs_write_file");
 	assert(last_msg.content.find("Tool execution aborted") != std::string::npos);
 
+	// 5. Test mismatched tool response ordering reordering/normalization
+	nlohmann::json mock_state_mismatched = {
+		{"conversation", nlohmann::json::array({
+			{{"role", "system"}, {"content", "System prompt"}},
+			{{"role", "user"}, {"content", "Hello"}},
+			{{"role", "assistant"}, {"content", "I will write a file."}, {"tool_calls", nlohmann::json::array({
+				{{"id", "call_mismatch"}, {"type", "function"}, {"function", {{"name", "fs_write_file"}, {"arguments", "arg_str"}}}}
+			})}},
+			{{"role", "user"}, {"content", "Follow-up question"}},
+			{{"role", "assistant"}, {"content", "Follow-up answer"}},
+			{{"role", "tool"}, {"content", "Mock tool success response"}, {"tool_call_id", "call_mismatch"}, {"name", "fs_write_file"}}
+		})}
+	};
+
+	std::ofstream out2(filepath);
+	out2 << mock_state_mismatched.dump();
+	out2.close();
+
+	auto agent2 = agentlib::ai_agent::create(1, "TestAgent", model, &q, nullptr);
+	bool loaded2 = agent2->load_active_state();
+	assert(loaded2);
+
+	auto convo2 = agent2->get_conversation();
+	// Convo2 should have 6 messages: system, user, assistant (with tool_calls), tool (success, reordered here), user, assistant
+	assert(convo2.size() == 6);
+
+	// The 4th message (index 3) should now be the tool response!
+	assert(convo2[3].role == "tool");
+	assert(convo2[3].tool_call_id.has_value());
+	assert(*convo2[3].tool_call_id == "call_mismatch");
+	assert(convo2[3].content == "Mock tool success response");
+
+	// The 5th and 6th messages should be the follow-up user and assistant messages
+	assert(convo2[4].role == "user");
+	assert(convo2[4].content == "Follow-up question");
+	assert(convo2[5].role == "assistant");
+	assert(convo2[5].content == "Follow-up answer");
+
 	// Clean up
 	std::filesystem::remove_all(test_dir);
 	std::cout << "test_tool_call_recovery unit test passed successfully!" << std::endl;
