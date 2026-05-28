@@ -38,8 +38,8 @@ struct episode_index_entry {
     std::string summary;
     std::string reactivation_hint;
     std::vector<std::string> tags;
-    long long created_at_epoch{0};
-    long long last_accessed_epoch{0};
+    long long episode_seq{0};
+    long long lru_seq{0};
     
     // Exact token estimates calculated at serialization time
     int tokens_level_0{0}; // Raw
@@ -183,6 +183,9 @@ private:
     std::condition_variable summary_cv_;
     std::vector<pending_summary> summary_queue_;
     std::thread summary_thread_;
+
+    std::atomic<long long> next_episode_seq_{1};
+    std::atomic<long long> next_lru_seq_{1};
 };
 
 } // namespace agentlib

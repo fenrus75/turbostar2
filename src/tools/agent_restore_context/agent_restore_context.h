@@ -6,7 +6,7 @@
 namespace tools {
 
 struct agent_restore_context_args {
-    std::string milestone_id;
+    std::string episode_id;
     int compression_level{1};
 };
 
@@ -29,7 +29,7 @@ public:
 
     std::string get_name() const override { return "agent_restore_context"; }
     std::string get_description() const override {
-        return "Pages in a previously saved context archive (milestone). Use this if you need to resume work on an old task or look up historical context. Find the milestone_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.";
+        return "Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.";
     }
 
     nlohmann::json get_parameters_schema() const override;

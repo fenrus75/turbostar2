@@ -95,16 +95,11 @@ bool ai_agent::page_in_context(const std::string& episode_id, int compression_le
 				conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
 			}
 
-			// Update access time
-			auto now = std::chrono::system_clock::now();
-			long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-			const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
-			if (mock_epoch_env) {
-				try { epoch = std::stoll(mock_epoch_env); } catch (...) {}
-			}
+			// Update access sequence
+			long long l_seq = next_lru_seq_++;
 
 			if (episode_index_.find(episode_id) != episode_index_.end()) {
-				episode_index_[episode_id].last_accessed_epoch = epoch;
+				episode_index_[episode_id].lru_seq = l_seq;
 			}
 			
 			// Update the metadata file
@@ -113,7 +108,7 @@ bool ai_agent::page_in_context(const std::string& episode_id, int compression_le
 				std::ifstream mfile(meta_filepath);
 				nlohmann::json meta_root;
 				mfile >> meta_root;
-				meta_root["last_accessed_epoch"] = epoch;
+				meta_root["lru_seq"] = l_seq;
 				std::ofstream mfile_out(meta_filepath);
 				mfile_out << meta_root.dump(4);
 			} catch (...) {}
@@ -894,17 +889,8 @@ void ai_agent::snapshot_episode(const std::string& title, const std::string& sum
         l2_chars += (msg_chars - r_chars - pseudo_r_chars);
     }
 
-    auto now = std::chrono::system_clock::now();
-    long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    
-    const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
-    if (mock_epoch_env) {
-        try {
-            epoch = std::stoll(mock_epoch_env);
-        } catch (...) {}
-    }
-    
-    std::string episode_id = "episode_" + std::to_string(epoch);
+    long long seq = next_episode_seq_++;
+    std::string episode_id = "episode_" + std::to_string(seq);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
     std::string filepath = history_dir + "/" + episode_id + ".json";
@@ -929,8 +915,9 @@ void ai_agent::snapshot_episode(const std::string& title, const std::string& sum
     meta["summary"] = summary;
     meta["reactivation_hint"] = ""; // Filled asynchronously
     meta["tags"] = tags;
-    meta["created_at_epoch"] = epoch;
-    meta["last_accessed_epoch"] = epoch;
+    meta["episode_seq"] = seq;
+    long long l_seq = next_lru_seq_++;
+    meta["lru_seq"] = l_seq;
     meta["tokens_level_0"] = l0_chars / 4;
     meta["tokens_level_1"] = l1_chars / 4;
     meta["tokens_level_2"] = l2_chars / 4;
@@ -945,8 +932,8 @@ void ai_agent::snapshot_episode(const std::string& title, const std::string& sum
     mi.title = title;
     mi.summary = summary;
     mi.tags = tags;
-    mi.created_at_epoch = epoch;
-    mi.last_accessed_epoch = epoch;
+    mi.episode_seq = seq;
+    mi.lru_seq = l_seq;
     mi.tokens_level_0 = l0_chars / 4;
     mi.tokens_level_1 = l1_chars / 4;
     mi.tokens_level_2 = l2_chars / 4;
@@ -988,18 +975,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         l2_chars += (msg_chars - r_chars - pseudo_r_chars);
     }
 
-    // Generate an ID for this episode (timestamp or random hash)
-    auto now = std::chrono::system_clock::now();
-    long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    
-    const char* mock_epoch_env = std::getenv("TURBOSTAR_TEST_MOCK_EPOCH");
-    if (mock_epoch_env) {
-        try {
-            epoch = std::stoll(mock_epoch_env);
-        } catch (...) {}
-    }
-    
-    std::string episode_id = "episode_" + std::to_string(epoch);
+    long long seq = next_episode_seq_++;
+    std::string episode_id = "episode_" + std::to_string(seq);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
     std::string filepath = history_dir + "/" + episode_id + ".json";
@@ -1027,8 +1004,9 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     meta["summary"] = summary;
     meta["reactivation_hint"] = ""; // Filled asynchronously
     meta["tags"] = tags;
-    meta["created_at_epoch"] = epoch;
-    meta["last_accessed_epoch"] = epoch;
+    meta["episode_seq"] = seq;
+    long long l_seq = next_lru_seq_++;
+    meta["lru_seq"] = l_seq;
     meta["tokens_level_0"] = l0_chars / 4;
     meta["tokens_level_1"] = l1_chars / 4;
     meta["tokens_level_2"] = l2_chars / 4;
@@ -1043,8 +1021,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     mi.title = title;
     mi.summary = summary;
     mi.tags = tags;
-    mi.created_at_epoch = epoch;
-    mi.last_accessed_epoch = epoch;
+    mi.episode_seq = seq;
+    mi.lru_seq = l_seq;
     mi.tokens_level_0 = l0_chars / 4;
     mi.tokens_level_1 = l1_chars / 4;
     mi.tokens_level_2 = l2_chars / 4;
@@ -1102,8 +1080,8 @@ void ai_agent::load_episode_index()
                 mi.title = root.value("title", "Untitled");
                 mi.summary = root.value("summary", "");
                 mi.reactivation_hint = root.value("reactivation_hint", "");
-                mi.created_at_epoch = root.value("created_at_epoch", 0LL);
-                mi.last_accessed_epoch = root.value("last_accessed_epoch", mi.created_at_epoch);
+                mi.episode_seq = root.value("episode_seq", 0LL);
+                mi.lru_seq = root.value("lru_seq", mi.episode_seq);
                 mi.tokens_level_0 = root.value("tokens_level_0", 0);
                 mi.tokens_level_1 = root.value("tokens_level_1", 0);
                 mi.tokens_level_2 = root.value("tokens_level_2", 0);
@@ -1115,6 +1093,13 @@ void ai_agent::load_episode_index()
                 }
                 
                 episode_index_[mi.id] = mi;
+
+                if (mi.episode_seq >= next_episode_seq_) {
+                    next_episode_seq_ = mi.episode_seq + 1;
+                }
+                if (mi.lru_seq >= next_lru_seq_) {
+                    next_lru_seq_ = mi.lru_seq + 1;
+                }
 
                 if (mi.reactivation_hint.empty()) {
                     std::string episode_filepath = history_dir + "/" + mi.id + ".json";
@@ -1143,7 +1128,7 @@ std::string ai_agent::get_memory_index() const
         sorted.push_back(&pair.second);
     }
     std::sort(sorted.begin(), sorted.end(), [](const episode_index_entry* a, const episode_index_entry* b) {
-        return a->created_at_epoch < b->created_at_epoch;
+        return a->episode_seq < b->episode_seq;
     });
 
     for (const auto* mi : sorted) {

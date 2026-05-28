@@ -24,21 +24,16 @@ int main(int argc, char **argv)
 	std::string replay_file = "tests/data/todo_traffic.json";
 	std::string dump_state_file = "";
 	std::string project_dir = "";
-	long long mock_epoch = 0;
 
 	app.add_option("prompt,-p,--prompt", prompt, "The initial user prompt to send to the agent");
 	app.add_option("replay,-r,--replay", replay_file, "Traffic file for replay/record modes");
 	app.add_option("--dump-state", dump_state_file, "Dump the final conversation state to this JSON file before exiting");
 	app.add_option("--project-dir", project_dir, "Override the project root directory for isolated sandboxing");
-	app.add_option("--mock-epoch", mock_epoch, "Force a deterministic timestamp for milestone archives");
 
 	CLI11_PARSE(app, argc, argv);
 
 	if (!project_dir.empty()) {
 		setenv("TURBOSTAR_TEST_PROJECT_DIR", project_dir.c_str(), 1);
-	}
-	if (mock_epoch > 0) {
-		setenv("TURBOSTAR_TEST_MOCK_EPOCH", std::to_string(mock_epoch).c_str(), 1);
 	}
 
 	const char *env_url = std::getenv("LLM_URL");

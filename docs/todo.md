@@ -9,6 +9,11 @@
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
 
+- it is getting unwieldy to pass a series of bools down to the editor constructor for each new command line options
+     - we should just make a struct for them all, so that we just add to the struct in the future
+
+
+
 - set "uv" working directory: 
 
 - we need to tackle compaction at some point

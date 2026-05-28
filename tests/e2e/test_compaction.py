@@ -5,7 +5,7 @@ import tempfile
 import pytest
 
 # Helper to run agentcli in replay mode
-def run_agentcli(tmp_path, prompt, traffic_json_path, mock_epoch="12345"):
+def run_agentcli(tmp_path, prompt, traffic_json_path):
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
     build_root = os.environ.get('MESON_BUILD_ROOT', 'build')
@@ -19,7 +19,7 @@ def run_agentcli(tmp_path, prompt, traffic_json_path, mock_epoch="12345"):
         "--replay", traffic_json_path, 
         "--dump-state", out_file,
         "--project-dir", str(tmp_path),
-        "--mock-epoch", mock_epoch
+        
     ]
     
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
@@ -100,7 +100,7 @@ def test_proactive_page_out(tmp_path):
             "tool_calls": [{"id": "call_2", "type": "function", "function": {"name": "agent_compress_history", "arguments": "{\"title\": \"M2\", \"summary\": \"Sum2\"}"}}]
         }    ])
 
-    state, stdout = run_agentcli(tmp_path, "Do stuff", traffic_file, mock_epoch="12345")
+    state, stdout = run_agentcli(tmp_path, "Do stuff", traffic_file)
     assert state is not None
 
     stats = state.get("stats", {})
@@ -123,8 +123,8 @@ def test_proactive_page_out(tmp_path):
         hash_dirs = os.listdir(history_dir)
         if len(hash_dirs) > 0:
             agent_dir = os.path.join(history_dir, hash_dirs[0], "history", "TestAgent")
-            assert os.path.exists(os.path.join(agent_dir, "episode_12345.json"))
-            assert os.path.exists(os.path.join(agent_dir, "episode_12345_metadata.json"))
+            assert os.path.exists(os.path.join(agent_dir, "episode_1.json"))
+            assert os.path.exists(os.path.join(agent_dir, "episode_1_metadata.json"))
 def test_think_free_restore(tmp_path):
     import hashlib
     # Setup a dummy archive on disk using the correct hash
@@ -143,7 +143,7 @@ def test_think_free_restore(tmp_path):
     os.makedirs(agent_dir, exist_ok=True)
     
     archive_data = {
-        "milestone_id": "milestone_999",
+        "episode_id": "episode_999",
         "title": "Old Task",
         "conversation": [
             {
@@ -153,7 +153,7 @@ def test_think_free_restore(tmp_path):
             }
         ]
     }
-    with open(os.path.join(agent_dir, "milestone_999.json"), "w") as f:
+    with open(os.path.join(agent_dir, "episode_999.json"), "w") as f:
         json.dump(archive_data, f)
     
     # Now, the agent restores it
@@ -161,7 +161,7 @@ def test_think_free_restore(tmp_path):
         {
             "role": "assistant",
             "content": "Restoring!",
-            "tool_calls": [{"id": "call_res", "type": "function", "function": {"name": "agent_restore_context", "arguments": "{\"milestone_id\": \"milestone_999\", \"compression_level\": 2}"}}]
+            "tool_calls": [{"id": "call_res", "type": "function", "function": {"name": "agent_restore_context", "arguments": "{\"episode_id\": \"episode_999\", \"compression_level\": 2}"}}]
         }
     ])
     
@@ -190,7 +190,7 @@ def test_auto_episode(tmp_path):
         }
     ])
     
-    state, stdout = run_agentcli(tmp_path, "Trigger auto episode", traffic_file, mock_epoch="54321")
+    state, stdout = run_agentcli(tmp_path, "Trigger auto episode", traffic_file, )
     assert state is not None
     
     conv = state.get("conversation", [])
