@@ -22,24 +22,24 @@ def test_context_paging(tmp_path):
         runner.send_keys("dummy 2\n")
         runner.assert_in_log("went idle.", timeout=30.0, count=3)
         
-        # Create first milestone via UI
-        runner.send_keys("/milestone First\n")
+        # Create first episode via UI
+        runner.send_keys("/episode First\n")
         runner.assert_in_log("Paged out", timeout=10.0)
         
         # Ask "calculate 1 + 1"
         runner.send_keys("calculate 1 + 1\n")
         runner.assert_in_log("went idle.", timeout=30.0, count=4)
         
-        # Create second milestone
-        runner.send_keys("/milestone Second\n")
+        # Create second episode
+        runner.send_keys("/episode Second\n")
         runner.assert_in_log("Paged out", timeout=10.0, count=2)
         
         # Ask weather
         runner.send_keys("what's the weather in san francisco, california\n")
         runner.assert_in_log("went idle.", timeout=30.0, count=5)
         
-        # Create third milestone
-        runner.send_keys("/milestone Third\n")
+        # Create third episode
+        runner.send_keys("/episode Third\n")
         runner.assert_in_log("Paged out", timeout=10.0, count=3)
         
         # Save state 1
@@ -78,9 +78,9 @@ def test_context_paging(tmp_path):
         convo = root.get("conversation", [])
         
     # Analyze convo
-    milestones = [m for m in convo if m.get("role") == "system" and "[SYSTEM MEMORY: Milestone Reached]" in m.get("content", "")]
+    episodes = [m for m in convo if m.get("role") == "system" and "[SYSTEM MEMORY: Episode Archived]" in m.get("content", "")]
     
-    assert len(milestones) >= 3, f"Expected at least 3 milestones, found {len(milestones)}"
+    assert len(episodes) >= 3, f"Expected at least 3 episodes, found {len(episodes)}"
 
 if __name__ == "__main__":
     import sys

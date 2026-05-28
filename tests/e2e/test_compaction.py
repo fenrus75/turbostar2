@@ -92,23 +92,23 @@ def test_proactive_page_out(tmp_path):
     traffic_file = create_traffic_file(tmp_path, "pageout_traffic.json", [
         {
             "role": "assistant",
-            "content": "Milestone time!",
-            "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "agent_mark_milestone", "arguments": "{\"title\": \"M1\", \"summary\": \"Sum1\"}"}}]
+            "content": "Episode time!",
+            "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "agent_mark_episode", "arguments": "{\"title\": \"M1\", \"summary\": \"Sum1\"}"}}]
         },
         {
             "role": "assistant",
             "content": "More work...",
             "tool_calls": [{"id": "call_2", "type": "function", "function": {"name": "agent_compress_history", "arguments": "{\"title\": \"M2\", \"summary\": \"Sum2\"}"}}]
         }    ])
-    
+
     state, stdout = run_agentcli(tmp_path, "Do stuff", traffic_file, mock_epoch="12345")
     assert state is not None
-    
+
     stats = state.get("stats", {})
     assert stats.get("context_pages_out", 0) > 0
-    
+
     conv = state.get("conversation", [])
-    
+
     # Verify a pointer message was injected
     has_pointer = False
     for msg in conv:
@@ -116,7 +116,7 @@ def test_proactive_page_out(tmp_path):
             has_pointer = True
             break
     assert has_pointer
-    
+
     # Verify files were created on disk
     history_dir = os.path.join(tmp_path, ".cache", "turbostar", "projects")
     # Find the hash dir
@@ -124,9 +124,8 @@ def test_proactive_page_out(tmp_path):
         hash_dirs = os.listdir(history_dir)
         if len(hash_dirs) > 0:
             agent_dir = os.path.join(history_dir, hash_dirs[0], "history", "TestAgent")
-            assert os.path.exists(os.path.join(agent_dir, "milestone_12345.json"))
-            assert os.path.exists(os.path.join(agent_dir, "milestone_12345_metadata.json"))
-
+            assert os.path.exists(os.path.join(agent_dir, "episode_12345.json"))
+            assert os.path.exists(os.path.join(agent_dir, "episode_12345_metadata.json"))
 def test_think_free_restore(tmp_path):
     import hashlib
     # Setup a dummy archive on disk using the correct hash

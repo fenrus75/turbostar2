@@ -18,7 +18,7 @@ bool agent_compress_history_tool::validate_runtime(const agentlib::tool_context&
 
 std::string agent_compress_history_tool::execute(agentlib::tool_context& ctx) {
     if (ctx.active_agent) {
-        ctx.active_agent->page_out_prior_context(args_.target_milestone_id, args_.include_all_prior, args_.title, args_.summary, args_.tags);
+        ctx.active_agent->page_out_prior_context(args_.target_episode_id, args_.include_all_prior, args_.title, args_.summary, args_.tags);
         return "History successfully paged out. Your context window has been cleared and replaced with a summary pointer.";
     }
     return "Error: No active agent context.";

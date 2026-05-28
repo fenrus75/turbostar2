@@ -32,10 +32,11 @@ struct todo_item {
     bool completed{false};
 };
 
-struct milestone_index_entry {
+struct episode_index_entry {
     std::string id;
     std::string title;
     std::string summary;
+    std::string reactivation_hint;
     std::vector<std::string> tags;
     long long created_at_epoch{0};
     long long last_accessed_epoch{0};
@@ -110,14 +111,15 @@ public:
 
     void save_conversation(const std::string& filepath) const;
     void page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
-    void page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
-    void snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
-    bool page_in_context(const std::string& milestone_id, int compression_level = 1);
+    void page_out_prior_context(const std::string& target_episode_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    void snapshot_episode(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
+    void update_episode_hint(const std::string& episode_id, const std::string& hint);
+    bool page_in_context(const std::string& episode_id, int compression_level = 1);
     
     void save_active_state() const;
     bool load_active_state(bool fresh_agent = false);
 
-    void load_milestone_index();
+    void load_episode_index();
     std::string get_memory_index() const;
     void compact_ephemeral_errors(std::vector<message>& convo);
 
@@ -134,6 +136,12 @@ private:
     ai_agent(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
 
     void start_processing();
+
+    struct pending_summary {
+        std::string episode_id;
+        std::string filepath;
+    };
+    void summary_worker_loop();
 
     int id_;
     std::string name_;
@@ -168,8 +176,13 @@ private:
 
     mutable std::mutex conversation_mutex_;
     std::vector<message> conversation_;
-    std::map<std::string, milestone_index_entry> milestone_index_;
+    std::map<std::string, episode_index_entry> episode_index_;
     std::unique_ptr<llm_client> client_;
+
+    std::mutex summary_mutex_;
+    std::condition_variable summary_cv_;
+    std::vector<pending_summary> summary_queue_;
+    std::thread summary_thread_;
 };
 
 } // namespace agentlib

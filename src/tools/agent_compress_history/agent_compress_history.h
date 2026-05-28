@@ -9,7 +9,7 @@ struct agent_compress_history_args {
     std::string title;
     std::string summary;
     std::vector<std::string> tags;
-    std::string target_milestone_id;
+    std::string target_episode_id;
     bool include_all_prior{false};
 };
 

@@ -3,7 +3,7 @@
 
 namespace tools {
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_compress_history_args, title, summary, tags, target_milestone_id, include_all_prior);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_compress_history_args, title, summary, tags, target_episode_id, include_all_prior);
 
 nlohmann::json agent_compress_history_validator::get_parameters_schema() const {
     return {
@@ -22,7 +22,7 @@ nlohmann::json agent_compress_history_validator::get_parameters_schema() const {
                 {"items", {{"type", "string"}}},
                 {"description", "An optional list of semantic tags to label this archive."}
             }},
-            {"target_milestone_id", {
+            {"target_episode_id", {
                 {"type", "string"},
                 {"description", "Optional. The exact ID of the milestone or system message (e.g., 'milestone_123') that acts as the UPPER boundary. If omitted, pages out the active/current block."}
             }},

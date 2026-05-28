@@ -35,7 +35,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "*** CRITICAL DIRECTIVE: MEMORY MANAGEMENT ***\n"
 	    "Your context window is strictly limited. To prevent crashing and save costs, you MUST manually drop memory anchors.\n"
 	    "If the user says 'let's move on', 'next task', or introduces a completely unrelated topic or goal, YOU MUST immediately "
-	    "call the `agent_mark_milestone` tool BEFORE starting the new work. This allows the system to compress old history.\n"
+	    "call the `agent_mark_episode` tool BEFORE starting the new work. This allows the system to compress old history.\n"
 	    "Do NOT wait to be asked. Proactively call it whenever a logical chapter of work concludes.";
 
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
@@ -133,9 +133,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			                       "  /save             - Save the active context to disk manually\n"
 			                       "  /stats            - Show compaction and performance statistics\n"
 			                       "  /memory           - List all paged-out history archives\n"
-			                       "  /milestone [text] - Drop a semantic anchor and compress history manually\n"
+			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
 			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
-			                       "  /pagein <id>      - Restore an archived milestone into active memory\n"
+			                       "  /pagein <id>      - Restore an archived episode into active memory\n"
 			                       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
@@ -152,9 +152,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
-		if (trimmed_text.starts_with("/milestone")) {
+		if (trimmed_text.starts_with("/episode")) {
 			input_box_->set_buffer("");
-			std::string title = "User Milestone";
+			std::string title = "User Episode";
 			if (trimmed_text.length() > 11) {
 				title = trimmed_text.substr(11);
 			}
@@ -162,14 +162,14 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			size_t start_index = 1;
 			auto convo = agent_->get_conversation();
 			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-				if (convo[i].role == "system" && convo[i].content.find("Milestone Reached") != std::string::npos) {
+				if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) {
 					start_index = i + 1;
 					break;
 				}
 			}
 			
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered milestone: " + title, {"manual-milestone"});
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title, {"manual-episode"});
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -191,11 +191,11 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string milestone_id = trimmed_text.substr(8);
-			if (agent_->page_in_context(milestone_id)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + milestone_id));
+			std::string episode_id = trimmed_text.substr(8);
+			if (agent_->page_in_context(episode_id)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + episode_id));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + milestone_id));
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -221,7 +221,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (text.starts_with("/")) {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Commands: /help /quit /save /stats /memory /milestone /pageout /pagein /model";
+			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model";
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
 			} else {
@@ -340,9 +340,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			                       "  /save             - Save the active context to disk manually\n"
 			                       "  /stats            - Show compaction and performance statistics\n"
 			                       "  /memory           - List all paged-out history archives\n"
-			                       "  /milestone [text] - Drop a semantic anchor and compress history manually\n"
+			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
 			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
-			                       "  /pagein <id>      - Restore an archived milestone into active memory\n"
+			                       "  /pagein <id>      - Restore an archived episode into active memory\n"
 			                       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
@@ -359,9 +359,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
-		if (trimmed_text.starts_with("/milestone")) {
+		if (trimmed_text.starts_with("/episode")) {
 			input_box_->set_buffer("");
-			std::string title = "User Milestone";
+			std::string title = "User Episode";
 			if (trimmed_text.length() > 11) {
 				title = trimmed_text.substr(11);
 			}
@@ -369,14 +369,14 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			size_t start_index = 1;
 			auto convo = agent_->get_conversation();
 			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-				if (convo[i].role == "system" && convo[i].content.find("Milestone Reached") != std::string::npos) {
+				if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) {
 					start_index = i + 1;
 					break;
 				}
 			}
 			
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered milestone: " + title, {"manual-milestone"});
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title, {"manual-episode"});
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -398,11 +398,11 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string milestone_id = trimmed_text.substr(8);
-			if (agent_->page_in_context(milestone_id)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + milestone_id));
+			std::string episode_id = trimmed_text.substr(8);
+			if (agent_->page_in_context(episode_id)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + episode_id));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + milestone_id));
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -428,7 +428,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (text.starts_with("/")) {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Commands: /help /quit /save /stats /memory /milestone /pageout /pagein /model";
+			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model";
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
 			} else {

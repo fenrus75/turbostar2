@@ -43,10 +43,10 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 	return agent;
 }
 
-bool ai_agent::page_in_context(const std::string& milestone_id, int compression_level)
+bool ai_agent::page_in_context(const std::string& episode_id, int compression_level)
 {
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
-	std::string filepath = history_dir + "/" + milestone_id + ".json";
+	std::string filepath = history_dir + "/" + episode_id + ".json";
 	if (!std::filesystem::exists(filepath)) return false;
 
 	try {
@@ -59,7 +59,7 @@ bool ai_agent::page_in_context(const std::string& milestone_id, int compression_
 
 			// Find the pointer message to replace it
 			auto it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& msg) {
-				return msg.role == "system" && msg.content.find("Raw history archive: " + milestone_id) != std::string::npos;
+				return msg.role == "system" && msg.content.find("Raw history archive: " + episode_id) != std::string::npos;
 			});
 
 			std::vector<message> loaded_msgs;
@@ -103,12 +103,12 @@ bool ai_agent::page_in_context(const std::string& milestone_id, int compression_
 				try { epoch = std::stoll(mock_epoch_env); } catch (...) {}
 			}
 
-			if (milestone_index_.find(milestone_id) != milestone_index_.end()) {
-				milestone_index_[milestone_id].last_accessed_epoch = epoch;
+			if (episode_index_.find(episode_id) != episode_index_.end()) {
+				episode_index_[episode_id].last_accessed_epoch = epoch;
 			}
 			
 			// Update the metadata file
-			std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 			try {
 				std::ifstream mfile(meta_filepath);
 				nlohmann::json meta_root;
@@ -118,7 +118,7 @@ bool ai_agent::page_in_context(const std::string& milestone_id, int compression_
 				mfile_out << meta_root.dump(4);
 			} catch (...) {}
 
-			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + milestone_id);
+			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + episode_id);
 			increment_stat("context_pages_in");
 			return true;
 		}
@@ -166,7 +166,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 		return false;
 	}
 
-	load_milestone_index();
+	load_episode_index();
 
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/active_state.json";
@@ -197,7 +197,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 void ai_agent::close()
 {
 	if (!is_closed_) {
-		// Implicit Milestone: Page out all uncompressed history when the editor closes
+		// Implicit Episode: Page out all uncompressed history when the editor closes
 		// so the agent boots up "fresh" (but with pointers) next session.
 		page_out_prior_context("", true, "End of Session", "The user closed the editor or agent window. This session was automatically paged out.", {"session-end"});
 		
@@ -855,7 +855,7 @@ void ai_agent::save_conversation(const std::string& filepath) const
         }
 }
 
-void ai_agent::snapshot_milestone(const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+void ai_agent::snapshot_episode(const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
 {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
 
@@ -897,14 +897,14 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
         } catch (...) {}
     }
     
-    std::string milestone_id = "milestone_" + std::to_string(epoch);
+    std::string episode_id = "episode_" + std::to_string(epoch);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string filepath = history_dir + "/" + milestone_id + ".json";
-    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+    std::string filepath = history_dir + "/" + episode_id + ".json";
+    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
     nlohmann::json root;
-    root["milestone_id"] = milestone_id;
+    root["episode_id"] = episode_id;
     root["title"] = title;
     root["summary"] = summary;
     root["tags"] = tags;
@@ -913,11 +913,11 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     std::ofstream file(filepath);
     if (file.is_open()) {
         file << root.dump(4);
-        event_logger::get_instance().log("Snapshot written to " + milestone_id);
+        event_logger::get_instance().log("Snapshot written to " + episode_id);
     }
     
     nlohmann::json meta;
-    meta["milestone_id"] = milestone_id;
+    meta["episode_id"] = episode_id;
     meta["title"] = title;
     meta["summary"] = summary;
     meta["reactivation_hint"] = ""; // Filled asynchronously
@@ -933,8 +933,8 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
         meta_file << meta.dump(4);
     }
     
-    milestone_index_entry mi;
-    mi.id = milestone_id;
+    episode_index_entry mi;
+    mi.id = episode_id;
     mi.title = title;
     mi.summary = summary;
     mi.tags = tags;
@@ -943,7 +943,7 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     mi.tokens_level_0 = l0_chars / 4;
     mi.tokens_level_1 = l1_chars / 4;
     mi.tokens_level_2 = l2_chars / 4;
-    milestone_index_[milestone_id] = mi;
+    episode_index_[episode_id] = mi;
 }
 
 void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
@@ -981,7 +981,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         l2_chars += (msg_chars - r_chars - pseudo_r_chars);
     }
 
-    // Generate an ID for this milestone (timestamp or random hash)
+    // Generate an ID for this episode (timestamp or random hash)
     auto now = std::chrono::system_clock::now();
     long long epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
     
@@ -992,14 +992,14 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         } catch (...) {}
     }
     
-    std::string milestone_id = "milestone_" + std::to_string(epoch);
+    std::string episode_id = "episode_" + std::to_string(epoch);
 
     std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string filepath = history_dir + "/" + milestone_id + ".json";
-    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+    std::string filepath = history_dir + "/" + episode_id + ".json";
+    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
     nlohmann::json root;
-    root["milestone_id"] = milestone_id;
+    root["episode_id"] = episode_id;
     root["title"] = title;
     root["summary"] = summary;
     root["tags"] = tags;
@@ -1010,12 +1010,12 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         file << root.dump(4);
         file.close();
     } else {
-        event_logger::get_instance().log("Failed to write milestone archive to " + filepath);
+        event_logger::get_instance().log("Failed to write episode archive to " + filepath);
         return; // Don't delete history if we couldn't save it
     }
 
     nlohmann::json meta;
-    meta["milestone_id"] = milestone_id;
+    meta["episode_id"] = episode_id;
     meta["title"] = title;
     meta["summary"] = summary;
     meta["reactivation_hint"] = ""; // Filled asynchronously
@@ -1031,8 +1031,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         meta_file << meta.dump(4);
     }
     
-    milestone_index_entry mi;
-    mi.id = milestone_id;
+    episode_index_entry mi;
+    mi.id = episode_id;
     mi.title = title;
     mi.summary = summary;
     mi.tags = tags;
@@ -1041,11 +1041,11 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     mi.tokens_level_0 = l0_chars / 4;
     mi.tokens_level_1 = l1_chars / 4;
     mi.tokens_level_2 = l2_chars / 4;
-    milestone_index_[milestone_id] = mi;
+    episode_index_[episode_id] = mi;
 
     // 2. Replace the block with the summary pointer
     std::stringstream pointer_msg;
-    pointer_msg << "[SYSTEM MEMORY: Milestone Reached]\n";
+    pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
     pointer_msg << "Title: " << title << "\n";
     pointer_msg << "Summary: " << summary << "\n";
     if (!tags.empty()) {
@@ -1055,7 +1055,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         }
         pointer_msg << "]\n";
     }
-    pointer_msg << "Raw history archive: " << milestone_id;
+    pointer_msg << "Raw history archive: " << episode_id;
 
     message summary_msg;
     summary_msg.role = "system";
@@ -1064,20 +1064,20 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
     conversation_.insert(conversation_.begin() + start_index, summary_msg);
 
-    event_logger::get_instance().log("Paged out " + std::to_string(end_index - start_index) + " turns to " + milestone_id);
+    event_logger::get_instance().log("Paged out " + std::to_string(end_index - start_index) + " turns to " + episode_id);
     increment_stat("context_pages_out");
 
     {
         std::lock_guard<std::mutex> lock(summary_mutex_);
-        summary_queue_.push_back({milestone_id, filepath});
+        summary_queue_.push_back({episode_id, filepath});
     }
     summary_cv_.notify_one();
 }
 
-void ai_agent::load_milestone_index()
+void ai_agent::load_episode_index()
 {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
-    milestone_index_.clear();
+    episode_index_.clear();
     
     std::string history_dir = fs_utils::get_project_history_dir(name_);
     if (!std::filesystem::exists(history_dir)) return;
@@ -1090,8 +1090,8 @@ void ai_agent::load_milestone_index()
                 nlohmann::json root;
                 f >> root;
 
-                milestone_index_entry mi;
-                mi.id = root.value("milestone_id", "unknown");
+                episode_index_entry mi;
+                mi.id = root.value("episode_id", "unknown");
                 mi.title = root.value("title", "Untitled");
                 mi.summary = root.value("summary", "");
                 mi.reactivation_hint = root.value("reactivation_hint", "");
@@ -1107,7 +1107,7 @@ void ai_agent::load_milestone_index()
                     }
                 }
                 
-                milestone_index_[mi.id] = mi;
+                episode_index_[mi.id] = mi;
 
                 if (mi.reactivation_hint.empty()) {
                     std::string episode_filepath = history_dir + "/" + mi.id + ".json";
@@ -1123,19 +1123,19 @@ void ai_agent::load_milestone_index()
 std::string ai_agent::get_memory_index() const
 {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
-    if (milestone_index_.empty()) {
-        return "Memory index is empty (no saved milestones).";
+    if (episode_index_.empty()) {
+        return "Memory index is empty (no saved episodes).";
     }
 
     std::stringstream out;
-    out << "Agent Memory Index (Paged-Out Milestones):\n";
+    out << "Agent Memory Index (Paged-Out Episodes):\n";
 
-    // Sort milestones by creation date
-    std::vector<const milestone_index_entry*> sorted;
-    for (const auto& pair : milestone_index_) {
+    // Sort episodes by creation date
+    std::vector<const episode_index_entry*> sorted;
+    for (const auto& pair : episode_index_) {
         sorted.push_back(&pair.second);
     }
-    std::sort(sorted.begin(), sorted.end(), [](const milestone_index_entry* a, const milestone_index_entry* b) {
+    std::sort(sorted.begin(), sorted.end(), [](const episode_index_entry* a, const episode_index_entry* b) {
         return a->created_at_epoch < b->created_at_epoch;
     });
 
@@ -1156,7 +1156,7 @@ std::string ai_agent::get_memory_index() const
     return out.str();
 }
 
-void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+void ai_agent::page_out_prior_context(const std::string& target_episode_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
 {
     std::unique_lock<std::mutex> lock(conversation_mutex_);
     
@@ -1165,29 +1165,29 @@ void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bo
     size_t end_index = conversation_.size() - 2; // Default to current
     
     // 1. Find the upper boundary
-    if (!target_milestone_id.empty()) {
+    if (!target_episode_id.empty()) {
         bool found = false;
-        // Search backwards for the specific milestone marker
+        // Search backwards for the specific episode marker
         for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-            if (conversation_[i].role == "system" && conversation_[i].content.find(target_milestone_id) != std::string::npos) {
-                end_index = i; // The boundary is exactly at the target milestone
+            if (conversation_[i].role == "system" && conversation_[i].content.find(target_episode_id) != std::string::npos) {
+                end_index = i; // The boundary is exactly at the target episode
                 found = true;
                 break;
             }
         }
         if (!found) {
-            event_logger::get_instance().log("Failed to find target milestone: " + target_milestone_id);
+            event_logger::get_instance().log("Failed to find target episode: " + target_episode_id);
             return;
         }
     } else {
-        // If no target provided, scan backwards to find the most recent milestone marker
-        // We look for either the tool result from agent_mark_milestone OR a previously injected pointer.
+        // If no target provided, scan backwards to find the most recent episode marker
+        // We look for either the tool result from agent_mark_episode OR a previously injected pointer.
         for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-            if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_milestone") {
+            if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_episode") {
                 end_index = i;
                 break;
             }
-            if (conversation_[i].role == "system" && conversation_[i].content.find("Milestone Reached") != std::string::npos) {
+            if (conversation_[i].role == "system" && conversation_[i].content.find("Episode Archived") != std::string::npos) {
                 end_index = i;
                 break;
             }
@@ -1198,7 +1198,7 @@ void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bo
     
     // 2. Find the lower boundary
     if (!include_all_prior && end_index > 0) {
-        // Scan backward from end_index to find the previous milestone/system marker
+        // Scan backward from end_index to find the previous episode/system marker
         for (int i = static_cast<int>(end_index) - 1; i >= 0; --i) {
             if (conversation_[i].role == "system" || conversation_[i].role == "user") {
                 start_index = i + 1;
@@ -1315,18 +1315,18 @@ void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::s
 }
 
 
-void ai_agent::update_milestone_hint(const std::string& milestone_id, const std::string& hint)
+void ai_agent::update_episode_hint(const std::string& episode_id, const std::string& hint)
 {
     // Update the index memory
     {
         std::lock_guard<std::mutex> lock(conversation_mutex_);
-        if (milestone_index_.find(milestone_id) != milestone_index_.end()) {
-            milestone_index_[milestone_id].reactivation_hint = hint;
+        if (episode_index_.find(episode_id) != episode_index_.end()) {
+            episode_index_[episode_id].reactivation_hint = hint;
         }
 
         // Mutate the active conversation
         for (auto& msg : conversation_) {
-            if (msg.role == "system" && msg.content.find(milestone_id) != std::string::npos) {
+            if (msg.role == "system" && msg.content.find(episode_id) != std::string::npos) {
                 // We found the marker, append the hint
                 msg.content += "\nDemand-Load Hint: " + hint;
                 break;
@@ -1336,7 +1336,7 @@ void ai_agent::update_milestone_hint(const std::string& milestone_id, const std:
     
     // Rewrite the metadata sidecar
     std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
     if (std::filesystem::exists(meta_filepath)) {
         try {
             std::ifstream file(meta_filepath);
@@ -1377,7 +1377,7 @@ void ai_agent::summary_worker_loop()
                 std::string context_dump = root["conversation"].dump(2);
                 
                 if (context_dump.length() < 1000) {
-                    update_milestone_hint(task.milestone_id, "Trivial or extremely brief episode.");
+                    update_episode_hint(task.episode_id, "Trivial or extremely brief episode.");
                     continue;
                 }
                 
@@ -1398,8 +1398,8 @@ void ai_agent::summary_worker_loop()
                 
                 llm_chat_response res = local_client.send_chat(dummy_convo);
                 if (!res.msg.content.empty()) {
-                    update_milestone_hint(task.milestone_id, res.msg.content);
-                    event_logger::get_instance().log("Generated background summary for " + task.milestone_id);
+                    update_episode_hint(task.episode_id, res.msg.content);
+                    event_logger::get_instance().log("Generated background summary for " + task.episode_id);
                 }
             }
         } catch (const std::exception& e) {
