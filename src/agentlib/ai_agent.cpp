@@ -1112,6 +1112,14 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
 
+    // Adjust boundaries to avoid splitting assistant tool calls and their responses
+    while (start_index < end_index && conversation_[start_index].role == "tool") {
+        start_index++;
+    }
+    while (end_index < conversation_.size() && conversation_[end_index].role == "tool") {
+        end_index++;
+    }
+
     if (start_index >= end_index || end_index > conversation_.size()) return;
 
     // 1. Serialize the block
