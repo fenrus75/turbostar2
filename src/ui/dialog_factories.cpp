@@ -224,11 +224,19 @@ class force_quit_dialog_impl : public dialog
 
 std::unique_ptr<dialog> create_plan_approval_dialog(const std::string& plan_text)
 {
-        int width = 80;
-        int height = 30;
+        int width = std::min(80, COLS);
+        int height = std::min(30, LINES - 2);
+        if (height < 15) {
+                height = 15;
+        }
+
+        int reserved = 7;
+        int available = height - reserved;
+        int feedback_height = std::max(3, available / 4);
+        int plan_height = std::max(4, available - feedback_height);
+
         auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
 
-        int plan_height = 15;
         dlg->add_child(std::make_unique<ui_text_label>(2, 1, "Proposed Plan:"));
         
         // Use a multiline edit for the plan text so it is scrollable
@@ -236,10 +244,9 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string& plan_text
         plan_box->set_buffer(plan_text);
         dlg->add_child(std::move(plan_box));
 
-        int feedback_y = 3 + plan_height;
+        int feedback_y = plan_height + 3;
         dlg->add_child(std::make_unique<ui_text_label>(2, feedback_y, "Comments / Feedback (optional if approving, required if rejecting):"));
         
-        int feedback_height = 5;
         auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 2, feedback_y + 1, width - 4, feedback_height, nullptr);
         dlg->add_child(std::move(feedback_box));
 

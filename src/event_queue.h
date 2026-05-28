@@ -10,6 +10,13 @@
 
 /**
  * @brief Event types supported by the editor.
+ *
+ * IMPORTANT DEVELOPER / AI AGENT NOTE:
+ * If you add a new event type to this enum, you MUST update the central routing
+ * switch statement in editor::dispatch() inside src/editor_events.cpp to map
+ * the event to its appropriate handler. Missing this mapping will compile cleanly
+ * with NO warnings (due to the default: break; case) but will cause the event
+ * to be silently discarded at runtime.
  */
 enum class event_type {
 	key_press,    ///< A keyboard input event

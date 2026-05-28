@@ -8,7 +8,7 @@ Top design documentation: `docs/design.md`
 - keep `docs/design.md` and related documents updated at all times. Update the specific documentation files listed in the "Documentation Files" section whenever architectural or structural changes occur.
 - when adding a new `.cpp` source file, you MUST update `meson.build` and `src/meson.build`. A common mistake is to add it to the main `turbostar` target but forget to add it to the `agentcli_sources` list or relevant unit test targets.
 - git commit after each logical change or item implemented. This is a standing rule.
-- when adding a new `event_type` enum value, you MUST update the central `editor::dispatch` function in `src/editor_events.cpp` to route the new event to its appropriate handler; missing this is a common source of bugs.
+- **CRITICAL**: When adding a new `event_type` enum value (in `src/event_queue.h`), you **MUST** update the central routing switch statement in `editor::dispatch` inside `src/editor_events.cpp` to route the new event to its handler. Since `editor::dispatch` has a `default: break;` case, a missing mapping compiles with NO warnings but silently discards the event at runtime.
 - perform a code review before each commit to ensure no stray edits happened
 - run the test suite before commit
 - when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
@@ -48,12 +48,6 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 # Dependencies
 - CLI11 (header-only) for command-line parsing.
 
-
-tem.
-- Move completed items to the Done section.
-   - Re-read the todo.md file before doing the edit!
-- Add any items deferred during other activities to the short-term section.
-
-# Dependencies
-- CLI11 (header-only) for command-line parsing.
+# Tooling
+- `agentcli` (along with `agentcli_record` and `agentcli_replay` executables) is available to record and replay conversations with the LLM. It is used by the test suite to verify tool execution and agent logic in headless environments without requiring a live network connection to the LLM.
 
