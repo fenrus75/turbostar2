@@ -251,6 +251,10 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `episode_id` *(string, required)*: The exact ID of the episode to restore.
     *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Think-Free reasoning stripping (default). `2` = Terminal truncation / active level 2. Defaults to `1`.
 
+### `agent_list_episodes`
+*   **Description:** Lists all archived/paged-out episodes, returning a markdown table showing the Episode ID and their 'when to resume' reactivation hint.
+*   **Arguments:** None.
+
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
 *   **Arguments:** None.
