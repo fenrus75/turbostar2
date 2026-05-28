@@ -1126,7 +1126,7 @@ std::string ai_agent::get_memory_index() const
 
 void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
+    std::unique_lock<std::mutex> lock(conversation_mutex_);
     
     if (conversation_.size() < 3) return; // Nothing to compress
     
@@ -1181,7 +1181,7 @@ void ai_agent::page_out_prior_context(const std::string& target_milestone_id, bo
     }
     
     // Unlock and delegate to the core paging function
-    conversation_mutex_.unlock();
+    lock.unlock();
     page_out_context(start_index, end_index, title, summary, tags);
 }
 

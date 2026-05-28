@@ -195,6 +195,13 @@ if uv.found() or python.found()
     'PROJECT_ROOT=' + meson.project_source_root()
   ]
   
+  test('e2e_context_paging', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_context_paging.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 180,
+    is_parallel: false
+  )
   test('e2e_exit_delay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_delay.py')],
     env: e2e_env,

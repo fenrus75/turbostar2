@@ -1,4 +1,5 @@
 #include "ui/agent_window.h"
+#include "event_logger.h"
 #include <algorithm>
 #include <ncurses.h>
 #include <nlohmann/json.hpp>
@@ -100,6 +101,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
+			event_logger::get_instance().log("Conversation saved to: " + filepath);
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
 			scroll_offset_ = 0;
 			invalidate();
@@ -157,9 +159,16 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				title = trimmed_text.substr(11);
 			}
 			
-			// We trigger a proactive context compaction. It scans backwards and compresses
-			// everything up to the previous milestone.
-			agent_->page_out_prior_context("", false, title, "User manually triggered milestone: " + title, {"manual-milestone"});
+			size_t start_index = 1;
+			auto convo = agent_->get_conversation();
+			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
+				if (convo[i].role == "system" && convo[i].content.find("Milestone Reached") != std::string::npos) {
+					start_index = i + 1;
+					break;
+				}
+			}
+			
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered milestone: " + title, {"manual-milestone"});
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
@@ -299,6 +308,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
+			event_logger::get_instance().log("Conversation saved to: " + filepath);
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
 			scroll_offset_ = 0;
 			invalidate();
@@ -356,9 +366,16 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				title = trimmed_text.substr(11);
 			}
 			
-			// We trigger a proactive context compaction. It scans backwards and compresses
-			// everything up to the previous milestone.
-			agent_->page_out_prior_context("", false, title, "User manually triggered milestone: " + title, {"manual-milestone"});
+			size_t start_index = 1;
+			auto convo = agent_->get_conversation();
+			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
+				if (convo[i].role == "system" && convo[i].content.find("Milestone Reached") != std::string::npos) {
+					start_index = i + 1;
+					break;
+				}
+			}
+			
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered milestone: " + title, {"manual-milestone"});
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Milestone manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();

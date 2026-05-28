@@ -55,8 +55,6 @@ inline void from_json(const nlohmann::json& j, message& p) {
     }
     if (j.contains("reasoning_content") && !j["reasoning_content"].is_null()) {
         p.reasoning_content = j["reasoning_content"].get<std::string>();
-    } else {
-        p.content = "";
     }
     if (j.contains("name")) p.name = j.at("name").get<std::string>();
     if (j.contains("tool_call_id")) p.tool_call_id = j.at("tool_call_id").get<std::string>();

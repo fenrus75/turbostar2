@@ -41,13 +41,17 @@ class TurbostarRunner:
         self.master_fd = None
         self.slave_fd = None
 
-    def start(self, filename=None, use_lsp=False, extra_args=None):
+    def start(self, filename=None, use_lsp=False, extra_args=None, home_dir=None):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         testrun_dir = os.path.join(project_root, 'testrun')
         os.makedirs(testrun_dir, exist_ok=True)
 
         # Create a unique temporary directory for this test's HOME
-        self.temp_home = tempfile.mkdtemp(prefix="turbostar_test_home_")
+        if home_dir:
+            self.temp_home = home_dir
+            os.makedirs(self.temp_home, exist_ok=True)
+        else:
+            self.temp_home = tempfile.mkdtemp(prefix="turbostar_test_home_")
 
         # Binary is now automatically copied to testrun/ by the build system
         exe_path = './turbostar'
@@ -199,14 +203,14 @@ class TurbostarRunner:
         return -1, -1
 
 
-    def assert_in_log(self, text, timeout=1.0):
+    def assert_in_log(self, text, timeout=1.0, count=1):
         start_time = time.time()
         while time.time() - start_time < timeout:
             log = self.get_log()
-            if text in log:
+            if log.count(text) >= count:
                 return
             time.sleep(0.1)
-        raise AssertionError(f"Text '{text}' not found in log after {timeout}s")
+        raise AssertionError(f"Text '{text}' not found {count} times in log after {timeout}s")
 
     def assert_file_exists(self, path, timeout=1.0):
         start_time = time.time()
@@ -381,42 +385,43 @@ class TurbostarRunner:
             if os.path.exists(save_path):
                 os.remove(save_path)
 
-    def cleanup(self):
+    def cleanup(self, preserve_home=False):
         if self.proc is not None and self.proc.poll() is None:
             try:
                 self.quit(force=True, timeout=5)
             except Exception:
                 pass
-                
+
         if self.slave_fd is not None:
             try:
                 os.close(self.slave_fd)
             except OSError:
                 pass
             self.slave_fd = None
-            
+
         if self.master_fd is not None:
             try:
                 os.close(self.master_fd)
             except OSError:
                 pass
             self.master_fd = None
-            
+
         if self.proc is not None and self.proc.poll() is None:
             self.proc.terminate()
             self.proc.wait()
             self.proc = None
-            
+
         if os.path.exists(self.log_path):
             os.remove(self.log_path)
-            
+
         # Clean up default file to prevent state leak across tests
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         testrun_dir = os.path.join(project_root, 'testrun')
         default_file = os.path.join(testrun_dir, 'unknown.txt')
         if os.path.exists(default_file):
             os.remove(default_file)
-            
-        import shutil
-        if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
-            shutil.rmtree(self.temp_home, ignore_errors=True)
+
+        if not preserve_home:
+            import shutil
+            if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
+                shutil.rmtree(self.temp_home, ignore_errors=True)
