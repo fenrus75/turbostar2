@@ -71,8 +71,7 @@ class TurbostarRunner:
         self.master_fd, self.slave_fd = pty.openpty()
 
         env = os.environ.copy()
-        if 'TERM' not in env:
-            env['TERM'] = 'xterm-256color'
+        env['TERM'] = 'xterm-256color'
         env['COLUMNS'] = str(self.cols)
         env['LINES'] = str(self.lines)
         env['HOME'] = self.temp_home # Isolate config/history
