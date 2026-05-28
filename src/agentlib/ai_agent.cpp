@@ -1716,7 +1716,7 @@ void ai_agent::summary_worker_loop()
             std::unique_lock<std::mutex> lock(summary_mutex_);
             summary_cv_.wait(lock, [this] { return is_closed_ || !summary_queue_.empty(); });
             
-            if (is_closed_ && summary_queue_.empty()) break;
+            if (is_closed_) break;
             if (summary_queue_.empty()) continue;
             
             task = summary_queue_.front();
@@ -1724,6 +1724,7 @@ void ai_agent::summary_worker_loop()
         }
         
         try {
+            if (is_closed_) break;
             std::ifstream file(task.filepath);
             if (!file.is_open()) continue;
             
@@ -1753,7 +1754,9 @@ void ai_agent::summary_worker_loop()
                 auto transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
                 llm_client local_client(transport, model_->get_id(), model_->get_api_type());
                 
+                if (is_closed_) break;
                 llm_chat_response res = local_client.send_chat(dummy_convo);
+                if (is_closed_) break;
                 if (!res.msg.content.empty()) {
                     update_episode_hint(task.episode_id, res.msg.content);
                     event_logger::get_instance().log("Generated background summary for " + task.episode_id);
