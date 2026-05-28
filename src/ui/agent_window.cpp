@@ -134,8 +134,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			                       "  /stats            - Show compaction and performance statistics\n"
 			                       "  /memory           - List all paged-out history archives\n"
 			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
-			                       "  /pagein <id>      - Restore an archived episode into active memory\n"
+			                       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
+			                       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
 			                       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
@@ -177,12 +177,21 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pageout ")) {
 			input_box_->set_buffer("");
-			try {
-				int n = std::stoi(trimmed_text.substr(9));
-				agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
-			} catch (...) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns>"));
+			std::string arg = trimmed_text.substr(9);
+			if (arg.starts_with("episode_")) {
+				if (agent_->set_episode_state(arg, 99)) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out episode: " + arg));
+				} else {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
+				}
+			} else {
+				try {
+					int n = std::stoi(arg);
+					agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+				} catch (...) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
+				}
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -191,11 +200,26 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string episode_id = trimmed_text.substr(8);
-			if (agent_->page_in_context(episode_id)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + episode_id));
+			std::string args = trimmed_text.substr(8);
+			std::string episode_id = args;
+			int level = 1;
+
+			size_t space_pos = args.find(' ');
+			if (space_pos != std::string::npos) {
+				episode_id = args.substr(0, space_pos);
+				try {
+					level = std::stoi(args.substr(space_pos + 1));
+				} catch (...) {
+					level = 1;
+				}
+			}
+
+			if (agent_->set_episode_state(episode_id, level)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + episode_id));
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					"Failed to page in " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -341,8 +365,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			                       "  /stats            - Show compaction and performance statistics\n"
 			                       "  /memory           - List all paged-out history archives\n"
 			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-			                       "  /pageout <N>      - Page out the first N turns of the active session\n"
-			                       "  /pagein <id>      - Restore an archived episode into active memory\n"
+			                       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
+			                       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
 			                       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
@@ -384,12 +408,21 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pageout ")) {
 			input_box_->set_buffer("");
-			try {
-				int n = std::stoi(trimmed_text.substr(9));
-				agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
-			} catch (...) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns>"));
+			std::string arg = trimmed_text.substr(9);
+			if (arg.starts_with("episode_")) {
+				if (agent_->set_episode_state(arg, 99)) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out episode: " + arg));
+				} else {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
+				}
+			} else {
+				try {
+					int n = std::stoi(arg);
+					agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+				} catch (...) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
+				}
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -398,11 +431,26 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 		if (trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string episode_id = trimmed_text.substr(8);
-			if (agent_->page_in_context(episode_id)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged in context: " + episode_id));
+			std::string args = trimmed_text.substr(8);
+			std::string episode_id = args;
+			int level = 1;
+
+			size_t space_pos = args.find(' ');
+			if (space_pos != std::string::npos) {
+				episode_id = args.substr(0, space_pos);
+				try {
+					level = std::stoi(args.substr(space_pos + 1));
+				} catch (...) {
+					level = 1;
+				}
+			}
+
+			if (agent_->set_episode_state(episode_id, level)) {
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page in context: " + episode_id));
+				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					"Failed to page in " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();

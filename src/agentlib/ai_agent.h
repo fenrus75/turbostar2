@@ -115,6 +115,7 @@ public:
     void snapshot_episode(const std::string& title, const std::string& summary, const std::vector<std::string>& tags);
     void update_episode_hint(const std::string& episode_id, const std::string& hint);
     bool page_in_context(const std::string& episode_id, int compression_level = 1);
+    bool set_episode_state(const std::string& episode_id, int target_level);
     
     void save_active_state() const;
     bool load_active_state(bool fresh_agent = false);

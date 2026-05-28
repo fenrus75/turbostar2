@@ -47,82 +47,159 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 
 bool ai_agent::page_in_context(const std::string& episode_id, int compression_level)
 {
+	return set_episode_state(episode_id, compression_level);
+}
+
+bool ai_agent::set_episode_state(const std::string& episode_id, int target_level)
+{
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
 	if (!std::filesystem::exists(filepath)) return false;
+
+	std::string title = "Archived Episode";
+	std::string summary = "Summary not available.";
+	std::vector<std::string> tags;
+	std::vector<message> loaded_msgs;
 
 	try {
 		std::ifstream file(filepath);
 		nlohmann::json root;
 		file >> root;
 
-		if (root.contains("conversation") && root["conversation"].is_array()) {
-			std::lock_guard<std::mutex> lock(conversation_mutex_);
+		if (root.contains("title")) title = root["title"].get<std::string>();
+		if (root.contains("summary")) summary = root["summary"].get<std::string>();
+		if (root.contains("tags")) tags = root["tags"].get<std::vector<std::string>>();
 
-			// Find the pointer message to replace it
-			auto it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& msg) {
-				return msg.role == "system" && msg.content.find("Raw history archive: " + episode_id) != std::string::npos;
-			});
-
-			std::vector<message> loaded_msgs;
+		if (root.contains("conversation") && root["conversation"].is_array() && target_level != 99) {
 			for (const auto& item : root["conversation"]) {
 				message msg;
 				from_json(item, msg);
-				
+
+				// Assign transient properties
+				msg.episode_id = episode_id;
+				msg.episode_level = target_level;
+
 				// Level 1: Strip explicit reasoning content natively provided by models like DeepSeek.
-				if (compression_level >= 1 && msg.role == "assistant") {
+				if (target_level >= 1 && msg.role == "assistant") {
 					if (msg.reasoning_content) {
 						msg.reasoning_content.reset();
 						increment_stat("explicit_think_blocks_stripped");
 					}
 				}
-				
+
 				// Level 2: Strip conversational pseudo-reasoning (used by GPT-4o/Gemini) if a tool call was made.
-				if (compression_level >= 2 && msg.role == "assistant") {
+				if (target_level >= 2 && msg.role == "assistant") {
 					if (msg.tool_calls && !msg.tool_calls->empty() && !msg.content.empty()) {
 						msg.content.clear();
 						increment_stat("pseudo_think_blocks_stripped");
 					}
 				}
-				
+
 				loaded_msgs.push_back(msg);
 			}
-
-			if (it != conversation_.end()) {
-				// Replace the pointer with the actual messages
-				it = conversation_.erase(it);
-				conversation_.insert(it, loaded_msgs.begin(), loaded_msgs.end());
-			} else {
-				// If pointer not found, just append to the end
-				conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
-			}
-
-			// Update access sequence
-			long long l_seq = next_lru_seq_++;
-
-			if (episode_index_.find(episode_id) != episode_index_.end()) {
-				episode_index_[episode_id].lru_seq = l_seq;
-			}
-			
-			// Update the metadata file
-			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
-			try {
-				std::ifstream mfile(meta_filepath);
-				nlohmann::json meta_root;
-				mfile >> meta_root;
-				meta_root["lru_seq"] = l_seq;
-				std::ofstream mfile_out(meta_filepath);
-				mfile_out << meta_root.dump(4);
-			} catch (...) {}
-
-			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + episode_id);
-			increment_stat("context_pages_in");
-			return true;
 		}
 	} catch (const std::exception& e) {
-		event_logger::get_instance().log("Failed to page in context: " + std::string(e.what()));
+		event_logger::get_instance().log("Error loading episode " + episode_id + ": " + e.what());
+		return false;
 	}
-	return false;
+
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+
+	// Look for existing active turns matching episode_id in memory
+	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& m) {
+		return m.episode_id == episode_id;
+	});
+
+	if (first_it != conversation_.end()) {
+		// Locate the end of the range
+		auto last_it = first_it;
+		while (last_it != conversation_.end() && last_it->episode_id == episode_id) {
+			++last_it;
+		}
+
+		if (target_level == 99) {
+			// Page OUT: Replace the range with a single Anchor pointer message
+			std::stringstream pointer_msg;
+			pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
+			pointer_msg << "Title: " << title << "\n";
+			pointer_msg << "Summary: " << summary << "\n";
+			if (!tags.empty()) {
+				pointer_msg << "Tags: [";
+				for (size_t i = 0; i < tags.size(); ++i) {
+					pointer_msg << tags[i] << (i < tags.size() - 1 ? ", " : "");
+				}
+				pointer_msg << "]\n";
+			}
+			pointer_msg << "Raw history archive: " << episode_id;
+
+			message anchor_msg;
+			anchor_msg.role = "system";
+			anchor_msg.content = pointer_msg.str();
+
+			auto next_it = conversation_.erase(first_it, last_it);
+			conversation_.insert(next_it, anchor_msg);
+			event_logger::get_instance().log("Agent " + name_ + " paged OUT context " + episode_id);
+			increment_stat("context_pages_out");
+		} else {
+			// Transition active level: Replace range with loaded_msgs
+			auto next_it = conversation_.erase(first_it, last_it);
+			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
+			event_logger::get_instance().log("Agent " + name_ + " shifted context level " + episode_id + " to " + std::to_string(target_level));
+		}
+	} else {
+		// Not active in memory. Locate the Anchor message.
+		auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& m) {
+			return m.role == "system" && m.content.find("Raw history archive: " + episode_id) != std::string::npos;
+		});
+
+		if (anchor_it != conversation_.end()) {
+			if (target_level == 99) {
+				// Already paged out, nothing to do
+				return true;
+			}
+			// Page IN: Replace the anchor with loaded_msgs
+			auto next_it = conversation_.erase(anchor_it);
+			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
+			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + episode_id + " at level " + std::to_string(target_level));
+			increment_stat("context_pages_in");
+		} else {
+			if (target_level == 99) {
+				// Already not in memory and no anchor exists, nothing to do
+				return true;
+			}
+			// Fallback: Append the loaded messages to the end of the conversation
+			conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
+			event_logger::get_instance().log("Agent " + name_ + " paged IN context " + episode_id + " at level " + std::to_string(target_level) + " (appended)");
+			increment_stat("context_pages_in");
+		}
+	}
+
+	// Update LRU access sequence
+	long long l_seq = next_lru_seq_++;
+	if (episode_index_.find(episode_id) != episode_index_.end()) {
+		episode_index_[episode_id].lru_seq = l_seq;
+	}
+
+	// Update metadata file
+	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+	try {
+		std::ifstream mfile(meta_filepath);
+		nlohmann::json meta_root;
+		mfile >> meta_root;
+		meta_root["lru_seq"] = l_seq;
+		std::ofstream mfile_out(meta_filepath);
+		mfile_out << meta_root.dump(4);
+	} catch (...) {}
+
+	// Trigger UI update
+	if (global_queue_) {
+		editor_event ev;
+		ev.type = event_type::agent_tool_update;
+		ev.key_code = id_;
+		global_queue_->push(ev);
+	}
+
+	return true;
 }
 ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider)
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)

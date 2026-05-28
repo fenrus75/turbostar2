@@ -242,14 +242,14 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `title` *(string, required)*: A short title for the milestone you are archiving.
     *   `summary` *(string, required)*: A concise summary of the history being paged out.
     *   `tags` *(array of strings, optional)*: Semantic tags to label this archive.
-    *   `target_milestone_id` *(string, optional)*: The exact ID of the milestone or system message (e.g., 'milestone_123') that acts as the UPPER boundary. If omitted, pages out the active/current block.
+    *   `target_episode_id` *(string, optional)*: The exact ID of the milestone or system message (e.g., 'episode_123') that acts as the UPPER boundary. If omitted, pages out the active/current block.
     *   `include_all_prior` *(boolean, optional)*: If true, ignores the lower boundary and compresses everything from the target back to the system prompt.
 
 ### `agent_restore_context`
-*   **Description:** Pages in a previously saved context archive (milestone). Use this if you need to resume work on an old task or look up historical context. Find the milestone_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.
+*   **Description:** Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.
 *   **Arguments:**
-    *   `milestone_id` *(string, required)*: The exact ID of the milestone to restore.
-    *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Strip explicit reasoning fields. `2` = Strip pseudo-reasoning from tool calls. `3` = Truncate terminal outputs. Defaults to `1`.
+    *   `episode_id` *(string, required)*: The exact ID of the episode to restore.
+    *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Think-Free reasoning stripping (default). `2` = Terminal truncation / active level 2. Defaults to `1`.
 
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.

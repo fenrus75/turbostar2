@@ -38,6 +38,10 @@ struct message {
     std::optional<std::string> name;
     std::optional<std::string> tool_call_id;
     std::optional<std::vector<tool_call>> tool_calls;
+
+    // Transient episode mapping fields
+    std::string episode_id;
+    int episode_level{-1}; // -1 if not a paged-in episode turn
 };
 
 inline void to_json(nlohmann::json& j, const message& p) {
@@ -46,6 +50,10 @@ inline void to_json(nlohmann::json& j, const message& p) {
     if (p.name) j["name"] = *p.name;
     if (p.tool_call_id) j["tool_call_id"] = *p.tool_call_id;
     if (p.tool_calls) j["tool_calls"] = *p.tool_calls;
+    if (!p.episode_id.empty()) {
+        j["episode_id"] = p.episode_id;
+        j["episode_level"] = p.episode_level;
+    }
 }
 
 inline void from_json(const nlohmann::json& j, message& p) {
@@ -59,6 +67,13 @@ inline void from_json(const nlohmann::json& j, message& p) {
     if (j.contains("name")) p.name = j.at("name").get<std::string>();
     if (j.contains("tool_call_id")) p.tool_call_id = j.at("tool_call_id").get<std::string>();
     if (j.contains("tool_calls")) p.tool_calls = j.at("tool_calls").get<std::vector<tool_call>>();
+    if (j.contains("episode_id")) {
+        p.episode_id = j.at("episode_id").get<std::string>();
+        p.episode_level = j.value("episode_level", -1);
+    } else {
+        p.episode_id = "";
+        p.episode_level = -1;
+    }
 }
 
 struct llm_usage {

@@ -20,7 +20,15 @@ std::string openai_formatter::get_endpoint_path(const std::string& /*model_id*/,
 }
 
 std::string openai_formatter::build_chat_payload(const std::string& model_id, const std::vector<message>& convo, const tool_registry* registry, bool stream) const {
-    json payload = {{"model", model_id}, {"messages", convo}, {"stream", stream}};
+    json msgs_json = json::array();
+    for (const auto& msg : convo) {
+        json m_json;
+        to_json(m_json, msg);
+        m_json.erase("episode_id");
+        m_json.erase("episode_level");
+        msgs_json.push_back(m_json);
+    }
+    json payload = {{"model", model_id}, {"messages", msgs_json}, {"stream", stream}};
     
     if (stream) {
         payload["stream_options"] = {{"include_usage", true}};

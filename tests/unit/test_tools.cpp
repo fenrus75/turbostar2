@@ -62,6 +62,63 @@ int main() {
     assert(populated_mem.find("think-free") != std::string::npos);
     assert(populated_mem.find("think-free+pseudo") != std::string::npos);
 
+    std::cout << "\nTesting set_episode_state (paging in, shifting levels, and evicting)..." << std::endl;
+    // Page out the turns to create episode_2
+    agent->page_out_context(0, 2, "Manual Episode", "Manual Episode Summary", {"manual-tag"});
+    
+    auto convo_after_out = agent->get_conversation();
+    bool found_anchor = false;
+    for (const auto& msg : convo_after_out) {
+        if (msg.role == "system" && msg.content.find("Raw history archive: episode_2") != std::string::npos) {
+            found_anchor = true;
+        }
+    }
+    assert(found_anchor);
+
+    // Page in episode_2 at level 1
+    bool pagein_ok = agent->set_episode_state("episode_2", 1);
+    assert(pagein_ok);
+
+    auto convo_after_in = agent->get_conversation();
+    bool found_paged_in_turns = false;
+    for (const auto& msg : convo_after_in) {
+        if (msg.episode_id == "episode_2") {
+            assert(msg.episode_level == 1);
+            found_paged_in_turns = true;
+        }
+    }
+    assert(found_paged_in_turns);
+
+    // Shift level to level 2
+    bool shift_ok = agent->set_episode_state("episode_2", 2);
+    assert(shift_ok);
+
+    auto convo_after_shift = agent->get_conversation();
+    bool found_shifted_turns = false;
+    for (const auto& msg : convo_after_shift) {
+        if (msg.episode_id == "episode_2") {
+            assert(msg.episode_level == 2);
+            found_shifted_turns = true;
+        }
+    }
+    assert(found_shifted_turns);
+
+    // Evict (page out) episode_2
+    bool evict_ok = agent->set_episode_state("episode_2", 99);
+    assert(evict_ok);
+
+    auto convo_after_evict = agent->get_conversation();
+    bool found_anchor_again = false;
+    for (const auto& msg : convo_after_evict) {
+        // Turns should be gone (no msg should have episode_id == "episode_2")
+        assert(msg.episode_id != "episode_2");
+        if (msg.role == "system" && msg.content.find("Raw history archive: episode_2") != std::string::npos) {
+            found_anchor_again = true;
+        }
+    }
+    assert(found_anchor_again);
+    std::cout << "Episode state machine transitions verified successfully!" << std::endl;
+
     std::cout << "\nAll test tools verified!" << std::endl;
     return 0;
 }
