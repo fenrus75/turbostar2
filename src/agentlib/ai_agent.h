@@ -133,6 +133,7 @@ std::map<std::string, episode_index_entry> get_episode_index() const {
     std::lock_guard<std::mutex> lock(conversation_mutex_);
     return episode_index_;
 }
+void inject_archived_episodes_summary();
 void compact_ephemeral_errors(std::vector<message>& convo);
 void evaluate_auto_episode(std::vector<message>& convo);
 void evaluate_compaction();

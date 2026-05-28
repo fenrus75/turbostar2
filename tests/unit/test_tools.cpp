@@ -71,6 +71,19 @@ int main() {
     assert(list_episodes_result.find("episode_1") != std::string::npos);
     assert(list_episodes_result.find("Resume when user asks about testing") != std::string::npos);
 
+    std::cout << "\nTesting inject_archived_episodes_summary..." << std::endl;
+    agent->inject_archived_episodes_summary();
+    auto convo_with_summary = agent->get_conversation();
+    bool found_summary_msg = false;
+    for (const auto& msg : convo_with_summary) {
+        if (msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Archived Episodes Directory]") != std::string::npos) {
+            found_summary_msg = true;
+            assert(msg.content.find("agent_restore_context") != std::string::npos);
+            assert(msg.content.find("episode_1") != std::string::npos);
+        }
+    }
+    assert(found_summary_msg);
+
     std::cout << "\nTesting set_episode_state (paging in, shifting levels, and evicting)..." << std::endl;
     // Page out the turns to create episode_2
     agent->page_out_context(0, 2, "Manual Episode", "Manual Episode Summary", {"manual-tag"});

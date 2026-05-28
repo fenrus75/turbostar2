@@ -1843,4 +1843,43 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 	return segments;
 }
 
+void ai_agent::inject_archived_episodes_summary()
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	if (episode_index_.empty()) return;
+
+	std::vector<const episode_index_entry*> sorted;
+	for (const auto& pair : episode_index_) {
+		sorted.push_back(&pair.second);
+	}
+	std::sort(sorted.begin(), sorted.end(), [](const episode_index_entry* a, const episode_index_entry* b) {
+		return a->episode_seq < b->episode_seq;
+	});
+
+	std::stringstream oss;
+	oss << "[SYSTEM MEMORY: Archived Episodes Directory]\n";
+	oss << "The following past episodes have been paged out to disk to save context budget:\n\n";
+	oss << "| Episode | When to Resume |\n";
+	oss << "|---|---|\n";
+	for (const auto* mi : sorted) {
+		std::string hint = mi->reactivation_hint;
+		if (hint.empty()) {
+			hint = "(No reactivation hint available)";
+		}
+		oss << "| " << mi->id << " | " << hint << " |\n";
+	}
+	oss << "\nIf you need to retrieve the detailed history or code changes from any of these past episodes, you can restore them into your active context by calling the `agent_restore_context` tool with the corresponding Episode ID (e.g. `agent_restore_context(\"episode_1\", 1)`).";
+
+	message msg;
+	msg.role = "system";
+	msg.content = oss.str();
+
+	// Insert this message right after the initial system prompt (which is at index 0)
+	if (conversation_.empty()) {
+		conversation_.push_back(msg);
+	} else {
+		conversation_.insert(conversation_.begin() + 1, msg);
+	}
+}
+
 } // namespace agentlib

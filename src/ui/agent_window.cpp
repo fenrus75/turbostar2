@@ -47,7 +47,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 	// Load the active state from the previous session if it exists.
 	// This inherently gives us Cross-Session Persistence as per the design doc.
-	if (agent_->load_active_state(fresh_agent)) {		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
+	if (agent_->load_active_state(fresh_agent)) {
+		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
+	} else if (!fresh_agent) {
+		agent_->inject_archived_episodes_summary();
 	}
 
 	set_background_color_pair(17); // Use cyan background to differentiate from normal editors
