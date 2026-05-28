@@ -138,7 +138,18 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 
 ai_agent::~ai_agent()
 {
-	close();
+    close();
+
+    {
+        std::lock_guard<std::mutex> lock(summary_mutex_);
+        // is_closed_ is set to true by close(), which we just called
+        // Wake up worker to exit
+    }
+    summary_cv_.notify_all();
+    
+    if (summary_thread_.joinable()) {
+        summary_thread_.join();
+    }
 }
 
 void ai_agent::save_active_state() const
@@ -1370,9 +1381,10 @@ void ai_agent::summary_worker_loop()
                     continue;
                 }
                 
-                std::string system_prompt = "You are an AI context-management assistant. Below is an archived conversation 'episode' between a software engineer and an AI agent. "
-                    "Your mission is to write a 'demand-load hint' consisting of one or two concise sentences. This hint will be read by future AI agents to decide if they need to retrieve this specific episode into their active memory. "
-                    "Focus strictly on the technical problems solved, files modified, and decisions made. Frame it as a condition: describe exactly WHEN an agent should re-activate this context. Do not use conversational filler.\n\n"
+                std::string system_prompt = "You are an AI context-management assistant on a strict token budget. Below is an archived conversation 'episode' between a software engineer and an AI agent. "
+                    "Write an ultra-terse 'demand-load hint' (max 1-2 sentences) so future AI agents know WHEN to retrieve this episode into their active memory. "
+                    "Focus ONLY on the specific technical problems solved, files modified, and decisions made. Use highly compressed, telegraphic language to save tokens. "
+                    "Start your response exactly with 'Reactivate when:' and do NOT use any conversational filler.\n\n"
                     "EPISODE JSON:\n" + context_dump;
                     
                 std::vector<message> dummy_convo;
