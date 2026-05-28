@@ -191,6 +191,7 @@ void editor::dispatch(const editor_event &ev)
 			}
 		} break;
 		default:
+			event_logger::get_instance().log("Unhandled event type dispatched: " + std::to_string(static_cast<int>(ev.type)));
 			break;
 	}
 }

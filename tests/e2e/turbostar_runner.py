@@ -211,6 +211,14 @@ class TurbostarRunner:
             time.sleep(0.1)
         raise AssertionError(f"Text '{text}' not found {count} times in log after {timeout}s")
 
+    def assert_not_in_log(self, text, timeout=1.0):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            log = self.get_log()
+            if text in log:
+                raise AssertionError(f"Text '{text}' found in log but should not be")
+            time.sleep(0.1)
+
     def assert_file_exists(self, path, timeout=1.0):
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -410,7 +418,17 @@ class TurbostarRunner:
             self.proc.wait()
             self.proc = None
 
+        unhandled_event_error = None
         if os.path.exists(self.log_path):
+            try:
+                with open(self.log_path, 'r') as f:
+                    log_contents = f.read()
+                if "Unhandled event type dispatched" in log_contents:
+                    unhandled_event_error = AssertionError(
+                        f"Unhandled event type detected in log! Log:\n{log_contents}"
+                    )
+            except Exception:
+                pass
             os.remove(self.log_path)
 
         # Clean up default file to prevent state leak across tests
@@ -424,3 +442,6 @@ class TurbostarRunner:
             import shutil
             if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
                 shutil.rmtree(self.temp_home, ignore_errors=True)
+
+        if unhandled_event_error is not None:
+            raise unhandled_event_error
