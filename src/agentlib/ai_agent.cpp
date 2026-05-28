@@ -108,7 +108,18 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 
 	// Look for existing active turns matching episode_id in memory
 	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& m) {
-		return m.episode_id == episode_id;
+		if (m.episode_id == episode_id) return true;
+		if (m.role == "system" && m.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+			size_t arch_pos = m.content.find("Raw history archive: ");
+			if (arch_pos != std::string::npos) {
+				std::string parsed_id = m.content.substr(arch_pos + 21);
+				while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' || parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+					parsed_id.pop_back();
+				}
+				if (parsed_id == episode_id) return true;
+			}
+		}
+		return false;
 	});
 
 	if (first_it != conversation_.end()) {
@@ -260,6 +271,17 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			for (const auto& item : root["conversation"]) {
 				message msg;
 				from_json(item, msg);
+				if (msg.episode_id.empty() && msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+					size_t arch_pos = msg.content.find("Raw history archive: ");
+					if (arch_pos != std::string::npos) {
+						std::string parsed_id = msg.content.substr(arch_pos + 21);
+						while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' || parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+							parsed_id.pop_back();
+						}
+						msg.episode_id = parsed_id;
+						msg.episode_level = 99;
+					}
+				}
 				conversation_.push_back(msg);
 			}
 
@@ -1677,20 +1699,34 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 	bool in_episode = false;
 
 	for (const auto& msg : conversation_) {
-		if (!msg.episode_id.empty()) {
-			if (in_episode && msg.episode_id == current_ep_id) {
-				if (msg.episode_level != -1) {
-					current_seg.current_level = msg.episode_level;
+		std::string ep_id = msg.episode_id;
+		int ep_level = msg.episode_level;
+
+		if (ep_id.empty() && msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+			size_t arch_pos = msg.content.find("Raw history archive: ");
+			if (arch_pos != std::string::npos) {
+				ep_id = msg.content.substr(arch_pos + 21);
+				while (!ep_id.empty() && (ep_id.back() == '\r' || ep_id.back() == '\n' || ep_id.back() == ' ' || ep_id.back() == '\t')) {
+					ep_id.pop_back();
+				}
+				ep_level = 99;
+			}
+		}
+
+		if (!ep_id.empty()) {
+			if (in_episode && ep_id == current_ep_id) {
+				if (ep_level != -1) {
+					current_seg.current_level = ep_level;
 				}
 			} else {
 				if (!current_ep_id.empty() || in_episode) {
 					segments.push_back(current_seg);
 				}
-				current_ep_id = msg.episode_id;
+				current_ep_id = ep_id;
 				in_episode = true;
 				current_seg.label = "";
 				current_seg.uncompacted_tokens = 0;
-				current_seg.current_level = (msg.episode_level != -1) ? msg.episode_level : 0;
+				current_seg.current_level = (ep_level != -1) ? ep_level : 0;
 
 				auto it = episode_index_.find(current_ep_id);
 				if (it != episode_index_.end()) {
