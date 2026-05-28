@@ -534,10 +534,10 @@ bool agent_window::process_events()
 					scroll_offset_--;
 					needs_render = true;
 				}
-			} else if (key == 21) { // Ctrl-U (Page up)
+			} else if (key == 21 || key == KEY_PPAGE) { // Ctrl-U or Page Up
 				scroll_offset_ += get_content_height() - 3;
 				needs_render = true;
-			} else if (key == 22) { // Ctrl-V (Page down)
+			} else if (key == 22 || key == KEY_NPAGE) { // Ctrl-V or Page Down
 				scroll_offset_ -= get_content_height() - 3;
 				if (scroll_offset_ < 0)
 					scroll_offset_ = 0;
