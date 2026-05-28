@@ -9,12 +9,7 @@
 
 - a live agent context diagnostics screen showing basically our history datastructure live, as it happens
 
-- it is getting unwieldy to pass a series of bools down to the editor constructor for each new command line options
-     - we should just make a struct for them all, so that we just add to the struct in the future
 
-
-
-- give fs_compile* an "async" optional parameter
 
 - set "uv" working directory: 
 
@@ -119,6 +114,8 @@
 
 ## 28-05-28
 - implemented a new `agent_set_timer(seconds)` tool that runs a background timer and injects a `"previously set timer expired"` system message when it fires if the agent is idle.
+- implemented optional `async` boolean parameter for `fs_compile_file` and `fs_compile_project` to support background compilation.
+- refactored the `editor` constructor to accept an options struct (`editor_options`).
 
 ## 27-05-2026
 - critical: run_shell_command needs a timeout value as optional argument, default 300
