@@ -542,6 +542,9 @@ bool agent_window::process_events()
 				if (scroll_offset_ < 0)
 					scroll_offset_ = 0;
 				needs_render = true;
+			} else if (key == KEY_END) { // End key: scroll to bottom
+				scroll_offset_ = 0;
+				needs_render = true;
 			}
 		} else if (ev->type == event_type::paste) {
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
