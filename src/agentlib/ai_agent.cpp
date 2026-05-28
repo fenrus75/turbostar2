@@ -159,6 +159,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			auto next_it = conversation_.erase(first_it, last_it);
 			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
 			event_logger::get_instance().log("Agent " + name_ + " shifted context level " + episode_id + " to " + std::to_string(target_level));
+			increment_stat("context_pages_compacted");
 		}
 	} else {
 		// Not active in memory. Locate the Anchor message.
@@ -1575,6 +1576,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
             }
         }
         event_logger::get_instance().log("Context size exceeds 48k tokens. Forcing auto-episode boundary.");
+        increment_stat("auto_episodes_forced");
         {
             std::lock_guard<std::mutex> lock(conversation_mutex_);
             message marker_msg;
