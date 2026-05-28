@@ -19,20 +19,19 @@
 
 namespace fs = std::filesystem;
 
-editor::editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately,
-	       bool no_lsp, bool no_welcome, std::string initial_agent_prompt, bool fresh_agent)
-    : exit_immediately_(exit_immediately), debug_mode_(debug_mode), debug_string_(debug_string), initial_agent_prompt_(std::move(initial_agent_prompt)), fresh_agent_(fresh_agent)
+editor::editor(editor_options opts)
+    : exit_immediately_(opts.exit_immediately), debug_mode_(opts.debug_mode), debug_string_(std::move(opts.debug_string)), initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
-	bool lsp_allowed = !no_lsp && config_manager::get_instance().is_lsp_enabled();
+	bool lsp_allowed = !opts.no_lsp && config_manager::get_instance().is_lsp_enabled();
 	if (lsp_allowed) {
 		project_manager::get_instance().lsp_start(global_queue_);
 	}
 
 	std::string repo_root = git_manager::get_instance().get_repository_root();
 
-	if (filenames.empty()) {
+	if (opts.filenames.empty()) {
 		bool loaded_files = false;
 		if (!repo_root.empty()) {
 			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(repo_root);
@@ -46,13 +45,14 @@ editor::editor(bool debug_mode, const std::string &debug_string, const std::vect
 
 		if (!loaded_files) {
 			new_window("");
-			if (!no_welcome && initial_agent_prompt_.empty()) {
+			if (!opts.no_welcome && initial_agent_prompt_.empty()) {
 				active_dialog_ = create_welcome_dialog();
 				active_dialog_mode_ = dialog_mode::welcome;
 				set_focus(focus_target::dialog, "welcome");
 			}
 		}
-	} else {		for (const auto &f : filenames) {
+	} else {
+		for (const auto &f : opts.filenames) {
 			new_window(f);
 		}
 	}

@@ -28,10 +28,21 @@ enum class focus_target { menu_bar, window, dialog, popup };
  * Manages the application lifecycle, UI components, and event dispatching.
  * Implements the focus-based event routing model.
  */
+struct editor_options {
+	bool debug_mode = false;
+	std::string debug_string;
+	std::vector<std::string> filenames;
+	double exit_immediately = -1.0;
+	bool no_lsp = false;
+	bool no_welcome = false;
+	std::string initial_agent_prompt;
+	bool fresh_agent = false;
+};
+
 class editor : public agentlib::document_provider
 {
       public:
-	editor(bool debug_mode, const std::string &debug_string, const std::vector<std::string> &filenames, double exit_immediately, bool no_lsp = false, bool no_welcome = false, std::string initial_agent_prompt = "", bool fresh_agent = false);
+	explicit editor(editor_options opts);
 	~editor();
 
 	/**

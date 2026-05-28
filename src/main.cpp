@@ -206,7 +206,17 @@ int main(int argc, char **argv)
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
 
-	editor main_editor(debug_mode, debug_string, filenames, exit_immediately, no_lsp, no_welcome, agent_prompt, fresh_agent);
+	editor_options opts{
+		.debug_mode = debug_mode,
+		.debug_string = debug_string,
+		.filenames = filenames,
+		.exit_immediately = exit_immediately,
+		.no_lsp = no_lsp,
+		.no_welcome = no_welcome,
+		.initial_agent_prompt = agent_prompt,
+		.fresh_agent = fresh_agent
+	};
+	editor main_editor(opts);
 	main_editor.run();
 
 	logger.log("Exiting application loop.");
