@@ -115,6 +115,7 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- added tracking of `context_pages_compacted` (active level shifts) and `auto_episodes_forced` statistics to the `/stats` output.
 - refactored the background summary worker loop to terminate immediately upon editor close, eliminating shutdown delays caused by LLM summarization calls.
 - implemented automatic injection of the archived episodes summary table at startup for new agent sessions to ensure context awareness of paged out history.
 - implemented the `agent_list_episodes` tool returning a 2-column markdown table showing episode IDs and reactivation hints.
