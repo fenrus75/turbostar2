@@ -12,7 +12,10 @@
 - it is getting unwieldy to pass a series of bools down to the editor constructor for each new command line options
      - we should just make a struct for them all, so that we just add to the struct in the future
 
+- a new tool call   set_timer(timeout in seconds)
+	what it does is, internally we set a timer, and when the timeout triggers, IF the agent is idle, we inject a new system message with "previously set timer expired", which allows the agent to resume execution
 
+- give fs_compile* an "async" optional parameter
 
 - set "uv" working directory: 
 
