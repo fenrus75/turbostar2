@@ -113,6 +113,7 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- refactored context compaction, boundary tracking, and standardized episode states with `set_episode_state` allowing level 0-2 shifts and level 99 eviction.
 - implemented a new `agent_set_timer(seconds)` tool that runs a background timer and injects a `"previously set timer expired"` system message when it fires if the agent is idle.
 - implemented optional `async` boolean parameter for `fs_compile_file` and `fs_compile_project` to support background compilation.
 - refactored the `editor` constructor to accept an options struct (`editor_options`).
