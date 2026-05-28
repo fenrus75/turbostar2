@@ -118,10 +118,10 @@ public:
     
     void save_active_state() const;
     bool load_active_state(bool fresh_agent = false);
-
-    void load_episode_index();
-    std::string get_memory_index() const;
-    void compact_ephemeral_errors(std::vector<message>& convo);
+void load_episode_index();
+std::string get_memory_index() const;
+void compact_ephemeral_errors(std::vector<message>& convo);
+void evaluate_auto_episode(std::vector<message>& convo);
 
     std::vector<message> get_conversation() const {
         std::lock_guard<std::mutex> lock(conversation_mutex_);

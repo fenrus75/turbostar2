@@ -136,6 +136,12 @@ int main(int argc, char **argv)
 			
 		} else {
 			std::cout << "\nLLM Final Response:\n" << response.content << std::endl;
+			
+			// Append response to conversation so auto-episode evaluates it
+			conversation.push_back(response);
+			test_agent->set_conversation(conversation);
+			test_agent->evaluate_auto_episode(conversation);
+			
 			break;
 		}
 	}

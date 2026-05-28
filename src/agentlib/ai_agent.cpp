@@ -500,6 +500,8 @@ void ai_agent::start_processing()
 
 		std::string final_response;
 
+
+
 		while (true) {
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop (" + std::to_string(self->id_) + ") [closed early]");
@@ -514,6 +516,10 @@ void ai_agent::start_processing()
 				}
 				last_synced_index = self->conversation_.size();
 			}
+
+
+
+			self->evaluate_auto_episode(convo); last_synced_index = self->conversation_.size();
 
 			self->set_status(agent_status::thinking);
 
@@ -764,7 +770,8 @@ void ai_agent::start_processing()
 				    continue; // Loop around to instantly process the queued user prompt!
 				}
 				
-				break;
+				self->evaluate_auto_episode(convo); last_synced_index = self->conversation_.size();
+							break;
 			}
 		}
 
@@ -1314,6 +1321,38 @@ void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::s
     }
 }
 
+
+void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
+{
+    int recent_chars = 0;
+    for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
+        if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode") break;
+        if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) break;
+        
+        recent_chars += convo[i].content.length();
+        if (convo[i].reasoning_content) recent_chars += convo[i].reasoning_content->length();
+        if (convo[i].role == "assistant" && convo[i].tool_calls) {
+            for (const auto& tc : *convo[i].tool_calls) {
+                recent_chars += tc.function.arguments.length();
+            }
+        }
+    }
+
+    if (recent_chars > 192000) {
+        event_logger::get_instance().log("Context size exceeds 48k tokens. Forcing auto-episode boundary.");
+        {
+            std::lock_guard<std::mutex> lock(conversation_mutex_);
+            message marker_msg;
+            marker_msg.role = "system";
+            marker_msg.content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: Automatically generated episode boundary due to context size\nTags: [auto-episode]";
+            conversation_.push_back(marker_msg);
+            
+            convo.push_back(marker_msg);
+        }
+        snapshot_episode("Auto-Episode", "Automatically generated episode boundary due to context size", {"auto-episode"});
+        add_interaction(std::make_shared<interaction_system_message>("Auto-Episode boundary inserted (context limit reached)."));
+    }
+}
 
 void ai_agent::update_episode_hint(const std::string& episode_id, const std::string& hint)
 {

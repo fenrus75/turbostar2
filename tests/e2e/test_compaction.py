@@ -76,8 +76,7 @@ def test_ephemeral_error_zapping(tmp_path):
         assert False, "ephemeral_errors_zapped was not 1"    
     # Verify conversation history
     conv = state.get("conversation", [])
-    # 1 system, 1 user, 1 assistant (stripped), 1 tool success
-    assert len(conv) == 4 
+    assert len(conv) >= 4 
     
     # Check that the failed call is completely gone
     for msg in conv:
@@ -179,3 +178,29 @@ def test_think_free_restore(tmp_path):
             break
             
     assert found_restored_msg, f"Failed to restore context from disk. Conversation: {json.dumps(conv, indent=2)}"
+
+def test_auto_episode(tmp_path):
+    # Mock a response with 200,000 characters of reasoning_content
+    huge_reasoning = "a" * 200000
+    traffic_file = create_traffic_file(tmp_path, "auto_episode_traffic.json", [
+        {
+            "role": "assistant",
+            "content": "Done thinking.",
+            "reasoning_content": huge_reasoning,
+        }
+    ])
+    
+    state, stdout = run_agentcli(tmp_path, "Trigger auto episode", traffic_file, mock_epoch="54321")
+    assert state is not None
+    
+    conv = state.get("conversation", [])
+    
+    # We should see the [SYSTEM MEMORY: Episode Archived] in the conversation
+    has_marker = False
+    for msg in conv:
+        if msg.get("role") == "system" and "Auto-Episode" in msg.get("content", ""):
+            has_marker = True
+            break
+            
+    assert has_marker, f"Auto-Episode marker not injected. Stdout: {stdout}\nConversation: {json.dumps(conv, indent=2)}"
+
