@@ -42,6 +42,16 @@ class agent_list_episodes_validator : public agentlib::tool_validator
 	}
 };
 
+class list_episodes_validator : public agent_list_episodes_validator
+{
+      public:
+	std::string get_name() const override
+	{
+		return "list_episodes";
+	}
+};
+
 REGISTER_TOOL(agent_list_episodes_validator)
+REGISTER_TOOL(list_episodes_validator)
 
 } // namespace tools

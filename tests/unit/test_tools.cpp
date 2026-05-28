@@ -71,6 +71,12 @@ int main() {
     assert(list_episodes_result.find("episode_1") != std::string::npos);
     assert(list_episodes_result.find("Resume when user asks about testing") != std::string::npos);
 
+    std::string list_episodes_alias_result = registry.execute_tool("list_episodes", "{}", ctx);
+    std::cout << "Alias Result:\n" << list_episodes_alias_result << std::endl;
+    assert(list_episodes_alias_result.find("| Episode | When to Resume |") != std::string::npos);
+    assert(list_episodes_alias_result.find("episode_1") != std::string::npos);
+    assert(list_episodes_alias_result.find("Resume when user asks about testing") != std::string::npos);
+
     std::cout << "\nTesting inject_archived_episodes_summary..." << std::endl;
     agent->inject_archived_episodes_summary();
     auto convo_with_summary = agent->get_conversation();
