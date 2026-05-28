@@ -6,6 +6,7 @@
 #include "../../src/config_manager.h"
 #include "../../src/git_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/agentlib/compaction_engine.h"
 
 using namespace agentlib;
 
@@ -118,6 +119,28 @@ int main() {
     }
     assert(found_anchor_again);
     std::cout << "Episode state machine transitions verified successfully!" << std::endl;
+
+    std::cout << "\nTesting compaction_engine planning logic..." << std::endl;
+    std::vector<active_episode_info> candidates = {
+        { "episode_1", 0, 10, 1000, 600, 400 },
+        { "episode_2", 0, 20, 2000, 1200, 800 }
+    };
+
+    auto planned = compaction_engine::plan_compaction(candidates, 3000, 3500);
+    assert(planned.empty());
+
+    planned = compaction_engine::plan_compaction(candidates, 3000, 2500);
+    assert(planned.size() == 2);
+    assert(planned[0].episode_id == "episode_1");
+    assert(planned[0].target_level == 1);
+    assert(planned[1].episode_id == "episode_1");
+    assert(planned[1].target_level == 2);
+
+    planned = compaction_engine::plan_compaction(candidates, 3000, 1000);
+    assert(planned.size() > 2);
+    assert(planned[0].episode_id == "episode_1");
+    assert(planned[0].target_level == 1);
+    std::cout << "Compaction engine planning logic verified successfully!" << std::endl;
 
     std::cout << "\nAll test tools verified!" << std::endl;
     return 0;

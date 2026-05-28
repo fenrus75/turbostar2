@@ -12,6 +12,7 @@
 #include "../fs_utils.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
+#include "compaction_engine.h"
 
 namespace agentlib
 {
@@ -645,9 +646,18 @@ void ai_agent::start_processing()
 				last_synced_index = self->conversation_.size();
 			}
 
+			self->evaluate_compaction();
+			self->evaluate_auto_episode(convo);
 
-
-			self->evaluate_auto_episode(convo); last_synced_index = self->conversation_.size();
+			// Reload/Sync with shared conversation history in case compaction modified it
+			{
+				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				convo.clear();
+				for (const auto& msg : self->conversation_) {
+					convo.push_back(msg);
+				}
+				last_synced_index = self->conversation_.size();
+			}
 
 			self->set_status(agent_status::thinking);
 
@@ -898,6 +908,7 @@ void ai_agent::start_processing()
 				    continue; // Loop around to instantly process the queued user prompt!
 				}
 				
+				self->evaluate_compaction();
 				self->evaluate_auto_episode(convo); last_synced_index = self->conversation_.size();
 							break;
 			}
@@ -1473,6 +1484,87 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
         snapshot_episode("Auto-Episode", "Automatically generated episode boundary due to context size", {"auto-episode"});
         add_interaction(std::make_shared<interaction_system_message>("Auto-Episode boundary inserted (context limit reached)."));
     }
+}
+
+void ai_agent::evaluate_compaction()
+{
+	if (!model_) return;
+
+	// Calculate target bounds based on model's max_context_tokens
+	int max_tokens = model_->get_max_context_tokens();
+	
+	// Default to 80% upper bound trigger, 40% lower bound target as requested
+	double upper_pct = 0.8;
+	double lower_pct = 0.4;
+	
+	int upper_bound = static_cast<int>(max_tokens * upper_pct);
+	int lower_bound = static_cast<int>(max_tokens * lower_pct);
+
+	int current_active_tokens = 0;
+	std::map<std::string, int> active_episodes;
+	std::vector<active_episode_info> candidates;
+
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		std::set<std::string> accounted_episodes;
+
+		for (const auto& msg : conversation_) {
+			if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
+				active_episodes[msg.episode_id] = msg.episode_level;
+				if (accounted_episodes.find(msg.episode_id) == accounted_episodes.end()) {
+					accounted_episodes.insert(msg.episode_id);
+					auto it = episode_index_.find(msg.episode_id);
+					if (it != episode_index_.end()) {
+						if (msg.episode_level == 0) {
+							current_active_tokens += it->second.tokens_level_0;
+						} else if (msg.episode_level == 1) {
+							current_active_tokens += it->second.tokens_level_1;
+						} else if (msg.episode_level == 2) {
+							current_active_tokens += it->second.tokens_level_2;
+						}
+					}
+				}
+			} else {
+				current_active_tokens += compaction_engine::estimate_message_tokens(msg);
+			}
+		}
+
+		if (current_active_tokens <= upper_bound) {
+			return; // No compaction needed
+		}
+
+		// Populate candidates for compaction
+		for (const auto& [ep_id, level] : active_episodes) {
+			auto it = episode_index_.find(ep_id);
+			if (it != episode_index_.end()) {
+				candidates.push_back({
+					ep_id,
+					level,
+					it->second.lru_seq,
+					it->second.tokens_level_0,
+					it->second.tokens_level_1,
+					it->second.tokens_level_2
+				});
+			}
+		}
+	}
+
+	event_logger::get_instance().log("Active history tokens (" + std::to_string(current_active_tokens) + 
+	                                 ") exceed upper bound (" + std::to_string(upper_bound) + "). Triggering compaction engine.");
+
+	// Run decision engine to plan transitions (outside lock to avoid recursive deadlocks in set_episode_state)
+	std::vector<transition> planned = compaction_engine::plan_compaction(candidates, current_active_tokens, lower_bound);
+
+	if (planned.empty()) {
+		event_logger::get_instance().log("Compaction engine: No active episodes eligible for compaction.");
+		return;
+	}
+
+	// Apply planned transitions
+	for (const auto& trans : planned) {
+		event_logger::get_instance().log("Compaction engine: Auto-shifting " + trans.episode_id + " to level " + std::to_string(trans.target_level));
+		set_episode_state(trans.episode_id, trans.target_level);
+	}
 }
 
 void ai_agent::update_episode_hint(const std::string& episode_id, const std::string& hint)

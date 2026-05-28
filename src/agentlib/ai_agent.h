@@ -123,6 +123,7 @@ void load_episode_index();
 std::string get_memory_index() const;
 void compact_ephemeral_errors(std::vector<message>& convo);
 void evaluate_auto_episode(std::vector<message>& convo);
+void evaluate_compaction();
 
     std::vector<message> get_conversation() const {
         std::lock_guard<std::mutex> lock(conversation_mutex_);

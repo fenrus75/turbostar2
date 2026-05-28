@@ -49,7 +49,8 @@ agentlib_sources = files(
   'agentlib/interactions/system_message.cpp',
   'agentlib/ai_model.cpp',
   'agentlib/api_formatter.cpp',
-  'agentlib/skill_manager.cpp'
+  'agentlib/skill_manager.cpp',
+  'agentlib/compaction_engine.cpp'
 )
 
 ui_sources = files(
