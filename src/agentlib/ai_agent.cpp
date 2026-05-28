@@ -132,6 +132,8 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 {
 	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 	client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
+
+	summary_thread_ = std::thread(&ai_agent::summary_worker_loop, this);
 }
 
 ai_agent::~ai_agent()
@@ -907,6 +909,7 @@ void ai_agent::snapshot_milestone(const std::string& title, const std::string& s
     meta["milestone_id"] = milestone_id;
     meta["title"] = title;
     meta["summary"] = summary;
+    meta["reactivation_hint"] = ""; // Filled asynchronously
     meta["tags"] = tags;
     meta["created_at_epoch"] = epoch;
     meta["last_accessed_epoch"] = epoch;
@@ -1004,6 +1007,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     meta["milestone_id"] = milestone_id;
     meta["title"] = title;
     meta["summary"] = summary;
+    meta["reactivation_hint"] = ""; // Filled asynchronously
     meta["tags"] = tags;
     meta["created_at_epoch"] = epoch;
     meta["last_accessed_epoch"] = epoch;
@@ -1051,6 +1055,12 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 
     event_logger::get_instance().log("Paged out " + std::to_string(end_index - start_index) + " turns to " + milestone_id);
     increment_stat("context_pages_out");
+
+    {
+        std::lock_guard<std::mutex> lock(summary_mutex_);
+        summary_queue_.push_back({milestone_id, filepath});
+    }
+    summary_cv_.notify_one();
 }
 
 void ai_agent::load_milestone_index()
@@ -1073,6 +1083,7 @@ void ai_agent::load_milestone_index()
                 mi.id = root.value("milestone_id", "unknown");
                 mi.title = root.value("title", "Untitled");
                 mi.summary = root.value("summary", "");
+                mi.reactivation_hint = root.value("reactivation_hint", "");
                 mi.created_at_epoch = root.value("created_at_epoch", 0LL);
                 mi.last_accessed_epoch = root.value("last_accessed_epoch", mi.created_at_epoch);
                 mi.tokens_level_0 = root.value("tokens_level_0", 0);
@@ -1086,6 +1097,13 @@ void ai_agent::load_milestone_index()
                 }
                 
                 milestone_index_[mi.id] = mi;
+
+                if (mi.reactivation_hint.empty()) {
+                    std::string episode_filepath = history_dir + "/" + mi.id + ".json";
+                    std::lock_guard<std::mutex> slock(summary_mutex_);
+                    summary_queue_.push_back({mi.id, episode_filepath});
+                    summary_cv_.notify_one();
+                }
             } catch (...) {}
         }
     }
@@ -1112,6 +1130,9 @@ std::string ai_agent::get_memory_index() const
 
     for (const auto* mi : sorted) {
         out << "- [" << mi->id << "] " << mi->title << " (~" << mi->tokens_level_1 << " tokens paged-out)\n";
+        if (!mi->reactivation_hint.empty()) {
+            out << "  Hint: " << mi->reactivation_hint << "\n";
+        }
         if (!mi->tags.empty()) {
             out << "  Tags: ";
             for (size_t i = 0; i < mi->tags.size(); ++i) {
@@ -1280,6 +1301,100 @@ void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::s
             return;
         }
     }
+}
+
+
+void ai_agent::update_milestone_hint(const std::string& milestone_id, const std::string& hint)
+{
+    // Update the index memory
+    {
+        std::lock_guard<std::mutex> lock(conversation_mutex_);
+        if (milestone_index_.find(milestone_id) != milestone_index_.end()) {
+            milestone_index_[milestone_id].reactivation_hint = hint;
+        }
+
+        // Mutate the active conversation
+        for (auto& msg : conversation_) {
+            if (msg.role == "system" && msg.content.find(milestone_id) != std::string::npos) {
+                // We found the marker, append the hint
+                msg.content += "\nDemand-Load Hint: " + hint;
+                break;
+            }
+        }
+    }
+    
+    // Rewrite the metadata sidecar
+    std::string history_dir = fs_utils::get_project_history_dir(name_);
+    std::string meta_filepath = history_dir + "/" + milestone_id + "_metadata.json";
+    if (std::filesystem::exists(meta_filepath)) {
+        try {
+            std::ifstream file(meta_filepath);
+            nlohmann::json root;
+            file >> root;
+            root["reactivation_hint"] = hint;
+            std::ofstream out(meta_filepath);
+            out << root.dump(4);
+        } catch (...) {}
+    }
+}
+
+void ai_agent::summary_worker_loop()
+{
+    event_logger::get_instance().log("Thread started: ai_agent summary worker");
+    
+    while (!is_closed_) {
+        pending_summary task;
+        {
+            std::unique_lock<std::mutex> lock(summary_mutex_);
+            summary_cv_.wait(lock, [this] { return is_closed_ || !summary_queue_.empty(); });
+            
+            if (is_closed_ && summary_queue_.empty()) break;
+            if (summary_queue_.empty()) continue;
+            
+            task = summary_queue_.front();
+            summary_queue_.erase(summary_queue_.begin());
+        }
+        
+        try {
+            std::ifstream file(task.filepath);
+            if (!file.is_open()) continue;
+            
+            nlohmann::json root;
+            file >> root;
+            
+            if (root.contains("conversation") && root["conversation"].is_array()) {
+                std::string context_dump = root["conversation"].dump(2);
+                
+                if (context_dump.length() < 1000) {
+                    update_milestone_hint(task.milestone_id, "Trivial or extremely brief episode.");
+                    continue;
+                }
+                
+                std::string system_prompt = "You are an AI context-management assistant. Below is an archived conversation 'episode' between a software engineer and an AI agent. "
+                    "Your mission is to write a 'demand-load hint' consisting of one or two concise sentences. This hint will be read by future AI agents to decide if they need to retrieve this specific episode into their active memory. "
+                    "Focus strictly on the technical problems solved, files modified, and decisions made. Frame it as a condition: describe exactly WHEN an agent should re-activate this context. Do not use conversational filler.\n\n"
+                    "EPISODE JSON:\n" + context_dump;
+                    
+                std::vector<message> dummy_convo;
+                message sys;
+                sys.role = "system";
+                sys.content = system_prompt;
+                dummy_convo.push_back(sys);
+                
+                auto transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
+                llm_client local_client(transport, model_->get_id(), model_->get_api_type());
+                
+                llm_chat_response res = local_client.send_chat(dummy_convo);
+                if (!res.msg.content.empty()) {
+                    update_milestone_hint(task.milestone_id, res.msg.content);
+                    event_logger::get_instance().log("Generated background summary for " + task.milestone_id);
+                }
+            }
+        } catch (const std::exception& e) {
+            event_logger::get_instance().log("Error in background summarization: " + std::string(e.what()));
+        }
+    }
+    event_logger::get_instance().log("Thread exited: ai_agent summary worker");
 }
 
 } // namespace agentlib
