@@ -45,6 +45,23 @@ int main() {
     std::cout << "Result:\n" << timer_result << std::endl;
     assert(timer_result.find("Timer set for 1 seconds.") != std::string::npos);
 
+    std::cout << "\nTesting get_memory_index..." << std::endl;
+    std::string empty_mem = agent->get_memory_index();
+    std::cout << "Empty memory index:\n" << empty_mem << std::endl;
+    assert(empty_mem.find("Memory index is empty") != std::string::npos);
+
+    agent->inject_context("user", "Hello world");
+    agent->inject_context("assistant", "Hi there!");
+    agent->snapshot_episode("Test Episode", "Test Summary", {"test-tag"});
+
+    std::string populated_mem = agent->get_memory_index();
+    std::cout << "Populated memory index:\n" << populated_mem << std::endl;
+    assert(populated_mem.find("Agent Memory Index") != std::string::npos);
+    assert(populated_mem.find("Test Episode") != std::string::npos);
+    assert(populated_mem.find("raw") != std::string::npos);
+    assert(populated_mem.find("think-free") != std::string::npos);
+    assert(populated_mem.find("think-free+pseudo") != std::string::npos);
+
     std::cout << "\nAll test tools verified!" << std::endl;
     return 0;
 }

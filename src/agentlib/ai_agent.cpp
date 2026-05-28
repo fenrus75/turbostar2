@@ -1188,7 +1188,10 @@ std::string ai_agent::get_memory_index() const
     });
 
     for (const auto* mi : sorted) {
-        out << "- [" << mi->id << "] " << mi->title << " (~" << mi->tokens_level_1 << " tokens paged-out)\n";
+        out << "- [" << mi->id << "] " << mi->title << " (~" 
+            << mi->tokens_level_0 << " raw, ~" 
+            << mi->tokens_level_1 << " think-free, ~" 
+            << mi->tokens_level_2 << " think-free+pseudo tokens paged-out)\n";
         if (!mi->reactivation_hint.empty()) {
             out << "  Hint: " << mi->reactivation_hint << "\n";
         }
