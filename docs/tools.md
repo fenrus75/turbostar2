@@ -88,13 +88,15 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:** None.
 
 ### `fs_compile_project`
-*   **Description:** Compiles the entire project (synchronously) and returns the raw console output. Populates the workspace error list.
-*   **Arguments:** None.
+*   **Description:** Compiles the entire project and returns the raw console output. Populates the workspace error list. Can be run asynchronously.
+*   **Arguments:**
+    *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
 
 ### `fs_compile_file`
-*   **Description:** Compiles a single file (synchronously) and returns the raw console output. Populates the workspace error list.
+*   **Description:** Compiles a single file and returns the raw console output. Populates the workspace error list. Can be run asynchronously.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file to compile, relative to the project root.
+    *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
 
 ### `fs_compile_summary`
 *   **Description:** Reports all files that currently have compilation errors/warnings or live LSP diagnostics. Returns a Markdown table.
@@ -252,6 +254,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
 ### `pop_todo`
 *   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
 *   **Arguments:** None.
+
+### `agent_set_timer`
+*   **Description:** Sets a timer (in seconds) that runs in the background. Once the timer expires, if the agent is idle, it injects a `"previously set timer expired"` system message to wake the agent.
+*   **Arguments:**
+    *   `seconds` *(integer, required)*: The duration of the timer in seconds.
 
 ---
 

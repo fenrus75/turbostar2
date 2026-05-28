@@ -3,11 +3,14 @@
 #include "../../fs_utils.h"
 #include "../terminal_command_runner.h"
 #include "fs_compile_file.h"
+#include "../../agentlib/ai_agent.h"
+#include <thread>
 
 namespace tools
 {
 
-fs_compile_file_tool::fs_compile_file_tool(std::string safe_path) : safe_path_(std::move(safe_path))
+fs_compile_file_tool::fs_compile_file_tool(fs_compile_file_args args, std::string safe_path)
+	: args_(std::move(args)), safe_path_(std::move(safe_path))
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Compile File", "Compiling " + safe_path_ + "...");
 }
@@ -28,16 +31,57 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 		ctx.doc_provider->save_all_documents();
 	}
 
-	terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
-	runner.set_enable_crash_catcher(true);
-	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
-
 	std::string build_dir = config_manager::get_instance().get_build_directory();
 	std::string cmd = fs_utils::get_compile_command_for_file(safe_path_, build_dir);
 
 	if (cmd.empty()) {
 		return "Error: Cannot find compile command for this file in compile_commands.json.";
 	}
+
+	if (args_.async) {
+		std::weak_ptr<agentlib::ai_agent> weak_agent;
+		if (ctx.active_agent) {
+			weak_agent = ctx.active_agent->shared_from_this();
+		}
+		std::string captured_tool_call_id = ctx.tool_call_id;
+
+		std::thread([this, runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent, captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
+			runner->set_enable_crash_catcher(true);
+			runner->set_project_dir(workspace_dir);
+
+			size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
+			runner->execute(cmd);
+
+			std::string output = runner->get_final_output();
+			runner->get_new_crashdumps(); // Trigger refresh in the runner to update the manager
+			size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+
+			if (crashes_after > crashes_before) {
+				output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
+					  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to "
+					  "investigate.";
+			}
+
+			// Cap output at 10,000 characters to protect context window
+			if (output.length() > 10000) {
+				output = output.substr(output.length() - 10000);
+				output = "\n...[output truncated due to length]...\n" + output;
+			}
+
+			std::string formatted_injection = "```bash\n$ " + cmd + "\n" + output + "\n```";
+
+			if (auto agent = weak_agent.lock()) {
+				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
+				agent->inject_context("system", "The background task 'fs_compile_file' (" + safe_path_ + ") has completed. I updated your previous tool result with the output.", true);
+			}
+		}).detach();
+
+		return "Compilation started in the background. The output will be injected here when it completes.";
+	}
+
+	terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
+	runner.set_enable_crash_catcher(true);
+	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
 	size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
 	runner.execute(cmd);

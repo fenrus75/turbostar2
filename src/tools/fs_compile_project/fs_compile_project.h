@@ -9,8 +9,9 @@ namespace tools {
 
 struct fs_compile_project_args {
     bool clean{false};
+    bool async{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_compile_project_args, clean);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_compile_project_args, clean, async);
 
 class fs_compile_project_tool : public agentlib::llm_tool {
 public:
@@ -37,6 +38,10 @@ public:
                 {"clean", {
                     {"type", "boolean"},
                     {"description", "Optional. If true, forces a completely clean rebuild before compiling to clear out stale artifacts."}
+                }},
+                {"async", {
+                    {"type", "boolean"},
+                    {"description", "Optional. If true, starts the project compilation in the background."}
                 }}
             }}
         };
