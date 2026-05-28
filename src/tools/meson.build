@@ -140,5 +140,7 @@ tools_sources = files(
   'clear_all_errors/clear_all_errors_entry.cpp',
   'clear_all_errors/clear_all_errors_security.cpp',
   'agent_set_timer/agent_set_timer_entry.cpp',
-  'agent_set_timer/agent_set_timer_security.cpp'
+  'agent_set_timer/agent_set_timer_security.cpp',
+  'agent_list_episodes/agent_list_episodes_entry.cpp',
+  'agent_list_episodes/agent_list_episodes_security.cpp'
 )

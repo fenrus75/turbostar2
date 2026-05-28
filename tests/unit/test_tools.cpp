@@ -63,6 +63,14 @@ int main() {
     assert(populated_mem.find("think-free") != std::string::npos);
     assert(populated_mem.find("think-free+pseudo") != std::string::npos);
 
+    std::cout << "\nTesting agent_list_episodes..." << std::endl;
+    agent->update_episode_hint("episode_1", "Resume when user asks about testing");
+    std::string list_episodes_result = registry.execute_tool("agent_list_episodes", "{}", ctx);
+    std::cout << "Result:\n" << list_episodes_result << std::endl;
+    assert(list_episodes_result.find("| Episode | When to Resume |") != std::string::npos);
+    assert(list_episodes_result.find("episode_1") != std::string::npos);
+    assert(list_episodes_result.find("Resume when user asks about testing") != std::string::npos);
+
     std::cout << "\nTesting set_episode_state (paging in, shifting levels, and evicting)..." << std::endl;
     // Page out the turns to create episode_2
     agent->page_out_context(0, 2, "Manual Episode", "Manual Episode Summary", {"manual-tag"});
