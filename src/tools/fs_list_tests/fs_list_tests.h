@@ -19,6 +19,7 @@ class fs_list_tests_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_list_tests"; }
     std::string get_description() const override { return "Returns a markdown table of all available test names in the project."; }
+    bool is_pure() const override { return true; }
     
     nlohmann::json get_parameters_schema() const override {
         return {

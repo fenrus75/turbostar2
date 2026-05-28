@@ -17,6 +17,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ask_user_raw_args, questions);
 class ask_user_validator : public agentlib::tool_validator
 {
       public:
+	bool is_pure() const override
+	{
+		return true;
+	}
+
 	std::string get_name() const override
 	{
 		return "ask_user";

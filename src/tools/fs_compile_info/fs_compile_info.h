@@ -28,6 +28,7 @@ public:
     std::string get_parameter_description() const override { return "The path to the file, relative to the project root."; }
 
     agentlib::access_type get_required_permission() const override { return agentlib::access_type::read; }
+    bool is_pure() const override { return true; }
     
 protected:
     std::unique_ptr<agentlib::llm_tool> create_tool_from_resolved_path(const std::string& safe_path) const override;

@@ -43,6 +43,7 @@ public:
     std::string get_name() const override { return "fs_find_in_files"; }
     std::string get_description() const override { return "Search for a regular expression across multiple files in the project. Returns formatted markdown with line numbers and matches."; }
     nlohmann::json get_parameters_schema() const override;
+    bool is_pure() const override { return true; }
 
 protected:
     bool validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const override;

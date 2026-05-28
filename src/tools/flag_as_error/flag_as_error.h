@@ -29,6 +29,7 @@ public:
     std::string get_name() const override { return "flag_as_error"; }
     std::string get_description() const override { return "Flags a specific line in a file as an error or warning, creating an overlay in the editor UI."; }
     nlohmann::json get_parameters_schema() const override;
+    bool is_pure() const override { return true; }
     
     bool validate_args_impl(
         const nlohmann::json& args, 

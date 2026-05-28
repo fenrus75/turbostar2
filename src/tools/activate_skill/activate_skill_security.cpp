@@ -17,6 +17,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(activate_skill_raw_args, name);
 class activate_skill_validator : public agentlib::tool_validator
 {
       public:
+	bool is_pure() const override
+	{
+		return true;
+	}
+
 	std::string get_name() const override
 	{
 		return "activate_skill";

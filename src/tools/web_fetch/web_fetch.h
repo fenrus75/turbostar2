@@ -23,6 +23,7 @@ public:
     std::string get_description() const override { return "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources."; }
     std::string get_parameter_name() const override { return "url"; }
     std::string get_parameter_description() const override { return "The full URL to fetch (must start with http:// or https://)."; }
+    bool is_pure() const override { return true; }
 
 protected:
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& ctx, std::string& out_error) const override;

@@ -18,6 +18,7 @@ public:
     std::string get_name() const override { return "clear_all_errors"; }
     std::string get_description() const override { return "Clears all currently flagged errors and warnings from the editor UI."; }
     nlohmann::json get_parameters_schema() const override;
+    bool is_pure() const override { return true; }
     
     bool validate_args_impl(
         const nlohmann::json& args, 

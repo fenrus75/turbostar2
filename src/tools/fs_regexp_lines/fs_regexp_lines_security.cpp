@@ -16,6 +16,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_regexp_lines_raw_args, path, 
 class fs_regexp_lines_validator : public agentlib::tool_validator
 {
       public:
+	bool is_pure() const override
+	{
+		return true;
+	}
+
 	std::string get_name() const override
 	{
 		return "fs_regexp_lines";
