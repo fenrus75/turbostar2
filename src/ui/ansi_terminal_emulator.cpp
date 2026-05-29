@@ -239,6 +239,17 @@ void ansi_terminal_emulator::handle_csi_command(char cmd) {
             cursor_y_ = std::max(0, std::min(row, height_ - 1));
             break;
         }
+        case 'X': { // Erase Character (ECH)
+            int n = get_param(0, 1);
+            if (n == 0) n = 1;
+            int limit = std::min(width_, cursor_x_ + n);
+            terminal_cell blank = current_style_;
+            blank.glyph = ' ';
+            for (int x = cursor_x_; x < limit; ++x) {
+                grid_[cursor_y_][x] = blank;
+            }
+            break;
+        }
         default: {
             std::string param_str;
             for (size_t i = 0; i < csi_params_.size(); ++i) {

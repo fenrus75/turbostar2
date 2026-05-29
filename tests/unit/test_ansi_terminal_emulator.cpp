@@ -229,6 +229,30 @@ int main() {
         assert_equal(term.get_cursor_y(), 3, "VPA with 4 Y");
     }
 
+    // 9. ECH (Erase Character)
+    {
+        ui::ansi_terminal_emulator term(10, 5);
+        // Write some text
+        term.write("HelloWorld");
+        assert_equal(term.get_grid()[0][4].glyph, 'o', "Before ECH");
+
+        // Reposition to (0, 3) (letter 'l' in Hello)
+        term.write("\x1b[1;4H");
+
+        // Erase 3 characters (indexes 3, 4, 5: 'l', 'o', 'W')
+        term.write("\x1b[3X");
+        // Verify characters erased to spaces
+        assert_equal(term.get_grid()[0][2].glyph, 'l', "Index 2 unchanged");
+        assert_equal(term.get_grid()[0][3].glyph, ' ', "Index 3 erased");
+        assert_equal(term.get_grid()[0][4].glyph, ' ', "Index 4 erased");
+        assert_equal(term.get_grid()[0][5].glyph, ' ', "Index 5 erased");
+        assert_equal(term.get_grid()[0][6].glyph, 'o', "Index 6 unchanged");
+
+        // Verify cursor did not move (should still be at (0, 3))
+        assert_equal(term.get_cursor_x(), 3, "Cursor X after ECH");
+        assert_equal(term.get_cursor_y(), 0, "Cursor Y after ECH");
+    }
+
     std::cout << "test_ansi_terminal_emulator passed!\n";
     return 0;
 }
