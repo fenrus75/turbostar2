@@ -1,5 +1,6 @@
 #include "ui/menu_bar.h"
 #include <cctype>
+#include <format>
 #include <ncurses.h>
 #include "event_logger.h"
 
@@ -64,7 +65,7 @@ bool menu_bar::handle_alt_key(char c, event_queue &queue)
 			if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 				find_next_item();
 			}
-			event_logger::get_instance().log("Menu activated: " + categories_[i].name);
+			event_logger::get_instance().log(std::format("Menu activated: {}", categories_[i].name));
 			return true;
 		}
 	}
@@ -106,7 +107,7 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 {
 	if (!is_open())
 		return false;
-	event_logger::get_instance().log("Menu handle_key: " + std::to_string(key));
+	event_logger::get_instance().log(std::format("Menu handle_key: {}", key));
 
 	if (key == 27) { // ESC
 		close_menu();
@@ -125,8 +126,8 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 			find_next_item();
 		}
-		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
-		event_logger::get_instance().log("Menu key: " + std::to_string(key));
+		event_logger::get_instance().log(std::format("Menu activated: {}", categories_[active_category_].name));
+		event_logger::get_instance().log(std::format("Menu key: {}", key));
 		return true;
 	} else if (key == KEY_LEFT) {
 		active_category_ = (active_category_ - 1 + categories_.size()) % categories_.size();
@@ -134,8 +135,8 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
 			find_next_item();
 		}
-		event_logger::get_instance().log("Menu activated: " + categories_[active_category_].name);
-		event_logger::get_instance().log("Menu key: " + std::to_string(key));
+		event_logger::get_instance().log(std::format("Menu activated: {}", categories_[active_category_].name));
+		event_logger::get_instance().log(std::format("Menu key: {}", key));
 		return true;
 	} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 		if (!categories_[active_category_].items.empty()) {
@@ -146,7 +147,7 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 			editor_event ev;
 			ev.type = item.action;
 			ev.key_code = item.action_key_code;
-			event_logger::get_instance().log("Menu pushing event: " + std::to_string(static_cast<int>(ev.type)));
+			event_logger::get_instance().log(std::format("Menu pushing event: {}", static_cast<int>(ev.type)));
 			queue.push(ev);
 		}
 		close_menu();
@@ -162,7 +163,7 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 				editor_event ev;
 				ev.type = items[i].action;
 				ev.key_code = items[i].action_key_code;
-				event_logger::get_instance().log("Menu pushing hotkey event: " + std::to_string(static_cast<int>(ev.type)));
+				event_logger::get_instance().log(std::format("Menu pushing hotkey event: {}", static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();
 				return true;
@@ -375,8 +376,8 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 				const auto &item = cat.items[selected_item_];
 				ev.type = item.action;
 				ev.key_code = item.action_key_code;
-				event_logger::get_instance().log("Menu (mouse) pushing event: " +
-								 std::to_string(static_cast<int>(ev.type)));
+				event_logger::get_instance().log(std::format("Menu (mouse) pushing event: {}",
+								 static_cast<int>(ev.type)));
 				queue.push(ev);
 				close_menu();
 			}
@@ -406,7 +407,7 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 					    categories_[active_category_].items[0].is_separator) {
 						find_next_item();
 					}
-					event_logger::get_instance().log("Menu activated (mouse): " + categories_[active_category_].name);
+					event_logger::get_instance().log(std::format("Menu activated (mouse): {}", categories_[active_category_].name));
 				}
 				return true;
 			}
