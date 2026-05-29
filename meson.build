@@ -166,6 +166,13 @@ test_gcc_log_parser = executable('test_gcc_log_parser',
   include_directories: inc)
 test('unit_gcc_log_parser', test_gcc_log_parser)
 
+test_line = executable('test_line',
+  'tests/unit/test_line.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_line', test_line)
+
+
 
 
 test_sqlite_validation = executable('test_sqlite_validation',
