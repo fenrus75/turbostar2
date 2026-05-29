@@ -334,8 +334,8 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			// These are tool messages that have no matching assistant tool call in the loaded context
 			// (e.g. because the assistant message was paged out / compressed).
 			if (!tool_responses.empty()) {
-				event_logger::get_instance().log("Discarded " + std::to_string(tool_responses.size()) +
-					" orphaned tool response(s) with no matching assistant tool call in active context.");
+				event_logger::get_instance().log(std::format("Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
+					tool_responses.size()));
 			}
 
 			conversation_ = std::move(normalized_convo);
@@ -1657,8 +1657,8 @@ void ai_agent::evaluate_compaction()
 		}
 	}
 
-	event_logger::get_instance().log("Active history tokens (" + std::to_string(current_active_tokens) + 
-	                                 ") exceed upper bound (" + std::to_string(upper_bound) + "). Triggering compaction engine.");
+	event_logger::get_instance().log(std::format("Active history tokens ({}) exceed upper bound ({}). Triggering compaction engine.",
+	                                 current_active_tokens, upper_bound));
 
 	// Run decision engine to plan transitions (outside lock to avoid recursive deadlocks in set_episode_state)
 	std::vector<transition> planned = compaction_engine::plan_compaction(candidates, current_active_tokens, lower_bound);

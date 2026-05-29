@@ -1,5 +1,6 @@
 #include "ansi_terminal_emulator.h"
 #include <algorithm>
+#include <format>
 #include "event_logger.h"
 
 namespace ui
@@ -329,7 +330,7 @@ void ansi_terminal_emulator::handle_csi_command(char cmd)
 					param_str += ";";
 				param_str += std::to_string(csi_params_[i]);
 			}
-			event_logger::get_instance().log("ansi_terminal_emulator: Unhandled CSI sequence: CSI " + param_str + " " + cmd);
+			event_logger::get_instance().log(std::format("ansi_terminal_emulator: Unhandled CSI sequence: CSI {} {}", param_str, cmd));
 			break;
 		}
 	}

@@ -1,5 +1,6 @@
 #include "ui/window.h"
 #include <ncurses.h>
+#include <format>
 #include "build_error_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
@@ -67,7 +68,7 @@ bool window::process_events()
 {
 	needs_render_ = false;
 	while (auto ev = window_queue_.pop()) {
-		event_logger::get_instance().log("Window " + std::to_string(id_) + " processing key: " + std::to_string(ev->key_code));
+		event_logger::get_instance().log(std::format("Window {} processing key: {}", id_, ev->key_code));
 		if (ev->type == event_type::key_press && doc_) {
 			switch (ev->key_code) {
 				case KEY_UP:

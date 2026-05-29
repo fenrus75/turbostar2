@@ -2,6 +2,7 @@
 #include "event_logger.h"
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <iomanip>
 #include <ncurses.h>
 #include <sstream>
@@ -107,8 +108,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
-			event_logger::get_instance().log("Conversation saved to: " + filepath);
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
+			event_logger::get_instance().log(std::format("Conversation saved to: {}", filepath));
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -338,8 +339,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
-			event_logger::get_instance().log("Conversation saved to: " + filepath);
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Conversation saved to: " + filepath));
+			event_logger::get_instance().log(std::format("Conversation saved to: {}", filepath));
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
