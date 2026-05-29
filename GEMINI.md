@@ -15,6 +15,7 @@ Top design documentation: `docs/design.md`
     should first fail, and pass once the bug is fixed.
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
 - read `.clang-format` on startup
+- prefer std::format over string concatinations
 
 ## Documentation Files
 The `docs/` directory contains crucial context. Keep these files updated as we make changes to the system:
@@ -50,4 +51,3 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 
 # Tooling
 - `agentcli` (along with `agentcli_record` and `agentcli_replay` executables) is available to record and replay conversations with the LLM. It is used by the test suite to verify tool execution and agent logic in headless environments without requiring a live network connection to the LLM.
-
