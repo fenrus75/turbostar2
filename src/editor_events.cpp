@@ -144,6 +144,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::inline_agent_request:
 		case event_type::run_program:
 		case event_type::run_settings:
+		case event_type::run_in_debugger:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:
