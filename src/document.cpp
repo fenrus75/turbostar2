@@ -38,7 +38,7 @@ document::document(event_queue &global_queue) : global_queue_(global_queue)
 {
 	lines_.push_back(std::make_shared<line>(""));
 	refresh_highlighter();
-	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
+	highlighter_thread_ = std::jthread([this](std::stop_token stop) { highlighter_thread_loop(stop); });
 	notify_cursor_changed();
 }
 
@@ -52,17 +52,14 @@ document::document(event_queue &global_queue, const std::string &filename) : fil
 			lines_.push_back(std::make_shared<line>(""));
 	}
 	refresh_highlighter();
-	highlighter_thread_ = std::thread(&document::highlighter_thread_loop, this);
+	highlighter_thread_ = std::jthread([this](std::stop_token stop) { highlighter_thread_loop(stop); });
 	notify_cursor_changed();
 }
 
 document::~document()
 {
-	stop_thread_ = true;
+	highlighter_thread_.request_stop();
 	dirty_cv_.notify_all();
-	if (highlighter_thread_.joinable()) {
-		highlighter_thread_.join();
-	}
 }
 
 bool document::load_from_file(const std::string &filename)

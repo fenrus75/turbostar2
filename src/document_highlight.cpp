@@ -20,15 +20,15 @@ void document::mark_line_dirty(const std::shared_ptr<line> &l)
 	dirty_cv_.notify_one();
 }
 
-void document::highlighter_thread_loop()
+void document::highlighter_thread_loop(std::stop_token stop_token)
 {
 	event_logger::get_instance().log(std::format("Thread started: document highlighter_thread_loop ({})", filename_));
-	while (!stop_thread_) {
+	while (!stop_token.stop_requested()) {
 		std::shared_ptr<line> l;
 		{
 			std::unique_lock<std::mutex> lock(dirty_mutex_);
-			dirty_cv_.wait(lock, [&] { return !dirty_lines_.empty() || stop_thread_; });
-			if (stop_thread_)
+			dirty_cv_.wait(lock, [&] { return !dirty_lines_.empty() || stop_token.stop_requested(); });
+			if (stop_token.stop_requested())
 				break;
 			l = dirty_lines_.front();
 			dirty_lines_.pop();

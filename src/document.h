@@ -172,7 +172,7 @@ class document
 
 	// Syntax highlighting
 	void mark_line_dirty(const std::shared_ptr<line> &l);
-	void highlighter_thread_loop();
+	void highlighter_thread_loop(std::stop_token stop_token);
 	void process_line_highlight(std::shared_ptr<line> l);
 	void refresh_highlighter();
 	bool is_space_at(int y, int x) const;
@@ -217,8 +217,7 @@ class document
 	std::queue<std::shared_ptr<line>> dirty_lines_;
 	std::mutex dirty_mutex_;
 	std::condition_variable dirty_cv_;
-	std::thread highlighter_thread_;
-	std::atomic<bool> stop_thread_{false};
+	std::jthread highlighter_thread_;
 	std::shared_ptr<syntax_highlighter> active_highlighter_;
 
 	mutable std::vector<text_range> lsp_highlights_;
