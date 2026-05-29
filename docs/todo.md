@@ -13,10 +13,6 @@
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 
-- a live agent context diagnostics screen showing basically our history datastructure live, as it happens
-
-
-
 - set "uv" working directory: 
 
 - we need to tackle compaction at some point
@@ -32,6 +28,11 @@
 - a "run" option to run the application from the menu, where we temporarily
   exit ncurses (but catch crashes etc) (candidate scanning, project settings, and run configuration dialog are implemented)
     -- gray out the menu item until a main executable name is configured (implemented)
+    -- implement the three target execution modes:
+        1. Full screen: exit ncurses, yield screen/stdin/stdout to the process, wait, and resume ncurses on exit.
+        2. In a window: create a mini ANSI terminal emulator widget (generalizing the background toolcall runner).
+        3. New X terminal: spawn process in an external X terminal (e.g., xterm) if the DISPLAY environment variable is set.
+    -- run the command via gdbserver to support remote debugging capabilities (especially for LLM agent tool calls).
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
