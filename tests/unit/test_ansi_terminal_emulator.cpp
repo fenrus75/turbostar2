@@ -103,6 +103,54 @@ int main() {
         assert_equal(grid[0][1].bg, 0, "Background color default");
     }
 
+    // 5. Cursor movement and ESC(B designation
+    {
+        ui::ansi_terminal_emulator term(10, 5);
+        // Position cursor at (2, 2)
+        term.write("\x1b[3;3H");
+        assert_equal(term.get_cursor_x(), 2, "Start cursor X");
+        assert_equal(term.get_cursor_y(), 2, "Start cursor Y");
+
+        // Cursor Down with 0 param (should move down by 1 to row 3)
+        term.write("\x1b[0B");
+        assert_equal(term.get_cursor_y(), 3, "CUD with 0");
+
+        // Cursor Down with omitted param (should move down by 1 to row 4)
+        term.write("\x1b[B");
+        assert_equal(term.get_cursor_y(), 4, "CUD default");
+
+        // Cursor Up with 0 param (should move up by 1 to row 3)
+        term.write("\x1b[0A");
+        assert_equal(term.get_cursor_y(), 3, "CUU with 0");
+
+        // Cursor Up with omitted param (should move up by 1 to row 2)
+        term.write("\x1b[A");
+        assert_equal(term.get_cursor_y(), 2, "CUU default");
+
+        // Cursor Forward with 0 param (should move right by 1 to col 3)
+        term.write("\x1b[0C");
+        assert_equal(term.get_cursor_x(), 3, "CUF with 0");
+
+        // Cursor Forward with omitted param (should move right by 1 to col 4)
+        term.write("\x1b[C");
+        assert_equal(term.get_cursor_x(), 4, "CUF default");
+
+        // Cursor Backward with 0 param (should move left by 1 to col 3)
+        term.write("\x1b[0D");
+        assert_equal(term.get_cursor_x(), 3, "CUB with 0");
+
+        // Cursor Backward with omitted param (should move left by 1 to col 2)
+        term.write("\x1b[D");
+        assert_equal(term.get_cursor_x(), 2, "CUB default");
+
+        // Verify ESC(B doesn't print 'B'
+        term.write("\x1b(B");
+        assert_equal(term.get_grid()[2][2].glyph, ' ', "ESC(B character not printed");
+        term.write("\x1b)0");
+        assert_equal(term.get_grid()[2][2].glyph, ' ', "ESC)0 character not printed");
+    }
+
     std::cout << "test_ansi_terminal_emulator passed!\n";
     return 0;
 }
+

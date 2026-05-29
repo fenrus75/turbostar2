@@ -83,6 +83,8 @@ void ansi_terminal_emulator::process_char(char c) {
             state_ = parser_state::csi;
             csi_params_.clear();
             current_param_str_.clear();
+        } else if (c == '(' || c == ')' || c == '*' || c == '+' || c == '#') {
+            state_ = parser_state::escape_intermediate;
         } else {
             if (c == '7') { // save cursor
                 saved_x_ = cursor_x_;
@@ -93,6 +95,9 @@ void ansi_terminal_emulator::process_char(char c) {
             }
             state_ = parser_state::normal;
         }
+    } else if (state_ == parser_state::escape_intermediate) {
+        esc_buffer_ += c;
+        state_ = parser_state::normal;
     } else if (state_ == parser_state::csi) {
         if (c >= '0' && c <= '9') {
             current_param_str_ += c;
@@ -140,21 +145,25 @@ void ansi_terminal_emulator::handle_csi_command(char cmd) {
         }
         case 'A': { // Cursor Up
             int n = get_param(0, 1);
+            if (n == 0) n = 1;
             cursor_y_ = std::max(0, cursor_y_ - n);
             break;
         }
         case 'B': { // Cursor Down
             int n = get_param(0, 1);
+            if (n == 0) n = 1;
             cursor_y_ = std::min(height_ - 1, cursor_y_ + n);
             break;
         }
         case 'C': { // Cursor Forward
             int n = get_param(0, 1);
+            if (n == 0) n = 1;
             cursor_x_ = std::min(width_ - 1, cursor_x_ + n);
             break;
         }
         case 'D': { // Cursor Backward
             int n = get_param(0, 1);
+            if (n == 0) n = 1;
             cursor_x_ = std::max(0, cursor_x_ - n);
             break;
         }

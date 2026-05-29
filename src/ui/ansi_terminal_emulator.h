@@ -17,7 +17,8 @@ struct terminal_cell {
 enum class parser_state {
     normal,
     escape,
-    csi
+    csi,
+    escape_intermediate
 };
 
 class ansi_terminal_emulator {
