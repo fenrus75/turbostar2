@@ -157,6 +157,35 @@ int main() {
         }
     }
 
+    // 6. BackColorErase (BCE) during erase and scroll operations
+    {
+        ui::ansi_terminal_emulator term(5, 3);
+        // Set background color to Blue (4) and write some text
+        term.write("\x1b[44mABC");
+        // Grid row 0 has glyphs 'A', 'B', 'C' with bg = 4
+        assert_equal(term.get_grid()[0][0].bg, 4, "Initial cell bg is blue");
+
+        // Clear to end of line (CSI K) at cursor position (0, 3)
+        term.write("\x1b[K");
+        // Remaining cells in row 0 (index 3 and 4) should be cleared with blue background
+        assert_equal(term.get_grid()[0][3].bg, 4, "Cleared part of line bg is blue");
+        assert_equal(term.get_grid()[0][3].glyph, ' ', "Cleared cell glyph is space");
+
+        // Clear entire display (CSI 2 J) - entire grid should become blue background
+        term.write("\x1b[2J");
+        for (int y = 0; y < 3; ++y) {
+            for (int x = 0; x < 5; ++x) {
+                assert_equal(term.get_grid()[y][x].bg, 4, "Cleared display cell bg is blue");
+            }
+        }
+
+        // Test scrolling with active background color
+        // Write to fill the screen and trigger scroll
+        term.write("12345\n67890\nabcde\nf"); // Scroll up happens
+        // The newly scrolled-in line at index 2 should have blue background
+        assert_equal(term.get_grid()[2][4].bg, 4, "Scrolled-in cell bg is blue");
+    }
+
     std::cout << "test_ansi_terminal_emulator passed!\n";
     return 0;
 }

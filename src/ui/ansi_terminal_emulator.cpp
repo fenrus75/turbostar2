@@ -22,8 +22,10 @@ void ansi_terminal_emulator::resize(int width, int height) {
 }
 
 void ansi_terminal_emulator::clear_all() {
+    terminal_cell blank = current_style_;
+    blank.glyph = ' ';
     for (int y = 0; y < height_; ++y) {
-        grid_[y].assign(width_, default_cell_);
+        grid_[y].assign(width_, blank);
     }
     cursor_x_ = 0;
     cursor_y_ = 0;
@@ -250,15 +252,19 @@ void ansi_terminal_emulator::scroll_up() {
     for (int y = 0; y < height_ - 1; ++y) {
         grid_[y] = std::move(grid_[y + 1]);
     }
-    grid_[height_ - 1].assign(width_, default_cell_);
+    terminal_cell blank = current_style_;
+    blank.glyph = ' ';
+    grid_[height_ - 1].assign(width_, blank);
 }
 
 void ansi_terminal_emulator::clear_line_part(int y, int start_x, int end_x) {
     if (y < 0 || y >= height_) return;
     int s = std::max(0, start_x);
     int e = std::min(width_ - 1, end_x);
+    terminal_cell blank = current_style_;
+    blank.glyph = ' ';
     for (int x = s; x <= e; ++x) {
-        grid_[y][x] = default_cell_;
+        grid_[y][x] = blank;
     }
 }
 
