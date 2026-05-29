@@ -20,8 +20,9 @@ namespace fs_utils
 {
 static std::string g_override_project_dir;
 
-void set_override_project_dir(const std::string& path) {
-    g_override_project_dir = path;
+void set_override_project_dir(const std::string &path)
+{
+	g_override_project_dir = path;
 }
 
 std::filesystem::path safe_absolute(const std::filesystem::path &p)
@@ -216,9 +217,10 @@ std::string get_global_cache_dir()
 
 std::string get_project_cache_root()
 {
-	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
-	        repo_root = std::filesystem::current_path().string();
+		repo_root = std::filesystem::current_path().string();
 	}
 	std::hash<std::string> hasher;
 	size_t hash = hasher(repo_root);
@@ -242,9 +244,10 @@ std::string get_project_db_dir()
 }
 std::string get_project_tmp_dir()
 {
-	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
-	        repo_root = std::filesystem::current_path().string();
+		repo_root = std::filesystem::current_path().string();
 	}
 	std::hash<std::string> hasher;
 	size_t hash = hasher(repo_root);
@@ -261,13 +264,14 @@ std::string get_project_tmp_dir()
 	std::filesystem::create_directories(tmp_dir, ec);
 
 	return tmp_dir.string();
-	}
+}
 
-	std::string get_project_history_dir(const std::string& agent_name)
-	{
-	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
+std::string get_project_history_dir(const std::string &agent_name)
+{
+	std::string repo_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
-	        repo_root = std::filesystem::current_path().string();
+		repo_root = std::filesystem::current_path().string();
 	}
 	std::hash<std::string> hasher;
 	size_t hash = hasher(repo_root);
@@ -275,22 +279,24 @@ std::string get_project_tmp_dir()
 	const char *home = std::getenv("HOME");
 	std::filesystem::path history_dir;
 	if (home) {
-	        history_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "history" / agent_name;
+		history_dir =
+		    std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "history" / agent_name;
 	} else {
-	        history_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "history" / agent_name;
+		history_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "history" / agent_name;
 	}
 
 	std::error_code ec;
 	std::filesystem::create_directories(history_dir, ec);
 
 	return history_dir.string();
-	}
+}
 
-	std::string get_project_dump_dir()
+std::string get_project_dump_dir()
 {
-	std::string repo_root = !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
+	std::string repo_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
 	if (repo_root.empty()) {
-	        repo_root = std::filesystem::current_path().string();
+		repo_root = std::filesystem::current_path().string();
 	}
 	std::hash<std::string> hasher;
 	size_t hash = hasher(repo_root);
@@ -334,10 +340,10 @@ bool is_shell_safe(const std::string &s, bool allow_tilde)
 	// Strict allowlist: Alphanumeric, slash, dot, underscore, hyphen, equals, colon, plus, comma, at-sign.
 	// Explicity excludes: Space, quote marks, ampersand, pipe, redirect, semicolon, backtick, dollar, braces, etc.
 	for (char c : s) {
-		bool is_safe = std::isalnum(c) || c == '/' || c == '.' || c == '_' || c == '-' || 
-		               c == '=' || c == ':' || c == '+' || c == ',' || c == '@';
+		bool is_safe = std::isalnum(c) || c == '/' || c == '.' || c == '_' || c == '-' || c == '=' || c == ':' || c == '+' ||
+			       c == ',' || c == '@';
 		if (allow_tilde && c == '~') {
-		    is_safe = true;
+			is_safe = true;
 		}
 		if (!is_safe) {
 			return false;
@@ -356,57 +362,74 @@ bool is_safe_for_ui(const std::string &s)
 		}
 	}
 	return true;
-	}
+}
 
-	std::string shorten_filename(const std::string& filepath, int max_length) {
+std::string shorten_filename(const std::string &filepath, int max_length)
+{
 	if (filepath.length() <= static_cast<size_t>(max_length)) {
-	return filepath;
+		return filepath;
 	}
 	if (max_length <= 4) {
-	return filepath.substr(filepath.length() - max_length);
+		return filepath.substr(filepath.length() - max_length);
 	}
 
 	std::filesystem::path p(filepath);
 	std::string basename = p.filename().string();
 
 	std::vector<std::string> parts;
-	for (const auto& part : p) {
-	parts.push_back(part.string());
+	for (const auto &part : p) {
+		parts.push_back(part.string());
 	}
 
 	if (parts.size() <= 2) {
-	std::string res = "...." + basename;
-	return res.substr(res.length() - max_length);
+		std::string res = "...." + basename;
+		return res.substr(res.length() - max_length);
 	}
 
 	std::string first_dir = parts[0];
 	int start_idx = 1;
 	if (first_dir == "/" && parts.size() > 1) {
-	first_dir += parts[1];
-	start_idx = 2;
+		first_dir += parts[1];
+		start_idx = 2;
 	}
 
 	std::string result_right = "/" + basename;
 	int remaining_space = max_length - 4 - first_dir.length() - result_right.length();
 
 	if (remaining_space < 0) {
-	std::string full = filepath;
-	return "...." + full.substr(full.length() - (max_length - 4));
+		std::string full = filepath;
+		return "...." + full.substr(full.length() - (max_length - 4));
 	}
 
 	int current_idx = parts.size() - 2;
 	while (current_idx >= start_idx) {
-	std::string to_add = "/" + parts[current_idx];
-	if (remaining_space >= static_cast<int>(to_add.length())) {
-	result_right = to_add + result_right;
-	remaining_space -= to_add.length();
-	current_idx--;
-	} else {
-	break;
-	}
+		std::string to_add = "/" + parts[current_idx];
+		if (remaining_space >= static_cast<int>(to_add.length())) {
+			result_right = to_add + result_right;
+			remaining_space -= to_add.length();
+			current_idx--;
+		} else {
+			break;
+		}
 	}
 
 	return first_dir + "...." + result_right;
-	}
+}
 
-	} // namespace fs_utils
+std::string get_turbocatch_lib_path()
+{
+	static std::string cached_path = []() {
+		std::vector<std::string> search_paths = {
+		    "/usr/lib/x86_64-linux-gnu/libturbocatch.so", "/usr/lib64/libturbocatch.so",
+		    std::filesystem::absolute(std::filesystem::path("build") / "libturbocatch.so").string()};
+		for (const auto &path : search_paths) {
+			if (std::filesystem::exists(path)) {
+				return path;
+			}
+		}
+		return std::filesystem::absolute(std::filesystem::path("build") / "libturbocatch.so").string();
+	}();
+	return cached_path;
+}
+
+} // namespace fs_utils
