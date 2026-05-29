@@ -142,10 +142,11 @@ bool document::insert_file(const std::string &filename)
         begin_edit_group("Insert file");
         insert_block(block);
         end_edit_group();
+        set_modified();
         lock.unlock();
         notify_cursor_changed();
         return true;
-        }
+}
 
         bool document::save(){
 	std::shared_lock lock(mutex_);
@@ -169,6 +170,14 @@ bool document::insert_file(const std::string &filename)
 bool document::save_to_file(const std::string &filename)
 {
 	std::unique_lock lock(mutex_);
+	std::string text_to_save;
+	for (int i = 0; i < line_count_unlocked(); ++i) {
+		text_to_save += lines_[i]->get_text();
+		if (i < line_count_unlocked() - 1) {
+			text_to_save += "\n";
+		}
+	}
+	lock.unlock();
 
 	if (fs::exists(filename)) {
 		try {
@@ -190,21 +199,19 @@ bool document::save_to_file(const std::string &filename)
 		return false;
 	}
 
-	for (int i = 0; i < line_count_unlocked(); ++i) {
-		file << lines_[i]->get_text();
-		if (i < line_count_unlocked() - 1) {
-			file << "\n";
-		}
-	}
+	file << text_to_save;
+	file.close();
 
+	lock.lock();
 	filename_ = filename;
 	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: " + filename);
 	lock.unlock();
+
 	git_manager::get_instance().request_status(filename);
-	project_manager::get_instance().lsp_update_document(filename, get_text_all());
+	project_manager::get_instance().lsp_update_document(filename, text_to_save);
 	notify_cursor_changed();
 	return true;
 }
@@ -249,7 +256,6 @@ const std::string &document::get_safe_filename() const
 bool document::has_nondefault_filename() const
 {
 	std::shared_lock lock(mutex_);
-	event_logger::get_instance().log("has_nondefault_filename: current='" + filename_ + "'");
 	return !filename_.empty() && filename_ != "unknown.txt";
 }
 
@@ -458,6 +464,8 @@ bool document::is_space_at(int y, int x) const
 
 bool document::is_space_at_unlocked(int y, int x) const
 {
+	if (y < 0 || y >= line_count_unlocked())
+		return false;
 	std::string text = lines_[y]->get_text();
 	size_t offset = lines_[y]->char_to_byte_offset(x);
 	if (offset < text.length()) {
@@ -478,18 +486,21 @@ void document::apply_external_edits_json(const std::string &json_str)
 		std::unique_lock lock(mutex_);
 		begin_edit_group("Apply agent edits");
 
-		auto adjust_all = [&](int edit_idx, int delta) {
+		auto adjust_all = [&](int edit_idx, int delta, int lines_to_remove) {
 			auto adj = [&](int &x, int &y) {
 				if (y == -1)
 					return;
-				if (y > edit_idx) {
-					y += delta;
-				} else if (y == edit_idx) {
-					// If the line we are on is deleted, move to previous or snap to start
-					if (delta < 0)
+				if (delta < 0) { // deletion
+					if (y >= edit_idx + lines_to_remove) {
+						y += delta;
+					} else if (y >= edit_idx) {
+						y = edit_idx;
 						x = 0;
-					// If we are replacing/adding, we'll end up at the start of the new block
-					// but let's try to be less jumpy.
+					}
+				} else { // addition
+					if (y > edit_idx) {
+						y += delta;
+					}
 				}
 			};
 			adj(cursor_x_, cursor_y_);
@@ -518,7 +529,7 @@ void document::apply_external_edits_json(const std::string &json_str)
 					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 					lines_.erase(lines_.begin() + idx);
 				}
-				adjust_all(idx, -lines_to_remove);
+				adjust_all(idx, -lines_to_remove, lines_to_remove);
 			} else if (type == "add" && edit.contains("replace_with")) {
 				std::string newstring = edit["replace_with"].get<std::string>();
 				std::stringstream ss(newstring);
@@ -539,7 +550,7 @@ void document::apply_external_edits_json(const std::string &json_str)
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
-				adjust_all(idx, static_cast<int>(new_lines.size()));
+				adjust_all(idx, static_cast<int>(new_lines.size()), 0);
 			} else if (type == "replace" && edit.contains("replace_with")) {
 				for (int i = 0; i < lines_to_remove; ++i) {
 					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
@@ -565,20 +576,28 @@ void document::apply_external_edits_json(const std::string &json_str)
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
-				adjust_all(idx, static_cast<int>(new_lines.size()) - lines_to_remove);
+				adjust_all(idx, -lines_to_remove, lines_to_remove);
+				adjust_all(idx, static_cast<int>(new_lines.size()), 0);
 			}
 		}
 
-		// Ensure cursor is still in bounds
-		if (cursor_y_ < 0)
-			cursor_y_ = 0;
-		if (cursor_y_ >= static_cast<int>(lines_.size()))
-			cursor_y_ = static_cast<int>(lines_.size()) - 1;
-		if (cursor_x_ < 0)
-			cursor_x_ = 0;
-		int line_len = lines_[cursor_y_]->length_in_chars();
-		if (cursor_x_ > line_len)
-			cursor_x_ = line_len;
+		// Ensure cursor and selection are still in bounds
+		auto clamp_coords = [&](int &x, int &y) {
+			if (y == -1)
+				return;
+			if (y < 0)
+				y = 0;
+			if (y >= static_cast<int>(lines_.size()))
+				y = static_cast<int>(lines_.size()) - 1;
+			if (x < 0)
+				x = 0;
+			int len = lines_[y]->length_in_chars();
+			if (x > len)
+				x = len;
+		};
+		clamp_coords(cursor_x_, cursor_y_);
+		clamp_coords(selection_start_x_, selection_start_y_);
+		clamp_coords(selection_end_x_, selection_end_y_);
 
 		target_cursor_x_ = cursor_x_;
 
