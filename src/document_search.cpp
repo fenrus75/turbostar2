@@ -21,6 +21,25 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	if (params.query.empty())
 		return false;
 
+	re2::RE2::Options options;
+	options.set_log_errors(false);
+	if (params.ignore_case)
+		options.set_case_sensitive(false);
+
+	std::string pattern = params.query;
+	if (params.whole_words && !params.regex) {
+		pattern = "\\b" + pattern + "\\b";
+	}
+
+	// If literal search, escape it for RE2
+	if (!params.regex && !params.whole_words) {
+		pattern = re2::RE2::QuoteMeta(pattern);
+	}
+
+	re2::RE2 re(pattern, options);
+	if (!re.ok())
+		return false;
+
 	std::unique_lock lock(mutex_);
 	int start_y = cursor_y_;
 	int start_x = cursor_x_;
@@ -62,25 +81,6 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	auto check_line = [&](int y, int x_limit) -> int {
 		std::string line_text = lines_[y]->get_text();
 		std::string original_line_text = line_text;
-
-		re2::RE2::Options options;
-		options.set_log_errors(false);
-		if (params.ignore_case)
-			options.set_case_sensitive(false);
-
-		std::string pattern = params.query;
-		if (params.whole_words && !params.regex) {
-			pattern = "\\b" + pattern + "\\b";
-		}
-
-		// If literal search, escape it for RE2
-		if (!params.regex && !params.whole_words) {
-			pattern = re2::RE2::QuoteMeta(pattern);
-		}
-
-		re2::RE2 re(pattern, options);
-		if (!re.ok())
-			return -1;
 
 		int best_found_char_idx = -1;
 		size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
