@@ -57,9 +57,15 @@ void document::refresh_highlighter()
 
 void document::process_line_highlight(std::shared_ptr<line> l)
 {
-	if (active_highlighter_) {
+	std::shared_ptr<syntax_highlighter> highlighter;
+	{
+		std::shared_lock lock(mutex_);
+		highlighter = active_highlighter_;
+	}
+
+	if (highlighter) {
 		try {
-			active_highlighter_->highlight(l);
+			highlighter->highlight(l);
 		} catch (const std::exception &e) {
 			event_logger::get_instance().log(std::format("Highlighter error: {}", e.what()));
 		} catch (...) {
