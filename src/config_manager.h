@@ -53,6 +53,9 @@ class config_manager
 	std::string get_run_target_mode() const { return run_target_mode_; }
 	void set_run_target_mode(const std::string &mode) { run_target_mode_ = mode; }
 
+	bool get_gdb_auto_continue() const { return gdb_auto_continue_; }
+	void set_gdb_auto_continue(bool val) { gdb_auto_continue_ = val; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -71,4 +74,5 @@ class config_manager
 	std::string main_executable_{""};
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
+	bool gdb_auto_continue_{true};
 };

@@ -79,6 +79,8 @@ void config_manager::load_from_file(const std::string &path)
 			run_arguments_ = value;
 		} else if (key == "run_target_mode") {
 			run_target_mode_ = value;
+		} else if (key == "gdb_auto_continue") {
+			gdb_auto_continue_ = (value == "true" || value == "1");
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -119,6 +121,7 @@ void config_manager::save_project(const std::string &target_path)
 	file << "main_executable=" << main_executable_ << "\n";
 	file << "run_arguments=" << run_arguments_ << "\n";
 	file << "run_target_mode=" << run_target_mode_ << "\n";
+	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
 
 	event_logger::get_instance().log("Configuration saved to " + path);
 }
