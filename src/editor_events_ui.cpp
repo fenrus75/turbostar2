@@ -1,10 +1,16 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
+#include <cstdlib>
 #include "build_error_manager.h"
+#include "command_runner.h"
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
@@ -140,6 +146,71 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		active_dialog_ = create_run_settings_dialog();
 		active_dialog_mode_ = dialog_mode::run_settings;
 		set_focus(focus_target::dialog, "run_settings");
+		return;
+	}
+
+	if (ev.type == event_type::run_program) {
+		logger.log("Dispatching run_program event.");
+		std::string exe = config_manager::get_instance().get_main_executable();
+		if (exe.empty()) {
+			logger.log("run_program ignored: no main executable configured.");
+			return;
+		}
+
+		std::string repo_root = git_manager::get_instance().get_repository_root();
+		if (repo_root.empty()) {
+			repo_root = std::filesystem::current_path().string();
+		}
+		std::filesystem::path build_exe = std::filesystem::path(repo_root) / "build" / exe;
+		if (!std::filesystem::exists(build_exe)) {
+			build_exe = std::filesystem::path(repo_root) / exe;
+			if (!std::filesystem::exists(build_exe)) {
+				build_exe = exe;
+			}
+		}
+
+		std::string args = config_manager::get_instance().get_run_arguments();
+		logger.log("Running main executable full screen: " + build_exe.string());
+
+		// Configure command_runner to generate the sandboxed command line
+		sync_command_runner runner;
+		runner.apply_build_profile();
+		runner.set_use_pty(true);
+		runner.set_enable_crash_catcher(true);
+
+		std::string raw_cmd = build_exe.string();
+		if (!args.empty()) {
+			raw_cmd += " " + args;
+		}
+
+		std::string sandboxed_cmd = runner.build_command(raw_cmd);
+		logger.log("Executing sandboxed command: " + sandboxed_cmd);
+
+		// 1. Temporarily pause ncurses
+		def_prog_mode();
+		endwin();
+
+		// 2. Execute the sandboxed process via std::system
+		int status = std::system(sandboxed_cmd.c_str());
+		(void)status;
+
+		// 3. User confirmation keypress
+		std::printf("\n\r[Process completed. Press any key to return to editor...]");
+		std::fflush(stdout);
+
+		char dummy;
+		int r = read(STDIN_FILENO, &dummy, 1);
+		(void)r;
+
+		// 4. Resume curses
+		reset_prog_mode();
+		refresh();
+		clear();
+
+		// Trigger editor redraw
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
 		return;
 	}
 

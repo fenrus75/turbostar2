@@ -51,6 +51,10 @@ public:
         return res;
     }
 
+    // Hook to rewrite the command before it is passed to popen.
+    // This injects the sandboxing strategy (e.g., systemd-run) if not bypassed.
+    virtual std::string build_command(const std::string& raw_command) const;
+
 protected:
     // ------------------------------------------------------------------------
     // Required Virtuals
@@ -75,9 +79,6 @@ protected:
         return true; 
     }
 
-    // Hook to rewrite the command before it is passed to popen.
-    // This injects the sandboxing strategy (e.g., systemd-run) if not bypassed.
-    virtual std::string build_command(const std::string& raw_command) const;
 
 private:
     bool bypass_sandbox_{false};
