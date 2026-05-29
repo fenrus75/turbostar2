@@ -664,23 +664,28 @@ bool editor::handle_k_block_key(int key)
 	// Find active window/doc
 	std::shared_ptr<document> active_doc = get_active_doc();
 
-	if (!active_doc)
-		return false;
-
 	if (c == 'b') {
 		logger.log("K-block: Set Selection Begin");
+		if (!active_doc)
+			return false;
 		active_doc->set_selection_start();
 		return true;
 	} else if (c == 'k') {
 		logger.log("K-block: Set Selection End");
+		if (!active_doc)
+			return false;
 		active_doc->set_selection_end();
 		return true;
 	} else if (c == 'h') {
 		logger.log("K-block: Clear Selection");
+		if (!active_doc)
+			return false;
 		active_doc->clear_selection();
 		return true;
 	} else if (c == 'y') {
 		logger.log("K-block: Delete Block");
+		if (!active_doc)
+			return false;
 		active_doc->delete_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -688,6 +693,8 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'c') {
 		logger.log("K-block: Copy Block");
+		if (!active_doc)
+			return false;
 		active_doc->copy_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -695,6 +702,8 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'm') {
 		logger.log("K-block: Move Block");
+		if (!active_doc)
+			return false;
 		active_doc->move_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -734,6 +743,8 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'r') {
 		logger.log("K-block: Insert File");
+		if (!active_doc)
+			return false;
 		active_dialog_ = create_file_dialog("Insert File", ".");
 		active_dialog_mode_ = dialog_mode::insert_file;
 		set_focus(focus_target::dialog, "menu_insert_file");
@@ -810,10 +821,14 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'u') {
 		logger.log("K-block: Top of File");
+		if (!active_doc)
+			return false;
 		active_doc->move_to_top();
 		return true;
 	} else if (c == 'v') {
 		logger.log("K-block: End of File");
+		if (!active_doc)
+			return false;
 		active_doc->move_to_bottom();
 		return true;
 	}

@@ -531,24 +531,32 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		int gdb_id = 1001 + static_cast<int>(windows_.size());
 
 		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, app_h, "Run Output");
+		app_tw->set_display_priority(10);
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
+		gdb_tw->set_display_priority(10);
 
-		std::string gdbserver_cmd = "gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
+		std::string gdbserver_cmd = "stty -tostop && exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
 			gdbserver_cmd += " " + args;
 		}
+		gdbserver_cmd += " 2>/dev/null";
 
 		logger.log("Starting gdbserver: " + gdbserver_cmd);
-		if (!app_tw->start_process(gdbserver_cmd)) {
+		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false)) {
 			logger.log("Failed to start gdbserver process.");
 			return {-1, -1};
 		}
 
 		usleep(50000);
 
-		std::string gdb_cmd = "gdb -q -ex \"target remote localhost:" + std::to_string(port) + "\" " + build_exe.string();
+		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"handle SIGTTOU nostop noprint nopass\" -ex \"handle SIGTTIN nostop noprint nopass\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
+		if (config_manager::get_instance().get_gdb_auto_continue()) {
+			gdb_cmd += " -ex \"continue\"";
+		}
+		gdb_cmd += " " + build_exe.string();
+
 		logger.log("Starting gdb: " + gdb_cmd);
-		if (!gdb_tw->start_process(gdb_cmd)) {
+		if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
 			logger.log("Failed to start gdb process.");
 			app_tw->stop_process();
 			return {-1, -1};
@@ -571,18 +579,10 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 			}
 		}
 		set_focus(focus_target::window, "start_app");
-
-		if (config_manager::get_instance().get_gdb_auto_continue()) {
-			int gdb_pty = gdb_tw_ptr->get_pty_master_fd();
-			if (gdb_pty >= 0) {
-				usleep(100000);
-				ssize_t w = write(gdb_pty, "c\n", 2);
-				(void)w;
-			}
-		}
 	} else {
 		int app_id = 1000 + static_cast<int>(windows_.size());
 		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, LINES - 2, "Run Output");
+		tw->set_display_priority(10);
 
 		std::string raw_cmd = build_exe.string();
 		if (!args.empty()) {

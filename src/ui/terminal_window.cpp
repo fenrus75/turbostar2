@@ -55,7 +55,7 @@ terminal_window::~terminal_window()
 	}
 }
 
-bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser)
+bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network, bool enable_crash_catcher)
 {
 	stop_process();
 	parser_ = std::move(parser);
@@ -88,7 +88,10 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	sync_command_runner runner;
 	runner.apply_build_profile();
 	runner.set_use_pty(true);
-	runner.set_enable_crash_catcher(true);
+	runner.set_enable_crash_catcher(enable_crash_catcher);
+	if (enable_network) {
+		runner.set_network_access(true);
+	}
 	std::string sandboxed_cmd = runner.build_command(raw_command);
 
 	pid_ = fork();
@@ -209,13 +212,43 @@ bool terminal_window::update_pty()
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				break; // no more data right now
 			} else {
+				if (pid_ > 0) {
+					int status;
+					pid_t w = waitpid(pid_, &status, WNOHANG);
+					if (w == 0) {
+						// Child is still running, transient EIO/error.
+						break;
+					} else {
+						is_alive_ = false;
+						if (w > 0) {
+							pid_ = -1;
+						}
+						break;
+					}
+				} else {
+					is_alive_ = false;
+					break;
+				}
+			}
+		} else {
+			// EOF (child exited or closed descriptors)
+			if (pid_ > 0) {
+				int status;
+				pid_t w = waitpid(pid_, &status, WNOHANG);
+				if (w == 0) {
+					// Child is still running, transient EOF.
+					break;
+				} else {
+					is_alive_ = false;
+					if (w > 0) {
+						pid_ = -1;
+					}
+					break;
+				}
+			} else {
 				is_alive_ = false;
 				break;
 			}
-		} else {
-			// EOF (child exited)
-			is_alive_ = false;
-			break;
 		}
 	}
 

@@ -32,9 +32,10 @@ int main(int argc, char **argv)
 
 	CLI11_PARSE(app, argc, argv);
 
-	if (!project_dir.empty()) {
-		setenv("TURBOSTAR_TEST_PROJECT_DIR", project_dir.c_str(), 1);
-	}
+	{
+		if (!project_dir.empty()) {
+			setenv("TURBOSTAR_TEST_PROJECT_DIR", project_dir.c_str(), 1);
+		}
 
 	const char *env_url = std::getenv("LLM_URL");
 	std::string url = env_url ? env_url : "http://192.168.1.55:8080";
@@ -159,6 +160,7 @@ int main(int argc, char **argv)
 			std::cout << "Dumped final state to " << dump_state_file << std::endl;
 		}
 	}
+	}
 
-	return 0;
+	std::_Exit(0);
 }

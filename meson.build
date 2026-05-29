@@ -549,6 +549,14 @@ endif
     is_parallel: false
   )
 
+  test('e2e_debugger', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_debugger.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
+
   # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
   # It has a tendency to make later tests fail randomly if it is not last.
   test('e2e_lsp_selection', e2e_exe,
