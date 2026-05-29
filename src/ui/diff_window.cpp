@@ -3,6 +3,7 @@
 #include <ncurses.h>
 #include <sstream>
 #include <algorithm>
+#include <format>
 
 diff_window::diff_window(int id, int x, int y, int width, int height, std::shared_ptr<document> doc, event_queue &global_queue)
     : window(id, x, y, width, height, "Undo History: " + (doc ? doc->get_filename() : "")), global_queue_(global_queue)
@@ -135,7 +136,7 @@ void diff_window::update_diff()
 
 void diff_window::go_prev()
 {
-    if (current_undo_step_ < max_undo_steps_ - 1) {
+    if (max_undo_steps_ > 0 && current_undo_step_ < max_undo_steps_ - 1) {
         current_undo_step_++;
         update_diff();
     }
@@ -206,7 +207,8 @@ void diff_window::draw_content() const
 
     // Draw status line
     attron(COLOR_PAIR(8));
-    std::string step_str = " Step " + std::to_string(current_undo_step_ + 1) + " of " + std::to_string(max_undo_steps_) + " ";
+    size_t display_step = (max_undo_steps_ > 0) ? (current_undo_step_ + 1) : 0;
+    std::string step_str = std::format(" Step {} of {} ", display_step, max_undo_steps_);
     if (doc_) {
         std::string name = doc_->get_undo_name(current_undo_step_ + 1);
         if (!name.empty()) {
