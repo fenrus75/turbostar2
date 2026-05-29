@@ -965,7 +965,11 @@ void editor::render()
 	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !k_block_mode_) {
 		if (active_win) {
 			active_win->set_cursor_position();
-			curs_set(1);
+			if (active_win->is_cursor_visible()) {
+				curs_set(1);
+			} else {
+				curs_set(0);
+			}
 		}
 	}
 

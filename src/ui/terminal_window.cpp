@@ -326,6 +326,11 @@ void terminal_window::set_cursor_position() const
 	}
 }
 
+bool terminal_window::is_cursor_visible() const
+{
+	return emulator_.is_cursor_visible();
+}
+
 void terminal_window::draw_content() const
 {
 	const auto &grid = emulator_.get_grid();

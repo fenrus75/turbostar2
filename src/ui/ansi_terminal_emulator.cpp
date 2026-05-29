@@ -119,6 +119,7 @@ void ansi_terminal_emulator::process_char(char c)
 			state_ = parser_state::csi;
 			csi_params_.clear();
 			current_param_str_.clear();
+			csi_private_ = false;
 		} else if (c == ']') {
 			state_ = parser_state::osc;
 		} else if (c == '(' || c == ')' || c == '*' || c == '+' || c == '#') {
@@ -144,7 +145,9 @@ void ansi_terminal_emulator::process_char(char c)
 			esc_buffer_.clear();
 		}
 	} else if (state_ == parser_state::csi) {
-		if (c >= '0' && c <= '9') {
+		if (c == '?') {
+			csi_private_ = true;
+		} else if (c >= '0' && c <= '9') {
 			current_param_str_ += c;
 		} else if (c == ';') {
 			if (!current_param_str_.empty()) {
@@ -288,6 +291,26 @@ void ansi_terminal_emulator::handle_csi_command(char cmd)
 			blank.glyph = " ";
 			for (int x = cursor_x_; x < limit; ++x) {
 				grid_[cursor_y_][x] = blank;
+			}
+			break;
+		}
+		case 'h': { // Set Mode
+			if (csi_private_) {
+				for (int p : csi_params_) {
+					if (p == 25) {
+						cursor_visible_ = true;
+					}
+				}
+			}
+			break;
+		}
+		case 'l': { // Reset Mode
+			if (csi_private_) {
+				for (int p : csi_params_) {
+					if (p == 25) {
+						cursor_visible_ = false;
+					}
+				}
 			}
 			break;
 		}

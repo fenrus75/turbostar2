@@ -48,6 +48,11 @@ class ansi_terminal_emulator
 		return grid_;
 	}
 
+	bool is_cursor_visible() const
+	{
+		return cursor_visible_;
+	}
+
 	void clear_all();
 
       private:
@@ -76,6 +81,9 @@ class ansi_terminal_emulator
 
 	int expected_utf8_len_{0};
 	std::string utf8_buffer_;
+
+	bool cursor_visible_{true};
+	bool csi_private_{false};
 };
 
 } // namespace ui

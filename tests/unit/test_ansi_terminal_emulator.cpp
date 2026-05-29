@@ -234,6 +234,20 @@ int main()
 		assert_equal(term.get_grid()[0][2].glyph, "X", "Third cell is ASCII X");
 	}
 
+	// 11. Cursor visibility tracking
+	{
+		ui::ansi_terminal_emulator term(10, 5);
+		assert_equal(term.is_cursor_visible(), true, "Cursor visible by default");
+
+		// Hide cursor (DEC private mode 25 reset)
+		term.write("\x1b[?25l");
+		assert_equal(term.is_cursor_visible(), false, "Cursor hidden after ESC[?25l");
+
+		// Show cursor (DEC private mode 25 set)
+		term.write("\x1b[?25h");
+		assert_equal(term.is_cursor_visible(), true, "Cursor visible after ESC[?25h");
+	}
+
 	std::cout << "test_ansi_terminal_emulator passed!\n";
 	return 0;
 }

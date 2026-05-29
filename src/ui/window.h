@@ -55,6 +55,7 @@ class window
 	virtual bool process_events();
 	void invalidate();
 	virtual void set_cursor_position() const;
+	virtual bool is_cursor_visible() const { return true; }
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 
