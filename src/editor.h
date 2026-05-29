@@ -45,6 +45,8 @@ class editor : public agentlib::document_provider
 	explicit editor(editor_options opts);
 	~editor();
 
+	friend void test_vim_emulation();
+
 	/**
 	 * @brief Main execution loop.
 	 */
@@ -94,6 +96,7 @@ class editor : public agentlib::document_provider
 	bool handle_p_block_key(int key);
 	void handle_inline_agent_prompt_key(int key);
 	void launch_inline_agent(const std::string &prompt);
+	void execute_vim_command(const std::string &cmd_raw);
 	void render();
 
 	event_queue global_queue_;
@@ -107,6 +110,10 @@ class editor : public agentlib::document_provider
 	bool k_block_mode_{false};
 	bool q_block_mode_{false};
 	bool p_block_mode_{false};
+
+	bool is_vim_prompt_{false};
+	std::string vim_input_buffer_;
+	bool vim_prefix_mode_{false};
 
 	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, approve_plan, model_list, model_edit, model_selection, welcome };
 	dialog_mode active_dialog_mode_{dialog_mode::none};

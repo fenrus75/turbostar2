@@ -114,6 +114,12 @@ test_open_in_editor = executable('test_open_in_editor',
   include_directories: inc)
 test('unit_test_open_in_editor', test_open_in_editor)
 
+test_vim_emulation = executable('test_vim_emulation',
+  'tests/unit/test_vim_emulation.cpp',
+  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_vim_emulation', test_vim_emulation)
+
 test_file_security = executable('test_file_security',
   ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [],

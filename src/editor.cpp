@@ -871,6 +871,8 @@ void editor::render()
 		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
 	} else if (is_going_to_line_prompt_) {
 		status_help = "Go to line: " + line_input_buffer_ + "_";
+	} else if (is_vim_prompt_) {
+		status_help = ":" + vim_input_buffer_ + "_";
 	}
 
 	std::string diag_text = "";

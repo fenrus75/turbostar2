@@ -6,6 +6,10 @@
 
 - perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
 
+
+- we have a set of code reviews in `review*.md` from another agent that at some point we should check
+    - the other agent makes stuff up at times, but it is at least worth looking and checking
+
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 
@@ -115,6 +119,7 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- implemented vi/vim command emulation (limited to `<esc>:` for commands `q`, `q!`, `w`, `wq`, `wq!`).
 - added tracking of `context_pages_compacted` (active level shifts) and `auto_episodes_forced` statistics to the `/stats` output.
 - refactored the background summary worker loop to terminate immediately upon editor close, eliminating shutdown delays caused by LLM summarization calls.
 - implemented automatic injection of the archived episodes summary table at startup for new agent sessions to ensure context awareness of paged out history.

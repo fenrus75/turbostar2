@@ -316,6 +316,47 @@ void editor::dispatch_event_key(const editor_event &ev)
 			global_queue_.push(redraw_ev);
 			return;
 		}
+
+		// 1.5 Vim command prompt
+		if (is_vim_prompt_) {
+			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
+				is_vim_prompt_ = false;
+				vim_input_buffer_.clear();
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				is_vim_prompt_ = false;
+				execute_vim_command(vim_input_buffer_);
+				vim_input_buffer_.clear();
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
+				if (!vim_input_buffer_.empty()) {
+					vim_input_buffer_.pop_back();
+				} else {
+					is_vim_prompt_ = false;
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (!ev.utf8_char.empty() && ev.key_code >= 32 && ev.key_code < 127) {
+				vim_input_buffer_ += ev.utf8_char;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			return; // Consume all keys in vim prompt mode
+		}
+
 		// 2. Status Bar Search Prompt
 		if (is_searching_prompt_) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
@@ -475,6 +516,30 @@ void editor::dispatch_event_key(const editor_event &ev)
 				}
 			}
 			return;
+		}
+
+		if (ev.key_code == 27) { // ESC key
+			// Make sure no other prompt/dialog is active
+			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
+			    !is_searching_prompt_ && !is_search_options_prompt_ && !is_going_to_line_prompt_ &&
+			    !is_inline_agent_prompt_ && !is_vim_prompt_) {
+				logger.log("Entering Vim prefix mode via ESC.");
+				vim_prefix_mode_ = true;
+				return;
+			}
+		}
+
+		if (vim_prefix_mode_) {
+			vim_prefix_mode_ = false;
+			if (ev.key_code == ':') {
+				logger.log("Entering Vim Command mode.");
+				is_vim_prompt_ = true;
+				vim_input_buffer_ = "";
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
 		}
 
 		if (k_block_mode_) {
@@ -763,4 +828,84 @@ void editor::launch_inline_agent(const std::string &prompt)
 
 	transient_status_message_ = "Agent: Thinking...";
 	transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+}
+
+void editor::execute_vim_command(const std::string &cmd_raw)
+{
+	auto &logger = event_logger::get_instance();
+	logger.log("Executing Vim command: " + cmd_raw);
+
+	std::string cmd = cmd_raw;
+	cmd.erase(cmd.begin(), std::find_if(cmd.begin(), cmd.end(), [](unsigned char ch) {
+		return !std::isspace(ch);
+	}));
+	cmd.erase(std::find_if(cmd.rbegin(), cmd.rend(), [](unsigned char ch) {
+		return !std::isspace(ch);
+	}).base(), cmd.end());
+
+	if (cmd.empty())
+		return;
+
+	if (cmd == "q") {
+		bool any_modified = false;
+		for (const auto &doc : documents_) {
+			if (doc && doc->is_modified() && !doc->is_read_only()) {
+				any_modified = true;
+				break;
+			}
+		}
+		if (any_modified) {
+			editor_event status_ev;
+			status_ev.type = event_type::set_transient_status;
+			status_ev.payload = "Error: No write since last change (add ! to override)";
+			global_queue_.push(status_ev);
+		} else {
+			editor_event quit_ev;
+			quit_ev.type = event_type::quit;
+			global_queue_.push(quit_ev);
+		}
+	} else if (cmd == "q!") {
+		is_running_ = false;
+	} else if (cmd == "w") {
+		editor_event save_ev;
+		save_ev.type = event_type::save;
+		global_queue_.push(save_ev);
+	} else if (cmd == "wq") {
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc && active_doc->is_modified() && !active_doc->is_read_only()) {
+			if (active_doc->has_nondefault_filename()) {
+				active_doc->save();
+				history_manager::get_instance().add_file(active_doc->get_filename());
+				for (auto &w : windows_) {
+					if (w->get_document() == active_doc) {
+						w->set_title(active_doc->get_filename());
+					}
+				}
+				update_window_menu();
+			} else {
+				// Untitled
+				is_quitting_ = true;
+				editor_event save_as_ev;
+				save_as_ev.type = event_type::save_as;
+				global_queue_.push(save_as_ev);
+				return;
+			}
+		}
+		editor_event quit_ev;
+		quit_ev.type = event_type::quit;
+		global_queue_.push(quit_ev);
+	} else if (cmd == "wq!") {
+		std::shared_ptr<document> active_doc = get_active_doc();
+		if (active_doc && active_doc->is_modified() && !active_doc->is_read_only()) {
+			if (active_doc->has_nondefault_filename()) {
+				active_doc->save();
+			}
+		}
+		is_running_ = false;
+	} else {
+		editor_event status_ev;
+		status_ev.type = event_type::set_transient_status;
+		status_ev.payload = "Error: Unknown command: " + cmd;
+		global_queue_.push(status_ev);
+	}
 }
