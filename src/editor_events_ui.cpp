@@ -535,7 +535,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
 
-		std::string gdbserver_cmd = "stty -tostop && exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
+		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
 			gdbserver_cmd += " " + args;
 		}

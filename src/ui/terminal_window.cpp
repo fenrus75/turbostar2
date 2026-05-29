@@ -1,4 +1,5 @@
 #include "terminal_window.h"
+#include <termios.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -105,6 +106,13 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 		// Child process
 		int slave_fd = open(slave_name, O_RDWR);
 		close(pty_master_);
+
+		struct termios t;
+		if (tcgetattr(slave_fd, &t) == 0) {
+			t.c_lflag &= ~TOSTOP;
+			t.c_iflag &= ~(IXON | IXOFF | IXANY);
+			tcsetattr(slave_fd, TCSANOW, &t);
+		}
 
 		// Set PTY terminal size to match the window content area
 		struct winsize ws;
