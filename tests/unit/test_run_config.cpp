@@ -104,6 +104,32 @@ void test_dropdown_widget()
 	val = dd.get_value("test_dd");
 	assert(val && *val == "secondx");
 
+	// Reset buffer
+	dd.set_buffer("initial");
+	val = dd.get_value("test_dd");
+	assert(val && *val == "initial");
+
+	// Click on textbox at (10, 0) to open dropdown
+	editor_event ev_click;
+	ev_click.type = event_type::mouse_click;
+	ev_click.mouse_x = 10;
+	ev_click.mouse_y = 0;
+	assert(dd.contains_coordinate(10, 0, 0, 0));
+	handled = dd.handle_event(ev_click, 0, 0);
+	assert(handled);
+	assert(dd.has_overlay());
+
+	// Click on second option ("second") at (5, 3)
+	ev_click.mouse_x = 5;
+	ev_click.mouse_y = 3;
+	assert(dd.contains_coordinate(5, 3, 0, 0));
+	handled = dd.handle_event(ev_click, 0, 0);
+	assert(handled);
+	assert(!dd.has_overlay());
+
+	val = dd.get_value("test_dd");
+	assert(val && *val == "second");
+
 	std::cout << "test_dropdown_widget passed!" << std::endl;
 }
 

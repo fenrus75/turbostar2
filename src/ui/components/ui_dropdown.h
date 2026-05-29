@@ -14,6 +14,7 @@ class ui_dropdown : public ui_element
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+	bool contains_coordinate(int target_x, int target_y, int my_abs_x, int my_abs_y) const override;
 
 	bool has_overlay() const override;
 	void draw_overlay(int abs_x, int abs_y) const override;

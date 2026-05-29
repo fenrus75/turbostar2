@@ -120,7 +120,7 @@ class ui_element
 		return parent_;
 	}
 
-	bool contains_coordinate(int target_x, int target_y, int my_abs_x, int my_abs_y) const
+	virtual bool contains_coordinate(int target_x, int target_y, int my_abs_x, int my_abs_y) const
 	{
 		return target_x >= my_abs_x && target_x < my_abs_x + width_ && target_y >= my_abs_y && target_y < my_abs_y + height_;
 	}

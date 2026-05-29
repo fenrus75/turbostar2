@@ -290,7 +290,7 @@ bool ui_dropdown::handle_event(const editor_event &ev, int abs_x, int abs_y)
 	}
 
 	if (ev.type == event_type::mouse_click) {
-		if (contains_coordinate(ev.mouse_x, ev.mouse_y, abs_x, abs_y)) {
+		if (ev.mouse_x >= abs_x && ev.mouse_x < abs_x + width_ && ev.mouse_y == abs_y) {
 			if (has_focus_) {
 				if (!candidates_.empty()) {
 					is_open_ = !is_open_;
@@ -350,6 +350,27 @@ bool ui_dropdown::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			} else {
 				is_open_ = false;
 			}
+		}
+	}
+
+	return false;
+}
+
+bool ui_dropdown::contains_coordinate(int target_x, int target_y, int my_abs_x, int my_abs_y) const
+{
+	if (target_x >= my_abs_x && target_x < my_abs_x + width_ && target_y >= my_abs_y && target_y < my_abs_y + height_) {
+		return true;
+	}
+
+	if (is_open_ && !candidates_.empty()) {
+		int num_items = std::min(static_cast<int>(candidates_.size()), 5);
+		int popup_w = width_;
+		int popup_h = num_items + 2;
+		int start_x = my_abs_x;
+		int start_y = my_abs_y + 1;
+
+		if (target_x >= start_x && target_x < start_x + popup_w && target_y >= start_y && target_y < start_y + popup_h) {
+			return true;
 		}
 	}
 
