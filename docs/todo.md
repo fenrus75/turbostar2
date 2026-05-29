@@ -119,6 +119,9 @@
 - implemented "Run in Debugger" (F6 focus toggle, gdbserver socket auto-probing delay, tiled terminal windows, and auto-continue run setting).
 - implemented mouse click debugger action buttons ([Break], [Step], [Next], [Cont], [Quit]) drawn on the bottom border of the GDB window.
 - implemented unified agent execution and debugging tools (`agent_start_app`, `agent_write_to_run`, `agent_get_run_screenshot`, `agent_terminate_run`) with abstract virtual callbacks inside `document_provider`.
+- fixed debugger startup and output hangs by resolving transient PTY read errors and turning off GDB pagination.
+- enabled global shortcuts (like `^K Q` to Quit) to work when non-document windows (like the Debugger) are focused.
+- resolved CLI tool exit hangs by implementing scope-guarded destructors before calling `std::_Exit(0)` and setting connection/read timeouts on HTTP clients.
 
 ## 28-05-28
 - implemented candidate executable detection (parsing root meson.build) and project-level configuration options (main_executable, run_arguments, run_target_mode).
