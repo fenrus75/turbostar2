@@ -39,10 +39,16 @@ menu_bar::menu_bar()
 	    {"Run",
 	     'r',
 	     {{"Run", event_type::run_program, 'r', "Ctrl+F9", false},
+	      {"Run in Debugger", event_type::run_in_debugger, 'd', "Ctrl+Shift+F9", false},
 	      {"Run Settings...", event_type::run_settings, 's', "", false}}},
-	    {"Options", 'p', {{"Preferences...", event_type::settings, 'p', "", false}, {"Models...", event_type::models_config, 'M', "", false}}},
+	    {"Options",
+	     'p',
+	     {{"Preferences...", event_type::settings, 'p', "", false}, {"Models...", event_type::models_config, 'M', "", false}}},
 	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},
-	    {"Agent", 'a', {{"Open Chat...", event_type::open_agent, 'o', "", false}, {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
+	    {"Agent",
+	     'a',
+	     {{"Open Chat...", event_type::open_agent, 'o', "", false},
+	      {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
 	    {"Window", 'w', {}},
 	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"About...", event_type::about, 'a', "", false}}}};
 }

@@ -67,7 +67,8 @@ enum class event_type {
 	inline_agent_request,	    ///< Request for a headless agent operation
 	open_file,		    ///< Request to open a file in the editor
 	run_program,		    ///< Request to run the main program executable
-	run_settings		    ///< Request to show run settings/options dialog
+	run_settings,		    ///< Request to show run settings/options dialog
+	run_in_debugger		    ///< Request to run the main program in debugger
 };
 
 struct text_range {
