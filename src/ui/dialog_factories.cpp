@@ -954,6 +954,11 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 	mode_group->add_child(std::move(mode_radio));
 	dlg->add_child(std::move(mode_group));
 
+	// Auto-start debugger checkbox
+	bool auto_start = config_manager::get_instance().get_gdb_auto_continue();
+	dlg->add_child(
+	    std::make_unique<ui_checkbox>("gdb_auto_continue", 4, 11, "Auto-start the application on debugger startup", 'a', auto_start));
+
 	// Buttons
 	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 13, " OK (Save) ", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
@@ -983,4 +988,8 @@ void apply_run_settings_from_dialog(const dialog &dlg)
 	auto target_mode = dlg.get_value("run_target_mode");
 	if (target_mode)
 		cfg.set_run_target_mode(*target_mode);
+
+	auto gdb_start = dlg.get_value("gdb_auto_continue");
+	if (gdb_start)
+		cfg.set_gdb_auto_continue(*gdb_start == "true");
 }
