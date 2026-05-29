@@ -130,6 +130,11 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `message` *(string, required)*: The brief status message (e.g., 'Analyzing code...').
 
+### `open_in_editor`
+*   **Description:** Open a file in the editor UI for the user to view or edit. If the file is already open in a window, that window is activated and focused; otherwise, the file is loaded in a new window.
+*   **Arguments:**
+    *   `filename` *(string, required)*: The path of the file to open in the editor.
+
 ---
 
 ## 5. Semantic Code Analysis (LSP)

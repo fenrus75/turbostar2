@@ -142,5 +142,7 @@ tools_sources = files(
   'agent_set_timer/agent_set_timer_entry.cpp',
   'agent_set_timer/agent_set_timer_security.cpp',
   'agent_list_episodes/agent_list_episodes_entry.cpp',
-  'agent_list_episodes/agent_list_episodes_security.cpp'
+  'agent_list_episodes/agent_list_episodes_security.cpp',
+  'open_in_editor/open_in_editor_entry.cpp',
+  'open_in_editor/open_in_editor_security.cpp'
 )

@@ -150,6 +150,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::save_as:
 		case event_type::new_doc:
 		case event_type::format_doc:
+		case event_type::open_file:
 			dispatch_event_file(ev);
 			break;
 		case event_type::close_window:

@@ -142,4 +142,52 @@ void editor::dispatch_event_file(const editor_event &ev)
 		}
 		return;
 	}
+
+	if (ev.type == event_type::open_file) {
+		logger.log("Dispatching open_file event for: " + ev.payload);
+		if (ev.payload.empty())
+			return;
+
+		std::filesystem::path target_p(ev.payload);
+		bool found = false;
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			auto doc = windows_[i]->get_document();
+			if (!doc)
+				continue;
+			std::string doc_path = doc->get_filename();
+			if (doc_path.empty())
+				continue;
+
+			try {
+				std::filesystem::path p(doc_path);
+				if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
+					if (std::filesystem::equivalent(p, target_p)) {
+						activate_window(i);
+						set_focus(focus_target::window, "open_file");
+						found = true;
+						break;
+					}
+				}
+				if (std::filesystem::weakly_canonical(p).string() == std::filesystem::weakly_canonical(target_p).string()) {
+					activate_window(i);
+					set_focus(focus_target::window, "open_file");
+					found = true;
+					break;
+				}
+			} catch (...) {
+				// Ignore errors in path comparison
+			}
+		}
+
+		if (!found) {
+			new_window(ev.payload);
+			set_focus(focus_target::window, "open_file");
+		}
+
+		// Force redraw to ensure the new/focused window renders immediately
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+		return;
+	}
 }
