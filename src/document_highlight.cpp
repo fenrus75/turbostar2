@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <mutex>
 #include "config_manager.h"
@@ -21,7 +22,7 @@ void document::mark_line_dirty(const std::shared_ptr<line> &l)
 
 void document::highlighter_thread_loop()
 {
-	event_logger::get_instance().log("Thread started: document highlighter_thread_loop (" + filename_ + ")");
+	event_logger::get_instance().log(std::format("Thread started: document highlighter_thread_loop ({})", filename_));
 	while (!stop_thread_) {
 		std::shared_ptr<line> l;
 		{
@@ -46,7 +47,7 @@ void document::highlighter_thread_loop()
 			}
 		}
 	}
-	event_logger::get_instance().log("Thread exited: document highlighter_thread_loop (" + filename_ + ")");
+	event_logger::get_instance().log(std::format("Thread exited: document highlighter_thread_loop ({})", filename_));
 }
 
 void document::refresh_highlighter()
@@ -60,7 +61,7 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 		try {
 			active_highlighter_->highlight(l);
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log("Highlighter error: " + std::string(e.what()));
+			event_logger::get_instance().log(std::format("Highlighter error: {}", e.what()));
 		} catch (...) {
 			event_logger::get_instance().log("Highlighter error: unknown exception");
 		}

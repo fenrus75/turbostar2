@@ -1,6 +1,7 @@
 #include "git_manager.h"
 #include <array>
 #include <cstdio>
+#include <format>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -106,7 +107,7 @@ void git_manager::worker_loop()
                                 git_info& cached = status_cache_[req.filepath];
                                 if (cached.status != info.status || cached.branch != info.branch) {
                                         if (cached.branch != info.branch && !info.branch.empty()) {
-                                                event_logger::get_instance().log("Git: Detected branch '" + info.branch + "' for " + req.filepath);
+                                                event_logger::get_instance().log(std::format("Git: Detected branch '{}' for {}", info.branch, req.filepath));
                                         }
                                         cached = info;
                                         changed = true;
