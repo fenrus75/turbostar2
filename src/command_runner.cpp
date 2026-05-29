@@ -1,36 +1,24 @@
 #include "command_runner.h"
 #include <array>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
+#include <fcntl.h>
 #include <filesystem>
 #include <iostream>
 #include <poll.h>
+#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include "config_manager.h"
 #include "crashdump_manager.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
-std::string command_runner::get_repository_root()
-{
-	std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
-	sync_command_runner runner;
-	runner.apply_internal_profile();
-	std::string result = runner.execute_and_get_output(cmd);
-	if (runner.get_exit_code() != 0) {
-		return fs::current_path().string();
-	}
-	if (!result.empty() && result.back() == '\n') {
-		result.pop_back();
-	}
-	if (result.empty()) {
-		return fs::current_path().string();
-	}
-	return result;
-}
 
 void command_runner::apply_default_profile()
 {
@@ -55,7 +43,10 @@ void command_runner::apply_build_profile()
 	apply_default_profile();
 	network_access_ = true;
 	home_access_ = home_access_t::read_only;
-	project_dir_ = get_repository_root();
+	project_dir_ = project_manager::get_instance().get_repository_root();
+	if (project_dir_.empty()) {
+		project_dir_ = std::filesystem::current_path().string();
+	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 
 	// Allow ccache write access if the user has it configured
@@ -77,7 +68,10 @@ void command_runner::apply_strict_agent_profile()
 	apply_default_profile();
 	network_access_ = false;
 	home_access_ = home_access_t::hidden;
-	project_dir_ = get_repository_root();
+	project_dir_ = project_manager::get_instance().get_repository_root();
+	if (project_dir_.empty()) {
+		project_dir_ = std::filesystem::current_path().string();
+	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 }
 
@@ -99,7 +93,7 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		cmd += "--pipe ";
 	}
 	cmd += "--wait --quiet ";
-	cmd += "--unit=" + unit_name + " ";
+	cmd += "--unit=" + fs_utils::escape_shell_arg(unit_name) + " ";
 	cmd += "-p ProtectSystem=strict ";
 	cmd += "-p PrivateTmp=true ";
 	cmd += "-p PrivateDevices=true ";
@@ -120,11 +114,11 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	}
 
 	if (!project_dir_.empty()) {
-		cmd += "-p WorkingDirectory=" + project_dir_ + " ";
+		cmd += "-p WorkingDirectory=" + fs_utils::escape_shell_arg(project_dir_) + " ";
 		if (home_access_ == home_access_t::hidden) {
-			cmd += "-p BindPaths=" + project_dir_ + " ";
+			cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(project_dir_) + " ";
 		} else {
-			cmd += "-p ReadWritePaths=" + project_dir_ + " ";
+			cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(project_dir_) + " ";
 		}
 	}
 
@@ -135,29 +129,29 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	if (!bypass_sandbox_ && enable_crash_catcher_) {
 		std::string dump_dir = fs_utils::get_project_dump_dir();
 		if (home_access_ == home_access_t::hidden) {
-			cmd += "-p BindPaths=" + dump_dir + " ";
+			cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(dump_dir) + " ";
 		} else {
-			cmd += "-p ReadWritePaths=" + dump_dir + " ";
+			cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(dump_dir) + " ";
 		}
 
 		// Inject the LD_PRELOAD crash handler
 		std::string lib_path = fs_utils::get_turbocatch_lib_path();
-		cmd += "-p Environment=\"LD_PRELOAD=" + lib_path + "\" ";
-		cmd += "-p Environment=\"TURBOSTAR_DUMP_DIR=" + dump_dir + "\" ";
+		cmd += "-p " + fs_utils::escape_shell_arg("Environment=LD_PRELOAD=" + lib_path) + " ";
+		cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_DUMP_DIR=" + dump_dir) + " ";
 	}
 
 	for (const auto &p : extra_rw_paths_) {
 		if (home_access_ == home_access_t::hidden) {
-			cmd += "-p BindPaths=" + p + " ";
+			cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(p) + " ";
 		} else {
-			cmd += "-p ReadWritePaths=" + p + " ";
+			cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(p) + " ";
 		}
 	}
 	for (const auto &p : extra_ro_paths_) {
 		if (home_access_ == home_access_t::hidden) {
-			cmd += "-p BindReadOnlyPaths=" + p + " ";
+			cmd += "-p BindReadOnlyPaths=" + fs_utils::escape_shell_arg(p) + " ";
 		} else {
-			cmd += "-p ReadOnlyPaths=" + p + " ";
+			cmd += "-p ReadOnlyPaths=" + fs_utils::escape_shell_arg(p) + " ";
 		}
 	}
 
@@ -177,9 +171,9 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		for (const auto &p : ccache_paths) {
 			if (fs::exists(p)) {
 				if (home_access_ == home_access_t::hidden) {
-					cmd += "-p BindPaths=" + p + " ";
+					cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(p) + " ";
 				} else {
-					cmd += "-p ReadWritePaths=" + p + " ";
+					cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(p) + " ";
 				}
 			}
 		}
@@ -203,64 +197,122 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	}
 
 	for (const auto &p : inaccessible_paths) {
-		cmd += "-p InaccessiblePaths=" + p + " ";
+		cmd += "-p InaccessiblePaths=" + fs_utils::escape_shell_arg(p) + " ";
 	}
 
-	// Escape single quotes in the raw command
-	std::string escaped_command;
-	for (char c : raw_command) {
-		if (c == '\'')
-			escaped_command += "'\\''";
-		else
-			escaped_command += c;
-	}
-
-	cmd += "-- bash -c '" + escaped_command + "'";
+	cmd += "-- bash -c " + fs_utils::escape_shell_arg(raw_command);
 	return cmd;
 }
 
 int command_runner::execute(const std::string &command)
 {
-	std::string final_command = build_command(command) + " 2>&1"; // Changed from 2>/dev/null to see errors
-	FILE *pipe = popen(final_command.c_str(), "r");
-
-	if (!pipe) {
-		return -1; // Failed to start
+	std::string final_command = build_command(command);
+	if (final_command.find("2>") == std::string::npos && final_command.find(">&") == std::string::npos) {
+		final_command += " 2>&1";
 	}
 
-#include <unistd.h> // needed for read()
-	int fd = fileno(pipe);
-	std::array<char, 4096> buffer; // Larger buffer for raw reads
+	int pipefd[2];
+	if (pipe(pipefd) < 0) {
+		return -1;
+	}
 
-	while (should_continue()) {
+	pid_t pid = fork();
+	if (pid < 0) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return -1;
+	}
+
+	if (pid == 0) {
+		// Child process
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		dup2(pipefd[1], STDERR_FILENO);
+		close(pipefd[1]);
+
+		// Create a process group so we can kill any descendant processes on cancel
+		setpgid(0, 0);
+
+		execl("/bin/sh", "sh", "-c", final_command.c_str(), nullptr);
+		_exit(127);
+	}
+
+	// Parent process
+	close(pipefd[1]);
+
+	// Set read end of pipe to non-blocking
+	int flags = fcntl(pipefd[0], F_GETFL, 0);
+	fcntl(pipefd[0], F_SETFL, flags | O_NONBLOCK);
+
+	std::array<char, 4096> buffer;
+	bool canceled = false;
+
+	while (true) {
+		// Check cancellation first
+		if (!should_continue()) {
+			canceled = true;
+			break;
+		}
+
 		struct pollfd pfd;
-		pfd.fd = fd;
-		pfd.events = POLLIN;
+		pfd.fd = pipefd[0];
+		pfd.events = POLLIN | POLLHUP;
 
 		int ret = poll(&pfd, 1, 100); // 100ms timeout
 		if (ret < 0) {
-			break; // poll error
+			if (errno == EINTR)
+				continue;
+			break; // error
 		}
 		if (ret == 0) {
-			continue; // Timeout, check should_continue() again
+			continue; // check should_continue() again
 		}
 
-		ssize_t bytes_read = read(fd, buffer.data(), buffer.size());
-		if (bytes_read <= 0) {
-			break; // EOF or error
+		if (pfd.revents & POLLIN) {
+			ssize_t bytes_read = read(pipefd[0], buffer.data(), buffer.size());
+			if (bytes_read > 0) {
+				on_output_chunk(std::string(buffer.data(), bytes_read));
+			} else if (bytes_read == 0) {
+				break; // EOF
+			} else {
+				if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+					continue;
+				break; // error
+			}
 		}
 
-		on_output_chunk(std::string(buffer.data(), bytes_read));
+		if (pfd.revents & POLLHUP) {
+			// Read any remaining data
+			ssize_t bytes_read;
+			while ((bytes_read = read(pipefd[0], buffer.data(), buffer.size())) > 0) {
+				on_output_chunk(std::string(buffer.data(), bytes_read));
+			}
+			break;
+		}
 	}
 
-	int exit_code = pclose(pipe);
-	int status = WEXITSTATUS(exit_code);
+	if (canceled) {
+		// Kill child process group using negative pid
+		kill(-pid, SIGKILL);
+	}
+
+	close(pipefd[0]);
+
+	int status = 0;
+	waitpid(pid, &status, 0);
+
+	int final_exit_code = -1;
+	if (WIFEXITED(status)) {
+		final_exit_code = WEXITSTATUS(status);
+	} else if (WIFSIGNALED(status)) {
+		final_exit_code = 128 + WTERMSIG(status);
+	}
 
 	if (!bypass_crashdump_check_ && !project_hash_.empty()) {
 		last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
 	}
 
-	return status;
+	return final_exit_code;
 }
 
 void sync_command_runner::on_output_chunk(const std::string &chunk)

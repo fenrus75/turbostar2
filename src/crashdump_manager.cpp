@@ -30,22 +30,6 @@ struct memory_map {
 	std::string path;
 };
 
-static std::string escape_shell_arg(const std::string &arg)
-{
-	std::string escaped;
-	escaped.reserve(arg.size() + 10);
-	escaped += '\'';
-	for (char c : arg) {
-		if (c == '\'') {
-			escaped += "'\\''";
-		} else {
-			escaped += c;
-		}
-	}
-	escaped += '\'';
-	return escaped;
-}
-
 static std::vector<memory_map> parse_maps(const std::string &maps_file)
 {
 	std::vector<memory_map> maps;
@@ -149,7 +133,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 
 				if (!m.path.empty() && m.path[0] == '/') {
 					std::ostringstream cmd;
-					cmd << "addr2line -C -f -e " << escape_shell_arg(m.path) << " " << std::hex << rel_addr;
+					cmd << "addr2line -C -f -e " << fs_utils::escape_shell_arg(m.path) << " " << std::hex << rel_addr;
 
 					std::string output;
 					FILE *pipe = popen(cmd.str().c_str(), "r");

@@ -82,6 +82,10 @@ bool is_valid_db_name(const std::string &name);
  */
 bool is_shell_safe(const std::string &s, bool allow_tilde = false);
 /**
+ * @brief Escapes a string to make it safe for use as a shell argument by wrapping it in single quotes and escaping internal single quotes.
+ */
+std::string escape_shell_arg(const std::string &arg);
+/**
  * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable
  * characters or ANSI escape sequences to prevent malicious agents from spoofing UI elements.
  */

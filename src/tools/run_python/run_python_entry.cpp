@@ -98,14 +98,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	if (args_.code) {
 		// Execute via stdin
 		base_cmd += "- "; // Python / uv reads from stdin
-		std::string escaped_code;
-		for (char c : *args_.code) {
-			if (c == '\'')
-				escaped_code += "'\\''";
-			else
-				escaped_code += c;
-		}
-		full_cmd = "echo '" + escaped_code + "' | " + base_cmd;
+		full_cmd = "echo " + fs_utils::escape_shell_arg(*args_.code) + " | " + base_cmd;
 		
 		if (interaction_) {
 			std::string display_cmd = base_cmd + "<inline code>";

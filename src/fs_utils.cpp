@@ -365,6 +365,22 @@ bool is_safe_for_ui(const std::string &s)
 	return true;
 }
 
+std::string escape_shell_arg(const std::string &arg)
+{
+	std::string escaped;
+	escaped.reserve(arg.size() + 10);
+	escaped += '\'';
+	for (char c : arg) {
+		if (c == '\'') {
+			escaped += "'\\''";
+		} else {
+			escaped += c;
+		}
+	}
+	escaped += '\'';
+	return escaped;
+}
+
 std::string shorten_filename(const std::string &filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

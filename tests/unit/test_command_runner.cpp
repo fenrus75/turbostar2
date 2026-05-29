@@ -1,3 +1,4 @@
+#include "git_manager.h"
 #include <cassert>
 #include <iostream>
 #include <filesystem>
@@ -112,9 +113,9 @@ int main()
 		auto orig_cwd = fs::current_path();
 		try {
 			fs::current_path(fs::temp_directory_path());
-			std::string repo_root = command_runner::get_repository_root();
+			std::string repo_root = git_manager::get_instance().get_repository_root();
 			std::cout << "Non-git repo root: " << repo_root << "\n";
-			assert(fs::exists(repo_root));
+			assert(repo_root.empty() || fs::exists(repo_root));
 			assert_not_contains(repo_root, "fatal:");
 		} catch (...) {
 		}

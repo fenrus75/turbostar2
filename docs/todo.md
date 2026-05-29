@@ -7,10 +7,6 @@
 
 - perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
 
-
-- we have a set of code reviews in `review*.md` from another agent that at some point we should check
-    - the other agent makes stuff up at times, but it is at least worth looking and checking
-
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 

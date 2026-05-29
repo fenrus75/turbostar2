@@ -32,9 +32,6 @@ public:
     void apply_build_profile();
     void apply_strict_agent_profile();
 
-    // Resolves the git repository root.
-    // If not in a git repo, returns the current working directory.
-    static std::string get_repository_root();
 
     // The core execution engine.
     // - Handles popen/pclose internally.
