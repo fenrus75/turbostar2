@@ -144,5 +144,13 @@ tools_sources = files(
   'agent_list_episodes/agent_list_episodes_entry.cpp',
   'agent_list_episodes/agent_list_episodes_security.cpp',
   'open_in_editor/open_in_editor_entry.cpp',
-  'open_in_editor/open_in_editor_security.cpp'
+  'open_in_editor/open_in_editor_security.cpp',
+  'agent_start_app/agent_start_app_entry.cpp',
+  'agent_start_app/agent_start_app_security.cpp',
+  'agent_write_to_run/agent_write_to_run_entry.cpp',
+  'agent_write_to_run/agent_write_to_run_security.cpp',
+  'agent_get_run_screenshot/agent_get_run_screenshot_entry.cpp',
+  'agent_get_run_screenshot/agent_get_run_screenshot_security.cpp',
+  'agent_terminate_run/agent_terminate_run_entry.cpp',
+  'agent_terminate_run/agent_terminate_run_security.cpp'
 )

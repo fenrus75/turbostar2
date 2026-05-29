@@ -25,14 +25,12 @@
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
-- a "run" option to run the application from the menu, where we temporarily
-  exit ncurses (but catch crashes etc) (candidate scanning, project settings, and run configuration dialog are implemented)
+- a "run" option to run the application from the menu:
     -- gray out the menu item until a main executable name is configured (implemented)
-    -- implement the three target execution modes:
+    -- implement target execution modes:
         1. Full screen: exit ncurses, run child in its own process group (yield screen/stdin/stdout), catch crashes using libturbocatch.so, prompt "Press any key..." on completion/crash, and resume ncurses. (implemented in sandbox via command_runner)
         2. In a window: create a new terminal window subclass of window with an ANSI terminal emulator. (implemented in sandbox via terminal_window and ansi_terminal_emulator)
         3. New X terminal: spawn process in an external X terminal (e.g., xterm) if the DISPLAY environment variable is set.
-    -- run the command via gdbserver on a dedicated port to support remote debugging capabilities.
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
@@ -44,11 +42,8 @@
 - when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
 	- not seen recently
 
-- next set of tools for agents
-    - next set of tools for agents
+- next set of tools for agents:
       - request-access-to-denied file (to add to the security manager, will ask the user)
-    	- gdbserver -- allow interactive debug of an app (especially a crash) by the LLM
-	        - read memory, get registers
     - crashdump; 
 	- crashdump_read_memory(nr, location, size)
 	- crashdump_gdb(nr, command) (over time -- likely to come later)
@@ -119,6 +114,11 @@
     - ...
 
 # done items (move items here on completion)
+
+## 29-05-2026
+- implemented "Run in Debugger" (F6 focus toggle, gdbserver socket auto-probing delay, tiled terminal windows, and auto-continue run setting).
+- implemented mouse click debugger action buttons ([Break], [Step], [Next], [Cont], [Quit]) drawn on the bottom border of the GDB window.
+- implemented unified agent execution and debugging tools (`agent_start_app`, `agent_write_to_run`, `agent_get_run_screenshot`, `agent_terminate_run`) with abstract virtual callbacks inside `document_provider`.
 
 ## 28-05-28
 - implemented candidate executable detection (parsing root meson.build) and project-level configuration options (main_executable, run_arguments, run_target_mode).

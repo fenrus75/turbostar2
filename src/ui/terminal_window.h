@@ -48,11 +48,26 @@ class terminal_window : public ::window
 		return capture_input_;
 	}
 
+	struct screenshot_data {
+		std::vector<std::string> grid;
+		int cursor_x = 0;
+		int cursor_y = 0;
+		bool cursor_visible = false;
+	};
+	screenshot_data get_screenshot() const;
+
       protected:
 	void draw_content() const override;
+	void draw_border() const override;
 
       private:
-	void draw_border() const;
+	struct debug_button {
+		std::string label;
+		std::string seq;
+		int start_x;
+		int end_x;
+	};
+	std::vector<debug_button> get_debug_buttons() const;
 
 	ansi_terminal_emulator emulator_;
 	int pty_master_{-1};

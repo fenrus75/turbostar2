@@ -557,14 +557,39 @@ void editor::run()
 			needs_render = true;
 		}
 
+		bool debug_exited = false;
 		for (auto &w : windows_) {
 			if (auto tw = dynamic_cast<ui::terminal_window *>(w.get())) {
 				if (tw->update_pty()) {
 					needs_render = true;
 				}
+				if (tw->get_title() == "Debugger (GDB)" && !tw->is_alive()) {
+					debug_exited = true;
+				}
 			}
 			if (w->process_events()) {
 				needs_render = true;
+			}
+		}
+
+		if (debug_exited) {
+			for (auto it = windows_.begin(); it != windows_.end();) {
+				if ((*it)->get_title() == "Run Output" || (*it)->get_title() == "Debugger (GDB)") {
+					if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+						tw->stop_process();
+					}
+					it = windows_.erase(it);
+					needs_render = true;
+				} else {
+					++it;
+				}
+			}
+			update_window_layout();
+			if (!windows_.empty()) {
+				activate_window(0);
+				set_focus(focus_target::window, "debugger_exit");
+			} else {
+				set_focus(focus_target::menu_bar, "debugger_exit");
 			}
 		}
 

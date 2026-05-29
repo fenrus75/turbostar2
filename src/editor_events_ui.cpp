@@ -1,19 +1,21 @@
 #include <algorithm>
+#include <arpa/inet.h>
 #include <chrono>
 #include <fstream>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
+#include <cstdlib>
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
-#include <cstdlib>
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
-#include "ui/terminal_window.h"
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -25,8 +27,32 @@
 #include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
+#include "ui/terminal_window.h"
 
 namespace fs = std::filesystem;
+
+static int find_free_port()
+{
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		return 1234;
+
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	addr.sin_port = 0;
+
+	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
+		socklen_t len = sizeof(addr);
+		if (getsockname(sock, (struct sockaddr *)&addr, &len) == 0) {
+			int port = ntohs(addr.sin_port);
+			close(sock);
+			return port;
+		}
+	}
+	close(sock);
+	return 1234;
+}
 
 void editor::dispatch_event_ui(const editor_event &ev)
 {
@@ -151,6 +177,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::run_in_debugger) {
+		logger.log("Dispatching run_in_debugger event.");
+		std::string args = config_manager::get_instance().get_run_arguments();
+		start_app(args, true);
+		return;
+	}
+
 	if (ev.type == event_type::run_program) {
 		logger.log("Dispatching run_program event.");
 		std::string exe = config_manager::get_instance().get_main_executable();
@@ -175,34 +208,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		std::string run_mode = config_manager::get_instance().get_run_target_mode();
 		if (run_mode == "window") {
-			// Window mode: create terminal_window, start process, and activate it
-			for (auto it = windows_.begin(); it != windows_.end(); ++it) {
-				if ((*it)->get_title() == "Run Output") {
-					if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
-						tw->stop_process();
-					}
-					windows_.erase(it);
-					break;
-				}
-			}
-
-			auto tw = std::make_unique<ui::terminal_window>(
-				static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, "Run Output"
-			);
-
-			std::string raw_cmd = build_exe.string();
-			if (!args.empty()) {
-				raw_cmd += " " + args;
-			}
-
-			if (tw->start_process(raw_cmd)) {
-				windows_.push_back(std::move(tw));
-				update_window_layout();
-				activate_window(windows_.size() - 1);
-				set_focus(focus_target::window, "run_program");
-			} else {
-				logger.log("Failed to start terminal window process.");
-			}
+			start_app(args, false);
 			return;
 		}
 
@@ -474,4 +480,180 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		launch_inline_agent(ev.payload);
 		return;
 	}
+}
+
+agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger)
+{
+	auto &logger = event_logger::get_instance();
+	logger.log("start_app called with args: '" + args + "', debugger: " + (use_debugger ? "true" : "false"));
+
+	std::string exe = config_manager::get_instance().get_main_executable();
+	if (exe.empty()) {
+		logger.log("start_app failed: no main executable configured.");
+		return {-1, -1};
+	}
+
+	std::string repo_root = git_manager::get_instance().get_repository_root();
+	if (repo_root.empty()) {
+		repo_root = std::filesystem::current_path().string();
+	}
+	std::filesystem::path build_exe = std::filesystem::path(repo_root) / "build" / exe;
+	if (!std::filesystem::exists(build_exe)) {
+		build_exe = std::filesystem::path(repo_root) / exe;
+		if (!std::filesystem::exists(build_exe)) {
+			build_exe = exe;
+		}
+	}
+
+	// Clean up any existing terminal windows
+	for (auto it = windows_.begin(); it != windows_.end();) {
+		if ((*it)->get_title() == "Run Output" || (*it)->get_title() == "Debugger (GDB)") {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+				tw->stop_process();
+			}
+			it = windows_.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	agentlib::start_app_result result;
+
+	if (use_debugger) {
+		int port = find_free_port();
+		logger.log("Found free port for GDBServer: " + std::to_string(port));
+
+		int total_h = LINES - 2;
+		int app_h = (total_h * 2) / 3;
+		int gdb_h = total_h - app_h;
+
+		int app_id = 1000 + static_cast<int>(windows_.size());
+		int gdb_id = 1001 + static_cast<int>(windows_.size());
+
+		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, app_h, "Run Output");
+		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
+
+		std::string gdbserver_cmd = "gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
+		if (!args.empty()) {
+			gdbserver_cmd += " " + args;
+		}
+
+		logger.log("Starting gdbserver: " + gdbserver_cmd);
+		if (!app_tw->start_process(gdbserver_cmd)) {
+			logger.log("Failed to start gdbserver process.");
+			return {-1, -1};
+		}
+
+		usleep(50000);
+
+		std::string gdb_cmd = "gdb -q -ex \"target remote localhost:" + std::to_string(port) + "\" " + build_exe.string();
+		logger.log("Starting gdb: " + gdb_cmd);
+		if (!gdb_tw->start_process(gdb_cmd)) {
+			logger.log("Failed to start gdb process.");
+			app_tw->stop_process();
+			return {-1, -1};
+		}
+
+		ui::terminal_window *gdb_tw_ptr = gdb_tw.get();
+
+		result.app_run_id = app_id;
+		result.gdb_run_id = gdb_id;
+
+		windows_.push_back(std::move(app_tw));
+		windows_.push_back(std::move(gdb_tw));
+
+		update_window_layout();
+
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (windows_[i].get() == gdb_tw_ptr) {
+				activate_window(i);
+				break;
+			}
+		}
+		set_focus(focus_target::window, "start_app");
+
+		if (config_manager::get_instance().get_gdb_auto_continue()) {
+			int gdb_pty = gdb_tw_ptr->get_pty_master_fd();
+			if (gdb_pty >= 0) {
+				usleep(100000);
+				ssize_t w = write(gdb_pty, "c\n", 2);
+				(void)w;
+			}
+		}
+	} else {
+		int app_id = 1000 + static_cast<int>(windows_.size());
+		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, LINES - 2, "Run Output");
+
+		std::string raw_cmd = build_exe.string();
+		if (!args.empty()) {
+			raw_cmd += " " + args;
+		}
+
+		logger.log("Starting app: " + raw_cmd);
+		if (!tw->start_process(raw_cmd)) {
+			logger.log("Failed to start app process.");
+			return {-1, -1};
+		}
+
+		result.app_run_id = app_id;
+		result.gdb_run_id = -1;
+
+		windows_.push_back(std::move(tw));
+		update_window_layout();
+		activate_window(windows_.size() - 1);
+		set_focus(focus_target::window, "start_app");
+	}
+
+	return result;
+}
+
+ui::terminal_window *editor::find_terminal_window(int run_id)
+{
+	for (auto &win : windows_) {
+		if (win->get_id() == run_id) {
+			return dynamic_cast<ui::terminal_window *>(win.get());
+		}
+	}
+	return nullptr;
+}
+
+bool editor::write_to_run(int run_id, const std::string &data)
+{
+	auto *tw = find_terminal_window(run_id);
+	if (!tw)
+		return false;
+	int fd = tw->get_pty_master_fd();
+	if (fd < 0 || !tw->is_alive())
+		return false;
+	ssize_t w = write(fd, data.data(), data.size());
+	return (w == static_cast<ssize_t>(data.size()));
+}
+
+agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
+{
+	auto *tw = find_terminal_window(run_id);
+	if (!tw)
+		return {};
+	auto snap = tw->get_screenshot();
+	agentlib::run_screenshot_data res;
+	res.grid = snap.grid;
+	res.cursor_x = snap.cursor_x;
+	res.cursor_y = snap.cursor_y;
+	res.cursor_visible = snap.cursor_visible;
+	return res;
+}
+
+bool editor::terminate_run(int run_id)
+{
+	for (auto it = windows_.begin(); it != windows_.end(); ++it) {
+		if ((*it)->get_id() == run_id) {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+				tw->stop_process();
+			}
+			windows_.erase(it);
+			update_window_layout();
+			return true;
+		}
+	}
+	return false;
 }

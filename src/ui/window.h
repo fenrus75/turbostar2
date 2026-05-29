@@ -85,10 +85,10 @@ class window
 	int id_;
 	int background_color_pair_{3};
 	virtual void draw_content() const;
+	virtual void draw_border() const;
 
       private:
 	void update_viewport() const;
-	void draw_border() const;
 
 	std::string title_;
 	bool is_active_{false};

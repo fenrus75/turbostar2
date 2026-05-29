@@ -240,6 +240,21 @@ bool terminal_window::process_events()
 	while (auto ev = queue.pop()) {
 		if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
 		    ev->type == event_type::mouse_scroll_down) {
+			if (get_title() == "Debugger (GDB)" && ev->type == event_type::mouse_click && ev->mouse_y == y_ + height_ - 1) {
+				int click_x = ev->mouse_x - x_;
+				auto buttons = get_debug_buttons();
+				for (const auto &btn : buttons) {
+					if (click_x >= btn.start_x && click_x < btn.end_x) {
+						if (pty_master_ >= 0 && is_alive_) {
+							ssize_t w = write(pty_master_, btn.seq.data(), btn.seq.size());
+							(void)w;
+						}
+						break;
+					}
+				}
+				continue;
+			}
+
 			if (capture_input_ && pty_master_ >= 0 && is_alive_ && emulator_.is_mouse_reporting()) {
 				int Cx = ev->mouse_x - x_;
 				int Cy = ev->mouse_y - y_;
@@ -405,19 +420,79 @@ void terminal_window::draw_content() const
 	}
 }
 
+std::vector<terminal_window::debug_button> terminal_window::get_debug_buttons() const
+{
+	std::vector<debug_button> buttons = {
+		{"Break", "\x03", 0, 0},
+		{"Step", "s\n", 0, 0},
+		{"Next", "n\n", 0, 0},
+		{"Cont", "c\n", 0, 0},
+		{"Quit", "q\n", 0, 0}
+	};
+	int cur_x = 2;
+	for (auto &btn : buttons) {
+		btn.start_x = cur_x;
+		btn.end_x = cur_x + static_cast<int>(btn.label.length()) + 2;
+		cur_x = btn.end_x + 1;
+	}
+	return buttons;
+}
+
 void terminal_window::draw_border() const
 {
-	::window::draw(); // Draw base frame and title
+	::window::draw_border(); // Draw base frame and title
+
+	if (get_title() == "Debugger (GDB)") {
+		auto buttons = get_debug_buttons();
+		for (const auto &btn : buttons) {
+			attrset(COLOR_PAIR(5));
+			mvaddstr(y_ + height_ - 1, x_ + btn.start_x, "[");
+			attrset(COLOR_PAIR(10));
+			addstr(btn.label.c_str());
+			attrset(COLOR_PAIR(5));
+			addstr("]");
+		}
+	}
+
+	std::string status;
+	if (capture_input_) {
+		status = "[Capture: ON (^G to escape)]";
+	} else {
+		status = "[Capture: OFF (Click/Enter to capture)]";
+	}
+
+	if (get_title() == "Debugger (GDB)") {
+		if (width_ - static_cast<int>(status.length()) - 2 <= 38) {
+			status = capture_input_ ? "[^G]" : "[Click]";
+		}
+	}
 
 	attrset(COLOR_PAIR(5));
-	if (capture_input_) {
-		std::string status = "[Capture: ON (^G to escape)]";
-		mvprintw(y_ + height_ - 1, x_ + width_ - status.length() - 2, " %s ", status.c_str());
-	} else {
-		std::string status = "[Capture: OFF (Click/Enter to capture)]";
-		mvprintw(y_ + height_ - 1, x_ + width_ - status.length() - 2, " %s ", status.c_str());
-	}
+	mvprintw(y_ + height_ - 1, x_ + width_ - status.length() - 2, " %s ", status.c_str());
 	attrset(0);
+}
+
+terminal_window::screenshot_data terminal_window::get_screenshot() const
+{
+	screenshot_data data;
+	data.cursor_x = emulator_.get_cursor_x();
+	data.cursor_y = emulator_.get_cursor_y();
+	data.cursor_visible = emulator_.is_cursor_visible();
+
+	const auto &grid = emulator_.get_grid();
+	for (int y = 0; y < height_ - 2; ++y) {
+		if (y >= static_cast<int>(grid.size()))
+			break;
+		const auto &row = grid[y];
+		std::string row_str;
+		for (int x = 0; x < width_ - 2; ++x) {
+			if (x >= static_cast<int>(row.size()))
+				break;
+			row_str += row[x].glyph;
+		}
+		data.grid.push_back(row_str);
+	}
+	return data;
 }
 
 } // namespace ui

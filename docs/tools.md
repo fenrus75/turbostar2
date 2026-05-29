@@ -449,3 +449,27 @@ These tools allow the agent to interact with the project's Git repository.
     *   `plan_title` *(string, required)*: A short title for the plan (1-5 words).
     *   `plan_summary` *(string, required)*: The complete, step-by-step finalized plan to present to the user.
     *   `page_out_history` *(boolean, optional)*: If true, compresses all exploratory work done since entering Plan Mode into a single milestone on disk, leaving only the plan in the active context window to save tokens. Strongly recommended.
+
+## 9. Interactive Execution & Debugging
+
+### `agent_start_app`
+*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with `app_run_id` and `gdb_run_id`.
+*   **Arguments:**
+    *   `args` *(string, optional)*: Command line arguments to pass to the application.
+    *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
+
+### `agent_write_to_run`
+*   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream.
+*   **Arguments:**
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `data` *(string, required)*: The raw string data or escape sequence to inject.
+
+### `agent_get_run_screenshot`
+*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, and visibility status for a given run ID.
+*   **Arguments:**
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+
+### `agent_terminate_run`
+*   **Description:** Terminates/stops a running process and closes its window based on its run ID.
+*   **Arguments:**
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.

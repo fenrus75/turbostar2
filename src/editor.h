@@ -11,7 +11,7 @@
 #include "ui/menu_bar.h"
 #include "ui/popup_menu.h"
 #include "ui/status_bar.h"
-#include "ui/window.h"
+#include "ui/terminal_window.h"
 
 namespace agentlib
 {
@@ -59,6 +59,13 @@ class editor : public agentlib::document_provider
 	 * @param source Optional name of the component initiating the change.
 	 */
 	void set_focus(focus_target target, const std::string &source = "unknown");
+
+	// unified app execution and debugging agent APIs
+	agentlib::start_app_result start_app(const std::string &args, bool use_debugger) override;
+	bool write_to_run(int run_id, const std::string &data) override;
+	agentlib::run_screenshot_data get_run_screenshot(int run_id) override;
+	bool terminate_run(int run_id) override;
+	ui::terminal_window *find_terminal_window(int run_id);
 
 	// agentlib::document_provider implementation
 	std::vector<std::string> get_open_document_paths() const override;
