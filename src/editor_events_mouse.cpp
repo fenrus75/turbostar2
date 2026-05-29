@@ -8,12 +8,12 @@
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
-#include "ui/agent_window.h"
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
 #include "git_manager.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "ui/agent_window.h"
 
 namespace fs = std::filesystem;
 
@@ -131,14 +131,16 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						}
 
 						std::vector<popup_menu_item> items;
-						if (dynamic_cast<agent_window*>(w)) {
-							items.push_back({static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
+						if (dynamic_cast<agent_window *>(w)) {
+							items.push_back(
+							    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
 							items.push_back({0, "", 0, true});
 							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
 						} else {
 							items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
 							items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
-							items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+							items.push_back(
+							    {static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
 							items.push_back({0, "", 0, true});
 							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
 						}
@@ -201,6 +203,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							activate_window(i);
 							set_focus(focus_target::window, "mouse_click");
 
+							// Forward mouse event to window local queue
+							w->get_window_queue().push(ev);
+
 							// Optional: Move cursor to clicked text
 							if (ev.mouse_y >= w->get_y() + 1 &&
 							    ev.mouse_y <= w->get_y() + w->get_height() - 2) {
@@ -239,6 +244,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
+				} else {
+					// Forward scroll event to window local queue
+					w->get_window_queue().push(ev);
 				}
 				return;
 			}

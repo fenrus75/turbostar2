@@ -238,6 +238,54 @@ bool terminal_window::process_events()
 	auto &queue = get_window_queue();
 
 	while (auto ev = queue.pop()) {
+		if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
+		    ev->type == event_type::mouse_scroll_down) {
+			if (capture_input_ && pty_master_ >= 0 && is_alive_ && emulator_.is_mouse_reporting()) {
+				int Cx = ev->mouse_x - x_;
+				int Cy = ev->mouse_y - y_;
+
+				if (Cx >= 1 && Cx <= emulator_.get_width() && Cy >= 1 && Cy <= emulator_.get_height()) {
+					int button = 0;
+					if (ev->type == event_type::mouse_scroll_up) {
+						button = 64;
+					} else if (ev->type == event_type::mouse_scroll_down) {
+						button = 65;
+					}
+
+					std::string seq;
+					if (emulator_.is_mouse_sgr()) {
+						if (button >= 64) {
+							seq = "\x1b[<" + std::to_string(button) + ";" + std::to_string(Cx) + ";" +
+							      std::to_string(Cy) + "M";
+						} else {
+							seq = "\x1b[<" + std::to_string(button) + ";" + std::to_string(Cx) + ";" +
+							      std::to_string(Cy) + "M" + "\x1b[<" + std::to_string(button) + ";" +
+							      std::to_string(Cx) + ";" + std::to_string(Cy) + "m";
+						}
+					} else {
+						if (button >= 64) {
+							char b = static_cast<char>(32 + button);
+							char x = static_cast<char>(32 + Cx);
+							char y = static_cast<char>(32 + Cy);
+							seq = std::string("\x1b[M") + b + x + y;
+						} else {
+							char b_p = static_cast<char>(32 + button);
+							char x = static_cast<char>(32 + Cx);
+							char y = static_cast<char>(32 + Cy);
+							char b_r = static_cast<char>(32 + 3);
+							seq = std::string("\x1b[M") + b_p + x + y + std::string("\x1b[M") + b_r + x + y;
+						}
+					}
+
+					if (!seq.empty()) {
+						ssize_t w = write(pty_master_, seq.data(), seq.size());
+						(void)w;
+					}
+				}
+			}
+			continue;
+		}
+
 		if (ev->type != event_type::key_press)
 			continue;
 

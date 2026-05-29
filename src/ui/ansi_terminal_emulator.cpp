@@ -299,6 +299,10 @@ void ansi_terminal_emulator::handle_csi_command(char cmd)
 				for (int p : csi_params_) {
 					if (p == 25) {
 						cursor_visible_ = true;
+					} else if (p == 1000) {
+						mouse_reporting_ = true;
+					} else if (p == 1006) {
+						mouse_sgr_ = true;
 					}
 				}
 			}
@@ -309,6 +313,10 @@ void ansi_terminal_emulator::handle_csi_command(char cmd)
 				for (int p : csi_params_) {
 					if (p == 25) {
 						cursor_visible_ = false;
+					} else if (p == 1000) {
+						mouse_reporting_ = false;
+					} else if (p == 1006) {
+						mouse_sgr_ = false;
 					}
 				}
 			}

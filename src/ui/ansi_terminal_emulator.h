@@ -53,6 +53,16 @@ class ansi_terminal_emulator
 		return cursor_visible_;
 	}
 
+	bool is_mouse_reporting() const
+	{
+		return mouse_reporting_;
+	}
+
+	bool is_mouse_sgr() const
+	{
+		return mouse_sgr_;
+	}
+
 	void clear_all();
 
       private:
@@ -84,6 +94,8 @@ class ansi_terminal_emulator
 
 	bool cursor_visible_{true};
 	bool csi_private_{false};
+	bool mouse_reporting_{false};
+	bool mouse_sgr_{false};
 };
 
 } // namespace ui

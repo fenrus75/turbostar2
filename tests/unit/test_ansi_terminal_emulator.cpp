@@ -248,6 +248,26 @@ int main()
 		assert_equal(term.is_cursor_visible(), true, "Cursor visible after ESC[?25h");
 	}
 
+	// 12. Mouse mode tracking
+	{
+		ui::ansi_terminal_emulator term(10, 5);
+		assert_equal(term.is_mouse_reporting(), false, "Mouse reporting false by default");
+		assert_equal(term.is_mouse_sgr(), false, "Mouse SGR false by default");
+
+		// Enable mouse reporting (DEC private mode 1000 set)
+		term.write("\x1b[?1000h");
+		assert_equal(term.is_mouse_reporting(), true, "Mouse reporting enabled after ESC[?1000h");
+
+		// Enable SGR mode (DEC private mode 1006 set)
+		term.write("\x1b[?1006h");
+		assert_equal(term.is_mouse_sgr(), true, "Mouse SGR enabled after ESC[?1006h");
+
+		// Disable both
+		term.write("\x1b[?1000;1006l");
+		assert_equal(term.is_mouse_reporting(), false, "Mouse reporting disabled after ESC[?1000;1006l");
+		assert_equal(term.is_mouse_sgr(), false, "Mouse SGR disabled after ESC[?1000;1006l");
+	}
+
 	std::cout << "test_ansi_terminal_emulator passed!\n";
 	return 0;
 }
