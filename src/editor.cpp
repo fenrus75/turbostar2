@@ -101,26 +101,41 @@ void editor::update_window_layout()
 		}
 	}
 
+	int main_w = COLS;
+	int status_w = 0;
+	int agent_w = COLS;
 	if (has_agent) {
-		int agent_w = (COLS * 70) / 100;
-		int status_w = COLS - agent_w;
+		agent_w = (COLS * 70) / 100;
+		status_w = COLS - agent_w;
+		main_w = agent_w;
+	}
 
-		for (auto &win : windows_) {
-			if (auto asw = dynamic_cast<agent_status_window *>(win.get())) {
-				asw->set_bounds(agent_w, 1, status_w, LINES - 2);
-				asw->invalidate();
-			} else {
-				// Resize agent window and normal documents to the left 70%
-				win->set_bounds(0, 1, agent_w, LINES - 2);
-				win->invalidate();
-			}
+	window *run_win = nullptr;
+	window *gdb_win = nullptr;
+	for (auto &win : windows_) {
+		if (win->get_title() == "Run Output") {
+			run_win = win.get();
 		}
-	} else {
-		// Normal full screen
-		for (auto &win : windows_) {
-			win->set_bounds(0, 1, COLS, LINES - 2);
-			win->invalidate();
+		if (win->get_title() == "Debugger (GDB)") {
+			gdb_win = win.get();
 		}
+	}
+
+	int total_h = LINES - 2;
+	int app_h = (total_h * 2) / 3;
+	int gdb_h = total_h - app_h;
+
+	for (auto &win : windows_) {
+		if (has_agent && dynamic_cast<agent_status_window *>(win.get())) {
+			win->set_bounds(agent_w, 1, status_w, total_h);
+		} else if (win.get() == run_win && gdb_win != nullptr) {
+			win->set_bounds(0, 1, main_w, app_h);
+		} else if (win.get() == gdb_win && run_win != nullptr) {
+			win->set_bounds(0, 1 + app_h, main_w, gdb_h);
+		} else {
+			win->set_bounds(0, 1, main_w, total_h);
+		}
+		win->invalidate();
 	}
 }
 
