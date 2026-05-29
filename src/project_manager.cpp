@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <regex>
 #include <map>
@@ -181,7 +182,7 @@ void project_manager::inventory_project(std::stop_token stop)
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Error during project inventory: " + std::string(e.what()));
+		event_logger::get_instance().log(std::format("Error during project inventory: {}", e.what()));
 	}
 
 	// Finalize Top 15/18
@@ -285,8 +286,8 @@ void project_manager::inventory_project(std::stop_token stop)
 
 	auto end_time = std::chrono::steady_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-	event_logger::get_instance().log("Project inventory complete in " + std::to_string(duration.count()) +
-					 "ms. Indexed " + std::to_string(dir_count) + " directories.");
+	event_logger::get_instance().log(std::format("Project inventory complete in {}ms. Indexed {} directories.",
+					 duration.count(), dir_count));
 }
 
 std::string project_manager::get_project_layout_markdown() const
@@ -367,7 +368,7 @@ void project_manager::load_instructions()
 			std::stringstream ss;
 			ss << file.rdbuf();
 			instructions_ = ss.str();
-			event_logger::get_instance().log("Loaded project instructions from " + target.string());
+			event_logger::get_instance().log(std::format("Loaded project instructions from {}", target.string()));
 		}
 	}
 
@@ -395,8 +396,7 @@ void project_manager::load_instructions()
 			}
 			if (!minified.empty()) {
 				clang_format_ = minified;
-				event_logger::get_instance().log("Loaded and minified .clang-format (" + std::to_string(line_count) +
-								 " lines)");
+				event_logger::get_instance().log(std::format("Loaded and minified .clang-format ({} lines)", line_count));
 			}
 		}
 	}
@@ -521,7 +521,7 @@ void project_manager::refresh_available_tests()
 
 	std::string output = runner.execute_and_get_output(cmd);
 	if (runner.get_exit_code() != 0) {
-		event_logger::get_instance().log("Failed to list tests: " + output);
+		event_logger::get_instance().log(std::format("Failed to list tests: {}", output));
 		tests_ready_ = true;
 		available_tests_.clear();
 		return;
@@ -543,7 +543,7 @@ void project_manager::refresh_available_tests()
 
 	std::sort(available_tests_.begin(), available_tests_.end());
 	tests_ready_ = true;
-	event_logger::get_instance().log("Refreshed available tests: " + std::to_string(available_tests_.size()) + " tests found.");
+	event_logger::get_instance().log(std::format("Refreshed available tests: {} tests found.", available_tests_.size()));
 }
 
 std::string project_manager::get_software_map_markdown() const
@@ -707,7 +707,7 @@ void project_manager::load_software_map()
 			software_map_.name_to_indices[software_map_.symbols[i].name].push_back(i);
 		}
 
-		event_logger::get_instance().log("Loaded Software Map from cache (" + std::to_string(software_map_.symbols.size()) + " symbols).");
+		event_logger::get_instance().log(std::format("Loaded Software Map from cache ({} symbols).", software_map_.symbols.size()));
 
 		{
 			std::unique_lock<std::shared_mutex> lock_md(software_map_markdown_mutex_);
@@ -718,7 +718,7 @@ void project_manager::load_software_map()
 		if (software_map_markdown_cache_.empty()) {
 			update_software_map_markdown();
 		}
-		} catch (const std::exception &e) {		event_logger::get_instance().log("Failed to load Software Map from cache: " + std::string(e.what()));
+		} catch (const std::exception &e) {		event_logger::get_instance().log(std::format("Failed to load Software Map from cache: {}", e.what()));
 	}
 }
 
