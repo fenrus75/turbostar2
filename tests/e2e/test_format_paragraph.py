@@ -30,7 +30,11 @@ def test_format_paragraph():
         time.sleep(1.0)
         
         # 6. Verify both are formatted
-        runner.assert_content_is(step2_gold)
+        try:
+            runner.assert_content_is(step2_gold)
+        except Exception as e:
+            print(f"E2E Log contents:\n{runner.get_log()}")
+            raise e
 
     finally:
         runner.cleanup()

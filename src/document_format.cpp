@@ -13,6 +13,8 @@
 #include "git_manager.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
+#include "project_manager.h"
+
 
 namespace fs = std::filesystem;
 
@@ -20,18 +22,40 @@ void document::format_range(int start_y, int end_y)
 {
 	if (is_read_only())
 		return;
-	if (start_y < 0 || end_y >= line_count_unlocked() || start_y > end_y)
-		return;
 
-	std::string temp_path = "format_tmp.cpp";
-	std::ofstream tmp_file(temp_path);
-	if (!tmp_file.is_open()) {
-		event_logger::get_instance().log("Format failed: Could not create temp file.");
-		return;
-	}
+	std::string temp_path;
+	std::string style_arg;
+
+	struct temp_file_guard {
+		fs::path dir_path;
+		~temp_file_guard() {
+			if (!dir_path.empty()) {
+				std::error_code ec;
+				std::filesystem::remove_all(dir_path, ec);
+			}
+		}
+	} guard;
 
 	{
-		std::shared_lock lock(mutex_);
+		std::unique_lock lock(mutex_);
+		if (start_y < 0 || end_y >= line_count_unlocked() || start_y > end_y)
+			return;
+
+		// Generate a unique temp directory path in system temp directory
+		static std::atomic<unsigned int> temp_counter{0};
+		fs::path system_tmp = fs::temp_directory_path();
+		fs::path format_tmp_dir = system_tmp / std::format("turbostar_format_{}_{}_{}", getpid(), std::this_thread::get_id(), ++temp_counter);
+		fs::create_directories(format_tmp_dir);
+		guard.dir_path = format_tmp_dir;
+
+		temp_path = (format_tmp_dir / "format_tmp.cpp").string();
+
+		std::ofstream tmp_file(temp_path);
+		if (!tmp_file.is_open()) {
+			event_logger::get_instance().log("Format failed: Could not create temp file.");
+			return;
+		}
+
 		for (int i = 0; i < line_count_unlocked(); ++i) {
 			if (i == start_y) {
 				tmp_file << "// TS_FORMAT_START\n";
@@ -41,36 +65,55 @@ void document::format_range(int start_y, int end_y)
 				tmp_file << "// TS_FORMAT_END\n";
 			}
 		}
-	}
-	tmp_file.close();
+		tmp_file.close();
 
-	// Determine style
-	std::string style = config_manager::get_instance().get_clang_format_style();
+		// Determine style
+		std::string style = config_manager::get_instance().get_clang_format_style();
 
-	// Check if a .clang-format file exists in the project.
-	// Policy: If a .clang-format file exists in the file's directory or any parent, it always wins.
-	bool force_file = false;
-	fs::path search_path;
-	if (!filename_.empty() && filename_ != "unknown.txt") {
-		search_path = fs_utils::safe_absolute(filename_).parent_path();
-	} else {
-		search_path = fs::current_path();
-	}
-
-	while (true) {
-		if (fs::exists(search_path / ".clang-format")) {
-			force_file = true;
-			break;
+		// Check if a .clang-format file exists in the project.
+		bool force_file = false;
+		fs::path search_path;
+		if (!filename_.empty() && filename_ != "unknown.txt") {
+			search_path = fs_utils::safe_absolute(filename_).parent_path();
+		} else {
+			search_path = fs::current_path();
 		}
-		if (!search_path.has_parent_path() || search_path == search_path.parent_path())
-			break;
-		search_path = search_path.parent_path();
-	}
 
-	std::string style_arg = "--style=" + (force_file ? "file" : style);
+		fs::path clang_format_source;
+		while (true) {
+			if (fs::exists(search_path / ".clang-format")) {
+				force_file = true;
+				clang_format_source = search_path / ".clang-format";
+				break;
+			}
+			if (!search_path.has_parent_path() || search_path == search_path.parent_path())
+				break;
+			search_path = search_path.parent_path();
+		}
+
+		if (!force_file) {
+			std::string proj_root = project_manager::get_instance().get_repository_root();
+			if (!proj_root.empty() && fs::exists(fs::path(proj_root) / ".clang-format")) {
+				force_file = true;
+				clang_format_source = fs::path(proj_root) / ".clang-format";
+			}
+		}
+
+		if (force_file && !clang_format_source.empty()) {
+			std::error_code ec;
+			fs::copy_file(clang_format_source, format_tmp_dir / ".clang-format", fs::copy_options::overwrite_existing, ec);
+			if (ec) {
+				event_logger::get_instance().log(std::format("Copy .clang-format failed: {}", ec.message()));
+			} else {
+				event_logger::get_instance().log("Copy .clang-format succeeded");
+			}
+		}
+
+		style_arg = "--style=" + (force_file ? "file" : style);
+	}
 
 	// Run clang-format
-	std::string cmd = "clang-format " + style_arg + " -i " + temp_path;
+	std::string cmd = "clang-format " + style_arg + " -i " + fs_utils::escape_shell_arg(temp_path);
 
 	sync_command_runner runner;
 	runner.apply_internal_profile();
@@ -104,7 +147,6 @@ void document::format_range(int start_y, int end_y)
 		}
 	}
 	result_file.close();
-	fs::remove(temp_path);
 
 	if (formatted_block.empty()) {
 		event_logger::get_instance().log("Format failed: Could not find markers in output.");
@@ -113,6 +155,12 @@ void document::format_range(int start_y, int end_y)
 
 	// Replace the range
 	std::unique_lock lock(mutex_);
+	// Re-verify bounds
+	if (start_y < 0 || end_y >= line_count_unlocked() || start_y > end_y) {
+		event_logger::get_instance().log("Format failed: Document structure changed during formatting.");
+		return;
+	}
+
 	begin_edit_group("Format code");
 
 	// 1. Insert new lines
