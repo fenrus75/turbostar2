@@ -78,6 +78,30 @@ int main()
 		assert(doc.line_count() == 5);
 		assert(doc.get_cursor_y() == 2);
 		assert(doc.get_cursor_x() == 0);
+		// Test 3: apply_external_edits_json with unsorted/ascending edits
+		document doc3(queue);
+		std::string temp_file3 = "temp_edits3.txt";
+		{
+			std::ofstream ofs(temp_file3);
+			for (int i = 1; i <= 10; ++i) {
+				ofs << "Line " << i << "\n";
+			}
+		}
+		doc3.load_from_file(temp_file3);
+		std::remove(temp_file3.c_str());
+
+		// Remove line 3 and then line 6 (ascending order)
+		nlohmann::json ascending_edits = nlohmann::json::array({
+			{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 1}},
+			{{"line_number", 6}, {"type", "remove"}, {"lines_to_remove", 1}}
+		});
+		doc3.apply_external_edits_json(ascending_edits.dump());
+		
+		// If sorted correctly, the final document should be:
+		// Line 1, 2, 4, 5, 7, 8, 9, 10
+		assert(doc3.line_count() == 8);
+		assert(doc3.get_line(2)->get_text() == "Line 4");
+		assert(doc3.get_line(4)->get_text() == "Line 7");
 	}
 
 	std::cout << "document unit test passed!\n";
