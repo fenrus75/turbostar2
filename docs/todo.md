@@ -1,12 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-pattern:
-```
- event_logger::get_instance().log("Highlighter error: " + std::string(e.what()));
-```
-should use std::format
-this is just an example, there are many places in the code that do + on strings for the event_logger, we should fix them all
-
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
@@ -125,6 +118,7 @@ this is just an example, there are many places in the code that do + on strings 
 
 ## 29-05-2026
 - implemented "Run in Debugger" (F6 focus toggle, gdbserver socket auto-probing delay, tiled terminal windows, and auto-continue run setting).
+- refactored event_logger::get_instance().log calls throughout the codebase to use std::format instead of string concatenation.
 - implemented mouse click debugger action buttons ([Break], [Step], [Next], [Cont], [Quit]) drawn on the bottom border of the GDB window.
 - implemented unified agent execution and debugging tools (`agent_start_app`, `agent_write_to_run`, `agent_get_run_screenshot`, `agent_terminate_run`) with abstract virtual callbacks inside `document_provider`.
 - fixed debugger startup and output hangs by resolving transient PTY read errors and turning off GDB pagination.
