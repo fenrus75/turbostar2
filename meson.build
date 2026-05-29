@@ -84,6 +84,11 @@ test_event_logger = executable('test_event_logger',
   include_directories: 'src')
 test('unit_event_logger', test_event_logger)
 
+test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
+  ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp'],
+  include_directories: 'src')
+test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator)
+
 test_history_manager = executable('test_history_manager',
   ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],

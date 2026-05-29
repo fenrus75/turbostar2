@@ -10,6 +10,7 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "ui/terminal_window.h"
 
 namespace fs = std::filesystem;
 
@@ -21,39 +22,40 @@ void editor::dispatch_event_build(const editor_event &ev)
 		logger.log("Dispatching compile event.");
 		save_all_documents();
 
-		// If we don't have a build process or it's not running
-		if (!current_build_process_ || !current_build_process_->is_running()) {
-			// Find or create the compile output window
-			size_t compile_win_idx = static_cast<size_t>(-1);
-			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_title() == "Compile Output") {
-					compile_win_idx = i;
-					break;
+		// Find or check if Compile Output terminal window is running
+		size_t compile_win_idx = static_cast<size_t>(-1);
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (windows_[i]->get_title() == "Compile Output") {
+				compile_win_idx = i;
+				break;
+			}
+		}
+
+		bool is_running = false;
+		if (compile_win_idx != static_cast<size_t>(-1)) {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(windows_[compile_win_idx].get())) {
+				if (tw->is_alive()) {
+					is_running = true;
 				}
 			}
+		}
 
+		if (!is_running) {
 			if (compile_win_idx == static_cast<size_t>(-1)) {
-				// Make the main windows smaller if there's only one, or just overlay
 				int compile_height = 10;
-				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
-				doc->set_read_only(true);
-				documents_.push_back(doc);
-
-				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
-								    COLS, compile_height, "Compile Output");
-				win->attach_document(doc);
+				auto win = std::make_unique<ui::terminal_window>(
+					static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
+					COLS, compile_height, "Compile Output"
+				);
 				win->set_display_priority(10);	    // Put it above normal windows
 				win->set_background_color_pair(29); // White on Black
-
 				windows_.push_back(std::move(win));
 				compile_win_idx = windows_.size() - 1;
 			}
 
 			activate_window(compile_win_idx);
-			window *compile_win = windows_[compile_win_idx].get();
+			ui::terminal_window *compile_win = dynamic_cast<ui::terminal_window *>(windows_[compile_win_idx].get());
 			compile_win->set_visible(true);
-			current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
-			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
 
 			std::string build_system = config_manager::get_instance().get_build_system();
 			std::string build_dir = config_manager::get_instance().get_build_directory();
@@ -69,7 +71,9 @@ void editor::dispatch_event_build(const editor_event &ev)
 				cmd = build_system + " " + build_dir; // Fallback
 			}
 
-			current_build_process_->execute(cmd);
+			build_error_manager::get_instance().clear();
+			compile_win->set_capture_input(false); // Compilation output window doesn't capture user keys
+			compile_win->start_process(cmd, std::make_unique<gcc_log_parser>());
 		} else {
 			logger.log("Build already running.");
 		}
@@ -90,46 +94,50 @@ void editor::dispatch_event_build(const editor_event &ev)
 			return;
 		}
 
-		if (!current_build_process_ || !current_build_process_->is_running()) {
-			std::string build_dir = config_manager::get_instance().get_build_directory();
-			std::string cmd = fs_utils::get_compile_command_for_file(active_doc->get_filename(), build_dir);
-			if (cmd.empty()) {
-				logger.log("Could not find compile command for file: " + active_doc->get_filename());
-				// Fallback to normal compile? Or just do nothing.
-				return;
-			}
+		std::string build_dir = config_manager::get_instance().get_build_directory();
+		std::string cmd = fs_utils::get_compile_command_for_file(active_doc->get_filename(), build_dir);
+		if (cmd.empty()) {
+			logger.log("Could not find compile command for file: " + active_doc->get_filename());
+			return;
+		}
 
-			size_t compile_win_idx = static_cast<size_t>(-1);
-			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_title() == "Compile Output") {
-					compile_win_idx = i;
-					break;
+		size_t compile_win_idx = static_cast<size_t>(-1);
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (windows_[i]->get_title() == "Compile Output") {
+				compile_win_idx = i;
+				break;
+			}
+		}
+
+		bool is_running = false;
+		if (compile_win_idx != static_cast<size_t>(-1)) {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(windows_[compile_win_idx].get())) {
+				if (tw->is_alive()) {
+					is_running = true;
 				}
 			}
+		}
 
+		if (!is_running) {
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
-				auto doc = std::make_shared<document>(global_queue_, "Compile Output");
-				doc->set_read_only(true);
-				documents_.push_back(doc);
-
-				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
-								    COLS, compile_height, "Compile Output");
-				win->attach_document(doc);
+				auto win = std::make_unique<ui::terminal_window>(
+					static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
+					COLS, compile_height, "Compile Output"
+				);
 				win->set_display_priority(10);
 				win->set_background_color_pair(29);
-
 				windows_.push_back(std::move(win));
 				compile_win_idx = windows_.size() - 1;
 			}
 
 			activate_window(compile_win_idx);
-			window *compile_win = windows_[compile_win_idx].get();
+			ui::terminal_window *compile_win = dynamic_cast<ui::terminal_window *>(windows_[compile_win_idx].get());
 			compile_win->set_visible(true);
-			current_build_process_ = std::make_unique<process_runner>(compile_win->get_document(), 1000);
-			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
 
-			current_build_process_->execute(cmd);
+			build_error_manager::get_instance().clear();
+			compile_win->set_capture_input(false); // Compilation output window doesn't capture user keys
+			compile_win->start_process(cmd, std::make_unique<gcc_log_parser>());
 		} else {
 			logger.log("Build already running.");
 		}
@@ -144,37 +152,39 @@ void editor::dispatch_event_build(const editor_event &ev)
 		logger.log("Dispatching run_tests event.");
 		save_all_documents();
 
-		if (!current_build_process_ || !current_build_process_->is_running()) {
-			size_t test_win_idx = static_cast<size_t>(-1);
-			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_title() == "Test Output") {
-					test_win_idx = i;
-					break;
+		size_t test_win_idx = static_cast<size_t>(-1);
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			if (windows_[i]->get_title() == "Test Output") {
+				test_win_idx = i;
+				break;
+			}
+		}
+
+		bool is_running = false;
+		if (test_win_idx != static_cast<size_t>(-1)) {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(windows_[test_win_idx].get())) {
+				if (tw->is_alive()) {
+					is_running = true;
 				}
 			}
+		}
 
+		if (!is_running) {
 			if (test_win_idx == static_cast<size_t>(-1)) {
 				int test_height = 10;
-				auto doc = std::make_shared<document>(global_queue_, "Test Output");
-				doc->set_read_only(true);
-				documents_.push_back(doc);
-
-				auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1, COLS,
-								    test_height, "Test Output");
-				win->attach_document(doc);
+				auto win = std::make_unique<ui::terminal_window>(
+					static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1,
+					COLS, test_height, "Test Output"
+				);
 				win->set_display_priority(10);
-				win->set_background_color_pair(29); // White on Black
-
+				win->set_background_color_pair(29);
 				windows_.push_back(std::move(win));
 				test_win_idx = windows_.size() - 1;
 			}
 
 			activate_window(test_win_idx);
-			window *test_win = windows_[test_win_idx].get();
+			ui::terminal_window *test_win = dynamic_cast<ui::terminal_window *>(windows_[test_win_idx].get());
 			test_win->set_visible(true);
-			current_build_process_ = std::make_unique<process_runner>(test_win->get_document(), 1000);
-			current_build_process_->set_parser(std::make_unique<gcc_log_parser>());
-			current_build_process_->set_enable_crash_catcher(true);
 
 			std::string build_system = config_manager::get_instance().get_build_system();
 			std::string build_dir = config_manager::get_instance().get_build_directory();
@@ -187,10 +197,12 @@ void editor::dispatch_event_build(const editor_event &ev)
 			} else if (build_system == "make") {
 				cmd = "make test -C " + build_dir;
 			} else {
-				cmd = build_system + " test " + build_dir; // Fallback
+				cmd = build_system + " test " + build_dir;
 			}
 
-			current_build_process_->execute(cmd);
+			build_error_manager::get_instance().clear();
+			test_win->set_capture_input(false); // Test output window doesn't capture user keys
+			test_win->start_process(cmd, std::make_unique<gcc_log_parser>());
 		} else {
 			logger.log("Process already running.");
 		}

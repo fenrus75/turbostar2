@@ -13,6 +13,7 @@
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
+#include "ui/terminal_window.h"
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -171,6 +172,41 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 
 		std::string args = config_manager::get_instance().get_run_arguments();
+
+		std::string run_mode = config_manager::get_instance().get_run_target_mode();
+		if (run_mode == "window") {
+			// Window mode: create terminal_window, start process, and activate it
+			for (auto it = windows_.begin(); it != windows_.end(); ++it) {
+				if ((*it)->get_title() == "Run Output") {
+					if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+						tw->stop_process();
+					}
+					windows_.erase(it);
+					break;
+				}
+			}
+
+			auto tw = std::make_unique<ui::terminal_window>(
+				static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, "Run Output"
+			);
+
+			std::string raw_cmd = build_exe.string();
+			if (!args.empty()) {
+				raw_cmd += " " + args;
+			}
+
+			if (tw->start_process(raw_cmd)) {
+				windows_.push_back(std::move(tw));
+				update_window_layout();
+				activate_window(windows_.size() - 1);
+				set_focus(focus_target::window, "run_program");
+			} else {
+				logger.log("Failed to start terminal window process.");
+			}
+			return;
+		}
+
+		// Full screen mode fallback
 		logger.log("Running main executable full screen: " + build_exe.string());
 
 		// Configure command_runner to generate the sandboxed command line

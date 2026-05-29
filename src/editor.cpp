@@ -16,6 +16,7 @@
 #include "history_manager.h"
 #include "project_manager.h"
 #include "ui/dialog_factories.h"
+#include "ui/terminal_window.h"
 
 namespace fs = std::filesystem;
 
@@ -542,6 +543,11 @@ void editor::run()
 		}
 
 		for (auto &w : windows_) {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(w.get())) {
+				if (tw->update_pty()) {
+					needs_render = true;
+				}
+			}
 			if (w->process_events()) {
 				needs_render = true;
 			}

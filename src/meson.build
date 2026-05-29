@@ -72,6 +72,8 @@ ui_sources = files(
   'ui/diff_window.cpp',
   'ui/agent_status_window.cpp',
   'ui/crashdump_window.cpp',
+  'ui/ansi_terminal_emulator.cpp',
+  'ui/terminal_window.cpp',
   'ui/ui_element.cpp',
   'ui/components/ui_textbox.cpp',
   'ui/components/ui_multiline_edit.cpp',
