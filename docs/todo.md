@@ -1,6 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
+- ensure consistent view of the project root across the entire codebase (e.g., command_runner, fs_utils, git_manager, project_manager), including cases where the project is not in a git repository
+
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
