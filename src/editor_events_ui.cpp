@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <lsp/json/json.h>
@@ -198,9 +199,23 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		std::printf("\n\r[Process completed. Press any key to return to editor...]");
 		std::fflush(stdout);
 
+		struct termios old_tio, new_tio;
+		bool termios_ok = (tcgetattr(STDIN_FILENO, &old_tio) == 0);
+		if (termios_ok) {
+			new_tio = old_tio;
+			new_tio.c_lflag &= ~(ICANON | ECHO);
+			new_tio.c_cc[VMIN] = 1;
+			new_tio.c_cc[VTIME] = 0;
+			tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+		}
+
 		char dummy;
 		int r = read(STDIN_FILENO, &dummy, 1);
 		(void)r;
+
+		if (termios_ok) {
+			tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+		}
 
 		// 4. Resume curses
 		reset_prog_mode();
