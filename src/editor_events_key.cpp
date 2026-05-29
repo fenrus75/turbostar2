@@ -311,6 +311,31 @@ void editor::dispatch_event_key(const editor_event &ev)
 			global_queue_.push(test_ev);
 			return;
 		}
+		if (ev.key_code == KEY_F(6)) {
+			logger.log("F6 shortcut pressed: toggling terminal window focus.");
+			int run_idx = -1;
+			int gdb_idx = -1;
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i]->get_title() == "Run Output") {
+					run_idx = static_cast<int>(i);
+				}
+				if (windows_[i]->get_title() == "Debugger (GDB)") {
+					gdb_idx = static_cast<int>(i);
+				}
+			}
+			if (run_idx != -1 && gdb_idx != -1) {
+				window *active_win = get_active_window();
+				if (active_win == windows_[run_idx].get()) {
+					activate_window(gdb_idx);
+				} else if (active_win == windows_[gdb_idx].get()) {
+					activate_window(run_idx);
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+		}
 		if (ev.key_code == -static_cast<int>(KEY_F(3))) {
 			editor_event close_ev;
 			close_ev.type = event_type::close_window;
