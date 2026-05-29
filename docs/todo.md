@@ -2,6 +2,10 @@
 
 
 - ensure consistent view of the project root across the entire codebase (e.g., command_runner, fs_utils, git_manager, project_manager), including cases where the project is not in a git repository
+	- project_manager should be the final owner of this, as this is a project wide property
+
+- the split-debug window does not allow typing input to the application in the run window
+	- gigantic mess somehow while it is not a gigantic mess for the not-gdbserver case
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
