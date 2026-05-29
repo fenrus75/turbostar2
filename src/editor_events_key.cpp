@@ -14,10 +14,10 @@
 #include "gcc_log_parser.h"
 #include "git_manager.h"
 #include "history_manager.h"
+#include "linux_clang_format.h"
 #include "project_manager.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
-#include "linux_clang_format.h"
 
 namespace fs = std::filesystem;
 
@@ -85,12 +85,14 @@ void editor::resolve_dialog(dialog_result res)
 						std::ofstream out(format_file);
 						if (out.is_open()) {
 							out << LINUX_CLANG_FORMAT;
-							event_logger::get_instance().log("Wrote Linux Kernel .clang-format to " + format_file.string());
+							event_logger::get_instance().log("Wrote Linux Kernel .clang-format to " +
+											 format_file.string());
 						}
 					}
 				}
 
-				if (res_str == "save_global") {					config_manager::get_instance().save_global();
+				if (res_str == "save_global") {
+					config_manager::get_instance().save_global();
 				} else {
 					std::string cache_root = fs_utils::get_project_cache_root();
 					if (!cache_root.empty()) {
@@ -100,6 +102,18 @@ void editor::resolve_dialog(dialog_result res)
 						config_manager::get_instance().save_global();
 					}
 				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::run_settings) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "ok") {
+				apply_run_settings_from_dialog(*active_dialog_);
+				std::string cache_root = fs_utils::get_project_cache_root();
+				if (!cache_root.empty()) {
+					config_manager::get_instance().save_project(cache_root);
+				} else {
+					config_manager::get_instance().save_global();
+				}
+				update_window_menu();
 			}
 		} else if (active_dialog_mode_ == dialog_mode::model_list) {
 			std::string res_str = active_dialog_->get_result();
@@ -112,8 +126,7 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (res_str.starts_with("edit:")) {
 				std::string id = res_str.substr(5);
 				editing_model_id_ = id;
-				active_dialog_ =
-				    create_model_edit_dialog(agentlib::ai_model_registry::get_instance().get_model(id));
+				active_dialog_ = create_model_edit_dialog(agentlib::ai_model_registry::get_instance().get_model(id));
 				active_dialog_mode_ = dialog_mode::model_edit;
 				set_focus(focus_target::dialog, "model_edit");
 				return;
@@ -128,14 +141,14 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (res_str.starts_with("default:")) {
 				std::string id = res_str.substr(8);
 				config_manager::get_instance().set_default_model_id(id);
-				
+
 				std::string cache_root = fs_utils::get_project_cache_root();
 				if (!cache_root.empty()) {
 					config_manager::get_instance().save_project(cache_root);
 				} else {
 					config_manager::get_instance().save_global();
 				}
-				
+
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
 				set_focus(focus_target::dialog, "model_list");
@@ -520,9 +533,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		if (ev.key_code == 27) { // ESC key
 			// Make sure no other prompt/dialog is active
-			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
-			    !is_searching_prompt_ && !is_search_options_prompt_ && !is_going_to_line_prompt_ &&
-			    !is_inline_agent_prompt_ && !is_vim_prompt_) {
+			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !is_searching_prompt_ &&
+			    !is_search_options_prompt_ && !is_going_to_line_prompt_ && !is_inline_agent_prompt_ && !is_vim_prompt_) {
 				logger.log("Entering Vim prefix mode via ESC.");
 				vim_prefix_mode_ = true;
 				return;
@@ -836,12 +848,8 @@ void editor::execute_vim_command(const std::string &cmd_raw)
 	logger.log("Executing Vim command: " + cmd_raw);
 
 	std::string cmd = cmd_raw;
-	cmd.erase(cmd.begin(), std::find_if(cmd.begin(), cmd.end(), [](unsigned char ch) {
-		return !std::isspace(ch);
-	}));
-	cmd.erase(std::find_if(cmd.rbegin(), cmd.rend(), [](unsigned char ch) {
-		return !std::isspace(ch);
-	}).base(), cmd.end());
+	cmd.erase(cmd.begin(), std::find_if(cmd.begin(), cmd.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+	cmd.erase(std::find_if(cmd.rbegin(), cmd.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), cmd.end());
 
 	if (cmd.empty())
 		return;

@@ -18,9 +18,11 @@ When implementing the `draw(int abs_x, int abs_y)` or `handle_event(..., int abs
 Elements consume `editor_event` objects directly. Mouse events within the `editor_event` always carry absolute screen coordinates (`ev.mouse_x`, `ev.mouse_y`).
 Because children receive their own computed absolute coordinates (`abs_x`, `abs_y`) during the `handle_event` call, they can perform simple, foolproof hit-testing using the provided `contains_coordinate()` helper.
 
-### Values and State
-Many UI elements produce a semantic value (e.g., a checkbox returns "true" or "false", a textbox returns its string content). 
-Elements implement `get_value(name)` returning a `std::optional<std::string>`. Containers recursively query their children, allowing the developer to easily extract the state of a complex dialog form by name.
+### Overlay Rendering
+To render popup widgets (such as dropdown option lists) on top of neighboring sibling controls in a container without being clipped or drawn over, containers execute a two-pass rendering cycle. Elements can override:
+- `has_overlay()`: returns true if the element currently has an active overlay.
+- `draw_overlay(int abs_x, int abs_y)`: draws the overlay content.
+`ui_container::draw` draws all child elements in the first pass, and then draws all active child overlays in the second pass.
 
 ## Class Hierarchy
 
@@ -47,8 +49,10 @@ Derived from `ui_element`. Manages a list of child elements.
 - **`ui_textbox`**: A single-line input area. Visually, it is rendered as a distinct solid block of background color (using `COLOR_PAIR(5)`) padded with spaces to fill its designated width. The text buffer is drawn over this background. A blinking or highlighted cursor indicates the active insertion point when the element has focus.
 - **`ui_multiline_edit`**: A multi-line text input area. It supports automatic line-wrapping based on its width and internal vertical scrolling. It is primarily used for longer inputs like agent chat prompts. Pressing `Enter` invokes a submission callback.
 - **`ui_listbox`**: Scrollable, selectable list of text items.
+- **`ui_dropdown`**: A hybrid selector and text entry widget. It renders a single-line textbox with a right-aligned down arrow `▼` button. When opened, it uses the second-pass overlay rendering system to draw a framed pop-up menu list box directly below the input field. Users can navigate options with arrow keys and select with `Enter`, select via mouse clicks, or type directly to edit/filter.
 - **`ui_fileselector`**: A highly specialized, complex composite element used for file browsing. 
     - **Visual Layout**: It presents a 2-column grid to display directories and files. The columns are separated by a vertical divider (`│`). The list area uses a `COLOR_PAIR(17)` (Black on Cyan) background, highlighting the currently selected item with `COLOR_PAIR(18)` (Bright Yellow on Cyan) when the view has focus. Below the list is a custom horizontal scrollbar using `◄ ░ ■ ►` characters.
     - **Scrolling Behavior**: Navigation is columnar. Up/Down arrows move the cursor vertically within a column. Left/Right arrows jump an entire column height (typically 7 items), effectively providing a purely horizontal paging experience through the directory contents.
     - **Linked Input**: The `ui_fileselector` is tightly coupled with a `ui_textbox` placed above it. As the user navigates through the file list, the text box's buffer is automatically synchronized with the name of the currently highlighted file or directory.
     - **Selection Action**: Pressing `Enter` while focused on the file list behaves contextually: if a directory is selected, the view descends into that directory and repopulates; if a file is selected, it triggers a confirmation action, acting similarly to pressing an "OK" button.
+

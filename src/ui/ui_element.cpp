@@ -21,6 +21,30 @@ void ui_container::draw(int abs_x, int abs_y) const
 	for (const auto &child : children_) {
 		child->draw(abs_x + child->x(), abs_y + child->y());
 	}
+	for (const auto &child : children_) {
+		if (child->has_overlay()) {
+			child->draw_overlay(abs_x + child->x(), abs_y + child->y());
+		}
+	}
+}
+
+bool ui_container::has_overlay() const
+{
+	for (const auto &child : children_) {
+		if (child->has_overlay()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void ui_container::draw_overlay(int abs_x, int abs_y) const
+{
+	for (const auto &child : children_) {
+		if (child->has_overlay()) {
+			child->draw_overlay(abs_x + child->x(), abs_y + child->y());
+		}
+	}
 }
 
 bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)

@@ -65,7 +65,9 @@ enum class event_type {
 	paste,			    ///< A bracketed paste event
 	set_transient_status,	    ///< Set a temporary message in the status bar
 	inline_agent_request,	    ///< Request for a headless agent operation
-	open_file		    ///< Request to open a file in the editor
+	open_file,		    ///< Request to open a file in the editor
+	run_program,		    ///< Request to run the main program executable
+	run_settings		    ///< Request to show run settings/options dialog
 };
 
 struct text_range {

@@ -83,6 +83,7 @@ ui_sources = files(
   'ui/components/ui_group_box.cpp',
   'ui/components/ui_fileselector.cpp',
   'ui/components/ui_text_label.cpp',
+  'ui/components/ui_dropdown.cpp',
   'ui/dialog.cpp',
   'ui/dialog_factories.cpp',
   'ui/popup_menu.cpp'

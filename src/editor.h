@@ -3,17 +3,18 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "ui/dialog.h"
+#include "agentlib/document_provider.h"
 #include "document.h"
 #include "event_queue.h"
+#include "process_runner.h"
+#include "ui/dialog.h"
 #include "ui/menu_bar.h"
 #include "ui/popup_menu.h"
 #include "ui/status_bar.h"
 #include "ui/window.h"
-#include "process_runner.h"
-#include "agentlib/document_provider.h"
 
-namespace agentlib {
+namespace agentlib
+{
 class ai_agent;
 }
 
@@ -61,8 +62,8 @@ class editor : public agentlib::document_provider
 
 	// agentlib::document_provider implementation
 	std::vector<std::string> get_open_document_paths() const override;
-	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string& safe_path) const override;
-	bool apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) override;
+	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string &safe_path) const override;
+	bool apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload) override;
 	void save_all_documents() override;
 
       private:
@@ -115,7 +116,24 @@ class editor : public agentlib::document_provider
 	std::string vim_input_buffer_;
 	bool vim_prefix_mode_{false};
 
-	enum class dialog_mode { none, load, save, search, replace, insert_file, settings, save_prompt, force_quit_prompt, ask_user, approve_plan, model_list, model_edit, model_selection, welcome };
+	enum class dialog_mode {
+		none,
+		load,
+		save,
+		search,
+		replace,
+		insert_file,
+		settings,
+		save_prompt,
+		force_quit_prompt,
+		ask_user,
+		approve_plan,
+		model_list,
+		model_edit,
+		model_selection,
+		welcome,
+		run_settings
+	};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;

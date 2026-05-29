@@ -142,6 +142,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::approve_plan:
 		case event_type::set_transient_status:
 		case event_type::inline_agent_request:
+		case event_type::run_program:
+		case event_type::run_settings:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:

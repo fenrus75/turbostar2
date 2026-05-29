@@ -79,6 +79,9 @@ class project_manager
 	std::vector<std::string> get_available_tests();
 	void refresh_available_tests();
 
+	// Executable candidate scanning
+	std::vector<std::string> detect_executable_candidates();
+
 	// Software Map (Background LSP)
 	std::string get_software_map_markdown() const;
 	void save_software_map();

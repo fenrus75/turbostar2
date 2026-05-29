@@ -73,6 +73,12 @@ void config_manager::load_from_file(const std::string &path)
 			default_model_id_ = value;
 		} else if (key == "log_all_tool_calls") {
 			log_all_tool_calls_ = (value == "true" || value == "1");
+		} else if (key == "main_executable") {
+			main_executable_ = value;
+		} else if (key == "run_arguments") {
+			run_arguments_ = value;
+		} else if (key == "run_target_mode") {
+			run_target_mode_ = value;
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from " + path);
@@ -110,6 +116,9 @@ void config_manager::save_project(const std::string &target_path)
 	file << "software_map_enabled=" << (software_map_enabled_ ? "true" : "false") << "\n";
 	file << "paranoid_mode=" << (paranoid_mode_ ? "true" : "false") << "\n";
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
+	file << "main_executable=" << main_executable_ << "\n";
+	file << "run_arguments=" << run_arguments_ << "\n";
+	file << "run_target_mode=" << run_target_mode_ << "\n";
 
 	event_logger::get_instance().log("Configuration saved to " + path);
 }

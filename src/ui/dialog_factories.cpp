@@ -1,27 +1,31 @@
 #include "ui/dialog_factories.h"
 #include <ncurses.h>
+#include "agentlib/ai_model.h"
 #include "config_manager.h"
 #include "fs_utils.h"
-#include "agentlib/ai_model.h"
-#include "ui/components/ui_listbox.h"
-#include "ui/components/ui_textbox.h"
-#include "ui/components/ui_checkbox.h"
-#include "ui/components/ui_radio.h"
-#include "ui/components/ui_group_box.h"
-#include "ui/components/ui_multiline_edit.h"
 #include "markdown_utils.h"
+#include "project_manager.h"
+#include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_dropdown.h"
+#include "ui/components/ui_group_box.h"
+#include "ui/components/ui_listbox.h"
+#include "ui/components/ui_multiline_edit.h"
+#include "ui/components/ui_radio.h"
+#include "ui/components/ui_textbox.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
 	int max_dlg_width = COLS > 8 ? COLS - 8 : 50;
-	if (max_dlg_width > 120) max_dlg_width = 120; // reasonable upper bound
+	if (max_dlg_width > 120)
+		max_dlg_width = 120; // reasonable upper bound
 
 	int msg_overhead = 17; // "Save changes to " + "?"
 
 	std::string display_name = filename;
 	if (static_cast<int>(display_name.length()) + msg_overhead + 4 > max_dlg_width) {
 		int max_filename_len = max_dlg_width - msg_overhead - 4;
-		if (max_filename_len < 10) max_filename_len = 10;
+		if (max_filename_len < 10)
+			max_filename_len = 10;
 		display_name = fs_utils::shorten_filename(display_name, max_filename_len);
 	}
 
@@ -86,7 +90,9 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 class welcome_dialog_impl : public dialog
 {
       public:
-	welcome_dialog_impl(const std::string &title, int width, int height) : dialog(title, width, height) {}
+	welcome_dialog_impl(const std::string &title, int width, int height) : dialog(title, width, height)
+	{
+	}
 
 	dialog_result handle_key(int key) override
 	{
@@ -96,7 +102,7 @@ class welcome_dialog_impl : public dialog
 		}
 		return action_;
 	}
-	
+
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override
 	{
 		if (ev.type == event_type::key_press) {
@@ -112,15 +118,8 @@ class welcome_dialog_impl : public dialog
 
 std::unique_ptr<dialog> create_welcome_dialog()
 {
-	std::vector<std::string> lines = {
-		"TurboStar",
-		"",
-		"Version " TURBOSTAR_VERSION,
-		"",
-		"Copyright (c) 2026 by",
-		"Arjan van de Ven"
-	};
-	
+	std::vector<std::string> lines = {"TurboStar", "", "Version " TURBOSTAR_VERSION, "", "Copyright (c) 2026 by", "Arjan van de Ven"};
+
 	int width = 36;
 	for (const auto &line : lines) {
 		if (static_cast<int>(line.length()) + 6 > width) {
@@ -222,59 +221,60 @@ class force_quit_dialog_impl : public dialog
 	int remaining_seconds_{5};
 };
 
-std::unique_ptr<dialog> create_plan_approval_dialog(const std::string& plan_text)
+std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text)
 {
-        int width = std::min(80, COLS);
-        int height = std::min(30, LINES - 2);
-        if (height < 15) {
-                height = 15;
-        }
+	int width = std::min(80, COLS);
+	int height = std::min(30, LINES - 2);
+	if (height < 15) {
+		height = 15;
+	}
 
-        int reserved = 7;
-        int available = height - reserved;
-        int feedback_height = std::max(3, available / 4);
-        int plan_height = std::max(4, available - feedback_height);
+	int reserved = 7;
+	int available = height - reserved;
+	int feedback_height = std::max(3, available / 4);
+	int plan_height = std::max(4, available - feedback_height);
 
-        auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
+	auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
 
-        dlg->add_child(std::make_unique<ui_text_label>(2, 1, "Proposed Plan:"));
-        
-        // Use a multiline edit for the plan text so it is scrollable
-        auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 2, 2, width - 4, plan_height, nullptr);
-        plan_box->set_buffer(plan_text);
-        dlg->add_child(std::move(plan_box));
+	dlg->add_child(std::make_unique<ui_text_label>(2, 1, "Proposed Plan:"));
 
-        int feedback_y = plan_height + 3;
-        dlg->add_child(std::make_unique<ui_text_label>(2, feedback_y, "Comments / Feedback (optional if approving, required if rejecting):"));
-        
-        auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 2, feedback_y + 1, width - 4, feedback_height, nullptr);
-        dlg->add_child(std::move(feedback_box));
+	// Use a multiline edit for the plan text so it is scrollable
+	auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 2, 2, width - 4, plan_height, nullptr);
+	plan_box->set_buffer(plan_text);
+	dlg->add_child(std::move(plan_box));
 
-        int btn_y = height - 3;
-        int btn_x_center = width / 2;
+	int feedback_y = plan_height + 3;
+	dlg->add_child(
+	    std::make_unique<ui_text_label>(2, feedback_y, "Comments / Feedback (optional if approving, required if rejecting):"));
 
-        dlg->add_child(std::make_unique<ui_button>("btn_approve", btn_x_center - 20, btn_y, " Approve ", 'A', [d = dlg.get()]() {
-                d->set_action(dialog_result::confirmed);
-                d->set_result("Approved");
-        }));
+	auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 2, feedback_y + 1, width - 4, feedback_height, nullptr);
+	dlg->add_child(std::move(feedback_box));
 
-        dlg->add_child(std::make_unique<ui_button>("btn_reject", btn_x_center - 5, btn_y, " Reject ", 'R', [d = dlg.get()]() {
-                auto fb = d->get_value("feedback");
-                if (fb && !fb->empty()) {
-                    d->set_action(dialog_result::confirmed); // Confirming the dialog closes it
-                    d->set_result(*fb); // Send feedback as result
-                } else {
-                    // Cannot reject without feedback
-                }
-        }));
+	int btn_y = height - 3;
+	int btn_x_center = width / 2;
 
-        dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 10, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
-                d->set_action(dialog_result::cancelled);
-                d->set_result("cancel");
-        }));
+	dlg->add_child(std::make_unique<ui_button>("btn_approve", btn_x_center - 20, btn_y, " Approve ", 'A', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("Approved");
+	}));
 
-        dlg->set_focus_by_name("btn_approve");
-        return dlg;
+	dlg->add_child(std::make_unique<ui_button>("btn_reject", btn_x_center - 5, btn_y, " Reject ", 'R', [d = dlg.get()]() {
+		auto fb = d->get_value("feedback");
+		if (fb && !fb->empty()) {
+			d->set_action(dialog_result::confirmed); // Confirming the dialog closes it
+			d->set_result(*fb);			 // Send feedback as result
+		} else {
+			// Cannot reject without feedback
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 10, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("btn_approve");
+	return dlg;
 }
 
 std::unique_ptr<dialog> create_force_quit_dialog()
@@ -289,7 +289,8 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 {
 	std::string trimmed_q = question;
 	markdown_utils::trim_trailing_whitespace(trimmed_q);
-	while (!trimmed_q.empty() && isspace(trimmed_q.front())) trimmed_q.erase(0, 1);
+	while (!trimmed_q.empty() && isspace(trimmed_q.front()))
+		trimmed_q.erase(0, 1);
 
 	std::vector<std::string> lines;
 	size_t start = 0;
@@ -307,7 +308,7 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 	}
 
 	int width = std::max<int>(70, max_line_len + 12);
-	
+
 	auto opt_group = std::make_unique<tools::ui_ask_user_group>("options", 0, 0, width - 4, options);
 	int options_height = opt_group->height();
 
@@ -531,16 +532,16 @@ std::unique_ptr<dialog> create_settings_dialog()
 
 	// Buttons
 	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 22, " OK (Save Project) ", 'O', [d = dlg.get()]() {
-	        d->set_action(dialog_result::confirmed);
-	        d->set_result("ok");
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
 	}));
 	dlg->add_child(std::make_unique<ui_button>("btn_global", 26, 22, " Save Global ", 'v', [d = dlg.get()]() {
-	        d->set_action(dialog_result::confirmed);
-	        d->set_result("save_global");
+		d->set_action(dialog_result::confirmed);
+		d->set_result("save_global");
 	}));
 	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 42, 22, " Cancel ", 'C', [d = dlg.get()]() {
-	        d->set_action(dialog_result::cancelled);
-	        d->set_result("cancel");
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
 	}));
 	dlg->set_focus_by_name("style_group");
 
@@ -895,8 +896,10 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 
 	agentlib::model_cost_type cost_type = agentlib::model_cost_type::paid_per_token;
 	if (cost_type_opt) {
-		if (*cost_type_opt == "free_local") cost_type = agentlib::model_cost_type::free_local;
-		else if (*cost_type_opt == "paid_per_request") cost_type = agentlib::model_cost_type::paid_per_request;
+		if (*cost_type_opt == "free_local")
+			cost_type = agentlib::model_cost_type::free_local;
+		else if (*cost_type_opt == "paid_per_request")
+			cost_type = agentlib::model_cost_type::paid_per_request;
 	}
 
 	auto &registry = agentlib::ai_model_registry::get_instance();
@@ -910,4 +913,74 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 							  api_key_opt ? *api_key_opt : "", type, 250000, cost_type);
 	registry.update_model(model);
 	registry.save_models();
+}
+
+std::unique_ptr<dialog> create_run_settings_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Run Settings", 60, 15);
+
+	// Main Executable Input
+	dlg->add_child(std::make_unique<ui_text_label>(4, 2, "Main Executable:"));
+	auto candidates = project_manager::get_instance().detect_executable_candidates();
+	dlg->add_child(
+	    std::make_unique<ui_dropdown>("main_executable", 21, 2, 35, config_manager::get_instance().get_main_executable(), candidates));
+
+	// Arguments Input
+	dlg->add_child(std::make_unique<ui_text_label>(4, 4, "Arguments:"));
+	dlg->add_child(std::make_unique<ui_textbox>("run_arguments", 21, 4, 35, config_manager::get_instance().get_run_arguments()));
+
+	// Run Target Mode group
+	auto mode_group = std::make_unique<ui_group_box>("mode_group", 4, 6, 52, 5, " Run Target Mode ");
+	auto mode_radio = std::make_unique<ui_radiobutton_group>("run_target_mode", 0, 0, 52, 5);
+
+	struct mode_opt_t {
+		std::string value;
+		std::string label;
+		char hotkey;
+	};
+	std::vector<mode_opt_t> mode_options = {
+	    {"window", "Run in a text window", 'w'}, {"fullscreen", "Run full screen", 'f'}, {"xterm", "Run in a new X terminal", 'x'}};
+
+	std::string current_mode = config_manager::get_instance().get_run_target_mode();
+	if (current_mode != "window" && current_mode != "fullscreen" && current_mode != "xterm") {
+		current_mode = "window";
+	}
+
+	for (size_t i = 0; i < mode_options.size(); ++i) {
+		bool selected = (current_mode == mode_options[i].value);
+		mode_radio->add_child(std::make_unique<ui_radio_choice>(mode_options[i].value, 2, 1 + i, mode_options[i].label,
+									mode_options[i].hotkey, selected));
+	}
+	mode_group->add_child(std::move(mode_radio));
+	dlg->add_child(std::move(mode_group));
+
+	// Buttons
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 13, " OK (Save) ", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 38, 13, " Cancel ", 'C', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("main_executable");
+	return dlg;
+}
+
+void apply_run_settings_from_dialog(const dialog &dlg)
+{
+	auto &cfg = config_manager::get_instance();
+
+	auto main_exe = dlg.get_value("main_executable");
+	if (main_exe)
+		cfg.set_main_executable(*main_exe);
+
+	auto run_args = dlg.get_value("run_arguments");
+	if (run_args)
+		cfg.set_run_arguments(*run_args);
+
+	auto target_mode = dlg.get_value("run_target_mode");
+	if (target_mode)
+		cfg.set_run_target_mode(*target_mode);
 }

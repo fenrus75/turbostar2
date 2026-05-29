@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <regex>
 #include <map>
 #include <set>
 #include <sstream>
@@ -978,4 +979,67 @@ void project_manager::shutdown()
 	}
 	inventory_thread_.request_stop();
 	software_map_thread_.request_stop();
+}
+
+std::vector<std::string> project_manager::detect_executable_candidates()
+{
+	std::vector<std::string> candidates;
+	std::string repo_root = git_manager::get_instance().get_repository_root();
+	if (repo_root.empty()) {
+		repo_root = std::filesystem::current_path().string();
+	}
+
+	std::filesystem::path meson_path = std::filesystem::path(repo_root) / "meson.build";
+	if (!std::filesystem::exists(meson_path)) {
+		return candidates;
+	}
+
+	std::ifstream file(meson_path);
+	if (!file.is_open()) {
+		return candidates;
+	}
+
+	std::string line;
+	std::string project_name;
+	std::regex project_regex(R"(project\s*\(\s*['"]([^'"]+)['"])", std::regex_constants::ECMAScript);
+	std::regex exe_regex(R"(executable\s*\(\s*['"]([^'"]+)['"])", std::regex_constants::ECMAScript);
+	std::smatch match;
+
+	while (std::getline(file, line)) {
+		// Strip comments first
+		std::string trimmed = line;
+		trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+		if (trimmed.empty() || trimmed[0] == '#') {
+			continue;
+		}
+
+		if (project_name.empty()) {
+			if (std::regex_search(line, match, project_regex)) {
+				if (match.size() > 1) {
+					project_name = match[1].str();
+				}
+			}
+		}
+
+		if (std::regex_search(line, match, exe_regex)) {
+			if (match.size() > 1) {
+				std::string exe_name = match[1].str();
+				if (std::find(candidates.begin(), candidates.end(), exe_name) == candidates.end()) {
+					candidates.push_back(exe_name);
+				}
+			}
+		}
+	}
+
+	// Prioritize candidate matching project name at the top
+	if (!project_name.empty()) {
+		auto it = std::find(candidates.begin(), candidates.end(), project_name);
+		if (it != candidates.end()) {
+			std::string p_name = *it;
+			candidates.erase(it);
+			candidates.insert(candidates.begin(), p_name);
+		}
+	}
+
+	return candidates;
 }

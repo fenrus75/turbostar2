@@ -44,6 +44,15 @@ class config_manager
 	bool is_log_all_tool_calls() const { return log_all_tool_calls_; }
 	void set_log_all_tool_calls(bool log_all) { log_all_tool_calls_ = log_all; }
 
+	std::string get_main_executable() const { return main_executable_; }
+	void set_main_executable(const std::string &exe) { main_executable_ = exe; }
+
+	std::string get_run_arguments() const { return run_arguments_; }
+	void set_run_arguments(const std::string &args) { run_arguments_ = args; }
+
+	std::string get_run_target_mode() const { return run_target_mode_; }
+	void set_run_target_mode(const std::string &mode) { run_target_mode_ = mode; }
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -58,4 +67,8 @@ class config_manager
 	bool software_map_enabled_{false};
 	bool paranoid_mode_{false};
 	bool log_all_tool_calls_{false};
+
+	std::string main_executable_{""};
+	std::string run_arguments_{""};
+	std::string run_target_mode_{"window"};
 };

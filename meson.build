@@ -184,6 +184,13 @@ test_output_filter = executable('test_output_filter',
   include_directories: 'src')
 test('unit_output_filter', test_output_filter)
 
+test_run_config = executable('test_run_config',
+  'tests/unit/test_run_config.cpp',
+  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_run_config', test_run_config)
+
+
 # E2E tests (run via python)
 uv = find_program('uv', required: false)
 pymod = import('python')

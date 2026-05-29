@@ -20,7 +20,8 @@
 namespace fs = std::filesystem;
 
 editor::editor(editor_options opts)
-    : exit_immediately_(opts.exit_immediately), debug_mode_(opts.debug_mode), debug_string_(std::move(opts.debug_string)), initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
+    : exit_immediately_(opts.exit_immediately), debug_mode_(opts.debug_mode), debug_string_(std::move(opts.debug_string)),
+      initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
 {
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
@@ -41,7 +42,7 @@ editor::editor(editor_options opts)
 				}
 				loaded_files = true;
 			}
-		} 
+		}
 
 		if (!loaded_files) {
 			new_window("");
@@ -131,8 +132,8 @@ void editor::new_agent_window()
 		model = agentlib::ai_model_registry::get_instance().get_model("gpt-4o");
 	}
 
-	auto main_agent_win =
-	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model, global_queue_, this, fresh_agent_);
+	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model,
+							     global_queue_, this, fresh_agent_);
 
 	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2,
 								"Agent Status", main_agent_win->get_agent(), global_queue_);
@@ -213,6 +214,7 @@ void editor::update_window_menu()
 	top_menu_.set_item_disabled(event_type::save, read_only);
 	top_menu_.set_item_disabled(event_type::save_as, read_only);
 	top_menu_.set_item_disabled(event_type::save_all, read_only);
+	top_menu_.set_item_disabled(event_type::run_program, config_manager::get_instance().get_main_executable().empty());
 }
 
 std::shared_ptr<document> editor::get_active_doc() const
@@ -386,7 +388,8 @@ void editor::run()
 	while (is_running_) {
 		if (exit_immediately_ >= 0.0) {
 			auto now = std::chrono::steady_clock::now();
-			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > static_cast<long long>(exit_immediately_ * 1000.0)) {
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() >
+			    static_cast<long long>(exit_immediately_ * 1000.0)) {
 				event_logger::get_instance().log("Application exit requested (source: --exit-immediately timer).");
 				is_running_ = false;
 			}

@@ -30,7 +30,8 @@
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - a "run" option to run the application from the menu, where we temporarily
-  exit ncurses (but catch crashes etc)
+  exit ncurses (but catch crashes etc) (candidate scanning, project settings, and run configuration dialog are implemented)
+    -- gray out the menu item until a main executable name is configured (implemented)
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
@@ -119,7 +120,11 @@
 # done items (move items here on completion)
 
 ## 28-05-28
+- implemented candidate executable detection (parsing root meson.build) and project-level configuration options (main_executable, run_arguments, run_target_mode).
+- implemented a reusable TUI dropdown input widget (ui_dropdown) with support for typing, scrolling, candidate selection overlays, and mouse interactions.
+- added a "Run Settings..." dialog and integrated event handling to enable/disable the "Run" menu item dynamically based on configuration.
 - implemented vi/vim command emulation (limited to `<esc>:` for commands `q`, `q!`, `w`, `wq`, `wq!`).
+
 - added tracking of `context_pages_compacted` (active level shifts) and `auto_episodes_forced` statistics to the `/stats` output.
 - refactored the background summary worker loop to terminate immediately upon editor close, eliminating shutdown delays caused by LLM summarization calls.
 - implemented automatic injection of the archived episodes summary table at startup for new agent sessions to ensure context awareness of paged out history.
