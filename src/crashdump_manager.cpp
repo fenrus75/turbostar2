@@ -30,11 +30,32 @@ struct memory_map {
 	std::string path;
 };
 
+static std::string escape_shell_arg(const std::string &arg)
+{
+	std::string escaped;
+	escaped.reserve(arg.size() + 10);
+	escaped += '\'';
+	for (char c : arg) {
+		if (c == '\'') {
+			escaped += "'\\''";
+		} else {
+			escaped += c;
+		}
+	}
+	escaped += '\'';
+	return escaped;
+}
+
 static std::vector<memory_map> parse_maps(const std::string &maps_file)
 {
 	std::vector<memory_map> maps;
 	std::ifstream in(maps_file);
+	if (!in) {
+		std::cerr << "Warning: failed to open maps file: " << maps_file << std::endl;
+		return maps;
+	}
 	std::string line;
+	constexpr int min_scanf_fields = 7;
 	while (std::getline(in, line)) {
 		memory_map m;
 		char perms[5];
@@ -44,7 +65,7 @@ static std::vector<memory_map> parse_maps(const std::string &maps_file)
 
 		// Example: 555555554000-555555555000 r-xp 00000000 08:01 123456 /path
 		if (sscanf(line.c_str(), "%lx-%lx %4s %lx %x:%x %d %1023[^\n]", &m.start, &m.end, perms, &m.offset, &dev_major, &dev_minor,
-			   &inode, path) >= 7) {
+			   &inode, path) >= min_scanf_fields) {
 			m.perms = perms;
 			m.path = path;
 
@@ -62,7 +83,20 @@ static std::vector<memory_map> parse_maps(const std::string &maps_file)
 	return maps;
 }
 
-void crashdump_manager::generate_report_if_needed(const std::string &crash_dir)
+static std::string extract_executable_name(const std::vector<memory_map> &maps)
+{
+	for (const auto &m : maps) {
+		if (m.perms.find('x') != std::string::npos && m.offset == 0 && !m.path.empty() && m.path[0] == '/') {
+			if (m.path.ends_with(".so") || m.path.find(".so.") != std::string::npos) {
+				continue;
+			}
+			return fs::path(m.path).filename().string();
+		}
+	}
+	return "App";
+}
+
+void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) const
 {
 	fs::path report_path = fs::path(crash_dir) / "report.md";
 	if (fs::exists(report_path))
@@ -76,6 +110,9 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir)
 		return;
 
 	auto maps = parse_maps(maps_path.string());
+	std::sort(maps.begin(), maps.end(), [](const memory_map &a, const memory_map &b) {
+		return a.start < b.start;
+	});
 
 	std::string info_content;
 	std::ifstream info_in(info_path);
@@ -101,83 +138,93 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir)
 		int frame = 0;
 		while (stack_in.read(reinterpret_cast<char *>(&ip), sizeof(ip))) {
 			bool found = false;
-			for (const auto &m : maps) {
-				if (ip >= m.start && ip < m.end) {
-					uint64_t rel_addr = ip - m.start + m.offset;
-					std::string func_name = "??";
-					std::string location = "??";
+			auto it = std::lower_bound(maps.begin(), maps.end(), ip,
+				[](const memory_map &m, uint64_t addr) { return m.end <= addr; });
 
-					if (!m.path.empty() && m.path[0] == '/') {
-						std::ostringstream cmd;
-						cmd << "addr2line -C -f -e '" << m.path << "' " << std::hex << rel_addr;
+			if (it != maps.end() && ip >= it->start && ip < it->end) {
+				const auto &m = *it;
+				uint64_t rel_addr = ip - m.start + m.offset;
+				std::string func_name = "??";
+				std::string location = "??";
 
-						std::string output;
-						FILE *pipe = popen(cmd.str().c_str(), "r");
-						if (pipe) {
-							char buffer[128];
-							while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-								output += buffer;
-							}
-							pclose(pipe);
+				if (!m.path.empty() && m.path[0] == '/') {
+					std::ostringstream cmd;
+					cmd << "addr2line -C -f -e " << escape_shell_arg(m.path) << " " << std::hex << rel_addr;
+
+					std::string output;
+					FILE *pipe = popen(cmd.str().c_str(), "r");
+					if (pipe) {
+						char buffer[128];
+						while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+							output += buffer;
 						}
+						pclose(pipe);
+					}
 
-						std::istringstream addr_out(output);
-						std::string f_line, l_line;
-						if (std::getline(addr_out, f_line) && std::getline(addr_out, l_line)) {
-							func_name = f_line;
-							location = l_line;
-						} else {
-							location = m.path;
-						}
+					std::istringstream addr_out(output);
+					std::string f_line, l_line;
+					if (std::getline(addr_out, f_line) && std::getline(addr_out, l_line)) {
+						func_name = f_line;
+						location = l_line;
 					} else {
-						location = m.path.empty() ? "[unknown]" : m.path;
+						location = m.path;
 					}
-
-					// Normalize and strip project root from location if present
-					static std::string repo_root = git_manager::get_instance().get_repository_root();
-					if (repo_root.empty()) {
-						repo_root = fs::current_path().string();
-					}
-					std::string prefix = repo_root;
-					if (!prefix.empty() && prefix.back() != '/') {
-						prefix += "/";
-					}
-
-					size_t colon_pos = location.find_last_of(':');
-					if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
-						std::string file_part = location.substr(0, colon_pos);
-						std::string line_part = location.substr(colon_pos);
-
-						fs::path p(file_part);
-						if (!p.is_absolute()) {
-							p = fs::path(repo_root) / p;
-						}
-						file_part = p.lexically_normal().string();
-
-						if (file_part.starts_with(prefix)) {
-							file_part = file_part.substr(prefix.length());
-						}
-						location = file_part + line_part;
-					} else if (location.starts_with(prefix)) {
-						location = location.substr(prefix.length());
-					}
-
-					report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `" << func_name << "` | "
-					       << location << " |\n";
-					found = true;
-					break;
+				} else {
+					location = m.path.empty() ? "[unknown]" : m.path;
 				}
+
+				// Normalize and strip project root from location if present
+				static std::string repo_root = git_manager::get_instance().get_repository_root();
+				if (repo_root.empty()) {
+					repo_root = fs::current_path().string();
+				}
+				std::string prefix = repo_root;
+				if (!prefix.empty() && prefix.back() != '/') {
+					prefix += "/";
+				}
+
+				size_t colon_pos = location.find_last_of(':');
+				if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
+					std::string file_part = location.substr(0, colon_pos);
+					std::string line_part = location.substr(colon_pos);
+
+					fs::path p(file_part);
+					if (!p.is_absolute()) {
+						p = fs::path(repo_root) / p;
+					}
+					file_part = p.lexically_normal().string();
+
+					if (file_part.starts_with(prefix)) {
+						file_part = file_part.substr(prefix.length());
+					}
+					location = file_part + line_part;
+				} else if (location.starts_with(prefix)) {
+					location = location.substr(prefix.length());
+				}
+
+				auto fmt = report.flags();
+				report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `" << func_name << "` | "
+				       << location << " |\n";
+				report.flags(fmt);
+				found = true;
 			}
 			if (!found) {
+				auto fmt = report.flags();
 				report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `??` | [unmapped] |\n";
+				report.flags(fmt);
 			}
 			frame++;
 		}
 	}
 
-	std::ofstream out(report_path);
+	fs::path tmp_report_path = report_path;
+	tmp_report_path.replace_extension(".tmp");
+	std::ofstream out(tmp_report_path);
 	if (out) {
 		out << report.str();
+		out.close();
+		std::error_code ec;
+		fs::rename(tmp_report_path, report_path, ec);
 	}
 }
 
@@ -216,13 +263,40 @@ std::string crashdump_manager::refresh(const std::string & /*project_hash*/)
 		std::string sig_str = "Unknown";
 		if (info_in) {
 			std::string line;
-			if (std::getline(info_in, line) && line.starts_with("Signal: ")) {
-				sig_str = line.substr(8);
+			constexpr std::string_view sig_prefix = "Signal: ";
+			if (std::getline(info_in, line) && line.starts_with(sig_prefix)) {
+				sig_str = line.substr(sig_prefix.length());
 			}
 		}
 		info.signal = sig_str;
-		info.executable = "App";   // Could be extracted from maps.txt
-		info.timestamp = "Recent"; // Could use file mtime
+
+		// Extract executable name from maps
+		std::string exe_name = "App";
+		fs::path maps_path = entry.path() / "maps.txt";
+		if (fs::exists(maps_path)) {
+			auto maps = parse_maps(maps_path.string());
+			exe_name = extract_executable_name(maps);
+		}
+		info.executable = exe_name;
+
+		// Extract timestamp from directory modification time
+		std::string timestamp_str = "Recent";
+		std::error_code ec;
+		auto mtime = fs::last_write_time(entry.path(), ec);
+		if (!ec) {
+			auto sctime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+				mtime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+			);
+			std::time_t timet = std::chrono::system_clock::to_time_t(sctime);
+			std::tm *local_tm = std::localtime(&timet);
+			if (local_tm) {
+				char time_buf[64];
+				if (std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", local_tm) > 0) {
+					timestamp_str = time_buf;
+				}
+			}
+		}
+		info.timestamp = timestamp_str;
 
 		// Grab the generated markdown
 		fs::path report_path = entry.path() / "report.md";

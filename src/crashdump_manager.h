@@ -31,7 +31,7 @@ private:
     crashdump_manager() = default;
     
     // Internal helper to parse raw dump files and generate report.md
-    void generate_report_if_needed(const std::string& crash_dir);
+    void generate_report_if_needed(const std::string& crash_dir) const;
 
     std::vector<crashdump_info> crashdumps_;
     std::set<std::string> seen_crash_ids_;
