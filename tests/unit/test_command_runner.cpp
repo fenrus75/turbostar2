@@ -1,8 +1,11 @@
 #include <cassert>
 #include <iostream>
+#include <filesystem>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
+
+namespace fs = std::filesystem;
 
 class test_command_runner : public command_runner
 {
@@ -101,6 +104,21 @@ int main()
 		std::string cmd = runner.test_build_command("echo hello");
 		// Even with internal profile, paranoid mode should force systemd-run
 		assert_contains(cmd, "systemd-run");
+	}
+
+	// Test get_repository_root when in a non-git directory
+	config_manager::get_instance().set_paranoid_mode(false);
+	{
+		auto orig_cwd = fs::current_path();
+		try {
+			fs::current_path(fs::temp_directory_path());
+			std::string repo_root = command_runner::get_repository_root();
+			std::cout << "Non-git repo root: " << repo_root << "\n";
+			assert(fs::exists(repo_root));
+			assert_not_contains(repo_root, "fatal:");
+		} catch (...) {
+		}
+		fs::current_path(orig_cwd);
 	}
 
 	std::cout << "test_command_runner passed!\n";

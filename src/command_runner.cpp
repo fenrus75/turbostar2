@@ -20,6 +20,9 @@ std::string command_runner::get_repository_root()
 	sync_command_runner runner;
 	runner.apply_internal_profile();
 	std::string result = runner.execute_and_get_output(cmd);
+	if (runner.get_exit_code() != 0) {
+		return fs::current_path().string();
+	}
 	if (!result.empty() && result.back() == '\n') {
 		result.pop_back();
 	}
