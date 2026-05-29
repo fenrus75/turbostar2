@@ -55,7 +55,12 @@ bool editor::handle_q_block_key(int key)
 		return true;
 	} else if (c == 'h') {
 		logger.log("Q-block: Undo History");
-		new_diff_window();
+		auto doc = get_active_doc();
+		if (doc && doc->get_undo_count() > 0) {
+			new_diff_window();
+		} else {
+			logger.log("No undo history available.");
+		}
 		return true;
 	}
 	return false;

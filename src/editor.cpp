@@ -1007,7 +1007,12 @@ void editor::render()
 		}
 	}
 
-	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y);
+	bool has_history = false;
+	auto active_doc = get_active_doc();
+	if (active_doc && active_doc->get_undo_count() > 0) {
+		has_history = true;
+	}
+	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y, has_history);
 
 	if (active_dialog_) {
 		active_dialog_->draw();

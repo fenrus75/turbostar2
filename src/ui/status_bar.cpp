@@ -24,7 +24,7 @@ void print_with_hotkeys(const std::string &str)
 }
 } // namespace
 
-void status_bar::draw(const std::string &mode_help, const std::string &hover_text, int cursor_x, int cursor_y) const
+void status_bar::draw(const std::string &mode_help, const std::string &hover_text, int cursor_x, int cursor_y, bool has_history) const
 {
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
@@ -50,7 +50,11 @@ void status_bar::draw(const std::string &mode_help, const std::string &hover_tex
 		}
 
 		// Default status bar content like "F1 Help"
-		print_with_hotkeys("  ^F^1 Help  ^Q^H History");
+		if (has_history) {
+			print_with_hotkeys("  ^F^1 Help  ^Q^H History");
+		} else {
+			print_with_hotkeys("  ^F^1 Help");
+		}
 	}
 
 	if (!hover_text.empty()) {
