@@ -110,6 +110,8 @@ cout << (auto_open_error_files_ ? "true" : "false") << "\n";
     *   `pt_format(_("..."), args...)` is required for gettext-translated strings to ensure compatibility with runtime format strings in C++20.
     *   Do not use `std::vformat` or `std::make_format_args` directly; use the `pt_format` helper instead.
     *   Example: `humanname = pt_format(_("USB device: {}"), device_name);`
+*   **Logging**: Do not use `+` string concatenation or `std::to_string` inside `event_logger::get_instance().log(...)`. Use `std::format` to format all internal log messages dynamically.
+    *   Example: `event_logger::get_instance().log(std::format("Wrote Linux Kernel .clang-format to {}", format_file.string()));`
 
 ### 4.4 Includes
 *   Order: Standard library headers first, followed by project-specific headers.
