@@ -9,15 +9,16 @@ gcc_log_parser::gcc_log_parser()
 {
 	// Regex matches: <filename>:<line>:<col>: <severity>: <message>
 	// Capture groups: 1=file, 2=line, 3=col, 4=severity, 5=message
-	error_regex_ = std::make_unique<re2::RE2>(R"(^([^:\s]+):([0-9]+):([0-9]+): (error|warning): (.*)$)");
+	// We use non-greedy matching on the filename to support spaces and Windows drive letters
+	error_regex_ = std::make_unique<re2::RE2>(R"(^(.*?):([0-9]+):([0-9]+): (error|warning): (.*)$)");
 }
 
-void gcc_log_parser::parse_line(const std::string &line, int output_line, std::vector<build_error> &out_errors)
+void gcc_log_parser::parse_line(const std::string &log_line, int output_line, std::vector<build_error> &out_errors)
 {
 	std::string file_match, severity_match, message_match;
 	int line_num, col_num;
 
-	if (re2::RE2::PartialMatch(line, *error_regex_, &file_match, &line_num, &col_num, &severity_match, &message_match)) {
+	if (re2::RE2::PartialMatch(log_line, *error_regex_, &file_match, &line_num, &col_num, &severity_match, &message_match)) {
 		build_error err;
 
 		fs::path p(file_match);
@@ -27,7 +28,7 @@ void gcc_log_parser::parse_line(const std::string &line, int output_line, std::v
 		}
 		err.filepath = p.string();
 
-		err.line = line_num - 1; // 1-based to 0-based
+		err.line = line_num - 1; // 1-based to 0-based conversion
 		err.column = col_num - 1;
 		err.end_column = 0; // Highlight whole line for compilers
 		err.is_warning = (severity_match == "warning");
@@ -35,7 +36,7 @@ void gcc_log_parser::parse_line(const std::string &line, int output_line, std::v
 		err.output_buffer_line = output_line;
 
 		std::error_code ec;
-		if (fs::exists(err.filepath, ec)) {
+		if (fs::exists(err.filepath, ec) && !ec) {
 			out_errors.push_back(err);
 		}
 	}

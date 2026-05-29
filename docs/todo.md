@@ -1,5 +1,13 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+pattern:
+```
+ event_logger::get_instance().log("Highlighter error: " + std::string(e.what()));
+```
+should use std::format
+this is just an example, there are many places in the code that do + on strings for the event_logger, we should fix them all
+
+
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness

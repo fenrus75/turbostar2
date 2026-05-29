@@ -171,7 +171,7 @@ class document
 	void adjust_selection_for_line_delete(int y);
 
 	// Syntax highlighting
-	void mark_line_dirty(std::shared_ptr<line> l);
+	void mark_line_dirty(const std::shared_ptr<line> &l);
 	void highlighter_thread_loop();
 	void process_line_highlight(std::shared_ptr<line> l);
 	void refresh_highlighter();
