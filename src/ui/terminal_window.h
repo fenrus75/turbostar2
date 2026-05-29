@@ -78,6 +78,12 @@ class terminal_window : public ::window
 	std::unique_ptr<build_log_parser> parser_;
 	int line_count_{0};
 	std::string line_buffer_;
+
+	int input_fifo_fd_{-1};
+	std::string input_fifo_path_;
+
+      public:
+	void set_input_fifo(const std::string &path);
 };
 
 } // namespace ui

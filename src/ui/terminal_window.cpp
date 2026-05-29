@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <filesystem>
+#include <format>
 #include <ncurses.h>
 #include <signal.h>
 #include <sys/ioctl.h>
@@ -12,9 +14,11 @@
 #include "../command_runner.h"
 #include "build_error_manager.h"
 #include "gcc_log_parser.h"
+#include "../event_logger.h"
 
 #include <map>
 #include <utility>
+
 
 namespace ui
 {
@@ -163,6 +167,26 @@ void terminal_window::stop_process()
 		is_alive_ = false;
 		pid_ = -1;
 	}
+	if (input_fifo_fd_ >= 0) {
+		close(input_fifo_fd_);
+		input_fifo_fd_ = -1;
+	}
+	if (!input_fifo_path_.empty()) {
+		std::error_code ec;
+		std::filesystem::remove(input_fifo_path_, ec);
+		input_fifo_path_.clear();
+	}
+}
+
+void terminal_window::set_input_fifo(const std::string &path)
+{
+	input_fifo_path_ = path;
+	input_fifo_fd_ = open(path.c_str(), O_RDWR);
+	if (input_fifo_fd_ < 0) {
+		event_logger::get_instance().log(std::format("Failed to open input FIFO for writing: {}", strerror(errno)));
+	} else {
+		event_logger::get_instance().log("Opened input FIFO for writing successfully.");
+	}
 }
 
 bool terminal_window::update_pty()
@@ -277,6 +301,7 @@ bool terminal_window::process_events()
 {
 	bool needs_redraw = false;
 	auto &queue = get_window_queue();
+	int target_fd = (input_fifo_fd_ >= 0) ? input_fifo_fd_ : pty_master_;
 
 	while (auto ev = queue.pop()) {
 		if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
@@ -334,7 +359,7 @@ bool terminal_window::process_events()
 					}
 
 					if (!seq.empty()) {
-						ssize_t w = write(pty_master_, seq.data(), seq.size());
+						ssize_t w = write(target_fd, seq.data(), seq.size());
 						(void)w;
 					}
 				}
@@ -403,7 +428,7 @@ bool terminal_window::process_events()
 					}
 				}
 				if (!seq.empty()) {
-					ssize_t w = write(pty_master_, seq.data(), seq.size());
+					ssize_t w = write(target_fd, seq.data(), seq.size());
 					(void)w;
 				}
 			}

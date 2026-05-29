@@ -8,7 +8,8 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
-
+#include <sys/stat.h>
+#include <format>
 #include <cstdlib>
 #include <lsp/json/json.h>
 #include <ncurses.h>
@@ -535,17 +536,29 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
 
+		// Generate a unique FIFO path in the project root directory (since /tmp is isolated in the sandbox)
+		static std::atomic<unsigned int> fifo_counter{0};
+		fs::path fifo_path = fs::path(repo_root) / std::format(".turbostar_fifo_{}_{}_{}", getpid(), app_id, ++fifo_counter);
+		if (mkfifo(fifo_path.c_str(), 0600) != 0) {
+			logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
+		}
+
 		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
 			gdbserver_cmd += " " + args;
 		}
-		gdbserver_cmd += " 2>/dev/null";
+		gdbserver_cmd += " < " + fs_utils::escape_shell_arg(fifo_path.string()) + " 2>/dev/null";
 
 		logger.log("Starting gdbserver: " + gdbserver_cmd);
 		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false)) {
 			logger.log("Failed to start gdbserver process.");
+			std::error_code ec;
+			fs::remove(fifo_path, ec);
 			return {-1, -1};
 		}
+
+		// Connect input FIFO to app_tw. This opens the FIFO for writing, unblocking the child process.
+		app_tw->set_input_fifo(fifo_path.string());
 
 		usleep(50000);
 
