@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <chrono>
+#include <format>
 #include <fstream>
 #include <lsp/json/json.h>
 #include <ncurses.h>
@@ -85,8 +86,8 @@ void editor::resolve_dialog(dialog_result res)
 						std::ofstream out(format_file);
 						if (out.is_open()) {
 							out << LINUX_CLANG_FORMAT;
-							event_logger::get_instance().log("Wrote Linux Kernel .clang-format to " +
-											 format_file.string());
+							event_logger::get_instance().log(std::format("Wrote Linux Kernel .clang-format to {}",
+											 format_file.string()));
 						}
 					}
 				}
