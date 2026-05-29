@@ -18,7 +18,8 @@ enum class parser_state {
     normal,
     escape,
     csi,
-    escape_intermediate
+    escape_intermediate,
+    osc
 };
 
 class ansi_terminal_emulator {

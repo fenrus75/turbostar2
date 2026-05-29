@@ -83,6 +83,8 @@ void ansi_terminal_emulator::process_char(char c) {
             state_ = parser_state::csi;
             csi_params_.clear();
             current_param_str_.clear();
+        } else if (c == ']') {
+            state_ = parser_state::osc;
         } else if (c == '(' || c == ')' || c == '*' || c == '+' || c == '#') {
             state_ = parser_state::escape_intermediate;
         } else {
@@ -98,6 +100,13 @@ void ansi_terminal_emulator::process_char(char c) {
     } else if (state_ == parser_state::escape_intermediate) {
         esc_buffer_ += c;
         state_ = parser_state::normal;
+    } else if (state_ == parser_state::osc) {
+        if (c == '\x07') {
+            state_ = parser_state::normal;
+        } else if (c == '\x1b') {
+            state_ = parser_state::escape;
+            esc_buffer_.clear();
+        }
     } else if (state_ == parser_state::csi) {
         if (c >= '0' && c <= '9') {
             current_param_str_ += c;

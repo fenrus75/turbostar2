@@ -148,6 +148,13 @@ int main() {
         assert_equal(term.get_grid()[2][2].glyph, ' ', "ESC(B character not printed");
         term.write("\x1b)0");
         assert_equal(term.get_grid()[2][2].glyph, ' ', "ESC)0 character not printed");
+
+        // Verify ESC]0;Title\x07 and ESC]11;?\x1b\\ don't print anything
+        term.write("\x1b]0;Title\x07");
+        term.write("\x1b]11;?\x1b\\");
+        for (int x = 0; x < 10; ++x) {
+            assert_equal(term.get_grid()[2][x].glyph, ' ', "OSC character not printed");
+        }
     }
 
     std::cout << "test_ansi_terminal_emulator passed!\n";
