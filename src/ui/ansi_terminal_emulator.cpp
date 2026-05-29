@@ -178,6 +178,20 @@ void ansi_terminal_emulator::handle_csi_command(char cmd) {
             cursor_x_ = std::max(0, cursor_x_ - n);
             break;
         }
+        case 'E': { // Cursor Next Line (CNL)
+            int n = get_param(0, 1);
+            if (n == 0) n = 1;
+            cursor_y_ = std::min(height_ - 1, cursor_y_ + n);
+            cursor_x_ = 0;
+            break;
+        }
+        case 'F': { // Cursor Previous Line (CPL)
+            int n = get_param(0, 1);
+            if (n == 0) n = 1;
+            cursor_y_ = std::max(0, cursor_y_ - n);
+            cursor_x_ = 0;
+            break;
+        }
         case 'J': { // Erase in Display
             int mode = get_param(0, 0);
             if (mode == 2) {

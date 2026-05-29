@@ -186,6 +186,25 @@ int main() {
         assert_equal(term.get_grid()[2][4].bg, 4, "Scrolled-in cell bg is blue");
     }
 
+    // 7. CNL (Cursor Next Line) and CPL (Cursor Previous Line)
+    {
+        ui::ansi_terminal_emulator term(10, 5);
+        // Position cursor at (2, 2)
+        term.write("\x1b[3;3H");
+        assert_equal(term.get_cursor_x(), 2, "Start cursor X");
+        assert_equal(term.get_cursor_y(), 2, "Start cursor Y");
+
+        // Cursor Next Line (CNL) with 0 param (should move to start of next row: (0, 3))
+        term.write("\x1b[0E");
+        assert_equal(term.get_cursor_x(), 0, "CNL X");
+        assert_equal(term.get_cursor_y(), 3, "CNL Y");
+
+        // Cursor Previous Line (CPL) with omitted param (should move to start of previous row: (0, 2))
+        term.write("\x1b[F");
+        assert_equal(term.get_cursor_x(), 0, "CPL X");
+        assert_equal(term.get_cursor_y(), 2, "CPL Y");
+    }
+
     std::cout << "test_ansi_terminal_emulator passed!\n";
     return 0;
 }
