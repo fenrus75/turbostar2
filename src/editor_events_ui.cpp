@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
-#include <filesystem>
 #include <fstream>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -536,13 +535,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
 
-		std::string turbostar_exe;
-		try {
-			turbostar_exe = std::filesystem::read_symlink("/proc/self/exe").string();
-		} catch (...) {
-			turbostar_exe = "./turbostar";
-		}
-		std::string gdbserver_cmd = "exec gdbserver --wrapper " + turbostar_exe + " --gdb-wrapper -- localhost:" + std::to_string(port) + " " + build_exe.string();
+		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
 			gdbserver_cmd += " " + args;
 		}
