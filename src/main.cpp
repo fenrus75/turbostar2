@@ -4,6 +4,7 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <string>
+#include <unistd.h>
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
 #include "config_manager.h"
@@ -24,6 +25,13 @@ std::string get_home_dir()
 
 int main(int argc, char **argv)
 {
+	if (argc >= 3 && std::string(argv[1]) == "--gdb-wrapper") {
+		tcsetpgrp(0, getpgrp());
+		execvp(argv[2], argv + 2);
+		perror("execvp");
+		return 1;
+	}
+
 	CLI::App app{"Turbostar Editor"};
 
 	std::string log_file;
