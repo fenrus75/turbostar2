@@ -205,6 +205,30 @@ int main() {
         assert_equal(term.get_cursor_y(), 2, "CPL Y");
     }
 
+    // 8. CHA (Cursor Horizontal Absolute) and VPA (Vertical Line Position Absolute)
+    {
+        ui::ansi_terminal_emulator term(10, 5);
+        // Position cursor at (2, 2)
+        term.write("\x1b[3;3H");
+
+        // Cursor Horizontal Absolute (CHA) with 0 param (defaults to col 1 -> index 0)
+        term.write("\x1b[0G");
+        assert_equal(term.get_cursor_x(), 0, "CHA with 0 X");
+        assert_equal(term.get_cursor_y(), 2, "CHA with 0 Y");
+
+        // Cursor Horizontal Absolute (CHA) with parameter 5 (col 5 -> index 4)
+        term.write("\x1b[5G");
+        assert_equal(term.get_cursor_x(), 4, "CHA with 5 X");
+
+        // Vertical Line Position Absolute (VPA) with omitted param (defaults to row 1 -> index 0)
+        term.write("\x1b[d");
+        assert_equal(term.get_cursor_y(), 0, "VPA default Y");
+
+        // Vertical Line Position Absolute (VPA) with parameter 4 (row 4 -> index 3)
+        term.write("\x1b[4d");
+        assert_equal(term.get_cursor_y(), 3, "VPA with 4 Y");
+    }
+
     std::cout << "test_ansi_terminal_emulator passed!\n";
     return 0;
 }

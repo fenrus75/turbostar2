@@ -85,7 +85,7 @@ test_event_logger = executable('test_event_logger',
 test('unit_event_logger', test_event_logger)
 
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
-  ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp'],
+  ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp'],
   include_directories: 'src')
 test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator)
 

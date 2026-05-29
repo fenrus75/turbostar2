@@ -1,5 +1,6 @@
 #include "ansi_terminal_emulator.h"
 #include <algorithm>
+#include "event_logger.h"
 
 namespace ui {
 
@@ -228,8 +229,25 @@ void ansi_terminal_emulator::handle_csi_command(char cmd) {
             cursor_x_ = saved_x_;
             cursor_y_ = saved_y_;
             break;
-        default:
+        case 'G': { // Cursor Horizontal Absolute (CHA)
+            int col = get_param(0, 1) - 1;
+            cursor_x_ = std::max(0, std::min(col, width_ - 1));
             break;
+        }
+        case 'd': { // Vertical Line Position Absolute (VPA)
+            int row = get_param(0, 1) - 1;
+            cursor_y_ = std::max(0, std::min(row, height_ - 1));
+            break;
+        }
+        default: {
+            std::string param_str;
+            for (size_t i = 0; i < csi_params_.size(); ++i) {
+                if (i > 0) param_str += ";";
+                param_str += std::to_string(csi_params_[i]);
+            }
+            event_logger::get_instance().log("ansi_terminal_emulator: Unhandled CSI sequence: CSI " + param_str + " " + cmd);
+            break;
+        }
     }
 }
 
