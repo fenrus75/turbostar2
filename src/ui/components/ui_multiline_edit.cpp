@@ -127,6 +127,24 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 				update_scroll();
 				handled = true;
 			}
+		} else if (key == 1 || key == KEY_HOME) { // Ctrl-A or Home
+			size_t prev_newline = buffer_.rfind('\n', cursor_pos_ > 0 ? cursor_pos_ - 1 : 0);
+			if (prev_newline == std::string::npos) {
+				cursor_pos_ = 0;
+			} else {
+				cursor_pos_ = prev_newline + 1;
+			}
+			update_scroll();
+			handled = true;
+		} else if (key == 5 || key == KEY_END) { // Ctrl-E or End
+			size_t next_newline = buffer_.find('\n', cursor_pos_);
+			if (next_newline == std::string::npos) {
+				cursor_pos_ = buffer_.length();
+			} else {
+				cursor_pos_ = next_newline;
+			}
+			update_scroll();
+			handled = true;
 		} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 			if (on_submit_ && !buffer_.empty()) {
 				on_submit_(buffer_);
