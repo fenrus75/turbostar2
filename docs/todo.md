@@ -1,11 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
 - ensure consistent view of the project root across the entire codebase (e.g., command_runner, fs_utils, git_manager, project_manager), including cases where the project is not in a git repository
 	- project_manager should be the final owner of this, as this is a project wide property
 
-- the split-debug window does not allow typing input to the application in the run window
-	- gigantic mess somehow while it is not a gigantic mess for the not-gdbserver case
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
@@ -18,22 +15,12 @@
 
 - set "uv" working directory: 
 
-- we need to tackle compaction at some point
-   -- we're keeping notes in `docs/compaction.md`
-
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
-
-- a "run" option to run the application from the menu:
-    -- gray out the menu item until a main executable name is configured (implemented)
-    -- implement target execution modes:
-        1. Full screen: exit ncurses, run child in its own process group (yield screen/stdin/stdout), catch crashes using libturbocatch.so, prompt "Press any key..." on completion/crash, and resume ncurses. (implemented in sandbox via command_runner)
-        2. In a window: create a new terminal window subclass of window with an ANSI terminal emulator. (implemented in sandbox via terminal_window and ansi_terminal_emulator)
-        3. New X terminal: spawn process in an external X terminal (e.g., xterm) if the DISPLAY environment variable is set.
 
 - do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
@@ -50,6 +37,7 @@
     - crashdump; 
 	- crashdump_read_memory(nr, location, size)
 	- crashdump_gdb(nr, command) (over time -- likely to come later)
+
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
@@ -59,12 +47,9 @@
 	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
    - not urgent and needs more thought
 
-
-
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
     - low priority
-
 
 - better undo batching than "every keypress"
 
@@ -126,6 +111,7 @@
 - fixed debugger startup and output hangs by resolving transient PTY read errors and turning off GDB pagination.
 - enabled global shortcuts (like `^K Q` to Quit) to work when non-document windows (like the Debugger) are focused.
 - resolved CLI tool exit hangs by implementing scope-guarded destructors before calling `std::_Exit(0)` and setting connection/read timeouts on HTTP clients.
+- implemented stdin FIFO redirection for debugged processes under GDBServer, allowing user keystrokes in the Run Output window to be sent directly to the application stdin.
 
 ## 28-05-28
 - implemented candidate executable detection (parsing root meson.build) and project-level configuration options (main_executable, run_arguments, run_target_mode).
