@@ -177,6 +177,8 @@ class document
 	void refresh_highlighter();
 	bool is_space_at(int y, int x) const;
 	bool is_space_at_unlocked(int y, int x) const;
+	std::string get_word_under_cursor_unlocked() const;
+
 
 	std::vector<std::shared_ptr<line>> lines_;
 	mutable std::shared_mutex mutex_;

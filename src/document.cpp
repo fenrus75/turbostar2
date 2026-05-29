@@ -361,9 +361,8 @@ std::string document::get_text_all() const
 	return full_text;
 }
 
-std::string document::get_word_under_cursor() const
+std::string document::get_word_under_cursor_unlocked() const
 {
-	std::shared_lock lock(mutex_);
 	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size()))
 		return "";
 	std::string text = lines_[cursor_y_]->get_text();
@@ -396,47 +395,55 @@ std::string document::get_word_under_cursor() const
 	return "";
 }
 
+std::string document::get_word_under_cursor() const
+{
+	std::shared_lock lock(mutex_);
+	return get_word_under_cursor_unlocked();
+}
+
 void document::notify_cursor_changed() const
 {
-        std::string word = get_word_under_cursor();
-        bool changed = false;
-        {
-                std::unique_lock lock(mutex_);
-                if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
-                        last_hover_word_ = word;
-                        changed = true;
-                }
-        }
+	std::string word;
+	bool changed = false;
+	std::string msg;
 
-        if (changed) {
-                if (!word.empty()) {
-                        project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
-                        project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
-                } else {
-                        // Clear highlights if we moved off a word
-                        std::unique_lock lock2(mutex_);
-                        lsp_highlights_.clear();
-                        lock2.unlock();
+	{
+		std::unique_lock lock(mutex_);
+		word = get_word_under_cursor_unlocked();
+		if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
+			last_hover_word_ = word;
+			changed = true;
+		}
 
-                        request_redraw();
-                }
-        }
-	std::shared_lock lock(mutex_);
-	int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
-	std::string msg = "State: C=" + std::to_string(cursor_y_ + 1) + ":" + std::to_string(cur_disp_x + 1);
+		if (changed && word.empty()) {
+			lsp_highlights_.clear();
+		}
 
-	if (selection_start_y_ != -1) {
-		int sel_start_disp_x = lines_[selection_start_y_]->char_to_display_col(selection_start_x_);
-		msg += " S=" + std::to_string(selection_start_y_ + 1) + ":" + std::to_string(sel_start_disp_x + 1);
-	} else {
-		msg += " S=none";
+		int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
+		msg = std::format("State: C={}:{}", cursor_y_ + 1, cur_disp_x + 1);
+
+		if (selection_start_y_ != -1) {
+			int sel_start_disp_x = lines_[selection_start_y_]->char_to_display_col(selection_start_x_);
+			msg += std::format(" S={}:{}", selection_start_y_ + 1, sel_start_disp_x + 1);
+		} else {
+			msg += " S=none";
+		}
+
+		if (selection_end_y_ != -1) {
+			int sel_end_disp_x = lines_[selection_end_y_]->char_to_display_col(selection_end_x_);
+			msg += std::format(" E={}:{}", selection_end_y_ + 1, sel_end_disp_x + 1);
+		} else {
+			msg += " E=none";
+		}
 	}
 
-	if (selection_end_y_ != -1) {
-		int sel_end_disp_x = lines_[selection_end_y_]->char_to_display_col(selection_end_x_);
-		msg += " E=" + std::to_string(selection_end_y_ + 1) + ":" + std::to_string(sel_end_disp_x + 1);
-	} else {
-		msg += " E=none";
+	if (changed) {
+		if (!word.empty()) {
+			project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
+			project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
+		} else {
+			request_redraw();
+		}
 	}
 
 	event_logger::get_instance().log(msg);
