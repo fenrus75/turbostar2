@@ -245,6 +245,12 @@ test_code_get_definition = executable('test_code_get_definition',
   include_directories: inc)
 test('unit_test_code_get_definition', test_code_get_definition)
 
+test_code_get_references = executable('test_code_get_references',
+  'tests/unit/test_code_get_references.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_code_get_references', test_code_get_references)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
