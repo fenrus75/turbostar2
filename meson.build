@@ -257,6 +257,12 @@ test_code_get_scope = executable('test_code_get_scope',
   include_directories: inc)
 test('unit_test_code_get_scope', test_code_get_scope)
 
+test_crashdump_get_info = executable('test_crashdump_get_info',
+  'tests/unit/test_crashdump_get_info.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_crashdump_get_info', test_crashdump_get_info)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
