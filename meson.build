@@ -179,6 +179,12 @@ test_git_checkout_branch = executable('test_git_checkout_branch',
   include_directories: inc)
 test('unit_test_git_checkout_branch', test_git_checkout_branch)
 
+test_git_commit = executable('test_git_commit',
+  'tests/unit/test_git_commit.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_commit', test_git_commit)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
