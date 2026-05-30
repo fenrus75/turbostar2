@@ -1,6 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
+- we have utf8 helpers in markdown_utils and in line.cpp and many other
+  places -- to the point we maybe should make a dedicated utf8:: space for
+  these helpers and a utf8.cpp
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 

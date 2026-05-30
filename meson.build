@@ -156,10 +156,11 @@ test_python_highlighter = executable('test_python_highlighter',
 test('unit_python_highlighter', test_python_highlighter)
 
 test_markdown_highlighter = executable('test_markdown_highlighter',
-  ['tests/unit/test_markdown_highlighter.cpp', 'src/markdown_highlighter.cpp', 'src/line.cpp'],
+  ['tests/unit/test_markdown_highlighter.cpp', 'src/markdown_highlighter.cpp', 'src/line.cpp', 'src/markdown_utils.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_markdown_highlighter', test_markdown_highlighter)
+
 
 
 test_markdown_utils = executable('test_markdown_utils',
