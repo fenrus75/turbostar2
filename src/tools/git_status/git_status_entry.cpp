@@ -29,6 +29,9 @@ std::string git_status_tool::execute(agentlib::tool_context &ctx)
 
 	int count = 0;
 	while (std::getline(ss, line)) {
+		if (line.starts_with("Process exited with code")) {
+			continue;
+		}
 		if (line.length() < 4)
 			continue;
 
