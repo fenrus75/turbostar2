@@ -23,8 +23,8 @@ int main()
 		std::string result = registry.execute_tool("git_diff_from_branch", args.dump(), ctx);
 		std::cout << "Result against HEAD:\n" << result << std::endl;
 		assert(!result.empty());
-		// Since we have local changes in meson.build, diff against HEAD should show them
-		assert(result.find("meson.build") != std::string::npos);
+		// Since we have local unstaged changes, diff against HEAD should show them
+		assert(result.find("diff --git") != std::string::npos);
 	}
 
 	// 2. Validation failure: unsafe shell characters

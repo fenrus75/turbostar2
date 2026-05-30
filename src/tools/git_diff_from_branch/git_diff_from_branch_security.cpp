@@ -1,5 +1,5 @@
+#include "../../git_manager.h"
 #include "../../agentlib/tool_registry.h"
-#include "../../fs_utils.h"
 #include "git_diff_from_branch.h"
 
 namespace tools
@@ -8,7 +8,8 @@ namespace tools
 bool git_diff_from_branch_validator::validate_string_arg(const std::string &arg, const agentlib::tool_context & /*ctx*/,
 							 std::string &out_error) const
 {
-	if (!fs_utils::is_shell_safe(arg, true)) {		out_error = "Branch name contains invalid or unsafe shell characters.";
+	if (!git_manager::is_valid_revision(arg)) {
+		out_error = "Branch name or revision expression is invalid or contains unsafe characters.";
 		return false;
 	}
 	return true;
