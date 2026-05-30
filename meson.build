@@ -143,6 +143,12 @@ test_message_agent = executable('test_message_agent',
   include_directories: inc)
 test('unit_test_message_agent', test_message_agent)
 
+test_run_python = executable('test_run_python',
+  'tests/unit/test_run_python.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_run_python', test_run_python)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
