@@ -31,6 +31,22 @@ project_manager &project_manager::get_instance()
 	return instance;
 }
 
+project_manager::project_manager()
+{
+	event_logger::get_instance(); // Force event_logger initialization first
+}
+
+project_manager::~project_manager()
+{
+	shutdown();
+	if (inventory_thread_.joinable()) {
+		inventory_thread_.join();
+	}
+	if (software_map_thread_.joinable()) {
+		software_map_thread_.join();
+	}
+}
+
 void project_manager::initialize()
 {
 	project_root_ = git_manager::get_instance().get_repository_root();

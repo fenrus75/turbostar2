@@ -107,7 +107,8 @@ class project_manager
 	};
 
       private:
-	project_manager() = default;
+	project_manager();
+	~project_manager();
 
 	void load_instructions();
 	void inventory_project(std::stop_token stop);
