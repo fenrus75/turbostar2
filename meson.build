@@ -269,6 +269,12 @@ test_crashdump_list = executable('test_crashdump_list',
   include_directories: inc)
 test('unit_test_crashdump_list', test_crashdump_list)
 
+test_flag_as_error = executable('test_flag_as_error',
+  'tests/unit/test_flag_as_error.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_flag_as_error', test_flag_as_error)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
