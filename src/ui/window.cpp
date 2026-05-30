@@ -527,7 +527,10 @@ void window::draw_border() const
 
 	if (!current_title.empty()) {
 		int title_x = x_ + (width_ - current_title.length()) / 2;
+		attron(COLOR_PAIR(5));
 		mvprintw(y_, title_x - 1, " %s ", current_title.c_str());
+		attroff(COLOR_PAIR(5));
+		attron(COLOR_PAIR(border_pair));
 	}
 
 	// Draw close widget
