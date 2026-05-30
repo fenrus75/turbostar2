@@ -15,7 +15,6 @@
 #include "command_runner.h"
 #include "event_logger.h"
 #include "gcc_log_parser.h"
-#include "git_manager.h"
 #include "project_manager.h"
 
 namespace fs_utils

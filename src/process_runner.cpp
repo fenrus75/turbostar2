@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include "build_error_manager.h"
 #include "command_runner.h"
-#include "git_manager.h"
 #include "event_logger.h"
 
 process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines) : doc_(output_doc), max_lines_(max_lines)

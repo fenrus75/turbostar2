@@ -8,7 +8,6 @@
 #include "../config_manager.h"
 #include "../event_queue.h"
 #include "../event_logger.h"
-#include "../git_manager.h"
 #include "../project_manager.h"
 #include "../fs_utils.h"
 #include "httplib_transport.h"

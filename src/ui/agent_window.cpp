@@ -11,7 +11,6 @@
 #include "agentlib/skill_manager.h"
 #include "config_manager.h"
 #include "fs_utils.h"
-#include "git_manager.h"
 #include "markdown_utils.h"
 #include "project_manager.h"
 

@@ -5,7 +5,6 @@
 #include <iostream>
 #include <sstream>
 #include "fs_utils.h"
-#include "git_manager.h"
 #include "project_manager.h"
 
 namespace fs = std::filesystem;
