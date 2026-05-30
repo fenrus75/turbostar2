@@ -43,17 +43,15 @@ class agent_create_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"name", {{"type", "string"}, {"maxLength", 64}, {"description", "A short, descriptive name for the subagent."}}},
+		     {{"name", {{"type", "string"}, {"description", "A short, descriptive name for the subagent (max 64 chars)."}}},
 		      {"profile",
 		       {{"type", "string"},
-			{"maxLength", 10000},
 			{"description", "System instructions and personality profile for the subagent. Optional if 'task' is "
-					"provided."}}},
+					"provided (max 10000 chars)."}}},
 		      {"task",
 		       {{"type", "string"},
-			{"maxLength", 10000},
 			{"description", "The initial task or request for the subagent to perform. Optional if 'profile' is "
-					"provided."}}},
+					"provided (max 10000 chars)."}}},
 		      {"wait",
 		       {{"type", "boolean"},
 			{"description", "If true, the tool will wait for the subagent to complete its task and will return its "

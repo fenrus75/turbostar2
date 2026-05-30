@@ -62,8 +62,8 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 	}
 
 	cli_ = std::make_unique<httplib::Client>(host);
-	cli_->set_connection_timeout(std::chrono::seconds(2));
-	cli_->set_read_timeout(std::chrono::seconds(5));
+	cli_->set_connection_timeout(std::chrono::seconds(5));
+	cli_->set_read_timeout(std::chrono::seconds(300));
 	cli_->set_follow_location(true);
 
 	// Optional proxy support via environment variables
