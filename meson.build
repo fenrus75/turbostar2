@@ -120,357 +120,477 @@ test_shell_security = executable('test_shell_security',
 test('unit_shell_security', test_shell_security)
 
 test_activate_skill = executable('test_activate_skill',
-  'tests/unit/test_activate_skill.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_activate_skill.cpp',
+   'src/tools/activate_skill/activate_skill_entry.cpp',
+   'src/tools/activate_skill/activate_skill_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_activate_skill', test_activate_skill)
 
 test_list_skills = executable('test_list_skills',
-  'tests/unit/test_list_skills.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_list_skills.cpp',
+   'src/tools/list_skills/list_skills_entry.cpp',
+   'src/tools/list_skills/list_skills_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_list_skills', test_list_skills)
 
 test_list_tool_calls = executable('test_list_tool_calls',
-  'tests/unit/test_list_tool_calls.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_list_tool_calls.cpp',
+   'src/tools/list_tool_calls/list_tool_calls_entry.cpp',
+   'src/tools/list_tool_calls/list_tool_calls_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_list_tool_calls', test_list_tool_calls)
 
 test_message_agent = executable('test_message_agent',
-  'tests/unit/test_message_agent.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_message_agent.cpp',
+   'src/tools/message_agent/message_agent_entry.cpp',
+   'src/tools/message_agent/message_agent_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_message_agent', test_message_agent)
 
 test_run_python = executable('test_run_python',
-  'tests/unit/test_run_python.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_run_python.cpp',
+   'src/tools/run_python/run_python_entry.cpp',
+   'src/tools/run_python/run_python_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_run_python', test_run_python)
 
 test_run_shell_command = executable('test_run_shell_command',
-  'tests/unit/test_run_shell_command.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_run_shell_command.cpp',
+   'src/tools/run_shell_command/run_shell_command_entry.cpp',
+   'src/tools/run_shell_command/run_shell_command_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_run_shell_command', test_run_shell_command)
 
 test_sqlite_list_db = executable('test_sqlite_list_db',
-  'tests/unit/test_sqlite_list_db.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_sqlite_list_db.cpp',
+   'src/tools/sqlite_list_db/sqlite_list_db_entry.cpp',
+   'src/tools/sqlite_list_db/sqlite_list_db_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_sqlite_list_db', test_sqlite_list_db)
 
 test_git_branch_create = executable('test_git_branch_create',
-  'tests/unit/test_git_branch_create.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_branch_create.cpp',
+   'src/tools/git_branch_create/git_branch_create_entry.cpp',
+   'src/tools/git_branch_create/git_branch_create_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_branch_create', test_git_branch_create, is_parallel: false)
 
 test_git_branch_list = executable('test_git_branch_list',
-  'tests/unit/test_git_branch_list.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_branch_list.cpp',
+   'src/tools/git_branch_list/git_branch_list_entry.cpp',
+   'src/tools/git_branch_list/git_branch_list_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_branch_list', test_git_branch_list, is_parallel: false)
 
 test_git_checkout_branch = executable('test_git_checkout_branch',
-  'tests/unit/test_git_checkout_branch.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_checkout_branch.cpp',
+   'src/tools/git_checkout_branch/git_checkout_branch_entry.cpp',
+   'src/tools/git_checkout_branch/git_checkout_branch_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_checkout_branch', test_git_checkout_branch, is_parallel: false)
 
 test_git_commit = executable('test_git_commit',
-  'tests/unit/test_git_commit.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_commit.cpp',
+   'src/tools/git_commit/git_commit_entry.cpp',
+   'src/tools/git_commit/git_commit_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_commit', test_git_commit, is_parallel: false)
 
 test_git_diff_from_branch = executable('test_git_diff_from_branch',
-  'tests/unit/test_git_diff_from_branch.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_diff_from_branch.cpp',
+   'src/tools/git_diff_from_branch/git_diff_from_branch_entry.cpp',
+   'src/tools/git_diff_from_branch/git_diff_from_branch_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_diff_from_branch', test_git_diff_from_branch, is_parallel: false)
 
 test_git_diff_staged = executable('test_git_diff_staged',
-  'tests/unit/test_git_diff_staged.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_diff_staged.cpp',
+   'src/tools/git_diff_staged/git_diff_staged_entry.cpp',
+   'src/tools/git_diff_staged/git_diff_staged_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_diff_staged', test_git_diff_staged, is_parallel: false)
 
 test_git_diff_unstaged = executable('test_git_diff_unstaged',
-  'tests/unit/test_git_diff_unstaged.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_diff_unstaged.cpp',
+   'src/tools/git_diff_unstaged/git_diff_unstaged_entry.cpp',
+   'src/tools/git_diff_unstaged/git_diff_unstaged_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_diff_unstaged', test_git_diff_unstaged, is_parallel: false)
 
 test_git_init = executable('test_git_init',
-  'tests/unit/test_git_init.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_init.cpp',
+   'src/tools/git_init/git_init_entry.cpp',
+   'src/tools/git_init/git_init_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_init', test_git_init, is_parallel: false)
 
 test_git_log = executable('test_git_log',
-  'tests/unit/test_git_log.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_log.cpp',
+   'src/tools/git_log/git_log_entry.cpp',
+   'src/tools/git_log/git_log_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_log', test_git_log, is_parallel: false)
 
 test_git_pull = executable('test_git_pull',
-  'tests/unit/test_git_pull.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_pull.cpp',
+   'src/tools/git_pull/git_pull_entry.cpp',
+   'src/tools/git_pull/git_pull_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_pull', test_git_pull, is_parallel: false)
 
 test_git_push = executable('test_git_push',
-  'tests/unit/test_git_push.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_push.cpp',
+   'src/tools/git_push/git_push_entry.cpp',
+   'src/tools/git_push/git_push_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_push', test_git_push, is_parallel: false)
 
 test_git_restore = executable('test_git_restore',
-  'tests/unit/test_git_restore.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_restore.cpp',
+   'src/tools/git_restore/git_restore_entry.cpp',
+   'src/tools/git_restore/git_restore_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_restore', test_git_restore, is_parallel: false)
 
 test_git_status = executable('test_git_status',
-  'tests/unit/test_git_status.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_status.cpp',
+   'src/tools/git_status/git_status_entry.cpp',
+   'src/tools/git_status/git_status_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_status', test_git_status, is_parallel: false)
 
 test_git_unstage = executable('test_git_unstage',
-  'tests/unit/test_git_unstage.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_git_unstage.cpp',
+   'src/tools/git_unstage/git_unstage_entry.cpp',
+   'src/tools/git_unstage/git_unstage_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_unstage', test_git_unstage, is_parallel: false)
 
 test_wait_for_agent = executable('test_wait_for_agent',
-  'tests/unit/test_wait_for_agent.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_wait_for_agent.cpp',
+   'src/tools/wait_for_agent/wait_for_agent_entry.cpp',
+   'src/tools/wait_for_agent/wait_for_agent_security.cpp',
+   'src/tools/agent_create/agent_create_entry.cpp',
+   'src/tools/agent_create/agent_create_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_wait_for_agent', test_wait_for_agent)
 
 test_web_fetch = executable('test_web_fetch',
-  'tests/unit/test_web_fetch.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_web_fetch.cpp',
+   'src/tools/web_fetch/web_fetch_entry.cpp',
+   'src/tools/web_fetch/web_fetch_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_web_fetch', test_web_fetch)
 
 
 test_agent_add_todo = executable('test_agent_add_todo',
-  'tests/unit/test_agent_add_todo.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_add_todo.cpp',
+   'src/tools/agent_add_todo/agent_add_todo_entry.cpp',
+   'src/tools/agent_add_todo/agent_add_todo_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_add_todo', test_agent_add_todo)
 
 test_agent_complete_todo = executable('test_agent_complete_todo',
-  'tests/unit/test_agent_complete_todo.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_complete_todo.cpp',
+   'src/tools/agent_complete_todo/agent_complete_todo_entry.cpp',
+   'src/tools/agent_complete_todo/agent_complete_todo_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_complete_todo', test_agent_complete_todo)
 
 test_agent_compress_history = executable('test_agent_compress_history',
-  'tests/unit/test_agent_compress_history.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_compress_history.cpp',
+   'src/tools/agent_compress_history/agent_compress_history_entry.cpp',
+   'src/tools/agent_compress_history/agent_compress_history_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_compress_history', test_agent_compress_history)
 
 test_agent_create = executable('test_agent_create',
-  'tests/unit/test_agent_create.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_create.cpp',
+   'src/tools/agent_create/agent_create_entry.cpp',
+   'src/tools/agent_create/agent_create_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_create', test_agent_create)
 
 test_agent_delete_todo = executable('test_agent_delete_todo',
-  'tests/unit/test_agent_delete_todo.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_delete_todo.cpp',
+   'src/tools/agent_delete_todo/agent_delete_todo_entry.cpp',
+   'src/tools/agent_delete_todo/agent_delete_todo_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_delete_todo', test_agent_delete_todo)
 
 test_agent_end = executable('test_agent_end',
-  'tests/unit/test_agent_end.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_end.cpp',
+   'src/tools/agent_end/agent_end_entry.cpp',
+   'src/tools/agent_end/agent_end_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_end', test_agent_end)
 
 test_agent_get_output = executable('test_agent_get_output',
-  'tests/unit/test_agent_get_output.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_get_output.cpp',
+   'src/tools/agent_get_output/agent_get_output_entry.cpp',
+   'src/tools/agent_get_output/agent_get_output_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_get_output', test_agent_get_output)
 
 test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
-  'tests/unit/test_agent_get_run_screenshot.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_get_run_screenshot.cpp',
+   'src/tools/agent_get_run_screenshot/agent_get_run_screenshot_entry.cpp',
+   'src/tools/agent_get_run_screenshot/agent_get_run_screenshot_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_get_run_screenshot', test_agent_get_run_screenshot)
 
 test_agent_list = executable('test_agent_list',
-  'tests/unit/test_agent_list.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_list.cpp',
+   'src/tools/agent_list/agent_list_entry.cpp',
+   'src/tools/agent_list/agent_list_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_list', test_agent_list)
 
 test_agent_list_todos = executable('test_agent_list_todos',
-  'tests/unit/test_agent_list_todos.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_list_todos.cpp',
+   'src/tools/agent_list_todos/agent_list_todos_entry.cpp',
+   'src/tools/agent_list_todos/agent_list_todos_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_list_todos', test_agent_list_todos)
 
 test_agent_mark_episode = executable('test_agent_mark_episode',
-  'tests/unit/test_agent_mark_episode.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_mark_episode.cpp',
+   'src/tools/agent_mark_episode/agent_mark_episode_entry.cpp',
+   'src/tools/agent_mark_episode/agent_mark_episode_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_mark_episode', test_agent_mark_episode)
 
 test_agent_set_status = executable('test_agent_set_status',
-  'tests/unit/test_agent_set_status.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_set_status.cpp',
+   'src/tools/agent_set_status/agent_set_status_entry.cpp',
+   'src/tools/agent_set_status/agent_set_status_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_set_status', test_agent_set_status)
 
 test_agent_start_app = executable('test_agent_start_app',
-  'tests/unit/test_agent_start_app.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_start_app.cpp',
+   'src/tools/agent_start_app/agent_start_app_entry.cpp',
+   'src/tools/agent_start_app/agent_start_app_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_start_app', test_agent_start_app)
 
 test_agent_status = executable('test_agent_status',
-  'tests/unit/test_agent_status.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_status.cpp',
+   'src/tools/agent_status/agent_status_entry.cpp',
+   'src/tools/agent_status/agent_status_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_status', test_agent_status)
 
 test_agent_terminate_run = executable('test_agent_terminate_run',
-  'tests/unit/test_agent_terminate_run.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_terminate_run.cpp',
+   'src/tools/agent_terminate_run/agent_terminate_run_entry.cpp',
+   'src/tools/agent_terminate_run/agent_terminate_run_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_terminate_run', test_agent_terminate_run)
 
 test_agent_todo_status = executable('test_agent_todo_status',
-  'tests/unit/test_agent_todo_status.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_todo_status.cpp',
+   'src/tools/agent_todo_status/agent_todo_status_entry.cpp',
+   'src/tools/agent_todo_status/agent_todo_status_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_todo_status', test_agent_todo_status)
 
 test_agent_write_to_run = executable('test_agent_write_to_run',
-  'tests/unit/test_agent_write_to_run.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_write_to_run.cpp',
+   'src/tools/agent_write_to_run/agent_write_to_run_entry.cpp',
+   'src/tools/agent_write_to_run/agent_write_to_run_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_write_to_run', test_agent_write_to_run)
 
 test_ask_user = executable('test_ask_user',
-  'tests/unit/test_ask_user.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_ask_user.cpp',
+   'src/tools/ask_user/ask_user_entry.cpp',
+   'src/tools/ask_user/ask_user_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_ask_user', test_ask_user)
 
 test_clear_all_errors = executable('test_clear_all_errors',
-  'tests/unit/test_clear_all_errors.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_clear_all_errors.cpp',
+   'src/tools/clear_all_errors/clear_all_errors_entry.cpp',
+   'src/tools/clear_all_errors/clear_all_errors_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_clear_all_errors', test_clear_all_errors)
 
 test_code_get_definition = executable('test_code_get_definition',
-  'tests/unit/test_code_get_definition.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_code_get_definition.cpp',
+   'src/tools/code_get_definition/code_get_definition_entry.cpp',
+   'src/tools/code_get_definition/code_get_definition_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_code_get_definition', test_code_get_definition)
 
 test_code_get_references = executable('test_code_get_references',
-  'tests/unit/test_code_get_references.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_code_get_references.cpp',
+   'src/tools/code_get_references/code_get_references_entry.cpp',
+   'src/tools/code_get_references/code_get_references_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_code_get_references', test_code_get_references)
 
 test_code_get_scope = executable('test_code_get_scope',
-  'tests/unit/test_code_get_scope.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_code_get_scope.cpp',
+   'src/tools/code_get_scope/code_get_scope_entry.cpp',
+   'src/tools/code_get_scope/code_get_scope_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_code_get_scope', test_code_get_scope)
 
 test_crashdump_get_info = executable('test_crashdump_get_info',
-  'tests/unit/test_crashdump_get_info.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_crashdump_get_info.cpp',
+   'src/tools/crashdump_get_info/crashdump_get_info_entry.cpp',
+   'src/tools/crashdump_get_info/crashdump_get_info_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_crashdump_get_info', test_crashdump_get_info)
 
 test_crashdump_list = executable('test_crashdump_list',
-  'tests/unit/test_crashdump_list.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_crashdump_list.cpp',
+   'src/tools/crashdump_list/crashdump_list_entry.cpp',
+   'src/tools/crashdump_list/crashdump_list_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_crashdump_list', test_crashdump_list)
 
 test_flag_as_error = executable('test_flag_as_error',
-  'tests/unit/test_flag_as_error.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_flag_as_error.cpp',
+   'src/tools/flag_as_error/flag_as_error_entry.cpp',
+   'src/tools/flag_as_error/flag_as_error_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_flag_as_error', test_flag_as_error)
 
 test_fs_list_dir = executable('test_fs_list_dir',
-  'tests/unit/test_fs_list_dir.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_list_dir.cpp',
+   'src/tools/fs_list_dir/fs_list_dir_entry.cpp',
+   'src/tools/fs_list_dir/fs_list_dir_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_list_dir', test_fs_list_dir)
 
 test_fs_mkdir = executable('test_fs_mkdir',
-  'tests/unit/test_fs_mkdir.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_mkdir.cpp',
+   'src/tools/fs_mkdir/fs_mkdir_entry.cpp',
+   'src/tools/fs_mkdir/fs_mkdir_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_mkdir', test_fs_mkdir)
 
 test_fs_read_binary = executable('test_fs_read_binary',
-  'tests/unit/test_fs_read_binary.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_read_binary.cpp',
+   'src/tools/fs_read_binary/fs_read_binary_entry.cpp',
+   'src/tools/fs_read_binary/fs_read_binary_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_read_binary', test_fs_read_binary)
 
 test_fs_regexp_lines = executable('test_fs_regexp_lines',
-  'tests/unit/test_fs_regexp_lines.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_regexp_lines.cpp',
+   'src/tools/fs_regexp_lines/fs_regexp_lines_entry.cpp',
+   'src/tools/fs_regexp_lines/fs_regexp_lines_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_regexp_lines', test_fs_regexp_lines)
 
 test_fs_compile_file = executable('test_fs_compile_file',
-  'tests/unit/test_fs_compile_file.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_compile_file.cpp',
+   'src/tools/fs_compile_file/fs_compile_file_entry.cpp',
+   'src/tools/fs_compile_file/fs_compile_file_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_compile_file', test_fs_compile_file)
 
 test_fs_compile_info = executable('test_fs_compile_info',
-  'tests/unit/test_fs_compile_info.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_compile_info.cpp',
+   'src/tools/fs_compile_info/fs_compile_info_entry.cpp',
+   'src/tools/fs_compile_info/fs_compile_info_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_compile_info', test_fs_compile_info)
 
 test_fs_compile_project = executable('test_fs_compile_project',
-  'tests/unit/test_fs_compile_project.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_compile_project.cpp',
+   'src/tools/fs_compile_project/fs_compile_project_entry.cpp',
+   'src/tools/fs_compile_project/fs_compile_project_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_compile_project', test_fs_compile_project)
 
 test_fs_compile_summary = executable('test_fs_compile_summary',
-  'tests/unit/test_fs_compile_summary.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_fs_compile_summary.cpp',
+   'src/tools/fs_compile_summary/fs_compile_summary_entry.cpp',
+   'src/tools/fs_compile_summary/fs_compile_summary_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_compile_summary', test_fs_compile_summary)
 
 test_get_current_datetime = executable('test_get_current_datetime',
-  'tests/unit/test_get_current_datetime.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_get_current_datetime.cpp',
+   'src/tools/get_current_datetime/get_current_datetime_entry.cpp',
+   'src/tools/get_current_datetime/get_current_datetime_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_get_current_datetime', test_get_current_datetime)
 
 test_get_temperature = executable('test_get_temperature',
-  'tests/unit/test_get_temperature.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_get_temperature.cpp',
+   'src/tools/get_temperature/get_temperature_entry.cpp',
+   'src/tools/get_temperature/get_temperature_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_get_temperature', test_get_temperature)
 
 test_open_in_editor = executable('test_open_in_editor',
-  'tests/unit/test_open_in_editor.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_open_in_editor.cpp',
+   'src/tools/open_in_editor/open_in_editor_entry.cpp',
+   'src/tools/open_in_editor/open_in_editor_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_open_in_editor', test_open_in_editor)
 

@@ -17,8 +17,8 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-- audit meson.build to see if our testcases should link to .a files when they currently may build MANY .cpp files
-    - linking to .a files will save a lot of compile time
+- audit meson.build to see if our testcases should link to all the .cpp or .a files they do -- we relink too many files
+   when we touch a single agent file
 
 - a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 

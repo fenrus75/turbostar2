@@ -30,6 +30,22 @@ nlohmann::json agent_mark_episode_validator::get_parameters_schema() const {
 bool agent_mark_episode_validator::validate_args_impl(const nlohmann::json& raw_json, const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
     try {
         args_ = raw_json.get<agent_mark_episode_args>();
+        if (args_.title.empty()) {
+            out_error = "Title cannot be empty";
+            return false;
+        }
+        if (args_.title.length() > 200) {
+            out_error = "Title length exceeds limit of 200 characters";
+            return false;
+        }
+        if (args_.summary.empty()) {
+            out_error = "Summary cannot be empty";
+            return false;
+        }
+        if (args_.summary.length() > 200) {
+            out_error = "Summary length exceeds limit of 200 characters";
+            return false;
+        }
         return true;
     } catch (const std::exception& e) {
         out_error = "Invalid arguments: " + std::string(e.what());
