@@ -1,5 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- high value: we should override __assert_fail() in libturbocatch.so so that we can do better reporting assertion failures
+  (once we log the arguments, we can then call the original that we get from dlsym or whatever)
+
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
@@ -14,6 +17,8 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
+- audit meson.build to see if our testcases should link to .a files when they currently may build MANY .cpp files
+    - linking to .a files will save a lot of compile time
 
 - a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 

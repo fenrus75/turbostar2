@@ -2,6 +2,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <format>
 #include <httplib.h>
 #include "../../src/agentlib/httplib_transport.h"
 
@@ -30,7 +31,7 @@ int main()
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
  
 	// Create httplib_transport pointing to our slow server
-	std::string base_url = "http://127.0.0.1:" + std::to_string(port);
+	std::string base_url = std::format("http://127.0.0.1:{}", port);
 	agentlib::httplib_transport transport(base_url);
  
 	// Test the standard POST request. We expect this to succeed post-fix (takes 1s, timeout is 300s)
@@ -40,7 +41,7 @@ int main()
 	auto resp = transport.post("/slow", "{}");
 	auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
 
-	std::cout << "POST request completed. Status: " << resp.status_code << ", Body: " << resp.body << std::endl;
+	std::cout << "POST request completed. Status: " << resp.status_code << ", Body: " << resp.body << " (took " << duration << "s)" << std::endl;
 
 	// Test the streaming POST request.
 	std::cout << "Making streaming POST request to /slow..." << std::endl;

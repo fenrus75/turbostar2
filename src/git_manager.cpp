@@ -242,7 +242,7 @@ bool git_manager::is_valid_branch_name(const std::string &name)
 		if (static_cast<unsigned char>(c) < 32 || static_cast<unsigned char>(c) == 127) {
 			return false;
 		}
-		// Characters forbidden: space, ~, ^, :, ?, *, [, \\
+		// Characters forbidden: space, ~, ^, :, ?, *, [, backslash
 		// Also quotes, pipes, redirection etc. for safety
 		bool is_forbidden = (c == ' ' || c == '~' || c == '^' || c == ':' || c == '?' || c == '*' || c == '[' || c == '\\' ||
 				     c == '\'' || c == '"' || c == '`' || c == '$' || c == ';' || c == '&' || c == '|' || c == '<' || c == '>');
