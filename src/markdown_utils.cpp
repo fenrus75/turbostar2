@@ -108,12 +108,18 @@ std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 
 std::string table_aligner::trim(const std::string &s)
 {
+	return markdown_utils::trim(s);
+}
+
+std::string trim(std::string_view s)
+{
 	auto first = s.find_first_not_of(" \t\r\n");
-	if (std::string::npos == first)
+	if (std::string_view::npos == first)
 		return "";
 	auto last = s.find_last_not_of(" \t\r\n");
-	return s.substr(first, (last - first + 1));
+	return std::string(s.substr(first, (last - first + 1)));
 }
+
 
 size_t utf8_length(const std::string &s)
 {
