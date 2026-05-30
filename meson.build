@@ -149,6 +149,12 @@ test_run_python = executable('test_run_python',
   include_directories: inc)
 test('unit_test_run_python', test_run_python)
 
+test_run_shell_command = executable('test_run_shell_command',
+  'tests/unit/test_run_shell_command.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_run_shell_command', test_run_shell_command)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
