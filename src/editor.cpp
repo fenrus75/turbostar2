@@ -32,12 +32,12 @@ editor::editor(editor_options opts)
 		project_manager::get_instance().lsp_start(global_queue_);
 	}
 
-	std::string repo_root = git_manager::get_instance().get_repository_root();
+	std::string project_root = project_manager::get_instance().get_project_root();
 
 	if (opts.filenames.empty()) {
 		bool loaded_files = false;
-		if (!repo_root.empty()) {
-			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(repo_root);
+		if (!project_root.empty()) {
+			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(project_root);
 			if (!proj_files.empty()) {
 				for (const auto &f : proj_files) {
 					new_window(f);
@@ -606,8 +606,8 @@ void editor::run()
 		}
 	}
 
-	std::string repo_root = git_manager::get_instance().get_repository_root();
-	if (!repo_root.empty()) {
+	std::string project_root = project_manager::get_instance().get_project_root();
+	if (!project_root.empty()) {
 		std::vector<std::string> open_files;
 		for (const auto &w : windows_) {
 			auto doc = w->get_document();
@@ -615,7 +615,7 @@ void editor::run()
 				open_files.push_back(doc->get_filename());
 			}
 		}
-		history_manager::get_instance().set_project_files(repo_root, open_files);
+		history_manager::get_instance().set_project_files(project_root, open_files);
 	}
 
 	history_manager::get_instance().save();

@@ -6,6 +6,7 @@
 #include <sstream>
 #include "fs_utils.h"
 #include "git_manager.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -158,11 +159,8 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 				}
 
 				// Normalize and strip project root from location if present
-				static std::string repo_root = git_manager::get_instance().get_repository_root();
-				if (repo_root.empty()) {
-					repo_root = fs::current_path().string();
-				}
-				std::string prefix = repo_root;
+				static std::string project_root = project_manager::get_instance().get_project_root();
+				std::string prefix = project_root;
 				if (!prefix.empty() && prefix.back() != '/') {
 					prefix += "/";
 				}
@@ -174,7 +172,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 
 					fs::path p(file_part);
 					if (!p.is_absolute()) {
-						p = fs::path(repo_root) / p;
+						p = fs::path(project_root) / p;
 					}
 					file_part = p.lexically_normal().string();
 

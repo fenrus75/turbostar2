@@ -53,6 +53,7 @@
 
 - better undo batching than "every keypress"
 
+- detect "file has change on disk" by checking file mtime once in a while as the user is typing
 
 # mid term items
 
@@ -67,6 +68,9 @@
 	- mostly maps to just downloading the raw file with a small LRU driven cache
 	- readdir is the complex one, both for projects and for files in a project
 
+- a few "github" tools 
+	- create PR
+	- fetch PR info
 
 - mouse support for resizing windows (bottom right corner) and moving (title bar)
 

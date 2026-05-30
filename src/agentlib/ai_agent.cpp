@@ -9,6 +9,7 @@
 #include "../event_queue.h"
 #include "../event_logger.h"
 #include "../git_manager.h"
+#include "../project_manager.h"
 #include "../fs_utils.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
@@ -637,13 +638,7 @@ void ai_agent::start_processing()
 		auto &registry = tool_registry::get_instance();
 		tool_context ctx;
 
-		std::string git_root = git_manager::get_instance().get_repository_root();
-		std::filesystem::path workspace_root;
-		if (!git_root.empty()) {
-			workspace_root = std::filesystem::path(git_root);
-		} else {
-			workspace_root = std::filesystem::current_path();
-		}
+		std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
 
 		ctx.fs_security.set_working_directory(workspace_root);
 		ctx.fs_security.add_allowed_root(workspace_root, access_type::read);

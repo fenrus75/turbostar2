@@ -79,9 +79,8 @@ void editor::resolve_dialog(dialog_result res)
 
 				// Handle Linux Kernel formatting style special case
 				if (config_manager::get_instance().get_clang_format_style() == "Linux Kernel") {
-					std::string repo_root = git_manager::get_instance().get_repository_root();
-					std::string target_dir = repo_root.empty() ? std::filesystem::current_path().string() : repo_root;
-					std::filesystem::path format_file = std::filesystem::path(target_dir) / ".clang-format";
+					std::string project_root = project_manager::get_instance().get_project_root();
+					std::filesystem::path format_file = std::filesystem::path(project_root) / ".clang-format";
 					if (!std::filesystem::exists(format_file)) {
 						std::ofstream out(format_file);
 						if (out.is_open()) {

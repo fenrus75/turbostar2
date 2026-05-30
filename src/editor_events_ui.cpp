@@ -25,6 +25,7 @@
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "project_manager.h"
 #include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
@@ -193,13 +194,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			return;
 		}
 
-		std::string repo_root = git_manager::get_instance().get_repository_root();
-		if (repo_root.empty()) {
-			repo_root = std::filesystem::current_path().string();
-		}
-		std::filesystem::path build_exe = std::filesystem::path(repo_root) / "build" / exe;
+		std::string project_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path build_exe = std::filesystem::path(project_root) / "build" / exe;
 		if (!std::filesystem::exists(build_exe)) {
-			build_exe = std::filesystem::path(repo_root) / exe;
+			build_exe = std::filesystem::path(project_root) / exe;
 			if (!std::filesystem::exists(build_exe)) {
 				build_exe = exe;
 			}
@@ -494,13 +492,10 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		return {-1, -1};
 	}
 
-	std::string repo_root = git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
-	std::filesystem::path build_exe = std::filesystem::path(repo_root) / "build" / exe;
+	std::string project_root = project_manager::get_instance().get_project_root();
+	std::filesystem::path build_exe = std::filesystem::path(project_root) / "build" / exe;
 	if (!std::filesystem::exists(build_exe)) {
-		build_exe = std::filesystem::path(repo_root) / exe;
+		build_exe = std::filesystem::path(project_root) / exe;
 		if (!std::filesystem::exists(build_exe)) {
 			build_exe = exe;
 		}
@@ -538,7 +533,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 
 		// Generate a unique FIFO path in the project root directory (since /tmp is isolated in the sandbox)
 		static std::atomic<unsigned int> fifo_counter{0};
-		fs::path fifo_path = fs::path(repo_root) / std::format(".turbostar_fifo_{}_{}_{}", getpid(), app_id, ++fifo_counter);
+		fs::path fifo_path = fs::path(project_root) / std::format(".turbostar_fifo_{}_{}_{}", getpid(), app_id, ++fifo_counter);
 		if (mkfifo(fifo_path.c_str(), 0600) != 0) {
 			logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
 		}
