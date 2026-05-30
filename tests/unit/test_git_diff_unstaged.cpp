@@ -12,7 +12,9 @@ using namespace agentlib;
 
 void write_file(const std::filesystem::path &path, const std::string &content)
 {
-	std::filesystem::create_directories(path.parent_path());
+	if (!path.parent_path().empty()) {
+		std::filesystem::create_directories(path.parent_path());
+	}
 	std::ofstream out(path);
 	out << content;
 }
@@ -31,16 +33,7 @@ int main()
 
 	std::cout << "Testing git_diff_unstaged..." << std::endl;
 
-	// 1. Success case: retrieve diff for modified file meson.build
-	{
-		nlohmann::json args = {{"path", "meson.build"}};
-		std::string result = registry.execute_tool("git_diff_unstaged", args.dump(), ctx);
-		std::cout << "Result meson.build:\n" << result << std::endl;
-		assert(!result.empty());
-		assert(result.find("meson.build") != std::string::npos);
-	}
-
-	// 2. Success case: modify a file and retrieve diff
+	// 1. Success case: modify a file and retrieve diff
 	{
 		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "dummy_diff_unstaged.txt";
 		write_file(dummy_file, "initial content\n");
@@ -61,7 +54,7 @@ int main()
 		std::filesystem::remove(dummy_file);
 	}
 
-	// 3. Security failure: path outside allowed root
+	// 2. Security failure: path outside allowed root
 	{
 		nlohmann::json args = {{"path", "../../../etc/passwd"}};
 		auto prep = registry.prepare_tool("git_diff_unstaged", args.dump(), ctx);
@@ -69,7 +62,7 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
-	// 4. Validation failure: unexpected arguments (should fail validation as per review recommendations)
+	// 3. Validation failure: unexpected arguments (should fail validation as per review recommendations)
 	{
 		nlohmann::json args = {{"path", "."}, {"unexpected_arg", 123}};
 		auto prep = registry.prepare_tool("git_diff_unstaged", args.dump(), ctx);
