@@ -108,14 +108,26 @@ test_tool_infrastructure = executable('test_tool_infrastructure',
 test('unit_tool_infrastructure', test_tool_infrastructure)
 
 test_tools = executable('test_tools',
-  'tests/unit/test_tools.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_tools.cpp',
+   'src/tools/fs_list_tests/fs_list_tests_entry.cpp',
+   'src/tools/fs_list_tests/fs_list_tests_security.cpp',
+   'src/tools/fs_run_tests/fs_run_tests_entry.cpp',
+   'src/tools/fs_run_tests/fs_run_tests_security.cpp',
+   'src/tools/agent_set_timer/agent_set_timer_entry.cpp',
+   'src/tools/agent_set_timer/agent_set_timer_security.cpp',
+   'src/tools/agent_list_episodes/agent_list_episodes_entry.cpp',
+   'src/tools/agent_list_episodes/agent_list_episodes_security.cpp',
+   'src/tools/agent_add_todo/agent_add_todo_entry.cpp',
+   'src/tools/agent_add_todo/agent_add_todo_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_tools', test_tools)
 
 test_shell_security = executable('test_shell_security',
-  'tests/unit/test_shell_security.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_shell_security.cpp',
+   'src/tools/git_add/git_add_entry.cpp',
+   'src/tools/git_add/git_add_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_shell_security', test_shell_security)
 
@@ -146,7 +158,9 @@ test('unit_test_list_tool_calls', test_list_tool_calls)
 test_message_agent = executable('test_message_agent',
   ['tests/unit/test_message_agent.cpp',
    'src/tools/message_agent/message_agent_entry.cpp',
-   'src/tools/message_agent/message_agent_security.cpp'],
+   'src/tools/message_agent/message_agent_security.cpp',
+   'src/tools/agent_create/agent_create_entry.cpp',
+   'src/tools/agent_create/agent_create_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_message_agent', test_message_agent)
@@ -464,7 +478,7 @@ test_code_get_definition = executable('test_code_get_definition',
    'src/tools/code_get_definition/code_get_definition_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_definition', test_code_get_definition)
+test('unit_test_code_get_definition', test_code_get_definition, is_parallel: false)
 
 test_code_get_references = executable('test_code_get_references',
   ['tests/unit/test_code_get_references.cpp',
@@ -472,7 +486,7 @@ test_code_get_references = executable('test_code_get_references',
    'src/tools/code_get_references/code_get_references_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_references', test_code_get_references)
+test('unit_test_code_get_references', test_code_get_references, is_parallel: false)
 
 test_code_get_scope = executable('test_code_get_scope',
   ['tests/unit/test_code_get_scope.cpp',
@@ -480,7 +494,7 @@ test_code_get_scope = executable('test_code_get_scope',
    'src/tools/code_get_scope/code_get_scope_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_scope', test_code_get_scope)
+test('unit_test_code_get_scope', test_code_get_scope, is_parallel: false)
 
 test_crashdump_get_info = executable('test_crashdump_get_info',
   ['tests/unit/test_crashdump_get_info.cpp',
@@ -596,7 +610,7 @@ test('unit_test_open_in_editor', test_open_in_editor)
 
 test_vim_emulation = executable('test_vim_emulation',
   'tests/unit/test_vim_emulation.cpp',
-  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_vim_emulation', test_vim_emulation)
 
@@ -715,7 +729,7 @@ test('unit_output_filter', test_output_filter)
 
 test_run_config = executable('test_run_config',
   'tests/unit/test_run_config.cpp',
-  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_run_config', test_run_config)
 
@@ -879,19 +893,20 @@ if uv.found() or python.found()
   )
   if git_prog.found()
     test('e2e_git', e2e_exe,
-    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git.py')],
+      args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git.py')],
       env: e2e_env,
       workdir: meson.project_build_root(),
-      timeout: 60
+      timeout: 60,
+      is_parallel: false
     )
     test('e2e_git_mouse', e2e_exe,
-    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git_mouse.py')],
+      args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git_mouse.py')],
       env: e2e_env,
       workdir: meson.project_build_root(),
-      timeout: 60
+      timeout: 60,
+      is_parallel: false
     )
-  
-endif
+  endif
 
   test('e2e_save_mouse', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_save_mouse.py')],

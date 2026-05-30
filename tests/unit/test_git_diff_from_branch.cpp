@@ -6,7 +6,21 @@
 #include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
 
+#include <fstream>
+
 using namespace agentlib;
+
+std::string read_file(const std::string &path)
+{
+	std::ifstream in(path);
+	return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+void write_file(const std::string &path, const std::string &content)
+{
+	std::ofstream out(path);
+	out << content;
+}
 
 int main()
 {
@@ -19,11 +33,19 @@ int main()
 
 	// 1. Success case: retrieve diff against HEAD
 	{
+		// Modify a tracked file to ensure there is a diff against HEAD
+		std::string test_file_path = "tests/unit/test_git_diff_from_branch.cpp";
+		std::string original_content = read_file(test_file_path);
+		write_file(test_file_path, original_content + "\n// temp modification\n");
+
 		nlohmann::json args = {{"branch_name", "HEAD"}};
 		std::string result = registry.execute_tool("git_diff_from_branch", args.dump(), ctx);
 		std::cout << "Result against HEAD:\n" << result << std::endl;
+
+		// Restore the file
+		write_file(test_file_path, original_content);
+
 		assert(!result.empty());
-		// Since we have local unstaged changes, diff against HEAD should show them
 		assert(result.find("diff --git") != std::string::npos);
 	}
 

@@ -42,6 +42,10 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 	{
 		try {
 			crashdump_get_info_raw_args raw_args = args_json.get<crashdump_get_info_raw_args>();
+			if (raw_args.crash_id.empty()) {
+				out_error = "Crash ID cannot be empty.";
+				return false;
+			}
 			args_.crash_id = raw_args.crash_id;
 			return true;
 		} catch (const std::exception &e) {
