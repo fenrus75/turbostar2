@@ -2,10 +2,6 @@
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
-- simplification: have our logger a use variadic template method so that the log() function acts like std::format
-    (needs to use std::vformat internally)
-
-
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - github copilot oauth authentication
@@ -106,6 +102,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented a variadic `std::format`-style overload for `event_logger::log` that internally wraps `std::vformat` and `std::make_format_args`, simplifying logging calls across the codebase (removed nested `std::format(...)` calls).
 - performed a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) and fixed command injection vulnerabilities across tools by replacing manual single-quoting with robust `fs_utils::escape_shell_arg`.
 - implemented a secure-by-design, variadic `std::format`-style API in `command_runner`, `sync_command_runner`, and `fs_utils::execute_command_sync` that automatically shell-escapes all formatted parameters (strings and file paths) while forwarding non-string arguments (like numbers) as-is. Added corresponding comments documenting them as self-escaping to assist code review tools.
 
