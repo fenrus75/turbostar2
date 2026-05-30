@@ -17,7 +17,8 @@ class terminal_window : public ::window
 	virtual ~terminal_window();
 
 	// Spawn the process in a PTY. Uses command_runner internally for sandboxing.
-	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false, bool enable_crash_catcher = true);
+	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false,
+			   bool enable_crash_catcher = true);
 
 	// Stop process (sends SIGTERM/SIGKILL)
 	void stop_process();
@@ -59,6 +60,7 @@ class terminal_window : public ::window
       protected:
 	void draw_content() const override;
 	void draw_border() const override;
+	void on_resize(int width, int height) override;
 
       private:
 	struct debug_button {

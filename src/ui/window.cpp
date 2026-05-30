@@ -1,6 +1,6 @@
 #include "ui/window.h"
-#include <ncurses.h>
 #include <format>
+#include <ncurses.h>
 #include "build_error_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
@@ -8,6 +8,23 @@
 window::window(int id, int x, int y, int width, int height, const std::string &title)
     : x_(x), y_(y), width_(width), height_(height), id_(id), title_(title)
 {
+}
+
+void window::set_bounds(int x, int y, int width, int height)
+{
+	bool size_changed = (width_ != width || height_ != height);
+	bool pos_changed = (x_ != x || y_ != y);
+	x_ = x;
+	y_ = y;
+	width_ = width;
+	height_ = height;
+
+	if (pos_changed) {
+		on_move(x, y);
+	}
+	if (size_changed) {
+		on_resize(width, height);
+	}
 }
 
 void window::update_last_active_timestamp()

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <string>
-#include <chrono>
 #include "document.h"
 #include "event_queue.h"
 
@@ -22,31 +22,65 @@ class window
 	 */
 	event_queue &get_queue();
 
-	uint64_t get_last_active_timestamp() const { return last_active_timestamp_; }
+	uint64_t get_last_active_timestamp() const
+	{
+		return last_active_timestamp_;
+	}
 	void update_last_active_timestamp();
 
-	int get_display_priority() const { return display_priority_; }
-	void set_display_priority(int priority) { display_priority_ = priority; }
-
-	bool is_visible() const { return is_visible_; }
-	void set_visible(bool visible) { is_visible_ = visible; }
-
-	int get_x() const { return x_; }
-	int get_y() const { return y_; }
-	int get_width() const { return width_; }
-	int get_height() const { return height_; }
-	int get_id() const { return id_; }
-	void set_bounds(int x, int y, int width, int height) {
-		x_ = x;
-		y_ = y;
-		width_ = width;
-		height_ = height;
+	int get_display_priority() const
+	{
+		return display_priority_;
 	}
-	int get_popup_button_x() const { return x_ + width_ - 10; }
+	void set_display_priority(int priority)
+	{
+		display_priority_ = priority;
+	}
+
+	bool is_visible() const
+	{
+		return is_visible_;
+	}
+	void set_visible(bool visible)
+	{
+		is_visible_ = visible;
+	}
+
+	int get_x() const
+	{
+		return x_;
+	}
+	int get_y() const
+	{
+		return y_;
+	}
+	int get_width() const
+	{
+		return width_;
+	}
+	int get_height() const
+	{
+		return height_;
+	}
+	int get_id() const
+	{
+		return id_;
+	}
+	void set_bounds(int x, int y, int width, int height);
+	int get_popup_button_x() const
+	{
+		return x_ + width_ - 10;
+	}
 	int get_git_button_width() const;
 
-	int get_background_color_pair() const { return background_color_pair_; }
-	void set_background_color_pair(int pair) { background_color_pair_ = pair; }
+	int get_background_color_pair() const
+	{
+		return background_color_pair_;
+	}
+	void set_background_color_pair(int pair)
+	{
+		background_color_pair_ = pair;
+	}
 
 	/**
 	 * @brief Processes all pending events in the window's local queue.
@@ -55,7 +89,10 @@ class window
 	virtual bool process_events();
 	void invalidate();
 	virtual void set_cursor_position() const;
-	virtual bool is_cursor_visible() const { return true; }
+	virtual bool is_cursor_visible() const
+	{
+		return true;
+	}
 	int get_cursor_x() const;
 	int get_cursor_y() const;
 
@@ -78,7 +115,10 @@ class window
 		return height_ - 2;
 	}
 
-	event_queue& get_window_queue() { return window_queue_; }
+	event_queue &get_window_queue()
+	{
+		return window_queue_;
+	}
 
       protected:
 	int x_, y_, width_, height_;
@@ -86,6 +126,12 @@ class window
 	int background_color_pair_{3};
 	virtual void draw_content() const;
 	virtual void draw_border() const;
+	virtual void on_resize(int /*width*/, int /*height*/)
+	{
+	}
+	virtual void on_move(int /*x*/, int /*y*/)
+	{
+	}
 
       private:
 	void update_viewport() const;
@@ -101,8 +147,10 @@ class window
 	mutable int left_column_{0};
 
 	bool needs_render_{false};
+
       protected:
 	std::shared_ptr<document> doc_;
+
       private:
 	event_queue window_queue_;
 };

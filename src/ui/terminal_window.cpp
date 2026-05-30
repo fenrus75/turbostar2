@@ -1,5 +1,4 @@
 #include "terminal_window.h"
-#include <termios.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -10,15 +9,15 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 #include "../command_runner.h"
+#include "../event_logger.h"
 #include "build_error_manager.h"
 #include "gcc_log_parser.h"
-#include "../event_logger.h"
 
 #include <map>
 #include <utility>
-
 
 namespace ui
 {
@@ -60,7 +59,8 @@ terminal_window::~terminal_window()
 	}
 }
 
-bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network, bool enable_crash_catcher)
+bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network,
+				    bool enable_crash_catcher)
 {
 	stop_process();
 	parser_ = std::move(parser);
@@ -489,12 +489,7 @@ void terminal_window::draw_content() const
 std::vector<terminal_window::debug_button> terminal_window::get_debug_buttons() const
 {
 	std::vector<debug_button> buttons = {
-		{"Break", "\x03", 0, 0},
-		{"Step", "s\n", 0, 0},
-		{"Next", "n\n", 0, 0},
-		{"Cont", "c\n", 0, 0},
-		{"Quit", "q\n", 0, 0}
-	};
+	    {"Break", "\x03", 0, 0}, {"Step", "s\n", 0, 0}, {"Next", "n\n", 0, 0}, {"Cont", "c\n", 0, 0}, {"Quit", "q\n", 0, 0}};
 	int cur_x = 2;
 	for (auto &btn : buttons) {
 		btn.start_x = cur_x;
@@ -559,6 +554,23 @@ terminal_window::screenshot_data terminal_window::get_screenshot() const
 		data.grid.push_back(row_str);
 	}
 	return data;
+}
+
+void terminal_window::on_resize(int width, int height)
+{
+	emulator_.resize(width - 2, height - 2);
+
+	if (pty_master_ >= 0) {
+		struct winsize ws;
+		ws.ws_row = height - 2;
+		ws.ws_col = width - 2;
+		ws.ws_xpixel = 0;
+		ws.ws_ypixel = 0;
+		ioctl(pty_master_, TIOCSWINSZ, &ws);
+		if (pid_ > 0) {
+			kill(pid_, SIGWINCH);
+		}
+	}
 }
 
 } // namespace ui
