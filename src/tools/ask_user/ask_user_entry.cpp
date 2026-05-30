@@ -7,8 +7,12 @@ ask_user_tool::ask_user_tool(ask_user_args args) : args_(std::move(args))
 {
 }
 
-bool ask_user_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
+bool ask_user_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
+	if (!ctx.queue) {
+		out_error = "Execution Error: No event queue available to prompt the user.";
+		return false;
+	}
 	return true;
 }
 
