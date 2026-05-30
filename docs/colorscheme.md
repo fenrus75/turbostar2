@@ -24,11 +24,13 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | Element | Foreground | Background | Pair | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **Window Background** | Yellow | Dark Blue | 3 | Main text content. |
-| **Window Borders** | White | Dark Blue | 5 | Double-line box drawing characters. |
-| **Window Title** | White | Dark Blue | 5 | Centered on the top border. |
+| **Window Borders** | Bright White | Dark Blue | 5 | Focused window borders. |
+| **Window Borders (Unfocused)** | White | Dark Blue | 38 | Unfocused window borders (dimmer). |
+| **Window Title** | Bright White | Dark Blue | 5 | Centered on the top border. |
 | **Scrollbar Track** | Cyan | Dark Blue | 4 | Dithered/shaded block characters. |
 | **Scrollbar Arrows** | Cyan | Dark Blue | 4 | Scroll indicators. |
-| **Window Widgets** | Green | Dark Blue | 5 | e.g., the `[■]` close button inner square. |
+| **Window Widgets** | Bright Yellow | Dark Blue | 3 | Focused close [■] and menu [≡] icons. |
+| **Window Widgets (Unfocused)** | Yellow | Dark Blue | 39 | Unfocused close [■] and menu [≡] icons. |
 | **Diff: Additions** | Bright Green | Dark Blue | 30 | Lines added via fs_replace_lines. |
 | **Diff: Deletions** | Bright Red | Dark Blue | 31 | Lines removed via fs_replace_lines. |
 | **Diff: Header** | Bright Cyan | Dark Blue | 32 | The `@@ -X,Y +X,Y @@` context headers. |
