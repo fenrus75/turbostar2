@@ -53,6 +53,16 @@ class git_manager
 	 */
 	std::string get_repository_root() const;
 
+	/**
+	 * @brief Validates if a string is a safe and valid Git branch name.
+	 */
+	static bool is_valid_branch_name(const std::string &name);
+
+	/**
+	 * @brief Validates if a string is a safe Git revision expression (e.g. branch, tag, HEAD~1, HEAD^).
+	 */
+	static bool is_valid_revision(const std::string &revision);
+
       private:
 	git_manager() = default;
 	~git_manager();

@@ -1,5 +1,6 @@
 #include "git_manager.h"
 #include <array>
+#include <cctype>
 #include <cstdio>
 #include <format>
 #include <filesystem>
@@ -193,3 +194,95 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 
 	return info;
 }
+
+bool git_manager::is_valid_branch_name(const std::string &name)
+{
+	if (name.empty()) {
+		return false;
+	}
+	// Prevent flag injection
+	if (name.front() == '-') {
+		return false;
+	}
+	// Prevent directory traversal or ref range
+	if (name.find("..") != std::string::npos) {
+		return false;
+	}
+	// Prevent lock files
+	if (name.ends_with(".lock")) {
+		return false;
+	}
+	// Prevent @{
+	if (name.find("@{") != std::string::npos) {
+		return false;
+	}
+	// Prevent double slashes or start/end with slash
+	if (name.front() == '/' || name.back() == '/' || name.find("//") != std::string::npos) {
+		return false;
+	}
+	// Prevent end with a dot
+	if (name.back() == '.') {
+		return false;
+	}
+
+	// Split by '/' to ensure no component starts with a dot
+	size_t pos = 0;
+	while (pos < name.length()) {
+		if (pos == 0 || name[pos - 1] == '/') {
+			if (name[pos] == '.') {
+				return false;
+			}
+		}
+		pos++;
+	}
+
+	// Loop through characters to reject forbidden chars
+	for (char c : name) {
+		// ASCII control chars under 32 and DEL (127) are blocked
+		if (static_cast<unsigned char>(c) < 32 || static_cast<unsigned char>(c) == 127) {
+			return false;
+		}
+		// Characters forbidden: space, ~, ^, :, ?, *, [, \\
+		// Also quotes, pipes, redirection etc. for safety
+		bool is_forbidden = (c == ' ' || c == '~' || c == '^' || c == ':' || c == '?' || c == '*' || c == '[' || c == '\\' ||
+				     c == '\'' || c == '"' || c == '`' || c == '$' || c == ';' || c == '&' || c == '|' || c == '<' || c == '>');
+		if (is_forbidden) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool git_manager::is_valid_revision(const std::string &revision)
+{
+	if (revision.empty()) {
+		return false;
+	}
+	// Prevent flag injection
+	if (revision.front() == '-') {
+		return false;
+	}
+	// Prevent directory traversal or ref range
+	if (revision.find("..") != std::string::npos) {
+		return false;
+	}
+
+	// Loop through characters
+	for (char c : revision) {
+		// ASCII control chars under 32 and DEL (127) are blocked
+		if (static_cast<unsigned char>(c) < 32 || static_cast<unsigned char>(c) == 127) {
+			return false;
+		}
+		// List of allowed characters for revisions:
+		// Alphanumeric, slash, dot, underscore, hyphen, @, ~, ^, {, }, :, +
+		// Block everything else (including space, quotes, shell operators)
+		bool is_allowed = std::isalnum(static_cast<unsigned char>(c)) || c == '/' || c == '.' || c == '_' || c == '-' ||
+				  c == '@' || c == '~' || c == '^' || c == '{' || c == '}' || c == ':' || c == '+';
+		if (!is_allowed) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
