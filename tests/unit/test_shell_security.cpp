@@ -4,6 +4,7 @@
 #include <fstream>
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
+#include "../../src/command_runner.h"
 #include "../../src/fs_utils.h"
 
 int main()
@@ -54,6 +55,18 @@ int main()
 		std::cerr << "CRITICAL SECURITY VULNERABILITY: Command injection succeeded! Canary file was created." << std::endl;
 		return 1;
 	}
+
+	// Verify format_command API
+	std::string fmt1 = fs_utils::format_command("echo {} {} {}", 123, "hello'world", std::filesystem::path("foo'bar"));
+	std::cout << "Formatted output: " << fmt1 << std::endl;
+	assert(fmt1 == "echo 123 'hello'\\''world' 'foo'\\''bar'");
+
+	// Verify command_runner/sync_command_runner overloads
+	sync_command_runner runner;
+	runner.apply_internal_profile();
+	std::string output = runner.execute_and_get_output("echo {} {} {}", 456, "apple'banana", std::filesystem::path("baz'qux"));
+	std::cout << "Executed output: " << output << std::endl;
+	assert(output.find("456 apple'banana baz'qux") != std::string::npos);
 
 	std::cout << "Shell security unit test passed successfully!" << std::endl;
 	return 0;

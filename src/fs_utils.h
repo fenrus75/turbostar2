@@ -1,7 +1,10 @@
 #pragma once
 
 #include <filesystem>
+#include <format>
 #include <string>
+#include <tuple>
+#include <type_traits>
 
 namespace fs_utils
 {
@@ -107,4 +110,31 @@ bool is_safe_for_ui(const std::string &s);
  * 4. Keep space for "...." (four dots) to indicate omission.
  */
 std::string shorten_filename(const std::string &path, int max_length);
+
+template <typename T>
+auto escape_arg(const T& val) {
+	using Decayed = std::decay_t<T>;
+	if constexpr (std::is_same_v<Decayed, std::filesystem::path>) {
+		return escape_shell_arg(val.string());
+	} else if constexpr (std::is_convertible_v<Decayed, std::string> || std::is_same_v<Decayed, std::string_view>) {
+		return escape_shell_arg(std::string(val));
+	} else {
+		return val;
+	}
+}
+
+template <typename... Args>
+std::string format_command(std::string_view fmt, const Args&... args) {
+	auto escaped_args = std::make_tuple(escape_arg(args)...);
+	return std::apply([&](auto&... unpacked_args) {
+		return std::vformat(fmt, std::make_format_args(unpacked_args...));
+	}, escaped_args);
+}
+
+// Formatted overload of execute_command_sync
+template <typename... Args>
+std::string execute_command_sync(std::string_view fmt, const Args&... args) {
+	return execute_command_sync(format_command(fmt, args...));
+}
+
 } // namespace fs_utils

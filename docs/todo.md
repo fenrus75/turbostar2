@@ -5,10 +5,6 @@
 - simplification: have our logger a use variadic template method so that the log() function acts like std::format
     (needs to use std::vformat internally)
 
-- security: have our command runner have variadic template method for building command lines, so that arguments
-   can be passed in more easily -- and the command runner can now shell-escape these as part of
-   building the final string! (using fs_utils::escape_shell_arg)
- 
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
@@ -111,6 +107,7 @@
 
 ## 30-05-2026
 - performed a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) and fixed command injection vulnerabilities across tools by replacing manual single-quoting with robust `fs_utils::escape_shell_arg`.
+- implemented a secure-by-design, variadic `std::format`-style API in `command_runner`, `sync_command_runner`, and `fs_utils::execute_command_sync` that automatically shell-escapes all formatted parameters (strings and file paths) while forwarding non-string arguments (like numbers) as-is. Added corresponding comments documenting them as self-escaping to assist code review tools.
 
 ## 29-05-2026
 - consolidated all UTF-8 helper functions into a single `utf8` namespace (in `utf8.h`/`utf8.cpp`) and refactored the rest of the codebase (including highlighters, document search, and terminal emulation) to reuse them.
