@@ -21,8 +21,7 @@ def test_menu_save_load():
         runner.send_keys('s')    # 's' for Save
         runner.assert_text_on_screen('Save File As', timeout=2.0)
         
-        # 3. Type filename in dialog and press Enter
-        runner.send_keys(KEY_BACKSPACE, count=15) # Clear "unknown.txt"
+        runner.send_keys(KEY_CTRL_Y)
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
@@ -36,8 +35,7 @@ def test_menu_save_load():
         runner.send_keys('\x1bf') # Alt-F
         runner.send_keys('o')    # 'o' for Open
         runner.assert_text_on_screen('Open File', timeout=2.0)
-        
-        runner.send_keys(KEY_BACKSPACE, count=25) # Clear
+        runner.send_keys(KEY_CTRL_Y)
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         

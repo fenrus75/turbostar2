@@ -30,8 +30,6 @@ def test_lsp_selection():
         # 6. Delete block
         runner.send_ctrlk('y')
         
-        time.sleep(8.0) # Let clangd clean up
-        
     finally:
         runner.cleanup()
 

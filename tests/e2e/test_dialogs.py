@@ -21,8 +21,7 @@ def test_dialog_save_load():
         runner.assert_text_on_screen('Save File As', timeout=2.0)
         
         # 3. Type filename and press Enter
-        # Clear pre-filled "unknown.txt"
-        runner.send_keys(KEY_BACKSPACE, count=25) 
+        runner.send_keys(KEY_CTRL_Y) 
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Save File As', timeout=2.0)
         
@@ -35,7 +34,7 @@ def test_dialog_save_load():
         # 6. Open Load dialog (^KE)
         runner.send_ctrlk('e')
         runner.assert_text_on_screen('Open File', timeout=2.0)
-        runner.send_keys(KEY_BACKSPACE, count=25) # Clear again
+        runner.send_keys(KEY_CTRL_Y) # Clear again
         runner.send_keys(test_file + '\n')
         runner.assert_text_not_on_screen('Open File', timeout=2.0)
         

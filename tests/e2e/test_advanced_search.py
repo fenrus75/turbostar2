@@ -18,7 +18,7 @@ def test_advanced_search():
         time.sleep(0.5)
         
         # Dialog open. Input "Apple".
-        runner.send_keys(KEY_BACKSPACE, count=10)
+        runner.send_keys(KEY_CTRL_Y)
         runner.send_keys("Apple")
         
         # Toggle Case Sensitive (hotkey 'c' -> Alt-C)
@@ -63,7 +63,7 @@ def test_advanced_search():
         time.sleep(0.5)
         
         # Input "App"
-        runner.send_keys(KEY_BACKSPACE, count=10)
+        runner.send_keys(KEY_CTRL_Y)
         runner.send_keys("App")
         
         # Toggle Whole Words (hotkey 'w' -> Alt-W)

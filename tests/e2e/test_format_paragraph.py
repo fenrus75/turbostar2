@@ -17,7 +17,6 @@ def test_format_paragraph():
         
         # 3. Trigger Format Paragraph via ^KJ
         runner.send_ctrlk('j')
-        time.sleep(1.0) # Give clang-format time
         
         # 4. Verify Para 1 is formatted, Para 2 is NOT
         runner.assert_content_is(step1_gold)
@@ -27,7 +26,6 @@ def test_format_paragraph():
         # Cursor was at 1:1, move down 5 times to 6:1 (Para 2)
         runner.send_keys(KEY_DOWN, count=5) 
         runner.send_ctrlk('j')
-        time.sleep(1.0)
         
         # 6. Verify both are formatted
         try:

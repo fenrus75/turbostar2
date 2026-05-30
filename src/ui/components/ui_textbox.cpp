@@ -121,6 +121,11 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				}
 				return true;
 			}
+			if (ev.key_code == 25) { // Ctrl-Y: Clear textbox (delete line)
+				buffer_.clear();
+				cursor_pos_ = 0;
+				return true;
+			}
 			if (ev.key_code == KEY_DC) { // Delete
 				if (cursor_pos_ < static_cast<int>(buffer_.length())) {
 					buffer_.erase(cursor_pos_, 1);

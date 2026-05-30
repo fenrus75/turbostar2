@@ -22,16 +22,14 @@ def test_file_dialog():
         # 1. Open File Dialog
         runner.send_keys(KEY_ESC + 'f') # Alt-F
         runner.send_keys('o') # Open
-        time.sleep(0.5)
+        runner.assert_text_on_screen('Open File', timeout=2.0)
 
         # 2. Type the directory name and enter it
         runner.send_keys(test_dir + '\n')
-        time.sleep(0.5)
 
         # 3. Type the file name and confirm
         runner.send_keys(test_file)
         runner.send_keys('\x1b' + 'o')
-        time.sleep(0.5)
 
         # 4. Check that the new window is opened
         log = runner.get_log()
@@ -71,16 +69,14 @@ def test_file_dialog_autocomplete():
         runner.start()
         runner.send_keys(KEY_ESC + 'f') # Alt-F
         runner.send_keys('o') # Open
-        time.sleep(0.5)
+        runner.assert_text_on_screen('Open File', timeout=2.0)
 
         runner.send_keys(test_dir + '\n')
-        time.sleep(0.5)
 
         # Type 'foo' and hit enter, it should autocomplete to 'foobar.txt'
         runner.send_keys('foo')
         runner.send_keys('\n')
         runner.send_keys('\x1b' + 'o')
-        time.sleep(0.5)
 
         log = runner.get_log()
         try:

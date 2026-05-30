@@ -7,34 +7,34 @@
 
 int main()
 {
-	// Set up a simple local HTTP server that is slow to respond (e.g. sleeps for 6 seconds)
+	// Set up a simple local HTTP server that is slow to respond (e.g. sleeps for 1 second)
 	httplib::Server svr;
-
+ 
 	svr.Post("/slow", [](const httplib::Request&, httplib::Response& res) {
-		std::this_thread::sleep_for(std::chrono::seconds(6));
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 		res.set_content("slow response completed", "text/plain");
 	});
-
+ 
 	// Bind to an ephemeral port
 	int port = svr.bind_to_any_port("127.0.0.1");
 	assert(port > 0);
-
+ 
 	// Start the server in a background thread
 	std::thread server_thread([&]() {
 		svr.listen_after_bind();
 	});
-
+ 
 	std::cout << "Test server listening on port " << port << "..." << std::endl;
-
+ 
 	// Give the server a small moment to spin up
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+ 
 	// Create httplib_transport pointing to our slow server
 	std::string base_url = "http://127.0.0.1:" + std::to_string(port);
 	agentlib::httplib_transport transport(base_url);
-
-	// Test the standard POST request. We expect this to succeed post-fix (takes 6s, timeout is 300s)
-	// but fail pre-fix (takes 6s, timeout is 5s).
+ 
+	// Test the standard POST request. We expect this to succeed post-fix (takes 1s, timeout is 300s)
+	// but fail pre-fix (takes 1s, timeout is 5s).
 	std::cout << "Making POST request to /slow..." << std::endl;
 	auto start = std::chrono::steady_clock::now();
 	auto resp = transport.post("/slow", "{}");

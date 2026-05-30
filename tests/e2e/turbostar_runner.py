@@ -353,7 +353,7 @@ class TurbostarRunner:
             self.send_ctrlk('w')
             self.assert_text_on_screen("Save File As", timeout=2.0)
             # 3. Clear pre-filled and type path
-            self.send_keys('\x7f', count=50)
+            self.send_keys(KEY_CTRL_Y)
             self.send_keys(save_path + '\n')
             self.assert_text_not_on_screen("Save File As", timeout=2.0)
 

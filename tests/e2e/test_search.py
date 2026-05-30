@@ -48,7 +48,7 @@ def test_search_functionality():
         
         # Dialog is open, pre-filled with "Beta"
         # Clear and type "Gamma"
-        runner.send_keys(KEY_BACKSPACE, count=10)
+        runner.send_keys(KEY_CTRL_Y)
         runner.send_keys("Gamma\n")
 
         # Should find "Gamma" at 3:8

@@ -15,7 +15,6 @@ def test_format_document():
         
         # 2. Trigger Format Document via ^KJ
         runner.send_ctrlk('j')
-        time.sleep(1.0) # Give clang-format time
         
         # 3. Verify formatting using primitive
         try:
@@ -26,7 +25,6 @@ def test_format_document():
         
         # 4. Test Undo of format
         runner.send_keys(KEY_CTRL_UNDERSCORE) # Ctrl-_ (Undo)
-        time.sleep(0.5)
         # Content should be back to messy state
         # (Quick check on screen is fine for undo state)
         screen_undone = "\n".join(runner.screen.display)
