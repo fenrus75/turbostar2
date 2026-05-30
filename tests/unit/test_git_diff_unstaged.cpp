@@ -57,7 +57,8 @@ int main()
 		assert(result.find("modified content") != std::string::npos);
 
 		// Clean up: reset to previous commit and remove file
-		fs_utils::execute_command_sync("git reset --hard HEAD~1");
+		fs_utils::execute_command_sync("git reset HEAD~1");
+		std::filesystem::remove(dummy_file);
 	}
 
 	// 3. Security failure: path outside allowed root
