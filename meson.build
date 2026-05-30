@@ -191,6 +191,12 @@ test_git_diff_from_branch = executable('test_git_diff_from_branch',
   include_directories: inc)
 test('unit_test_git_diff_from_branch', test_git_diff_from_branch)
 
+test_git_diff_staged = executable('test_git_diff_staged',
+  'tests/unit/test_git_diff_staged.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_diff_staged', test_git_diff_staged)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
