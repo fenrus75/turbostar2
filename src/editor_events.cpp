@@ -128,6 +128,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::mouse_click:
 		case event_type::mouse_scroll_up:
 		case event_type::mouse_scroll_down:
+		case event_type::mouse_release:
+		case event_type::mouse_drag:
 			dispatch_event_mouse(ev);
 			break;
 		case event_type::quit:

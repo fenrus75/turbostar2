@@ -186,5 +186,16 @@ class editor : public agentlib::document_provider
 	bool is_pasting_{false};
 	std::string paste_buffer_;
 
+	// Mouse dragging / Window resizing state
+	enum class drag_mode { none, move, resize };
+	drag_mode current_drag_mode_{drag_mode::none};
+	window *drag_window_{nullptr};
+	int drag_start_mouse_x_{-1};
+	int drag_start_mouse_y_{-1};
+	int drag_start_win_x_{-1};
+	int drag_start_win_y_{-1};
+	int drag_start_win_w_{-1};
+	int drag_start_win_h_{-1};
+
 	std::unique_ptr<process_runner> current_build_process_;
 };

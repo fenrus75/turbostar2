@@ -20,6 +20,44 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
 
+	if (ev.type == event_type::mouse_release) {
+		if (current_drag_mode_ != drag_mode::none) {
+			logger.log("Mouse drag released.");
+			current_drag_mode_ = drag_mode::none;
+			drag_window_ = nullptr;
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::mouse_drag) {
+		if (current_drag_mode_ != drag_mode::none && drag_window_ != nullptr) {
+			int dx = ev.mouse_x - drag_start_mouse_x_;
+			int dy = ev.mouse_y - drag_start_mouse_y_;
+
+			if (current_drag_mode_ == drag_mode::move) {
+				int new_x = drag_start_win_x_ + dx;
+				int new_y = drag_start_win_y_ + dy;
+				new_x = std::max(0, std::min(new_x, COLS - drag_start_win_w_));
+				new_y = std::max(1, std::min(new_y, LINES - 1 - drag_start_win_h_));
+				drag_window_->set_bounds(new_x, new_y, drag_start_win_w_, drag_start_win_h_);
+			} else if (current_drag_mode_ == drag_mode::resize) {
+				int new_w = drag_start_win_w_ + dx;
+				int new_h = drag_start_win_h_ + dy;
+				new_w = std::max(10, std::min(new_w, COLS - drag_start_win_x_));
+				new_h = std::max(3, std::min(new_h, LINES - 1 - drag_start_win_y_));
+				drag_window_->set_bounds(drag_start_win_x_, drag_start_win_y_, new_w, new_h);
+			}
+
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::mouse_click) {
 		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
 
@@ -194,6 +232,55 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 								return;
 							}
 						}
+					}
+
+					// Check for bottom-right corner resize (drag-resize)
+					if (ev.mouse_x == w->get_x() + w->get_width() - 1 &&
+					    ev.mouse_y == w->get_y() + w->get_height() - 1) {
+						logger.log("Mouse clicked bottom-right corner to resize.");
+						current_drag_mode_ = drag_mode::resize;
+						drag_window_ = w;
+						drag_start_mouse_x_ = ev.mouse_x;
+						drag_start_mouse_y_ = ev.mouse_y;
+						drag_start_win_x_ = w->get_x();
+						drag_start_win_y_ = w->get_y();
+						drag_start_win_w_ = w->get_width();
+						drag_start_win_h_ = w->get_height();
+
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
+						return;
+					}
+
+					// Check for title bar click (drag-move)
+					if (ev.mouse_y == w->get_y()) {
+						logger.log("Mouse clicked title bar to move.");
+						current_drag_mode_ = drag_mode::move;
+						drag_window_ = w;
+						drag_start_mouse_x_ = ev.mouse_x;
+						drag_start_mouse_y_ = ev.mouse_y;
+						drag_start_win_x_ = w->get_x();
+						drag_start_win_y_ = w->get_y();
+						drag_start_win_w_ = w->get_width();
+						drag_start_win_h_ = w->get_height();
+
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
+						return;
 					}
 
 					// 2. Clicked inside the window content

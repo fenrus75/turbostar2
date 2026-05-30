@@ -52,6 +52,8 @@ enum class event_type {
 	mouse_click,		    ///< A mouse click event
 	mouse_scroll_up,	    ///< Mouse scroll up event
 	mouse_scroll_down,	    ///< Mouse scroll down event
+	mouse_release,		    ///< Mouse button release event
+	mouse_drag,		    ///< Mouse drag event
 	agent_response,		    ///< Notification that LLM has responded
 	agent_tool_update,	    ///< Notification that LLM is executing a tool
 	open_agent,		    ///< Request to open the LLM agent chat window

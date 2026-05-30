@@ -9,8 +9,8 @@
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
-#include "project_manager.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -76,7 +76,6 @@ int main(int argc, char **argv)
 	if (!project_dir.empty()) {
 		fs_utils::set_override_project_dir(project_dir);
 	}
-	
 
 	config_manager::get_instance().load();
 	agentlib::skill_manager::get_instance().initialize();
@@ -184,7 +183,7 @@ int main(int argc, char **argv)
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	// Tell the terminal to send mouse events (works for some xterm-compatible terms)
 	// Also enable bracketed paste mode
-	printf("\033[?1000h\033[?2004h\n");
+	printf("\033[?1002h\033[?2004h\n");
 	fflush(stdout);
 
 	curs_set(0); // Hide the cursor for now
@@ -206,21 +205,19 @@ int main(int argc, char **argv)
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
 
-	editor_options opts{
-		.debug_mode = debug_mode,
-		.debug_string = debug_string,
-		.filenames = filenames,
-		.exit_immediately = exit_immediately,
-		.no_lsp = no_lsp,
-		.no_welcome = no_welcome,
-		.initial_agent_prompt = agent_prompt,
-		.fresh_agent = fresh_agent
-	};
+	editor_options opts{.debug_mode = debug_mode,
+			    .debug_string = debug_string,
+			    .filenames = filenames,
+			    .exit_immediately = exit_immediately,
+			    .no_lsp = no_lsp,
+			    .no_welcome = no_welcome,
+			    .initial_agent_prompt = agent_prompt,
+			    .fresh_agent = fresh_agent};
 	editor main_editor(opts);
 	main_editor.run();
 
 	// Disable mouse tracking and bracketed paste mode
-	printf("\033[?1000l\033[?2004l\n");
+	printf("\033[?1002l\033[?2004l\n");
 	fflush(stdout);
 
 	endwin();
