@@ -62,6 +62,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
 
 		if (active_dialog_) {
+			last_click_window_id_ = -1;
+			last_click_on_title_bar_ = false;
 			auto res = active_dialog_->handle_mouse(ev.mouse_x, ev.mouse_y);
 			if (res.has_value()) {
 				dialog_result dres = res.value();
@@ -76,6 +78,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		}
 
 		if (active_popup_) {
+			last_click_window_id_ = -1;
+			last_click_on_title_bar_ = false;
 			auto res = active_popup_->handle_mouse(ev.mouse_x, ev.mouse_y);
 			if (res.has_value()) {
 				int id = res.value();
@@ -96,6 +100,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		}
 
 		if (ev.mouse_y == 0 || top_menu_.is_open()) {
+			last_click_window_id_ = -1;
+			last_click_on_title_bar_ = false;
 			if (top_menu_.handle_mouse(ev.mouse_x, ev.mouse_y, global_queue_)) {
 				// Click was handled by the menu bar
 				if (top_menu_.is_open()) {
@@ -142,6 +148,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					// The close button is drawn at (y_, x_ + 2) through (y_, x_ + 4)
 					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 2 && ev.mouse_x <= w->get_x() + 4) {
 						logger.log("Mouse clicked close button on window.");
+						last_click_window_id_ = -1;
+						last_click_on_title_bar_ = false;
+
 						// Activate the window first so close_window acts on it
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
@@ -160,6 +169,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + w->get_width() - 10 &&
 					    ev.mouse_x <= w->get_x() + w->get_width() - 8) {
 						logger.log("Mouse clicked popup menu button on window.");
+						last_click_window_id_ = -1;
+						last_click_on_title_bar_ = false;
+
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
 								activate_window(i);
@@ -168,9 +180,14 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						}
 
 						std::vector<popup_menu_item> items;
+						std::string max_label = w->is_maximized() ? "Restore" : "Maximize";
+						char max_hotkey = w->is_maximized() ? 'R' : 'M';
+
 						if (dynamic_cast<agent_window *>(w)) {
 							items.push_back(
 							    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
+							items.push_back(
+							    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
 							items.push_back({0, "", 0, true});
 							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
 						} else {
@@ -178,6 +195,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
 							items.push_back(
 							    {static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+							items.push_back(
+							    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
 							items.push_back({0, "", 0, true});
 							items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
 						}
@@ -198,6 +217,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					if (git_w > 0 && ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 6 &&
 					    ev.mouse_x < w->get_x() + 6 + git_w) {
 						logger.log("Mouse clicked git status button.");
+						last_click_window_id_ = -1;
+						last_click_on_title_bar_ = false;
+
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
 								activate_window(i);
@@ -220,6 +242,9 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 
 							if (ev.mouse_y == w->get_y() && ev.mouse_x == star_x) {
 								logger.log("Mouse clicked modified indicator.");
+								last_click_window_id_ = -1;
+								last_click_on_title_bar_ = false;
+
 								for (size_t i = 0; i < windows_.size(); ++i) {
 									if (windows_[i].get() == w) {
 										activate_window(i);
@@ -237,15 +262,20 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					// Check for bottom-right corner resize (drag-resize)
 					if (ev.mouse_x == w->get_x() + w->get_width() - 1 &&
 					    ev.mouse_y == w->get_y() + w->get_height() - 1) {
-						logger.log("Mouse clicked bottom-right corner to resize.");
-						current_drag_mode_ = drag_mode::resize;
-						drag_window_ = w;
-						drag_start_mouse_x_ = ev.mouse_x;
-						drag_start_mouse_y_ = ev.mouse_y;
-						drag_start_win_x_ = w->get_x();
-						drag_start_win_y_ = w->get_y();
-						drag_start_win_w_ = w->get_width();
-						drag_start_win_h_ = w->get_height();
+						last_click_window_id_ = -1;
+						last_click_on_title_bar_ = false;
+
+						if (!w->is_maximized()) {
+							logger.log("Mouse clicked bottom-right corner to resize.");
+							current_drag_mode_ = drag_mode::resize;
+							drag_window_ = w;
+							drag_start_mouse_x_ = ev.mouse_x;
+							drag_start_mouse_y_ = ev.mouse_y;
+							drag_start_win_x_ = w->get_x();
+							drag_start_win_y_ = w->get_y();
+							drag_start_win_w_ = w->get_width();
+							drag_start_win_h_ = w->get_height();
+						}
 
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
@@ -259,17 +289,55 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						return;
 					}
 
-					// Check for title bar click (drag-move)
+					// Check for title bar click (drag-move or double-click maximize)
 					if (ev.mouse_y == w->get_y()) {
-						logger.log("Mouse clicked title bar to move.");
-						current_drag_mode_ = drag_mode::move;
-						drag_window_ = w;
-						drag_start_mouse_x_ = ev.mouse_x;
-						drag_start_mouse_y_ = ev.mouse_y;
-						drag_start_win_x_ = w->get_x();
-						drag_start_win_y_ = w->get_y();
-						drag_start_win_w_ = w->get_width();
-						drag_start_win_h_ = w->get_height();
+						auto now = std::chrono::steady_clock::now();
+						if (last_click_window_id_ == w->get_id() && last_click_on_title_bar_ &&
+						    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_click_time_).count() <=
+							750) {
+							logger.log("Double click detected on title bar. Maximizing/restoring window.");
+							if (w->is_maximized()) {
+								w->set_maximized(false);
+								w->set_bounds(w->get_restore_x(), w->get_restore_y(),
+									      w->get_restore_width(), w->get_restore_height());
+							} else {
+								w->save_restore_bounds();
+								w->set_maximized(true);
+								w->set_bounds(0, 1, COLS, LINES - 2);
+							}
+
+							// Clear double click state to prevent triple-clicks from triggering another toggle
+							last_click_window_id_ = -1;
+							last_click_on_title_bar_ = false;
+
+							for (size_t i = 0; i < windows_.size(); ++i) {
+								if (windows_[i].get() == w) {
+									activate_window(i);
+									break;
+								}
+							}
+							editor_event redraw_ev;
+							redraw_ev.type = event_type::redraw;
+							global_queue_.push(redraw_ev);
+							return;
+						}
+
+						// Record this click for potential future double-click
+						last_click_window_id_ = w->get_id();
+						last_click_on_title_bar_ = true;
+						last_click_time_ = now;
+
+						if (!w->is_maximized()) {
+							logger.log("Mouse clicked title bar to move.");
+							current_drag_mode_ = drag_mode::move;
+							drag_window_ = w;
+							drag_start_mouse_x_ = ev.mouse_x;
+							drag_start_mouse_y_ = ev.mouse_y;
+							drag_start_win_x_ = w->get_x();
+							drag_start_win_y_ = w->get_y();
+							drag_start_win_w_ = w->get_width();
+							drag_start_win_h_ = w->get_height();
+						}
 
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
@@ -284,6 +352,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					}
 
 					// 2. Clicked inside the window content
+					last_click_window_id_ = -1;
+					last_click_on_title_bar_ = false;
 					for (size_t i = 0; i < windows_.size(); ++i) {
 						if (windows_[i].get() == w) {
 							activate_window(i);

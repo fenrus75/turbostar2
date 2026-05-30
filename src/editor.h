@@ -197,5 +197,10 @@ class editor : public agentlib::document_provider
 	int drag_start_win_w_{-1};
 	int drag_start_win_h_{-1};
 
+	// Double-click detection state
+	int last_click_window_id_{-1};
+	bool last_click_on_title_bar_{false};
+	std::chrono::steady_clock::time_point last_click_time_;
+
 	std::unique_ptr<process_runner> current_build_process_;
 };

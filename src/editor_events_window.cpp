@@ -105,4 +105,23 @@ void editor::dispatch_event_window(const editor_event &ev)
 		activate_window(static_cast<size_t>(ev.key_code));
 		return;
 	}
+
+	if (ev.type == event_type::maximize_window) {
+		logger.log("Dispatching maximize_window event.");
+		window *w = get_active_window();
+		if (w) {
+			if (w->is_maximized()) {
+				w->set_maximized(false);
+				w->set_bounds(w->get_restore_x(), w->get_restore_y(), w->get_restore_width(), w->get_restore_height());
+			} else {
+				w->save_restore_bounds();
+				w->set_maximized(true);
+				w->set_bounds(0, 1, COLS, LINES - 2);
+			}
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
 }

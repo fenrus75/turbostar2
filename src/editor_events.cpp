@@ -166,6 +166,7 @@ void editor::dispatch(const editor_event &ev)
 			dispatch_event_file(ev);
 			break;
 		case event_type::close_window:
+		case event_type::maximize_window:
 		case event_type::select_window:
 			dispatch_event_window(ev);
 			break;

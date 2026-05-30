@@ -67,6 +67,37 @@ class window
 		return id_;
 	}
 	void set_bounds(int x, int y, int width, int height);
+	bool is_maximized() const
+	{
+		return is_maximized_;
+	}
+	void set_maximized(bool max)
+	{
+		is_maximized_ = max;
+	}
+	int get_restore_x() const
+	{
+		return restore_x_;
+	}
+	int get_restore_y() const
+	{
+		return restore_y_;
+	}
+	int get_restore_width() const
+	{
+		return restore_width_;
+	}
+	int get_restore_height() const
+	{
+		return restore_height_;
+	}
+	void save_restore_bounds()
+	{
+		restore_x_ = x_;
+		restore_y_ = y_;
+		restore_width_ = width_;
+		restore_height_ = height_;
+	}
 	int get_popup_button_x() const
 	{
 		return x_ + width_ - 10;
@@ -122,6 +153,8 @@ class window
 
       protected:
 	int x_, y_, width_, height_;
+	int restore_x_{0}, restore_y_{0}, restore_width_{0}, restore_height_{0};
+	bool is_maximized_{false};
 	int id_;
 	int background_color_pair_{3};
 	virtual void draw_content() const;

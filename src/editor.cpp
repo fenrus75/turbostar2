@@ -127,14 +127,28 @@ void editor::update_window_layout()
 	int gdb_h = total_h - app_h;
 
 	for (auto &win : windows_) {
+		int target_x = 0;
+		int target_y = 1;
+		int target_w = main_w;
+		int target_h = total_h;
+
 		if (has_agent && dynamic_cast<agent_status_window *>(win.get())) {
-			win->set_bounds(agent_w, 1, status_w, total_h);
+			target_x = agent_w;
+			target_w = status_w;
 		} else if (win.get() == run_win && gdb_win != nullptr) {
-			win->set_bounds(0, 1, main_w, app_h);
+			target_h = app_h;
 		} else if (win.get() == gdb_win && run_win != nullptr) {
-			win->set_bounds(0, 1 + app_h, main_w, gdb_h);
+			target_y = 1 + app_h;
+			target_h = gdb_h;
+		}
+
+		if (win->is_maximized()) {
+			win->set_maximized(false);
+			win->set_bounds(target_x, target_y, target_w, target_h);
+			win->set_maximized(true);
+			win->set_bounds(0, 1, COLS, total_h);
 		} else {
-			win->set_bounds(0, 1, main_w, total_h);
+			win->set_bounds(target_x, target_y, target_w, target_h);
 		}
 		win->invalidate();
 	}

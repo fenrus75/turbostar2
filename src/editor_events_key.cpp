@@ -654,11 +654,25 @@ void editor::dispatch_event_key(const editor_event &ev)
 				window *active_win = get_active_window();
 				if (active_win) {
 					std::vector<popup_menu_item> items;
-					items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
-					items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
-					items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
-					items.push_back({0, "", 0, true});
-					items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+					std::string max_label = active_win->is_maximized() ? "Restore" : "Maximize";
+					char max_hotkey = active_win->is_maximized() ? 'R' : 'M';
+
+					if (dynamic_cast<agent_window *>(active_win)) {
+						items.push_back(
+						    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
+						items.push_back(
+						    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
+						items.push_back({0, "", 0, true});
+						items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+					} else {
+						items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
+						items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
+						items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+						items.push_back(
+						    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
+						items.push_back({0, "", 0, true});
+						items.push_back({static_cast<int>(event_type::close_window), "Close", 'l', false});
+					}
 
 					active_popup_ =
 					    std::make_unique<popup_menu>(active_win->get_popup_button_x(), active_win->get_y() + 1, items);

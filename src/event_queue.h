@@ -44,6 +44,7 @@ enum class event_type {
 	run_tests,		    ///< Request to run the test suite
 	next_error,		    ///< Request to jump to the next build error (F4)
 	close_window,		    ///< Request to close the active window
+	maximize_window,	    ///< Request to maximize/restore the active window
 	select_window,		    ///< Request to switch active window (key_code is index)
 	lsp_hover_result,	    ///< Notification that LSP hover information is available
 	lsp_highlight_result,	    ///< Notification that LSP document highlight is available

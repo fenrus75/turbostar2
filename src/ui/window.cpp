@@ -6,7 +6,8 @@
 #include "git_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
-    : x_(x), y_(y), width_(width), height_(height), id_(id), title_(title)
+    : x_(x), y_(y), width_(width), height_(height), restore_x_(x), restore_y_(y), restore_width_(width), restore_height_(height), id_(id),
+      title_(title)
 {
 }
 
@@ -18,6 +19,13 @@ void window::set_bounds(int x, int y, int width, int height)
 	y_ = y;
 	width_ = width;
 	height_ = height;
+
+	if (!is_maximized_) {
+		restore_x_ = x;
+		restore_y_ = y;
+		restore_width_ = width;
+		restore_height_ = height;
+	}
 
 	if (pos_changed) {
 		on_move(x, y);
