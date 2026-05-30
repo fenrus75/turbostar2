@@ -215,6 +215,12 @@ test_git_log = executable('test_git_log',
   include_directories: inc)
 test('unit_test_git_log', test_git_log)
 
+test_git_pull = executable('test_git_pull',
+  'tests/unit/test_git_pull.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_pull', test_git_pull)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
