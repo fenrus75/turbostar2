@@ -4,6 +4,8 @@ Turbostar is a terminal-based (TUI) text editor designed with the classic look a
 
 It is built for speed, responsiveness, and seamless integration with modern development workflows, featuring built-in Language Server Protocol (LSP) support, Git integration, and LLM agent capabilities.
 
+<screenshot here -- docs/screenshot-welcome.png>
+
 ## What is this?
 
 Turbostar aims to provide a distraction-free, highly responsive editing experience in the terminal. It combines a nostalgic, tiled window interface with powerful features:
