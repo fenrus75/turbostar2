@@ -227,6 +227,12 @@ test_agent_write_to_run = executable('test_agent_write_to_run',
   include_directories: inc)
 test('unit_test_agent_write_to_run', test_agent_write_to_run)
 
+test_ask_user = executable('test_ask_user',
+  'tests/unit/test_ask_user.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_ask_user', test_ask_user)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
