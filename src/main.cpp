@@ -140,6 +140,8 @@ int main(int argc, char **argv)
 	init_pair(35, COLOR_RED + 8, COLOR_CYAN);	// Read Lines Failure (Bright Red on Cyan)
 	init_pair(36, COLOR_WHITE + 8, COLOR_BLACK);	// Terminal Border (Bright White on Black)
 	init_pair(37, COLOR_BLACK + 8, COLOR_WHITE);	// Disabled Menu Item (Dark Gray on White)
+	init_pair(38, COLOR_WHITE, COLOR_BLUE);		// Unfocused window borders (Normal White on Blue)
+	init_pair(39, COLOR_YELLOW, COLOR_BLUE);	// Unfocused hotkeys/widgets (Normal Yellow on Blue)
 
 	// Agent interaction pairs (50-59: Primary background - Light Blue)
 	init_pair(50, COLOR_BLACK, COLOR_BLUE + 8);

@@ -498,7 +498,10 @@ std::string window::get_displayed_title() const
 
 void window::draw_border() const
 {
-	attrset(COLOR_PAIR(5));
+	int border_pair = is_active() ? 5 : 38;
+	int widget_pair = is_active() ? 3 : 39;
+
+	attrset(COLOR_PAIR(border_pair));
 
 	std::string current_title = get_displayed_title();
 
@@ -529,10 +532,10 @@ void window::draw_border() const
 
 	// Draw close widget
 	mvaddstr(y_, x_ + 2, "[");
-	attron(COLOR_PAIR(3)); // Bright Yellow
+	attron(COLOR_PAIR(widget_pair));
 	addstr("■");
-	attroff(COLOR_PAIR(3));
-	attron(COLOR_PAIR(5));
+	attroff(COLOR_PAIR(widget_pair));
+	attron(COLOR_PAIR(border_pair));
 	addstr("]");
 
 	// Draw Git Status and Branch
@@ -543,7 +546,7 @@ void window::draw_border() const
 			branch = "unknown";
 
 		std::string indicator = "?";
-		int pair = 5;
+		int pair = border_pair;
 		if (info.status == git_status::clean) {
 			indicator = "✔";
 			pair = 20;
@@ -553,28 +556,28 @@ void window::draw_border() const
 		}
 
 		mvaddstr(y_, x_ + 6, "[");
-		attron(COLOR_PAIR(5));
+		attron(COLOR_PAIR(border_pair));
 		addstr(branch.c_str());
 		addch(' ');
 		attron(COLOR_PAIR(pair));
 		addstr(indicator.c_str());
 		attroff(COLOR_PAIR(pair));
-		attron(COLOR_PAIR(5));
+		attron(COLOR_PAIR(border_pair));
 		addstr("]");
 	}
 
 	// Draw popup menu widget
 	mvaddstr(y_, x_ + width_ - 10, "[");
-	attron(COLOR_PAIR(3)); // Bright Yellow
+	attron(COLOR_PAIR(widget_pair));
 	addstr("≡");
-	attroff(COLOR_PAIR(3));
-	attron(COLOR_PAIR(5));
+	attroff(COLOR_PAIR(widget_pair));
+	attron(COLOR_PAIR(border_pair));
 	addstr("]");
 
 	// Draw window number
 	mvprintw(y_, x_ + width_ - 6, "=%d=", id_);
 
-	attroff(COLOR_PAIR(5));
+	attroff(COLOR_PAIR(border_pair));
 	// Draw scrollbars
 	attron(COLOR_PAIR(4));
 	for (int i = 1; i < height_ - 1; ++i) {
