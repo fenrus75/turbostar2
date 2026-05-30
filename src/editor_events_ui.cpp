@@ -20,8 +20,6 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
-#include "gcc_log_parser.h"
-#include "git_manager.h"
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"

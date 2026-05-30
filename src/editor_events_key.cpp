@@ -13,7 +13,6 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
-#include "git_manager.h"
 #include "history_manager.h"
 #include "linux_clang_format.h"
 #include "project_manager.h"
