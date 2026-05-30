@@ -8,6 +8,14 @@
 
 using namespace agentlib;
 
+class dummy_doc_provider : public document_provider {
+public:
+	std::vector<std::string> get_open_document_paths() const override { return {}; }
+	std::unique_ptr<document_snapshot> get_open_document(const std::string&) const override { return nullptr; }
+	bool apply_live_edits(const std::string&, const std::string&) override { return false; }
+	void save_all_documents() override {}
+};
+
 int main()
 {
 	project_manager::get_instance().initialize();
@@ -15,6 +23,8 @@ int main()
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
 	event_queue q;
+	dummy_doc_provider dummy;
+	ctx.doc_provider = &dummy;
 
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);

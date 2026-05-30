@@ -1,5 +1,6 @@
 #include "../../event_queue.h"
 #include "../../fs_utils.h"
+#include "../../agentlib/ai_agent.h"
 #include "agent_set_status.h"
 
 namespace tools
@@ -49,8 +50,13 @@ class agent_set_status_validator : public agentlib::tool_validator
 	}
 
       protected:
-	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context & /*ctx*/, std::string &out_error) const override
+	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{
+		if (ctx.active_agent && ctx.active_agent->is_read_only()) {
+			out_error = "Security Violation: Status message cannot be set by a read-only agent.";
+			return false;
+		}
+
 		if (!args.is_object() || !args.contains("message") || !args["message"].is_string()) {
 			out_error = "Missing or invalid 'message' argument.";
 			return false;

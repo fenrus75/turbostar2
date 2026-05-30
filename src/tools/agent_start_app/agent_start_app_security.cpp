@@ -49,6 +49,14 @@ class agent_start_app_validator : public agentlib::tool_validator
 	{
 		try {
 			agent_start_app_raw_args raw = args_json.get<agent_start_app_raw_args>();
+			// Check for command injection/chaining characters in args
+			for (char c : raw.args) {
+				if (c == ';' || c == '&' || c == '|' || c == '`' || c == '$' ||
+				    c == '<' || c == '>' || c == '(' || c == ')' || c == '\n' || c == '\r') {
+					out_error = "Security Violation: Unsafe characters detected in arguments.";
+					return false;
+				}
+			}
 			args_.args = raw.args;
 			args_.debugger = raw.debugger;
 			return true;

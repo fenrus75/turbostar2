@@ -50,6 +50,10 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 				out_error = "Invalid run_id specified.";
 				return false;
 			}
+			if (raw.data.length() > 4096) {
+				out_error = "Payload size exceeds 4096 bytes limit.";
+				return false;
+			}
 			args_.run_id = raw.run_id;
 			args_.data = raw.data;
 			return true;
