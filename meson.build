@@ -34,10 +34,12 @@ subdir('src')
 # Provide a libunwind dependency.
 cc = meson.get_compiler('c')
 libunwind_dep = cc.find_library('unwind', required: true)
+dl_dep = cc.find_library('dl', required: false)
 
 libturbocatch = shared_library('turbocatch',
   'src/crash_catcher/crash_catcher.c',
-  dependencies: [libunwind_dep],
+  dependencies: [libunwind_dep, dl_dep],
+  override_options: ['b_sanitize=none'],
   install: false
 )
 
@@ -503,6 +505,12 @@ test_crashdump_get_info = executable('test_crashdump_get_info',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_crashdump_get_info', test_crashdump_get_info)
+
+test_assert_fail = executable('test_assert_fail',
+  'tests/unit/test_assert_fail.cpp',
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_assert_fail', test_assert_fail, is_parallel: false)
 
 test_crashdump_list = executable('test_crashdump_list',
   ['tests/unit/test_crashdump_list.cpp',

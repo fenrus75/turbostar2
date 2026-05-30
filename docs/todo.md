@@ -1,8 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- high value: we should override __assert_fail() in libturbocatch.so so that we can do better reporting assertion failures
-  (once we log the arguments, we can then call the original that we get from dlsym or whatever)
-	it also gives us file/line number --> we can highlight this
 
 
 - we should use bandit to validate python code, if bandit is installed
@@ -114,6 +111,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented interception of glibc __assert_fail() in libturbocatch.so to capture failed assertion details (expression, file, line, function) in assertion.txt and parse them in crashdump_manager to prepend a '### Failed Assertion' section at the top of the generated markdown crash report.
 - implemented C++ unit tests in `tests/unit/` for all remaining Group 3 agent tools (including git helper tools, subagent management tools, web_fetch, and database/shell tools) to ensure comprehensive test coverage, registering them in `meson.build` and verifying both positive and negative validation/execution flows.
 - implemented mouse scrolling support in the AI Agent chat window, dynamically calculating content height limits to restrict scrolling past bounds using `std::clamp`. Added an E2E test verifying both up and down scrolling.
 - configured the `unit_document` test to run non-parallel (`is_parallel: false`) in Meson to prevent transient file collision failures during parallel test execution.

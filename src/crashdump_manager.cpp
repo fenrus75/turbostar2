@@ -106,8 +106,20 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 		info_content = ss.str();
 	}
 
+	fs::path assert_path = fs::path(crash_dir) / "assertion.txt";
+	std::string assert_content;
+	std::ifstream assert_in(assert_path);
+	if (assert_in) {
+		std::ostringstream ss;
+		ss << assert_in.rdbuf();
+		assert_content = ss.str();
+	}
+
 	std::ostringstream report;
 	report << "## Crash Report\n\n";
+	if (!assert_content.empty()) {
+		report << "### Failed Assertion\n```\n" << assert_content << "```\n\n";
+	}
 	if (!info_content.empty()) {
 		report << "### Info\n```\n" << info_content << "```\n\n";
 	}
