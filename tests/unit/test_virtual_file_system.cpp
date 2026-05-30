@@ -84,10 +84,32 @@ void test_directory_listing()
 	std::filesystem::remove_all("test_vfs_dir");
 }
 
+void test_line_count()
+{
+	virtual_file_system vfs;
+
+	// Test buffer line counts
+	// 1. Buffer without newline
+	assert(vfs.mount_buffer("skills://test/no_newline.txt", "abc"));
+	auto info1 = vfs.get_file_info("skills://test/no_newline.txt");
+	assert(info1->size_in_lines == 1);
+
+	// 2. Buffer with trailing newline
+	assert(vfs.mount_buffer("skills://test/trailing_newline.txt", "abc\n"));
+	auto info2 = vfs.get_file_info("skills://test/trailing_newline.txt");
+	assert(info2->size_in_lines == 1);
+
+	// 3. Buffer with multiple lines
+	assert(vfs.mount_buffer("skills://test/multiple_lines.txt", "abc\ndef\n"));
+	auto info3 = vfs.get_file_info("skills://test/multiple_lines.txt");
+	assert(info3->size_in_lines == 2);
+}
+
 int main()
 {
 	test_basic_mount_and_read();
 	test_directory_listing();
+	test_line_count();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }

@@ -8,6 +8,32 @@
 namespace agentlib
 {
 
+static size_t count_lines(const void *data, size_t size)
+{
+	if (size == 0 || !data) {
+		return 0;
+	}
+
+	size_t lines = 0;
+	const char *p = static_cast<const char *>(data);
+	const char *end = p + size;
+
+	while (p < end) {
+		const char *next = static_cast<const char *>(memchr(p, '\n', end - p));
+		if (next == nullptr) {
+			break;
+		}
+		lines++;
+		p = next + 1;
+	}
+
+	if (size > 0 && *(end - 1) != '\n') {
+		lines++;
+	}
+
+	return lines;
+}
+
 virtual_file_system::mmap_handle::~mmap_handle()
 {
 	if (data && data != MAP_FAILED && size > 0) {
@@ -75,17 +101,7 @@ bool virtual_file_system::mount_file(const std::string &uri, const std::string &
 	handle->size = sb.st_size;
 	handle->type = 'F';
 
-	size_t lines = 0;
-	if (sb.st_size > 0 && mapped && mapped != MAP_FAILED) {
-		lines = 1;
-		const char *p = static_cast<const char *>(mapped);
-		const char *end = p + sb.st_size;
-		for (; p < end; ++p) {
-			if (*p == '\n')
-				lines++;
-		}
-	}
-	handle->size_in_lines = lines;
+	handle->size_in_lines = count_lines(mapped, sb.st_size);
 
 	ensure_directories_exist(uri);
 	mounts_[uri] = std::move(handle);
@@ -105,17 +121,7 @@ bool virtual_file_system::mount_buffer(const std::string &uri, const std::string
 		memcpy(handle->data, buffer.data(), handle->size);
 	}
 
-	size_t lines = 0;
-	if (handle->size > 0) {
-		lines = 1;
-		const char *p = static_cast<const char *>(handle->data);
-		const char *end = p + handle->size;
-		for (; p < end; ++p) {
-			if (*p == '\n')
-				lines++;
-		}
-	}
-	handle->size_in_lines = lines;
+	handle->size_in_lines = count_lines(handle->data, handle->size);
 
 	ensure_directories_exist(uri);
 	mounts_[uri] = std::move(handle);
@@ -157,7 +163,11 @@ std::optional<vfs_file_info> virtual_file_system::get_file_info(const std::strin
 {
 	auto it = mounts_.find(uri);
 	if (it != mounts_.end()) {
-		return vfs_file_info{uri, it->second->size, it->second->type, it->second->size_in_lines};
+		char exposed_type = it->second->type;
+		if (exposed_type == 'M') {
+			exposed_type = 'F';
+		}
+		return vfs_file_info{uri, it->second->size, exposed_type, it->second->size_in_lines};
 	}
 	return std::nullopt;
 }
@@ -167,7 +177,11 @@ std::vector<vfs_file_info> virtual_file_system::list_directory(const std::string
 	std::vector<vfs_file_info> results;
 	auto it = mounts_.lower_bound(prefix);
 	while (it != mounts_.end() && it->first.starts_with(prefix)) {
-		results.push_back({it->first, it->second->size, it->second->type, it->second->size_in_lines});
+		char exposed_type = it->second->type;
+		if (exposed_type == 'M') {
+			exposed_type = 'F';
+		}
+		results.push_back({it->first, it->second->size, exposed_type, it->second->size_in_lines});
 		++it;
 	}
 	return results;
