@@ -66,8 +66,6 @@
 	- create PR
 	- fetch PR info
 
-- mouse support for resizing windows (bottom right corner) and moving (title bar)
-
 - MCP support
 	- each MCP should have its own "uv sandbox"
 	- permission model: need to have permission BEFORE executing anything from the project directory
@@ -102,6 +100,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented mouse support for window resizing (dragging bottom-right corner) and moving (dragging title bar) with relative drift prevention, coordinate clamping, and ncurses mouse mode upgrade to 1002 (button motion events). Added a comprehensive E2E test verifying behavior.
 - fixed mouse scroll event dispatching by routing `mouse_scroll_up` and `mouse_scroll_down` in `editor::dispatch` and targeting the topmost visible window under the mouse coordinate using Z-order sorting. Added an E2E test verifying this behavior and fixed ncurses VT100 scroll region terminal emulation corruption by forcing full redrawing with `redrawwin(stdscr)` on refresh.
 - implemented a virtual hook pattern (`on_resize`/`on_move`) in base class `window` bounds changes, overriding them in `diff_window` (to recalculate button positions and diff contents) and `terminal_window` (to resize the emulator and notify running processes/PTY).
 - implemented conditional real-time stdout logging for exit delays on shutdown. If no logfile is specified, ncurses is shut down immediately upon editor exit and stdout logging is enabled, resetting the timestamp base and suppressing events under 50ms to prevent stdout spew.
