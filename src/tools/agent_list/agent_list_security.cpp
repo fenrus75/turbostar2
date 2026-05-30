@@ -1,19 +1,22 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_list.h"
 
 namespace tools
 {
 
-class agent_list_validator : public agentlib::tool_validator
+/**
+ * @brief Validator for the agent_list tool.
+ */
+class agent_list_validator final : public agentlib::tool_validator
 {
       public:
 	bool is_pure() const override
 	{
 		return true;
-	}
+	} // Simple listing of subagents, does not mutate state.
 
 	std::string get_name() const override
 	{
@@ -26,7 +29,9 @@ class agent_list_validator : public agentlib::tool_validator
 
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {{"type", "object"}, {"properties", nlohmann::json::object()}};
+		return {{"type", "object"},
+			{"properties", nlohmann::json::object()},
+			{"additionalProperties", false}};
 	}
 
       protected:

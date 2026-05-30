@@ -1,10 +1,16 @@
-#include <sstream>
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/ai_agent.h"
 #include "agent_list.h"
+#include <format>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace tools
 {
 
+/**
+ * @brief Validates runtime context.
+ */
 bool agent_list_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	if (!ctx.active_agent) {
@@ -14,16 +20,17 @@ bool agent_list_tool::validate_runtime(const agentlib::tool_context &ctx, std::s
 	return true;
 }
 
+/**
+ * @brief Executes listing of active subagents.
+ */
 std::string agent_list_tool::execute(agentlib::tool_context &ctx)
 {
 	auto subagents = ctx.active_agent->get_subagents();
 	if (subagents.empty()) {
-		return "No subagents currently active.";
+		return "| ID | Name | Status |\n|---|---|---|\n";
 	}
 
-	std::ostringstream oss;
-	oss << "| ID | Name | Status |\n";
-	oss << "|---|---|---|\n";
+	std::string table = "| ID | Name | Status |\n|---|---|---|\n";
 
 	for (const auto &sub : subagents) {
 		std::string status_str;
@@ -43,10 +50,13 @@ std::string agent_list_tool::execute(agentlib::tool_context &ctx)
 			case agentlib::agent_status::waiting:
 				status_str = "Waiting";
 				break;
+			default:
+				status_str = "Unknown";
+				break;
 		}
-		oss << "| " << sub->get_id() << " | " << sub->get_name() << " | " << status_str << " |\n";
+		table += std::format("| {} | {} | {} |\n", sub->get_id(), sub->get_name(), status_str);
 	}
-	return oss.str();
+	return table;
 }
 
 } // namespace tools
