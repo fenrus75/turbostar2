@@ -12,3 +12,5 @@ review/
 test_args.json
 lines.txt.org
 format_tmp.cpp
+.antigravity/
+.antigravitycli/
