@@ -246,7 +246,7 @@ test_document = executable('test_document',
   'tests/unit/test_document.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_document', test_document)
+test('unit_document', test_document, is_parallel: false)
 
 test_gcc_log_parser = executable('test_gcc_log_parser',
   'tests/unit/test_gcc_log_parser.cpp',
