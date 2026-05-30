@@ -39,10 +39,10 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	std::string build_system = config_manager::get_instance().get_build_system();
 	std::string build_dir = config_manager::get_instance().get_build_directory();
 	
-	std::string repo_root = project_manager::get_instance().get_repository_root();
+	std::string proj_root = project_manager::get_instance().get_project_root();
 	std::filesystem::path build_path(build_dir);
 	if (build_path.is_relative()) {
-		build_path = std::filesystem::path(repo_root) / build_path;
+		build_path = std::filesystem::path(proj_root) / build_path;
 	}
 
 	std::string cmd;

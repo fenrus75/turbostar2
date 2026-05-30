@@ -92,8 +92,8 @@ void document::format_range(int start_y, int end_y)
 		}
 
 		if (!force_file) {
-			std::string proj_root = project_manager::get_instance().get_repository_root();
-			if (!proj_root.empty() && fs::exists(fs::path(proj_root) / ".clang-format")) {
+			std::string proj_root = project_manager::get_instance().get_project_root();
+			if (fs::exists(fs::path(proj_root) / ".clang-format")) {
 				force_file = true;
 				clang_format_source = fs::path(proj_root) / ".clang-format";
 			}

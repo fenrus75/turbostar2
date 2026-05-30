@@ -30,10 +30,6 @@ class project_manager
 		return project_root_;
 	}
 
-	std::string get_repository_root() const
-	{
-		return get_project_root();
-	}
 
 	/**
 	 * @brief Returns the content of AGENTS.md or GEMINI.md if found at the root.

@@ -18,9 +18,9 @@ int main() {
     tool_context ctx;
     event_queue q;
     
-    ctx.fs_security.set_working_directory(project_manager::get_instance().get_repository_root());
-    ctx.fs_security.add_allowed_root(project_manager::get_instance().get_repository_root(), access_type::read);
-    ctx.fs_security.add_allowed_root(project_manager::get_instance().get_repository_root(), access_type::write);
+    ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
+    ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
+    ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 
     std::cout << "Testing fs_list_tests..." << std::endl;
     std::string list_result = registry.execute_tool("fs_list_tests", "{}", ctx);
