@@ -9,3 +9,6 @@ tmp/
 compile_commands.json
 *_backup.cpp
 review/
+test_args.json
+lines.txt.org
+format_tmp.cpp
