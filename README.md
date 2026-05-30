@@ -37,11 +37,12 @@ You will need the following installed on your system:
 *   `clangd` (For LSP/Language Server Protocol support)
 *   `clang-format` (For code formatting)
 *   `gdbserver` (For debugging run targets)
+*   `gdb` (For debugging run targets)
 
 On Debian/Ubuntu-based systems, you can install the required dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev clangd clang-format gdbserver
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev clangd clang-format gdbserver gdb
 ```
 
 ### Build Instructions
