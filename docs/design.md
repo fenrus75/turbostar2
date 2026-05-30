@@ -96,6 +96,7 @@ The window class is a "View" that renders a portion of a `Document`.
 - **Viewport**: Tracks the `top_line` and `left_column` currently visible.
 - **Interaction**: Handles coordinate translation between screen space and document space.
 - **Event Handling**: Processes events from its own **Per-Window Event Queue**, which are dispatched by the central `Editor`.
+- **Linked Windows**: Windows can be mutually linked together (e.g., the Debugger and Run Output windows, or the AI Agent and Agent Status windows). Symmetrical linking/unlinking is handled in the base class via raw pointer tracking and automatic cleanup in `~window()`. If a window gets focus (active priority `9999`), any of its linked windows automatically have their priority elevated to `9998`, placing them directly below the active window in Z-order. This ensures linked windows are always rendered and sorted together above other background/MDI document windows.
 
 ## Event Queue and Logging
 
