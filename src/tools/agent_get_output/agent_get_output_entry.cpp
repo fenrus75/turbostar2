@@ -1,23 +1,39 @@
-#include <sstream>
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/ai_agent.h"
 #include "agent_get_output.h"
+#include <format>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace tools
 {
 
+/**
+ * @brief Constructor for agent_get_output_tool.
+ */
 agent_get_output_tool::agent_get_output_tool(agent_get_output_args args) : args_(std::move(args))
 {
 }
 
+/**
+ * @brief Validates runtime context and requirements.
+ */
 bool agent_get_output_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	if (!ctx.active_agent) {
 		out_error = "Execution Error: No active agent context available.";
 		return false;
 	}
+	if (ctx.active_agent->is_read_only() && !args_.keep) {
+		out_error = "Execution Error: Agent is in read-only mode and cannot terminate subagents. Run with 'keep': true.";
+		return false;
+	}
 	return true;
 }
 
+/**
+ * @brief Executes the retrieval of the subagent interaction history.
+ */
 std::string agent_get_output_tool::execute(agentlib::tool_context &ctx)
 {
 	auto subagents = ctx.active_agent->get_subagents();
@@ -31,33 +47,37 @@ std::string agent_get_output_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (!target_agent) {
-		return "Error: Could not find subagent with ID " + std::to_string(args_.id);
+		return std::format("Error: Could not find subagent with ID {}", args_.id);
 	}
 
 	auto interactions = target_agent->get_interactions();
 	if (interactions.empty()) {
-		return "Agent ID " + std::to_string(args_.id) + " has no interaction history.";
+		return std::format("Agent ID {} has no interaction history.", args_.id);
 	}
 
-	std::ostringstream oss;
-	oss << "Interaction history for Agent ID " << target_agent->get_id() << " (" << target_agent->get_name() << "):\n\n";
-
+	std::string history_text;
 	for (const auto &interaction : interactions) {
-		oss << interaction->get_raw_text() << "\n\n";
+		history_text += std::format("{}\n\n", interaction->get_raw_text());
 	}
 
-	oss << "--- End of History ---\n";
-
+	std::string response;
 	if (!args_.keep) {
 		ctx.active_agent->remove_subagent(target_agent->get_id());
-		oss << "Agent " << std::to_string(args_.id) << " has been automatically terminated.";
+		response = std::format(
+			"Interaction history for Agent ID {} ({}):\n\n"
+			"{}--- End of History ---\n"
+			"Agent {} has been automatically terminated.",
+			target_agent->get_id(), target_agent->get_name(), history_text, args_.id);
 	} else {
-		oss << "If you are finished with this subagent, you should use the end_agent(" << target_agent->get_id()
-		    << ") tool to clean it up and free resources. Alternatively, you can send it new instructions using the message_agent("
-		    << target_agent->get_id() << ", \"<message>\") tool.";
+		response = std::format(
+			"Interaction history for Agent ID {} ({}):\n\n"
+			"{}--- End of History ---\n"
+			"If you are finished with this subagent, you should use the end_agent({}) tool to clean it up and free resources. "
+			"Alternatively, you can send it new instructions using the message_agent({}, \"<message>\") tool.",
+			target_agent->get_id(), target_agent->get_name(), history_text, target_agent->get_id(), target_agent->get_id());
 	}
 
-	return oss.str();
+	return response;
 }
 
 } // namespace tools
