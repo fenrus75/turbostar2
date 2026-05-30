@@ -2,7 +2,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include "tool_validator.h"
+#include <format>
+#include "event_logger.h"
+#include "markdown_utils.h"
 
 namespace agentlib
 {
@@ -25,6 +27,9 @@ const std::vector<skill> &skill_manager::get_skills() const
 
 void skill_manager::initialize()
 {
+	skills_.clear();
+	vfs_ = std::make_unique<virtual_file_system>();
+
 	const char *home_dir = std::getenv("HOME");
 	if (!home_dir)
 		return;
@@ -34,32 +39,39 @@ void skill_manager::initialize()
 		return;
 	}
 
+	constexpr std::size_t kMaxDescriptionLength = 1024;
+
 	try {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(skills_base)) {
-			if (entry.is_regular_file() && entry.path().filename() == "SKILL.md") {
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(skills_base, std::filesystem::directory_options::skip_permission_denied)) {
+			if (entry.is_regular_file() && entry.path().filename().string() == "SKILL.md") {
 				std::ifstream file(entry.path());
+				if (!file.is_open()) {
+					event_logger::get_instance().log(std::format("skill_manager: Failed to open SKILL.md at {}", entry.path().string()));
+					continue;
+				}
+
 				std::string line;
-				if (std::getline(file, line) && line == "---") {
+				if (std::getline(file, line) && markdown_utils::trim(line) == "---") {
 					std::string name;
 					std::string description;
 					bool in_desc = false;
-					while (std::getline(file, line) && line != "---") {
-						if (line.starts_with("name:")) {
-							name = line.substr(5);
-							name.erase(0, name.find_first_not_of(" \t"));
+					while (std::getline(file, line)) {
+						std::string trimmed = markdown_utils::trim(line);
+						if (trimmed == "---") {
+							break;
+						}
+						if (trimmed.starts_with("name:")) {
+							name = markdown_utils::trim(trimmed.substr(5));
 							in_desc = false;
-						} else if (line.starts_with("description:")) {
-							description = line.substr(12);
-							description.erase(0, description.find_first_not_of(" \t"));
+						} else if (trimmed.starts_with("description:")) {
+							description = markdown_utils::trim(trimmed.substr(12));
 							in_desc = true;
 						} else if (in_desc) {
-							if (description.length() < 1024) {
+							if (description.length() < kMaxDescriptionLength) {
 								if (!description.empty())
 									description += " ";
-								description += line;
+								description += trimmed;
 							}
-						} else {
-							in_desc = false;
 						}
 					}
 
@@ -77,15 +89,17 @@ void skill_manager::initialize()
 				}
 			}
 		}
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log(std::format("skill_manager: Error initializing skills: {}", e.what()));
 	} catch (...) {
-		// Silently ignore errors as this is an optional feature
+		event_logger::get_instance().log("skill_manager: Unknown error initializing skills");
 	}
 }
 
 void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const std::string &skill_name)
 {
 	try {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(base_dir)) {
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(base_dir, std::filesystem::directory_options::skip_permission_denied)) {
 			if (entry.is_regular_file()) {
 				// Compute relative path
 				std::string rel_path = std::filesystem::relative(entry.path(), base_dir).string();
@@ -96,8 +110,10 @@ void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const 
 				vfs_->mount_file(uri, entry.path().string());
 			}
 		}
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log(std::format("skill_manager: Error scanning and mounting skills: {}", e.what()));
 	} catch (...) {
-		// Silently ignore access errors
+		event_logger::get_instance().log("skill_manager: Unknown error scanning and mounting skills");
 	}
 }
 
