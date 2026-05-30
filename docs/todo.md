@@ -17,9 +17,6 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-- audit meson.build to see if our testcases should link to all the .cpp or .a files they do -- we relink too many files
-   when we touch a single agent file
-
 - a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
 - style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
@@ -227,3 +224,4 @@
 	  if we want to auto-save or ask the user -- the agents edits are in the editor, not on disk
           likewise for compile etc tasks
 - - enter_plan_mode, exit_plan_mode
+- audit meson.build to see if our testcases should link to all the .cpp or .a files they do -- we relink too many files when we touch a single agent file (replaced libtools.a linkage with compiling only the required entry/security source files directly for each test)
