@@ -185,6 +185,36 @@ test_agent_list_todos = executable('test_agent_list_todos',
   include_directories: inc)
 test('unit_test_agent_list_todos', test_agent_list_todos)
 
+test_agent_mark_episode = executable('test_agent_mark_episode',
+  'tests/unit/test_agent_mark_episode.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_mark_episode', test_agent_mark_episode)
+
+test_agent_set_status = executable('test_agent_set_status',
+  'tests/unit/test_agent_set_status.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_set_status', test_agent_set_status)
+
+test_agent_start_app = executable('test_agent_start_app',
+  'tests/unit/test_agent_start_app.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_start_app', test_agent_start_app)
+
+test_agent_status = executable('test_agent_status',
+  'tests/unit/test_agent_status.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_status', test_agent_status)
+
+test_agent_terminate_run = executable('test_agent_terminate_run',
+  'tests/unit/test_agent_terminate_run.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_terminate_run', test_agent_terminate_run)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
