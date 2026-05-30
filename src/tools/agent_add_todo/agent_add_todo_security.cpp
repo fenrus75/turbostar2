@@ -1,6 +1,6 @@
-#include "../../agentlib/single_string_tool_validator.h"
-#include "../../agentlib/tool_registry.h"
-#include "../../fs_utils.h"
+#include "agentlib/single_string_tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "fs_utils.h"
 #include "agent_add_todo.h"
 
 namespace tools
