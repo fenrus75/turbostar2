@@ -155,6 +155,12 @@ test_run_shell_command = executable('test_run_shell_command',
   include_directories: inc)
 test('unit_test_run_shell_command', test_run_shell_command)
 
+test_sqlite_list_db = executable('test_sqlite_list_db',
+  'tests/unit/test_sqlite_list_db.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_sqlite_list_db', test_sqlite_list_db)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
