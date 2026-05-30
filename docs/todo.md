@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- ensure consistent view of the project root across the entire codebase (e.g., command_runner, fs_utils, git_manager, project_manager), including cases where the project is not in a git repository
-	- project_manager should be the final owner of this, as this is a project wide property
 
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
@@ -108,6 +106,7 @@
 # done items (move items here on completion)
 
 ## 29-05-2026
+- refactored the codebase to use project_manager::get_project_root() consistently as the single source of truth for the project root path.
 - implemented "Run in Debugger" (F6 focus toggle, gdbserver socket auto-probing delay, tiled terminal windows, and auto-continue run setting).
 - refactored event_logger::get_instance().log calls throughout the codebase to use std::format instead of string concatenation.
 - implemented mouse click debugger action buttons ([Break], [Step], [Next], [Cont], [Quit]) drawn on the bottom border of the GDB window.
