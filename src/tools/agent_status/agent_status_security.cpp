@@ -42,6 +42,10 @@ class agent_status_validator : public agentlib::tool_validator
 	{
 		try {
 			agent_status_raw_args raw_args = args_json.get<agent_status_raw_args>();
+			if (raw_args.id < 0) {
+				out_error = "Invalid subagent ID specified.";
+				return false;
+			}
 			args_.id = raw_args.id;
 			return true;
 		} catch (const std::exception &e) {
