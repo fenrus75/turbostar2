@@ -1,8 +1,10 @@
 #include "file_security_manager.h"
 #include <algorithm>
 #include <fnmatch.h>
+#include <format>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <unistd.h>
 
 namespace agentlib
@@ -28,6 +30,9 @@ file_security_manager::file_security_manager()
 
 void file_security_manager::set_working_directory(const std::filesystem::path &cwd)
 {
+	if (!std::filesystem::exists(cwd) || !std::filesystem::is_directory(cwd)) {
+		throw std::invalid_argument("working directory must exist and be a directory");
+	}
 	cwd_ = std::filesystem::weakly_canonical(cwd);
 }
 
@@ -143,7 +148,7 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 	try {
 		canonical_path = std::filesystem::weakly_canonical(p);
 	} catch (const std::exception &e) {
-		out_error = "Invalid path format: " + std::string(e.what());
+		out_error = std::format("Invalid path format: {}", e.what());
 		return false;
 	}
 
