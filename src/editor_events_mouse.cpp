@@ -226,9 +226,27 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			}
 		}
 	} else if (ev.type == event_type::mouse_scroll_up || ev.type == event_type::mouse_scroll_down) {
-		// Find window under mouse
-		for (auto &w_ptr : windows_) {
-			window *w = w_ptr.get();
+		// Find window under mouse (Z-order sorted, topmost first)
+		std::vector<window *> sorted_windows;
+		for (auto &w : windows_) {
+			sorted_windows.push_back(w.get());
+		}
+
+		window *active_win = get_active_window();
+		std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
+			int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
+			int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
+
+			if (priority_a != priority_b) {
+				return priority_a > priority_b;
+			}
+			return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+		});
+
+		for (window *w : sorted_windows) {
+			if (!w->is_visible())
+				continue;
+
 			if (ev.mouse_x >= w->get_x() && ev.mouse_x < w->get_x() + w->get_width() && ev.mouse_y >= w->get_y() &&
 			    ev.mouse_y < w->get_y() + w->get_height()) {
 

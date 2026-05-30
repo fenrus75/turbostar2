@@ -839,6 +839,7 @@ bool editor::handle_k_block_key(int key)
 
 void editor::render()
 {
+	redrawwin(stdscr);
 	curs_set(0); // Default to hidden
 
 	// Paint desktop background with dithered pattern

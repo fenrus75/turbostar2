@@ -491,6 +491,13 @@ endif
     timeout: 60
   )
 
+  test('e2e_mouse_scroll_zorder', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_mouse_scroll_zorder.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
+
   test('e2e_window_popup', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_window_popup.py')],
     env: e2e_env,
