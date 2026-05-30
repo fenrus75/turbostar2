@@ -100,6 +100,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented active vs. inactive window border visual hierarchy: borders and widget decorations for the focused window are drawn in bright white/yellow, while unfocused windows are drawn in normal (dimmer) white/yellow.
 - implemented linked windows feature to mutually link windows (e.g. Run Output and Debugger (GDB), or AI Agent and Agent Status windows) so that when any window in the group gains focus, all other linked windows are brought to the front of Z-order. Added automated clean unlinking in the `window` destructor to prevent dangling pointers.
 - implemented dynamic layout updates in `activate_window()` to adjust the split screen layout (toggling between 70%/30% splits for agent windows and 100% full-screen layout for standard editor documents) dynamically on focus change, while cleanly preserving custom user bounds for non-maximized document windows.
 - fixed a nitpick where the "Run in Debugger" menu option was not shaded/disabled when no executable was configured, aligning its behavior with the "Run" menu option.
