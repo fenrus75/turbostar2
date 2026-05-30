@@ -30,8 +30,7 @@ class agent_list_validator final : public agentlib::tool_validator
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {{"type", "object"},
-			{"properties", nlohmann::json::object()},
-			{"additionalProperties", false}};
+			{"properties", nlohmann::json::object()}};
 	}
 
       protected:
