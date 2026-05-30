@@ -1,4 +1,5 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
+#include "fs_utils.h"
 #include "agent_compress_history.h"
 
 namespace tools {
@@ -38,6 +39,35 @@ nlohmann::json agent_compress_history_validator::get_parameters_schema() const {
 bool agent_compress_history_validator::validate_args_impl(const nlohmann::json& raw_json, const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
     try {
         args_ = raw_json.get<agent_compress_history_args>();
+        
+        // Security constraint: Title length check
+        if (args_.title.length() > 200) {
+            out_error = "Security Violation: Title exceeds maximum length of 200 characters.";
+            return false;
+        }
+
+        // Security constraint: Summary length check
+        if (args_.summary.length() > 2000) {
+            out_error = "Security Violation: Summary exceeds maximum length of 2000 characters.";
+            return false;
+        }
+
+        // Security constraint: Target episode ID length check
+        if (args_.target_episode_id.length() > 256) {
+            out_error = "Security Violation: target_episode_id exceeds maximum length of 256 characters.";
+            return false;
+        }
+
+        // Security check: Reject control characters and escape sequences in title and summary
+        if (!fs_utils::is_safe_for_ui(args_.title)) {
+            out_error = "Security Violation: Title contains unsafe control characters or escape sequences.";
+            return false;
+        }
+        if (!fs_utils::is_safe_for_ui(args_.summary)) {
+            out_error = "Security Violation: Summary contains unsafe control characters or escape sequences.";
+            return false;
+        }
+        
         return true;
     } catch (const std::exception& e) {
         out_error = "Invalid arguments: " + std::string(e.what());

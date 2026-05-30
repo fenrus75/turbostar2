@@ -1,10 +1,14 @@
 #pragma once
 #include <string>
-#include "../../agentlib/llm_tool.h"
-#include "../../agentlib/tool_validator.h"
+#include <vector>
+#include "agentlib/llm_tool.h"
+#include "agentlib/tool_validator.h"
 
 namespace tools {
 
+/**
+ * @brief Arguments for the agent_compress_history tool.
+ */
 struct agent_compress_history_args {
     std::string title;
     std::string summary;
@@ -13,12 +17,29 @@ struct agent_compress_history_args {
     bool include_all_prior{false};
 };
 
+/**
+ * @brief Tool to compress prior conversation history.
+ */
 class agent_compress_history_tool : public agentlib::llm_tool {
 public:
+    /**
+     * @brief Constructs the compress history tool.
+     */
     agent_compress_history_tool(agent_compress_history_args args);
 
+    /**
+     * @brief Validates runtime requirements (active agent context exists, not read-only, non-empty arguments).
+     */
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
+
+    /**
+     * @brief Executes history compression.
+     */
     std::string execute(agentlib::tool_context& ctx) override;
+
+    /**
+     * @brief Gets the associated system interaction.
+     */
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
 
 private:
@@ -26,6 +47,9 @@ private:
     std::shared_ptr<agentlib::agent_interaction> interaction_;
 };
 
+/**
+ * @brief Validator for the agent_compress_history tool.
+ */
 class agent_compress_history_validator : public agentlib::tool_validator {
 public:
     bool is_pure() const override { return false; }
