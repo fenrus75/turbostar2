@@ -2,18 +2,10 @@
 #include <algorithm>
 #include <sstream>
 #include "../../markdown_utils.h"
+#include "../../utf8.h"
 
 namespace agentlib
 {
-
-static size_t get_utf8_char_bytes(unsigned char c)
-{
-	if (c < 0x80) return 1;
-	if ((c & 0xE0) == 0xC0) return 2;
-	if ((c & 0xF0) == 0xE0) return 3;
-	if ((c & 0xF8) == 0xF0) return 4;
-	return 1;
-}
 
 constexpr int kBoxPadding = 4;
 constexpr int kMinInnerWidth = 10;
@@ -38,10 +30,10 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 			cached_lines_.clear();
 
 			// Single line box drawing characters
-			const std::string top_left = "┌"; // U+250C
-			const std::string horiz = "─";    // U+2500
+			const std::string top_left = "┌";  // U+250C
+			const std::string horiz = "─";	   // U+2500
 			const std::string top_right = "┐"; // U+2510
-			const std::string vert = "│";     // U+2502
+			const std::string vert = "│";	   // U+2502
 			const std::string bot_left = "└";  // U+2514
 			const std::string bot_right = "┘"; // U+2518
 
@@ -129,7 +121,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			line_chars += spaces;
 			i++;
 		} else {
-			size_t char_bytes = get_utf8_char_bytes(c);
+			size_t char_bytes = utf8::char_len(c);
 			if (i + char_bytes > text.length())
 				char_bytes = text.length() - i;
 			full_text.append(text, i, char_bytes);
@@ -158,7 +150,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		if (line.starts_with("```")) {
 			in_code_block = !in_code_block;
 		}
-		
+
 		int current_color = in_code_block ? code_color : color_pair;
 		if (!in_code_block && line.starts_with("```")) {
 			current_color = code_color; // Color the closing backticks as code too
@@ -184,7 +176,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			size_t peek_idx = byte_idx;
 			while (peek_idx < line.length() && chars_consumed < available_width) {
 				unsigned char c = static_cast<unsigned char>(line[peek_idx]);
-				size_t char_bytes = get_utf8_char_bytes(c);
+				size_t char_bytes = utf8::char_len(c);
 
 				if (peek_idx + char_bytes > line.length()) {
 					char_bytes = line.length() - peek_idx; // Malformed UTF-8 fallback

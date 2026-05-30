@@ -1,6 +1,7 @@
 #include "ansi_terminal_emulator.h"
 #include <algorithm>
 #include <format>
+#include "../utf8.h"
 #include "event_logger.h"
 
 namespace ui
@@ -79,14 +80,8 @@ void ansi_terminal_emulator::process_char(char c)
 			} else if ((c & 0xC0) == 0xC0) {
 				// UTF-8 lead byte
 				utf8_buffer_ = std::string(1, c);
-				if ((c & 0xE0) == 0xC0)
-					expected_utf8_len_ = 2;
-				else if ((c & 0xF0) == 0xE0)
-					expected_utf8_len_ = 3;
-				else if ((c & 0xF8) == 0xF0)
-					expected_utf8_len_ = 4;
-				else
-					expected_utf8_len_ = 0; // Invalid
+				size_t len = utf8::char_len(static_cast<unsigned char>(c));
+				expected_utf8_len_ = (len == 1) ? 0 : static_cast<int>(len);
 			} else if ((c & 0xC0) == 0x80 && expected_utf8_len_ > 0) {
 				// UTF-8 continuation byte
 				utf8_buffer_ += c;
@@ -330,7 +325,8 @@ void ansi_terminal_emulator::handle_csi_command(char cmd)
 					param_str += ";";
 				param_str += std::to_string(csi_params_[i]);
 			}
-			event_logger::get_instance().log(std::format("ansi_terminal_emulator: Unhandled CSI sequence: CSI {} {}", param_str, cmd));
+			event_logger::get_instance().log(
+			    std::format("ansi_terminal_emulator: Unhandled CSI sequence: CSI {} {}", param_str, cmd));
 			break;
 		}
 	}

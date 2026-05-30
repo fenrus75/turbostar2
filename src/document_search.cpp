@@ -12,6 +12,7 @@
 #include "fs_utils.h"
 #include "highlighter_registry.h"
 #include "lsp_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -105,43 +106,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 
 			if (params.backward) {
 				if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
-					int found_char_idx = 0;
-					size_t current_byte = 0;
-					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
-						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-						if (c < 0x80)
-							current_byte += 1;
-						else if ((c & 0xE0) == 0xC0)
-							current_byte += 2;
-						else if ((c & 0xE0) == 0xE0)
-							current_byte += 3;
-						else if ((c & 0xF0) == 0xF0)
-							current_byte += 4;
-						else
-							current_byte += 1;
-						found_char_idx++;
-					}
-					best_found_char_idx = found_char_idx;
+					best_found_char_idx = static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
 				}
 			} else {
 				if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
-					int found_char_idx = 0;
-					size_t current_byte = 0;
-					while (current_byte < byte_pos && current_byte < original_line_text.length()) {
-						unsigned char c = static_cast<unsigned char>(original_line_text[current_byte]);
-						if (c < 0x80)
-							current_byte += 1;
-						else if ((c & 0xE0) == 0xC0)
-							current_byte += 2;
-						else if ((c & 0xE0) == 0xE0)
-							current_byte += 3;
-						else if ((c & 0xF0) == 0xF0)
-							current_byte += 4;
-						else
-							current_byte += 1;
-						found_char_idx++;
-					}
-					return found_char_idx;
+					return static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
 				}
 			}
 		}

@@ -1,9 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- we have utf8 helpers in markdown_utils and in line.cpp and many other
-  places -- to the point we maybe should make a dedicated utf8:: space for
-  these helpers and a utf8.cpp
-
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
@@ -108,6 +104,7 @@
 # done items (move items here on completion)
 
 ## 29-05-2026
+- consolidated all UTF-8 helper functions into a single `utf8` namespace (in `utf8.h`/`utf8.cpp`) and refactored the rest of the codebase (including highlighters, document search, and terminal emulation) to reuse them.
 - refactored the codebase to use project_manager::get_project_root() consistently as the single source of truth for the project root path.
 - implemented "Run in Debugger" (F6 focus toggle, gdbserver socket auto-probing delay, tiled terminal windows, and auto-continue run setting).
 - refactored event_logger::get_instance().log calls throughout the codebase to use std::format instead of string concatenation.

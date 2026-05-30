@@ -1,6 +1,7 @@
 #include "markdown_utils.h"
 #include <algorithm>
 #include <sstream>
+#include "utf8.h"
 
 namespace markdown_utils
 {
@@ -120,26 +121,9 @@ std::string trim(std::string_view s)
 	return std::string(s.substr(first, (last - first + 1)));
 }
 
-
 size_t utf8_length(const std::string &s)
 {
-	size_t offset = 0;
-	size_t chars = 0;
-	while (offset < s.length()) {
-		unsigned char c = static_cast<unsigned char>(s[offset]);
-		if (c < 0x80)
-			offset += 1;
-		else if ((c & 0xE0) == 0xC0 && offset + 1 < s.length())
-			offset += 2;
-		else if ((c & 0xF0) == 0xE0 && offset + 2 < s.length())
-			offset += 3;
-		else if ((c & 0xF8) == 0xF0 && offset + 3 < s.length())
-			offset += 4;
-		else
-			offset += 1; // Invalid or truncated sequence, just advance 1 byte to not infinite loop
-		chars++;
-	}
-	return chars;
+	return utf8::length(s);
 }
 
 std::string align_all_tables(const std::string &text, bool framed)

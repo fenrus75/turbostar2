@@ -56,7 +56,10 @@ After making a change, create a git commit for the change. Before committing, en
   - Turbostar uses a 16-color palette (base colors + 8 for high intensity).
   - Explicit color pairs MUST be used for all UI elements and highlights.
   - **Avoid `A_REVERSE`**: Never use the `A_REVERSE` attribute to highlight focus or selection. Instead, always allocate and use a dedicated color pair (e.g., Black on Green). This ensures visual consistency and predictability across different terminal environments.
-- Cursor mapping: Custom lightweight UTF-8 utility mapping logical character index <-> UTF-8 byte offset.
+- **UTF-8 Handling and Helper Functions**:
+  - All UTF-8 helper functions must be consolidated inside the `utf8` namespace (declared in [src/utf8.h](file:///home/arjanvandeven/git/turbostar/src/utf8.h) and defined in [src/utf8.cpp](file:///home/arjanvandeven/git/turbostar/src/utf8.cpp)).
+  - Inline byte parsing, character length parsing, or offset conversion logic should NEVER be written ad-hoc. Existing helpers like `utf8::char_len`, `utf8::length`, `utf8::char_to_byte_offset`, `utf8::byte_to_char_pos`, and `utf8::next_character` must be reused.
+  - **Hard Rule**: If a new UTF-8 helper is ever needed, it **MUST** go into `src/utf8.h` / `src/utf8.cpp` to prevent duplication and ensure correctness across the codebase.
 
 
 # Architecture

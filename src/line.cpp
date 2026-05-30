@@ -1,19 +1,7 @@
 #include "line.h"
 #include <algorithm>
 #include <mutex>
-
-static inline size_t utf8_char_len(unsigned char c)
-{
-	if (c < 0x80)
-		return 1;
-	if ((c & 0xE0) == 0xC0)
-		return 2;
-	if ((c & 0xF0) == 0xE0)
-		return 3;
-	if ((c & 0xF8) == 0xF0)
-		return 4;
-	return 1; // Invalid UTF-8
-}
+#include "utf8.h"
 
 line::line(const std::string &text) : text_(text)
 {
@@ -69,64 +57,25 @@ void line::set_text(const std::string &text)
 {
 	std::unique_lock lock(mutex_);
 	text_ = text;
-	size_t char_count = 0;
-	size_t offset = 0;
-	while (offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		char_count++;
-	}
-	attributes_.assign(char_count, syntax_attribute::normal);
+	attributes_.assign(utf8::length(text_), syntax_attribute::normal);
 }
 
 size_t line::char_to_byte_offset(int char_pos) const
 {
 	std::shared_lock lock(mutex_);
-	size_t offset = 0;
-	int chars = 0;
-	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		chars++;
-	}
-	return offset;
+	return utf8::char_to_byte_offset(text_, char_pos);
 }
 
 int line::length_in_chars() const
 {
 	std::shared_lock lock(mutex_);
-	int offset = 0;
-	int chars = 0;
-	while (offset < static_cast<int>(text_.length())) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		chars++;
-	}
-	return chars;
+	return utf8::length(text_);
 }
 
 bool line::next_utf8_character(size_t &byte_offset, std::string &out_char) const
 {
 	std::shared_lock lock(mutex_);
-	if (byte_offset >= text_.length()) {
-		out_char.clear();
-		return false;
-	}
-
-	unsigned char c = static_cast<unsigned char>(text_[byte_offset]);
-	if (c < 0x80) {
-		out_char.assign(1, static_cast<char>(c));
-		byte_offset++;
-		return true;
-	}
-
-	size_t char_len = utf8_char_len(c);
-	if (byte_offset + char_len > text_.length())
-		char_len = text_.length() - byte_offset;
-
-	out_char.assign(text_, byte_offset, char_len);
-	byte_offset += char_len;
-	return true;
+	return utf8::next_character(text_, byte_offset, out_char);
 }
 
 void line::insert_at(int char_pos, const std::string &utf8_char)
@@ -138,13 +87,7 @@ void line::insert_at(int char_pos, const std::string &utf8_char)
 		char_pos = static_cast<int>(attributes_.size());
 	}
 
-	size_t offset = 0;
-	int chars = 0;
-	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		chars++;
-	}
+	size_t offset = utf8::char_to_byte_offset(text_, char_pos);
 
 	if (offset <= text_.length()) {
 		text_.insert(offset, utf8_char);
@@ -164,19 +107,10 @@ void line::remove_at(int char_pos)
 	if (char_pos >= static_cast<int>(attributes_.size()))
 		return;
 
-	size_t offset = 0;
-	int chars = 0;
-	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		chars++;
-	}
+	size_t offset = utf8::char_to_byte_offset(text_, char_pos);
 
 	if (offset < text_.length()) {
-		size_t next_offset = offset;
-		unsigned char c = byte_at_unlocked(offset);
-		next_offset += utf8_char_len(c);
-
+		size_t next_offset = offset + utf8::char_len(byte_at_unlocked(offset));
 		text_.erase(offset, next_offset - offset);
 		if (char_pos < static_cast<int>(attributes_.size())) {
 			attributes_.erase(attributes_.begin() + char_pos);
@@ -195,13 +129,7 @@ void line::split_at(int char_pos, line &new_line)
 		char_pos = static_cast<int>(attributes_.size());
 	}
 
-	size_t offset = 0;
-	int chars = 0;
-	while (chars < char_pos && offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		chars++;
-	}
+	size_t offset = utf8::char_to_byte_offset(text_, char_pos);
 
 	if (offset <= text_.length()) {
 		new_line.text_ = text_.substr(offset);
@@ -222,16 +150,7 @@ void line::merge(const line &other_line)
 	std::lock(lock_this, lock_other);
 
 	text_ += other_line.text_;
-
-	// Reset attributes for now, highlighter will redo it
-	size_t char_count = 0;
-	size_t offset = 0;
-	while (offset < text_.length()) {
-		unsigned char c = byte_at_unlocked(offset);
-		offset += utf8_char_len(c);
-		char_count++;
-	}
-	attributes_.assign(char_count, syntax_attribute::normal);
+	attributes_.assign(utf8::length(text_), syntax_attribute::normal);
 }
 
 int line::char_to_display_col(int char_pos) const
@@ -243,7 +162,7 @@ int line::char_to_display_col(int char_pos) const
 
 	while (current_char < char_pos && byte_offset < text_.length()) {
 		unsigned char c = byte_at(static_cast<int>(byte_offset));
-		size_t char_bytes = utf8_char_len(c);
+		size_t char_bytes = utf8::char_len(c);
 
 		if (c < 0x80) {
 			if (c == '\t') {
