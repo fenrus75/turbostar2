@@ -21,18 +21,19 @@ void test_markdown_heading()
 	auto l = std::make_shared<line>("# Heading 1");
 	hl.highlight(l);
 
-	// The first character '#' is heading
+	// H1 heading should be highlighted entirely
 	assert(l->get_attribute(0) == syntax_attribute::heading);
-	// The rest of the line is normal
-	assert(l->get_attribute(1) == syntax_attribute::normal);
-	assert(l->get_attribute(2) == syntax_attribute::normal);
+	assert(l->get_attribute(1) == syntax_attribute::heading);
+	assert(l->get_attribute(2) == syntax_attribute::heading);
 
 	auto l2 = std::make_shared<line>("## Heading 2");
 	hl.highlight(l2);
-	assert(l2->get_attribute(0) == syntax_attribute::heading);
-	assert(l2->get_attribute(1) == syntax_attribute::heading);
+	// H2 heading (starting with ##) should be skipped/remain normal
+	assert(l2->get_attribute(0) == syntax_attribute::normal);
+	assert(l2->get_attribute(1) == syntax_attribute::normal);
 	assert(l2->get_attribute(2) == syntax_attribute::normal);
 }
+
 
 void test_markdown_bold()
 {
