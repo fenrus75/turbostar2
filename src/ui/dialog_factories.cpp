@@ -1,5 +1,6 @@
 #include "ui/dialog_factories.h"
 #include <ncurses.h>
+#include <cstdlib>
 #include "agentlib/ai_model.h"
 #include "config_manager.h"
 #include "fs_utils.h"
@@ -993,3 +994,80 @@ void apply_run_settings_from_dialog(const dialog &dlg)
 	if (gdb_start)
 		cfg.set_gdb_auto_continue(*gdb_start == "true");
 }
+
+std::unique_ptr<dialog> create_tool_status_dialog()
+{
+	struct tool_info {
+		std::string name;
+		std::string command;
+		std::string package;
+		bool installed;
+	};
+
+	std::vector<tool_info> tools = {
+		{"gdb", "gdb", "gdb", false},
+		{"gdbserver", "gdbserver", "gdbserver", false},
+		{"clangd", "clangd", "clangd", false},
+		{"clang-format", "clang-format", "clang-format", false},
+		{"bandit", "bandit", "python3-bandit", false}
+	};
+
+	std::vector<std::string> missing_packages;
+	for (auto &t : tools) {
+		std::string check_cmd = "which " + t.command + " > /dev/null 2>&1";
+		t.installed = (std::system(check_cmd.c_str()) == 0);
+		if (!t.installed) {
+			missing_packages.push_back(t.package);
+		}
+	}
+
+	int width = 56;
+	int height = 15;
+	if (!missing_packages.empty()) {
+		height = 17;
+	}
+
+	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
+
+	// Title label
+	dlg->add_child(std::make_unique<ui_text_label>(4, 2, "Diagnostic Tool Status:"));
+
+	int current_y = 4;
+	for (const auto &t : tools) {
+		std::string status_str = t.installed ? "☑ Installed" : "☐ Missing";
+		std::string name_col = t.name + ":";
+		if (name_col.length() < 15) {
+			name_col.append(15 - name_col.length(), ' ');
+		}
+		dlg->add_child(std::make_unique<ui_text_label>(6, current_y, name_col + status_str));
+		current_y++;
+	}
+
+	current_y++; // blank line
+
+	if (!missing_packages.empty()) {
+		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "Some dependencies are missing."));
+		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "To install them, run:"));
+
+		std::string apt_cmd = "sudo apt install";
+		for (const auto &pkg : missing_packages) {
+			apt_cmd += " " + pkg;
+		}
+		dlg->add_child(std::make_unique<ui_text_label>(6, current_y++, apt_cmd));
+		current_y++;
+	} else {
+		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "All dependencies are installed!"));
+		current_y++;
+	}
+
+	std::string ok_text = "  OK  ";
+	int btn_x = (width - static_cast<int>(ok_text.length())) / 2;
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", btn_x, current_y, ok_text, 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+
+	dlg->set_focus_by_name("btn_ok");
+	return dlg;
+}
+

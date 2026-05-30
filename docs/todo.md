@@ -2,7 +2,16 @@
 
 - high value: we should override __assert_fail() in libturbocatch.so so that we can do better reporting assertion failures
   (once we log the arguments, we can then call the original that we get from dlsym or whatever)
+	it also gives us file/line number --> we can highlight this
 
+
+- we should use bandit to validate python code, if bandit is installed
+	"cat tests/e2e/*py | bandit --severity-level=high -" as example to run, can also run on files
+
+
+- in the crash list menu, have a "go to source" button that opens the file (if not open yet), and puts the cursor 
+  at the place of the crash (if the file is in this project -- we may need to go down a few steps in the backtrace
+  until we find the first part in OUR code base and go there)
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
@@ -225,3 +234,4 @@
           likewise for compile etc tasks
 - - enter_plan_mode, exit_plan_mode
 - audit meson.build to see if our testcases should link to all the .cpp or .a files they do -- we relink too many files when we touch a single agent file (replaced libtools.a linkage with compiling only the required entry/security source files directly for each test)
+- we should make an option under help menu for "Tool status" that lists if all required dependencies are installed (gdb, gdbserver, clangd, clang-format, python3-bandit), displaying [X] for yes and [ ] for no with a cut-and-pasteable install command for any missing dependencies

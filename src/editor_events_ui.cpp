@@ -131,6 +131,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::tool_status) {
+		logger.log("Dispatching tool_status event.");
+		active_dialog_ = create_tool_status_dialog();
+		set_focus(focus_target::dialog, "menu_tool_status");
+		return;
+	}
+
 	if (ev.type == event_type::help) {
 		logger.log("Dispatching help event.");
 		// Check if "Help" window already exists

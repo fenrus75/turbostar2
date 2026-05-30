@@ -28,13 +28,17 @@ int main()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	std::string project_root = project_manager::get_instance().get_project_root();
+	ctx.fs_security.set_working_directory(project_root);
+	ctx.fs_security.add_allowed_root(project_root, access_type::read);
+	ctx.fs_security.add_allowed_root(project_root, access_type::write);
 
 	std::cout << "Testing git_diff_from_branch..." << std::endl;
 
 	// 1. Success case: retrieve diff against HEAD
 	{
 		// Modify a tracked file to ensure there is a diff against HEAD
-		std::string test_file_path = "tests/unit/test_git_diff_from_branch.cpp";
+		std::string test_file_path = project_root + "/tests/unit/test_git_diff_from_branch.cpp";
 		std::string original_content = read_file(test_file_path);
 		write_file(test_file_path, original_content + "\n// temp modification\n");
 

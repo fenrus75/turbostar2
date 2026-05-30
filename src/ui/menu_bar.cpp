@@ -51,7 +51,7 @@ menu_bar::menu_bar()
 	     {{"Open Chat...", event_type::open_agent, 'o', "", false},
 	      {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
 	    {"Window", 'w', {}},
-	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"About...", event_type::about, 'a', "", false}}}};
+	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"Tool status", event_type::tool_status, 't', "", false}, {"About...", event_type::about, 'a', "", false}}}};
 }
 
 bool menu_bar::handle_alt_key(char c, event_queue &queue)
