@@ -161,6 +161,12 @@ test_sqlite_list_db = executable('test_sqlite_list_db',
   include_directories: inc)
 test('unit_test_sqlite_list_db', test_sqlite_list_db)
 
+test_git_branch_create = executable('test_git_branch_create',
+  'tests/unit/test_git_branch_create.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_branch_create', test_git_branch_create)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
