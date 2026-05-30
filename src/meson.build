@@ -27,8 +27,10 @@ core_sources = files(
   'python_highlighter.cpp',
   'markdown_highlighter.cpp',
   'highlighter_registry.cpp',
-  'history_manager.cpp'
+  'history_manager.cpp',
+  'utf8.cpp'
 )
+
 
 agentlib_sources = files(
   'agentlib/ai_agent.cpp',

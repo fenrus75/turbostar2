@@ -169,6 +169,13 @@ test_markdown_utils = executable('test_markdown_utils',
   include_directories: 'src')
 test('unit_markdown_utils', test_markdown_utils)
 
+test_utf8 = executable('test_utf8',
+  ['tests/unit/test_utf8.cpp', 'src/utf8.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_utf8', test_utf8)
+
+
 test_document = executable('test_document',
   'tests/unit/test_document.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
