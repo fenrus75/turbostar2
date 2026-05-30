@@ -16,10 +16,7 @@ bool git_branch_create_tool::validate_runtime(const agentlib::tool_context & /*c
 
 std::string git_branch_create_tool::execute(agentlib::tool_context &ctx)
 {
-	// Note: We use execute_command_sync without shell escaping for simplicity right now,
-	// but validate_string_arg ensured no spaces.
-	std::string cmd = "git branch " + fs_utils::escape_shell_arg(branch_name_);
-	std::string output = fs_utils::execute_command_sync(cmd);
+	std::string output = fs_utils::execute_command_sync("git branch {}", branch_name_);
 
 	// git branch outputs nothing on success
 	if (output.empty() || output.find("fatal:") == std::string::npos) {

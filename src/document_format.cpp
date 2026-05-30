@@ -112,11 +112,9 @@ void document::format_range(int start_y, int end_y)
 	}
 
 	// Run clang-format
-	std::string cmd = "clang-format " + style_arg + " -i " + fs_utils::escape_shell_arg(temp_path);
-
 	sync_command_runner runner;
 	runner.apply_internal_profile();
-	int exit_code = runner.execute(cmd);
+	int exit_code = runner.execute("clang-format {} -i {}", style_arg, temp_path);
 
 	if (exit_code != 0) {
 		event_logger::get_instance().log("Format failed: clang-format returned error.");
