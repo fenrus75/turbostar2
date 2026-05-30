@@ -1,6 +1,9 @@
 #include "file_security_manager.h"
+#include <algorithm>
+#include <fnmatch.h>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 
 namespace agentlib
 {
@@ -58,6 +61,9 @@ void file_security_manager::load_ignore_file(const std::filesystem::path &ignore
 		// Basic trim and comment ignoring
 		line.erase(0, line.find_first_not_of(" \t"));
 		line.erase(line.find_last_not_of(" \t") + 1);
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
 		if (line.empty() || line[0] == '#')
 			continue;
 		add_ignore_pattern(line);
@@ -66,11 +72,41 @@ void file_security_manager::load_ignore_file(const std::filesystem::path &ignore
 
 bool file_security_manager::is_ignored(const std::filesystem::path &path) const
 {
-	std::string path_str = path.string();
+	std::string path_str = path.generic_string();
 	for (const auto &pattern : ignore_patterns_) {
-		// Very basic matching for now: if path contains the pattern string
-		// In a full implementation, this should support globbing (e.g. fnmatch or similar)
-		if (path_str.find(pattern) != std::string::npos) {
+		std::string pat = pattern;
+		std::replace(pat.begin(), pat.end(), '\\', '/');
+
+		if (pat.empty())
+			continue;
+
+		// If pattern doesn't contain a slash, check directory components
+		if (pat.find('/') == std::string::npos) {
+			bool matched = false;
+			for (const auto &part : path) {
+				std::string part_str = part.generic_string();
+				if (::fnmatch(pat.c_str(), part_str.c_str(), 0) == 0) {
+					matched = true;
+					break;
+				}
+			}
+			if (matched) {
+				return true;
+			}
+			continue;
+		}
+
+		// Normalize pattern prefix matching for path segments
+		std::string prefix_pat = pat;
+		if (!prefix_pat.starts_with('/')) {
+			prefix_pat = "/" + prefix_pat;
+		}
+
+		if (path_str == pat || path_str.ends_with(prefix_pat) || path_str.find(prefix_pat + "/") != std::string::npos) {
+			return true;
+		}
+
+		if (::fnmatch(pat.c_str(), path_str.c_str(), FNM_PATHNAME) == 0) {
 			return true;
 		}
 	}
@@ -160,12 +196,11 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 	// 5. Final check against actual on-disk permissions
 	// If it exists, check if the OS actually allows the requested access
 	if (std::filesystem::exists(canonical_path)) {
-		auto perms = std::filesystem::status(canonical_path).permissions();
-		if (requested_perm == access_type::read && (perms & std::filesystem::perms::owner_read) == std::filesystem::perms::none) {
+		if (requested_perm == access_type::read && ::access(canonical_path.c_str(), R_OK) != 0) {
 			out_error = "Read permission denied by the operating system.";
 			return false;
 		}
-		if (requested_perm == access_type::write && (perms & std::filesystem::perms::owner_write) == std::filesystem::perms::none) {
+		if (requested_perm == access_type::write && ::access(canonical_path.c_str(), W_OK) != 0) {
 			out_error = "Write permission denied by the operating system.";
 			return false;
 		}

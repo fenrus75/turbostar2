@@ -46,6 +46,30 @@ int main()
 
 	// 5. Ignore patterns
 	assert(fsm.validate_access(".git/config", access_type::read, out_path, out_err) == false);
+	// Similar paths should NOT be ignored (regression tests)
+	assert(fsm.validate_access("test.git_helper.txt", access_type::read, out_path, out_err) == true);
+	assert(fsm.validate_access(".git_backup/config", access_type::read, out_path, out_err) == true);
+
+	// 6. Ignore file loading with CRLF
+	std::filesystem::path ignore_file = tmp_workspace / ".agentignore";
+	{
+		std::ofstream out(ignore_file, std::ios::binary);
+		out << "ignored_dir\r\n";
+		out << "# comment\r\n";
+		out << "ignored_file.txt\r\n";
+	}
+	fsm.load_ignore_file(ignore_file);
+	assert(fsm.validate_access("ignored_dir/file.txt", access_type::read, out_path, out_err) == false);
+	assert(fsm.validate_access("ignored_file.txt", access_type::read, out_path, out_err) == false);
+	assert(fsm.validate_access("not_ignored.txt", access_type::read, out_path, out_err) == true);
+
+	// 7. OS actual permissions check (access)
+	std::filesystem::path ro_file = tmp_workspace / "readonly_file.txt";
+	create_dummy_file(ro_file);
+	// Make it read-only for owner (0400)
+	std::filesystem::permissions(ro_file, std::filesystem::perms::owner_read, std::filesystem::perm_options::replace);
+	assert(fsm.validate_access("readonly_file.txt", access_type::read, out_path, out_err) == true);
+	assert(fsm.validate_access("readonly_file.txt", access_type::write, out_path, out_err) == false);
 
 	// Cleanup
 	std::filesystem::remove_all(tmp_workspace);
