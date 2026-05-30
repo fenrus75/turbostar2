@@ -279,9 +279,61 @@ void __assert_fail(const char *assertion, const char *file, unsigned int line, c
 	}
 
 	typedef void (*assert_fail_fn)(const char *, const char *, unsigned int, const char *);
-	assert_fail_fn orig = (assert_fail_fn)dlsym(RTLD_NEXT, "__assert_fail");
+	assert_fail_fn orig;
+	*(void **)(&orig) = dlsym(RTLD_NEXT, "__assert_fail");
 	if (orig) {
 		orig(assertion, file, line, function);
+	} else {
+		_exit(127);
+	}
+}
+
+void __assert_perror_fail(int errnum, const char *file, unsigned int line, const char *function)
+{
+	if (dump_dir_len > 0) {
+		pid_t pid = getpid();
+		char pid_str[32];
+		safe_itoa(pid, pid_str, sizeof(pid_str));
+
+		char crash_dir[1024] = {0};
+		safe_strcpy(crash_dir, dump_dir_base, sizeof(crash_dir));
+		safe_strcat(crash_dir, "/crash_", sizeof(crash_dir));
+		safe_strcat(crash_dir, pid_str, sizeof(crash_dir));
+
+		mkdir(crash_dir, 0755);
+
+		char filepath[1024] = {0};
+		safe_strcpy(filepath, crash_dir, sizeof(filepath));
+		safe_strcat(filepath, "/assertion.txt", sizeof(filepath));
+
+		int fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (fd >= 0) {
+			write(fd, "Assertion: perror ", 18);
+			char err_str[16];
+			safe_itoa(errnum, err_str, sizeof(err_str));
+			write(fd, err_str, safe_strlen(err_str));
+			write(fd, "\nFile: ", 7);
+			if (file) {
+				write(fd, file, safe_strlen(file));
+			}
+			write(fd, "\nLine: ", 7);
+			char line_str[16];
+			safe_itoa(line, line_str, sizeof(line_str));
+			write(fd, line_str, safe_strlen(line_str));
+			write(fd, "\nFunction: ", 11);
+			if (function) {
+				write(fd, function, safe_strlen(function));
+			}
+			write(fd, "\n", 1);
+			close(fd);
+		}
+	}
+
+	typedef void (*assert_perror_fail_fn)(int, const char *, unsigned int, const char *);
+	assert_perror_fail_fn orig;
+	*(void **)(&orig) = dlsym(RTLD_NEXT, "__assert_perror_fail");
+	if (orig) {
+		orig(errnum, file, line, function);
 	} else {
 		_exit(127);
 	}

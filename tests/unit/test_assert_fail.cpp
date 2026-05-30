@@ -9,6 +9,8 @@
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
 
+extern "C" void __assert_perror_fail(int errnum, const char *file, unsigned int line, const char *function);
+
 namespace fs = std::filesystem;
 
 int main(int argc, char **argv)
@@ -22,6 +24,13 @@ int main(int argc, char **argv)
 		// Child process: trigger a failed assertion
 		std::cout << "[Child] Running assertion failure..." << std::endl;
 		assert(1 == 2);
+		return 0;
+	}
+
+	if (argc > 1 && std::string(argv[1]) == "child_perror") {
+		// Child process: trigger a perror assertion failure
+		std::cout << "[Child] Running perror assertion failure..." << std::endl;
+		__assert_perror_fail(22, "test_perror.cpp", 99, "main");
 		return 0;
 	}
 
@@ -99,6 +108,59 @@ int main(int argc, char **argv)
 
 	// Clean up only our created crash folder
 	fs::remove_all(crash_folder);
+
+	// Test 2: __assert_perror_fail test
+	{
+		std::cout << "\n[Parent] Testing __assert_perror_fail..." << std::endl;
+		pid_t pid_p = fork();
+		if (pid_p == 0) {
+			std::string new_preload = lib_path;
+			const char *old_preload = getenv("LD_PRELOAD");
+			if (old_preload && *old_preload) {
+				new_preload = std::string(old_preload) + ":" + lib_path;
+			}
+			setenv("LD_PRELOAD", new_preload.c_str(), 1);
+			setenv("TURBOSTAR_DUMP_DIR", test_dump_dir.string().c_str(), 1);
+
+			char *child_argv[] = {argv[0], (char *)"child_perror", nullptr};
+			execvp(argv[0], child_argv);
+			perror("execvp");
+			_exit(1);
+		}
+
+		int status_p = 0;
+		waitpid(pid_p, &status_p, 0);
+
+		std::string child_pid_str_p = std::to_string(pid_p);
+		fs::path crash_folder_p = test_dump_dir / ("crash_" + child_pid_str_p);
+		assert(fs::exists(crash_folder_p));
+
+		fs::path assert_file_p = crash_folder_p / "assertion.txt";
+		assert(fs::exists(assert_file_p));
+
+		std::ifstream in_p(assert_file_p);
+		std::string content_p((std::istreambuf_iterator<char>(in_p)), std::istreambuf_iterator<char>());
+		std::cout << "[Parent] perror assertion.txt content:\n" << content_p << std::endl;
+
+		assert(content_p.find("Assertion: perror 22") != std::string::npos);
+		assert(content_p.find("File: test_perror.cpp") != std::string::npos);
+		assert(content_p.find("Line: 99") != std::string::npos);
+
+		// Run crashdump_manager to parse and generate report.md
+		cm.refresh("");
+
+		fs::path report_file_p = crash_folder_p / "report.md";
+		assert(fs::exists(report_file_p));
+
+		std::ifstream report_in_p(report_file_p);
+		std::string report_content_p((std::istreambuf_iterator<char>(report_in_p)), std::istreambuf_iterator<char>());
+		std::cout << "[Parent] perror report.md content:\n" << report_content_p << std::endl;
+
+		assert(report_content_p.find("### Failed Assertion") != std::string::npos);
+		assert(report_content_p.find("perror 22") != std::string::npos);
+
+		fs::remove_all(crash_folder_p);
+	}
 
 	std::cout << "test_assert_fail passed successfully!" << std::endl;
 	return 0;
