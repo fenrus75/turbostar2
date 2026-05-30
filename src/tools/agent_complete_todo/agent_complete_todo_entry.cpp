@@ -1,5 +1,8 @@
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/ai_agent.h"
 #include "agent_complete_todo.h"
+#include <format>
+#include <string>
+#include <utility>
 
 namespace tools
 {
@@ -15,6 +18,10 @@ bool agent_complete_todo_tool::validate_runtime(const agentlib::tool_context &ct
 		out_error = "Execution Error: No active agent context available.";
 		return false;
 	}
+	if (ctx.active_agent->is_read_only()) {
+		out_error = "Execution Error: Agent is in read-only mode.";
+		return false;
+	}
 	if (text_match_.empty()) {
 		out_error = "Execution Error: Search text cannot be empty.";
 		return false;
@@ -27,10 +34,10 @@ std::string agent_complete_todo_tool::execute(agentlib::tool_context &ctx)
 	std::string err;
 	if (ctx.active_agent->mark_todo_complete(text_match_, err)) {
 		set_success(ctx);
-		return "Task marked complete.";
+		return std::format("Task marked complete.");
 	}
 	set_failure(ctx, err);
-	return "Error: " + err;
+	return std::format("Error: {}", err);
 }
 
 } // namespace tools

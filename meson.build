@@ -119,6 +119,19 @@ test_activate_skill = executable('test_activate_skill',
   include_directories: inc)
 test('unit_test_activate_skill', test_activate_skill)
 
+test_agent_add_todo = executable('test_agent_add_todo',
+  'tests/unit/test_agent_add_todo.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_add_todo', test_agent_add_todo)
+
+test_agent_complete_todo = executable('test_agent_complete_todo',
+  'tests/unit/test_agent_complete_todo.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_complete_todo', test_agent_complete_todo)
+
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
