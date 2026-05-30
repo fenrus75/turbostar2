@@ -43,22 +43,24 @@ public:
 
         if (schema.contains("properties") && schema["properties"].is_object()) {
             for (auto it = args.begin(); it != args.end(); ++it) {
-                if (schema["properties"].contains(it.key())) {
-                    auto prop_schema = schema["properties"][it.key()];
-                    if (prop_schema.contains("type") && prop_schema["type"].is_string()) {
-                        std::string expected_type = prop_schema["type"].get<std::string>();
-                        bool type_ok = false;
-                        if (expected_type == "string" && it.value().is_string()) type_ok = true;
-                        else if (expected_type == "integer" && it.value().is_number_integer()) type_ok = true;
-                        else if (expected_type == "boolean" && it.value().is_boolean()) type_ok = true;
-                        else if (expected_type == "array" && it.value().is_array()) type_ok = true;
-                        else if (expected_type == "object" && it.value().is_object()) type_ok = true;
-                        else if (expected_type == "number" && it.value().is_number()) type_ok = true;
+                if (!schema["properties"].contains(it.key())) {
+                    out_error = "Schema Validation Failed: Unexpected argument '" + it.key() + "'";
+                    return false;
+                }
+                auto prop_schema = schema["properties"][it.key()];
+                if (prop_schema.contains("type") && prop_schema["type"].is_string()) {
+                    std::string expected_type = prop_schema["type"].get<std::string>();
+                    bool type_ok = false;
+                    if (expected_type == "string" && it.value().is_string()) type_ok = true;
+                    else if (expected_type == "integer" && it.value().is_number_integer()) type_ok = true;
+                    else if (expected_type == "boolean" && it.value().is_boolean()) type_ok = true;
+                    else if (expected_type == "array" && it.value().is_array()) type_ok = true;
+                    else if (expected_type == "object" && it.value().is_object()) type_ok = true;
+                    else if (expected_type == "number" && it.value().is_number()) type_ok = true;
 
-                        if (!type_ok) {
-                            out_error = "Schema Validation Failed: Type mismatch for argument '" + it.key() + "'. Expected " + expected_type;
-                            return false;
-                        }
+                    if (!type_ok) {
+                        out_error = "Schema Validation Failed: Type mismatch for argument '" + it.key() + "'. Expected " + expected_type;
+                        return false;
                     }
                 }
             }

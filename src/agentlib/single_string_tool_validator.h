@@ -47,6 +47,14 @@ protected:
             out_error = "Missing or invalid '" + param_name + "' string parameter.";
             return false;
         }
+
+        // Validate no other arguments are passed
+        for (auto it = raw_args.begin(); it != raw_args.end(); ++it) {
+            if (it.key() != param_name) {
+                out_error = "Unexpected parameter '" + it.key() + "' passed to tool.";
+                return false;
+            }
+        }
         
         return validate_string_arg(raw_args[param_name].get<std::string>(), ctx, out_error);
     }
