@@ -143,8 +143,17 @@ test_agent_create = executable('test_agent_create',
   include_directories: inc)
 test('unit_test_agent_create', test_agent_create)
 
+test_agent_delete_todo = executable('test_agent_delete_todo',
+  'tests/unit/test_agent_delete_todo.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_delete_todo', test_agent_delete_todo)
 
-
+test_agent_end = executable('test_agent_end',
+  'tests/unit/test_agent_end.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_end', test_agent_end)
 
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',

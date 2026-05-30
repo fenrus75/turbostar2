@@ -21,7 +21,7 @@ int main()
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
-	auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
+	auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
 
 	std::cout << "Testing agent_create..." << std::endl;
@@ -97,6 +97,7 @@ int main()
 		auto subagents = agent->get_subagents();
 		assert(!subagents.empty());
 		subagents[0]->wait_until_idle();
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 		std::cout << "agent_create tool verified successfully!" << std::endl;
 	}
