@@ -1,18 +1,24 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_end.h"
 
 namespace tools
 {
 
+/**
+ * @brief Raw argument structure for JSON deserialization.
+ */
 struct agent_end_raw_args {
-	int id;
+	int id{-1};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_end_raw_args, id);
 
-class agent_end_validator : public agentlib::tool_validator
+/**
+ * @brief Validator for the agent_end (end_agent) tool, validating JSON schema.
+ */
+class agent_end_validator final : public agentlib::tool_validator
 {
       public:
 	bool is_pure() const override
@@ -40,6 +46,10 @@ class agent_end_validator : public agentlib::tool_validator
 	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
 				std::string &out_error) const override
 	{
+		if (!args_json.contains("id")) {
+			out_error = "Argument parsing error: missing required field 'id'";
+			return false;
+		}
 		try {
 			agent_end_raw_args raw_args = args_json.get<agent_end_raw_args>();
 			args_.id = raw_args.id;
@@ -56,6 +66,7 @@ class agent_end_validator : public agentlib::tool_validator
 	}
 
       private:
+	// mutable is needed so that validate_args_impl (which is const) can cache parsed arguments for tool creation.
 	mutable agent_end_args args_;
 };
 
