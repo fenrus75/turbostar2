@@ -36,6 +36,9 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 	std::stringstream ss(status_output);
 	std::string line;
 	while (std::getline(ss, line)) {
+		if (line.starts_with("Process exited with code")) {
+			continue;
+		}
 		if (line.length() >= 2) {
 			char staged_status = line[0];
 			if (staged_status != ' ' && staged_status != '?') {

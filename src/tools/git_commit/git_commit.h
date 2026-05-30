@@ -31,6 +31,13 @@ protected:
             out_error = "Commit message cannot be empty.";
             return false;
         }
+        for (char c : arg) {
+            unsigned char uc = static_cast<unsigned char>(c);
+            if ((uc < 32 && uc != '\n' && uc != '\r' && uc != '\t') || uc == 127) {
+                out_error = "Commit message contains invalid control characters.";
+                return false;
+            }
+        }
         return true;
     }
     
