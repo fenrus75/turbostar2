@@ -59,13 +59,13 @@ void test_markdown_bold_utf8()
 	// Space is normal (char index 1)
 	assert(l->get_attribute(1) == syntax_attribute::normal);
 	
-	// Bold starts at char index 2 (**) and spans 10 chars: **🦀 bold 🦀**
-	// Char indices: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+	// Bold starts at char index 2 (**) and spans 12 chars: **🦀 bold 🦀**
+	// Char indices: 2 to 13 inclusive
 	assert(l->get_attribute(2) == syntax_attribute::bold);
-	assert(l->get_attribute(3) == syntax_attribute::bold); // 🦀
-	assert(l->get_attribute(11) == syntax_attribute::bold); // last *
-	assert(l->get_attribute(12) == syntax_attribute::normal); // trailing space
-	assert(l->get_attribute(13) == syntax_attribute::normal); // trailing 🦀
+	assert(l->get_attribute(4) == syntax_attribute::bold); // 🦀
+	assert(l->get_attribute(13) == syntax_attribute::bold); // last *
+	assert(l->get_attribute(14) == syntax_attribute::normal); // trailing space
+	assert(l->get_attribute(15) == syntax_attribute::normal); // trailing 🦀
 }
 
 void test_markdown_list_items()
