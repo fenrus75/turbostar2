@@ -1,0 +1,83 @@
+# Code Review: `src/tools/agent_create/agent_create_entry.cpp`
+
+**Overall Assessment**
+- The implementation fulfills its purpose of creating and optionally running a sub‑agent.  It follows the existing project conventions and compiles without issues.
+- The logic is clear, with proper error handling for missing active agent context and sub‑agent creation failures.
+- Documentation/comments are sparse but the code is fairly self‑explanatory.
+
+---
+
+## Positive Aspects
+1. **Error Handling**
+   - `validate_runtime` correctly checks for a missing `active_agent` and returns a descriptive error.
+   - Sub‑agent creation failure is reported immediately.
+2. **Separation of Concerns**
+   - Context injection, prompt submission, and execution mode (async vs sync) are cleanly separated.
+3. **Resource Management**
+   - Uses `std::move` for constructor argument ownership.
+4. **Consistent Naming**
+   - Variable and function names follow the project’s snake‑case / camelCase hybrid style.
+
+---
+
+## Areas for Improvement
+| Area | Issue | Recommendation |
+|------|-------|----------------|
+| **Include Paths** | Uses relative paths (`"../../agentlib/..."`) which are fragile if the file hierarchy changes. | Prefer project‑root include style, e.g. `#include "agentlib/ai_agent.h"` with appropriate include directories in the build system. |
+| **Formatting / Style** | The project prefers `std::format` over manual string concatenation. | Replace concatenations in `execute` with `std::format` for readability and consistency. |
+| **Argument Validation** | No check for empty `args_.name` – creating a sub‑agent with an empty name could lead to confusing IDs. | Add a guard that returns an error when `args_.name.empty()`. |
+| **Documentation** | Only a single comment describing the injection of project knowledge. | Add brief function‑level comments describing the purpose of each branch (async vs sync) and the overall workflow. |
+| **Potential No‑Op** | When both `args_.profile` and `args_.task` are empty, the sub‑agent receives no prompt, which may be unintended. | Consider returning an error or at least a warning if no prompt is supplied. |
+| **Status Reset** | After synchronous execution the status is set to `tool_execution` but never restored to the previous state. | Ensure the original status is restored or explicitly set to an appropriate post‑run status. |
+| **Header Guard / Include Protection** | Not needed for `.cpp` but ensure the corresponding header (`agent_create.h`) has proper include guards or `#pragma once`. |
+
+---
+
+## Suggested Code Changes (excerpt)
+```cpp
+// Example: use std::format for async message
+if (!args_.wait) {
+    return std::format(
+        "Agent '{}' created successfully with ID: {}. "
+        "Agent started asynchronously. Use wait_for_agent({}) to wait for the agent to finish.",
+        args_.name, new_agent->get_id(), new_agent->get_id());
+}
+```
+
+```cpp
+// Guard against empty agent name
+if (args_.name.empty()) {
+    return "Error: Sub‑agent name must not be empty.";
+}
+```
+
+---
+
+## Test Recommendations
+1. **Unit test** for `validate_runtime` with a `nullptr` active agent.
+2. **Integration test** creating a sub‑agent with:
+   - Both profile and task provided.
+   - Only profile.
+   - Only task.
+   - Neither (expect graceful error).
+3. **Async vs Sync**: Verify that the returned messages contain the correct ID and that the synchronous path indeed waits for the sub‑agent to become idle.
+4. **Edge case**: Create an agent with an empty name and ensure the function returns the newly added validation error.
+
+---
+
+## Conclusion
+The file is functionally solid but can be tightened up for robustness, style consistency, and future‑proofing. Implementing the recommendations above will align it with the project’s coding standards and prevent subtle runtime issues.
+
+## Resolution
+1. **Include Path stability**: Replaced all relative paths in `agent_create_entry.cpp` with project-root includes.
+2. **Modern formatting**: Replaced all manual string concatenations in async and error return results inside `execute()` with `std::format` (C++23).
+3. **Safety guards**:
+   - `validate_runtime` now validates that `args_.name` is non-empty.
+   - `validate_runtime` verifies that `args_.profile` or `args_.task` is provided.
+   - `validate_runtime` checks for read-only agent contexts, rejecting subagent spawning if state modification is prohibited.
+4. **Status preservation**: Updated synchronous execution logic to cache the parent agent status and restore it properly at the end of execution instead of hardcoding `tool_execution`.
+5. **Standalone Testing**: Created a dedicated unit test file `tests/unit/test_agent_create.cpp` and added it to the Meson target registry.
+6. **Thread-exit safety**: Adjusted exit handling inside `test_agent_create.cpp` to call `wait_until_idle()` on the spawned subagent, eliminating global object destruction races during main thread exit.
+
+---
+*Generated by the automated code‑review assistant.*

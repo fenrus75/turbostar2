@@ -1,7 +1,9 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 #include "agent_create.h"
 
 namespace tools
@@ -15,6 +17,9 @@ struct agent_create_raw_args {
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_create_raw_args, name, profile, task, wait);
 
+/**
+ * @brief Validator for the agent_create tool, enforcing name uniqueness, lengths, and string safety.
+ */
 class agent_create_validator : public agentlib::tool_validator
 {
       public:
@@ -38,13 +43,15 @@ class agent_create_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"name", {{"type", "string"}, {"description", "A short, descriptive name for the subagent."}}},
+		     {{"name", {{"type", "string"}, {"maxLength", 64}, {"description", "A short, descriptive name for the subagent."}}},
 		      {"profile",
 		       {{"type", "string"},
+			{"maxLength", 10000},
 			{"description", "System instructions and personality profile for the subagent. Optional if 'task' is "
 					"provided."}}},
 		      {"task",
 		       {{"type", "string"},
+			{"maxLength", 10000},
 			{"description", "The initial task or request for the subagent to perform. Optional if 'profile' is "
 					"provided."}}},
 		      {"wait",
@@ -65,10 +72,44 @@ class agent_create_validator : public agentlib::tool_validator
 				out_error = "Agent name cannot be empty.";
 				return false;
 			}
+			if (raw_args.name.length() > 64) {
+				out_error = "Agent name exceeds maximum length of 64 characters.";
+				return false;
+			}
+			if (raw_args.profile.length() > 10000) {
+				out_error = "Profile exceeds maximum length of 10000 characters.";
+				return false;
+			}
+			if (raw_args.task.length() > 10000) {
+				out_error = "Task exceeds maximum length of 10000 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(raw_args.name)) {
+				out_error = "Security Violation: Agent name contains unsafe control characters or escape sequences.";
+				return false;
+			}
+
+			auto is_safe_multiline = [](const std::string &s) {
+				for (unsigned char c : s) {
+					if (c < 32 && c != 9 && c != 10 && c != 13) return false;
+					if (c == 127) return false;
+				}
+				return true;
+			};
+
+			if (!is_safe_multiline(raw_args.profile)) {
+				out_error = "Security Violation: Profile contains unsafe control characters or escape sequences.";
+				return false;
+			}
+			if (!is_safe_multiline(raw_args.task)) {
+				out_error = "Security Violation: Task contains unsafe control characters or escape sequences.";
+				return false;
+			}
 			if (raw_args.profile.empty() && raw_args.task.empty()) {
 				out_error = "You must provide either a 'profile' or a 'task' to create an agent.";
 				return false;
 			}
+
 			args_.name = raw_args.name;
 			args_.profile = raw_args.profile;
 			args_.task = raw_args.task;

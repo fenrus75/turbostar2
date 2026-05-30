@@ -63,7 +63,16 @@ bool agent_compress_history_validator::validate_args_impl(const nlohmann::json& 
             out_error = "Security Violation: Title contains unsafe control characters or escape sequences.";
             return false;
         }
-        if (!fs_utils::is_safe_for_ui(args_.summary)) {
+
+        auto is_safe_multiline = [](const std::string &s) {
+            for (unsigned char c : s) {
+                if (c < 32 && c != 9 && c != 10 && c != 13) return false;
+                if (c == 127) return false;
+            }
+            return true;
+        };
+
+        if (!is_safe_multiline(args_.summary)) {
             out_error = "Security Violation: Summary contains unsafe control characters or escape sequences.";
             return false;
         }

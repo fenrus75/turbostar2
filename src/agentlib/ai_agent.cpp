@@ -638,6 +638,9 @@ void ai_agent::start_processing()
 		tool_context ctx;
 
 		std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
+		if (workspace_root.empty() || !std::filesystem::exists(workspace_root)) {
+			workspace_root = std::filesystem::current_path();
+		}
 
 		ctx.fs_security.set_working_directory(workspace_root);
 		ctx.fs_security.add_allowed_root(workspace_root, access_type::read);

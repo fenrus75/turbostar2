@@ -1,8 +1,9 @@
-#include <sstream>
-#include "../../agentlib/ai_agent.h"
-#include "../../agentlib/interactions/llm_response.h"
-#include "../../project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/interactions/llm_response.h"
+#include "project_manager.h"
 #include "agent_create.h"
+#include <format>
+#include <sstream>
 
 namespace tools
 {
@@ -17,11 +18,30 @@ bool agent_create_tool::validate_runtime(const agentlib::tool_context &ctx, std:
 		out_error = "Execution Error: No active agent context available.";
 		return false;
 	}
+	if (ctx.active_agent->is_read_only()) {
+		out_error = "Execution Error: Agent is in read-only mode and cannot spawn subagents.";
+		return false;
+	}
+	if (args_.name.empty()) {
+		out_error = "Execution Error: Subagent name cannot be empty.";
+		return false;
+	}
+	if (args_.profile.empty() && args_.task.empty()) {
+		out_error = "Execution Error: You must provide either a 'profile' or a 'task' for the subagent.";
+		return false;
+	}
 	return true;
 }
 
 std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 {
+	if (!ctx.active_agent) {
+		return "Error: No active agent context available.";
+	}
+	if (ctx.active_agent->is_read_only()) {
+		return "Error: Agent is in read-only mode.";
+	}
+
 	auto new_agent = ctx.active_agent->spawn_subagent(args_.name);
 	if (!new_agent) {
 		return "Error: Failed to create subagent.";
@@ -40,18 +60,18 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (!args_.wait) {
-		return "Agent '" + args_.name + "' created successfully with ID: " + std::to_string(new_agent->get_id()) +
-		       ". Agent started asynchronously. Use wait_for_agent(" + std::to_string(new_agent->get_id()) +
-		       ") to wait for the agent to finish.";
+		return std::format("Agent '{}' created successfully with ID: {}. Agent started asynchronously. Use wait_for_agent({}) to wait for the agent to finish.",
+		                   args_.name, new_agent->get_id(), new_agent->get_id());
 	}
 
-	// Synchronous execution
+	// Synchronous execution: save original status and restore it afterwards
+	auto old_status = ctx.active_agent->get_status();
 	ctx.active_agent->set_status(agentlib::agent_status::waiting, new_agent->get_id());
 	new_agent->wait_until_idle();
-	ctx.active_agent->set_status(agentlib::agent_status::tool_execution);
+	ctx.active_agent->set_status(old_status);
 
 	if (new_agent->get_status() == agentlib::agent_status::error) {
-		return "Agent '" + args_.name + "' encountered an error during execution.";
+		return std::format("Agent '{}' encountered an error during execution.", args_.name);
 	}
 
 	// Retrieve interactions and find the last LLM response
@@ -63,7 +83,7 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	return "Agent '" + args_.name + "' completed successfully, but no response text was found.";
+	return std::format("Agent '{}' completed successfully, but no response text was found.", args_.name);
 }
 
 } // namespace tools

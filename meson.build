@@ -137,6 +137,13 @@ test_agent_compress_history = executable('test_agent_compress_history',
   include_directories: inc)
 test('unit_test_agent_compress_history', test_agent_compress_history)
 
+test_agent_create = executable('test_agent_create',
+  'tests/unit/test_agent_create.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_create', test_agent_create)
+
+
 
 
 test_open_in_editor = executable('test_open_in_editor',
