@@ -137,6 +137,12 @@ test_list_tool_calls = executable('test_list_tool_calls',
   include_directories: inc)
 test('unit_test_list_tool_calls', test_list_tool_calls)
 
+test_message_agent = executable('test_message_agent',
+  'tests/unit/test_message_agent.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_message_agent', test_message_agent)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
