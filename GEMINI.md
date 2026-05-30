@@ -43,6 +43,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
    - Re-read the file before working on TODO items or evaluating what to
      work on next.
    - Re-read the file after completion of a TODO item.
+   - NEVER git checkout / git reset this file
 - Move completed items to the Done section.
    - Re-read the todo.md file before doing the edit!
 - Add any items deferred during other activities to the short-term section.
