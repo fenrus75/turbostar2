@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <string>
 #include <nlohmann/json.hpp>
 #include "../../agentlib/skill_manager.h"
 #include "../../agentlib/tool_registry.h"

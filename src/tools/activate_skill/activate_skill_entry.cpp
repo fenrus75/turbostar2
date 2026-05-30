@@ -25,7 +25,12 @@ std::string activate_skill_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Virtual File System not initialized.";
 	}
 
-	std::string skill_md_uri = args_.target_skill.uri + "SKILL.md";
+	std::string base_uri = args_.target_skill.uri;
+	if (!base_uri.empty() && base_uri.back() != '/') {
+		base_uri += '/';
+	}
+
+	std::string skill_md_uri = base_uri + "SKILL.md";
 	auto view_opt = vfs->read_file(skill_md_uri);
 
 	std::string instructions;
@@ -38,19 +43,22 @@ std::string activate_skill_tool::execute(agentlib::tool_context &ctx)
 	std::stringstream ss;
 	ss << "<skill_content name=\"" << args_.name << "\">\n";
 	ss << instructions << "\n\n";
-	ss << "Skill directory: `" << args_.target_skill.uri << "`\n";
+	ss << "Skill directory: `" << base_uri << "`\n";
 	ss << "Relative paths in this skill are relative to the skill directory.\n\n";
 	ss << "<skill_resources>\n";
 
-	auto entries = vfs->list_directory(args_.target_skill.uri);
+	auto entries = vfs->list_directory(base_uri);
 	for (const auto &entry : entries) {
+		// Guard against malformed URIs
+		if (entry.uri.rfind(base_uri, 0) != 0)
+			continue;
+
 		// Strip the base URI prefix to just show the relative path
-		std::string filename = entry.uri.substr(args_.target_skill.uri.length());
+		std::string filename = entry.uri.substr(base_uri.length());
 		if (filename.empty())
 			continue;
 
 		// Skip directory entries themselves from the <file> list, just list actual files
-		// (or we can append / to dirs if we want, but the spec shows files)
 		if (entry.type == 'D')
 			continue;
 
