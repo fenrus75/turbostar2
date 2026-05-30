@@ -97,8 +97,10 @@ void editor::update_window_layout()
 	bool has_agent = false;
 	for (const auto &win : windows_) {
 		if (dynamic_cast<agent_window *>(win.get()) != nullptr) {
-			has_agent = true;
-			break;
+			if (win->is_active() || win->get_display_priority() == 9998) {
+				has_agent = true;
+				break;
+			}
 		}
 	}
 
@@ -148,7 +150,9 @@ void editor::update_window_layout()
 			win->set_maximized(true);
 			win->set_bounds(0, 1, COLS, total_h);
 		} else {
-			win->set_bounds(target_x, target_y, target_w, target_h);
+			if (win->get_document() == nullptr) {
+				win->set_bounds(target_x, target_y, target_w, target_h);
+			}
 		}
 		win->invalidate();
 	}
@@ -168,6 +172,8 @@ void editor::new_agent_window()
 
 	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2,
 								"Agent Status", main_agent_win->get_agent(), global_queue_);
+
+	main_agent_win->link_window(status_win.get());
 
 	windows_.push_back(std::move(main_agent_win));
 	windows_.push_back(std::move(status_win));
@@ -205,6 +211,7 @@ void editor::activate_window(size_t index)
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		windows_[i]->set_active(i == index);
 	}
+	update_window_layout();
 	update_window_menu();
 }
 

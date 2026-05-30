@@ -101,6 +101,23 @@ def test_window_maximize():
         time.sleep(0.5)
         runner.assert_in_log("Dispatching maximize_window event.", timeout=2.0, count=2)
 
+        # 7. Test that switching focus to another window and back does NOT auto-maximize a shrunk window.
+        # Open a new file with Ctrl-K N (which will be window =2=, maximized by default)
+        runner.send_ctrlk('n')
+        time.sleep(0.5)
+        runner.assert_text_on_screen("=2=", timeout=2.0)
+
+        # Switch focus back to window =1= (Alt-1)
+        runner.send_keys(KEY_ESC + '1')
+        time.sleep(0.5)
+
+        # Click at x=35, y=5 (the title bar of the shrunk window =1=)
+        runner.send_mouse_click(35, 5)
+        time.sleep(0.5)
+
+        # Assert that the click was on the title bar (not inside content)
+        runner.assert_in_log("Mouse clicked title bar to move.", timeout=2.0)
+
     except Exception as e:
         if hasattr(runner, 'log_path') and os.path.exists(runner.log_path):
             with open(runner.log_path, 'r') as f:
