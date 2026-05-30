@@ -245,6 +245,12 @@ test_git_unstage = executable('test_git_unstage',
   include_directories: inc)
 test('unit_test_git_unstage', test_git_unstage)
 
+test_wait_for_agent = executable('test_wait_for_agent',
+  'tests/unit/test_wait_for_agent.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_wait_for_agent', test_wait_for_agent)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
