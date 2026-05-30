@@ -3,6 +3,7 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <vector>
 #include "document.h"
 #include "event_queue.h"
 
@@ -10,7 +11,7 @@ class window
 {
       public:
 	window(int id, int x, int y, int width, int height, const std::string &title);
-	virtual ~window() = default;
+	virtual ~window();
 
 	void draw() const;
 	void set_active(bool active);
@@ -28,14 +29,13 @@ class window
 	}
 	void update_last_active_timestamp();
 
-	int get_display_priority() const
-	{
-		return display_priority_;
-	}
+	virtual int get_display_priority() const;
 	void set_display_priority(int priority)
 	{
 		display_priority_ = priority;
 	}
+	void link_window(window *other);
+	void unlink_window(window *other);
 
 	bool is_visible() const
 	{
@@ -186,4 +186,5 @@ class window
 
       private:
 	event_queue window_queue_;
+	std::vector<window *> linked_windows_;
 };

@@ -1,19 +1,19 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstdlib>
+#include <format>
 #include <fstream>
+#include <lsp/json/json.h>
+#include <ncurses.h>
 #include <netinet/in.h>
+#include <sstream>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <format>
-#include <cstdlib>
-#include <lsp/json/json.h>
-#include <ncurses.h>
-#include <sstream>
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
@@ -528,6 +528,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		app_tw->set_display_priority(10);
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
+		app_tw->link_window(gdb_tw.get());
 
 		// Generate a unique FIFO path in the project root directory (since /tmp is isolated in the sandbox)
 		static std::atomic<unsigned int> fifo_counter{0};
@@ -536,7 +537,8 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 			logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
 		}
 
-		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
+		std::string gdbserver_cmd =
+		    "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
 			gdbserver_cmd += " " + args;
 		}

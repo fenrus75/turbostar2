@@ -693,6 +693,14 @@ endif
     is_parallel: false
   )
 
+  test('e2e_linked_windows', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_linked_windows.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
+
   test('e2e_ncurses_stuck', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ncurses_stuck.py')],
     env: e2e_env,

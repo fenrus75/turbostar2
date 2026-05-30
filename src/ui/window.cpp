@@ -1,4 +1,5 @@
 #include "ui/window.h"
+#include <algorithm>
 #include <format>
 #include <ncurses.h>
 #include "build_error_manager.h"
@@ -600,4 +601,39 @@ int window::get_git_button_width() const
 		return branch.length() + 4;
 	}
 	return 0;
+}
+
+window::~window()
+{
+	for (auto *other : linked_windows_) {
+		if (other) {
+			other->unlink_window(this);
+		}
+	}
+}
+
+int window::get_display_priority() const
+{
+	for (const auto *w : linked_windows_) {
+		if (w && w->is_active()) {
+			return 9998;
+		}
+	}
+	return display_priority_;
+}
+
+void window::link_window(window *other)
+{
+	if (other && std::find(linked_windows_.begin(), linked_windows_.end(), other) == linked_windows_.end()) {
+		linked_windows_.push_back(other);
+		other->link_window(this);
+	}
+}
+
+void window::unlink_window(window *other)
+{
+	auto it = std::find(linked_windows_.begin(), linked_windows_.end(), other);
+	if (it != linked_windows_.end()) {
+		linked_windows_.erase(it);
+	}
 }
