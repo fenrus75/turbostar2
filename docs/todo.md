@@ -100,6 +100,10 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented linked windows feature to mutually link windows (e.g. Run Output and Debugger (GDB), or AI Agent and Agent Status windows) so that when any window in the group gains focus, all other linked windows are brought to the front of Z-order. Added automated clean unlinking in the `window` destructor to prevent dangling pointers.
+- implemented dynamic layout updates in `activate_window()` to adjust the split screen layout (toggling between 70%/30% splits for agent windows and 100% full-screen layout for standard editor documents) dynamically on focus change, while cleanly preserving custom user bounds for non-maximized document windows.
+- fixed a nitpick where the "Run in Debugger" menu option was not shaded/disabled when no executable was configured, aligning its behavior with the "Run" menu option.
+- added E2E tests `e2e_linked_windows` and `e2e_agent_status_window` to verify focus switching, linked window rendering, layout behavior, and added a focus-switching step to `e2e_window_maximize` to verify that custom shrunk window sizes are preserved on switch.
 - implemented window maximize/restore toggling via title bar double-clicks and added Maximize/Restore options directly into the window popup menu (supported both via mouse click and Alt-= shortcut), fully preserving layout restore boundaries and testing it via a new E2E test suite.
 - implemented mouse support for window resizing (dragging bottom-right corner) and moving (dragging title bar) with relative drift prevention, coordinate clamping, and ncurses mouse mode upgrade to 1002 (button motion events). Added a comprehensive E2E test verifying behavior.
 - fixed mouse scroll event dispatching by routing `mouse_scroll_up` and `mouse_scroll_down` in `editor::dispatch` and targeting the topmost visible window under the mouse coordinate using Z-order sorting. Added an E2E test verifying this behavior and fixed ncurses VT100 scroll region terminal emulation corruption by forcing full redrawing with `redrawwin(stdscr)` on refresh.
