@@ -227,6 +227,12 @@ test_git_push = executable('test_git_push',
   include_directories: inc)
 test('unit_test_git_push', test_git_push)
 
+test_git_restore = executable('test_git_restore',
+  'tests/unit/test_git_restore.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_restore', test_git_restore)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
