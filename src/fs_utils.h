@@ -34,35 +34,42 @@ std::string execute_command_sync(const std::string &cmd);
 
 /**
  * @brief Returns the global Turbostar cache directory (~/.cache/turbostar).
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_global_cache_dir();
 
 /**
  * @brief Returns the base cache directory for the current project.
- * Resolves to ~/.cache/turbostar/projects/<hash>/ and creates the directory if it doesn't exist.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_project_cache_root();
 
 /**
  * @brief Returns the safe, project-specific directory for storing SQLite databases.
- * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/ and creates the directory if it doesn't exist.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/dbs/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_project_db_dir();
 
 /**
  * @brief Returns a safe, project-specific directory for temporary files (avoiding /tmp which is sandboxed).
- * Resolves to ~/.cache/turbostar/projects/<hash>/tmp/ and creates the directory if it doesn't exist.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/tmp/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_project_tmp_dir();
 
 /**
  * @brief Returns a safe, project-specific directory for storing agent conversation history archives.
- * Resolves to ~/.cache/turbostar/projects/<hash>/history/<agent_name>/ and creates the directory if it doesn't exist.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/history/<agent_name>/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_project_history_dir(const std::string &agent_name = "main");
+
 /**
- * @brief Returns a safe, project-specific directory for storing crash dumps.	 * Resolves to ~/.cache/turbostar/projects/<hash>/dumps/ and
- * creates the directory if it doesn't exist.
+ * @brief Returns a safe, project-specific directory for storing crash dumps.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/dumps/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
  */
 std::string get_project_dump_dir();
 /**
