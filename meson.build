@@ -165,85 +165,85 @@ test_git_branch_create = executable('test_git_branch_create',
   'tests/unit/test_git_branch_create.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_branch_create', test_git_branch_create)
+test('unit_test_git_branch_create', test_git_branch_create, is_parallel: false)
 
 test_git_branch_list = executable('test_git_branch_list',
   'tests/unit/test_git_branch_list.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_branch_list', test_git_branch_list)
+test('unit_test_git_branch_list', test_git_branch_list, is_parallel: false)
 
 test_git_checkout_branch = executable('test_git_checkout_branch',
   'tests/unit/test_git_checkout_branch.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_checkout_branch', test_git_checkout_branch)
+test('unit_test_git_checkout_branch', test_git_checkout_branch, is_parallel: false)
 
 test_git_commit = executable('test_git_commit',
   'tests/unit/test_git_commit.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_commit', test_git_commit)
+test('unit_test_git_commit', test_git_commit, is_parallel: false)
 
 test_git_diff_from_branch = executable('test_git_diff_from_branch',
   'tests/unit/test_git_diff_from_branch.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_from_branch', test_git_diff_from_branch)
+test('unit_test_git_diff_from_branch', test_git_diff_from_branch, is_parallel: false)
 
 test_git_diff_staged = executable('test_git_diff_staged',
   'tests/unit/test_git_diff_staged.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_staged', test_git_diff_staged)
+test('unit_test_git_diff_staged', test_git_diff_staged, is_parallel: false)
 
 test_git_diff_unstaged = executable('test_git_diff_unstaged',
   'tests/unit/test_git_diff_unstaged.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_unstaged', test_git_diff_unstaged)
+test('unit_test_git_diff_unstaged', test_git_diff_unstaged, is_parallel: false)
 
 test_git_init = executable('test_git_init',
   'tests/unit/test_git_init.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_init', test_git_init)
+test('unit_test_git_init', test_git_init, is_parallel: false)
 
 test_git_log = executable('test_git_log',
   'tests/unit/test_git_log.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_log', test_git_log)
+test('unit_test_git_log', test_git_log, is_parallel: false)
 
 test_git_pull = executable('test_git_pull',
   'tests/unit/test_git_pull.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_pull', test_git_pull)
+test('unit_test_git_pull', test_git_pull, is_parallel: false)
 
 test_git_push = executable('test_git_push',
   'tests/unit/test_git_push.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_push', test_git_push)
+test('unit_test_git_push', test_git_push, is_parallel: false)
 
 test_git_restore = executable('test_git_restore',
   'tests/unit/test_git_restore.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_restore', test_git_restore)
+test('unit_test_git_restore', test_git_restore, is_parallel: false)
 
 test_git_status = executable('test_git_status',
   'tests/unit/test_git_status.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_status', test_git_status)
+test('unit_test_git_status', test_git_status, is_parallel: false)
 
 test_git_unstage = executable('test_git_unstage',
   'tests/unit/test_git_unstage.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_unstage', test_git_unstage)
+test('unit_test_git_unstage', test_git_unstage, is_parallel: false)
 
 test_wait_for_agent = executable('test_wait_for_agent',
   'tests/unit/test_wait_for_agent.cpp',
