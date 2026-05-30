@@ -16,6 +16,7 @@
 #include "event_logger.h"
 #include "gcc_log_parser.h"
 #include "git_manager.h"
+#include "project_manager.h"
 
 namespace fs_utils
 {
@@ -218,13 +219,10 @@ std::string get_global_cache_dir()
 
 std::string get_project_cache_root()
 {
-	std::string repo_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
+	std::string project_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
 	std::hash<std::string> hasher;
-	size_t hash = hasher(repo_root);
+	size_t hash = hasher(project_root);
 
 	std::filesystem::path cache_dir = std::filesystem::path(get_global_cache_dir()) / "projects" / std::to_string(hash);
 
@@ -245,13 +243,10 @@ std::string get_project_db_dir()
 }
 std::string get_project_tmp_dir()
 {
-	std::string repo_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
+	std::string project_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
 	std::hash<std::string> hasher;
-	size_t hash = hasher(repo_root);
+	size_t hash = hasher(project_root);
 
 	const char *home = std::getenv("HOME");
 	std::filesystem::path tmp_dir;
@@ -269,13 +264,10 @@ std::string get_project_tmp_dir()
 
 std::string get_project_history_dir(const std::string &agent_name)
 {
-	std::string repo_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
+	std::string project_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
 	std::hash<std::string> hasher;
-	size_t hash = hasher(repo_root);
+	size_t hash = hasher(project_root);
 
 	const char *home = std::getenv("HOME");
 	std::filesystem::path history_dir;
@@ -294,13 +286,10 @@ std::string get_project_history_dir(const std::string &agent_name)
 
 std::string get_project_dump_dir()
 {
-	std::string repo_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
+	std::string project_root =
+	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
 	std::hash<std::string> hasher;
-	size_t hash = hasher(repo_root);
+	size_t hash = hasher(project_root);
 
 	const char *home = std::getenv("HOME");
 	std::filesystem::path dump_dir;
