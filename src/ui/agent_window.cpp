@@ -1,15 +1,15 @@
 #include "ui/agent_window.h"
-#include "event_logger.h"
 #include <algorithm>
 #include <cmath>
 #include <format>
 #include <iomanip>
 #include <ncurses.h>
-#include <sstream>
 #include <nlohmann/json.hpp>
+#include <sstream>
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
 #include "config_manager.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
 #include "project_manager.h"
@@ -33,8 +33,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.\n\n"
 	    "*** CRITICAL DIRECTIVE: PLAN MODE ***\n"
 	    "For complex, multi-file tasks, you MUST call `enter_plan_mode` before making edits.\n"
-	    "While in this mode, you are restricted to read-only tools. Thoroughly explore the codebase and formulate a step-by-step plan.\n"
-	    "Once the plan is complete, present it to the user and call `exit_plan_mode` to unlock file-editing tools and begin execution.\n\n"
+	    "While in this mode, you are restricted to read-only tools. Thoroughly explore the codebase and formulate a step-by-step "
+	    "plan.\n"
+	    "Once the plan is complete, present it to the user and call `exit_plan_mode` to unlock file-editing tools and begin "
+	    "execution.\n\n"
 	    "*** CRITICAL DIRECTIVE: MEMORY MANAGEMENT ***\n"
 	    "Your context window is strictly limited. To prevent crashing and save costs, you MUST manually drop memory anchors.\n"
 	    "If the user says 'let's move on', 'next task', or introduces a completely unrelated topic or goal, YOU MUST immediately "
@@ -48,7 +50,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	// Load the active state from the previous session if it exists.
 	// This inherently gives us Cross-Session Persistence as per the design doc.
 	if (agent_->load_active_state(fresh_agent)) {
-		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
+		agent_->add_interaction(
+		    std::make_shared<agentlib::interaction_system_message>("Agent state restored from previous session."));
 	} else if (!fresh_agent) {
 		agent_->inject_archived_episodes_summary();
 	}
@@ -98,17 +101,18 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				filepath = trimmed_text.substr(6);
 				markdown_utils::trim_trailing_whitespace(filepath);
 			}
-			
+
 			if (filepath.empty()) {
 				std::string tmp_dir = fs_utils::get_project_tmp_dir();
 				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
 			}
-			
+
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
 			event_logger::get_instance().log("Conversation saved to: {}", filepath);
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
+			agent_->add_interaction(
+			    std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -121,7 +125,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			if (stats.empty()) {
 				stats_str += "  (No stats recorded yet)";
 			} else {
-				for (const auto& [key, value] : stats) {
+				for (const auto &[key, value] : stats) {
 					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
 				}
 			}
@@ -134,15 +138,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (trimmed_text.starts_with("/help")) {
 			input_box_->set_buffer("");
 			std::string help_str = "Available Commands:\n"
-			                       "  /help             - Show this help message\n"
-			                       "  /quit             - Close the agent window\n"
-			                       "  /save             - Save the active context to disk manually\n"
-			                       "  /stats            - Show compaction and performance statistics\n"
-			                       "  /memory           - List all paged-out history archives\n"
-			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-			                       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
-			                       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-			                       "  /model            - Switch the AI model for this agent";
+					       "  /help             - Show this help message\n"
+					       "  /quit             - Close the agent window\n"
+					       "  /save             - Save the active context to disk manually\n"
+					       "  /stats            - Show compaction and performance statistics\n"
+					       "  /memory           - List all paged-out history archives\n"
+					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
+					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
+					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
+					       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
 			invalidate();
@@ -164,7 +168,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			if (trimmed_text.length() > 11) {
 				title = trimmed_text.substr(11);
 			}
-			
+
 			size_t start_index = 1;
 			auto convo = agent_->get_conversation();
 			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
@@ -173,9 +177,11 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 					break;
 				}
 			}
-			
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title, {"manual-episode"});
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
+
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title,
+						 {"manual-episode"});
+			agent_->add_interaction(
+			    std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -186,17 +192,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string arg = trimmed_text.substr(9);
 			if (arg.starts_with("episode_")) {
 				if (agent_->set_episode_state(arg, 99)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out episode: " + arg));
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Successfully paged out episode: " + arg));
 				} else {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
+					agent_->add_interaction(
+					    std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
 				}
 			} else {
 				try {
 					int n = std::stoi(arg);
-					agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+					agent_->page_out_context(1, n + 1, "Manual Pageout",
+								 "User manually triggered /pageout " + std::to_string(n), {});
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Successfully paged out " + std::to_string(n) + " turns."));
 				} catch (...) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
 				}
 			}
 			scroll_offset_ = 0;
@@ -222,10 +233,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 			if (agent_->set_episode_state(episode_id, level)) {
 				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+				    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					"Failed to page in " + episode_id));
+				agent_->add_interaction(
+				    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -235,12 +246,13 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		// Block unknown slash commands from hitting the LLM
 		if (trimmed_text.starts_with("/")) {
 			input_box_->set_buffer("");
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Unknown command. Type /help for a list of available commands."));
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+			    "Unknown command. Type /help for a list of available commands."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
 		}
-		
+
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -329,17 +341,18 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				filepath = trimmed_text.substr(6);
 				markdown_utils::trim_trailing_whitespace(filepath);
 			}
-			
+
 			if (filepath.empty()) {
 				std::string tmp_dir = fs_utils::get_project_tmp_dir();
 				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
 			}
-			
+
 			agent_->save_conversation(filepath);
 
 			// Show a system message that it was saved
 			event_logger::get_instance().log("Conversation saved to: {}", filepath);
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
+			agent_->add_interaction(
+			    std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -352,7 +365,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			if (stats.empty()) {
 				stats_str += "  (No stats recorded yet)";
 			} else {
-				for (const auto& [key, value] : stats) {
+				for (const auto &[key, value] : stats) {
 					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
 				}
 			}
@@ -365,15 +378,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (trimmed_text.starts_with("/help")) {
 			input_box_->set_buffer("");
 			std::string help_str = "Available Commands:\n"
-			                       "  /help             - Show this help message\n"
-			                       "  /quit             - Close the agent window\n"
-			                       "  /save             - Save the active context to disk manually\n"
-			                       "  /stats            - Show compaction and performance statistics\n"
-			                       "  /memory           - List all paged-out history archives\n"
-			                       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-			                       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
-			                       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-			                       "  /model            - Switch the AI model for this agent";
+					       "  /help             - Show this help message\n"
+					       "  /quit             - Close the agent window\n"
+					       "  /save             - Save the active context to disk manually\n"
+					       "  /stats            - Show compaction and performance statistics\n"
+					       "  /memory           - List all paged-out history archives\n"
+					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
+					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
+					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
+					       "  /model            - Switch the AI model for this agent";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
 			invalidate();
@@ -395,7 +408,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			if (trimmed_text.length() > 11) {
 				title = trimmed_text.substr(11);
 			}
-			
+
 			size_t start_index = 1;
 			auto convo = agent_->get_conversation();
 			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
@@ -404,9 +417,11 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 					break;
 				}
 			}
-			
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title, {"manual-episode"});
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
+
+			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title,
+						 {"manual-episode"});
+			agent_->add_interaction(
+			    std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -417,17 +432,22 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string arg = trimmed_text.substr(9);
 			if (arg.starts_with("episode_")) {
 				if (agent_->set_episode_state(arg, 99)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out episode: " + arg));
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Successfully paged out episode: " + arg));
 				} else {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
+					agent_->add_interaction(
+					    std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
 				}
 			} else {
 				try {
 					int n = std::stoi(arg);
-					agent_->page_out_context(1, n + 1, "Manual Pageout", "User manually triggered /pageout " + std::to_string(n), {});
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Successfully paged out " + std::to_string(n) + " turns."));
+					agent_->page_out_context(1, n + 1, "Manual Pageout",
+								 "User manually triggered /pageout " + std::to_string(n), {});
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Successfully paged out " + std::to_string(n) + " turns."));
 				} catch (...) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+					    "Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
 				}
 			}
 			scroll_offset_ = 0;
@@ -453,10 +473,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 			if (agent_->set_episode_state(episode_id, level)) {
 				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+				    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					"Failed to page in " + episode_id));
+				agent_->add_interaction(
+				    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -466,12 +486,13 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		// Block unknown slash commands from hitting the LLM
 		if (trimmed_text.starts_with("/")) {
 			input_box_->set_buffer("");
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>("Unknown command. Type /help for a list of available commands."));
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+			    "Unknown command. Type /help for a list of available commands."));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
 		}
-		
+
 		agent_->submit_prompt(text);
 		input_box_->set_buffer(""); // Clear the box
 		scroll_offset_ = 0;
@@ -556,8 +577,18 @@ bool agent_window::process_events()
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}
+		} else if (ev->type == event_type::mouse_scroll_up) {
+			scroll_offset_ += 3;
+			needs_render = true;
+		} else if (ev->type == event_type::mouse_scroll_down) {
+			scroll_offset_ -= 3;
+			if (scroll_offset_ < 0)
+				scroll_offset_ = 0;
+			needs_render = true;
 		}
 	}
+
+	scroll_offset_ = std::clamp(scroll_offset_, 0, max_scroll_offset_);
 
 	if (needs_render)
 		invalidate();
@@ -610,7 +641,7 @@ void agent_window::draw_content() const
 		if (turns.empty() || !inter->can_merge_with_previous(*turns.back().items.back())) {
 			turn_group new_turn;
 			new_turn.items.push_back(inter);
-			
+
 			if (inter->get_type() == interaction_type::system_message) {
 				new_turn.bg = background_mode::white;
 			} else {
@@ -638,17 +669,19 @@ void agent_window::draw_content() const
 	if (inner_width < 10)
 		inner_width = 10;
 
+	int total_turns_height = 0;
 	for (auto &turn : turns) {
 		turn.height = 2; // Top and bottom borders
 		for (size_t i = 0; i < turn.items.size(); ++i) {
 			if (i > 0) {
 				bool skip_separator = false;
-				auto prev_type = turn.items[i-1]->get_type();
+				auto prev_type = turn.items[i - 1]->get_type();
 				auto curr_type = turn.items[i]->get_type();
 				if (prev_type == interaction_type::tool_call && curr_type == interaction_type::tool_result) {
 					skip_separator = true;
-				} else if (prev_type == curr_type && (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
-					if (turn.items[i-1]->get_grouping_key() == turn.items[i]->get_grouping_key()) {
+				} else if (prev_type == curr_type &&
+					   (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
+					if (turn.items[i - 1]->get_grouping_key() == turn.items[i]->get_grouping_key()) {
 						skip_separator = true;
 					}
 				}
@@ -659,7 +692,11 @@ void agent_window::draw_content() const
 			auto lines = turn.items[i]->render(inner_width, turn.bg);
 			turn.height += lines.size();
 		}
+		total_turns_height += turn.height;
 	}
+
+	max_scroll_offset_ = (total_turns_height > available_height) ? (total_turns_height - available_height) : 0;
+	scroll_offset_ = std::clamp(scroll_offset_, 0, max_scroll_offset_);
 
 	int rendered_lines = 0;
 	int skip_lines = scroll_offset_;
@@ -691,12 +728,13 @@ void agent_window::draw_content() const
 			const auto &item = turn.items[i];
 			if (i > 0) {
 				bool skip_separator = false;
-				auto prev_type = turn.items[i-1]->get_type();
+				auto prev_type = turn.items[i - 1]->get_type();
 				auto curr_type = item->get_type();
 				if (prev_type == interaction_type::tool_call && curr_type == interaction_type::tool_result) {
 					skip_separator = true;
-				} else if (prev_type == curr_type && (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
-					if (turn.items[i-1]->get_grouping_key() == item->get_grouping_key()) {
+				} else if (prev_type == curr_type &&
+					   (curr_type == interaction_type::tool_call || curr_type == interaction_type::tool_result)) {
+					if (turn.items[i - 1]->get_grouping_key() == item->get_grouping_key()) {
 						skip_separator = true;
 					}
 				}
@@ -806,7 +844,7 @@ void agent_window::draw_content() const
 		}
 
 		int total_uncompacted = 0;
-		for (const auto& seg : segments) {
+		for (const auto &seg : segments) {
 			total_uncompacted += seg.uncompacted_tokens;
 		}
 
@@ -827,13 +865,16 @@ void agent_window::draw_content() const
 
 			int accumulated_chars = 0;
 			for (size_t idx = 0; idx < segments.size(); ++idx) {
-				const auto& seg = segments[idx];
-				int seg_width = static_cast<int>(std::round(static_cast<double>(seg.uncompacted_tokens) / total_uncompacted * max_width));
+				const auto &seg = segments[idx];
+				int seg_width = static_cast<int>(
+				    std::round(static_cast<double>(seg.uncompacted_tokens) / total_uncompacted * max_width));
 				int start_col = accumulated_chars;
 				accumulated_chars += seg_width;
 				int end_col = (idx == segments.size() - 1) ? max_width : accumulated_chars;
-				if (end_col > max_width) end_col = max_width;
-				if (start_col > max_width) start_col = max_width;
+				if (end_col > max_width)
+					end_col = max_width;
+				if (start_col > max_width)
+					start_col = max_width;
 
 				std::string utf8_char = "\xE2\x94\x80";
 				int cp = get_background_color_pair();

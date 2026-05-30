@@ -100,6 +100,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented mouse scrolling support in the AI Agent chat window, dynamically calculating content height limits to restrict scrolling past bounds using `std::clamp`. Added an E2E test verifying both up and down scrolling.
 - configured the `unit_document` test to run non-parallel (`is_parallel: false`) in Meson to prevent transient file collision failures during parallel test execution.
 - implemented active vs. inactive window border visual hierarchy: borders and widget decorations for the focused window are drawn in bright white/yellow, while unfocused windows are drawn in normal (dimmer) white/yellow.
 - implemented linked windows feature to mutually link windows (e.g. Run Output and Debugger (GDB), or AI Agent and Agent Status windows) so that when any window in the group gains focus, all other linked windows are brought to the front of Z-order. Added automated clean unlinking in the `window` destructor to prevent dangling pointers.

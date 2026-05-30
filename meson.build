@@ -685,6 +685,13 @@ endif
     timeout: 60,
     is_parallel: false
   )
+  test('e2e_agent_mouse_scroll', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_mouse_scroll.py')],
+    env: e2e_env,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
   test('e2e_sqlite_tools', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_sqlite_tools.py')],
     env: e2e_env,
