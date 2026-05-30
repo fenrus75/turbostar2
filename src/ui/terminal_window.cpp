@@ -183,7 +183,7 @@ void terminal_window::set_input_fifo(const std::string &path)
 	input_fifo_path_ = path;
 	input_fifo_fd_ = open(path.c_str(), O_RDWR);
 	if (input_fifo_fd_ < 0) {
-		event_logger::get_instance().log(std::format("Failed to open input FIFO for writing: {}", strerror(errno)));
+		event_logger::get_instance().log("Failed to open input FIFO for writing: {}", strerror(errno));
 	} else {
 		event_logger::get_instance().log("Opened input FIFO for writing successfully.");
 	}

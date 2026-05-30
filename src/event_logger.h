@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <format>
+#include <string_view>
 
 class event_logger
 {
@@ -13,6 +15,11 @@ class event_logger
 
 	void set_log_file(const std::string &filename);
 	void log(const std::string &message);
+
+	template <typename... Args>
+	void log(std::string_view fmt, const Args&... args) {
+		log(std::vformat(fmt, std::make_format_args(args...)));
+	}
 	std::optional<std::string> get_latest_matching_message(const std::string &substring) const;
 
       private:

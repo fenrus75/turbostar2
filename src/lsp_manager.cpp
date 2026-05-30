@@ -50,7 +50,7 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 				}
 			} catch (const std::exception &e) {
 				s->is_running.store(false);
-				event_logger::get_instance().log(std::format("LSP message loop error: {}", e.what()));
+				event_logger::get_instance().log("LSP message loop error: {}", e.what());
 			}
 			event_logger::get_instance().log("Thread exited: lsp_manager message_thread");
 		});
@@ -98,9 +98,9 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 		    });
 
 		servers_.push_back(std::move(server));
-		event_logger::get_instance().log(std::format("{} started and initialized successfully.", name));
+		event_logger::get_instance().log("{} started and initialized successfully.", name);
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("Failed to start {}: {}", name, e.what()));
+		event_logger::get_instance().log("Failed to start {}: {}", name, e.what());
 		server->is_running.store(false);
 	}
 }
@@ -413,7 +413,7 @@ void lsp_manager::request_hover(const std::string &filepath, int line, int chara
 			    }
 		    },
 		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log(std::format("LSP hover error: {}", error.message()));
+			    event_logger::get_instance().log("LSP hover error: {}", error.message());
 		    });
 	} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -454,7 +454,7 @@ void lsp_manager::request_document_highlight(const std::string &filepath, int li
 			    }
 		    },
 		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log(std::format("LSP highlight error: {}", error.message()));
+			    event_logger::get_instance().log("LSP highlight error: {}", error.message());
 		    });
 	} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -494,7 +494,7 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 			    }
 		    },
 		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log(std::format("LSP selection range error: {}", error.message()));
+			    event_logger::get_instance().log("LSP selection range error: {}", error.message());
 		    });
 	} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");

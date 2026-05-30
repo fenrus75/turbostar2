@@ -84,7 +84,7 @@ void config_manager::load_from_file(const std::string &path)
 			gdb_auto_continue_ = (value == "true" || value == "1");
 		}
 	}
-	event_logger::get_instance().log(std::format("Configuration loaded from {}", path));
+	event_logger::get_instance().log("Configuration loaded from {}", path);
 }
 
 void config_manager::save_global()
@@ -104,7 +104,7 @@ void config_manager::save_project(const std::string &target_path)
 
 	std::ofstream file(path);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(std::format("Failed to save configuration to {}", path));
+		event_logger::get_instance().log("Failed to save configuration to {}", path);
 		return;
 	}
 
@@ -124,5 +124,5 @@ void config_manager::save_project(const std::string &target_path)
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
 
-	event_logger::get_instance().log(std::format("Configuration saved to {}", path));
+	event_logger::get_instance().log("Configuration saved to {}", path);
 }

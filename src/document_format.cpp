@@ -102,7 +102,7 @@ void document::format_range(int start_y, int end_y)
 			std::error_code ec;
 			fs::copy_file(clang_format_source, format_tmp_dir / ".clang-format", fs::copy_options::overwrite_existing, ec);
 			if (ec) {
-				event_logger::get_instance().log(std::format("Copy .clang-format failed: {}", ec.message()));
+				event_logger::get_instance().log("Copy .clang-format failed: {}", ec.message());
 			} else {
 				event_logger::get_instance().log("Copy .clang-format succeeded");
 			}

@@ -68,7 +68,7 @@ bool window::process_events()
 {
 	needs_render_ = false;
 	while (auto ev = window_queue_.pop()) {
-		event_logger::get_instance().log(std::format("Window {} processing key: {}", id_, ev->key_code));
+		event_logger::get_instance().log("Window {} processing key: {}", id_, ev->key_code);
 		if (ev->type == event_type::key_press && doc_) {
 			switch (ev->key_code) {
 				case KEY_UP:

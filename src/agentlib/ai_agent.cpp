@@ -101,7 +101,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			}
 		}
 	} catch (const std::exception& e) {
-		event_logger::get_instance().log(std::format("Error loading episode {}: {}", episode_id, e.what()));
+		event_logger::get_instance().log("Error loading episode {}: {}", episode_id, e.what());
 		return false;
 	}
 
@@ -153,13 +153,13 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 
 			auto next_it = conversation_.erase(first_it, last_it);
 			conversation_.insert(next_it, anchor_msg);
-			event_logger::get_instance().log(std::format("Agent {} paged OUT context {}", name_, episode_id));
+			event_logger::get_instance().log("Agent {} paged OUT context {}", name_, episode_id);
 			increment_stat("context_pages_out");
 		} else {
 			// Transition active level: Replace range with loaded_msgs
 			auto next_it = conversation_.erase(first_it, last_it);
 			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log(std::format("Agent {} shifted context level {} to {}", name_, episode_id, target_level));
+			event_logger::get_instance().log("Agent {} shifted context level {} to {}", name_, episode_id, target_level);
 			increment_stat("context_pages_compacted");
 		}
 	} else {
@@ -176,7 +176,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			// Page IN: Replace the anchor with loaded_msgs
 			auto next_it = conversation_.erase(anchor_it);
 			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log(std::format("Agent {} paged IN context {} at level {}", name_, episode_id, target_level));
+			event_logger::get_instance().log("Agent {} paged IN context {} at level {}", name_, episode_id, target_level);
 			increment_stat("context_pages_in");
 		} else {
 			if (target_level == 99) {
@@ -185,7 +185,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			}
 			// Fallback: Append the loaded messages to the end of the conversation
 			conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log(std::format("Agent {} paged IN context {} at level {} (appended)", name_, episode_id, target_level));
+			event_logger::get_instance().log("Agent {} paged IN context {} at level {} (appended)", name_, episode_id, target_level);
 			increment_stat("context_pages_in");
 		}
 	}
@@ -324,7 +324,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 							abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
 							normalized_convo.push_back(abort_msg);
 
-							event_logger::get_instance().log(std::format("Aborted pending tool call: {} ({})", tc.id, tc.function.name));
+							event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id, tc.function.name);
 						}
 					}
 				}
@@ -334,17 +334,17 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			// These are tool messages that have no matching assistant tool call in the loaded context
 			// (e.g. because the assistant message was paged out / compressed).
 			if (!tool_responses.empty()) {
-				event_logger::get_instance().log(std::format("Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
-					tool_responses.size()));
+				event_logger::get_instance().log("Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
+					tool_responses.size());
 			}
 
 			conversation_ = std::move(normalized_convo);
 
-			event_logger::get_instance().log(std::format("Agent {} restored active state from {}", name_, filepath));
+			event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
 			return true;
 		}
 	} catch (const std::exception& e) {
-		event_logger::get_instance().log(std::format("Failed to restore active state: {}", std::string(e.what())));
+		event_logger::get_instance().log("Failed to restore active state: {}", std::string(e.what()));
 	}
 	return false;
 }
@@ -630,7 +630,7 @@ void ai_agent::start_processing()
 	}
 
 	std::thread([self = shared_from_this()]() {
-		event_logger::get_instance().log(std::format("Thread started: ai_agent main loop ({})", self->id_));
+		event_logger::get_instance().log("Thread started: ai_agent main loop ({})", self->id_);
 		size_t last_synced_index = 0;
 		std::vector<message> convo;
 
@@ -656,7 +656,7 @@ void ai_agent::start_processing()
 
 		while (true) {
 			if (self->is_closed_) {
-				event_logger::get_instance().log(std::format("Thread exited: ai_agent main loop ({}) [closed early]", self->id_));
+				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
 				return;
 			}
 
@@ -769,7 +769,7 @@ void ai_agent::start_processing()
 			    &registry);
 
 			if (self->is_closed_) {
-				event_logger::get_instance().log(std::format("Thread exited: ai_agent main loop ({}) [closed early]", self->id_));
+				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
 				return;
 			}
 
@@ -788,7 +788,7 @@ void ai_agent::start_processing()
 			if (!accumulated_tool_calls.empty()) {
 				for (const auto &call : accumulated_tool_calls) {
 					if (self->is_closed_) {
-						event_logger::get_instance().log(std::format("Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_));
+						event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
 						return;
 					}
 
@@ -938,12 +938,12 @@ void ai_agent::start_processing()
 		}
 
 		if (self->is_closed_) {
-			event_logger::get_instance().log(std::format("Thread exited: ai_agent main loop ({}) [closed at end]", self->id_));
+			event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed at end]", self->id_);
 			return;
 		}
 
 		self->set_status(agent_status::idle);
-		event_logger::get_instance().log(std::format("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_, self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load()));
+		event_logger::get_instance().log("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_, self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
 
 		if (self->global_queue_) {
 			editor_event ev;
@@ -1073,7 +1073,7 @@ void ai_agent::snapshot_episode(const std::string& title, const std::string& sum
     std::ofstream file(filepath);
     if (file.is_open()) {
         file << root.dump(4);
-        event_logger::get_instance().log(std::format("Snapshot written to {}", episode_id));
+        event_logger::get_instance().log("Snapshot written to {}", episode_id);
     }
     
     nlohmann::json meta;
@@ -1231,7 +1231,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
         file << root.dump(4);
         file.close();
     } else {
-        event_logger::get_instance().log(std::format("Failed to write episode archive to {}", filepath));
+        event_logger::get_instance().log("Failed to write episode archive to {}", filepath);
         return; // Don't delete history if we couldn't save it
     }
 
@@ -1288,7 +1288,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
     conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
     conversation_.insert(conversation_.begin() + start_index, summary_msg);
 
-    event_logger::get_instance().log(std::format("Paged out {} turns to {}", end_index - start_index, episode_id));
+    event_logger::get_instance().log("Paged out {} turns to {}", end_index - start_index, episode_id);
     increment_stat("context_pages_out");
 
     {
@@ -1410,7 +1410,7 @@ void ai_agent::page_out_prior_context(const std::string& target_episode_id, bool
             }
         }
         if (!found) {
-            event_logger::get_instance().log(std::format("Failed to find target episode: {}", target_episode_id));
+            event_logger::get_instance().log("Failed to find target episode: {}", target_episode_id);
             return;
         }
     } else {
@@ -1525,7 +1525,7 @@ void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 			it_n1->content.clear();
 			conversation_.erase(it_n3, it_n1);
 		}
-		event_logger::get_instance().log(std::format("Agent {} zapped ephemeral errors from context.", name_));
+		event_logger::get_instance().log("Agent {} zapped ephemeral errors from context.", name_);
 	}
 }
 
@@ -1654,8 +1654,8 @@ void ai_agent::evaluate_compaction()
 		}
 	}
 
-	event_logger::get_instance().log(std::format("Active history tokens ({}) exceed upper bound ({}). Triggering compaction engine.",
-	                                 current_active_tokens, upper_bound));
+	event_logger::get_instance().log("Active history tokens ({}) exceed upper bound ({}). Triggering compaction engine.",
+	                                 current_active_tokens, upper_bound);
 
 	// Run decision engine to plan transitions (outside lock to avoid recursive deadlocks in set_episode_state)
 	std::vector<transition> planned = compaction_engine::plan_compaction(candidates, current_active_tokens, lower_bound);
@@ -1667,7 +1667,7 @@ void ai_agent::evaluate_compaction()
 
 	// Apply planned transitions
 	for (const auto& trans : planned) {
-		event_logger::get_instance().log(std::format("Compaction engine: Auto-shifting {} to level {}", trans.episode_id, trans.target_level));
+		event_logger::get_instance().log("Compaction engine: Auto-shifting {} to level {}", trans.episode_id, trans.target_level);
 		set_episode_state(trans.episode_id, trans.target_level);
 	}
 }
@@ -1759,11 +1759,11 @@ void ai_agent::summary_worker_loop()
                 if (is_closed_) break;
                 if (!res.msg.content.empty()) {
                     update_episode_hint(task.episode_id, res.msg.content);
-                    event_logger::get_instance().log(std::format("Generated background summary for {}", task.episode_id));
+                    event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
                 }
             }
         } catch (const std::exception& e) {
-            event_logger::get_instance().log(std::format("Error in background summarization: {}", std::string(e.what())));
+            event_logger::get_instance().log("Error in background summarization: {}", std::string(e.what()));
         }
     }
     event_logger::get_instance().log("Thread exited: ai_agent summary worker");

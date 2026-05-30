@@ -46,7 +46,7 @@ void skill_manager::initialize()
 			if (entry.is_regular_file() && entry.path().filename().string() == "SKILL.md") {
 				std::ifstream file(entry.path());
 				if (!file.is_open()) {
-					event_logger::get_instance().log(std::format("skill_manager: Failed to open SKILL.md at {}", entry.path().string()));
+					event_logger::get_instance().log("skill_manager: Failed to open SKILL.md at {}", entry.path().string());
 					continue;
 				}
 
@@ -90,7 +90,7 @@ void skill_manager::initialize()
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("skill_manager: Error initializing skills: {}", e.what()));
+		event_logger::get_instance().log("skill_manager: Error initializing skills: {}", e.what());
 	} catch (...) {
 		event_logger::get_instance().log("skill_manager: Unknown error initializing skills");
 	}
@@ -111,7 +111,7 @@ void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const 
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("skill_manager: Error scanning and mounting skills: {}", e.what()));
+		event_logger::get_instance().log("skill_manager: Error scanning and mounting skills: {}", e.what());
 	} catch (...) {
 		event_logger::get_instance().log("skill_manager: Unknown error scanning and mounting skills");
 	}

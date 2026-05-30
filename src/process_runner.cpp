@@ -113,7 +113,7 @@ class streaming_command_runner : public command_runner
 
 void process_runner::worker_loop(std::string command)
 {
-	event_logger::get_instance().log(std::format("Thread started: process_runner worker_loop ({})", command));
+	event_logger::get_instance().log("Thread started: process_runner worker_loop ({})", command);
         streaming_command_runner runner(doc_, parser_.get(), stop_requested_, auto_scroll_);
         runner.apply_build_profile();
         runner.set_enable_crash_catcher(enable_crash_catcher_.load());
@@ -142,5 +142,5 @@ void process_runner::worker_loop(std::string command)
 
         // Dispatch a redraw event so existing windows show the new errors
         doc_->request_redraw();
-	event_logger::get_instance().log(std::format("Thread exited: process_runner worker_loop ({})", command));
+	event_logger::get_instance().log("Thread exited: process_runner worker_loop ({})", command);
 }

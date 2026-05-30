@@ -131,9 +131,9 @@ void ai_model_registry::load_models()
 				}
 			}
 		}
-		event_logger::get_instance().log(std::format("Loaded {} models from {}", models_.size(), path));
+		event_logger::get_instance().log("Loaded {} models from {}", models_.size(), path);
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("Failed to load models from {}: {}", path, e.what()));
+		event_logger::get_instance().log("Failed to load models from {}: {}", path, e.what());
 	}
 }
 
@@ -143,7 +143,7 @@ void ai_model_registry::save_models() const
 	std::string path = cache_dir + "/models.json";
 	std::ofstream file(path);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(std::format("Failed to open {} for writing models.", path));
+		event_logger::get_instance().log("Failed to open {} for writing models.", path);
 		return;
 	}
 
@@ -169,7 +169,7 @@ void ai_model_registry::save_models() const
 	}
 
 	file << data.dump(4);
-	event_logger::get_instance().log(std::format("Saved {} models to {}", models_.size(), path));
+	event_logger::get_instance().log("Saved {} models to {}", models_.size(), path);
 }
 
 } // namespace agentlib

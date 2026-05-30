@@ -223,7 +223,7 @@ void editor::update_window_menu()
 
 		items.push_back(menu_item(name, event_type::select_window, static_cast<int>(i), hotkey, shortcut, false));
 	}
-	event_logger::get_instance().log(std::format("update_window_menu: {} items", items.size()));
+	event_logger::get_instance().log("update_window_menu: {} items", items.size());
 	top_menu_.set_category_items("Window", items);
 
 	auto active_doc = get_active_doc();
@@ -639,7 +639,7 @@ void editor::set_focus(focus_target target, const std::string &source)
 			break;
 	}
 
-	event_logger::get_instance().log(std::format("Focus change: {} -> {}", source, target_name));
+	event_logger::get_instance().log("Focus change: {} -> {}", source, target_name);
 	current_focus_ = target;
 
 	if (target == focus_target::menu_bar) {

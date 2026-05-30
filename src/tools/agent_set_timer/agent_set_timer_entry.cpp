@@ -29,7 +29,7 @@ std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 {
 	// Detach a background thread to wait and then trigger
 	std::thread([agent = ctx.active_agent->shared_from_this(), seconds = args_.seconds]() {
-		event_logger::get_instance().log(std::format("Timer thread started: sleeping for {} seconds.", seconds));
+		event_logger::get_instance().log("Timer thread started: sleeping for {} seconds.", seconds);
 		std::this_thread::sleep_for(std::chrono::seconds(seconds));
 
 		// When the timer triggers, IF the agent is idle, we inject the context.
@@ -37,8 +37,8 @@ std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 			event_logger::get_instance().log("Timer expired: Agent is idle, injecting expiration message.");
 			agent->inject_context("system", "previously set timer expired", true);
 		} else {
-			event_logger::get_instance().log(std::format("Timer expired: Agent is not idle (status = {}), skipping injection.",
-				static_cast<int>(agent->get_status())));
+			event_logger::get_instance().log("Timer expired: Agent is not idle (status = {}), skipping injection.",
+				static_cast<int>(agent->get_status()));
 		}
 	}).detach();
 

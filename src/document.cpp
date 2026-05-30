@@ -67,7 +67,7 @@ bool document::load_from_file(const std::string &filename)
 	std::unique_lock lock(mutex_);
 	std::ifstream file(filename);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(std::format("Load failed: Could not open file {}", filename));
+		event_logger::get_instance().log("Load failed: Could not open file {}", filename);
 		return false;
 	}
 
@@ -96,7 +96,7 @@ bool document::load_from_file(const std::string &filename)
 	current_action_group_.actions.clear();
 	edit_group_depth_ = 0;
 
-	event_logger::get_instance().log(std::format("Document loaded from: {} ({} lines)", filename, line_count_unlocked()));
+	event_logger::get_instance().log("Document loaded from: {} ({} lines)", filename, line_count_unlocked());
 
 	auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
 	if (pos_opt) {
@@ -123,7 +123,7 @@ bool document::insert_file(const std::string &filename)
 {
         std::ifstream file(filename);
         if (!file.is_open()) {
-                event_logger::get_instance().log(std::format("Insert File failed: Could not open file {}", filename));
+                event_logger::get_instance().log("Insert File failed: Could not open file {}", filename);
                 return false;
         }
 
@@ -182,18 +182,18 @@ bool document::save_to_file(const std::string &filename)
 			std::error_code ec;
 			fs::rename(filename, filename + "~", ec);
 			if (ec) {
-				event_logger::get_instance().log(std::format("Backup rename failed: {}", ec.message()));
+				event_logger::get_instance().log("Backup rename failed: {}", ec.message());
 				// Fallback to copy if rename fails (e.g., cross-device, though unlikely here)
 				fs::copy_file(filename, filename + "~", fs::copy_options::overwrite_existing);
 			}
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log(std::format("Backup failed: {}", e.what()));
+			event_logger::get_instance().log("Backup failed: {}", e.what());
 		}
 	}
 
 	std::ofstream file(filename);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(std::format("Save failed: Could not open file {}", filename));
+		event_logger::get_instance().log("Save failed: Could not open file {}", filename);
 		return false;
 	}
 
@@ -205,7 +205,7 @@ bool document::save_to_file(const std::string &filename)
 	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
-	event_logger::get_instance().log(std::format("Document saved to: {}", filename));
+	event_logger::get_instance().log("Document saved to: {}", filename);
 	lock.unlock();
 
 	git_manager::get_instance().request_status(filename);

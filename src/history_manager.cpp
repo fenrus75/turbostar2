@@ -80,8 +80,8 @@ void history_manager::load()
 			}
 		}
 	}
-	event_logger::get_instance().log(std::format("Loaded history: {} searches, {} files, {} cursor positions.",
-					 searches_.size(), files_.size(), cursor_memory_.size()));
+	event_logger::get_instance().log("Loaded history: {} searches, {} files, {} cursor positions.",
+					 searches_.size(), files_.size(), cursor_memory_.size());
 }
 
 void history_manager::save() const
@@ -89,7 +89,7 @@ void history_manager::save() const
 	std::string path = get_history_file_path();
 	std::ofstream file(path, std::ios::trunc);
 	if (!file.is_open()) {
-		event_logger::get_instance().log(std::format("Failed to save history to {}", path));
+		event_logger::get_instance().log("Failed to save history to {}", path);
 		return;
 	}
 
