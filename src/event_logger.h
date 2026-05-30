@@ -15,6 +15,7 @@ class event_logger
 
 	void set_log_file(const std::string &filename);
 	void log(const std::string &message);
+	void enable_stdout_logging(bool enable);
 
 	template <typename... Args>
 	void log(std::string_view fmt, const Args&... args) {
@@ -32,4 +33,5 @@ class event_logger
 	mutable std::mutex mutex_;
 	std::ofstream log_stream_;
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
+	bool stdout_logging_{false};
 };

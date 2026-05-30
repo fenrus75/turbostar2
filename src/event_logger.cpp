@@ -1,6 +1,7 @@
 #include "event_logger.h"
 #include <algorithm>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 
 event_logger::event_logger() : start_time_(std::chrono::steady_clock::now())
@@ -39,6 +40,18 @@ void event_logger::log(const std::string &message)
 	events.push_back(formatted_message);
 	if (log_stream_.is_open()) {
 		log_stream_ << formatted_message << std::endl;
+	}
+	if (stdout_logging_ && ms >= 50) {
+		std::cout << formatted_message << std::endl;
+	}
+}
+
+void event_logger::enable_stdout_logging(bool enable)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	stdout_logging_ = enable;
+	if (enable) {
+		start_time_ = std::chrono::steady_clock::now();
 	}
 }
 

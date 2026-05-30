@@ -219,14 +219,18 @@ int main(int argc, char **argv)
 	editor main_editor(opts);
 	main_editor.run();
 
-	logger.log("Exiting application loop.");
-	project_manager::get_instance().shutdown();
-
 	// Disable mouse tracking and bracketed paste mode
 	printf("\033[?1000l\033[?2004l\n");
 	fflush(stdout);
 
 	endwin();
+
+	if (log_file.empty()) {
+		logger.enable_stdout_logging(true);
+	}
+
+	logger.log("Exiting application loop.");
+	project_manager::get_instance().shutdown();
 
 	logger.log("Application exiting main().");
 	return 0;
