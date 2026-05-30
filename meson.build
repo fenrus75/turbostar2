@@ -251,6 +251,13 @@ test_wait_for_agent = executable('test_wait_for_agent',
   include_directories: inc)
 test('unit_test_wait_for_agent', test_wait_for_agent)
 
+test_web_fetch = executable('test_web_fetch',
+  'tests/unit/test_web_fetch.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_web_fetch', test_web_fetch)
+
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
