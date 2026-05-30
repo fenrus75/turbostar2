@@ -323,6 +323,12 @@ test_fs_compile_summary = executable('test_fs_compile_summary',
   include_directories: inc)
 test('unit_test_fs_compile_summary', test_fs_compile_summary)
 
+test_get_current_datetime = executable('test_get_current_datetime',
+  'tests/unit/test_get_current_datetime.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_get_current_datetime', test_get_current_datetime)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
