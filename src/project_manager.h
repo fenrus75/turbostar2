@@ -23,11 +23,16 @@ class project_manager
 	void shutdown();
 
 	/**
-	 * @brief Returns the absolute path to the project/repository root.
+	 * @brief Returns the absolute path to the project root.
 	 */
+	std::string get_project_root() const
+	{
+		return project_root_;
+	}
+
 	std::string get_repository_root() const
 	{
-		return repo_root_;
+		return get_project_root();
 	}
 
 	/**
@@ -128,7 +133,7 @@ class project_manager
 		bool ready{false};
 	};
 
-	std::string repo_root_;
+	std::string project_root_;
 	std::string instructions_;
 	std::string clang_format_;
 	std::unique_ptr<lsp_manager> lsp_manager_;

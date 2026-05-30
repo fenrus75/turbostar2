@@ -33,9 +33,9 @@ project_manager &project_manager::get_instance()
 
 void project_manager::initialize()
 {
-	repo_root_ = git_manager::get_instance().get_repository_root();
-	if (repo_root_.empty()) {
-		repo_root_ = fs::current_path().string();
+	project_root_ = git_manager::get_instance().get_repository_root();
+	if (project_root_.empty()) {
+		project_root_ = fs::current_path().string();
 	}
 
 	// Clean up previous runs' crash dumps on startup
@@ -103,7 +103,7 @@ void project_manager::inventory_project(std::stop_token stop)
 {
 	auto start_time = std::chrono::steady_clock::now();
 	std::string build_dir = config_manager::get_instance().get_build_directory();
-	fs::path root(repo_root_);
+	fs::path root(project_root_);
 
 	std::map<std::string, directory_info> dir_map;
 	std::vector<std::string> key_files;
@@ -348,10 +348,10 @@ std::string project_manager::get_project_knowledge_prompt() const
 
 void project_manager::load_instructions()
 {
-	if (repo_root_.empty())
+	if (project_root_.empty())
 		return;
 
-	fs::path root(repo_root_);
+	fs::path root(project_root_);
 	fs::path agent_md = root / "AGENTS.md";
 	fs::path gemini_md = root / "GEMINI.md";
 
@@ -501,7 +501,7 @@ void project_manager::refresh_available_tests()
 	
 	fs::path build_path(build_dir);
 	if (build_path.is_relative()) {
-		build_path = fs::path(repo_root_) / build_path;
+		build_path = fs::path(project_root_) / build_path;
 	}
 
 	std::string cmd;
@@ -517,7 +517,7 @@ void project_manager::refresh_available_tests()
 
 	sync_command_runner runner;
 	runner.apply_internal_profile();
-	runner.set_project_dir(repo_root_);
+	runner.set_project_dir(project_root_);
 
 	std::string output = runner.execute_and_get_output(cmd);
 	if (runner.get_exit_code() != 0) {
@@ -607,8 +607,8 @@ void project_manager::update_software_map_markdown()
 			std::string kind_str = (sym.kind == 5) ? "Class" : (sym.kind == 22 ? "Struct" : "Interface");
 
 			std::string rel_path = sym.location.path;
-			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
-				rel_path = rel_path.substr(repo_root_.length());
+			if (!project_root_.empty() && rel_path.starts_with(project_root_)) {
+				rel_path = rel_path.substr(project_root_.length());
 				if (!rel_path.empty() && rel_path.front() == '/')
 					rel_path.erase(0, 1);
 			}
@@ -632,8 +632,8 @@ void project_manager::update_software_map_markdown()
 				break;
 
 			std::string rel_path = sym.location.path;
-			if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
-				rel_path = rel_path.substr(repo_root_.length());
+			if (!project_root_.empty() && rel_path.starts_with(project_root_)) {
+				rel_path = rel_path.substr(project_root_.length());
 				if (!rel_path.empty() && rel_path.front() == '/')
 					rel_path.erase(0, 1);
 			}
@@ -747,7 +747,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 			// Phase 1: Regex Seeding from Headers
 			std::set<std::string> seed_names;
 			RE2 class_regex("^\\s*(?:class|struct)\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
-			fs::path root(repo_root_);
+			fs::path root(project_root_);
 			std::string build_dir = config_manager::get_instance().get_build_directory();
 
 			try {
@@ -815,8 +815,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 						sms.is_sampled = false;
 
 						std::string rel_path = sym.location.path;
-						if (!repo_root_.empty() && rel_path.starts_with(repo_root_)) {
-							rel_path = rel_path.substr(repo_root_.length());
+						if (!project_root_.empty() && rel_path.starts_with(project_root_)) {
+							rel_path = rel_path.substr(project_root_.length());
 							if (!rel_path.empty() && rel_path.front() == '/') {
 								rel_path.erase(0, 1);
 							}
@@ -984,12 +984,9 @@ void project_manager::shutdown()
 std::vector<std::string> project_manager::detect_executable_candidates()
 {
 	std::vector<std::string> candidates;
-	std::string repo_root = git_manager::get_instance().get_repository_root();
-	if (repo_root.empty()) {
-		repo_root = std::filesystem::current_path().string();
-	}
+	std::string proj_root = project_root_;
 
-	std::filesystem::path meson_path = std::filesystem::path(repo_root) / "meson.build";
+	std::filesystem::path meson_path = std::filesystem::path(proj_root) / "meson.build";
 	if (!std::filesystem::exists(meson_path)) {
 		return candidates;
 	}
