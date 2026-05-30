@@ -6,6 +6,19 @@
 namespace agentlib
 {
 
+static size_t get_utf8_char_bytes(unsigned char c)
+{
+	if (c < 0x80) return 1;
+	if ((c & 0xE0) == 0xC0) return 2;
+	if ((c & 0xF0) == 0xE0) return 3;
+	if ((c & 0xF8) == 0xF0) return 4;
+	return 1;
+}
+
+constexpr int kBoxPadding = 4;
+constexpr int kMinInnerWidth = 10;
+constexpr int kEarlyReturnMargin = 5;
+
 int agent_interaction::get_height(int width) const
 {
 	return render(width).size();
@@ -17,20 +30,20 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 		if (!is_boxed_) {
 			cached_lines_ = format_lines(width, bg);
 		} else {
-			int inner_width = width - 4;
-			if (inner_width < 10)
-				inner_width = 10;
+			int inner_width = width - kBoxPadding;
+			if (inner_width < kMinInnerWidth)
+				inner_width = kMinInnerWidth;
 
 			std::vector<interaction_line> inner_lines = format_lines(inner_width, bg);
 			cached_lines_.clear();
 
 			// Single line box drawing characters
-			std::string top_left = "\xE2\x94\x8C";
-			std::string horiz = "\xE2\x94\x80";
-			std::string top_right = "\xE2\x94\x90";
-			std::string vert = "\xE2\x94\x82";
-			std::string bot_left = "\xE2\x94\x94";
-			std::string bot_right = "\xE2\x94\x98";
+			const std::string top_left = "┌"; // U+250C
+			const std::string horiz = "─";    // U+2500
+			const std::string top_right = "┐"; // U+2510
+			const std::string vert = "│";     // U+2502
+			const std::string bot_left = "└";  // U+2514
+			const std::string bot_right = "┘"; // U+2518
 
 			std::string top_border = top_left;
 			int box_cp = get_color_pair(get_role(), bg);
@@ -116,13 +129,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			line_chars += spaces;
 			i++;
 		} else {
-			size_t char_bytes = 1;
-			if ((c & 0xE0) == 0xC0)
-				char_bytes = 2;
-			else if ((c & 0xF0) == 0xE0)
-				char_bytes = 3;
-			else if ((c & 0xF8) == 0xF0)
-				char_bytes = 4;
+			size_t char_bytes = get_utf8_char_bytes(c);
 			if (i + char_bytes > text.length())
 				char_bytes = text.length() - i;
 			full_text.append(text, i, char_bytes);
@@ -131,7 +138,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		}
 	}
 
-	if (width <= prefix_utf8_len + 5) {
+	if (width <= prefix_utf8_len + kEarlyReturnMargin) {
 		lines.push_back({prefix + full_text, color_pair});
 		return lines;
 	}
@@ -177,13 +184,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			size_t peek_idx = byte_idx;
 			while (peek_idx < line.length() && chars_consumed < available_width) {
 				unsigned char c = static_cast<unsigned char>(line[peek_idx]);
-				size_t char_bytes = 1;
-				if ((c & 0xE0) == 0xC0)
-					char_bytes = 2;
-				else if ((c & 0xF0) == 0xE0)
-					char_bytes = 3;
-				else if ((c & 0xF8) == 0xF0)
-					char_bytes = 4;
+				size_t char_bytes = get_utf8_char_bytes(c);
 
 				if (peek_idx + char_bytes > line.length()) {
 					char_bytes = line.length() - peek_idx; // Malformed UTF-8 fallback
