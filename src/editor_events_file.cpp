@@ -147,8 +147,21 @@ void editor::dispatch_event_file(const editor_event &ev)
 		if (ev.payload.empty())
 			return;
 
-		std::filesystem::path target_p(ev.payload);
+		std::string filepath = ev.payload;
+		int line_num = -1;
+		size_t colon = filepath.find_last_of(':');
+		if (colon != std::string::npos) {
+			std::string suffix = filepath.substr(colon + 1);
+			bool is_num = !suffix.empty() && std::all_of(suffix.begin(), suffix.end(), ::isdigit);
+			if (is_num) {
+				line_num = std::stoi(suffix);
+				filepath = filepath.substr(0, colon);
+			}
+		}
+
+		std::filesystem::path target_p(filepath);
 		bool found = false;
+		size_t activated_win_idx = static_cast<size_t>(-1);
 		for (size_t i = 0; i < windows_.size(); ++i) {
 			auto doc = windows_[i]->get_document();
 			if (!doc)
@@ -164,6 +177,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 						activate_window(i);
 						set_focus(focus_target::window, "open_file");
 						found = true;
+						activated_win_idx = i;
 						break;
 					}
 				}
@@ -171,6 +185,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 					activate_window(i);
 					set_focus(focus_target::window, "open_file");
 					found = true;
+					activated_win_idx = i;
 					break;
 				}
 			} catch (...) {
@@ -179,8 +194,17 @@ void editor::dispatch_event_file(const editor_event &ev)
 		}
 
 		if (!found) {
-			new_window(ev.payload);
+			new_window(filepath);
 			set_focus(focus_target::window, "open_file");
+			activated_win_idx = windows_.size() - 1;
+		}
+
+		if (activated_win_idx != static_cast<size_t>(-1) && line_num >= 1) {
+			auto doc = windows_[activated_win_idx]->get_document();
+			if (doc) {
+				doc->move_to_top();
+				doc->move_cursor(0, line_num - 1);
+			}
 		}
 
 		// Force redraw to ensure the new/focused window renders immediately
