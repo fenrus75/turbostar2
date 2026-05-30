@@ -142,6 +142,13 @@ test_virtual_file_system = executable('test_virtual_file_system',
   include_directories: 'src')
 test('unit_virtual_file_system', test_virtual_file_system)
 
+test_skill_manager = executable('test_skill_manager',
+  ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_skill_manager', test_skill_manager)
+
+
 test_python_highlighter = executable('test_python_highlighter',
   ['tests/unit/test_python_highlighter.cpp', 'src/python_highlighter.cpp', 'src/line.cpp'],
   dependencies : [re2_dep],
