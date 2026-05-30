@@ -38,9 +38,10 @@ int main()
 
 	// 2. Success case: stage a file, commit it, reset HEAD to clean up
 	{
-		std::filesystem::path dummy_file = "dummy_commit_test.txt";
+		std::string project_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "dummy_commit_test.txt";
 		write_file(dummy_file, "dummy content");
-		fs_utils::execute_command_sync("git add dummy_commit_test.txt");
+		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", project_root);
 
 		nlohmann::json args = {{"message", "test: dummy commit for unit test"}};
 		std::string result = registry.execute_tool("git_commit", args.dump(), ctx);
@@ -48,8 +49,8 @@ int main()
 		assert(result.find("Successfully created commit") != std::string::npos);
 
 		// Clean up: reset to previous commit and remove staged file
-		fs_utils::execute_command_sync("git reset --soft HEAD~1");
-		fs_utils::execute_command_sync("git restore --staged dummy_commit_test.txt");
+		fs_utils::execute_command_sync("git -C {} reset --soft HEAD~1", project_root);
+		fs_utils::execute_command_sync("git -C {} restore --staged dummy_commit_test.txt", project_root);
 		std::filesystem::remove(dummy_file);
 	}
 
