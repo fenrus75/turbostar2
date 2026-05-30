@@ -167,6 +167,12 @@ test_git_branch_create = executable('test_git_branch_create',
   include_directories: inc)
 test('unit_test_git_branch_create', test_git_branch_create)
 
+test_git_branch_list = executable('test_git_branch_list',
+  'tests/unit/test_git_branch_list.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_branch_list', test_git_branch_list)
+
 test_agent_add_todo = executable('test_agent_add_todo',
   'tests/unit/test_agent_add_todo.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
