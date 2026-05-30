@@ -311,6 +311,12 @@ test_fs_compile_info = executable('test_fs_compile_info',
   include_directories: inc)
 test('unit_test_fs_compile_info', test_fs_compile_info)
 
+test_fs_compile_project = executable('test_fs_compile_project',
+  'tests/unit/test_fs_compile_project.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_fs_compile_project', test_fs_compile_project)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
