@@ -65,6 +65,16 @@ class code_get_scope_validator : public agentlib::tool_validator
 			out_error = "Missing required arguments.";
 			return false;
 		}
+		int line = args["line"].get<int>();
+		int character = args["character"].get<int>();
+		if (line < 1) {
+			out_error = "Security Violation: Line number must be >= 1.";
+			return false;
+		}
+		if (character < 0) {
+			out_error = "Security Violation: Character offset must be >= 0.";
+			return false;
+		}
 		return true;
 	}
 
