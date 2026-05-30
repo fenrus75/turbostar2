@@ -130,7 +130,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 	out.close();
 
 	// Run curl: silent, follow redirects, max time 30s
-	std::string cmd = "curl -sS -L -m 30 -K '" + config_file.string() + "'";
+	std::string cmd = "curl -sS -L -m 30 -K " + fs_utils::escape_shell_arg(config_file.string());
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	std::error_code ec;

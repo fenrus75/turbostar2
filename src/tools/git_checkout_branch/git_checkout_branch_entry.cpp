@@ -16,7 +16,7 @@ bool git_checkout_branch_tool::validate_runtime(const agentlib::tool_context & /
 
 std::string git_checkout_branch_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string cmd = "git checkout " + branch_name_;
+	std::string cmd = "git checkout " + fs_utils::escape_shell_arg(branch_name_);
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	if (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos) {

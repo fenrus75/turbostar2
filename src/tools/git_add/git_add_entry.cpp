@@ -27,7 +27,7 @@ std::string git_add_tool::execute(agentlib::tool_context &ctx)
 
 	std::string cmd = "git add ";
 	for (const auto &path : safe_paths_) {
-		cmd += "'" + path + "' "; // Simple quote wrapping since paths are verified safe
+		cmd += fs_utils::escape_shell_arg(path) + " ";
 	}
 
 	std::string output = fs_utils::execute_command_sync(cmd);

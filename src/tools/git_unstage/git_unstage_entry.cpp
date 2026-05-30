@@ -23,7 +23,7 @@ std::string git_unstage_tool::execute(agentlib::tool_context &ctx)
 
 	std::string cmd = "git restore --staged -- ";
 	for (const auto &path : safe_paths_) {
-		cmd += "'" + path + "' "; // Simple quote wrapping since paths are verified safe
+		cmd += fs_utils::escape_shell_arg(path) + " ";
 	}
 
 	std::string output = fs_utils::execute_command_sync(cmd);
@@ -38,7 +38,7 @@ std::string git_unstage_tool::execute(agentlib::tool_context &ctx)
 	if (output.find("is not a git command") != std::string::npos || output.find("Unknown command") != std::string::npos) {
 		cmd = "git reset HEAD -- ";
 		for (const auto &path : safe_paths_) {
-			cmd += "'" + path + "' ";
+			cmd += fs_utils::escape_shell_arg(path) + " ";
 		}
 		output = fs_utils::execute_command_sync(cmd);
 

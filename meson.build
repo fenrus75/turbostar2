@@ -113,6 +113,12 @@ test_tools = executable('test_tools',
   include_directories: inc)
 test('unit_test_tools', test_tools)
 
+test_shell_security = executable('test_shell_security',
+  'tests/unit/test_shell_security.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_shell_security', test_shell_security)
+
 test_activate_skill = executable('test_activate_skill',
   'tests/unit/test_activate_skill.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

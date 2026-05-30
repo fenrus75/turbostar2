@@ -16,7 +16,7 @@ bool git_restore_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, 
 std::string git_restore_tool::execute(agentlib::tool_context &ctx)
 {
 	// Note: older git versions might not have 'restore', but checkout -- path works universally.
-	std::string cmd = "git checkout -- '" + safe_path_ + "'";
+	std::string cmd = "git checkout -- " + fs_utils::escape_shell_arg(safe_path_);
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	if (output.empty() || (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos)) {

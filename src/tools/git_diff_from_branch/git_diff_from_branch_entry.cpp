@@ -16,7 +16,7 @@ bool git_diff_from_branch_tool::validate_runtime(const agentlib::tool_context & 
 
 std::string git_diff_from_branch_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string cmd = "git --no-pager diff --no-color --unified=3 " + branch_name_;
+	std::string cmd = "git --no-pager diff --no-color --unified=3 " + fs_utils::escape_shell_arg(branch_name_);
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	if (output.empty()) {

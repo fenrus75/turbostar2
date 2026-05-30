@@ -85,7 +85,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	if (system("which uv > /dev/null 2>&1") == 0) {
 		base_cmd = "PYTHONUNBUFFERED=1 uv run ";
 		for (const auto &dep : args_.dependencies) {
-			base_cmd += "--with '" + dep + "' ";
+			base_cmd += "--with " + fs_utils::escape_shell_arg(dep) + " ";
 		}
 	} else {
 		base_cmd = "PYTHONUNBUFFERED=1 python3 -u ";
@@ -108,7 +108,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 			std::dynamic_pointer_cast<agentlib::interaction_terminal>(interaction_)->set_title(display_cmd);
 		}
 	} else {
-		full_cmd = base_cmd + "'" + script_path + "'";
+		full_cmd = base_cmd + fs_utils::escape_shell_arg(script_path);
 		
 		if (interaction_) {
 			std::string display_cmd = base_cmd + *args_.file_path;

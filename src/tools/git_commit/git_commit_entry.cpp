@@ -62,7 +62,7 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 	out << message_;
 	out.close();
 
-	std::string cmd = "git commit -F '" + msg_file.string() + "'";
+	std::string cmd = "git commit -F " + fs_utils::escape_shell_arg(msg_file.string());
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	// Clean up

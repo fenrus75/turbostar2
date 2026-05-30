@@ -2,9 +2,15 @@
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
-- track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
+- simplification: have our logger a use variadic template method so that the log() function acts like std::format
+    (needs to use std::vformat internally)
 
-- perform a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) to absolutely guarantee no command injection vectors exist via edge-case shell parsing
+- security: have our command runner have variadic template method for building command lines, so that arguments
+   can be passed in more easily -- and the command runner can now shell-escape these as part of
+   building the final string! (using fs_utils::escape_shell_arg)
+ 
+
+- track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
 
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -102,6 +108,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 30-05-2026
+- performed a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) and fixed command injection vulnerabilities across tools by replacing manual single-quoting with robust `fs_utils::escape_shell_arg`.
 
 ## 29-05-2026
 - consolidated all UTF-8 helper functions into a single `utf8` namespace (in `utf8.h`/`utf8.cpp`) and refactored the rest of the codebase (including highlighters, document search, and terminal emulation) to reuse them.
