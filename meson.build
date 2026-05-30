@@ -287,6 +287,12 @@ test_fs_mkdir = executable('test_fs_mkdir',
   include_directories: inc)
 test('unit_test_fs_mkdir', test_fs_mkdir)
 
+test_fs_read_binary = executable('test_fs_read_binary',
+  'tests/unit/test_fs_read_binary.cpp',
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_fs_read_binary', test_fs_read_binary)
+
 test_open_in_editor = executable('test_open_in_editor',
   'tests/unit/test_open_in_editor.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
