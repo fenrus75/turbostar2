@@ -214,6 +214,7 @@ class document
 	void end_edit_group();
 	void record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line);
 	void break_undo_coalescing_unlocked();
+	void notify_undo_changed_event() const;
 
 	std::deque<action_group> undo_stack_;
 	std::deque<action_group> redo_stack_;
