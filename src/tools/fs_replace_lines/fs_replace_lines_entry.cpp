@@ -142,7 +142,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		return false;
 	}
 
-	// 3. ATOMIC VERIFICATION: Verify ALL orgstrings before making any edits
+	// 2. Read file content
 	std::vector<std::string> lines;
 	std::ifstream in(args_.safe_path);
 	if (!in.is_open()) {
@@ -159,94 +159,117 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 	}
 	in.close();
 
-	std::vector<std::string> mismatch_errors;
-
+	// 3. Track original order
+	bool originally_out_of_order = false;
+	int prev_line = 2000000000;
+	std::vector<int> original_line_numbers;
 	for (const auto &edit : args_.edits) {
+		original_line_numbers.push_back(edit.line_number);
+		if (edit.line_number >= prev_line) {
+			originally_out_of_order = true;
+		}
+		prev_line = edit.line_number;
+	}
+
+	std::vector<std::string> mismatch_errors;
+	auto verified_edits = args_.edits;
+	args_.adjustment_notes.clear();
+
+	for (size_t e_idx = 0; e_idx < verified_edits.size(); ++e_idx) {
+		auto &edit = verified_edits[e_idx];
 		int idx = edit.line_number - 1;
 		int max_idx = (edit.type == "add") ? static_cast<int>(lines.size()) : static_cast<int>(lines.size()) - 1;
+
 		if (idx < 0 || idx > max_idx) {
 			mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds.", edit.line_number));
 			continue;
 		}
 
-		if (edit.type == "add")
+		if (edit.type == "add") {
 			continue;
+		}
 
 		std::vector<std::string> expected_lines;
 		std::stringstream ss(edit.original_text);
 		std::string part;
 		while (std::getline(ss, part)) {
-			if (!part.empty() && part.back() == '\r') part.pop_back();
+			if (!part.empty() && part.back() == '\r')
+				part.pop_back();
 			expected_lines.push_back(part);
 		}
-		if (expected_lines.empty()) expected_lines.push_back("");
+		if (expected_lines.empty())
+			expected_lines.push_back("");
 
-		if (idx + static_cast<int>(expected_lines.size()) > static_cast<int>(lines.size())) {
-			mismatch_errors.push_back(std::format("Verification Error: Multi-line original_text starting at line_number {} extends beyond the end of the file.", edit.line_number));
-			continue;
+		// Search +/- 25 lines for matches
+		std::vector<int> matching_lines;
+		int check_radius = 25;
+		int start_search = std::max(1, edit.line_number - check_radius);
+		int end_search = std::min(static_cast<int>(lines.size()) - static_cast<int>(expected_lines.size()) + 1, edit.line_number + check_radius);
+
+		for (int test_line = start_search; test_line <= end_search; ++test_line) {
+			bool matches = true;
+			int test_idx = test_line - 1;
+			for (size_t i = 0; i < expected_lines.size(); ++i) {
+				std::string actual = lines[test_idx + i];
+				std::string expected = expected_lines[i];
+				while (!expected.empty() && std::isspace(expected.back()))
+					expected.pop_back();
+				if (actual.find(expected) != 0) {
+					matches = false;
+					break;
+				}
+			}
+			if (matches) {
+				matching_lines.push_back(test_line);
+			}
 		}
 
-		bool block_matches = true;
-		for (size_t i = 0; i < expected_lines.size(); ++i) {
-			std::string actual = lines[idx + i];
-			std::string expected = expected_lines[i];
-			while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
-			if (actual.find(expected) != 0) {
-				block_matches = false;
+		if (matching_lines.empty()) {
+			mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], lines[idx]));
+		} else if (matching_lines.size() == 1) {
+			int matched_line = matching_lines[0];
+			int offset = std::abs(matched_line - edit.line_number);
+			if (offset == 0) {
+				// Perfect match
+			} else if (offset <= 3) {
+				// Auto-correct
+				args_.adjustment_notes.push_back(std::format("Edit originally at line {} was automatically shifted to line {} because the original_text matched there.", edit.line_number, matched_line));
+				edit.line_number = matched_line;
+			} else {
+				// Too far, reject with hint
+				mismatch_errors.push_back(std::format("Verification Error: The block you provided is not at line {}, but it matches starting at line {}. Please update your line_number.", edit.line_number, matched_line));
+			}
+		} else {
+			// Multiple matches found in +/- 25 range
+			// If one match is exactly at edit.line_number, accept it
+			if (std::find(matching_lines.begin(), matching_lines.end(), edit.line_number) != matching_lines.end()) {
+				// Perfect match exists among multiple, accept at target line
+			} else {
+				std::string match_list = "";
+				for (size_t i = 0; i < matching_lines.size(); ++i) {
+					match_list += (i > 0 ? ", " : "") + std::to_string(matching_lines[i]);
+				}
+				mismatch_errors.push_back(std::format("Verification Error: Multiple matches found for your block within +/- 25 lines (at lines [{}]). Please provide more context or verify your line numbers.", match_list));
+			}
+		}
+	}
+
+	// Check for duplicate line numbers after updates/shifts
+	if (mismatch_errors.empty()) {
+		// Sort descending
+		std::sort(verified_edits.begin(), verified_edits.end(), [](const edit_operation &a, const edit_operation &b) {
+			return a.line_number > b.line_number;
+		});
+
+		bool has_duplicates = false;
+		for (size_t i = 1; i < verified_edits.size(); ++i) {
+			if (verified_edits[i].line_number == verified_edits[i - 1].line_number) {
+				has_duplicates = true;
 				break;
 			}
 		}
-
-		if (!block_matches) {
-			// Offset hint logic: check +/- 25 lines
-			int found_line = -1;
-			int check_radius = 25;
-			
-			// Start checking nearest lines first
-			for (int offset = 1; offset <= check_radius; ++offset) {
-				// Check down
-				int check_idx_down = idx + offset;
-				if (check_idx_down + static_cast<int>(expected_lines.size()) <= static_cast<int>(lines.size())) {
-					bool match = true;
-					for (size_t i = 0; i < expected_lines.size(); ++i) {
-						std::string actual = lines[check_idx_down + i];
-						std::string expected = expected_lines[i];
-						while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
-						if (actual.find(expected) != 0) {
-							match = false;
-							break;
-						}
-					}
-					if (match) {
-						found_line = check_idx_down + 1;
-						break;
-					}
-				}
-				// Check up
-				int check_idx_up = idx - offset;
-				if (check_idx_up >= 0) {
-					bool match = true;
-					for (size_t i = 0; i < expected_lines.size(); ++i) {
-						std::string actual = lines[check_idx_up + i];
-						std::string expected = expected_lines[i];
-						while (!expected.empty() && std::isspace(expected.back())) expected.pop_back();
-						if (actual.find(expected) != 0) {
-							match = false;
-							break;
-						}
-					}
-					if (match) {
-						found_line = check_idx_up + 1;
-						break;
-					}
-				}
-			}
-
-			if (found_line != -1) {
-				mismatch_errors.push_back(std::format("Verification Error: The block you provided is not at line {}, but it matches starting at line {}. Please update your line_number.", edit.line_number, found_line));
-			} else {
-				mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], lines[idx]));
-			}
+		if (has_duplicates) {
+			mismatch_errors.push_back("Verification Error: Multiple edits target the same line number after resolving shifts.");
 		}
 	}
 
@@ -255,8 +278,33 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		for (size_t i = 0; i < mismatch_errors.size(); ++i) {
 			out_error += (i > 0 ? "\n\n" : "") + mismatch_errors[i];
 		}
+
+		if (originally_out_of_order) {
+			std::string original_order = "";
+			for (size_t i = 0; i < original_line_numbers.size(); ++i) {
+				original_order += (i > 0 ? ", " : "") + std::to_string(original_line_numbers[i]);
+			}
+			std::vector<int> sorted_lines = original_line_numbers;
+			std::sort(sorted_lines.begin(), sorted_lines.end(), std::greater<int>());
+			std::string correct_order = "";
+			for (size_t i = 0; i < sorted_lines.size(); ++i) {
+				correct_order += (i > 0 ? ", " : "") + std::to_string(sorted_lines[i]);
+			}
+
+			out_error += std::format("\n\nError: Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.\n"
+						"You provided edits in this order: [{}]\n"
+						"Please sort your edits to target line_numbers in this order: [{}]",
+						original_order, correct_order);
+		}
 		return false;
 	}
+
+	// Update edits and sorting
+	if (originally_out_of_order) {
+		args_.adjustment_notes.push_back("Edits were automatically sorted in descending order to prevent line shifting issues.");
+		// Ensure it's sorted descending (already sorted above if mismatch_errors is empty)
+	}
+	args_.edits = verified_edits;
 
 	return true;
 }
@@ -434,6 +482,13 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 
 	std::string result_msg = std::format("Successfully applied {} edits to {}\n\n", args_.edits.size(), args_.path);
+	if (!args_.adjustment_notes.empty()) {
+		result_msg += "System Corrections Applied:\n";
+		for (const auto &note : args_.adjustment_notes) {
+			result_msg += std::format("- {}\n", note);
+		}
+		result_msg += "\n";
+	}
 	for (const auto &r : merged_ranges) {
 		result_msg += std::format("[Modified Section lines {} - {}]:\n", r.first, r.second);
 		for (int l = r.first; l <= r.second; ++l) {

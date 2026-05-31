@@ -18,6 +18,7 @@ struct fs_replace_args {
     std::string path;
     std::string safe_path;
     std::vector<edit_operation> edits;
+    std::vector<std::string> adjustment_notes;
 };
 
 class fs_replace_lines_tool : public agentlib::llm_tool {
@@ -29,7 +30,7 @@ public:
     std::string execute(agentlib::tool_context& ctx) override;
 
 private:
-    fs_replace_args args_;
+    mutable fs_replace_args args_;
     std::shared_ptr<agentlib::agent_interaction> interaction_;
     
     std::string execute_disk_fallback(agentlib::tool_context& ctx);

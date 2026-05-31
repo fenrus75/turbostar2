@@ -30,7 +30,6 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 		}
 
 		std::vector<edit_operation> parsed_edits;
-		int prev_line = 2000000000;
 
 		for (const auto &edit_json : raw_json["edits"]) {
 			if (!edit_json.contains("line_number") || !edit_json["line_number"].is_number_integer()) {
@@ -50,25 +49,6 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				out_error = "line_number must be >= 1.";
 				return false;
 			}
-			if (edit.line_number >= prev_line) {
-				std::string original_order = "";
-				for (size_t i = 0; i < line_numbers.size(); ++i) {
-					original_order += (i > 0 ? ", " : "") + std::to_string(line_numbers[i]);
-				}
-				std::vector<int> sorted_lines = line_numbers;
-				std::sort(sorted_lines.begin(), sorted_lines.end(), std::greater<int>());
-				std::string correct_order = "";
-				for (size_t i = 0; i < sorted_lines.size(); ++i) {
-					correct_order += (i > 0 ? ", " : "") + std::to_string(sorted_lines[i]);
-				}
-
-				out_error = std::format("Error: Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.\n"
-							"You provided edits in this order: [{}]\n"
-							"Please sort your edits to target line_numbers in this order: [{}]",
-							original_order, correct_order);
-				return false;
-			}
-			prev_line = edit.line_number;
 
 			if (edit.type != "add" && edit.type != "remove" && edit.type != "replace") {
 				out_error = "Invalid edit type: " + edit.type;
