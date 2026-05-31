@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 void document::set_selection_start()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	selection_start_x_ = cursor_x_;
 	selection_start_y_ = cursor_y_;
 	lock.unlock();
@@ -26,6 +27,7 @@ void document::set_selection_start()
 void document::set_selection_end()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	selection_end_x_ = cursor_x_;
 	selection_end_y_ = cursor_y_;
 	lock.unlock();
@@ -35,6 +37,7 @@ void document::set_selection_end()
 void document::set_selection(int start_y, int start_x, int end_y, int end_x)
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	selection_start_y_ = start_y;
 	selection_start_x_ = start_x;
 	selection_end_y_ = end_y;
@@ -46,6 +49,7 @@ void document::set_selection(int start_y, int start_x, int end_y, int end_x)
 void document::clear_selection()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	selection_start_x_ = selection_start_y_ = -1;
 	selection_end_x_ = selection_end_y_ = -1;
 	lock.unlock();

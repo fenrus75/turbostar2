@@ -175,6 +175,7 @@ bool document::save_to_file(const std::string &filename)
 			text_to_save += "\n";
 		}
 	}
+	break_undo_coalescing_unlocked();
 	lock.unlock();
 
 	if (fs::exists(filename)) {
