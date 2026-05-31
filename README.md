@@ -77,7 +77,7 @@ Examples include:
 *   **"compile my project"**: Saves LLM context by automatically parsing common Meson (and other build system) output patterns, reducing the compiler output to relevant warnings and errors only.
 *   **Key Files & Directories**: The agent starts up with a filesystem map of the most important parts of your project already in the context—it does not need to search to know about your project.
 *   **Key Data Structures & Functions**: The agent starts up with key functions and classes, and their locations, already in the context—no manual searching required.
-*   **Crash dump awareness**: All test and application runs are done with a crash catching preload that reports crash information in an AI friendly markdown table to the agent
+*   **Crash Dump Awareness**: All test and application runs are executed with a crash-catching preload that reports diagnostic information in an AI-friendly Markdown table to the agent.
 
 A full list of the available tools is documented in [docs/tools.md](docs/tools.md).
 
@@ -86,7 +86,7 @@ Agent security is a rich field of research, and Turbostar tries to implement bas
 *   **Per-Project Security**: Security settings and preferences are defined *per project* (e.g., you may fully trust your own repository, but require strict prompts for a third-party project cloned from the internet).
 *   **Sandboxing**: Everything runs inside a namespaced sandbox by default, which restricts access to the filesystem and mounts the workspace as read-only where appropriate.
 *   **Separation of Concerns**: Security checks are isolated from tool implementation. A tool's logic is never invoked unless the central security policy is fully satisfied.
-*   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it's better than running python in a shell.
+*   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it is a significant improvement over running Python directly in a shell.
 
 ### Configuring the AI Agent
 
@@ -119,7 +119,7 @@ Turbostar is written in C++23 and uses the Meson build system.
 ### Build-time Prerequisites
 
 You will need the following installed to build Turbostar:
-*    A pretty recent `g++` (or `clang++`) with C++23 support
+*   A recent version of `g++` (or `clang++`) with C++23 support
 *   `meson` and `ninja`
 *   `pkg-config`
 *   `libncursesw5-dev` (ncurses with wide-character support)
