@@ -1,4 +1,5 @@
 #include "crashdump_manager.h"
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -30,6 +31,17 @@ struct memory_map {
 	std::string perms;
 	std::string path;
 };
+
+static bool check_eu_addr2line_installed()
+{
+	static bool checked = false;
+	static bool installed = false;
+	if (!checked) {
+		installed = (std::system("which eu-addr2line > /dev/null 2>&1") == 0);
+		checked = true;
+	}
+	return installed;
+}
 
 static std::vector<memory_map> parse_maps(const std::string &maps_file)
 {
@@ -87,6 +99,9 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 	if (fs::exists(report_path))
 		return;
 
+	// Set DEBUGINFOD_URLS environment variable for eu-addr2line on demand lookup
+	setenv("DEBUGINFOD_URLS", "https://debuginfod.debian.net", 0);
+
 	fs::path maps_path = fs::path(crash_dir) / "maps.txt";
 	fs::path stack_path = fs::path(crash_dir) / "stack.bin";
 	fs::path info_path = fs::path(crash_dir) / "info.txt";
@@ -139,13 +154,16 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 			if (it != maps.end() && ip >= it->start && ip < it->end) {
 				const auto &m = *it;
 				uint64_t rel_addr = ip - m.start + m.offset;
+				if (frame > 0 && rel_addr > 0) {
+					rel_addr--;
+				}
 				std::string func_name = "??";
 				std::string location = "??";
 
 				if (!m.path.empty() && m.path[0] == '/') {
 					std::ostringstream cmd;
-					cmd << "addr2line -C -f -e " << fs_utils::escape_shell_arg(m.path) << " " << std::hex << rel_addr;
-					event_logger::get_instance().log("ip {}  m.start {}   m.offset{}", ip, m.start, m.offset);
+					const char *tool = check_eu_addr2line_installed() ? "eu-addr2line" : "addr2line";
+					cmd << tool << " -C -f -e " << fs_utils::escape_shell_arg(m.path) << " " << std::hex << rel_addr;
 					event_logger::get_instance().log("Running addr2line command: {}", cmd.str());
 
 					std::string output;
@@ -168,6 +186,11 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 					}
 				} else {
 					location = m.path.empty() ? "[unknown]" : m.path;
+				}
+
+				if (func_name == "__libc_start_main" || func_name == "__libc_start_call_main" ||
+				    func_name == "__libc_start_main_impl" || func_name == "_start") {
+					break;
 				}
 
 				// Normalize and strip project root from location if present

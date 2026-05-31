@@ -1,6 +1,6 @@
 #include "ui/dialog_factories.h"
-#include <ncurses.h>
 #include <cstdlib>
+#include <ncurses.h>
 #include "agentlib/ai_model.h"
 #include "config_manager.h"
 #include "fs_utils.h"
@@ -1004,13 +1004,12 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		bool installed;
 	};
 
-	std::vector<tool_info> tools = {
-		{"gdb", "gdb", "gdb", false},
-		{"gdbserver", "gdbserver", "gdbserver", false},
-		{"clangd", "clangd", "clangd", false},
-		{"clang-format", "clang-format", "clang-format", false},
-		{"bandit", "bandit", "python3-bandit", false}
-	};
+	std::vector<tool_info> tools = {{"gdb", "gdb", "gdb", false},
+					{"gdbserver", "gdbserver", "gdbserver", false},
+					{"clangd", "clangd", "clangd", false},
+					{"clang-format", "clang-format", "clang-format", false},
+					{"bandit", "bandit", "python3-bandit", false},
+					{"eu-addr2line", "eu-addr2line", "elfutils", false}};
 
 	std::vector<std::string> missing_packages;
 	for (auto &t : tools) {
@@ -1022,9 +1021,9 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	}
 
 	int width = 56;
-	int height = 15;
+	int height = 16;
 	if (!missing_packages.empty()) {
-		height = 17;
+		height = 18;
 	}
 
 	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
@@ -1070,4 +1069,3 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	dlg->set_focus_by_name("btn_ok");
 	return dlg;
 }
-
