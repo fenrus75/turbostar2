@@ -401,7 +401,48 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 	out.close();
 
-	return "Successfully applied " + std::to_string(args_.edits.size()) + " edits to " + args_.path;
+	dtl::Diff<std::string, std::vector<std::string>> d(before_lines, lines);
+	d.compose();
+	d.composeUnifiedHunks();
+	auto hunks = d.getUniHunks();
+
+	std::vector<std::pair<int, int>> ranges;
+	for (const auto &hunk : hunks) {
+		int start = static_cast<int>(hunk.c);
+		int end = static_cast<int>(hunk.c + hunk.d - 1);
+		if (start <= end) {
+			start = std::max(1, start);
+			end = std::min(static_cast<int>(lines.size()), end);
+			ranges.push_back({start, end});
+		}
+	}
+
+	// Merge overlapping/adjacent ranges
+	std::sort(ranges.begin(), ranges.end());
+	std::vector<std::pair<int, int>> merged_ranges;
+	for (const auto &r : ranges) {
+		if (merged_ranges.empty()) {
+			merged_ranges.push_back(r);
+		} else {
+			auto &last = merged_ranges.back();
+			if (r.first <= last.second + 1) {
+				last.second = std::max(last.second, r.second);
+			} else {
+				merged_ranges.push_back(r);
+			}
+		}
+	}
+
+	std::string result_msg = std::format("Successfully applied {} edits to {}\n\n", args_.edits.size(), args_.path);
+	for (const auto &r : merged_ranges) {
+		result_msg += std::format("[Modified Section lines {} - {}]:\n", r.first, r.second);
+		for (int l = r.first; l <= r.second; ++l) {
+			result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+		}
+		result_msg += "\n";
+	}
+
+	return result_msg;
 }
 
 } // namespace tools
