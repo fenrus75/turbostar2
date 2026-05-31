@@ -496,44 +496,90 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 		return "";
 	}
 
-	httplib::Client cli(host);
-	cli.set_connection_timeout(std::chrono::seconds(3));
-	cli.set_read_timeout(std::chrono::seconds(3));
-	cli.set_follow_location(true);
+	httplib::Client *cli = nullptr;
+	if (host.find("api.github.com") != std::string::npos) {
+		if (!api_client_) {
+			api_client_ = std::make_unique<httplib::Client>(host);
+			api_client_->set_connection_timeout(std::chrono::seconds(3));
+			api_client_->set_read_timeout(std::chrono::seconds(3));
+			api_client_->set_follow_location(true);
 
-	const char *env_proxy = std::getenv("https_proxy");
-	if (!env_proxy)
-		env_proxy = std::getenv("http_proxy");
-	if (env_proxy) {
-		std::string proxy(env_proxy);
-		size_t scheme_pos = proxy.find("://");
-		if (scheme_pos != std::string::npos) {
-			proxy = proxy.substr(scheme_pos + 3);
-		}
-		size_t port_pos = proxy.find(':');
-		std::string p_host = proxy;
-		int p_port = 80;
-		if (port_pos != std::string::npos) {
-			p_host = proxy.substr(0, port_pos);
-			try {
-				p_port = std::stoi(proxy.substr(port_pos + 1));
-			} catch (...) {
+			const char *env_proxy = std::getenv("https_proxy");
+			if (!env_proxy)
+				env_proxy = std::getenv("http_proxy");
+			if (env_proxy) {
+				std::string proxy(env_proxy);
+				size_t scheme_pos = proxy.find("://");
+				if (scheme_pos != std::string::npos) {
+					proxy = proxy.substr(scheme_pos + 3);
+				}
+				size_t port_pos = proxy.find(':');
+				std::string p_host = proxy;
+				int p_port = 80;
+				if (port_pos != std::string::npos) {
+					p_host = proxy.substr(0, port_pos);
+					try {
+						p_port = std::stoi(proxy.substr(port_pos + 1));
+					} catch (...) {
+					}
+				}
+				if (!p_host.empty() && p_host.back() == '/') {
+					p_host.pop_back();
+				}
+				api_client_->set_proxy(p_host, p_port);
 			}
 		}
-		if (!p_host.empty() && p_host.back() == '/') {
-			p_host.pop_back();
+		cli = api_client_.get();
+	} else {
+		if (!raw_client_) {
+			raw_client_ = std::make_unique<httplib::Client>(host);
+			raw_client_->set_connection_timeout(std::chrono::seconds(3));
+			raw_client_->set_read_timeout(std::chrono::seconds(3));
+			raw_client_->set_follow_location(true);
+
+			const char *env_proxy = std::getenv("https_proxy");
+			if (!env_proxy)
+				env_proxy = std::getenv("http_proxy");
+			if (env_proxy) {
+				std::string proxy(env_proxy);
+				size_t scheme_pos = proxy.find("://");
+				if (scheme_pos != std::string::npos) {
+					proxy = proxy.substr(scheme_pos + 3);
+				}
+				size_t port_pos = proxy.find(':');
+				std::string p_host = proxy;
+				int p_port = 80;
+				if (port_pos != std::string::npos) {
+					p_host = proxy.substr(0, port_pos);
+					try {
+						p_port = std::stoi(proxy.substr(port_pos + 1));
+					} catch (...) {
+					}
+				}
+				if (!p_host.empty() && p_host.back() == '/') {
+					p_host.pop_back();
+				}
+				raw_client_->set_proxy(p_host, p_port);
+			}
 		}
-		cli.set_proxy(p_host, p_port);
+		cli = raw_client_.get();
 	}
 
-	httplib::Headers headers = {{"User-Agent", "Turbostar/1.0"}};
+	if (!cli) {
+		return "";
+	}
+
+	httplib::Request req;
+	req.method = "GET";
+	req.path = path;
+	req.headers = {{"User-Agent", "Turbostar/1.0"}};
 
 	const char *token = std::getenv("GITHUB_TOKEN");
 	if (token) {
-		headers.emplace("Authorization", "Bearer " + std::string(token));
+		req.headers.emplace("Authorization", "Bearer " + std::string(token));
 	}
 
-	auto res = cli.Get(path, headers);
+	auto res = cli->send(req);
 	if (res) {
 		out_status = res->status;
 		return res->body;

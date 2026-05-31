@@ -1,5 +1,7 @@
 #include <cassert>
 #include <iostream>
+#include <httplib.h>
+#include <nlohmann/json.hpp>
 #include "../../src/agentlib/virtual_file_system.h"
 
 using namespace agentlib;
@@ -72,6 +74,40 @@ void test_directory_listing_or_graceful_failure()
 		assert(found_hello);
 	} else {
 		std::cout << "Repo list returned empty (expected if rate-limited or offline).\n";
+	}
+
+	// Test case requested by user: fenrus75/powertop (with explicit branch)
+	std::string powertop_branch_uri = "github://fenrus75/powertop@master/";
+	auto powertop_branch_list = vfs.list_directory(powertop_branch_uri);
+	if (!powertop_branch_list.empty()) {
+		std::cout << "Successfully retrieved powertop@master list (size: " << powertop_branch_list.size() << ")\n";
+		bool found_src = false;
+		for (const auto &item : powertop_branch_list) {
+			if (item.uri.find("/src") != std::string::npos) {
+				found_src = true;
+				break;
+			}
+		}
+		assert(found_src);
+	} else {
+		std::cout << "Powertop@master list returned empty (expected if rate-limited or offline).\n";
+	}
+
+	// Test case requested by user: fenrus75/powertop/ (relying on default branch resolution)
+	std::string powertop_uri = "github://fenrus75/powertop/";
+	auto powertop_list = vfs.list_directory(powertop_uri);
+	if (!powertop_list.empty()) {
+		std::cout << "Successfully retrieved powertop list (size: " << powertop_list.size() << ")\n";
+		bool found_src = false;
+		for (const auto &item : powertop_list) {
+			if (item.uri.find("/src") != std::string::npos) {
+				found_src = true;
+				break;
+			}
+		}
+		assert(found_src);
+	} else {
+		std::cout << "Powertop list returned empty (expected if rate-limited or offline).\n";
 	}
 }
 

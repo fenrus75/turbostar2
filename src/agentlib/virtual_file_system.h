@@ -8,6 +8,11 @@
 #include <string_view>
 #include <vector>
 
+namespace httplib
+{
+class Client;
+}
+
 namespace agentlib
 {
 
@@ -143,6 +148,8 @@ class github_vfs_provider : public vfs_provider
 	mutable std::vector<std::string> file_lru_;
 	mutable std::map<std::string, std::vector<vfs_file_info>> dir_cache_;
 	mutable std::map<std::string, std::string> branch_cache_;
+	mutable std::unique_ptr<httplib::Client> api_client_;
+	mutable std::unique_ptr<httplib::Client> raw_client_;
 };
 
 /**
