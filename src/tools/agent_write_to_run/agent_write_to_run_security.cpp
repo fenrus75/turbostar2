@@ -27,7 +27,7 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Writes/injects keyboard input sequences into the application or debugger PTY master stream.";
+		return "Writes/injects keyboard input sequences into the application or debugger PTY master stream (add \n for commands to gdb!).";
 	}
 
 	nlohmann::json get_parameters_schema() const override
