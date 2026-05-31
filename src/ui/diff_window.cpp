@@ -24,7 +24,7 @@ bool diff_window::process_events()
 {
 	bool needs_render = false;
 	while (auto ev = get_queue().pop()) {
-		if (ev->type == event_type::redraw) {
+		if (ev->type == event_type::notify_undo_changed) {
 			// Document changed, update our knowledge of max steps and the current diff
 			if (doc_) {
 				max_undo_steps_ = doc_->get_undo_count();
