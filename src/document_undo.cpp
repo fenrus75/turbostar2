@@ -14,13 +14,14 @@
 
 namespace fs = std::filesystem;
 
-void document::begin_edit_group(const std::string& name)
+void document::begin_edit_group(const std::string& name, undo_group_type type)
 {
 	if (!is_recording_actions_)
 		return;
 	if (edit_group_depth_ == 0) {
 		current_action_group_.actions.clear();
 		current_action_group_.name = name;
+		current_action_group_.type = type;
 		current_action_group_.cursor_y_before = cursor_y_;
 		current_action_group_.cursor_x_before = cursor_x_;
 	} else if (!name.empty() && current_action_group_.name.empty()) {
@@ -227,4 +228,17 @@ std::string document::get_undo_name(size_t steps_back) const
 		return "";
 		
 	return undo_stack_[undo_stack_.size() - steps_back].name;
+}
+
+void document::break_undo_coalescing()
+{
+	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
+}
+
+void document::break_undo_coalescing_unlocked()
+{
+	if (!undo_stack_.empty()) {
+		undo_stack_.back().type = undo_group_type::none;
+	}
 }

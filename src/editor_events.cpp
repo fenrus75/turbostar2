@@ -135,6 +135,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::quit:
 		case event_type::force_quit:
 		case event_type::redraw:
+		case event_type::notify_undo_changed:
 		case event_type::about:
 		case event_type::settings:
 		case event_type::models_config:

@@ -13,6 +13,13 @@
 #include "line.h"
 #include "syntax_highlighter.h"
 
+enum class undo_group_type {
+	none,          // Never merge (e.g., paste, load, formatting, agent edits, word deletes)
+	typing,        // Single-character insertion
+	backspace,     // Single-character backspace/delete
+	delete_line,   // Whole-line deletes (Ctrl-Y)
+};
+
 // Represents a single, atomic line modification
 struct edit_action {
 	enum class action_type {
@@ -33,6 +40,7 @@ struct action_group {
 	int cursor_x_before{0};
 	int cursor_y_after{0};
 	int cursor_x_after{0};
+	undo_group_type type{undo_group_type::none};
 
 	bool empty() const { return actions.empty(); }
 };
@@ -134,6 +142,7 @@ class document
 
 	void undo();
 	void redo();
+	void break_undo_coalescing();
 
 	size_t get_undo_count() const;
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
@@ -201,9 +210,10 @@ class document
 	int selection_end_y_{-1};
 
 	// Undo/Redo logic
-	void begin_edit_group(const std::string& name = "");
+	void begin_edit_group(const std::string& name = "", undo_group_type type = undo_group_type::none);
 	void end_edit_group();
 	void record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line);
+	void break_undo_coalescing_unlocked();
 
 	std::deque<action_group> undo_stack_;
 	std::deque<action_group> redo_stack_;

@@ -72,7 +72,8 @@ enum class event_type {
 	run_program,		    ///< Request to run the main program executable
 	run_settings,		    ///< Request to show run settings/options dialog
 	run_in_debugger,		    ///< Request to run the main program in debugger
-	tool_status		    ///< Request to show the Tool status dialog
+	tool_status,		    ///< Request to show the Tool status dialog
+	notify_undo_changed	    ///< Notification that the undo stack has changed
 };
 
 struct text_range {

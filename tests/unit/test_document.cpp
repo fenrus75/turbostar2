@@ -104,6 +104,31 @@ int main()
 		assert(doc3.get_line(4)->get_text() == "Line 7");
 	}
 
+	// Test 4: Undo Coalescing (Typing)
+	{
+		document doc(queue);
+		doc.append_line("Original");
+		doc.move_cursor(0, 0); // Put cursor at line 0, x=0
+		
+		// Clear whatever was recorded for append_line / cursor move
+		doc.break_undo_coalescing();
+		size_t initial_undos = doc.get_undo_count();
+
+		// Type "hello" character by character
+		doc.insert_char("h");
+		doc.insert_char("e");
+		doc.insert_char("l");
+		doc.insert_char("l");
+		doc.insert_char("o");
+
+		// Without coalescing, this is 5 undos. With coalescing, it must be 1.
+		assert(doc.get_undo_count() - initial_undos == 1);
+		
+		// Undo once
+		doc.undo();
+		assert(doc.get_line(0)->get_text() == "Original");
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
