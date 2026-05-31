@@ -6,16 +6,101 @@ It is built for speed, responsiveness, and seamless integration with modern deve
 
 ![Turbostar Welcome Screenshot](docs/screenshot-welcome.png)
 
-## What is this?
+## Editor Features
 
 Turbostar aims to provide a distraction-free, highly responsive editing experience in the terminal. It combines a nostalgic, tiled window interface with powerful features:
 
 *   **Classic UI:** Turbo Pascal aesthetics with double-line borders, drop shadows, and a global menu bar.
 *   **WordStar/Joe Keybindings:** Persistent marker selection (`^KB`, `^KK`), stateful prefix keys (`^K`), and standard navigation.
-*   **LSP Integration:** Live diagnostics, hover information, and semantic highlighting via `clangd` (for C/C++).
-*   **Built-in LLM Agent:** A dedicated Agent window (`^KA`) that can read your workspace, compile code, and suggest surgical edits using a secure, tool-based sandbox.
-*   **High Performance:** O(1) UTF-8 character extraction, optimized drawing loops, and $O(N)$ linear time regex operations (via `re2`) to prevent UI stutter and ReDoS vulnerabilities.
+*   **LSP Integration:** Live diagnostics, hover information, and semantic highlighting via `clangd` (for C/C++) and others.
 *   **Git Integration:** Real-time branch and dirty status in window titles, and an integrated `Compile Output` / `Test Output` split view.
+
+### Key Quick Reference
+
+| Action | WordStar/Joe Key | Alternate/Ncurses Key |
+| :--- | :--- | :--- |
+| **Open Menu Bar** | — | `F10` or `Esc` |
+| **Open File Dialog** | `^K O` | `F3` |
+| **Save Current File** | `^K S` | `F2` |
+| **Open Agent Chat** | `^K A` | — |
+| **Open Diff / Undo View** | `^K H` | — |
+| **Mark Block Start** | `^K B` | — |
+| **Mark Block End** | `^K K` | — |
+| **Exit Editor** | `^K Q` | `Alt+X` |
+
+### LSP Setup
+
+Turbostar automatically detects and launches the appropriate LSP server based on the file type:
+*   **C/C++**: Uses `clangd`. Ensure you have a `compile_commands.json` database generated in your build or project root directory.
+*   **Python**: Uses `pylsp` or `pyright` (if installed).
+
+## AI Agentic Features
+
+Equipped with native AI Agentic capabilities tailored for modern development workflows in 2026.
+
+*  **Built-in LLM Agent:** A dedicated Agent window (`^KA`) that can read your workspace, compile code, and suggest surgical edits using a tool-based sandbox.
+*  **In-editor shortcuts** for common Agent tasks (e.g., "Complete TODOs in this function", "Spell check the comments", etc.) for distraction-free operation.
+
+
+### Paged AI Context
+
+`Compacting` — the most dreaded word for agentic coders today, as it implies an impending memory loss event.
+LLM context is finite. While modern models sometimes support very large contexts (1 million tokens or more), these often come at a premium cost and still run out.
+Rather than discarding old context as the buffer fills up, Turbostar uses an infinitely sized "virtual context" and pages pieces of context in and out dynamically, mimicking how an operating system pages memory to disk (using swap files, etc.).
+Because disk space is virtually unlimited, this gives the impression of an unlimited context.
+
+
+#### Paging Levels
+While an operating system uses a binary setup (a page is either in memory or on disk), Turbostar implements multiple intermediate paging levels:
+*   **Full Content**: Zero loss of context.
+*   **"Think-Removed" Content**: Reasoning sections are condensed within the page, but all other content remains present.
+*   **"Tool-Call Reduced" Content**: The output of some tool calls is reduced. For example, if a "read file" tool call is made, and later in the context the same file is read again, the first "read file" is reduced in the output.
+
+All reductions are *in memory only*; the full context is always available on disk. When context is reduced, it is replaced with an instruction for the agent on how to request expansion of the context (an "upgrade" in paging level).
+
+
+#### Page Size
+The AI agent will "close a page" between logically distinct operations (as determined by the LLM), or when a maximum size is reached. 
+
+#### Paging In
+Every paged-out section gets an (LLM-determined) "when to page me in" sentence in the context. The agent is instructed to request relevant old context back in when starting on new tasks.
+
+### Developer-Oriented Tools
+Turbostar is unapologetically a coding agent, so the available tools are geared towards this. While AI models have no trouble running `git` inside a shell command to perform repository operations, in the Turbostar model this is discouraged due to security and efficiency concerns. Shell commands have unknown security properties, so Turbostar provides a rich set of options to the agent with precise security controls (which, in turn, reduces unnecessary user permission prompts).
+
+For performance, several of the longer-running operations have an async option, allowing the agent to run them in the background.
+
+Examples include:
+*   **Git Operations**: All common Git operations have dedicated, direct tools.
+*   **Python Snippets**: No need for the agent to write a script file to execute Python via a shell; instead, they can directly run Python snippets (which are automatically security-scanned using `bandit`).
+*   **"Run my application"**: Executes the program inside a `gdb` session; the agent has separate access to both the program and the debugger, enabling interactive debugging sessions.
+*   **"compile my project"**: Saves LLM context by automatically parsing common Meson (and other build system) output patterns, reducing the compiler output to relevant warnings and errors only.
+
+A full list of the available tools is documented in [docs/tools.md](file:///home/arjan/git/turbostar2/docs/tools.md).
+
+### Security Model
+Agent security is a rich field of research, and Turbostar tries to implement basic, common-sense protections:
+*   **Per-Project Security**: Security settings and preferences are defined *per project* (e.g., you may fully trust your own repository, but require strict prompts for a third-party project cloned from the internet).
+*   **Sandboxing**: Everything runs inside a namespaced sandbox by default, which restricts access to the filesystem and mounts the workspace as read-only where appropriate.
+*   **Separation of Concerns**: Security checks are isolated from tool implementation. A tool's logic is never invoked unless the central security policy is fully satisfied.
+*   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it provides a crucial baseline defense.
+
+
+
+## Image Gallery
+
+
+
+### Configuring the AI Agent
+
+To enable the built-in LLM Agent (`^K A`), export your API key before running Turbostar:
+
+```bash
+# For Gemini models (default)
+export GEMINI_API_KEY="your-api-key-here"
+
+# For other supported providers, configure them in your user preferences config file.
+```
 
 ## How to build
 
@@ -65,7 +150,7 @@ sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils
     git submodule update --init --recursive
     ```
 
-2.  Setup the build directory:
+2.  Set up the build directory:
     ```bash
     meson setup build
     ```
