@@ -21,9 +21,9 @@ Turbostar aims to provide a distraction-free, highly responsive editing experien
 
 Turbostar is written in C++23 and uses the Meson build system.
 
-### Prerequisites
+### Build-time Prerequisites
 
-You will need the following installed on your system:
+You will need the following installed to build Turbostar:
 *   `g++` (or `clang++`) with C++23 support
 *   `meson` and `ninja`
 *   `pkg-config`
@@ -34,16 +34,26 @@ You will need the following installed on your system:
 *   `libsqlite3-dev`
 *   `libdtl-dev` (Diff Template Library)
 *   `libunwind-dev` (For stack unwinding)
+
+On Debian/Ubuntu-based systems, you can install the build dependencies with:
+```bash
+sudo apt update
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev
+```
+
+### Runtime Prerequisites
+
+The following dependencies are needed at runtime for various diagnostic and helper features:
 *   `clangd` (For LSP/Language Server Protocol support)
 *   `clang-format` (For code formatting)
 *   `gdbserver` (For debugging run targets)
 *   `gdb` (For debugging run targets)
 *   `python3-bandit` (For Python security validation)
+*   `elfutils` (For `eu-addr2line` crash backtraces)
 
-On Debian/Ubuntu-based systems, you can install the required dependencies with:
+On Debian/Ubuntu-based systems, you can install the runtime dependencies with:
 ```bash
-sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev clangd clang-format gdbserver gdb python3-bandit
+sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils
 ```
 
 ### Build Instructions
