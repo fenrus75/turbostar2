@@ -40,7 +40,7 @@ Equipped with native AI Agentic capabilities tailored for modern development wor
 
 *  **Built-in LLM Agent:** A dedicated Agent window (`^KA`) that can read your workspace, compile code, and suggest surgical edits using a tool-based sandbox.
 *  **In-editor shortcuts** for common Agent tasks (e.g., "Complete TODOs in this function", "Spell check the comments", etc.) for distraction-free operation.
-* AI Agentic edits show up as "undo actions" -- reviewable <insert screenshot> and undoable as atomic operation (including "follow along" mode)
+*  **Atomic Undo/Redo**: AI Agentic edits show up as standard undo actions — reviewable in the [undo history view](docs/screenshot-agent-undo-view.png) and undoable as a single atomic operation (including "follow-along" mode).
 
 ### Paged AI Context
 
@@ -99,8 +99,12 @@ export GEMINI_API_KEY="your-api-key-here"
 
 ## Image Gallery
 
-
-
+<a href="docs/screenshot-editfile.png"><img src="docs/screenshot-editfile.png" width="230" alt="Multi-Window Editing" /></a>
+<a href="docs/screenshot-debugger.png"><img src="docs/screenshot-debugger.png" width="230" alt="Interactive Debugger" /></a>
+<a href="docs/screenshot-compile.png"><img src="docs/screenshot-compile.png" width="230" alt="Compile Output" /></a>
+<a href="docs/screenshot-agent-undo-view.png"><img src="docs/screenshot-agent-undo-view.png" width="230" alt="Agent Undo View" /></a>
+<a href="docs/screenshot-inline-agent.png"><img src="docs/screenshot-inline-agent.png" width="230" alt="Inline Agent" /></a>
+<a href="docs/screenshot-inline-agent-codereview.png"><img src="docs/screenshot-inline-agent-codereview.png" width="230" alt="Inline Code Review" /></a>
 
 ## How to build
 
