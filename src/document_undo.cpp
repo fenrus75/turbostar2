@@ -39,11 +39,47 @@ void document::end_edit_group()
 	if (edit_group_depth_ == 0 && !current_action_group_.empty()) {
 		current_action_group_.cursor_y_after = cursor_y_;
 		current_action_group_.cursor_x_after = cursor_x_;
-		undo_stack_.push_back(current_action_group_);
-		if (undo_stack_.size() > static_cast<size_t>(max_undo_steps_)) {			undo_stack_.pop_front();
+
+		bool merged = false;
+		if (!undo_stack_.empty() && current_action_group_.type != undo_group_type::none &&
+		    undo_stack_.back().type == current_action_group_.type) {
+			auto &last = undo_stack_.back();
+			if (last.cursor_x_after == current_action_group_.cursor_x_before &&
+			    last.cursor_y_after == current_action_group_.cursor_y_before &&
+			    !last.actions.empty() && !current_action_group_.actions.empty() &&
+			    last.actions.front().y == current_action_group_.actions.front().y) {
+				for (const auto &act : current_action_group_.actions) {
+					if (act.type == edit_action::action_type::replace_line) {
+						bool found = false;
+						for (const auto &prev_act : last.actions) {
+							if (prev_act.type == edit_action::action_type::replace_line && prev_act.y == act.y) {
+								found = true;
+								break;
+							}
+						}
+						if (!found) {
+							last.actions.push_back(act);
+						}
+					} else {
+						last.actions.push_back(act);
+					}
+				}
+				last.cursor_x_after = current_action_group_.cursor_x_after;
+				last.cursor_y_after = current_action_group_.cursor_y_after;
+				merged = true;
+			}
 		}
+
+		if (!merged) {
+			undo_stack_.push_back(current_action_group_);
+			if (undo_stack_.size() > static_cast<size_t>(max_undo_steps_)) {
+				undo_stack_.pop_front();
+			}
+		}
+
 		redo_stack_.clear();
 		current_action_group_.actions.clear();
+		notify_undo_changed_event();
 	}
 }
 
@@ -123,6 +159,7 @@ void document::undo()
 	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
+	notify_undo_changed_event();
 }
 
 void document::redo()
@@ -177,6 +214,7 @@ void document::redo()
 	target_cursor_x_ = cursor_x_;
 	lock.unlock();
 	notify_cursor_changed();
+	notify_undo_changed_event();
 }
 
 size_t document::get_undo_count() const
@@ -241,4 +279,11 @@ void document::break_undo_coalescing_unlocked()
 	if (!undo_stack_.empty()) {
 		undo_stack_.back().type = undo_group_type::none;
 	}
+}
+
+void document::notify_undo_changed_event() const
+{
+	editor_event ev;
+	ev.type = event_type::notify_undo_changed;
+	global_queue_.push(ev);
 }
