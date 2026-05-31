@@ -60,6 +60,9 @@ document::~document()
 {
 	highlighter_thread_.request_stop();
 	dirty_cv_.notify_all();
+	if (highlighter_thread_.joinable()) {
+		highlighter_thread_.join();
+	}
 }
 
 bool document::load_from_file(const std::string &filename)
