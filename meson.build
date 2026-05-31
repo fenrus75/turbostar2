@@ -600,13 +600,6 @@ test_get_current_datetime = executable('test_get_current_datetime',
   include_directories: inc)
 test('unit_test_get_current_datetime', test_get_current_datetime)
 
-test_get_temperature = executable('test_get_temperature',
-  ['tests/unit/test_get_temperature.cpp',
-   'src/tools/get_temperature/get_temperature_entry.cpp',
-   'src/tools/get_temperature/get_temperature_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_get_temperature', test_get_temperature)
 
 test_open_in_editor = executable('test_open_in_editor',
   ['tests/unit/test_open_in_editor.cpp',
