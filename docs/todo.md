@@ -1,14 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
-
-- we should use bandit to validate python code, if bandit is installed
-	"cat tests/e2e/*py | bandit --severity-level=high -" as example to run, can also run on files
-
-
-- in the crash list menu, have a "go to source" button that opens the file (if not open yet), and puts the cursor 
-  at the place of the crash (if the file is in this project -- we may need to go down a few steps in the backtrace
-  until we find the first part in OUR code base and go there)
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
@@ -111,6 +102,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented bandit security validation for Python execution in `run_python` tool, checking if bandit is installed on the host and running it with `--severity-level=high` filter, returning a security validation failure and blocking execution if any issues are detected. Added unit tests covering both inline code and script file security validation paths.
 - implemented interception of glibc __assert_fail() and __assert_perror_fail() in libturbocatch.so to capture failed assertion details (expression/error number, file, line, function) in assertion.txt and parse them in crashdump_manager to prepend a '### Failed Assertion' section at the top of the generated markdown crash report.
 - implemented C++ unit tests in `tests/unit/` for all remaining Group 3 agent tools (including git helper tools, subagent management tools, web_fetch, and database/shell tools) to ensure comprehensive test coverage, registering them in `meson.build` and verifying both positive and negative validation/execution flows.
 - implemented mouse scrolling support in the AI Agent chat window, dynamically calculating content height limits to restrict scrolling past bounds using `std::clamp`. Added an E2E test verifying both up and down scrolling.
