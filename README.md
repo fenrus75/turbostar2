@@ -126,6 +126,7 @@ You will need the following installed to build Turbostar:
 *   `libre2-dev` (Google's RE2 regular expression library)
 *   `nlohmann-json3-dev`
 *   `libcpp-httplib-dev`
+*   `libcurl4-openssl-dev`
 *   `libsqlite3-dev`
 *   `libdtl-dev` (Diff Template Library)
 *   `libunwind-dev` (For stack unwinding)
@@ -133,7 +134,7 @@ You will need the following installed to build Turbostar:
 On Debian/Ubuntu-based systems, you can install the build dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev
 ```
 
 ### Runtime Prerequisites

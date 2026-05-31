@@ -2,8 +2,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <curl/curl.h>
 #include <fcntl.h>
-#include <httplib.h>
+#include <format>
 #include <nlohmann/json.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -11,6 +12,21 @@
 
 namespace agentlib
 {
+
+namespace
+{
+struct curl_global_guard {
+	curl_global_guard()
+	{
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+	}
+	~curl_global_guard()
+	{
+		curl_global_cleanup();
+	}
+};
+static curl_global_guard g_curl_global_guard;
+}
 
 static size_t count_lines(const void *data, size_t size)
 {
@@ -492,97 +508,75 @@ std::optional<github_vfs_provider::github_uri> github_vfs_provider::parse_uri(co
 	return res;
 }
 
+static size_t curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t realsize = size * nmemb;
+	std::string *mem = static_cast<std::string *>(userp);
+	mem->append(static_cast<const char *>(contents), realsize);
+	return realsize;
+}
+
 std::string github_vfs_provider::http_get(const std::string &url, int &out_status) const
 {
 	out_status = 0;
-	std::string host;
-	std::string path;
-
-	if (url.starts_with("https://")) {
-		size_t host_start = 8;
-		size_t host_end = url.find('/', host_start);
-		if (host_end != std::string::npos) {
-			host = url.substr(0, host_end);
-			path = url.substr(host_end);
-		} else {
-			host = url;
-			path = "/";
-		}
-	} else {
+	if (!url.starts_with("https://")) {
 		return "";
 	}
 
-	httplib::Client *cli = nullptr;
-	if (host.find("api.github.com") != std::string::npos) {
-		if (!api_client_) {
-			api_client_ = std::make_unique<httplib::Client>(host);
-			api_client_->set_connection_timeout(std::chrono::seconds(3));
-			api_client_->set_read_timeout(std::chrono::seconds(3));
-			api_client_->set_follow_location(true);
-			configure_proxy(*api_client_);
-		}
-		cli = api_client_.get();
-	} else {
-		if (!raw_client_) {
-			raw_client_ = std::make_unique<httplib::Client>(host);
-			raw_client_->set_connection_timeout(std::chrono::seconds(3));
-			raw_client_->set_read_timeout(std::chrono::seconds(3));
-			raw_client_->set_follow_location(true);
-			configure_proxy(*raw_client_);
-		}
-		cli = raw_client_.get();
-	}
-
-	if (!cli) {
-		return "";
-	}
-
-	httplib::Request req;
-	req.method = "GET";
-	req.path = path;
-	req.headers = {{"User-Agent", "Turbostar/1.0"}};
-
-	const char *token = std::getenv("GITHUB_TOKEN");
-	if (token) {
-		req.headers.emplace("Authorization", "Bearer " + std::string(token));
-	}
-
-	auto res = cli->send(req);
-	if (res) {
-		out_status = res->status;
-		return res->body;
-	} else {
+	CURL *curl = curl_easy_init();
+	if (!curl) {
 		out_status = -1;
 		return "";
 	}
-}
 
-void github_vfs_provider::configure_proxy(httplib::Client &client) const
-{
-	const char *env_proxy = std::getenv("https_proxy");
-	if (!env_proxy)
-		env_proxy = std::getenv("http_proxy");
-	if (env_proxy) {
-		std::string proxy(env_proxy);
-		size_t scheme_pos = proxy.find("://");
-		if (scheme_pos != std::string::npos) {
-			proxy = proxy.substr(scheme_pos + 3);
-		}
-		size_t port_pos = proxy.find(':');
-		std::string p_host = proxy;
-		int p_port = 80;
-		if (port_pos != std::string::npos) {
-			p_host = proxy.substr(0, port_pos);
-			try {
-				p_port = std::stoi(proxy.substr(port_pos + 1));
-			} catch (const std::exception &) {
-			}
-		}
-		if (!p_host.empty() && p_host.back() == '/') {
-			p_host.pop_back();
-		}
-		client.set_proxy(p_host, p_port);
+	std::string response_data;
+
+	// Set URL
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+	// Follow redirects
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+	// User agent
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Turbostar/1.0");
+
+	// Timeouts
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+	// Set write callback
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
+
+	// Setup headers
+	struct curl_slist *headers = nullptr;
+	const char *token = std::getenv("GITHUB_TOKEN");
+	if (token) {
+		std::string auth_header = std::format("Authorization: Bearer {}", token);
+		headers = curl_slist_append(headers, auth_header.c_str());
 	}
+
+	if (headers) {
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	}
+
+	// Perform request
+	CURLcode res = curl_easy_perform(curl);
+	if (res == CURLE_OK) {
+		long http_code = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+		out_status = static_cast<int>(http_code);
+	} else {
+		out_status = -1;
+	}
+
+	// Clean up
+	if (headers) {
+		curl_slist_free_all(headers);
+	}
+	curl_easy_cleanup(curl);
+
+	return response_data;
 }
 
 std::string github_vfs_provider::get_default_branch(const std::string &owner, const std::string &repo) const

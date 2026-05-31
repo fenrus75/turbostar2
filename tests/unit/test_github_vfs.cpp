@@ -1,6 +1,5 @@
 #include <cassert>
 #include <iostream>
-#include <httplib.h>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/virtual_file_system.h"
 

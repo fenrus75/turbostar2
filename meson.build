@@ -17,6 +17,7 @@ if not cc.has_header('dtl/dtl.hpp')
 endif
 
 httplib_dep = dependency('cpp-httplib', required : true)
+curl_dep = dependency('libcurl', required : true)
 nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
@@ -105,7 +106,7 @@ test('unit_command_runner', test_command_runner)
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
   ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
-  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep],
+  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_tool_infrastructure', test_tool_infrastructure)
 
@@ -617,30 +618,30 @@ test('unit_test_vim_emulation', test_vim_emulation)
 
 test_file_security = executable('test_file_security',
   ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
-  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep],
+  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
   include_directories: 'src')
 test('unit_file_security', test_file_security)
 test_fs_replace_lines = executable('test_fs_replace_lines',
   ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep],
+  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines)
 
 test_virtual_file_system = executable('test_virtual_file_system',
   ['tests/unit/test_virtual_file_system.cpp', 'src/agentlib/virtual_file_system.cpp'],
-  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep],
+  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
   include_directories: 'src')
 test('unit_virtual_file_system', test_virtual_file_system)
 
 test_github_vfs = executable('test_github_vfs',
   ['tests/unit/test_github_vfs.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_github_vfs', test_github_vfs)
 
 test_skill_manager = executable('test_skill_manager',
   ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep],
+  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
   include_directories: 'src')
 test('unit_skill_manager', test_skill_manager)
 
@@ -695,19 +696,19 @@ test('unit_line', test_line)
 
 test_sqlite_validation = executable('test_sqlite_validation',
   ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep],
+  dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation)
 
 test_crashdump_clear = executable('test_crashdump_clear',
   ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/utf8.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear)
 
 test_pop_todo = executable('test_pop_todo',
   ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/api_formatter.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_pop_todo', test_pop_todo)
 
@@ -719,7 +720,7 @@ test('unit_httplib_transport', test_httplib_transport)
 
 test_fs_find_in_files = executable('test_fs_find_in_files',
   ['tests/unit/test_fs_find_in_files.cpp', 'src/tools/fs_find_in_files/fs_find_in_files_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_fs_find_in_files', test_fs_find_in_files)
 
