@@ -107,6 +107,9 @@ export GEMINI_API_KEY="your-api-key-here"
 <a href="docs/screenshot-agent-undo-view.png"><img src="docs/screenshot-agent-undo-view.png" width="230" alt="Agent Undo View" /></a>
 <a href="docs/screenshot-inline-agent.png"><img src="docs/screenshot-inline-agent.png" width="230" alt="Inline Agent" /></a>
 <a href="docs/screenshot-inline-agent-codereview.png"><img src="docs/screenshot-inline-agent-codereview.png" width="230" alt="Inline Code Review" /></a>
+<a href="docs/screenshot-agent-edits-the-program.png"><img src="docs/screenshot-agent-edits-the-program.png" width="230" alt="Agent Program Edit" /></a>
+<a href="docs/screenshot-agent-runs-the-testsuite.png"><img src="docs/screenshot-agent-runs-the-testsuite.png" width="230" alt="Agent Running Test Suite" /></a>
+<a href="docs/screenshot-agent-reviewed-the-screenshot.png"><img src="docs/screenshot-agent-reviewed-the-screenshot.png" width="230" alt="Agent Reviewing Screenshot" /></a>
 
 ## How to build
 
