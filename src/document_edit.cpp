@@ -20,7 +20,7 @@ void document::insert_char(const std::string &utf8_char)
 	if (is_read_only())
 		return;
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::typing);
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->insert_at(cursor_x_, utf8_char);
@@ -40,7 +40,7 @@ void document::backspace()
 	if (is_read_only())
 		return;
 	if (cursor_x_ > 0) {
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::backspace);
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_ - 1, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_ - 1);
@@ -53,7 +53,7 @@ void document::backspace()
 		int prev_line_idx = cursor_y_ - 1;
 		int prev_line_char_len = lines_[prev_line_idx]->length_in_chars();
 
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::backspace);
 		record_action(edit_action::action_type::replace_line, prev_line_idx, lines_[prev_line_idx]);
 		record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
 
@@ -80,7 +80,7 @@ void document::delete_char()
 		return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < line_char_len) {
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::backspace);
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		adjust_selection_for_delete(cursor_y_, cursor_x_, 1);
 		lines_[cursor_y_]->remove_at(cursor_x_);
@@ -90,7 +90,7 @@ void document::delete_char()
 	} else if (cursor_y_ < line_count_unlocked() - 1) {
 		// Join next line into this one
 		int next_line_idx = cursor_y_ + 1;
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::backspace);
 		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 		record_action(edit_action::action_type::delete_line, next_line_idx, lines_[next_line_idx]);
 		adjust_selection_for_join(next_line_idx, 0);
@@ -313,7 +313,7 @@ void document::delete_line()
 	if (is_read_only())
 		return;
 	if (line_count_unlocked() <= 1) {
-		begin_edit_group();
+		begin_edit_group("", undo_group_type::delete_line);
 		record_action(edit_action::action_type::replace_line, 0, lines_[0]);
 		lines_[0]->set_text("");
 		mark_line_dirty(lines_[0]);
@@ -328,7 +328,7 @@ void document::delete_line()
 		return;
 	}
 
-	begin_edit_group();
+	begin_edit_group("", undo_group_type::delete_line);
 	record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
 	adjust_selection_for_line_delete(cursor_y_);
 	lines_.erase(lines_.begin() + cursor_y_);
