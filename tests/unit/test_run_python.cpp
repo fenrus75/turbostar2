@@ -92,6 +92,28 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
+	// 8. Bandit security check case (inline code)
+	bool bandit_installed = (std::system("which bandit > /dev/null 2>&1") == 0);
+	if (bandit_installed) {
+		std::cout << "Testing bandit validation with insecure inline code..." << std::endl;
+		nlohmann::json args = {{"code", "import subprocess\ndef run_user_command():\n    user_input = input(\"Enter a command to run: \")\n    subprocess.call(user_input, shell=True)\nrun_user_command()"}};
+		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
+		assert(result.find("Security Validation Failed") != std::string::npos);
+	}
+
+	// 9. Bandit security check case (file path)
+	if (bandit_installed) {
+		std::cout << "Testing bandit validation with insecure script file..." << std::endl;
+		std::filesystem::path script_path = std::filesystem::path(project_root) / "test_run_python_insecure.py";
+		write_file(script_path, "import subprocess\ndef run_user_command():\n    user_input = input(\"Enter a command to run: \")\n    subprocess.call(user_input, shell=True)\nrun_user_command()\n");
+
+		nlohmann::json args = {{"file_path", "test_run_python_insecure.py"}};
+		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
+		assert(result.find("Security Validation Failed") != std::string::npos);
+
+		std::filesystem::remove(script_path);
+	}
+
 	std::cout << "run_python tests passed successfully.\n";
 	return 0;
 }
