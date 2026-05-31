@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <format>
 #include <nlohmann/json.hpp>
 #include "../../agentlib/tool_registry.h"
 #include "fs_replace_lines.h"
@@ -18,6 +20,13 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 		if (!raw_json.contains("edits") || !raw_json["edits"].is_array() || raw_json["edits"].empty()) {
 			out_error = "Missing or empty 'edits' array.";
 			return false;
+		}
+
+		std::vector<int> line_numbers;
+		for (const auto &edit_json : raw_json["edits"]) {
+			if (edit_json.contains("line_number") && edit_json["line_number"].is_number_integer()) {
+				line_numbers.push_back(edit_json["line_number"].get<int>());
+			}
 		}
 
 		std::vector<edit_operation> parsed_edits;
@@ -42,7 +51,21 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				return false;
 			}
 			if (edit.line_number >= prev_line) {
-				out_error = "Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.";
+				std::string original_order = "";
+				for (size_t i = 0; i < line_numbers.size(); ++i) {
+					original_order += (i > 0 ? ", " : "") + std::to_string(line_numbers[i]);
+				}
+				std::vector<int> sorted_lines = line_numbers;
+				std::sort(sorted_lines.begin(), sorted_lines.end(), std::greater<int>());
+				std::string correct_order = "";
+				for (size_t i = 0; i < sorted_lines.size(); ++i) {
+					correct_order += (i > 0 ? ", " : "") + std::to_string(sorted_lines[i]);
+				}
+
+				out_error = std::format("Error: Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.\n"
+							"You provided edits in this order: [{}]\n"
+							"Please sort your edits to target line_numbers in this order: [{}]",
+							original_order, correct_order);
 				return false;
 			}
 			prev_line = edit.line_number;

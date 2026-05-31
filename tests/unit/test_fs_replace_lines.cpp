@@ -95,6 +95,21 @@ int main()
 	assert(result_100.find("Verification Error") != std::string::npos);
 	assert(result_100.find("out of bounds") != std::string::npos);
 
+	// Test Out of Order (Non-descending) line numbers error message
+	nlohmann::json args_out_of_order = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array({
+		{{"line_number", 5}, {"type", "add"}, {"replace_with", "Line 5"}},
+		{{"line_number", 10}, {"type", "add"}, {"replace_with", "Line 10"}},
+		{{"line_number", 2}, {"type", "add"}, {"replace_with", "Line 2"}}
+	    })}
+	};
+	std::string result_out_of_order = registry.execute_tool("fs_replace_lines", args_out_of_order.dump(), ctx);
+	std::cout << "Out of order result: " << result_out_of_order << "\n";
+	assert(result_out_of_order.find("Edits MUST be sorted in strictly DESCENDING order") != std::string::npos);
+	assert(result_out_of_order.find("You provided edits in this order: [5, 10, 2]") != std::string::npos);
+	assert(result_out_of_order.find("Please sort your edits to target line_numbers in this order: [10, 5, 2]") != std::string::npos);
+
 	std::remove(test_file_15.c_str());
 
 	std::cout << "fs_replace_lines unit test passed!\n";
