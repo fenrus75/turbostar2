@@ -533,7 +533,8 @@ void document::apply_external_edits_json(const std::string &json_str)
 			std::string type = edit["type"].get<std::string>();
 			int lines_to_remove = edit.value("lines_to_remove", 1);
 
-			if (idx < 0 || idx >= static_cast<int>(lines_.size()))
+			int max_idx = (type == "add") ? static_cast<int>(lines_.size()) : static_cast<int>(lines_.size()) - 1;
+			if (idx < 0 || idx > max_idx)
 				continue;
 
 			if (idx + lines_to_remove > static_cast<int>(lines_.size())) {

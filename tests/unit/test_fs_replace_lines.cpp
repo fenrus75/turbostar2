@@ -59,6 +59,44 @@ int main()
 
 	std::remove(test_file.c_str());
 
+	// Test 15-line file, editing line 15
+	std::string test_file_15 = "test_15_lines.txt";
+	{
+		std::ofstream out(test_file_15);
+		for (int i = 1; i <= 15; ++i) {
+			out << "Line " << i << "\n";
+		}
+		out.close();
+	}
+
+	nlohmann::json args_15 = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 15}, {"type", "replace"}, {"original_text", "Line 15"}, {"replace_with", "Replaced Line 15"}}})}};
+
+	std::string result_15 = registry.execute_tool("fs_replace_lines", args_15.dump(), ctx);
+	std::cout << "15-line replacement result: " << result_15 << "\n";
+	assert(result_15.find("Successfully applied") != std::string::npos);
+
+	nlohmann::json args_16_add = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}})}};
+	std::string result_16 = registry.execute_tool("fs_replace_lines", args_16_add.dump(), ctx);
+	std::cout << "16-line add result: " << result_16 << "\n";
+	assert(result_16.find("Successfully applied") != std::string::npos);
+
+	nlohmann::json args_100_add = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 100}, {"type", "add"}, {"replace_with", "Line 100"}}})}};
+	std::string result_100 = registry.execute_tool("fs_replace_lines", args_100_add.dump(), ctx);
+	std::cout << "100-line add result (should fail): " << result_100 << "\n";
+	assert(result_100.find("Verification Error") != std::string::npos);
+	assert(result_100.find("out of bounds") != std::string::npos);
+
+	std::remove(test_file_15.c_str());
+
 	std::cout << "fs_replace_lines unit test passed!\n";
 	return 0;
 }

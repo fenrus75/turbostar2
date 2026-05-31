@@ -102,6 +102,35 @@ int main()
 		assert(doc3.line_count() == 8);
 		assert(doc3.get_line(2)->get_text() == "Line 4");
 		assert(doc3.get_line(4)->get_text() == "Line 7");
+
+		// Test 15-line file, edit line 15, add at line 16
+		document doc15(queue);
+		std::string temp_file15 = "temp_15_lines.txt";
+		{
+			std::ofstream ofs(temp_file15);
+			for (int i = 1; i <= 15; ++i) {
+				ofs << "Line " << i << "\n";
+			}
+		}
+		doc15.load_from_file(temp_file15);
+		std::remove(temp_file15.c_str());
+		assert(doc15.line_count() == 15);
+
+		// Edit line 15 (replace)
+		nlohmann::json edit15 = nlohmann::json::array({
+			{{"line_number", 15}, {"type", "replace"}, {"replace_with", "Replaced Line 15"}}
+		});
+		doc15.apply_external_edits_json(edit15.dump());
+		assert(doc15.line_count() == 15);
+		assert(doc15.get_line(14)->get_text() == "Replaced Line 15");
+
+		// Add at line 16 (append at end of 15 lines)
+		nlohmann::json add16 = nlohmann::json::array({
+			{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}
+		});
+		doc15.apply_external_edits_json(add16.dump());
+		assert(doc15.line_count() == 16);
+		assert(doc15.get_line(15)->get_text() == "Line 16");
 	}
 
 	// Test 4: Undo Coalescing (Typing)

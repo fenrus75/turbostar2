@@ -158,14 +158,15 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 	in.close();
 
 	for (const auto &edit : args_.edits) {
-		if (edit.type == "add")
-			continue;
-
 		int idx = edit.line_number - 1;
-		if (idx < 0 || idx >= static_cast<int>(lines.size())) {
+		int max_idx = (edit.type == "add") ? static_cast<int>(lines.size()) : static_cast<int>(lines.size()) - 1;
+		if (idx < 0 || idx > max_idx) {
 			out_error = "Verification Error: line_number " + std::to_string(edit.line_number) + " is out of bounds.";
 			return false;
 		}
+
+		if (edit.type == "add")
+			continue;
 
 		std::vector<std::string> expected_lines;
 		std::stringstream ss(edit.original_text);
