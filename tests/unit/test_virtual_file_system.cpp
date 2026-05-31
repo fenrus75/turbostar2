@@ -30,7 +30,7 @@ void test_basic_mount_and_read()
 	// Read it
 	auto view_opt = vfs.read_file(uri);
 	assert(view_opt.has_value());
-	assert(view_opt.value() == content);
+	assert(view_opt.value()->view() == content);
 
 	// Get info
 	auto info_opt = vfs.get_file_info(uri);

@@ -55,12 +55,8 @@
 			continue (etc)
 
 
-- a github:// VFS namespace
-	- mostly maps to just downloading the raw file with a small LRU driven cache
-	- readdir is the complex one, both for projects and for files in a project
-		GET https://api.github.com/repos/{owner}/{repo}/contents/{path} returns a nice json listing for a project
-		GET https://api.github.com/users/{username}/repos returns all the repos from a user and their main branch (which we need for the rest)
-	- (follow up) implement a persistent disk cache under ~/.cache/turbostar/github_vfs/ for raw files and metadata, with TTL / invalidation checks.
+- a github:// VFS namespace (follow up)
+	- implement a persistent disk cache under ~/.cache/turbostar/github_vfs/ for raw files and metadata, with TTL / invalidation checks.
 
 - a few "github" tools 
 	- create PR
@@ -100,6 +96,7 @@
 # done items (move items here on completion)
 
 ## 30-05-2026
+- implemented scheme-based VFS provider abstraction (vfs_provider interface), migrating skills:// and agent:// to a memory VFS provider, and implemented github:// VFS provider supporting raw download caching (LRU, max 50 items), folder API listings, user repo listing, default branch resolution, HTTPS proxies, and optional GITHUB_TOKEN authenticated requests. Updated VFS tools and test suite, verifying all features cleanly.
 - implemented bandit security validation for Python execution in `run_python` tool, checking if bandit is installed on the host and running it with `--severity-level=high` filter, returning a security validation failure and blocking execution if any issues are detected. Added unit tests covering both inline code and script file security validation paths.
 - implemented interception of glibc __assert_fail() and __assert_perror_fail() in libturbocatch.so to capture failed assertion details (expression/error number, file, line, function) in assertion.txt and parse them in crashdump_manager to prepend a '### Failed Assertion' section at the top of the generated markdown crash report.
 - implemented C++ unit tests in `tests/unit/` for all remaining Group 3 agent tools (including git helper tools, subagent management tools, web_fetch, and database/shell tools) to ensure comprehensive test coverage, registering them in `meson.build` and verifying both positive and negative validation/execution flows.

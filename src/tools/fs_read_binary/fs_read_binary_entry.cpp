@@ -66,12 +66,12 @@ bool fs_read_binary_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 {
-	if (args_.safe_path.starts_with("skills://")) {
+	if (args_.safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
 			auto view_opt = vfs->read_file(args_.safe_path);
 			if (view_opt) {
-				std::string_view view = view_opt.value();
+				std::string_view view = view_opt.value()->view();
 				size_t start = args_.start_offset;
 				if (start >= view.length()) {
 					return "Error: start_offset is out of bounds.";

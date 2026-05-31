@@ -1,96 +1,179 @@
 #pragma once
 
-#include <string>
-#include <map>
-#include <vector>
-#include <memory>
-#include <string_view>
-#include <optional>
 #include <cstdint>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
-namespace agentlib {
+namespace agentlib
+{
 
 struct vfs_file_info {
-    std::string uri;
-    size_t size;
-    char type; // 'F', 'D', 'L'
-    size_t size_in_lines;
+	std::string uri;
+	size_t size;
+	char type; // 'F', 'D', 'L'
+	size_t size_in_lines;
 };
 
 /**
- * @brief Memory-Mapped Virtual File System.
- * Securely maps disk files to virtual URIs (e.g. skills://) using mmap.
- * Provides zero-copy read-only access to tools.
+ * @brief RAII managed virtual file content buffer
  */
-class virtual_file_system {
-public:
-    virtual_file_system() = default;
-    ~virtual_file_system() = default;
+class vfs_content_buffer
+{
+      public:
+	virtual ~vfs_content_buffer() = default;
+	virtual std::string_view view() const = 0;
+};
 
-    // Delete copy/move since it manages mmap resources
-    virtual_file_system(const virtual_file_system&) = delete;
-    virtual_file_system& operator=(const virtual_file_system&) = delete;
+using vfs_file_handle = std::shared_ptr<const vfs_content_buffer>;
 
-    /**
-     * @brief Maps a physical file on disk to a virtual URI using mmap.
-     * @param uri The virtual URI (e.g. "skills://myskill/foo.md")
-     * @param disk_path The absolute path on disk to map.
-     * @return true if successful, false if file doesn't exist or mmap fails.
-     */
-    bool mount_file(const std::string& uri, const std::string& disk_path);
+struct mmap_handle {
+	void *data{nullptr};
+	size_t size{0};
+	char type{'F'};
+	size_t size_in_lines{0};
 
-    /**
-     * @brief Maps a direct memory buffer to a virtual URI.
-     */
-    bool mount_buffer(const std::string& uri, const std::string& buffer);
+	~mmap_handle();
+};
 
-    /**
-     * @brief Unmounts a specific URI.
-     */
-    void unmount_file(const std::string& uri);
+class mmap_content_buffer : public vfs_content_buffer
+{
+      public:
+	explicit mmap_content_buffer(std::shared_ptr<mmap_handle> handle) : handle_(std::move(handle))
+	{
+	}
+	std::string_view view() const override
+	{
+		if (!handle_ || handle_->size == 0)
+			return "";
+		return std::string_view(static_cast<const char *>(handle_->data), handle_->size);
+	}
 
-    /**
-     * @brief Unmounts all URIs starting with a specific prefix.
-     */
-    void unmount_prefix(const std::string& prefix);
+      private:
+	std::shared_ptr<mmap_handle> handle_;
+};
 
-    /**
-     * @brief Checks if a URI exists in the VFS.
-     */
-    bool exists(const std::string& uri) const;
+class string_content_buffer : public vfs_content_buffer
+{
+      public:
+	explicit string_content_buffer(std::string data) : data_(std::move(data))
+	{
+	}
+	std::string_view view() const override
+	{
+		return data_;
+	}
 
-    /**
-     * @brief Returns a string_view of the file content.
-     * The view is valid as long as the file remains mounted.
-     * @return std::nullopt if the URI is not found.
-     */
-    std::optional<std::string_view> read_file(const std::string& uri) const;
+      private:
+	std::string data_;
+};
 
-    /**
-     * @brief Returns basic information about a file, like its size.
-     */
-    std::optional<vfs_file_info> get_file_info(const std::string& uri) const;
+/**
+ * @brief Base class for scheme-specific virtual filesystem providers (e.g. github://)
+ */
+class vfs_provider
+{
+      public:
+	virtual ~vfs_provider() = default;
+	virtual bool exists(const std::string &uri) const = 0;
+	virtual std::optional<vfs_file_handle> read_file(const std::string &uri) = 0;
+	virtual std::optional<vfs_file_info> get_file_info(const std::string &uri) const = 0;
+	virtual std::vector<vfs_file_info> list_directory(const std::string &prefix) const = 0;
+};
 
-    /**
-     * @brief Returns a list of all URIs that start with the given directory prefix.
-     * This supports tools like fs_list_dir.
-     * Example prefix: "skills://myskill/"
-     */
-    std::vector<vfs_file_info> list_directory(const std::string& prefix) const;
+class memory_vfs_provider : public vfs_provider
+{
+      public:
+	memory_vfs_provider() = default;
+	~memory_vfs_provider() override = default;
 
-private:
-    struct mmap_handle {
-        void* data{nullptr};
-        size_t size{0};
-        char type{'F'};
-        size_t size_in_lines{0};
+	// Delete copy/move since it manages mmap resources
+	memory_vfs_provider(const memory_vfs_provider &) = delete;
+	memory_vfs_provider &operator=(const memory_vfs_provider &) = delete;
 
-        ~mmap_handle();
-    };
+	bool mount_file(const std::string &uri, const std::string &disk_path);
+	bool mount_buffer(const std::string &uri, const std::string &buffer);
+	void unmount_file(const std::string &uri);
+	void unmount_prefix(const std::string &prefix);
 
-    std::map<std::string, std::unique_ptr<mmap_handle>> mounts_;
+	bool exists(const std::string &uri) const override;
+	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
 
-    void ensure_directories_exist(const std::string& file_uri);
+      private:
+	std::map<std::string, std::shared_ptr<mmap_handle>> mounts_;
+	void ensure_directories_exist(const std::string &file_uri);
+};
+
+class github_vfs_provider : public vfs_provider
+{
+      public:
+	github_vfs_provider() = default;
+	~github_vfs_provider() override = default;
+
+	bool exists(const std::string &uri) const override;
+	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
+
+      private:
+	struct github_uri {
+		std::string owner;
+		std::string repo;
+		std::string branch;
+		std::string path;
+		bool is_user_only{false};
+		bool is_repo_root{false};
+	};
+
+	std::optional<github_uri> parse_uri(const std::string &uri) const;
+
+	std::string http_get(const std::string &url, int &out_status) const;
+	std::string get_default_branch(const std::string &owner, const std::string &repo) const;
+
+	std::optional<std::string> cache_get(const std::string &key) const;
+	void cache_put(const std::string &key, const std::string &data) const;
+	void update_lru(const std::string &key) const;
+
+	mutable std::map<std::string, std::string> file_cache_;
+	mutable std::vector<std::string> file_lru_;
+	mutable std::map<std::string, std::vector<vfs_file_info>> dir_cache_;
+	mutable std::map<std::string, std::string> branch_cache_;
+};
+
+/**
+ * @brief Memory-Mapped Virtual File System coordinating scheme-specific providers.
+ */
+class virtual_file_system
+{
+      public:
+	virtual_file_system();
+	~virtual_file_system() = default;
+
+	virtual_file_system(const virtual_file_system &) = delete;
+	virtual_file_system &operator=(const virtual_file_system &) = delete;
+
+	bool mount_file(const std::string &uri, const std::string &disk_path);
+	bool mount_buffer(const std::string &uri, const std::string &buffer);
+	void unmount_file(const std::string &uri);
+	void unmount_prefix(const std::string &prefix);
+
+	bool exists(const std::string &uri) const;
+	std::optional<vfs_file_handle> read_file(const std::string &uri);
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const;
+
+	void register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider);
+
+      private:
+	std::shared_ptr<vfs_provider> get_provider_for_uri(const std::string &uri) const;
+
+	std::shared_ptr<memory_vfs_provider> default_provider_;
+	std::map<std::string, std::shared_ptr<vfs_provider>> providers_;
 };
 
 } // namespace agentlib

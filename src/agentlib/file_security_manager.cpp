@@ -122,9 +122,9 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 					    std::string &out_error) const
 {
 
-	if (requested_path.starts_with("skills://")) {
+	if (requested_path.find("://") != std::string::npos) {
 		if (requested_perm == access_type::write) {
-			out_error = "Virtual files (skills://) are read-only.";
+			out_error = "Virtual files are read-only.";
 			return false;
 		}
 		if (vfs_ && (vfs_->exists(requested_path) || !vfs_->list_directory(requested_path).empty())) {

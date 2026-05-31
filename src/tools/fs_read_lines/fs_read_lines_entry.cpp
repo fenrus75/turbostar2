@@ -22,8 +22,14 @@ class interaction_fs_read_lines : public agentlib::interaction_action
 		update_text();
 	}
 
-	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
-	agentlib::interaction_role get_role() const override { return agentlib::interaction_role::agent; }
+	agentlib::interaction_type get_type() const override
+	{
+		return agentlib::interaction_type::action;
+	}
+	agentlib::interaction_role get_role() const override
+	{
+		return agentlib::interaction_role::agent;
+	}
 
 	void set_total(size_t total)
 	{
@@ -96,13 +102,13 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		custom_interaction->set_range(start, end);
 	}
 
-	// 2. Intercept VFS paths (skills://)
-	if (args_.safe_path.starts_with("skills://")) {
+	// 2. Intercept VFS paths (general URI schemes with ://)
+	if (args_.safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
 			auto view_opt = vfs->read_file(args_.safe_path);
 			if (view_opt) {
-				std::string_view view = view_opt.value();
+				std::string_view view = view_opt.value()->view();
 
 				size_t total_lines = std::count(view.begin(), view.end(), '\n');
 				if (!view.empty() && view.back() != '\n') {

@@ -11,7 +11,7 @@ fs_mkdir_tool::fs_mkdir_tool(std::string safe_path) : llm_tool_action("Creating 
 
 bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
-	if (safe_path_.starts_with("skills://")) {
+	if (safe_path_.find("://") != std::string::npos) {
 		out_error = "Cannot create directories in virtual file system.";
 		return false;
 	}
@@ -20,7 +20,7 @@ bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std
 
 std::string fs_mkdir_tool::execute(agentlib::tool_context &ctx)
 {
-	if (safe_path_.starts_with("skills://")) {
+	if (safe_path_.find("://") != std::string::npos) {
 		set_failure(ctx, "VFS not writable");
 		return "Error: Cannot create directories in virtual file system.";
 	}

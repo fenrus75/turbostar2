@@ -20,7 +20,7 @@ fs_list_dir_tool::fs_list_dir_tool(std::string safe_path)
 
 bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
-	if (safe_path_.starts_with("skills://")) {
+	if (safe_path_.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
 			// Check if there are any mounts with this prefix
@@ -44,7 +44,7 @@ bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::
 
 std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 {
-	if (safe_path_.starts_with("skills://")) {
+	if (safe_path_.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (!vfs) {
 			set_failure(ctx, "VFS not available");

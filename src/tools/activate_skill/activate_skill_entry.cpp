@@ -35,7 +35,7 @@ std::string activate_skill_tool::execute(agentlib::tool_context &ctx)
 
 	std::string instructions;
 	if (view_opt) {
-		instructions = std::string(view_opt.value());
+		instructions = std::string(view_opt.value()->view());
 	} else {
 		instructions = "Error: SKILL.md not found in skill root.";
 	}
