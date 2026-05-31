@@ -5,8 +5,8 @@
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
+#include "../../src/project_manager.h"
 
 using namespace agentlib;
 
@@ -40,7 +40,7 @@ int main()
 	{
 		std::string project_root = project_manager::get_instance().get_project_root();
 		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "dummy_commit_test.txt";
-		write_file(dummy_file, "dummy content");
+		write_file(dummy_file, "dummy content modified");
 		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", project_root);
 
 		nlohmann::json args = {{"message", "test: dummy commit for unit test"}};

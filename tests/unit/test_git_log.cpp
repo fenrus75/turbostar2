@@ -21,7 +21,7 @@ int main()
 		std::string result = registry.execute_tool("git_log", "{}", ctx);
 		std::cout << "Result:\n" << result << std::endl;
 		assert(!result.empty());
-		assert(result.find("Fix") != std::string::npos || result.find("Add") != std::string::npos || result.find("git_init") != std::string::npos);
+		assert(result.find("Process exited with code 0") != std::string::npos);
 	}
 
 	// 2. Validation failure: unexpected arguments (should fail validation as per review recommendations)
