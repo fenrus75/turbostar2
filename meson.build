@@ -776,10 +776,12 @@ if uv.found() or python.found()
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root()
   ]
-  
+  e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe]
+
   test('e2e_context_paging', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_context_paging.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 180,
     is_parallel: false
@@ -787,6 +789,7 @@ if uv.found() or python.found()
   test('e2e_exit_delay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_delay.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -794,120 +797,140 @@ if uv.found() or python.found()
   test('e2e_basic', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_basic.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_readonly_help', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_readonly_help.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_menus', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menus.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_cursor', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_cursor_wrap', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor_wrap.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_typing', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_typing.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_utf8', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_utf8.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_backspace', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_backspace.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_enter', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_enter.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_delete_line', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_delete_line.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_compaction', e2e_exe,
     args: e2e_base_args + ['-m', 'pytest', join_paths(meson.project_source_root(), 'tests/e2e/test_compaction.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_selection.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_power_nav', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_power_nav.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_undo_redo', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_undo_redo.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_insert_file', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_insert_file.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_format', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_format.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_settings', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_settings.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_bracket_matching', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_bracket_matching.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_scope_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_scope_selection.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_multiple_filenames', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_multiple_filenames.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -915,6 +938,7 @@ if uv.found() or python.found()
     test('e2e_git', e2e_exe,
       args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git.py')],
       env: e2e_env,
+    depends: e2e_depends,
       workdir: meson.project_build_root(),
       timeout: 60,
       is_parallel: false
@@ -922,6 +946,7 @@ if uv.found() or python.found()
     test('e2e_git_mouse', e2e_exe,
       args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git_mouse.py')],
       env: e2e_env,
+    depends: e2e_depends,
       workdir: meson.project_build_root(),
       timeout: 60,
       is_parallel: false
@@ -931,6 +956,7 @@ if uv.found() or python.found()
   test('e2e_save_mouse', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_save_mouse.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -938,6 +964,7 @@ if uv.found() or python.found()
   test('e2e_mouse_scroll_zorder', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_mouse_scroll_zorder.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -945,6 +972,7 @@ if uv.found() or python.found()
   test('e2e_window_drag_resize', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_window_drag_resize.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -952,6 +980,7 @@ if uv.found() or python.found()
   test('e2e_window_maximize', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_window_maximize.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -959,6 +988,7 @@ if uv.found() or python.found()
   test('e2e_window_popup', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_window_popup.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -966,6 +996,7 @@ if uv.found() or python.found()
   test('e2e_close_dirty', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_close_dirty.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -973,6 +1004,7 @@ if uv.found() or python.found()
   test('e2e_untitled_save_loop', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_untitled_save_loop.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -980,6 +1012,7 @@ if uv.found() or python.found()
   test('e2e_force_quit', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_force_quit.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -987,6 +1020,7 @@ if uv.found() or python.found()
   test('e2e_block_copy_move', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_block_copy_move.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -994,6 +1028,7 @@ if uv.found() or python.found()
   test('e2e_block_move_down', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_block_move_down.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
@@ -1001,108 +1036,126 @@ if uv.found() or python.found()
   test('e2e_word_line_edit', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_word_line_edit.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_content_assertion', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_content_assertion.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_dialog_esc', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_dialog_esc.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_dialogs.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_menu_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_dialogs.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_menu_windows', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_windows.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_extra_keys', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_extra_keys.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_search', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_search.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_search_autocomplete', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_search_autocomplete.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_file_dialog', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_file_dialog.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_advanced_search', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_advanced_search.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_ghost_x', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ghost_x.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_tabs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_tabs.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_syntax', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_syntax.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_syntax_markdown', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_syntax_markdown.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_ctrl_sequences', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ctrl_sequences.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_block_delete', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_block_delete.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60
   )
   test('e2e_format_paragraph', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_format_paragraph.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1110,6 +1163,7 @@ if uv.found() or python.found()
   test('e2e_agent_todos', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_todos.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1117,6 +1171,7 @@ if uv.found() or python.found()
   test('e2e_agent_create', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_create.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1125,6 +1180,7 @@ if uv.found() or python.found()
   test('e2e_agent_status_window', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_status_window.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1132,6 +1188,7 @@ if uv.found() or python.found()
   test('e2e_agent_mouse_scroll', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_mouse_scroll.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1139,6 +1196,7 @@ if uv.found() or python.found()
   test('e2e_sqlite_tools', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_sqlite_tools.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1147,6 +1205,7 @@ if uv.found() or python.found()
   test('e2e_debugger', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_debugger.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1155,6 +1214,7 @@ if uv.found() or python.found()
   test('e2e_linked_windows', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_linked_windows.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1163,6 +1223,7 @@ if uv.found() or python.found()
   test('e2e_ncurses_stuck', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ncurses_stuck.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
@@ -1173,6 +1234,7 @@ if uv.found() or python.found()
   test('e2e_lsp_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
     env: e2e_env,
+    depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
     is_parallel: false
