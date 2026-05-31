@@ -27,7 +27,7 @@ class agent_start_app_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with app_run_id and gdb_run_id.";
+		return "Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with app_run_id and gdb_run_id. In GDB mode, the app starts paused, send 'continue' to gdb to start the application.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
