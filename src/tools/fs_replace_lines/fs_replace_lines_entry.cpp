@@ -198,9 +198,9 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		}
 
 		if (!block_matches) {
-			// Offset hint logic: check +/- 10 lines
+			// Offset hint logic: check +/- 25 lines
 			int found_line = -1;
-			int check_radius = 10;
+			int check_radius = 25;
 			
 			// Start checking nearest lines first
 			for (int offset = 1; offset <= check_radius; ++offset) {
