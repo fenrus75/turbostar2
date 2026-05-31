@@ -75,8 +75,8 @@ Examples include:
 *   **Python Snippets**: No need for the agent to write a script file to execute Python via a shell; instead, they can directly run Python snippets (which are automatically security-scanned using `bandit`).
 *   **"Run my application"**: Executes the program inside a `gdb` session; the agent has separate access to both the program and the debugger, enabling interactive debugging sessions.
 *   **"compile my project"**: Saves LLM context by automatically parsing common Meson (and other build system) output patterns, reducing the compiler output to relevant warnings and errors only.
-* Key files / directores: The agent starts up with a filesystem map of the most important parts of your project already in the context -- it does not need to search to know about your project
-* Key data structures / functions: The agent starts up with key functions and classes, and their location, already in the context -- no need to search
+*   **Key Files & Directories**: The agent starts up with a filesystem map of the most important parts of your project already in the context—it does not need to search to know about your project.
+*   **Key Data Structures & Functions**: The agent starts up with key functions and classes, and their locations, already in the context—no manual searching required.
 
 A full list of the available tools is documented in [docs/tools.md](docs/tools.md).
 
