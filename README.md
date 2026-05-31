@@ -31,8 +31,8 @@ Turbostar aims to provide a distraction-free, highly responsive editing experien
 ### LSP Setup
 
 Turbostar automatically detects and launches the appropriate LSP server based on the file type:
-*   **C/C++**: Uses `clangd`. Ensure you have a `compile_commands.json` database generated in your build or project root directory.
-*   **Python**: Uses `pylsp` or `pyright` (if installed).
+*   **C/C++**: Uses `clangd`. 
+*   **Python**: Uses `pylsp` or `pyright`.
 
 ## AI Agentic Features
 
@@ -40,7 +40,7 @@ Equipped with native AI Agentic capabilities tailored for modern development wor
 
 *  **Built-in LLM Agent:** A dedicated Agent window (`^KA`) that can read your workspace, compile code, and suggest surgical edits using a tool-based sandbox.
 *  **In-editor shortcuts** for common Agent tasks (e.g., "Complete TODOs in this function", "Spell check the comments", etc.) for distraction-free operation.
-
+* AI Agentic edits show up as "undo actions" -- reviewable <insert screenshot> and undoable as atomic operation (including "follow along" mode)
 
 ### Paged AI Context
 
@@ -76,7 +76,7 @@ Examples include:
 *   **"Run my application"**: Executes the program inside a `gdb` session; the agent has separate access to both the program and the debugger, enabling interactive debugging sessions.
 *   **"compile my project"**: Saves LLM context by automatically parsing common Meson (and other build system) output patterns, reducing the compiler output to relevant warnings and errors only.
 
-A full list of the available tools is documented in [docs/tools.md](file:///home/arjan/git/turbostar2/docs/tools.md).
+A full list of the available tools is documented in [docs/tools.md](docs/tools.md).
 
 ### Security Model
 Agent security is a rich field of research, and Turbostar tries to implement basic, common-sense protections:
@@ -84,12 +84,6 @@ Agent security is a rich field of research, and Turbostar tries to implement bas
 *   **Sandboxing**: Everything runs inside a namespaced sandbox by default, which restricts access to the filesystem and mounts the workspace as read-only where appropriate.
 *   **Separation of Concerns**: Security checks are isolated from tool implementation. A tool's logic is never invoked unless the central security policy is fully satisfied.
 *   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it provides a crucial baseline defense.
-
-
-
-## Image Gallery
-
-
 
 ### Configuring the AI Agent
 
@@ -102,14 +96,20 @@ export GEMINI_API_KEY="your-api-key-here"
 # For other supported providers, configure them in your user preferences config file.
 ```
 
+
+## Image Gallery
+
+
+
+
 ## How to build
 
-Turbostar is written in C++23 and uses the Meson build system.
+Turbostar is written in C++23 and uses the Meson build system. 
 
 ### Build-time Prerequisites
 
 You will need the following installed to build Turbostar:
-*   `g++` (or `clang++`) with C++23 support
+*    A pretty recent `g++` (or `clang++`) with C++23 support
 *   `meson` and `ninja`
 *   `pkg-config`
 *   `libncursesw5-dev` (ncurses with wide-character support)
@@ -136,7 +136,7 @@ The following dependencies are needed at runtime for various diagnostic and help
 *   `python3-bandit` (For Python security validation)
 *   `elfutils` (For `eu-addr2line` crash backtraces)
 
-On Debian/Ubuntu-based systems, you can install the runtime dependencies with:
+
 ```bash
 sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils
 ```
@@ -170,8 +170,7 @@ sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils
 MESON_TESTTHREADS=2 meson test -C build
 ```
 
-## Quirks and behaviors
+## Known Quirks and behaviors
 
 *   **Mouse Paste in X11:** Turbostar hijacks the mouse cursor to support clicking menus and window borders. If you want to use your terminal emulator's native middle-click paste or highlight-to-copy, you must **hold the Shift key** while clicking or dragging.
 *   **Windows Colors:** If you are running Turbostar on Windows (e.g., via WSL or SSH) and get "black on black" rendering issues, you need to change your terminal emulator. `xterm` often fails to render the Turbo Pascal palette correctly on Windows; using **Windows Terminal (`ms-terminal`)** resolves the issue.
-*   **Sandboxed LLM Edits:** The LLM agent cannot edit the `Compile Output`, `Test Output`, or `Agent Chat` windows; they are strictly read-only.
