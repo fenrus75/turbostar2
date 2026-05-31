@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <mutex>
 
 namespace httplib
 {
@@ -139,6 +140,10 @@ class github_vfs_provider : public vfs_provider
 
 	std::string http_get(const std::string &url, int &out_status) const;
 	std::string get_default_branch(const std::string &owner, const std::string &repo) const;
+	void configure_proxy(httplib::Client &client) const;
+
+	std::optional<vfs_file_info> get_file_info_unlocked(const std::string &uri) const;
+	bool exists_unlocked(const std::string &uri) const;
 
 	std::optional<std::string> cache_get(const std::string &key) const;
 	void cache_put(const std::string &key, const std::string &data) const;
@@ -150,6 +155,7 @@ class github_vfs_provider : public vfs_provider
 	mutable std::map<std::string, std::string> branch_cache_;
 	mutable std::unique_ptr<httplib::Client> api_client_;
 	mutable std::unique_ptr<httplib::Client> raw_client_;
+	mutable std::mutex mutex_;
 };
 
 /**

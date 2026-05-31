@@ -258,12 +258,18 @@ void virtual_file_system::register_provider(const std::string &scheme, std::shar
 
 bool github_vfs_provider::exists(const std::string &uri) const
 {
-	auto info = get_file_info(uri);
-	return info.has_value();
+	std::lock_guard<std::mutex> lock(mutex_);
+	return exists_unlocked(uri);
+}
+
+bool github_vfs_provider::exists_unlocked(const std::string &uri) const
+{
+	return get_file_info_unlocked(uri).has_value();
 }
 
 std::optional<vfs_file_handle> github_vfs_provider::read_file(const std::string &uri)
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	auto parsed = parse_uri(uri);
 	if (!parsed || parsed->is_user_only || parsed->is_repo_root) {
 		return std::nullopt;
@@ -293,6 +299,12 @@ std::optional<vfs_file_handle> github_vfs_provider::read_file(const std::string 
 }
 
 std::optional<vfs_file_info> github_vfs_provider::get_file_info(const std::string &uri) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	return get_file_info_unlocked(uri);
+}
+
+std::optional<vfs_file_info> github_vfs_provider::get_file_info_unlocked(const std::string &uri) const
 {
 	auto parsed = parse_uri(uri);
 	if (!parsed)
@@ -348,7 +360,8 @@ std::optional<vfs_file_info> github_vfs_provider::get_file_info(const std::strin
 				char type = (type_str == "dir") ? 'D' : 'F';
 				return vfs_file_info{uri, size, type, 0};
 			}
-		} catch (...) {
+		} catch (const std::exception &e) {
+			// Log silently
 		}
 	}
 
@@ -357,6 +370,7 @@ std::optional<vfs_file_info> github_vfs_provider::get_file_info(const std::strin
 
 std::vector<vfs_file_info> github_vfs_provider::list_directory(const std::string &prefix) const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	auto parsed = parse_uri(prefix);
 	if (!parsed)
 		return {};
@@ -387,7 +401,8 @@ std::vector<vfs_file_info> github_vfs_provider::list_directory(const std::string
 						results.push_back(vfs_file_info{item_uri, 0, 'D', 0});
 					}
 				}
-			} catch (...) {
+			} catch (const std::exception &e) {
+				// Log silently
 			}
 		}
 	} else {
@@ -414,7 +429,8 @@ std::vector<vfs_file_info> github_vfs_provider::list_directory(const std::string
 						results.push_back(vfs_file_info{item_uri, size, type, 0});
 					}
 				}
-			} catch (...) {
+			} catch (const std::exception &e) {
+				// Log silently
 			}
 		}
 	}
@@ -503,31 +519,7 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 			api_client_->set_connection_timeout(std::chrono::seconds(3));
 			api_client_->set_read_timeout(std::chrono::seconds(3));
 			api_client_->set_follow_location(true);
-
-			const char *env_proxy = std::getenv("https_proxy");
-			if (!env_proxy)
-				env_proxy = std::getenv("http_proxy");
-			if (env_proxy) {
-				std::string proxy(env_proxy);
-				size_t scheme_pos = proxy.find("://");
-				if (scheme_pos != std::string::npos) {
-					proxy = proxy.substr(scheme_pos + 3);
-				}
-				size_t port_pos = proxy.find(':');
-				std::string p_host = proxy;
-				int p_port = 80;
-				if (port_pos != std::string::npos) {
-					p_host = proxy.substr(0, port_pos);
-					try {
-						p_port = std::stoi(proxy.substr(port_pos + 1));
-					} catch (...) {
-					}
-				}
-				if (!p_host.empty() && p_host.back() == '/') {
-					p_host.pop_back();
-				}
-				api_client_->set_proxy(p_host, p_port);
-			}
+			configure_proxy(*api_client_);
 		}
 		cli = api_client_.get();
 	} else {
@@ -536,31 +528,7 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 			raw_client_->set_connection_timeout(std::chrono::seconds(3));
 			raw_client_->set_read_timeout(std::chrono::seconds(3));
 			raw_client_->set_follow_location(true);
-
-			const char *env_proxy = std::getenv("https_proxy");
-			if (!env_proxy)
-				env_proxy = std::getenv("http_proxy");
-			if (env_proxy) {
-				std::string proxy(env_proxy);
-				size_t scheme_pos = proxy.find("://");
-				if (scheme_pos != std::string::npos) {
-					proxy = proxy.substr(scheme_pos + 3);
-				}
-				size_t port_pos = proxy.find(':');
-				std::string p_host = proxy;
-				int p_port = 80;
-				if (port_pos != std::string::npos) {
-					p_host = proxy.substr(0, port_pos);
-					try {
-						p_port = std::stoi(proxy.substr(port_pos + 1));
-					} catch (...) {
-					}
-				}
-				if (!p_host.empty() && p_host.back() == '/') {
-					p_host.pop_back();
-				}
-				raw_client_->set_proxy(p_host, p_port);
-			}
+			configure_proxy(*raw_client_);
 		}
 		cli = raw_client_.get();
 	}
@@ -589,6 +557,34 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 	}
 }
 
+void github_vfs_provider::configure_proxy(httplib::Client &client) const
+{
+	const char *env_proxy = std::getenv("https_proxy");
+	if (!env_proxy)
+		env_proxy = std::getenv("http_proxy");
+	if (env_proxy) {
+		std::string proxy(env_proxy);
+		size_t scheme_pos = proxy.find("://");
+		if (scheme_pos != std::string::npos) {
+			proxy = proxy.substr(scheme_pos + 3);
+		}
+		size_t port_pos = proxy.find(':');
+		std::string p_host = proxy;
+		int p_port = 80;
+		if (port_pos != std::string::npos) {
+			p_host = proxy.substr(0, port_pos);
+			try {
+				p_port = std::stoi(proxy.substr(port_pos + 1));
+			} catch (const std::exception &) {
+			}
+		}
+		if (!p_host.empty() && p_host.back() == '/') {
+			p_host.pop_back();
+		}
+		client.set_proxy(p_host, p_port);
+	}
+}
+
 std::string github_vfs_provider::get_default_branch(const std::string &owner, const std::string &repo) const
 {
 	std::string key = owner + "/" + repo;
@@ -608,7 +604,8 @@ std::string github_vfs_provider::get_default_branch(const std::string &owner, co
 				branch_cache_[key] = db;
 				return db;
 			}
-		} catch (...) {
+		} catch (const std::exception &e) {
+			// Log silently
 		}
 	}
 
