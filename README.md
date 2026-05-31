@@ -86,7 +86,7 @@ Agent security is a rich field of research, and Turbostar tries to implement bas
 *   **Per-Project Security**: Security settings and preferences are defined *per project* (e.g., you may fully trust your own repository, but require strict prompts for a third-party project cloned from the internet).
 *   **Sandboxing**: Everything runs inside a namespaced sandbox by default, which restricts access to the filesystem and mounts the workspace as read-only where appropriate.
 *   **Separation of Concerns**: Security checks are isolated from tool implementation. A tool's logic is never invoked unless the central security policy is fully satisfied.
-*   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it provides a crucial baseline defense.
+*   **Code Scanning**: Runs `bandit` scans on Python code snippets before execution. While not a complete security guarantee, it's better than running python in a shell.
 
 ### Configuring the AI Agent
 
