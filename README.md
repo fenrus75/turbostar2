@@ -78,6 +78,7 @@ Examples include:
 *   **Key Files & Directories**: The agent starts up with a filesystem map of the most important parts of your project already in the context—it does not need to search to know about your project.
 *   **Key Data Structures & Functions**: The agent starts up with key functions and classes, and their locations, already in the context—no manual searching required.
 *   **Crash Dump Awareness**: All test and application runs are executed with a crash-catching preload that reports diagnostic information in an AI-friendly Markdown table to the agent.
+*   **Virtual Filesystem**: The agent has access to a Virtual Filesystem (VFS) to query virtual resources as if they were physical files, including a `github://username/project/` prefix that exposes public GitHub repositories directly to the agent.
 
 A full list of the available tools is documented in [docs/tools.md](docs/tools.md).
 
