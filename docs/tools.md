@@ -186,11 +186,6 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
 
-### `get_temperature`
-*   **Description:** Get the current temperature in a given location.
-*   **Arguments:**
-    *   `location` *(string, required)*: The city and state, e.g. 'San Francisco, CA'.
-
 ### `list_tool_calls`
 *   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.
 *   **Arguments:** None.
