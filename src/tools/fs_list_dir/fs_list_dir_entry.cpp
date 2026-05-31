@@ -82,7 +82,16 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 				filename = filename.substr(0, slash_pos);
 			}
 
-			ss << "| " << filename << " | " << entry.type << " | " << entry.size << " | " << entry.size_in_lines
+			std::string size_str = "";
+			std::string lines_str = "";
+			if (entry.type == 'F') {
+				size_str = std::to_string(entry.size);
+				if (entry.size_in_lines > 0 || entry.size == 0) {
+					lines_str = std::to_string(entry.size_in_lines);
+				}
+			}
+
+			ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str
 			   << " | R-- |\n";
 			count++;
 		}
