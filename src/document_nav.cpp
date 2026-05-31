@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 void document::move_cursor(int dx, int dy)
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 
 	if (dx != 0) {
 		if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
@@ -54,6 +55,7 @@ void document::move_cursor(int dx, int dy)
 void document::move_to_bol()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	cursor_x_ = 0;
 	target_cursor_x_ = cursor_x_;
 	lock.unlock();
@@ -63,6 +65,7 @@ void document::move_to_bol()
 void document::move_to_eol()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	}
@@ -74,6 +77,7 @@ void document::move_to_eol()
 void document::move_to_top()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	cursor_x_ = 0;
 	cursor_y_ = 0;
 	target_cursor_x_ = cursor_x_;
@@ -84,6 +88,7 @@ void document::move_to_top()
 void document::move_to_bottom()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	cursor_y_ = line_count_unlocked() - 1;
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	target_cursor_x_ = cursor_x_;
@@ -94,6 +99,7 @@ void document::move_to_bottom()
 void document::move_page_up(int page_height)
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	cursor_y_ -= page_height;
 	cursor_y_ = std::max(0, cursor_y_);
 	cursor_x_ = target_cursor_x_;
@@ -108,6 +114,7 @@ void document::move_page_up(int page_height)
 void document::move_page_down(int page_height)
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	cursor_y_ += page_height;
 	if (cursor_y_ >= line_count_unlocked()) {
 		cursor_y_ = line_count_unlocked() - 1;
@@ -124,6 +131,7 @@ void document::move_page_down(int page_height)
 void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	std::string text = lines_[cursor_y_]->get_text();
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 
@@ -158,6 +166,7 @@ void document::move_next_word()
 void document::move_prev_word()
 {
 	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
 	if (cursor_x_ == 0) {
 		if (cursor_y_ > 0) {
 			cursor_y_--;
