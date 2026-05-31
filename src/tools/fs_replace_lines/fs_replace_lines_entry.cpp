@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <format>
 #include <dtl/dtl.hpp>
 #include <filesystem>
 #include <fstream>
@@ -157,12 +159,14 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 	}
 	in.close();
 
+	std::vector<std::string> mismatch_errors;
+
 	for (const auto &edit : args_.edits) {
 		int idx = edit.line_number - 1;
 		int max_idx = (edit.type == "add") ? static_cast<int>(lines.size()) : static_cast<int>(lines.size()) - 1;
 		if (idx < 0 || idx > max_idx) {
-			out_error = "Verification Error: line_number " + std::to_string(edit.line_number) + " is out of bounds.";
-			return false;
+			mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds.", edit.line_number));
+			continue;
 		}
 
 		if (edit.type == "add")
@@ -178,8 +182,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		if (expected_lines.empty()) expected_lines.push_back("");
 
 		if (idx + static_cast<int>(expected_lines.size()) > static_cast<int>(lines.size())) {
-			out_error = "Verification Error: Multi-line original_text extends beyond the end of the file.";
-			return false;
+			mismatch_errors.push_back(std::format("Verification Error: Multi-line original_text starting at line_number {} extends beyond the end of the file.", edit.line_number));
+			continue;
 		}
 
 		bool block_matches = true;
@@ -239,14 +243,19 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			}
 
 			if (found_line != -1) {
-				out_error = "Verification Error: The block you provided is not at line " + std::to_string(edit.line_number) + 
-				            ", but it matches starting at line " + std::to_string(found_line) + ". Please update your line_number.";
+				mismatch_errors.push_back(std::format("Verification Error: The block you provided is not at line {}, but it matches starting at line {}. Please update your line_number.", edit.line_number, found_line));
 			} else {
-				out_error = "Verification Error at line " + std::to_string(edit.line_number) + ". \nExpected starting with: '" +
-					    expected_lines[0] + "'\nActual content: '" + lines[idx] + "'";
+				mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], lines[idx]));
 			}
-			return false;
 		}
+	}
+
+	if (!mismatch_errors.empty()) {
+		out_error = "";
+		for (size_t i = 0; i < mismatch_errors.size(); ++i) {
+			out_error += (i > 0 ? "\n\n" : "") + mismatch_errors[i];
+		}
+		return false;
 	}
 
 	return true;

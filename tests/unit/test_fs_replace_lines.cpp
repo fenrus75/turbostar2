@@ -110,6 +110,19 @@ int main()
 	assert(result_out_of_order.find("You provided edits in this order: [5, 10, 2]") != std::string::npos);
 	assert(result_out_of_order.find("Please sort your edits to target line_numbers in this order: [10, 5, 2]") != std::string::npos);
 
+	// Test Multiple Verification Errors (All mismatches in one go)
+	nlohmann::json args_multiple_errors = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array({
+		{{"line_number", 12}, {"type", "replace"}, {"original_text", "Line 99"}, {"replace_with", "Line 12 edited"}},
+		{{"line_number", 4}, {"type", "replace"}, {"original_text", "Line 88"}, {"replace_with", "Line 4 edited"}}
+	    })}
+	};
+	std::string result_multiple_errors = registry.execute_tool("fs_replace_lines", args_multiple_errors.dump(), ctx);
+	std::cout << "Multiple errors result:\n" << result_multiple_errors << "\n";
+	assert(result_multiple_errors.find("Verification Error at line 12.") != std::string::npos);
+	assert(result_multiple_errors.find("Verification Error at line 4.") != std::string::npos);
+
 	std::remove(test_file_15.c_str());
 
 	std::cout << "fs_replace_lines unit test passed!\n";
