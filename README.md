@@ -77,6 +77,7 @@ Examples include:
 *   **"compile my project"**: Saves LLM context by automatically parsing common Meson (and other build system) output patterns, reducing the compiler output to relevant warnings and errors only.
 *   **Key Files & Directories**: The agent starts up with a filesystem map of the most important parts of your project already in the context—it does not need to search to know about your project.
 *   **Key Data Structures & Functions**: The agent starts up with key functions and classes, and their locations, already in the context—no manual searching required.
+*   **Crash dump awareness**: All test and application runs are done with a crash catching preload that reports crash information in an AI friendly markdown table to the agent
 
 A full list of the available tools is documented in [docs/tools.md](docs/tools.md).
 
