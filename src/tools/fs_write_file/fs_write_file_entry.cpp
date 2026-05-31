@@ -43,6 +43,9 @@ bool fs_write_file_tool::validate_runtime(const agentlib::tool_context &ctx, std
 
 std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 {
+	// Reset the drift tracker for this file since the file is overwritten or modified
+	ctx.file_drift_tracker.erase(args_.safe_path);
+
 	auto custom_interaction = std::dynamic_pointer_cast<agentlib::interaction_action>(interaction_);
 
 	try {

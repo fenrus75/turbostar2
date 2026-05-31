@@ -181,6 +181,26 @@ int main()
 	assert(result_multiple_errors.find("Verification Error at line 12.") != std::string::npos);
 	assert(result_multiple_errors.find("Verification Error at line 4.") != std::string::npos);
 
+	// Test Drift Warning Logic (drift >= 15)
+	// Reset the drift tracker for test_file_15 by reading it first
+	{
+		nlohmann::json read_args = {{"path", test_file_15}, {"start_line", 1}, {"end_line", 15}};
+		registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
+	}
+
+	// Now apply an edit that shifts by 15 lines (e.g. inserting 15 lines)
+	nlohmann::json args_drift_15 = {
+	    {"path", test_file_15},
+	    {"edits", nlohmann::json::array({
+		{{"line_number", 5}, {"type", "add"}, {"replace_with", "Add 1\nAdd 2\nAdd 3\nAdd 4\nAdd 5\nAdd 6\nAdd 7\nAdd 8\nAdd 9\nAdd 10\nAdd 11\nAdd 12\nAdd 13\nAdd 14\nAdd 15"}}
+	    })}
+	};
+	std::string result_drift_15 = registry.execute_tool("fs_replace_lines", args_drift_15.dump(), ctx);
+	std::cout << "Drift >= 15 result:\n" << result_drift_15 << "\n";
+	assert(result_drift_15.find("Warning: File has drifted by ") != std::string::npos);
+	assert(result_drift_15.find("Before making further edits, we recommend refreshing your view with fs_read_lines.") != std::string::npos);
+	assert(result_drift_15.find("- Note: Lines below this section are shifted") == std::string::npos);
+
 	std::remove(test_file_15.c_str());
 
 	std::cout << "fs_replace_lines unit test passed!\n";

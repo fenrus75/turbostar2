@@ -85,6 +85,9 @@ bool fs_read_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/
 
 std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 {
+	// Reset the drift tracker for this file since the LLM has read it
+	ctx.file_drift_tracker.erase(args_.safe_path);
+
 	// 1. Fallback bounds checks (safeguards for LLM hallucinations)
 	int start = std::max(1, args_.start_line);
 	int end = std::max(start, args_.end_line);

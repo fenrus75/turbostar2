@@ -335,6 +335,28 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 	// We always compute the diff via the disk logic so the agent UI sees what happened
 	result_msg = execute_disk_fallback(ctx);
 
+	// Update the file drift tracker if we applied edits successfully
+	if (result_msg.find("Successfully applied") == 0) {
+		int turn_abs_shift = 0;
+		for (const auto &e : args_.edits) {
+			int new_lines = 0;
+			if (e.type == "add" || e.type == "replace") {
+				if (e.replace_with.empty()) {
+					new_lines = 1;
+				} else {
+					int newlines = std::count(e.replace_with.begin(), e.replace_with.end(), '\n');
+					new_lines = newlines + 1;
+				}
+			}
+			int old_lines = (e.type == "remove" || e.type == "replace") ? e.lines_to_remove : 0;
+			turn_abs_shift += std::abs(new_lines - old_lines);
+		}
+
+		auto &state = ctx.file_drift_tracker[args_.safe_path];
+		state.cumulative_shift += turn_abs_shift;
+		state.edit_turns += 1;
+	}
+
 	bool is_buffer = false;
 	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
 		is_buffer = true;
@@ -481,6 +503,29 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		}
 	}
 
+	int total_drift = 0;
+	if (ctx.file_drift_tracker.find(args_.safe_path) != ctx.file_drift_tracker.end()) {
+		total_drift = ctx.file_drift_tracker[args_.safe_path].cumulative_shift;
+	}
+
+	int turn_abs_shift = 0;
+	for (const auto &e : args_.edits) {
+		int new_lines = 0;
+		if (e.type == "add" || e.type == "replace") {
+			if (e.replace_with.empty()) {
+				new_lines = 1;
+			} else {
+				int newlines = std::count(e.replace_with.begin(), e.replace_with.end(), '\n');
+				new_lines = newlines + 1;
+			}
+		}
+		int old_lines = (e.type == "remove" || e.type == "replace") ? e.lines_to_remove : 0;
+		turn_abs_shift += std::abs(new_lines - old_lines);
+	}
+
+	total_drift += turn_abs_shift;
+	bool show_shift_zones = (total_drift < 15);
+
 	std::string result_msg = std::format("Successfully applied {} edits to {}\n\n", args_.edits.size(), args_.path);
 	if (!args_.adjustment_notes.empty()) {
 		result_msg += "System Corrections Applied:\n";
@@ -489,10 +534,32 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		}
 		result_msg += "\n";
 	}
+
+	if (!show_shift_zones && total_drift > 0) {
+		result_msg += std::format("Warning: File has drifted by {} lines. Before making further edits, we recommend refreshing your view with fs_read_lines.\n\n", total_drift);
+	}
+
+	int current_shift = 0;
+	size_t hunk_idx = 0;
 	for (const auto &r : merged_ranges) {
 		result_msg += std::format("[Modified Section lines {} - {}]:\n", r.first, r.second);
 		for (int l = r.first; l <= r.second; ++l) {
 			result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+		}
+
+		// Find current shift at the end of this range
+		while (hunk_idx < hunks.size()) {
+			int hunk_end = static_cast<int>(hunks[hunk_idx].c + hunks[hunk_idx].d - 1);
+			if (hunk_end <= r.second) {
+				current_shift += static_cast<int>(hunks[hunk_idx].d - hunks[hunk_idx].b);
+				hunk_idx++;
+			} else {
+				break;
+			}
+		}
+
+		if (show_shift_zones) {
+			result_msg += std::format("- Note: Lines below this section are shifted by {} lines relative to the original file.\n", current_shift);
 		}
 		result_msg += "\n";
 	}
