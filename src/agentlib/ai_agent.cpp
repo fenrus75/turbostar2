@@ -1,5 +1,6 @@
 #include "ai_agent.h"
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -598,6 +599,8 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 		message user_msg;
 		user_msg.role = "user";
 		user_msg.content = prompt_text;
+		user_msg.timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+		    std::chrono::system_clock::now().time_since_epoch()).count();
 		conversation_.push_back(user_msg);
 	}
 
@@ -690,6 +693,10 @@ void ai_agent::start_processing()
 			message response_msg;
 			response_msg.role = "assistant";
 
+			auto start_time = std::chrono::steady_clock::now();
+			auto start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+			    std::chrono::system_clock::now().time_since_epoch()).count();
+
 			self->client_->send_chat_stream(
 			    convo,
 			    [&](const chat_delta &delta) {
@@ -772,6 +779,10 @@ void ai_agent::start_processing()
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
 				return;
 			}
+
+			auto end_time = std::chrono::steady_clock::now();
+			response_msg.timestamp = start_timestamp;
+			response_msg.duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
 			if (!accumulated_tool_calls.empty()) {
 				response_msg.tool_calls = accumulated_tool_calls;
@@ -865,6 +876,10 @@ void ai_agent::start_processing()
 						}
 					}
 
+					long long tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+					    std::chrono::system_clock::now().time_since_epoch()).count();
+					auto tool_start_time = std::chrono::steady_clock::now();
+
 					if (!prep.error_message.empty()) {
 						tool_result = prep.error_message;
 					} else {
@@ -874,6 +889,9 @@ void ai_agent::start_processing()
 							tool_result = "Execution Error: " + std::string(e.what());
 						}
 					}
+
+					auto tool_end_time = std::chrono::steady_clock::now();
+					long long tool_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time).count();
 
 					std::string result_preview = tool_result;
 					if (result_preview.length() > 1024) {
@@ -903,6 +921,8 @@ void ai_agent::start_processing()
 					tool_msg.content = tool_result;
 					tool_msg.name = call.function.name;
 					tool_msg.tool_call_id = call.id;
+					tool_msg.timestamp = tool_start_timestamp;
+					tool_msg.duration_ms = tool_duration_ms;
 
 					// Commit tool result to shared history
 					{

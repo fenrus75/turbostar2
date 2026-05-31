@@ -42,6 +42,10 @@ struct message {
     // Transient episode mapping fields
     std::string episode_id;
     int episode_level{-1}; // -1 if not a paged-in episode turn
+
+    // Local DNN training / temporal metadata fields
+    long long timestamp{0}; // Unix timestamp in seconds
+    long long duration_ms{0}; // Duration in milliseconds
 };
 
 inline void to_json(nlohmann::json& j, const message& p) {
@@ -54,6 +58,8 @@ inline void to_json(nlohmann::json& j, const message& p) {
         j["episode_id"] = p.episode_id;
         j["episode_level"] = p.episode_level;
     }
+    if (p.timestamp != 0) j["timestamp"] = p.timestamp;
+    if (p.duration_ms != 0) j["duration_ms"] = p.duration_ms;
 }
 
 inline void from_json(const nlohmann::json& j, message& p) {
@@ -74,6 +80,8 @@ inline void from_json(const nlohmann::json& j, message& p) {
         p.episode_id = "";
         p.episode_level = -1;
     }
+    p.timestamp = j.value("timestamp", 0LL);
+    p.duration_ms = j.value("duration_ms", 0LL);
 }
 
 struct llm_usage {
