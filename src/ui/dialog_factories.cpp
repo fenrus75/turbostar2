@@ -1007,6 +1007,7 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	std::vector<tool_info> tools = {{"gdb", "gdb", "gdb", false},
 					{"gdbserver", "gdbserver", "gdbserver", false},
 					{"clangd", "clangd", "clangd", false},
+					{"pylsp", "pylsp", "python3-pylsp", false},
 					{"clang-format", "clang-format", "clang-format", false},
 					{"bandit", "bandit", "python3-bandit", false},
 					{"eu-addr2line", "eu-addr2line", "elfutils", false}};
@@ -1021,9 +1022,9 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	}
 
 	int width = 56;
-	int height = 16;
+	int height = 17;
 	if (!missing_packages.empty()) {
-		height = 18;
+		height = 19;
 	}
 
 	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
