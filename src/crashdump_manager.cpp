@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 
@@ -94,9 +95,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 		return;
 
 	auto maps = parse_maps(maps_path.string());
-	std::sort(maps.begin(), maps.end(), [](const memory_map &a, const memory_map &b) {
-		return a.start < b.start;
-	});
+	std::sort(maps.begin(), maps.end(), [](const memory_map &a, const memory_map &b) { return a.start < b.start; });
 
 	std::string info_content;
 	std::ifstream info_in(info_path);
@@ -135,7 +134,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 		while (stack_in.read(reinterpret_cast<char *>(&ip), sizeof(ip))) {
 			bool found = false;
 			auto it = std::lower_bound(maps.begin(), maps.end(), ip,
-				[](const memory_map &m, uint64_t addr) { return m.end <= addr; });
+						   [](const memory_map &m, uint64_t addr) { return m.end <= addr; });
 
 			if (it != maps.end() && ip >= it->start && ip < it->end) {
 				const auto &m = *it;
@@ -146,6 +145,8 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 				if (!m.path.empty() && m.path[0] == '/') {
 					std::ostringstream cmd;
 					cmd << "addr2line -C -f -e " << fs_utils::escape_shell_arg(m.path) << " " << std::hex << rel_addr;
+					event_logger::get_instance().log("ip {}  m.start {}   m.offset{}", ip, m.start, m.offset);
+					event_logger::get_instance().log("Running addr2line command: {}", cmd.str());
 
 					std::string output;
 					FILE *pipe = popen(cmd.str().c_str(), "r");
@@ -278,8 +279,7 @@ std::string crashdump_manager::refresh(const std::string & /*project_hash*/)
 		auto mtime = fs::last_write_time(entry.path(), ec);
 		if (!ec) {
 			auto sctime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-				mtime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
-			);
+			    mtime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
 			std::time_t timet = std::chrono::system_clock::to_time_t(sctime);
 			std::tm *local_tm = std::localtime(&timet);
 			if (local_tm) {
