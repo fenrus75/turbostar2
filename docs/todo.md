@@ -42,8 +42,6 @@
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
     - low priority
 
-- better undo batching than "every keypress"
-
 - detect "file has change on disk" by checking file mtime once in a while as the user is typing
 
 # mid term items
@@ -94,6 +92,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 31-05-2026
+- implemented undo group coalescing (merging) to group consecutive single-character typing, backspacing, and whole-line deletes (Ctrl-Y) into a single logical undo transaction. Coalescing state is cleanly reset upon cursor navigation (arrow keys, word movement, paging), selection changes, or file saving. Added the notify_undo_changed global event to broadcast stack updates to all windows, allowing the live Undo History diff window to update dynamically in real time without lag. Included comprehensive unit tests.
 
 ## 30-05-2026
 - implemented scheme-based VFS provider abstraction (vfs_provider interface), migrating skills:// and agent:// to a memory VFS provider, and implemented github:// VFS provider supporting raw download caching (LRU, max 50 items), folder API listings, user repo listing, default branch resolution, HTTPS proxies, and optional GITHUB_TOKEN authenticated requests. Updated VFS tools and test suite, verifying all features cleanly.
