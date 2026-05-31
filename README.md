@@ -38,11 +38,12 @@ You will need the following installed on your system:
 *   `clang-format` (For code formatting)
 *   `gdbserver` (For debugging run targets)
 *   `gdb` (For debugging run targets)
+*   `python3-bandit` (For Python security validation)
 
 On Debian/Ubuntu-based systems, you can install the required dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev clangd clang-format gdbserver gdb
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libsqlite3-dev libdtl-dev libunwind-dev clangd clang-format gdbserver gdb python3-bandit
 ```
 
 ### Build Instructions
