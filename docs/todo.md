@@ -38,11 +38,6 @@
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- syntax highlighting of trailing whitespace is annoying if you're still typing the line.. any space you type
-   instantly turns red. Need to maybe know which line the cursor is on or something, or wait for 10 seconds or .. or ..
-	maybe we need to delay any syntax coloring/checking update until no typing happened for a couple of seconds or hit enter/change Y cursor line
-   - not urgent and needs more thought
-
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
     - low priority
@@ -63,6 +58,9 @@
 - a github:// VFS namespace
 	- mostly maps to just downloading the raw file with a small LRU driven cache
 	- readdir is the complex one, both for projects and for files in a project
+		GET https://api.github.com/repos/{owner}/{repo}/contents/{path} returns a nice json listing for a project
+		GET https://api.github.com/users/{username}/repos returns all the repos from a user and their main branch (which we need for the rest)
+	- (follow up) implement a persistent disk cache under ~/.cache/turbostar/github_vfs/ for raw files and metadata, with TTL / invalidation checks.
 
 - a few "github" tools 
 	- create PR
