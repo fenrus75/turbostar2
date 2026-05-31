@@ -42,7 +42,7 @@ To maintain a zero-dependency local C++ runtime without loading large vocabulary
 To capture chronological sequence structure, tokens in a text block are mapped into exactly 4 equal, contiguous quarters (producing a $4 \times 128 = 512$-dimensional vector):
 1.  **Slot 0 (Quarter 1):** Mean embedding of all tokens in range $[0 \dots \lfloor L/4 \rfloor]$.
 2.  **Slot 1 (Quarter 2):** Mean embedding of all tokens in range $[\lfloor L/4 \rfloor \dots \lfloor L/2 \rfloor]$.
-3.  **Slot 2 (Quarter 3):** Mean embedding of all tokens in range $[\lfloor L/2 \rfloor \dots \lfloor 3L/4 \rfloor]$.
+3.  **Slot 2 (Quarter 3):** Mean embedding of all tokens in range $[\lfloor L/2 \dots \lfloor 3L/4 \rfloor]$.
 4.  **Slot 3 (Quarter 4):** Mean embedding of all tokens in range $[\lfloor 3L/4 \rfloor \dots L]$.
 
 ---
@@ -117,4 +117,67 @@ The design leverages a **hybrid training loop** where heavy training happens off
        │
        ▼
   weights.json (weights, biases, & embedding matrices serialized to JSON)
+```
+
+---
+
+## 7. C++ Forward-Pass Implementation Details
+
+To ensure runtime efficiency and eliminate compiler overheads, the C++ forward pass implements dense layers as direct vector dot-products.
+
+### Fast Hashing Trick
+Words are tokenized by space and mapped to a $0..1023$ hash space:
+```cpp
+size_t hash_token(const std::string& token) {
+    std::hash<std::string> hasher;
+    return hasher(token) % 1024;
+}
+```
+
+### Region Pooling Execution
+```cpp
+std::vector<float> pool_text(const std::string& text, const std::vector<std::vector<float>>& embed_matrix) {
+    std::vector<std::string> tokens = tokenize(text);
+    std::vector<float> pooled(512, 0.0f);
+    if (tokens.empty()) return pooled;
+
+    size_t L = tokens.size();
+    for (int q = 0; q < 4; ++q) {
+        size_t start = (q * L) / 4;
+        size_t end = ((q + 1) * L) / 4;
+        if (end <= start) end = start + 1;
+        if (end > L) end = L;
+
+        std::vector<float> sum(128, 0.0f);
+        for (size_t i = start; i < end; ++i) {
+            size_t h = hash_token(tokens[i]);
+            const auto& emb = embed_matrix[h];
+            for (int d = 0; d < 128; ++d) sum[d] += emb[d];
+        }
+        float count = static_cast<float>(end - start);
+        for (int d = 0; d < 128; ++d) {
+            pooled[q * 128 + d] = sum[d] / count;
+        }
+    }
+    return pooled;
+}
+```
+
+### Layer Forward-Pass with LeakyReLU
+The dot-product loop utilizes LeakyReLU with a slope of `0.01` to prevent dying neurons:
+```cpp
+std::vector<float> evaluate_layer(const std::vector<float>& input, 
+                                  const std::vector<std::vector<float>>& weights, 
+                                  const std::vector<float>& biases) {
+    std::vector<float> output(weights.size());
+    for (size_t i = 0; i < weights.size(); ++i) {
+        float sum = biases[i];
+        // Compilers vectorize this inner loop automatically when sizes are multiples of 16
+        for (size_t j = 0; j < input.size(); ++j) {
+            sum += input[j] * weights[i][j];
+        }
+        output[i] = sum > 0.0f ? sum : 0.01f * sum;
+    }
+    return output;
+}
 ```
