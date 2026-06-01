@@ -73,7 +73,7 @@ agentcli_replay_exe = executable('agentcli_replay',
 
 # --- Automated binary deployment to testrun/ ---
 # This ensures that E2E tests always use the latest built binary.
-custom_target('copy_to_testrun',
+copy_to_testrun_tgt = custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
   command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
@@ -770,7 +770,7 @@ if uv.found() or python.found()
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root()
   ]
-  e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe]
+  e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt]
 
   test('e2e_context_paging', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_context_paging.py')],

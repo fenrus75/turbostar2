@@ -53,7 +53,17 @@ def test_word_line_editing():
         # Verify "One " is gone
         runner.assert_text_not_on_screen("One ")
         runner.assert_cursor_position(1, 1)
+
+        # 5. Test ^W at the end of a line (Interpretation B)
+        runner.send_keys(KEY_CTRL_Y, count=3) # Clear lines
+        runner.send_keys("Line One\nLine Two")
+        runner.send_ctrlk('u') # Top of file
+        runner.send_keys(KEY_CTRL_E) # End of line
+        runner.assert_cursor_position(1, 9)
         
+        runner.send_keys('\x17') # ^W should delete newline and join lines
+        runner.assert_text_on_screen("Line OneLine Two")
+        runner.assert_cursor_position(1, 9)
         
     finally:
         runner.cleanup()

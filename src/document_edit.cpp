@@ -158,6 +158,19 @@ void document::delete_word_forward()
 		return;
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ >= line_char_len) {
+		if (cursor_y_ < line_count_unlocked() - 1) {
+			int next_line_idx = cursor_y_ + 1;
+			begin_edit_group();
+			record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+			record_action(edit_action::action_type::delete_line, next_line_idx, lines_[next_line_idx]);
+			adjust_selection_for_join(next_line_idx, 0);
+			lines_[cursor_y_]->merge(*lines_[next_line_idx]);
+			mark_line_dirty(lines_[cursor_y_]);
+			lines_.erase(lines_.begin() + next_line_idx);
+			set_modified();
+			end_edit_group();
+		}
+		target_cursor_x_ = cursor_x_;
 		lock.unlock();
 		notify_cursor_changed();
 		return;
