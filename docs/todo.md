@@ -114,6 +114,8 @@
 # done items (move items here on completion)
 
 ## 01-06-2026
+- implemented Ctrl-W (Delete Word Forward) boundary joining behavior: if the cursor is at the end of the line, Ctrl-W now merges the next line into the current one, and added an E2E test verifying this behavior.
+- fixed a Meson build system bug where E2E tests were using stale binaries because they lacked a dependency on the `copy_to_testrun` custom target.
 
 ## 31-05-2026
 - migrated the github:// virtual file system (VFS) provider from cpp-httplib to libcurl easy client interface, eliminating client library crashes and using curl's native environment proxy parsing.
@@ -139,4 +141,3 @@
 - implemented a variadic `std::format`-style overload for `event_logger::log` that internally wraps `std::vformat` and `std::make_format_args`, simplifying logging calls across the codebase (removed nested `std::format(...)` calls).
 - performed a thorough security audit of shell argument validation (`fs_utils::is_shell_safe` and callers) and fixed command injection vulnerabilities across tools by replacing manual single-quoting with robust `fs_utils::escape_shell_arg`.
 - implemented a secure-by-design, variadic `std::format`-style API in `command_runner`, `sync_command_runner`, and `fs_utils::execute_command_sync` that automatically shell-escapes all formatted parameters (strings and file paths) while forwarding non-string arguments (like numbers) as-is. Added corresponding comments documenting them as self-escaping to assist code review tools.
-
