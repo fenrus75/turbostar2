@@ -1,6 +1,7 @@
 #include "ui/window.h"
 #include <algorithm>
 #include <format>
+#include <string>
 #include <ncurses.h>
 #include "build_error_manager.h"
 #include "event_logger.h"
@@ -274,6 +275,7 @@ void window::update_viewport() const
 void window::draw_content() const
 {
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
+	std::string filename;
 	bool has_sel = false;
 	if (doc_ && doc_->has_selection()) {
 		doc_->get_selection_range(sel_start_x, sel_start_y, sel_end_x, sel_end_y);
@@ -285,20 +287,26 @@ void window::draw_content() const
 		match_pos = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
 	}
 
+	if (doc_) {
+		filename = doc_->get_safe_filename();
+	}
 	for (int i = 1; i < height_ - 1; ++i) {
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
+		bool has_build_err = false;
 
 		int line_bg_pair = background_color_pair_;
 		if (doc_) {
-			auto build_err = build_error_manager::get_instance().find_error_at(doc_->get_safe_filename(), doc_line_idx);
+			auto build_err = build_error_manager::get_instance().find_error_at(filename, doc_line_idx);
 			if (build_err && build_err->end_column == 0) {
+				has_build_err = true;
 				line_bg_pair = build_err->is_warning ? 28 : 27;
 			}
 		}
 
 		// Clear line background
 		attrset(COLOR_PAIR(line_bg_pair));
+		/* FIXME - we should do this at the end and then only for what is left on the screen, not for the whole line. The tricky part will be tabs */
 		for (int k = 0; k < width_ - 2; ++k)
 			addch(' ');
 
@@ -423,9 +431,9 @@ void window::draw_content() const
 							pair = 13;
 					} else {
 						// Build error/warning might be active for this line as a sub-line highlight.
-						if (doc_) {
+						if (doc_ && has_build_err) {
 							auto build_err = build_error_manager::get_instance().find_error_at(
-							    doc_->get_safe_filename(), doc_line_idx);
+							    filename, doc_line_idx);
 							if (build_err) {
 								if (build_err->end_column == 0 ||
 								    (static_cast<int>(char_idx) >= build_err->column &&
