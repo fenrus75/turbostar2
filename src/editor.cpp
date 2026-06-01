@@ -1055,6 +1055,9 @@ void editor::render()
 		active_popup_->draw();
 	}
 
+	curs_set(0);
+	refresh();
+
 	// Only show cursor if we are in window focus and NOT in a modal state
 	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !k_block_mode_) {
 		if (active_win) {
@@ -1067,7 +1070,6 @@ void editor::render()
 		}
 	}
 
-	refresh();
 }
 
 bool editor::apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload)
