@@ -6,6 +6,7 @@
 #include "build_error_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
+#include "utf8.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
     : x_(x), y_(y), width_(width), height_(height), restore_x_(x), restore_y_(y), restore_width_(width), restore_height_(height), id_(id),
@@ -318,6 +319,10 @@ void window::draw_content() const
 		if (!current_l)
 			continue;
 
+		std::string line_text;
+		std::vector<syntax_attribute> line_attrs;
+		current_l->get_content(line_text, line_attrs);
+
 		int current_display_col = 0;
 		size_t byte_off = 0;
 		int last_attr_pair = line_bg_pair;
@@ -329,7 +334,7 @@ void window::draw_content() const
 			int start_col = current_display_col;
 
 			// Determine character width and content
-			if (!current_l->next_utf8_character(byte_off, utf8_char))
+			if (!utf8::next_character(line_text, byte_off, utf8_char))
 				break;
 
 			int char_width = 1;
@@ -421,7 +426,10 @@ void window::draw_content() const
 						}
 					}
 
-					syntax_attribute attr = current_l->get_attribute(char_idx);
+					syntax_attribute attr = syntax_attribute::normal;
+					if (char_idx < line_attrs.size()) {
+						attr = line_attrs[char_idx];
+					}
 					int pair = line_bg_pair;
 					if (is_match) {
 						pair = 13; // Bright Yellow on Cyan

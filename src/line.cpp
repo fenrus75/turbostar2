@@ -53,6 +53,13 @@ std::string line::get_text() const
 	return text_;
 }
 
+void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
+{
+	std::shared_lock lock(mutex_);
+	out_text = text_;
+	out_attrs = attributes_;
+}
+
 void line::set_text(const std::string &text)
 {
 	std::unique_lock lock(mutex_);

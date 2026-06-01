@@ -20,6 +20,7 @@ class line
 	line &operator=(line &&other) noexcept;
 
 	std::string get_text() const;
+	void get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const;
 	void set_text(const std::string &text);
 
 	bool next_utf8_character(size_t &byte_offset, std::string& out_char) const;
