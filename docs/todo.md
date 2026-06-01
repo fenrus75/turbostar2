@@ -116,6 +116,7 @@
 ## 01-06-2026
 - implemented Ctrl-W (Delete Word Forward) boundary joining behavior: if the cursor is at the end of the line, Ctrl-W now merges the next line into the current one, and added an E2E test verifying this behavior.
 - fixed a Meson build system bug where E2E tests were using stale binaries because they lacked a dependency on the `copy_to_testrun` custom target.
+- optimized document window drawing performance by implementing atomic retrieval of line text and attributes, reducing screen-rendering lock/unlock cycles by over 150x.
 
 ## 31-05-2026
 - migrated the github:// virtual file system (VFS) provider from cpp-httplib to libcurl easy client interface, eliminating client library crashes and using curl's native environment proxy parsing.
