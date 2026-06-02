@@ -14,7 +14,7 @@ void test_vim_emulation()
 
 	// Test 1: Verify initial state
 	assert(ed.is_running_ == true);
-	assert(ed.is_vim_prompt_ == false);
+	assert(ed.active_mode_ == editor::input_mode::normal);
 	assert(ed.vim_prefix_mode_ == false);
 	std::cout << "Test 1 passed: Initial state verified\n";
 
@@ -50,7 +50,7 @@ void test_vim_emulation()
 	colon_ev.utf8_char = ":";
 	ed.dispatch_event_key(colon_ev);
 	assert(ed.vim_prefix_mode_ == false);
-	assert(ed.is_vim_prompt_ == true);
+	assert(ed.active_mode_ == editor::input_mode::vim);
 	std::cout << "Test 6 passed: ':' keypress enters vim prompt mode\n";
 
 	// Simulate character typing in vim prompt
@@ -68,12 +68,12 @@ void test_vim_emulation()
 	bs_ev.key_code = 127;
 	ed.dispatch_event_key(bs_ev);
 	assert(ed.vim_input_buffer_ == "");
-	assert(ed.is_vim_prompt_ == true);
+	assert(ed.active_mode_ == editor::input_mode::vim);
 	std::cout << "Test 8 passed: Backspace clears characters\n";
 
 	// Backspace on empty buffer should exit prompt
 	ed.dispatch_event_key(bs_ev);
-	assert(ed.is_vim_prompt_ == false);
+	assert(ed.active_mode_ == editor::input_mode::normal);
 	std::cout << "Test 9 passed: Backspace on empty buffer cancels prompt\n";
 
 	std::cout << "All vim_emulation unit tests passed!\n";

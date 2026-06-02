@@ -846,12 +846,12 @@ bool editor::handle_k_block_key(int key)
 		return true;
 	} else if (c == 'f') {
 		logger.log("K-block: Find (Status Bar Prompt)");
-		is_searching_prompt_ = true;
+		active_mode_ = input_mode::searching;
 		search_input_buffer_ = "";
 		return true;
 	} else if (c == 'l') {
 		logger.log("K-block: Go to Line (Status Bar Prompt)");
-		is_going_to_line_prompt_ = true;
+		active_mode_ = input_mode::going_to_line;
 		line_input_buffer_ = "";
 		return true;
 	} else if (c == 'u') {
@@ -951,28 +951,40 @@ void editor::render()
 	}
 
 	std::string status_help = debug_out;
-	if (k_block_mode_) {
+	switch (active_mode_) {
+	case input_mode::k_block:
 		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top "
 			      "V:End Q:Quit X:SaveExit F:Find";
-	} else if (q_block_mode_) {
+		break;
+	case input_mode::q_block:
 		status_help = "Q-Block: F:Find A:Replace H:History";
-	} else if (p_block_mode_) {
+		break;
+	case input_mode::p_block:
 		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (S)pell (U)ser: _";
-	} else if (is_inline_agent_prompt_) {
+		break;
+	case input_mode::inline_agent:
 		status_help = "Agent Task: " + inline_agent_input_buffer_ + "_";
-	} else if (is_searching_prompt_) {
+		break;
+	case input_mode::searching: {
 		std::string suggestion = get_search_autocomplete();
 		if (!suggestion.empty() && suggestion != search_input_buffer_) {
 			status_help = "Search for: " + search_input_buffer_ + "[" + suggestion.substr(search_input_buffer_.length()) + "]";
 		} else {
 			status_help = "Search for: " + search_input_buffer_ + "_";
 		}
-	} else if (is_search_options_prompt_) {
+		break;
+	}
+	case input_mode::search_options:
 		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
-	} else if (is_going_to_line_prompt_) {
+		break;
+	case input_mode::going_to_line:
 		status_help = "Go to line: " + line_input_buffer_ + "_";
-	} else if (is_vim_prompt_) {
+		break;
+	case input_mode::vim:
 		status_help = ":" + vim_input_buffer_ + "_";
+		break;
+	case input_mode::normal:
+		break;
 	}
 
 	std::string diag_text = "";
@@ -1061,7 +1073,7 @@ void editor::render()
 	refresh();
 
 	// Only show cursor if we are in window focus and NOT in a modal state
-	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !k_block_mode_) {
+	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && active_mode_ == input_mode::normal) {
 		if (active_win) {
 			active_win->set_cursor_position();
 			if (active_win->is_cursor_visible()) {

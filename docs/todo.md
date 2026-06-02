@@ -1,10 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-- refactor: we have q_block_mode_, p_block_mode_, is_searching_prompt_ etc .. should we turn these bools into an enum 
-  (with "normal" as the base case) so that they are both easier to manage and automatically exclusive
-
-
 - visual: our button colors are inverted between focus/non-focus compared to Turbo Pascal
 
 - refactor: src/ui/dialog.cpp:35 looks weird
@@ -140,6 +136,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- refactored editor prompt and block mode boolean flags (`k_block_mode_`, `q_block_mode_`, `p_block_mode_`, `is_searching_prompt_`, etc.) into a unified `editor::input_mode` enum class.
 - updated checkerboard background pattern on empty/unfilled areas to a gray-on-black color scheme (pair 9).
 - refactored `editor::set_focus` by extracting the `focus_target` enum-to-string conversion logic into its own global helper function `focus_target_to_string`.
 - modified `fs_replace_lines` output format to label the modified range output as `"Code after edit for lines X - Y:"` instead of `"[Modified Section lines X - Y]:"`, making it explicitly clear that this represents the post-edit content.

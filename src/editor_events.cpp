@@ -115,7 +115,7 @@ bool editor::handle_p_block_key(int key)
 		return true;
 	} else if (c == 'u') {
 		logger.log("P-block: Custom Prompt");
-		is_inline_agent_prompt_ = true;
+		active_mode_ = input_mode::inline_agent;
 		inline_agent_input_buffer_ = "";
 		return true;
 	}

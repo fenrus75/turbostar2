@@ -117,11 +117,19 @@ class editor : public agentlib::document_provider
 	std::vector<std::unique_ptr<window>> windows_;
 
 	focus_target current_focus_{focus_target::window};
-	bool k_block_mode_{false};
-	bool q_block_mode_{false};
-	bool p_block_mode_{false};
+	enum class input_mode {
+		normal,
+		k_block,
+		q_block,
+		p_block,
+		searching,
+		search_options,
+		going_to_line,
+		inline_agent,
+		vim
+	};
+	input_mode active_mode_{input_mode::normal};
 
-	bool is_vim_prompt_{false};
 	std::string vim_input_buffer_;
 	bool vim_prefix_mode_{false};
 
@@ -149,16 +157,12 @@ class editor : public agentlib::document_provider
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
 
 	search_params current_search_;
-	bool is_searching_prompt_{false};
 	std::string search_input_buffer_;
 
-	bool is_search_options_prompt_{false};
 	std::string search_options_buffer_;
 
-	bool is_going_to_line_prompt_{false};
 	std::string line_input_buffer_;
 
-	bool is_inline_agent_prompt_{false};
 	std::string inline_agent_input_buffer_;
 
 	struct pending_task {

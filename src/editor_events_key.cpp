@@ -384,9 +384,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 
 		// 1.5 Vim command prompt
-		if (is_vim_prompt_) {
+		if (active_mode_ == input_mode::vim) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
-				is_vim_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				vim_input_buffer_.clear();
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
@@ -394,7 +394,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				return;
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
-				is_vim_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				execute_vim_command(vim_input_buffer_);
 				vim_input_buffer_.clear();
 				editor_event redraw_ev;
@@ -406,7 +406,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				if (!vim_input_buffer_.empty()) {
 					vim_input_buffer_.pop_back();
 				} else {
-					is_vim_prompt_ = false;
+					active_mode_ = input_mode::normal;
 				}
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
@@ -424,9 +424,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 
 		// 2. Status Bar Search Prompt
-		if (is_searching_prompt_) {
+		if (active_mode_ == input_mode::searching) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
-				is_searching_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
@@ -444,8 +444,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				current_search_.query = search_input_buffer_;
 
-				is_searching_prompt_ = false;
-				is_search_options_prompt_ = true;
+				active_mode_ = input_mode::search_options;
 				search_options_buffer_ = "";
 				return;
 			}
@@ -462,9 +461,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 
 		// 2.5 Status Bar Search Options Prompt
-		if (is_search_options_prompt_) {
+		if (active_mode_ == input_mode::search_options) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
-				is_search_options_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
@@ -493,7 +492,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				history_manager::get_instance().add_search(current_search_.query);
 
 				if (is_replace) {
-					is_search_options_prompt_ = false;
+					active_mode_ = input_mode::normal;
 					active_dialog_ = create_search_dialog("Replace", current_search_, true);
 					active_dialog_mode_ = dialog_mode::replace;
 					set_focus(focus_target::dialog, "menu_replace");
@@ -507,7 +506,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
 				}
-				is_search_options_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				return;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
@@ -529,9 +528,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 
 		// 3. Status Bar Go to Line Prompt
-		if (is_going_to_line_prompt_) {
+		if (active_mode_ == input_mode::going_to_line) {
 			if (ev.key_code == 27) { // ESC
-				is_going_to_line_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				return;
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
@@ -547,7 +546,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				} catch (...) {
 					// Ignore invalid input
 				}
-				is_going_to_line_prompt_ = false;
+				active_mode_ = input_mode::normal;
 				return;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
@@ -562,7 +561,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			return; // Consume all keys in prompt mode
 		}
 
-		if (is_inline_agent_prompt_) {
+		if (active_mode_ == input_mode::inline_agent) {
 			handle_inline_agent_prompt_key(ev.key_code);
 			return;
 		}
@@ -586,8 +585,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		if (ev.key_code == 27) { // ESC key
 			// Make sure no other prompt/dialog is active
-			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && !is_searching_prompt_ &&
-			    !is_search_options_prompt_ && !is_going_to_line_prompt_ && !is_inline_agent_prompt_ && !is_vim_prompt_) {
+			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && active_mode_ == input_mode::normal) {
 				logger.log("Entering Vim prefix mode via ESC.");
 				vim_prefix_mode_ = true;
 				return;
@@ -598,7 +596,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			vim_prefix_mode_ = false;
 			if (ev.key_code == ':') {
 				logger.log("Entering Vim Command mode.");
-				is_vim_prompt_ = true;
+				active_mode_ = input_mode::vim;
 				vim_input_buffer_ = "";
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
@@ -607,33 +605,39 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 		}
 
-		if (k_block_mode_) {
+		if (active_mode_ == input_mode::k_block) {
 			if (handle_k_block_key(ev.key_code)) {
-				k_block_mode_ = false;
+				if (active_mode_ == input_mode::k_block) {
+					active_mode_ = input_mode::normal;
+				}
 				return;
 			}
-			k_block_mode_ = false;
+			active_mode_ = input_mode::normal;
 		}
 
-		if (q_block_mode_) {
+		if (active_mode_ == input_mode::q_block) {
 			if (handle_q_block_key(ev.key_code)) {
-				q_block_mode_ = false;
+				if (active_mode_ == input_mode::q_block) {
+					active_mode_ = input_mode::normal;
+				}
 				return;
 			}
-			q_block_mode_ = false;
+			active_mode_ = input_mode::normal;
 		}
 
-		if (p_block_mode_) {
+		if (active_mode_ == input_mode::p_block) {
 			if (handle_p_block_key(ev.key_code)) {
-				p_block_mode_ = false;
+				if (active_mode_ == input_mode::p_block) {
+					active_mode_ = input_mode::normal;
+				}
 				return;
 			}
-			p_block_mode_ = false;
+			active_mode_ = input_mode::normal;
 		}
 
 		if (ev.key_code == 11) { // Ctrl-K
 			logger.log("Entering K-block mode.");
-			k_block_mode_ = true;
+			active_mode_ = input_mode::k_block;
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
@@ -642,7 +646,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		if (ev.key_code == 17) { // Ctrl-Q
 			logger.log("Entering Q-block mode.");
-			q_block_mode_ = true;
+			active_mode_ = input_mode::q_block;
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
@@ -651,7 +655,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		if (ev.key_code == 16) { // Ctrl-P
 			logger.log("Entering P-block mode.");
-			p_block_mode_ = true;
+			active_mode_ = input_mode::p_block;
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
@@ -800,14 +804,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 void editor::handle_inline_agent_prompt_key(int key)
 {
 	if (key == 27) { // ESC
-		is_inline_agent_prompt_ = false;
+		active_mode_ = input_mode::normal;
 		return;
 	}
 	if (key == 13 || key == 10 || key == KEY_ENTER) {
 		if (!inline_agent_input_buffer_.empty()) {
 			launch_inline_agent(inline_agent_input_buffer_);
 		}
-		is_inline_agent_prompt_ = false;
+		active_mode_ = input_mode::normal;
 		return;
 	}
 	if (key == KEY_BACKSPACE || key == 127 || key == 8) {
