@@ -22,19 +22,16 @@ void ui_button::draw(int abs_x, int abs_y) const
 	mvaddstr(abs_y + 1, abs_x + 1, shadow_str.c_str());
 
 	if (has_focus_)
-		attrset(COLOR_PAIR(10));
+		attrset(COLOR_PAIR(40));
 	else
-		attrset(COLOR_PAIR(8));
+		attrset(COLOR_PAIR(10));
 
 	mvaddstr(abs_y, abs_x, text_.c_str());
 
 	if (hotkey_ != '\0') {
 		size_t hk_pos = text_.find(hotkey_);
 		if (hk_pos != std::string::npos) {
-			if (has_focus_)
-				attron(COLOR_PAIR(12));
-			else
-				attron(COLOR_PAIR(11));
+			attron(COLOR_PAIR(40));
 			mvaddch(abs_y, abs_x + hk_pos, text_[hk_pos]);
 		}
 	}

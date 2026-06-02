@@ -52,4 +52,5 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Focused Widget** | Black | Green | 19 | Highlight for focused radio buttons/checkboxes. |
 | **Dialog Shadow** | Black | Black | 6 | Offset right and down for depth. |
 | **Primary Button** | Black | Green | 10 | The signature Borland green button. |
+| **Button Highlight** | Bright Yellow | Green | 40 | Focused button text and unfocused hotkeys. |
 | **Button Shadow** | Black | Black | 6 | ▀ half-block shadow for depth. |

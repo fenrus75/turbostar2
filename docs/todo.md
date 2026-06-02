@@ -1,8 +1,4 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-
-
-- visual: our button colors are inverted between focus/non-focus compared to Turbo Pascal
-
 - refactor: src/ui/dialog.cpp:35 looks weird
 
 - refactor: src/ui/dialog.cpp:76  we should have a "press_on_ESC()" property on children rather than doing string compares
@@ -136,6 +132,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- fixed visual bug where button colors were inverted; updated `ui_button.cpp` and `main.cpp` color pairs to match the authentic Turbo Pascal aesthetic (focused text is bright yellow on green, unfocused is black on green with bright yellow hotkey).
 - refactored editor prompt and block mode boolean flags (`k_block_mode_`, `q_block_mode_`, `p_block_mode_`, `is_searching_prompt_`, etc.) into a unified `editor::input_mode` enum class.
 - updated checkerboard background pattern on empty/unfilled areas to a gray-on-black color scheme (pair 9).
 - refactored `editor::set_focus` by extracting the `focus_target` enum-to-string conversion logic into its own global helper function `focus_target_to_string`.
