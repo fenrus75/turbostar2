@@ -866,6 +866,15 @@ bool editor::handle_k_block_key(int key)
 			return false;
 		active_doc->move_to_bottom();
 		return true;
+	} else if (c == 'z') {
+		logger.log("K-block: Zap Trailing Whitespace");
+		if (active_doc) {
+			active_doc->trim_trailing_whitespace();
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+		}
+		return true;
 	}
 
 	return false;

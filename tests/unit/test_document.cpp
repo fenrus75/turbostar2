@@ -158,6 +158,42 @@ int main()
 		assert(doc.get_line(0)->get_text() == "Original");
 	}
 
+	// Test 5: Trim Trailing Whitespace
+	{
+		document doc(queue);
+		doc.append_line("Line 1  ");
+		doc.append_line("Line 2\t ");
+		doc.append_line("Line 3");
+		doc.append_line("   "); // Entirely spaces
+		
+		doc.break_undo_coalescing();
+		
+		// Trim the whole document
+		doc.trim_trailing_whitespace();
+		
+		assert(doc.get_line(0)->get_text() == "Line 1");
+		assert(doc.get_line(1)->get_text() == "Line 2");
+		assert(doc.get_line(2)->get_text() == "Line 3");
+		assert(doc.get_line(3)->get_text() == "");
+		
+		// Test undo
+		doc.undo();
+		assert(doc.get_line(0)->get_text() == "Line 1  ");
+		assert(doc.get_line(1)->get_text() == "Line 2\t ");
+		assert(doc.get_line(3)->get_text() == "   ");
+
+		// Test selection scope
+		doc.set_selection(1, 0, 2, 6); // Selection covers lines 1 and 2
+		doc.trim_trailing_whitespace();
+		
+		// Line 0 (outside selection) should not be trimmed.
+		// Line 1 (inside selection) should be trimmed.
+		// Line 3 (outside selection) should not be trimmed.
+		assert(doc.get_line(0)->get_text() == "Line 1  ");
+		assert(doc.get_line(1)->get_text() == "Line 2");
+		assert(doc.get_line(3)->get_text() == "   ");
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

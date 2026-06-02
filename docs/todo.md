@@ -5,10 +5,6 @@
 
 - feature: we have turbocatch.so -- but can we make turbostar print a nice crashdump on crash if it's not being run with libturbocatch?
 
-- feature: a ^K hotkey for "remove all trailing whitespace" - default scope: document, but if there's a selection, scope to selection
-	- great for usability
-	- maybe in smart mode -- hide the hotkey from status bar if there is no whitespace trailing
-
 - feature OSC 52 ansi sequence support for better clipboard interaction
 	- send our block to the clipboard for ^K K
 	- let ^V or similar do a paste (also OSC52)
@@ -130,6 +126,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- implemented a `^K Z` hotkey for "Zap Trailing Whitespace" to trim trailing spaces and tabs from lines (scoped to active selection, or fallback to entire document). Added corresponding unit test coverage in `test_document.cpp` and updated `keybindings.md`.
 - refactored `dialog::handle_key` to trigger child controls on ESC via a `press_on_esc()` virtual method on `ui_element` (implemented on `ui_button` and passed via constructor), removing hardcoded string name checks.
 - fixed visual bug where button colors were inverted; updated `ui_button.cpp` and `main.cpp` color pairs to match the authentic Turbo Pascal aesthetic (focused text is bright yellow on green, unfocused is black on green with bright yellow hotkey).
 - refactored editor prompt and block mode boolean flags (`k_block_mode_`, `q_block_mode_`, `p_block_mode_`, `is_searching_prompt_`, etc.) into a unified `editor::input_mode` enum class.

@@ -136,6 +136,7 @@ class document
 
 	void format_range(int start_y, int end_y);
 	void format_paragraph();
+	void trim_trailing_whitespace();
 
 	std::optional<std::pair<int, int>> find_matching_bracket(int y, int x) const;
 	void select_enclosing_scope();

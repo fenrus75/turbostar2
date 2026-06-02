@@ -111,6 +111,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K ]` | Expand Selection | Uses LSP to expand the selection to the next logical enclosing block. |
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
 | `^K H` | Hide/Clear Selection | Removes both start and end markers. |
+| `^K Z` | Zap Trailing Whitespace | Trims trailing spaces and tabs from lines. Scoped to selection if active. |
 
 ## Quick / Search Commands (Ctrl+Q Prefix)
 

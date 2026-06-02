@@ -218,3 +218,64 @@ void document::format_paragraph()
 
 	format_range(sy, ey);
 }
+
+void document::trim_trailing_whitespace()
+{
+	if (is_read_only())
+		return;
+
+	std::unique_lock lock(mutex_);
+	if (lines_.empty())
+		return;
+
+	int start_y = 0;
+	int end_y = line_count_unlocked() - 1;
+
+	// If there's an active selection, scope to selection
+	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
+		int sx, sy, ex, ey;
+		get_selection_range_unlocked(sx, sy, ex, ey);
+		start_y = sy;
+		end_y = ey;
+	}
+
+	begin_edit_group("Trim trailing whitespace");
+
+	bool any_modified = false;
+	for (int y = start_y; y <= end_y; ++y) {
+		std::string orig_text = lines_[y]->get_text();
+		
+		// Find trailing whitespace (spaces and tabs)
+		size_t end_idx = orig_text.find_last_not_of(" \t");
+		std::string trimmed;
+		if (end_idx == std::string::npos) {
+			// Line is entirely whitespace
+			trimmed = "";
+		} else {
+			trimmed = orig_text.substr(0, end_idx + 1);
+		}
+
+		if (trimmed.length() < orig_text.length()) {
+			record_action(edit_action::action_type::replace_line, y, lines_[y]);
+			lines_[y]->set_text(trimmed);
+			mark_line_dirty(lines_[y]);
+			any_modified = true;
+		}
+	}
+
+	end_edit_group();
+
+	if (any_modified) {
+		set_modified();
+		// If cursor_x_ is now past the end of the current line (if it was trimmed), adjust cursor_x_
+		int max_x = lines_[cursor_y_]->length_in_chars();
+		if (cursor_x_ > max_x) {
+			cursor_x_ = max_x;
+			target_cursor_x_ = cursor_x_;
+		}
+	}
+
+	lock.unlock();
+	notify_cursor_changed();
+}
+
