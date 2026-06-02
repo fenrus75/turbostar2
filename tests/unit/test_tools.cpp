@@ -41,6 +41,11 @@ int main()
 	assert(run_result.find("OK") != std::string::npos || run_result.find("PASS") != std::string::npos ||
 	       run_result.find("exit status 0") != std::string::npos);
 
+	std::cout << "\nTesting fs_run_tests with space-containing test name..." << std::endl;
+	std::string space_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"test with space\"]}", ctx);
+	std::cout << "Space run result:\n" << space_run_result << std::endl;
+	assert(space_run_result.find("'test with space'") != std::string::npos || space_run_result.find("\"test with space\"") != std::string::npos);
+
 	std::cout << "\nTesting agent_set_timer..." << std::endl;
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);

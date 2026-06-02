@@ -50,7 +50,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	if (build_system == "meson") {
 		cmd = "MESON_TESTTHREADS=2 meson test -C " + build_path.string();
 		for (const auto &t : test_names_) {
-			cmd += " " + t;
+			cmd += " " + fs_utils::escape_shell_arg(t);
 		}
 	} else if (build_system == "cmake") {
 		cmd = "ctest --test-dir " + build_path.string();
