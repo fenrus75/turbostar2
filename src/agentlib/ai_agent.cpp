@@ -1911,8 +1911,14 @@ void ai_agent::summary_worker_loop()
                 llm_chat_response res = local_client.send_chat(dummy_convo);
                 if (is_closed_) break;
                 if (!res.msg.content.empty()) {
-                    update_episode_hint(task.episode_id, res.msg.content);
-                    event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
+                    bool is_error = res.msg.content.starts_with("Error connecting to LLM server") ||
+                                     res.msg.content.starts_with("Error parsing response JSON");
+                    if (!is_error) {
+                        update_episode_hint(task.episode_id, res.msg.content);
+                        event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
+                    } else {
+                        event_logger::get_instance().log("Skipped saving background summary due to LLM error: {}", res.msg.content);
+                    }
                 }
             }
         } catch (const std::exception& e) {
