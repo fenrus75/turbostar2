@@ -13,7 +13,6 @@
 		- part 2: getting oauth set up
 		
 
-- security: set "uv" working directory to not share; avoid risk of contamination
 
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
@@ -109,6 +108,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- isolated `uv run` environments in the Python runner tool by setting `UV_NO_PROJECT=1` and `UV_PROJECT_ENVIRONMENT=.turbostar/uv_env`, preventing any contamination of the user's project configurations or local virtual environments.
 - fixed a bug where LLM connection or JSON parsing error messages were stored as episode reactivation hints. The background summary worker now filters out such client errors to keep reactivation hints empty/clean when the LLM server is unavailable.
 - implemented "file has changed on disk" detection: checks modification time (mtime) of the active file once every 10 seconds, displays a reload prompt dialog offering to reload or ignore the change, and handles state synchronization to avoid duplicate warnings when changes are ignored. Included comprehensive unit and E2E test coverage.
 - implemented native mouse click-and-drag text selection and clipboard copying via OSC 52 escape sequences on mouse release, including visual XOR toggling against persistent block selection, base64 utility consolidation, display-column-to-character-position line offset translation, and comprehensive E2E/unit tests.
