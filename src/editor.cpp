@@ -654,23 +654,24 @@ void editor::run()
 	history_manager::get_instance().save();
 }
 
-void editor::set_focus(focus_target target, const std::string &source)
+std::string focus_target_to_string(focus_target target)
 {
-	std::string target_name;
 	switch (target) {
 		case focus_target::menu_bar:
-			target_name = "menu_bar";
-			break;
+			return "menu_bar";
 		case focus_target::window:
-			target_name = "window";
-			break;
+			return "window";
 		case focus_target::dialog:
-			target_name = "dialog";
-			break;
+			return "dialog";
 		case focus_target::popup:
-			target_name = "popup";
-			break;
+			return "popup";
 	}
+	return "unknown";
+}
+
+void editor::set_focus(focus_target target, const std::string &source)
+{
+	std::string target_name = focus_target_to_string(target);
 
 	event_logger::get_instance().log("Focus change: {} -> {}", source, target_name);
 	current_focus_ = target;

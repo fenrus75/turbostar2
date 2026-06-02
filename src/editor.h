@@ -23,6 +23,8 @@ class ai_agent;
  */
 enum class focus_target { menu_bar, window, dialog, popup };
 
+std::string focus_target_to_string(focus_target target);
+
 /**
  * @brief Central controller for the Turbostar editor.
  *
