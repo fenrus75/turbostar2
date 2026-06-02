@@ -1,8 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-
-
 - visual: we have multiple sources of messages for the status bar - they compete for space - so we need to 
 	- make a list of these
 	- set relative priorities of these

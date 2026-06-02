@@ -181,15 +181,15 @@ class window
 
 	bool needs_render_{false};
 
+      protected:
+	std::shared_ptr<document> doc_;
+
 	bool is_mouse_selecting_{false};
 	int mouse_sel_start_char_{-1};
 	int mouse_sel_start_line_{-1};
 	int mouse_sel_end_char_{-1};
 	int mouse_sel_end_line_{-1};
-	std::string get_mouse_selected_text() const;
-
-      protected:
-	std::shared_ptr<document> doc_;
+	virtual std::string get_mouse_selected_text() const;
 
       private:
 	event_queue window_queue_;

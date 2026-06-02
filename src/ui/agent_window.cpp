@@ -8,11 +8,13 @@
 #include <sstream>
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
+#include "ansi.h"
 #include "config_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 using namespace agentlib;
 
@@ -26,19 +28,24 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "You are an expert AI programming assistant.\n"
 	    "Your goal is to help the user navigate, understand, and safely modify this codebase.\n"
 	    "You have access to a suite of highly optimized, secure, and syntax-aware tools.\n"
-	    "STRONGLY PREFER using built-in tools (e.g., fs_read_lines, fs_grep_files, fs_replace_lines, sqlite_perform, git_status, git_diff_unstaged, git_diff_staged, fs_list_tests) over the generic "
-	    "`run_shell_command` tool (e.g., use `fs_grep_files` instead of running `grep` via the shell, use `git_diff_unstaged` / `git_diff_staged` instead of running `git diff` via the shell, and use `fs_list_tests` instead of `meson test --list` or `ctest --show-only` via the shell).\n"
+	    "STRONGLY PREFER using built-in tools (e.g., fs_read_lines, fs_grep_files, fs_replace_lines, sqlite_perform, git_status, "
+	    "git_diff_unstaged, git_diff_staged, fs_list_tests) over the generic "
+	    "`run_shell_command` tool (e.g., use `fs_grep_files` instead of running `grep` via the shell, use `git_diff_unstaged` / "
+	    "`git_diff_staged` instead of running `git diff` via the shell, and use `fs_list_tests` instead of `meson test --list` or "
+	    "`ctest --show-only` via the shell).\n"
 	    "Built-in tools are faster, automatically format their output for you, and do not require the user to manually approve a "
 	    "security dialog for every action.\n"
 	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.\n\n"
 	    "*** CRITICAL DIRECTIVE: VIRTUAL FILESYSTEM (VFS) ***\n"
 	    "You have access to a Virtual Filesystem (VFS) to query resources through scheme-prefixed URIs.\n"
-	    "IMPORTANT: VFS URIs are for tool use only (e.g., inside `fs_read_lines`, `fs_list_dir`) and are NOT accessible by generic shell commands or Python scripts.\n\n"
+	    "IMPORTANT: VFS URIs are for tool use only (e.g., inside `fs_read_lines`, `fs_list_dir`) and are NOT accessible by generic "
+	    "shell commands or Python scripts.\n\n"
 	    "| Prefix | Description |\n"
 	    "| :--- | :--- |\n"
 	    "| `skills://` | Access custom tools, metadata, and specialized rule catalogs configured for the agent. |\n"
 	    "| `agent://` | Read internal session data, completion reports, and local agent workspace files. |\n"
-	    "| `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., github://username/project/). |\n\n"
+	    "| `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., "
+	    "github://username/project/). |\n\n"
 	    "*** CRITICAL DIRECTIVE: PLAN MODE ***\n"
 	    "For complex, multi-file tasks, you MUST call `enter_plan_mode` before making edits.\n"
 	    "While in this mode, you are restricted to read-only tools. Thoroughly explore the codebase and formulate a step-by-step "
@@ -544,6 +551,12 @@ bool agent_window::process_events()
 
 	while (auto ev = get_queue().pop()) {
 		if (ev->type == event_type::key_press) {
+			is_mouse_selecting_ = false;
+			mouse_sel_start_char_ = -1;
+			mouse_sel_start_line_ = -1;
+			mouse_sel_end_char_ = -1;
+			mouse_sel_end_line_ = -1;
+
 			int key = ev->key_code;
 
 			if ((agent_->get_status() != agent_status::idle)) {
@@ -593,6 +606,58 @@ bool agent_window::process_events()
 			if (scroll_offset_ < 0)
 				scroll_offset_ = 0;
 			needs_render = true;
+		} else if (ev->type == event_type::mouse_click) {
+			int available_height = get_history_viewport_height();
+			int click_row = ev->mouse_y - y_ - 1;
+			if (click_row >= 0 && click_row < available_height && click_row < static_cast<int>(visible_lines_.size())) {
+				int prefix_w = visible_lines_[click_row].prefix.empty()
+						   ? 0
+						   : markdown_utils::utf8_length(visible_lines_[click_row].prefix);
+				int col = ev->mouse_x - (x_ + 1 + prefix_w);
+				int click_char =
+				    std::clamp(col, 0, static_cast<int>(markdown_utils::utf8_length(visible_lines_[click_row].text)));
+
+				is_mouse_selecting_ = true;
+				mouse_sel_start_char_ = click_char;
+				mouse_sel_start_line_ = click_row;
+				mouse_sel_end_char_ = click_char;
+				mouse_sel_end_line_ = click_row;
+				needs_render = true;
+			} else {
+				is_mouse_selecting_ = false;
+				mouse_sel_start_char_ = -1;
+				mouse_sel_start_line_ = -1;
+				mouse_sel_end_char_ = -1;
+				mouse_sel_end_line_ = -1;
+				needs_render = true;
+			}
+		} else if (ev->type == event_type::mouse_drag) {
+			if (is_mouse_selecting_) {
+				int available_height = get_history_viewport_height();
+				int click_row = ev->mouse_y - y_ - 1;
+				click_row = std::clamp(click_row, 0, available_height - 1);
+				if (click_row >= 0 && click_row < static_cast<int>(visible_lines_.size())) {
+					int prefix_w = visible_lines_[click_row].prefix.empty()
+							   ? 0
+							   : markdown_utils::utf8_length(visible_lines_[click_row].prefix);
+					int col = ev->mouse_x - (x_ + 1 + prefix_w);
+					int click_char = std::clamp(
+					    col, 0, static_cast<int>(markdown_utils::utf8_length(visible_lines_[click_row].text)));
+
+					mouse_sel_end_char_ = click_char;
+					mouse_sel_end_line_ = click_row;
+					needs_render = true;
+				}
+			}
+		} else if (ev->type == event_type::mouse_release) {
+			if (is_mouse_selecting_) {
+				std::string selected_text = get_mouse_selected_text();
+				if (!selected_text.empty()) {
+					ansi::copy_to_clipboard(selected_text);
+				}
+				is_mouse_selecting_ = false;
+				needs_render = true;
+			}
 		}
 	}
 
@@ -612,10 +677,9 @@ void agent_window::on_agent_update()
 void agent_window::draw_content() const
 {
 	// 1. Draw the chat history in the upper portion
-	int input_box_height = 3;
-	int separator_height = 1;
-	int reserved_bottom = input_box_height + separator_height;
-	int available_height = height_ - 2 - reserved_bottom;
+	int available_height = get_history_viewport_height();
+	visible_lines_.clear();
+	visible_lines_.resize(available_height);
 	int current_y = y_ + 1 + available_height - 1; // start from bottom of available area
 	int start_x = x_ + 1;
 	int max_width = width_ - 2;
@@ -808,6 +872,11 @@ void agent_window::draw_content() const
 			if (rendered_lines >= available_height)
 				break;
 
+			int viewport_idx = current_y - (y_ + 1);
+			if (viewport_idx >= 0 && viewport_idx < available_height) {
+				visible_lines_[viewport_idx] = *line_it;
+			}
+
 			int current_x = start_x;
 			if (!line_it->prefix.empty()) {
 				attron(COLOR_PAIR(line_it->prefix_color_pair));
@@ -816,10 +885,48 @@ void agent_window::draw_content() const
 				current_x += markdown_utils::utf8_length(line_it->prefix);
 			}
 
-			attron(COLOR_PAIR(line_it->color_pair));
-			mvprintw(current_y, current_x, "%s", line_it->text.c_str());
-			attroff(COLOR_PAIR(line_it->color_pair));
-			current_x += markdown_utils::utf8_length(line_it->text);
+			// Draw text with potential selection highlight
+			bool has_mouse_sel = (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1);
+			int mouse_start_l = mouse_sel_start_line_;
+			int mouse_start_c = mouse_sel_start_char_;
+			int mouse_end_l = mouse_sel_end_line_;
+			int mouse_end_c = mouse_sel_end_char_;
+			if (has_mouse_sel) {
+				if (mouse_start_l > mouse_end_l || (mouse_start_l == mouse_end_l && mouse_start_c > mouse_end_c)) {
+					std::swap(mouse_start_l, mouse_end_l);
+					std::swap(mouse_start_c, mouse_end_c);
+				}
+			}
+
+			int text_len = markdown_utils::utf8_length(line_it->text);
+			size_t byte_off = 0;
+			std::string utf8_char;
+			utf8_char.reserve(4);
+
+			for (int char_idx = 0; char_idx < text_len; ++char_idx) {
+				if (!utf8::next_character(line_it->text, byte_off, utf8_char))
+					break;
+
+				bool in_selection = false;
+				if (has_mouse_sel) {
+					int line_viewport_y = current_y - (y_ + 1);
+					if (line_viewport_y > mouse_start_l && line_viewport_y < mouse_end_l) {
+						in_selection = true;
+					} else if (line_viewport_y == mouse_start_l && line_viewport_y == mouse_end_l) {
+						in_selection = (char_idx >= mouse_start_c && char_idx < mouse_end_c);
+					} else if (line_viewport_y == mouse_start_l) {
+						in_selection = (char_idx >= mouse_start_c);
+					} else if (line_viewport_y == mouse_end_l) {
+						in_selection = (char_idx < mouse_end_c);
+					}
+				}
+
+				int cp = in_selection ? 8 : line_it->color_pair;
+				attron(COLOR_PAIR(cp));
+				mvprintw(current_y, current_x, "%s", utf8_char.c_str());
+				attroff(COLOR_PAIR(cp));
+				current_x += 1;
+			}
 
 			if (!line_it->suffix.empty()) {
 				attron(COLOR_PAIR(line_it->suffix_color_pair));
@@ -942,6 +1049,57 @@ void agent_window::draw_content() const
 		input_box_->set_focus(is_active());
 		input_box_->draw(0, 0);
 	}
+}
+
+int agent_window::get_history_viewport_height() const
+{
+	int input_box_height = 3;
+	int separator_height = 1;
+	int reserved_bottom = input_box_height + separator_height;
+	return height_ - 2 - reserved_bottom;
+}
+
+std::string agent_window::get_mouse_selected_text() const
+{
+	if (mouse_sel_start_line_ == -1 || mouse_sel_end_line_ == -1) {
+		return "";
+	}
+
+	int start_l = mouse_sel_start_line_;
+	int start_c = mouse_sel_start_char_;
+	int end_l = mouse_sel_end_line_;
+	int end_c = mouse_sel_end_char_;
+
+	// Swap if start is after end
+	if (start_l > end_l || (start_l == end_l && start_c > end_c)) {
+		std::swap(start_l, end_l);
+		std::swap(start_c, end_c);
+	}
+
+	std::string result;
+	for (int l = start_l; l <= end_l; ++l) {
+		if (l < 0 || l >= static_cast<int>(visible_lines_.size()))
+			continue;
+		const auto &line = visible_lines_[l];
+		int len = markdown_utils::utf8_length(line.text);
+
+		int from_c = (l == start_l) ? start_c : 0;
+		int to_c = (l == end_l) ? end_c : len;
+
+		from_c = std::clamp(from_c, 0, len);
+		to_c = std::clamp(to_c, 0, len);
+
+		if (from_c < to_c) {
+			size_t from_byte = utf8::char_to_byte_offset(line.text, from_c);
+			size_t to_byte = utf8::char_to_byte_offset(line.text, to_c);
+			result += line.text.substr(from_byte, to_byte - from_byte);
+		}
+
+		if (l < end_l) {
+			result += "\n";
+		}
+	}
+	return result;
 }
 
 void agent_window::set_cursor_position() const

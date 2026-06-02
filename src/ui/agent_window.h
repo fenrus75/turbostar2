@@ -21,11 +21,14 @@ class agent_window : public window
 
 	// Override to draw the input box at the bottom
 	void draw_content() const override;
+	int get_history_viewport_height() const;
 
 	std::shared_ptr<agentlib::ai_agent> get_agent() const
 	{
 		return agent_;
 	}
+
+	std::string get_mouse_selected_text() const override;
 
       private:
 	mutable int scroll_offset_{0};
@@ -33,4 +36,5 @@ class agent_window : public window
 
 	std::unique_ptr<ui_multiline_edit> input_box_;
 	std::shared_ptr<agentlib::ai_agent> agent_;
+	mutable std::vector<agentlib::interaction_line> visible_lines_;
 };
