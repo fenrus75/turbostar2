@@ -109,6 +109,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- fixed a bug where LLM connection or JSON parsing error messages were stored as episode reactivation hints. The background summary worker now filters out such client errors to keep reactivation hints empty/clean when the LLM server is unavailable.
 - implemented "file has changed on disk" detection: checks modification time (mtime) of the active file once every 10 seconds, displays a reload prompt dialog offering to reload or ignore the change, and handles state synchronization to avoid duplicate warnings when changes are ignored. Included comprehensive unit and E2E test coverage.
 - implemented native mouse click-and-drag text selection and clipboard copying via OSC 52 escape sequences on mouse release, including visual XOR toggling against persistent block selection, base64 utility consolidation, display-column-to-character-position line offset translation, and comprehensive E2E/unit tests.
 - implemented fallback signal handling inside the main executable using `libunwind` to print a clean crash backtrace to stdout when not preloaded with `libturbocatch.so`, resetting the terminal modes on crash.
