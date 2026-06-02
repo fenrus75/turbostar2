@@ -1,15 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-- feature OSC 52 ansi sequence support for better clipboard interaction
-	- send our block to the clipboard for ^K K
-	- let ^V or similar do a paste (also OSC52)
 
-- feature: should we allow mouse selections natively (separate from block) so that we can do much better for clipboard support
-	- rules: 
-		- global - only one mouse selection possible
-		- on mouse up we OSC52 it to the system clipboard
-		- any other mouse click anywhere clears it
 
 - visual: we have multiple sources of messages for the status bar - they compete for space - so we need to 
 	- make a list of these
@@ -122,6 +114,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- implemented native mouse click-and-drag text selection and clipboard copying via OSC 52 escape sequences on mouse release, including visual XOR toggling against persistent block selection, base64 utility consolidation, display-column-to-character-position line offset translation, and comprehensive E2E/unit tests.
 - implemented fallback signal handling inside the main executable using `libunwind` to print a clean crash backtrace to stdout when not preloaded with `libturbocatch.so`, resetting the terminal modes on crash.
 - implemented a custom `ui_utils::draw_border` helper function to deduplicate double-line and single-line border rendering logic across `dialog.cpp`, `window.cpp`, and `popup_menu.cpp`, avoiding duplicate absolute-coordinate print loops.
 - refactored `dialog::handle_event` in `src/ui/dialog.cpp` to remove redundant checking of `action_` and return the result of `ui_container::handle_event` directly.

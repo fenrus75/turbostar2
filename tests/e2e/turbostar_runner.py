@@ -40,6 +40,7 @@ class TurbostarRunner:
         self.proc = None
         self.master_fd = None
         self.slave_fd = None
+        self.captured_bytes = bytearray()
 
     def start(self, filename=None, use_lsp=False, extra_args=None, home_dir=None):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
@@ -102,6 +103,7 @@ class TurbostarRunner:
                 data = os.read(self.master_fd, 1024)
                 if not data:
                     break
+                self.captured_bytes.extend(data)
                 self.stream.feed(data.decode('utf-8', errors='replace'))
             except OSError:
                 break

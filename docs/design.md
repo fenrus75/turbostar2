@@ -43,11 +43,12 @@ After making a change, create a git commit for the change. Before committing, en
     - **Snapshots**: `line::get_text()` returns a `std::string` copy to provide a thread-safe snapshot of the line content to readers.
   - Per-Window/Document Event Queues: Thread-safe queues for passing events between threads.
 - **Selection Model**:
-  - Turbostar uses a **Persistent Marker Selection** model (WordStar/Joe style).
+  - Turbostar uses a **Persistent Marker Selection** model (WordStar/Joe style) for block operations.
   - Two markers, `Selection Begin` (^KB) and `Selection End` (^KK), define a contiguous range of text.
   - The selection is "persistent": it stays active even as the cursor moves, until specifically moved or hidden.
   - **Editing Awareness**: The document class ensures that markers stay pinned to the logical text. If characters are inserted or deleted before a marker, the marker's position is adjusted.
-  - **Visuals**: The range between Begin and End markers is highlighted using a distinct color pair (Inverse).
+  - **Native Mouse Selection**: In addition to block selections, the editor supports native click-and-drag mouse text selection. Left-clicking inside a text window places the cursor, clears any active mouse selection, and begins a new drag range. Dragging the mouse updates the boundaries, and releasing the mouse copies the selected text to the host system clipboard via standard OSC 52 terminal escape sequences. Any click elsewhere or keystroke automatically clears the mouse selection.
+  - **Visuals**: Both block selections and mouse selections are highlighted using a distinct color pair (pair 8: bright white on cyan). When a persistent block selection and active mouse selection intersect, they toggle visually (XOR rule: "double selected" text renders as unselected text), matching the authentic "joe" editor dialect behavior.
 - **Stateful Key Sequences**:
   - Turbostar supports "prefix" keys, most notably the `Ctrl-K` block.
   - When a prefix key is pressed, the editor enters a sub-state waiting for the next "command" key.

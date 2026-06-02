@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <format>
+#include <span>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -136,5 +137,11 @@ template <typename... Args>
 std::string execute_command_sync(std::string_view fmt, const Args&... args) {
 	return execute_command_sync(format_command(fmt, args...));
 }
+
+/**
+ * @brief Base64 encodes the given text payload.
+ */
+std::string base64_encode(std::string_view text);
+std::string base64_encode(std::span<const unsigned char> data);
 
 } // namespace fs_utils

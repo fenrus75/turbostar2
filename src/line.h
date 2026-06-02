@@ -33,6 +33,7 @@ class line
 	int length_in_chars() const;
 	size_t char_to_byte_offset(int char_pos) const;
 	int char_to_display_col(int char_pos) const;
+	int display_col_to_char_pos(int display_col) const;
 	unsigned char byte_at(int offset) const;
 
 	// Syntax highlighting

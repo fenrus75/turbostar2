@@ -1,5 +1,6 @@
 #define UNW_LOCAL_ONLY
 #include "crash_handler.h"
+#include "ansi.h"
 #include <libunwind.h>
 #include <signal.h>
 #include <string.h>
@@ -83,8 +84,7 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	(void)info;
 
 	// Reset terminal to sane state (disable mouse/bracketed paste, show cursor)
-	const char *reset_seq = "\033[?1002l\033[?2004l\033[?25h\033[0m\n";
-	write(STDOUT_FILENO, reset_seq, safe_strlen(reset_seq));
+	ansi::reset_terminal_state();
 
 	const char *msg_prefix = "\n*** Turbostar Fallback Crash Catcher ***\nCaught signal: ";
 	write(STDOUT_FILENO, msg_prefix, safe_strlen(msg_prefix));

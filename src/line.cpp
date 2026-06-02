@@ -188,6 +188,26 @@ int line::char_to_display_col(int char_pos) const
 	return col;
 }
 
+int line::display_col_to_char_pos(int display_col) const
+{
+	std::shared_lock lock(mutex_);
+	int len = length_in_chars();
+	int best_char_pos = 0;
+	int best_diff = 999999;
+	for (int pos = 0; pos <= len; ++pos) {
+		int col = char_to_display_col(pos);
+		int diff = std::abs(col - display_col);
+		if (diff < best_diff) {
+			best_diff = diff;
+			best_char_pos = pos;
+		}
+		if (col >= display_col) {
+			break;
+		}
+	}
+	return best_char_pos;
+}
+
 unsigned char line::byte_at(int offset) const
 {
 	std::shared_lock lock(mutex_);

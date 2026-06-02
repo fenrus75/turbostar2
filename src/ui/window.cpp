@@ -1,12 +1,13 @@
 #include "ui/window.h"
-#include "ui/ui_element.h"
 #include <algorithm>
 #include <format>
-#include <string>
 #include <ncurses.h>
+#include <string>
+#include "ansi.h"
 #include "build_error_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
+#include "ui/ui_element.h"
 #include "utf8.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
@@ -99,6 +100,11 @@ bool window::process_events()
 	while (auto ev = window_queue_.pop()) {
 		event_logger::get_instance().log("Window {} processing key: {}", id_, ev->key_code);
 		if (ev->type == event_type::key_press && doc_) {
+			is_mouse_selecting_ = false;
+			mouse_sel_start_char_ = -1;
+			mouse_sel_start_line_ = -1;
+			mouse_sel_end_char_ = -1;
+			mouse_sel_end_line_ = -1;
 			switch (ev->key_code) {
 				case KEY_UP:
 					doc_->move_cursor(0, -1);
@@ -212,6 +218,53 @@ bool window::process_events()
 					}
 					break;
 			}
+		} else if (ev->type == event_type::mouse_click && doc_) {
+			int click_row = top_line_ + (ev->mouse_y - y_ - 1);
+			int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
+			click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+			click_col_display = std::max(0, click_col_display);
+
+			auto l = doc_->get_line(click_row);
+			int click_char = 0;
+			if (l) {
+				click_char = l->display_col_to_char_pos(click_col_display);
+			}
+
+			doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+
+			is_mouse_selecting_ = true;
+			mouse_sel_start_char_ = click_char;
+			mouse_sel_start_line_ = click_row;
+			mouse_sel_end_char_ = click_char;
+			mouse_sel_end_line_ = click_row;
+			invalidate();
+		} else if (ev->type == event_type::mouse_drag && doc_) {
+			if (is_mouse_selecting_) {
+				int click_row = top_line_ + (ev->mouse_y - y_ - 1);
+				int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
+				click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+				click_col_display = std::max(0, click_col_display);
+
+				auto l = doc_->get_line(click_row);
+				int click_char = 0;
+				if (l) {
+					click_char = l->display_col_to_char_pos(click_col_display);
+				}
+
+				mouse_sel_end_char_ = click_char;
+				mouse_sel_end_line_ = click_row;
+				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+				invalidate();
+			}
+		} else if (ev->type == event_type::mouse_release && doc_) {
+			if (is_mouse_selecting_) {
+				std::string selected_text = get_mouse_selected_text();
+				if (!selected_text.empty()) {
+					ansi::copy_to_clipboard(selected_text);
+				}
+				is_mouse_selecting_ = false;
+				invalidate();
+			}
 		} else if (ev->type == event_type::paste && doc_) {
 			doc_->insert_text(ev->payload);
 			invalidate();
@@ -284,6 +337,18 @@ void window::draw_content() const
 		has_sel = true;
 	}
 
+	bool has_mouse_sel = (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1);
+	int mouse_start_l = mouse_sel_start_line_;
+	int mouse_start_c = mouse_sel_start_char_;
+	int mouse_end_l = mouse_sel_end_line_;
+	int mouse_end_c = mouse_sel_end_char_;
+	if (has_mouse_sel) {
+		if (mouse_start_l > mouse_end_l || (mouse_start_l == mouse_end_l && mouse_start_c > mouse_end_c)) {
+			std::swap(mouse_start_l, mouse_end_l);
+			std::swap(mouse_start_c, mouse_end_c);
+		}
+	}
+
 	std::optional<std::pair<int, int>> match_pos;
 	if (doc_) {
 		match_pos = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
@@ -308,7 +373,8 @@ void window::draw_content() const
 
 		// Clear line background
 		attrset(COLOR_PAIR(line_bg_pair));
-		/* FIXME - we should do this at the end and then only for what is left on the screen, not for the whole line. The tricky part will be tabs */
+		/* FIXME - we should do this at the end and then only for what is left on the screen, not for the whole line. The tricky
+		 * part will be tabs */
 		for (int k = 0; k < width_ - 2; ++k)
 			addch(' ');
 
@@ -352,19 +418,35 @@ void window::draw_content() const
 					int screen_x_offset = col - left_column_;
 					move(y_ + i, x_ + 1 + screen_x_offset);
 
-					bool in_selection = false;
+					bool in_block_selection = false;
 					if (has_sel) {
 						if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
-							in_selection = true;
+							in_block_selection = true;
 						} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-							in_selection = (static_cast<int>(char_idx) >= sel_start_x &&
-									static_cast<int>(char_idx) < sel_end_x);
+							in_block_selection = (static_cast<int>(char_idx) >= sel_start_x &&
+									      static_cast<int>(char_idx) < sel_end_x);
 						} else if (doc_line_idx == sel_start_y) {
-							in_selection = (static_cast<int>(char_idx) >= sel_start_x);
+							in_block_selection = (static_cast<int>(char_idx) >= sel_start_x);
 						} else if (doc_line_idx == sel_end_y) {
-							in_selection = (static_cast<int>(char_idx) < sel_end_x);
+							in_block_selection = (static_cast<int>(char_idx) < sel_end_x);
 						}
 					}
+
+					bool in_mouse_selection = false;
+					if (has_mouse_sel) {
+						if (doc_line_idx > mouse_start_l && doc_line_idx < mouse_end_l) {
+							in_mouse_selection = true;
+						} else if (doc_line_idx == mouse_start_l && doc_line_idx == mouse_end_l) {
+							in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c &&
+									      static_cast<int>(char_idx) < mouse_end_c);
+						} else if (doc_line_idx == mouse_start_l) {
+							in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c);
+						} else if (doc_line_idx == mouse_end_l) {
+							in_mouse_selection = (static_cast<int>(char_idx) < mouse_end_c);
+						}
+					}
+
+					bool in_selection = (in_block_selection != in_mouse_selection);
 
 					bool is_match = false;
 					if (match_pos) {
@@ -441,8 +523,8 @@ void window::draw_content() const
 					} else {
 						// Build error/warning might be active for this line as a sub-line highlight.
 						if (doc_ && has_build_err) {
-							auto build_err = build_error_manager::get_instance().find_error_at(
-							    filename, doc_line_idx);
+							auto build_err =
+							    build_error_manager::get_instance().find_error_at(filename, doc_line_idx);
 							if (build_err) {
 								if (build_err->end_column == 0 ||
 								    (static_cast<int>(char_idx) >= build_err->column &&
@@ -642,4 +724,49 @@ void window::unlink_window(window *other)
 	if (it != linked_windows_.end()) {
 		linked_windows_.erase(it);
 	}
+}
+
+std::string window::get_mouse_selected_text() const
+{
+	if (!doc_ || mouse_sel_start_line_ == -1 || mouse_sel_end_line_ == -1) {
+		return "";
+	}
+
+	int start_l = mouse_sel_start_line_;
+	int start_c = mouse_sel_start_char_;
+	int end_l = mouse_sel_end_line_;
+	int end_c = mouse_sel_end_char_;
+
+	// Swap if start is after end
+	if (start_l > end_l || (start_l == end_l && start_c > end_c)) {
+		std::swap(start_l, end_l);
+		std::swap(start_c, end_c);
+	}
+
+	std::string result;
+	for (int l = start_l; l <= end_l; ++l) {
+		auto line_obj = doc_->get_line(l);
+		if (!line_obj)
+			continue;
+		std::string line_text = line_obj->get_text();
+		int len = line_obj->length_in_chars();
+
+		int from_c = (l == start_l) ? start_c : 0;
+		int to_c = (l == end_l) ? end_c : len;
+
+		// Ensure from_c and to_c are within bounds
+		from_c = std::clamp(from_c, 0, len);
+		to_c = std::clamp(to_c, 0, len);
+
+		if (from_c < to_c) {
+			size_t from_byte = line_obj->char_to_byte_offset(from_c);
+			size_t to_byte = line_obj->char_to_byte_offset(to_c);
+			result += line_text.substr(from_byte, to_byte - from_byte);
+		}
+
+		if (l < end_l) {
+			result += "\n";
+		}
+	}
+	return result;
 }

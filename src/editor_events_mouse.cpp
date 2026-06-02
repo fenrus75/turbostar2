@@ -28,6 +28,11 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
+		} else {
+			window *w = get_active_window();
+			if (w) {
+				w->get_window_queue().push(ev);
+			}
 		}
 		return;
 	}
@@ -54,6 +59,11 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
+		} else {
+			window *w = get_active_window();
+			if (w) {
+				w->get_window_queue().push(ev);
+			}
 		}
 		return;
 	}

@@ -29,7 +29,8 @@ core_sources = files(
   'highlighter_registry.cpp',
   'history_manager.cpp',
   'utf8.cpp',
-  'crash_handler.cpp'
+  'crash_handler.cpp',
+  'ansi.cpp'
 )
 
 

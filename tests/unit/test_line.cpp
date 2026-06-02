@@ -37,6 +37,35 @@ int main()
 	assert(l.length_in_chars() == 5);
 	assert(l.get_text() == "aあ😊bx");
 
+	// Test display_col_to_char_pos on the updated line
+	// 'a' (0 -> col 0), 'あ' (1 -> col 1), '😊' (2 -> col 2), 'b' (3 -> col 3), 'x' (4 -> col 4), end at col 5
+	assert(l.display_col_to_char_pos(0) == 0);
+	assert(l.display_col_to_char_pos(1) == 1);
+	assert(l.display_col_to_char_pos(2) == 2);
+	assert(l.display_col_to_char_pos(3) == 3);
+	assert(l.display_col_to_char_pos(4) == 4);
+	assert(l.display_col_to_char_pos(5) == 5);
+	assert(l.display_col_to_char_pos(10) == 5);
+	assert(l.display_col_to_char_pos(-1) == 0);
+
+	// Test display_col_to_char_pos with tabs
+	line l_tab("a\tb");
+	// 'a' (0 -> col 0), '\t' (1 -> col 1, tab size up to 8 cells, so 'b' will be at col 8)
+	// tab width at col 1 is 8 - (1 % 8) = 7 cells, so 'b' is at display col 8
+	assert(l_tab.char_to_display_col(0) == 0);
+	assert(l_tab.char_to_display_col(1) == 1);
+	assert(l_tab.char_to_display_col(2) == 8);
+	assert(l_tab.char_to_display_col(3) == 9);
+
+	// display_col_to_char_pos should map closest display columns:
+	assert(l_tab.display_col_to_char_pos(0) == 0);
+	assert(l_tab.display_col_to_char_pos(1) == 1);
+	assert(l_tab.display_col_to_char_pos(2) == 1); // 2 is closer to 1 than to 8
+	assert(l_tab.display_col_to_char_pos(4) == 1); // 4 is closer to 1 (diff 3) than 8 (diff 4)
+	assert(l_tab.display_col_to_char_pos(5) == 2); // 5 is closer to 8 (diff 3) than 1 (diff 4)
+	assert(l_tab.display_col_to_char_pos(8) == 2);
+	assert(l_tab.display_col_to_char_pos(9) == 3);
+
 	std::cout << "line unit test passed!\n";
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
+#include "ansi.h"
 #include "config_manager.h"
 #include "crash_handler.h"
 #include "editor.h"
@@ -187,10 +188,10 @@ int main(int argc, char **argv)
 
 	// Enable mouse tracking for clicks
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+	mouseinterval(0);
 	// Tell the terminal to send mouse events (works for some xterm-compatible terms)
 	// Also enable bracketed paste mode
-	printf("\033[?1002h\033[?2004h\n");
-	fflush(stdout);
+	ansi::enable_terminal_modes();
 
 	curs_set(0); // Hide the cursor for now
 
@@ -223,8 +224,7 @@ int main(int argc, char **argv)
 	main_editor.run();
 
 	// Disable mouse tracking and bracketed paste mode
-	printf("\033[?1002l\033[?2004l\n");
-	fflush(stdout);
+	ansi::disable_terminal_modes();
 
 	endwin();
 
