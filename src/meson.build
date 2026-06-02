@@ -28,7 +28,8 @@ core_sources = files(
   'markdown_highlighter.cpp',
   'highlighter_registry.cpp',
   'history_manager.cpp',
-  'utf8.cpp'
+  'utf8.cpp',
+  'crash_handler.cpp'
 )
 
 
@@ -106,7 +107,7 @@ libturbostar_core = static_library('turbostar_core',
   core_sources,
   include_directories : inc,
   cpp_pch : 'pch/pch.h',
-  dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep])
+  dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep])
 
 libagentlib = static_library('agentlib',
   agentlib_sources,
@@ -127,7 +128,7 @@ libturbostar_ui = static_library('turbostar_ui',
   dependencies : [ncurses, thread_dep, nlohmann_json_dep, lsp_dep])
 
 # Expose dependencies for easy linking
-core_dep = declare_dependency(link_with : libturbostar_core)
+core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep])
 agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep])
 tools_dep = declare_dependency(link_whole : libtools)
 ui_dep = declare_dependency(link_whole : libturbostar_ui)

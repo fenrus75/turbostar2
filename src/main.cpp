@@ -7,6 +7,7 @@
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
 #include "config_manager.h"
+#include "crash_handler.h"
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -24,6 +25,8 @@ std::string get_home_dir()
 
 int main(int argc, char **argv)
 {
+	crash_handler::install_fallback_handler();
+
 	CLI::App app{"Turbostar Editor"};
 
 	std::string log_file;
@@ -108,9 +111,9 @@ int main(int argc, char **argv)
 	init_pair(6, COLOR_BLACK, COLOR_BLACK); // Drop shadows
 	init_pair(7, COLOR_RED, COLOR_BLACK);	// Hotkeys on selected background
 	init_pair(8, COLOR_WHITE + 8,
-		  COLOR_CYAN);			 // Selection highlight (Bright White)
-	init_pair(9, COLOR_BLACK + 8, COLOR_BLACK);	 // Desktop pattern (Gray on Black)
-	init_pair(10, COLOR_BLACK, COLOR_GREEN); // Buttons (Black on Green)
+		  COLOR_CYAN);			      // Selection highlight (Bright White)
+	init_pair(9, COLOR_BLACK + 8, COLOR_BLACK);   // Desktop pattern (Gray on Black)
+	init_pair(10, COLOR_BLACK, COLOR_GREEN);      // Buttons (Black on Green)
 	init_pair(40, COLOR_YELLOW + 8, COLOR_GREEN); // Button Highlight (Bright Yellow on Green)
 	init_pair(11, COLOR_WHITE + 8,
 		  COLOR_WHITE); // Dialog borders (Bright White on Gray)

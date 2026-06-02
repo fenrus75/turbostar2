@@ -60,6 +60,11 @@ After making a change, create a git commit for the change. Before committing, en
   - All UTF-8 helper functions must be consolidated inside the `utf8` namespace (declared in [src/utf8.h](file:///home/arjanvandeven/git/turbostar/src/utf8.h) and defined in [src/utf8.cpp](file:///home/arjanvandeven/git/turbostar/src/utf8.cpp)).
   - Inline byte parsing, character length parsing, or offset conversion logic should NEVER be written ad-hoc. Existing helpers like `utf8::char_len`, `utf8::length`, `utf8::char_to_byte_offset`, `utf8::byte_to_char_pos`, and `utf8::next_character` must be reused.
   - **Hard Rule**: If a new UTF-8 helper is ever needed, it **MUST** go into `src/utf8.h` / `src/utf8.cpp` to prevent duplication and ensure correctness across the codebase.
+- **Fallback Crash Handling**:
+  - A fallback crash handler using `libunwind` is installed in `main.cpp` for fatal signals (`SIGSEGV`, `SIGABRT`, etc.) and outputs a clean stack trace directly to `stdout`.
+  - Prior to installation, it queries the active `SIGSEGV` handler; if any custom handler is already registered (such as by `libturbocatch.so`), it automatically steps back to respect it.
+  - On crash, the fallback handler writes raw ANSI escape sequences directly to `stdout` to reset raw mode, show the cursor, and restore terminal colors to prevent garbled console states.
+
 
 
 # Architecture

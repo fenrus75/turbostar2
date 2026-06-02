@@ -30,12 +30,12 @@ lsp_dep = lsp_fw.get_variable('lsp_dep')
 inc = include_directories('include', 'src')
 ncurses = ncurses_dep
 
-subdir('src')
-
 # Provide a libunwind dependency.
-cc = meson.get_compiler('c')
-libunwind_dep = cc.find_library('unwind', required: true)
-dl_dep = cc.find_library('dl', required: false)
+cc_c = meson.get_compiler('c')
+libunwind_dep = cc_c.find_library('unwind', required: true)
+dl_dep = cc_c.find_library('dl', required: false)
+
+subdir('src')
 
 libturbocatch = shared_library('turbocatch',
   'src/crash_catcher/crash_catcher.c',
@@ -512,6 +512,12 @@ test_assert_fail = executable('test_assert_fail',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_assert_fail', test_assert_fail, is_parallel: false)
+
+test_fallback_crash = executable('test_fallback_crash',
+  'tests/unit/test_fallback_crash.cpp',
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_fallback_crash', test_fallback_crash, is_parallel: false)
 
 test_crashdump_list = executable('test_crashdump_list',
   ['tests/unit/test_crashdump_list.cpp',

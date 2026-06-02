@@ -1,8 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-- feature: we have turbocatch.so -- but can we make turbostar print a nice crashdump on crash if it's not being run with libturbocatch?
-
 - feature OSC 52 ansi sequence support for better clipboard interaction
 	- send our block to the clipboard for ^K K
 	- let ^V or similar do a paste (also OSC52)
@@ -124,6 +122,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- implemented fallback signal handling inside the main executable using `libunwind` to print a clean crash backtrace to stdout when not preloaded with `libturbocatch.so`, resetting the terminal modes on crash.
 - implemented a custom `ui_utils::draw_border` helper function to deduplicate double-line and single-line border rendering logic across `dialog.cpp`, `window.cpp`, and `popup_menu.cpp`, avoiding duplicate absolute-coordinate print loops.
 - refactored `dialog::handle_event` in `src/ui/dialog.cpp` to remove redundant checking of `action_` and return the result of `ui_container::handle_event` directly.
 - implemented a `^K Z` hotkey for "Zap Trailing Whitespace" to trim trailing spaces and tabs from lines (scoped to active selection, or fallback to entire document). Added corresponding unit test coverage in `test_document.cpp` and updated `keybindings.md`.
