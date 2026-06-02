@@ -20,8 +20,8 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted.
 
-### `fs_find_in_files`
-*   **Description:** Search for a pattern (string or RE2 regular expression, similar to grep) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
+### `fs_grep_files`
+*   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').

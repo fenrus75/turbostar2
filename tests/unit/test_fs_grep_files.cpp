@@ -5,7 +5,7 @@
 #include <fstream>
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/agentlib/document_provider.h"
-#include "../../src/tools/fs_find_in_files/fs_find_in_files.h"
+#include "../../src/tools/fs_grep_files/fs_grep_files.h"
 
 namespace fs = std::filesystem;
 
@@ -45,7 +45,7 @@ public:
 };
 
 int main() {
-    fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_find";
+    fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_grep";
     fs::create_directories(temp_dir);
     
     // Create a file on disk
@@ -61,10 +61,10 @@ int main() {
     ctx.fs_security.add_allowed_root(temp_dir, agentlib::access_type::read);
 
     // Test 1: Disk search (mmap)
-    tools::fs_find_in_files_args args1;
+    tools::fs_grep_files_args args1;
     args1.pattern = "hello";
     args1.safe_dir_path = temp_dir.string();
-    tools::fs_find_in_files_tool tool1(args1);
+    tools::fs_grep_files_tool tool1(args1);
     
     std::string res1 = tool1.execute(ctx);
     assert(res1.find("Found 1 matches across 1 files") != std::string::npos);
@@ -82,11 +82,11 @@ int main() {
 
 
     // Test 3: Context Lines
-    tools::fs_find_in_files_args args3;
+    tools::fs_grep_files_args args3;
     args3.pattern = "hello";
     args3.safe_dir_path = temp_dir.string();
     args3.context_lines = 1;
-    tools::fs_find_in_files_tool tool3(args3);
+    tools::fs_grep_files_tool tool3(args3);
     
     std::string res3 = tool3.execute(ctx);
     std::cout << "RES3:\n" << res3 << std::endl;
@@ -106,9 +106,9 @@ int main() {
     fs::remove_all(temp_dir);
 
     // Verify description mentions grep
-    tools::fs_find_in_files_validator val;
+    tools::fs_grep_files_validator val;
     assert(val.get_description().find("grep") != std::string::npos);
 
-    std::cout << "fs_find_in_files unit test passed!\n";
+    std::cout << "fs_grep_files unit test passed!\n";
     return 0;
 }

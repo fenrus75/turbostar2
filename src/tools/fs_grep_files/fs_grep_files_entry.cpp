@@ -1,4 +1,4 @@
-#include "fs_find_in_files.h"
+#include "fs_grep_files.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -14,13 +14,13 @@ namespace fs = std::filesystem;
 
 namespace tools {
 
-fs_find_in_files_tool::fs_find_in_files_tool(fs_find_in_files_args args) : args_(std::move(args)) {
+fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::move(args)) {
     RE2::Options options;
     compiled_regex_ = std::make_unique<RE2>(args_.pattern, options);
-    interaction_ = std::make_shared<agentlib::interaction_fs_find_in_files>(args_.pattern);
+    interaction_ = std::make_shared<agentlib::interaction_fs_grep_files>(args_.pattern);
 }
 
-std::string fs_find_in_files_tool::escape_markdown(const std::string& text) const {
+std::string fs_grep_files_tool::escape_markdown(const std::string& text) const {
     std::string escaped;
     for (char c : text) {
         if (c == '`' || c == '*' || c == '_' || c == '[' || c == ']') {
@@ -31,11 +31,11 @@ std::string fs_find_in_files_tool::escape_markdown(const std::string& text) cons
     return escaped;
 }
 
-bool fs_find_in_files_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const {
+bool fs_grep_files_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const {
     return true; // Directory path is validated in the security stage
 }
 
-std::string fs_find_in_files_tool::execute(agentlib::tool_context& ctx) {
+std::string fs_grep_files_tool::execute(agentlib::tool_context& ctx) {
     if (!compiled_regex_->ok()) {
         return "Error: Invalid regular expression pattern. " + compiled_regex_->error();
     }

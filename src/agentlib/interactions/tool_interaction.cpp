@@ -23,7 +23,7 @@ std::vector<interaction_line> interaction_tool_result::format_lines(int width, b
 namespace agentlib
 {
 
-std::vector<interaction_line> interaction_fs_find_in_files::format_lines(int width, background_mode bg) const
+std::vector<interaction_line> interaction_fs_grep_files::format_lines(int width, background_mode bg) const
 {
 	std::vector<interaction_line> lines;
 	int default_color = get_color_pair(interaction_role::agent, bg);

@@ -548,7 +548,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	int current_shift = 0;
 	size_t hunk_idx = 0;
 	for (const auto &r : merged_ranges) {
-		result_msg += std::format("[Modified Section lines {} - {}]:\n", r.first, r.second);
+		result_msg += std::format("Code after edit for lines {} - {}:\n", r.first, r.second);
 		for (int l = r.first; l <= r.second; ++l) {
 			result_msg += std::format("{}: {}\n", l, lines[l - 1]);
 		}

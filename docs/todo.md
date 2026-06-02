@@ -105,6 +105,8 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- modified `fs_replace_lines` output format to label the modified range output as `"Code after edit for lines X - Y:"` instead of `"[Modified Section lines X - Y]:"`, making it explicitly clear that this represents the post-edit content.
+- renamed `fs_find_in_files` tool to `fs_grep_files` across the codebase (including all class, interaction, test target, documentation, and system prompt references) to explicitly identify it as a built-in replacement for the `grep` shell command.
 - added an optional `pattern` parameter to `fs_list_tests` tool supporting case-insensitive RE2 regular expression and substring filtering, and updated the agent system prompt to explicitly recommend using `fs_list_tests` instead of running `meson test --list` / `ctest --show-only` via the shell, preventing agents from falling back to unnecessary shell commands.
 - modified `agentcli` to dynamically load the global configuration and resolve the default model from the model inventory (registry) instead of hardcoding `"cli-model"` or `"gpt-4o"`, allowing E2E testing to work out-of-the-box with custom local LLM providers.
 - updated `git_diff_unstaged` and `git_diff_staged` tool descriptions and the agent system prompt to explicitly recommend using them instead of running `git diff` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.

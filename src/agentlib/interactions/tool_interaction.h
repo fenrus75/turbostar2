@@ -34,13 +34,13 @@ private:
     std::string text_;
 };
 
-class interaction_fs_find_in_files : public agent_interaction {
+class interaction_fs_grep_files : public agent_interaction {
 public:
-    explicit interaction_fs_find_in_files(std::string pattern) : pattern_(std::move(pattern)) {}
+    explicit interaction_fs_grep_files(std::string pattern) : pattern_(std::move(pattern)) {}
     interaction_type get_type() const override { return interaction_type::tool_result; }
     interaction_role get_role() const override { return interaction_role::agent; }
     std::string get_raw_text() const override { return "Search Results for " + pattern_; }
-    std::string get_grouping_key() const override { return "fs_find_in_files"; }
+    std::string get_grouping_key() const override { return "fs_grep_files"; }
     
     bool needs_subpanel_header() const override { return true; }
     std::string get_subpanel_label() const override { return "Search: " + pattern_; }

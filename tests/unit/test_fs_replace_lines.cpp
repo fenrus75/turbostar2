@@ -35,7 +35,7 @@ int main()
 
 	std::cout << "Tool Output: " << result << "\n";
 	assert(result.find("Successfully applied") != std::string::npos);
-	assert(result.find("[Modified Section lines 1 - 3]:") != std::string::npos);
+	assert(result.find("Code after edit for lines 1 - 3:") != std::string::npos);
 	assert(result.find("1: Line 1") != std::string::npos);
 	assert(result.find("2: Replaced Line 2") != std::string::npos);
 	assert(result.find("3: Line 3") != std::string::npos);

@@ -1,11 +1,11 @@
 #include <nlohmann/json.hpp>
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
-#include "fs_find_in_files.h"
+#include "fs_grep_files.h"
 
 namespace tools {
 
-nlohmann::json fs_find_in_files_validator::get_parameters_schema() const {
+nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
     return {
         {"type", "object"},
         {"properties", {
@@ -36,7 +36,7 @@ nlohmann::json fs_find_in_files_validator::get_parameters_schema() const {
     };
 }
 
-bool fs_find_in_files_validator::validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const {
+bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const {
     try {
         args_.pattern = raw_args.value("pattern", "");
         if (raw_args.contains("include_ext") && raw_args["include_ext"].is_string()) {
@@ -91,10 +91,10 @@ bool fs_find_in_files_validator::validate_args_impl(const nlohmann::json& raw_ar
     }
 }
 
-std::unique_ptr<agentlib::llm_tool> fs_find_in_files_validator::create_tool_impl(const nlohmann::json& /*args*/) const {
-    return std::make_unique<fs_find_in_files_tool>(args_);
+std::unique_ptr<agentlib::llm_tool> fs_grep_files_validator::create_tool_impl(const nlohmann::json& /*args*/) const {
+    return std::make_unique<fs_grep_files_tool>(args_);
 }
 
-REGISTER_TOOL(fs_find_in_files_validator)
+REGISTER_TOOL(fs_grep_files_validator)
 
 } // namespace tools
