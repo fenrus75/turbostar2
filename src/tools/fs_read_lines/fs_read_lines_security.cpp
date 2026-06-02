@@ -36,7 +36,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 	std::string get_description() const override
 	{
 		return "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single "
-		       "call is strictly limited to 2000.";
+		       "call is strictly limited to 2000. Output lines are prefixed with their 1-based line number in '<line_number>: <line_text>' format.";
 	}
 
 	nlohmann::json get_parameters_schema() const override

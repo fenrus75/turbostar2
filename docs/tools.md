@@ -14,7 +14,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `path` *(string, required)*: The path to the directory, relative to the project root.
 
 ### `fs_read_lines`
-*   **Description:** Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000.
+*   **Description:** Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
