@@ -85,6 +85,7 @@ The document class represents a whole file and serves as the primary "Model" in 
     - `int selection_start_x, selection_start_y`
     - `int selection_end_x, selection_end_y`
 - **Methods**: High-level operations like `insert_char()`, `delete_line()`, `undo()`, `redo()`, `load_from_file()`, `save()`.
+- **External Modification Detection**: Tracks the file's modification time (`last_write_time`) on disk. The Editor periodically queries this value (rate-limited to once every 10 seconds). If a change is detected, a reload confirmation dialog is prompted. If declined, the timestamp is synchronized to the current disk mtime to prevent continuous prompting.
 
 ## Line class
 
