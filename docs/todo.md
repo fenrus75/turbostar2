@@ -1,6 +1,4 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-- refactor: src/ui/dialog.cpp:35 looks weird
-
 - refactor: src/ui/dialog.cpp:129  consider using wborder() from ncurses
 
 - feature: we have turbocatch.so -- but can we make turbostar print a nice crashdump on crash if it's not being run with libturbocatch?
@@ -126,6 +124,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- refactored `dialog::handle_event` in `src/ui/dialog.cpp` to remove redundant checking of `action_` and return the result of `ui_container::handle_event` directly.
 - implemented a `^K Z` hotkey for "Zap Trailing Whitespace" to trim trailing spaces and tabs from lines (scoped to active selection, or fallback to entire document). Added corresponding unit test coverage in `test_document.cpp` and updated `keybindings.md`.
 - refactored `dialog::handle_key` to trigger child controls on ESC via a `press_on_esc()` virtual method on `ui_element` (implemented on `ui_button` and passed via constructor), removing hardcoded string name checks.
 - fixed visual bug where button colors were inverted; updated `ui_button.cpp` and `main.cpp` color pairs to match the authentic Turbo Pascal aesthetic (focused text is bright yellow on green, unfocused is black on green with bright yellow hotkey).

@@ -29,14 +29,7 @@ bool dialog::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 	}
 
-	if (ui_container::handle_event(ev, abs_x, abs_y)) {
-		// A child handled it (e.g. a button was clicked). Check if it wants to close the dialog.
-		if (action_ != dialog_result::pending) {
-			return true;
-		}
-		return true;
-	}
-	return false;
+	return ui_container::handle_event(ev, abs_x, abs_y);
 }
 
 dialog_result dialog::handle_key(int key)
