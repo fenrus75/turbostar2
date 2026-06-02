@@ -212,6 +212,18 @@ int main()
 		// It should detect the change
 		assert(doc.check_disk_changed());
 
+		// Ignore changes
+		doc.set_ignore_disk_changes(true);
+		assert(doc.get_ignore_disk_changes());
+
+		// It should no longer report changed
+		assert(!doc.check_disk_changed());
+
+		// Turn ignore off
+		doc.set_ignore_disk_changes(false);
+		assert(!doc.get_ignore_disk_changes());
+		assert(doc.check_disk_changed());
+
 		// Update the last write time in document
 		doc.update_last_disk_mtime();
 

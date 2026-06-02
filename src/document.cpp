@@ -97,6 +97,7 @@ bool document::load_from_file(const std::string &filename)
 	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
+	ignore_disk_changes_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
 	selection_start_x_ = selection_start_y_ = -1;
@@ -648,6 +649,8 @@ void document::apply_external_edits_json(const std::string &json_str)
 bool document::check_disk_changed()
 {
 	std::shared_lock lock(mutex_);
+	if (ignore_disk_changes_)
+		return false;
 	if (filename_.empty())
 		return false;
 	std::error_code ec;
@@ -677,4 +680,16 @@ void document::update_last_disk_mtime()
 	} else {
 		has_last_disk_mtime_ = false;
 	}
+}
+
+bool document::get_ignore_disk_changes() const
+{
+	std::shared_lock lock(mutex_);
+	return ignore_disk_changes_;
+}
+
+void document::set_ignore_disk_changes(bool ignore)
+{
+	std::unique_lock lock(mutex_);
+	ignore_disk_changes_ = ignore;
 }

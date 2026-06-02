@@ -237,6 +237,10 @@ void editor::resolve_dialog(dialog_result res)
 				if (doc && !doc->get_filename().empty()) {
 					doc->load_from_file(doc->get_filename());
 				}
+			} else if (res_str == "never") {
+				if (doc) {
+					doc->set_ignore_disk_changes(true);
+				}
 			}
 			return;
 		} else if (active_dialog_mode_ == dialog_mode::save_prompt) {

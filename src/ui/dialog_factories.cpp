@@ -1135,7 +1135,7 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 		display_name = fs_utils::shorten_filename(display_name, max_filename_len);
 	}
 
-	int desired_width = std::max(50, static_cast<int>(display_name.length()) + msg_overhead + 4);
+	int desired_width = std::max(55, static_cast<int>(display_name.length()) + msg_overhead + 4);
 
 	auto dlg = std::make_unique<dialog>("File Changed", desired_width, 8);
 
@@ -1144,7 +1144,7 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
 
 	int by = 8 - 3;
-	int total_btn_width = 7 + 4 + 6; // 17 chars total
+	int total_btn_width = 7 + 2 + 6 + 2 + 9; // 26 chars total ("  Yes  ", "  No  ", " Never ")
 	int btn_start_x = (desired_width - total_btn_width) / 2;
 
 	dlg->add_child(std::make_unique<ui_button>("btn_yes", btn_start_x, by, "  Yes  ", 'Y', [d = dlg.get()]() {
@@ -1152,12 +1152,16 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 		d->set_action(dialog_result::confirmed);
 	}));
 	dlg->add_child(std::make_unique<ui_button>(
-	    "btn_no", btn_start_x + 11, by, "  No  ", 'N',
+	    "btn_no", btn_start_x + 9, by, "  No  ", 'N',
 	    [d = dlg.get()]() {
 		    d->set_result("no");
 		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
+	dlg->add_child(std::make_unique<ui_button>("btn_never", btn_start_x + 17, by, " Never ", 'v', [d = dlg.get()]() {
+		d->set_result("never");
+		d->set_action(dialog_result::confirmed);
+	}));
 
 	dlg->set_focus_by_name("btn_yes");
 

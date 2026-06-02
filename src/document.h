@@ -74,6 +74,8 @@ class document
 	void clear();
 	bool check_disk_changed();
 	void update_last_disk_mtime();
+	bool get_ignore_disk_changes() const;
+	void set_ignore_disk_changes(bool ignore);
 	const std::string &get_filename() const;
 	const std::string &get_safe_filename() const;
 	bool has_nondefault_filename() const;
@@ -218,6 +220,7 @@ class document
 	bool read_only_{false};
 	std::filesystem::file_time_type last_disk_mtime_;
 	bool has_last_disk_mtime_{false};
+	bool ignore_disk_changes_{false};
 
 	int cursor_x_{0};
 	int cursor_y_{0};
