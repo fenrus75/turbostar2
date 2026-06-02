@@ -105,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- implemented parallel `fs_read_lines` tool call coalescing (merging) within the same assistant turn. When multiple read requests are sent in parallel targeting the same file, they are grouped and merged if the gap between them is within a threshold (20 lines). The parent call reads the contiguous block, and the child calls return a redirection note to avoid redundant file output, saving prompt/context tokens.
 - modified `fs_replace_lines` tool output warning logic to omit the shifted by 0 lines warning when the net shift is 0 lines, saving context window tokens.
 - implemented OpenAI model auto-import from custom servers: added a Server URL input textbox and an Import button to the model list management TUI dialog, querying the server's /v1/models endpoint, parsing OpenAI-compliant JSON responses, registering all discovered models as free/local entries, showing clean error dialogs on connection/response failure, and including comprehensive unit testing.
 - fixed a bug in `fs_replace_lines` tool safety verification where leading and trailing whitespace differences (such as tabs vs. spaces or omitted leading indentation) in `original_text` caused spurious Stage 2 Security Violations. The tool now performs prefix matching on trimmed lines, and added a corresponding unit test.

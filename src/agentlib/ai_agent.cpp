@@ -1,4 +1,5 @@
 #include "ai_agent.h"
+#include <unordered_map>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -47,6 +48,96 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 	// We'll let the window/caller decide when to load. Actually, if we load it here, it will be an empty shell if not found.
 	return agent;
 }
+
+void ai_agent::coalesce_tool_calls(
+	std::vector<tool_call> &tool_calls,
+	std::unordered_map<std::string, std::string> &merged_to_parent,
+	std::unordered_map<std::string, std::pair<int, int>> &parent_ranges)
+{
+	struct read_call_info {
+		size_t index;
+		std::string path;
+		int start_line;
+		int end_line;
+		std::string id;
+	};
+
+	std::unordered_map<std::string, std::vector<read_call_info>> file_reads;
+	for (size_t i = 0; i < tool_calls.size(); ++i) {
+		const auto &call = tool_calls[i];
+		if (call.function.name == "fs_read_lines") {
+			try {
+				auto args_json = nlohmann::json::parse(call.function.arguments);
+				if (args_json.is_object() && args_json.contains("path") && args_json["path"].is_string()) {
+					std::string path = args_json["path"].get<std::string>();
+					int start = 1;
+					int end = 1000000;
+					if (args_json.contains("start_line") && args_json["start_line"].is_number_integer()) {
+						start = args_json["start_line"].get<int>();
+					}
+					if (args_json.contains("end_line") && args_json["end_line"].is_number_integer()) {
+						end = args_json["end_line"].get<int>();
+					}
+					if (start < 1) start = 1;
+					if (end < start) end = start;
+
+					file_reads[path].push_back({i, path, start, end, call.id});
+				}
+			} catch (...) {
+				// If parsing fails, just ignore and let it execute normally
+			}
+		}
+	}
+
+	const int gap_threshold = 20;
+
+	for (auto &pair : file_reads) {
+		auto &reads = pair.second;
+		if (reads.size() < 2) {
+			if (!reads.empty()) {
+				parent_ranges[reads[0].id] = {reads[0].start_line, reads[0].end_line};
+			}
+			continue;
+		}
+
+		// Sort by start_line
+		std::sort(reads.begin(), reads.end(), [](const read_call_info &a, const read_call_info &b) {
+			return a.start_line < b.start_line;
+		});
+
+		// Merge overlapping/adjacent ranges
+		std::vector<read_call_info> merged;
+		for (const auto &r : reads) {
+			if (merged.empty()) {
+				merged.push_back(r);
+			} else {
+				auto &last = merged.back();
+				if (last.end_line + 1 + gap_threshold >= r.start_line) {
+					// Merge
+					last.end_line = std::max(last.end_line, r.end_line);
+					// Map this call to the parent
+					merged_to_parent[r.id] = last.id;
+				} else {
+					merged.push_back(r);
+				}
+			}
+		}
+
+		// Update the original tool_calls in tool_calls
+		// and populate parent_ranges
+		for (const auto &m : merged) {
+			auto &parent_call = tool_calls[m.index];
+			nlohmann::json new_args;
+			new_args["path"] = pair.first;
+			new_args["start_line"] = m.start_line;
+			new_args["end_line"] = m.end_line;
+			parent_call.function.arguments = new_args.dump();
+
+			parent_ranges[m.id] = {m.start_line, m.end_line};
+		}
+	}
+}
+
 
 bool ai_agent::page_in_context(const std::string& episode_id, int compression_level)
 {
@@ -797,6 +888,10 @@ void ai_agent::start_processing()
 			convo.push_back(response_msg);
 
 			if (!accumulated_tool_calls.empty()) {
+				std::unordered_map<std::string, std::string> merged_to_parent;
+				std::unordered_map<std::string, std::pair<int, int>> parent_ranges;
+				coalesce_tool_calls(accumulated_tool_calls, merged_to_parent, parent_ranges);
+
 				for (const auto &call : accumulated_tool_calls) {
 					if (self->is_closed_) {
 						event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
@@ -852,46 +947,78 @@ void ai_agent::start_processing()
 						}
 					};
 
-					ctx.tool_call_id = call.id;
-					auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
+					bool is_merged = (merged_to_parent.find(call.id) != merged_to_parent.end());
 					std::string tool_result;
 					std::shared_ptr<agent_interaction> custom_interaction;
+					long long tool_start_timestamp = 0;
+					long long tool_duration_ms = 0;
 
-					if (prep.tool) {
-						custom_interaction = prep.tool->get_interaction();
-					}
+					if (is_merged) {
+						std::string parent_id = merged_to_parent[call.id];
+						int p_start = 1;
+						int p_end = 1000000;
+						if (parent_ranges.find(parent_id) != parent_ranges.end()) {
+							p_start = parent_ranges[parent_id].first;
+							p_end = parent_ranges[parent_id].second;
+						}
+						tool_result = std::format("Note: This read request was adjacent to/overlapping with another read request in the same turn. "
+									  "To avoid redundant output and keep the code contiguous, it has been merged into tool call {} "
+									  "(which reads lines {} - {}). Please refer to the output of that tool call for the content.",
+									  parent_id, p_start, p_end);
 
-					if (!is_silent) {
-						if (custom_interaction) {
-							self->add_interaction(custom_interaction);
-						} else {
+						if (!is_silent) {
 							self->add_interaction(std::make_shared<interaction_tool_call>(
-							    call.function.name, call.function.name + "(" + arg_preview + ")"));
+							    call.function.name, std::format("{}(merged into {})", call.function.name, parent_id)));
+							if (self->global_queue_) {
+								editor_event tool_ev;
+								tool_ev.type = event_type::agent_tool_update;
+								tool_ev.key_code = self->id_;
+								self->global_queue_->push(tool_ev);
+							}
 						}
-						if (self->global_queue_) {
-							editor_event tool_ev;
-							tool_ev.type = event_type::agent_tool_update;
-							tool_ev.key_code = self->id_;
-							self->global_queue_->push(tool_ev);
-						}
-					}
 
-					long long tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-					    std::chrono::system_clock::now().time_since_epoch()).count();
-					auto tool_start_time = std::chrono::steady_clock::now();
-
-					if (!prep.error_message.empty()) {
-						tool_result = prep.error_message;
+						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+						    std::chrono::system_clock::now().time_since_epoch()).count();
 					} else {
-						try {
-							tool_result = prep.tool->execute(ctx);
-						} catch (const std::exception &e) {
-							tool_result = "Execution Error: " + std::string(e.what());
-						}
-					}
+						ctx.tool_call_id = call.id;
+						auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
 
-					auto tool_end_time = std::chrono::steady_clock::now();
-					long long tool_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time).count();
+						if (prep.tool) {
+							custom_interaction = prep.tool->get_interaction();
+						}
+
+						if (!is_silent) {
+							if (custom_interaction) {
+								self->add_interaction(custom_interaction);
+							} else {
+								self->add_interaction(std::make_shared<interaction_tool_call>(
+								    call.function.name, call.function.name + "(" + arg_preview + ")"));
+							}
+							if (self->global_queue_) {
+								editor_event tool_ev;
+								tool_ev.type = event_type::agent_tool_update;
+								tool_ev.key_code = self->id_;
+								self->global_queue_->push(tool_ev);
+							}
+						}
+
+						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+						    std::chrono::system_clock::now().time_since_epoch()).count();
+						auto tool_start_time = std::chrono::steady_clock::now();
+
+						if (!prep.error_message.empty()) {
+							tool_result = prep.error_message;
+						} else {
+							try {
+								tool_result = prep.tool->execute(ctx);
+							} catch (const std::exception &e) {
+								tool_result = "Execution Error: " + std::string(e.what());
+							}
+						}
+
+						auto tool_end_time = std::chrono::steady_clock::now();
+						tool_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time).count();
+					}
 
 					std::string result_preview = tool_result;
 					if (result_preview.length() > 1024) {

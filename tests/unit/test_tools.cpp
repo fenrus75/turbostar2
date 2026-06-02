@@ -317,6 +317,62 @@ int main()
 		std::cout << "agent_add_todo tool verified successfully!" << std::endl;
 	}
 
+	std::cout << "\nTesting ai_agent::coalesce_tool_calls..." << std::endl;
+	{
+		std::vector<tool_call> calls;
+		
+		tool_call t1;
+		t1.id = "call1";
+		t1.type = "function";
+		t1.function.name = "fs_read_lines";
+		t1.function.arguments = "{\"path\": \"src/main.cpp\", \"start_line\": 10, \"end_line\": 20}";
+		calls.push_back(t1);
+
+		tool_call t2;
+		t2.id = "call2";
+		t2.type = "function";
+		t2.function.name = "fs_read_lines";
+		t2.function.arguments = "{\"path\": \"src/main.cpp\", \"start_line\": 25, \"end_line\": 40}";
+		calls.push_back(t2);
+
+		tool_call t3;
+		t3.id = "call3";
+		t3.type = "function";
+		t3.function.name = "fs_read_lines";
+		t3.function.arguments = "{\"path\": \"src/main.cpp\", \"start_line\": 100, \"end_line\": 120}";
+		calls.push_back(t3);
+
+		tool_call t4;
+		t4.id = "call4";
+		t4.type = "function";
+		t4.function.name = "agent_add_todo";
+		t4.function.arguments = "{\"text\": \"hello\"}";
+		calls.push_back(t4);
+
+		std::unordered_map<std::string, std::string> merged_to_parent;
+		std::unordered_map<std::string, std::pair<int, int>> parent_ranges;
+		ai_agent::coalesce_tool_calls(calls, merged_to_parent, parent_ranges);
+
+		assert(merged_to_parent.size() == 1);
+		assert(merged_to_parent["call2"] == "call1");
+		
+		assert(parent_ranges.size() == 2);
+		assert(parent_ranges["call1"].first == 10);
+		assert(parent_ranges["call1"].second == 40);
+		assert(parent_ranges["call3"].first == 100);
+		assert(parent_ranges["call3"].second == 120);
+
+		auto arg1 = nlohmann::json::parse(calls[0].function.arguments);
+		assert(arg1["start_line"] == 10);
+		assert(arg1["end_line"] == 40);
+
+		auto arg3 = nlohmann::json::parse(calls[2].function.arguments);
+		assert(arg3["start_line"] == 100);
+		assert(arg3["end_line"] == 120);
+
+		std::cout << "ai_agent::coalesce_tool_calls verified successfully!" << std::endl;
+	}
+
 	std::cout << "\nAll test tools verified!" << std::endl;
 	return 0;
 }

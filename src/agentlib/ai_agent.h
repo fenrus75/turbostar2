@@ -7,6 +7,7 @@
 #include <mutex>
 #include <thread>
 #include <condition_variable>
+#include <unordered_map>
 #include "llm_client.h"
 #include "tool_registry.h"
 #include "document_provider.h"
@@ -56,6 +57,10 @@ struct compaction_segment {
 class ai_agent : public std::enable_shared_from_this<ai_agent> {
 public:
     static std::shared_ptr<ai_agent> create(int id, const std::string& name, std::shared_ptr<ai_model> model, event_queue* queue, document_provider* doc_provider);
+    static void coalesce_tool_calls(
+        std::vector<tool_call>& tool_calls,
+        std::unordered_map<std::string, std::string>& merged_to_parent,
+        std::unordered_map<std::string, std::pair<int, int>>& parent_ranges);
     ~ai_agent();
 
     void submit_prompt(const std::string& prompt_text);
