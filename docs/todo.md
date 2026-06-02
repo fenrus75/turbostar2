@@ -2,16 +2,7 @@
 
 - add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
-- in the Help/Tool Status window -- if you have many tools to install the apt line exceeds the window
-	- we need to either wrap, or grow the window or both
-
-- functional: at the end of a line, ^W does not eat up the end-of-line to merge the lines - it does in joe
-	- should be a small tweak
-
 - track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
-
-- performance: when drawing a line, we take the line lock for each character -- we'd be better off taking the lock once for the line
-	- we may just copy the line string once?
 
 - github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -117,6 +108,7 @@
 - implemented Ctrl-W (Delete Word Forward) boundary joining behavior: if the cursor is at the end of the line, Ctrl-W now merges the next line into the current one, and added an E2E test verifying this behavior.
 - fixed a Meson build system bug where E2E tests were using stale binaries because they lacked a dependency on the `copy_to_testrun` custom target.
 - optimized document window drawing performance by implementing atomic retrieval of line text and attributes, reducing screen-rendering lock/unlock cycles by over 150x.
+- fixed Tool Status TUI dialog layout overflow by wrapping the `apt install` package command into multiple lines dynamically and auto-adjusting dialog height.
 
 ## 31-05-2026
 - migrated the github:// virtual file system (VFS) provider from cpp-httplib to libcurl easy client interface, eliminating client library crashes and using curl's native environment proxy parsing.
