@@ -105,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- added an optional `pattern` parameter to `fs_list_tests` tool supporting case-insensitive RE2 regular expression and substring filtering, and updated the agent system prompt to explicitly recommend using `fs_list_tests` instead of running `meson test --list` / `ctest --show-only` via the shell, preventing agents from falling back to unnecessary shell commands.
 - modified `agentcli` to dynamically load the global configuration and resolve the default model from the model inventory (registry) instead of hardcoding `"cli-model"` or `"gpt-4o"`, allowing E2E testing to work out-of-the-box with custom local LLM providers.
 - updated `git_diff_unstaged` and `git_diff_staged` tool descriptions and the agent system prompt to explicitly recommend using them instead of running `git diff` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.
 - updated `fs_find_in_files` tool description and agent system prompt to explicitly recommend using `fs_find_in_files` instead of running `grep` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.

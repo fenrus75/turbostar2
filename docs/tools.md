@@ -47,8 +47,9 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `path` *(string, required)*: The path to the file.
 
 ### `fs_list_tests`
-*   **Description:** Returns a markdown table of all available test names in the project.
-*   **Arguments:** None.
+*   **Description:** Returns a markdown table of available test names in the project, optionally filtered by a pattern.
+*   **Arguments:**
+    *   `pattern` *(string, optional)*: Optional pattern (string or RE2 regular expression) to filter test names.
 
 ---
 
