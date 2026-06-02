@@ -105,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- updated `git_diff_unstaged` and `git_diff_staged` tool descriptions and the agent system prompt to explicitly recommend using them instead of running `git diff` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.
 - updated `fs_find_in_files` tool description and agent system prompt to explicitly recommend using `fs_find_in_files` instead of running `grep` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.
 - fixed argument escaping bug in `fs_run_tests` tool for Meson build system where test names containing spaces were split into separate command line arguments, causing test execution failures. All test name arguments are now robustly shell-escaped, and added a unit test.
 - fixed a bug where the background episode summarization thread did not use the configured default model from the model list/registry, defaulting instead to the agent's current active model.

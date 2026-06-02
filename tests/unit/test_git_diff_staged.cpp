@@ -71,6 +71,21 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
+	// 5. Verify description contains "git diff"
+	{
+		nlohmann::json tools = registry.get_tools_json();
+		bool found = false;
+		for (const auto &tool : tools) {
+			if (tool["function"]["name"] == "git_diff_staged") {
+				std::string desc = tool["function"]["description"];
+				assert(desc.find("git diff") != std::string::npos);
+				found = true;
+				break;
+			}
+		}
+		assert(found);
+	}
+
 	std::cout << "git_diff_staged tests passed successfully.\n";
 	return 0;
 }

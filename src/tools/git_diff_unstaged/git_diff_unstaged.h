@@ -19,7 +19,7 @@ private:
 class git_diff_unstaged_validator : public agentlib::single_file_tool_validator {
 public:
     std::string get_name() const override { return "git_diff_unstaged"; }
-    std::string get_description() const override { return "View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output."; }
+    std::string get_description() const override { return "View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Use this instead of running 'git diff' via the shell. Returns raw patch output."; }
     std::string get_parameter_name() const override { return "path"; }
     std::string get_parameter_description() const override { return "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.')."; }
 

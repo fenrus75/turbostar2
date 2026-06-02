@@ -381,12 +381,12 @@ These tools allow the agent to interact with the project's Git repository.
     *   `message` *(string, required)*: The commit message.
 
 ### `git_diff_unstaged`
-*   **Description:** View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.
+*   **Description:** View the uncommitted/unstaged git diff for a specific file or directory (use '.' for the entire project). Use this instead of running 'git diff' via the shell. Returns raw patch output.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
 
 ### `git_diff_staged`
-*   **Description:** View the staged git diff for a specific file or directory (use '.' for the entire project). Returns raw patch output.
+*   **Description:** View the staged git diff for a specific file or directory (use '.' for the entire project). Use this instead of running 'git diff --staged' or 'git diff --cached' via the shell. Returns raw patch output.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
 
