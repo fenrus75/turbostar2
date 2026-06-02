@@ -39,9 +39,6 @@
   project directory with small python or other scripts it makes to do things
 
 
-- feature: detect "file has change on disk" by checking file mtime once in a while as the user is typing
-	- rate limit to once per 10 seconds.
-	- dialog offer is "load from disk"
 
 # mid term items
 - feature: add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
@@ -112,6 +109,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- implemented "file has changed on disk" detection: checks modification time (mtime) of the active file once every 10 seconds, displays a reload prompt dialog offering to reload or ignore the change, and handles state synchronization to avoid duplicate warnings when changes are ignored. Included comprehensive unit and E2E test coverage.
 - implemented native mouse click-and-drag text selection and clipboard copying via OSC 52 escape sequences on mouse release, including visual XOR toggling against persistent block selection, base64 utility consolidation, display-column-to-character-position line offset translation, and comprehensive E2E/unit tests.
 - implemented fallback signal handling inside the main executable using `libunwind` to print a clean crash backtrace to stdout when not preloaded with `libturbocatch.so`, resetting the terminal modes on crash.
 - implemented a custom `ui_utils::draw_border` helper function to deduplicate double-line and single-line border rendering logic across `dialog.cpp`, `window.cpp`, and `popup_menu.cpp`, avoiding duplicate absolute-coordinate print loops.
