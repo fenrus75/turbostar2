@@ -691,7 +691,7 @@ std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::
 
 std::unique_ptr<dialog> create_model_list_dialog()
 {
-	auto dlg = std::make_unique<dialog>("AI Models", 60, 18);
+	auto dlg = std::make_unique<dialog>("AI Models", 60, 20);
 	auto models = agentlib::ai_model_registry::get_instance().get_all_models();
 	std::string default_id = config_manager::get_instance().get_default_model_id();
 
@@ -714,7 +714,15 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	auto lb_ptr = lb.get();
 	dlg->add_child(std::move(lb));
 
-	int by = 14;
+	// Server URL and Import controls at y = 13
+	dlg->add_child(std::make_unique<ui_text_label>(2, 13, "Server URL:"));
+	dlg->add_child(std::make_unique<ui_textbox>("server_url", 14, 13, 28, "http://localhost:11434/v1"));
+	dlg->add_child(std::make_unique<ui_button>("btn_import", 44, 13, " Import ", 'i', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("import");
+	}));
+
+	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_add", 4, by, "  Add  ", 'a', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("add");

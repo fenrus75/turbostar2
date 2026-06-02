@@ -7,6 +7,7 @@
 #include <sstream>
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
+#include "agentlib/httplib_transport.h"
 #include "build_error_manager.h"
 #include "config_manager.h"
 #include "editor.h"
@@ -148,6 +149,34 @@ void editor::resolve_dialog(dialog_result res)
 					config_manager::get_instance().save_global();
 				}
 
+				active_dialog_ = create_model_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_list;
+				set_focus(focus_target::dialog, "model_list");
+				return;
+			} else if (res_str == "import") {
+				auto url_opt = active_dialog_->get_value("server_url");
+				std::string url = url_opt ? *url_opt : "";
+
+				std::string error_msg;
+				auto imported_models = agentlib::fetch_openai_models(url, error_msg);
+
+				if (!imported_models.empty()) {
+					auto &registry = agentlib::ai_model_registry::get_instance();
+					for (const auto &model : imported_models) {
+						registry.register_model(model);
+					}
+					registry.save_models();
+
+					active_dialog_ = create_model_list_dialog();
+					active_dialog_mode_ = dialog_mode::model_list;
+					set_focus(focus_target::dialog, "model_list");
+				} else {
+					active_dialog_ = create_message_dialog("Import Error", { "Failed to fetch models from server:", error_msg });
+					active_dialog_mode_ = dialog_mode::model_list;
+					set_focus(focus_target::dialog, "btn_ok");
+				}
+				return;
+			} else if (res_str == "ok") {
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
 				set_focus(focus_target::dialog, "model_list");

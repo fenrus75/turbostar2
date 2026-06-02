@@ -1,8 +1,10 @@
 #pragma once
 #include "llm_transport.h"
+#include "ai_model.h"
 #include <string>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 namespace httplib {
     class Client;
@@ -31,4 +33,7 @@ private:
     std::mutex mutex_;
 };
 
+std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out);
+
 } // namespace agentlib
+

@@ -1,6 +1,10 @@
 #include "httplib_transport.h"
 #include <httplib.h>
 #include <chrono>
+#include <nlohmann/json.hpp>
+#include <format>
+#include <cstdlib>
+
 
 namespace agentlib
 {
@@ -214,6 +218,107 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 	}
 	last_error_ = "";
 	return true;
+}
+
+std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out)
+{
+	std::vector<std::shared_ptr<ai_model>> result;
+	if (server_url.empty()) {
+		error_out = "Server URL is empty";
+		return result;
+	}
+
+	std::string target_url = server_url;
+	if (target_url.back() == '/') {
+		target_url.pop_back();
+	}
+	if (!target_url.ends_with("/models")) {
+		target_url += "/models";
+	}
+
+	std::string host = target_url;
+	size_t scheme_end = host.find("://");
+	size_t path_start = std::string::npos;
+	if (scheme_end != std::string::npos) {
+		path_start = host.find('/', scheme_end + 3);
+	} else {
+		path_start = host.find('/');
+	}
+
+	std::string path = "/models";
+	if (path_start != std::string::npos) {
+		path = host.substr(path_start);
+		host = host.substr(0, path_start);
+	}
+
+	try {
+		httplib::Client cli(host);
+		cli.set_connection_timeout(std::chrono::seconds(5));
+		cli.set_read_timeout(std::chrono::seconds(10));
+		cli.set_follow_location(true);
+
+		// Proxy support identical to httplib_transport constructor
+		const char* env_proxy = std::getenv("https_proxy");
+		if (!env_proxy) env_proxy = std::getenv("http_proxy");
+		if (env_proxy) {
+			std::string proxy(env_proxy);
+			size_t scheme_pos = proxy.find("://");
+			if (scheme_pos != std::string::npos) {
+				proxy = proxy.substr(scheme_pos + 3);
+			}
+			size_t port_pos = proxy.find(':');
+			std::string p_host = proxy;
+			int p_port = 80;
+			if (port_pos != std::string::npos) {
+				p_host = proxy.substr(0, port_pos);
+				try {
+					p_port = std::stoi(proxy.substr(port_pos + 1));
+				} catch (...) {}
+			}
+			if (!p_host.empty() && p_host.back() == '/') {
+				p_host.pop_back();
+			}
+			cli.set_proxy(p_host, p_port);
+		}
+
+		auto res = cli.Get(path.c_str());
+		if (!res) {
+			error_out = std::format("Failed to connect to {}: {}", host, error_to_string(res.error()));
+			return result;
+		}
+
+		if (res->status != 200) {
+			error_out = std::format("HTTP error code {}: {}", res->status, res->body.substr(0, 200));
+			return result;
+		}
+
+		auto root = nlohmann::json::parse(res->body);
+		if (!root.contains("data") || !root["data"].is_array()) {
+			error_out = "Invalid response format: 'data' array not found";
+			return result;
+		}
+
+		for (const auto &item : root["data"]) {
+			if (item.contains("id") && item["id"].is_string()) {
+				std::string id = item["id"];
+				std::string name = item.value("name", id);
+				std::string purpose = std::format("Imported from {}", server_url);
+				
+				result.push_back(std::make_shared<ai_model>(
+					id, name, server_url, purpose, 0.0, 0.0, "", 
+					api_type::openai, 250000, model_cost_type::free_local
+				));
+			}
+		}
+
+		if (result.empty()) {
+			error_out = "No models found in server response";
+		}
+	} catch (const std::exception &e) {
+		error_out = std::format("Exception: {}", e.what());
+	}
+
+	return result;
 }
 
 } // namespace agentlib
