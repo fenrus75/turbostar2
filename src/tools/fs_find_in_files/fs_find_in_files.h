@@ -41,7 +41,7 @@ private:
 class fs_find_in_files_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_find_in_files"; }
-    std::string get_description() const override { return "Search for a regular expression across multiple files in the project. Returns formatted markdown with line numbers and matches."; }
+    std::string get_description() const override { return "Search for a pattern (string or RE2 regular expression, similar to grep) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches."; }
     nlohmann::json get_parameters_schema() const override;
     bool is_pure() const override { return true; }
 

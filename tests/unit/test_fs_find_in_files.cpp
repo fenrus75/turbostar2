@@ -104,6 +104,11 @@ int main() {
     assert(res4.find("4: line 4") != std::string::npos);
 
     fs::remove_all(temp_dir);
+
+    // Verify description mentions grep
+    tools::fs_find_in_files_validator val;
+    assert(val.get_description().find("grep") != std::string::npos);
+
     std::cout << "fs_find_in_files unit test passed!\n";
     return 0;
 }

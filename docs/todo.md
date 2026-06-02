@@ -105,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- updated `fs_find_in_files` tool description and agent system prompt to explicitly recommend using `fs_find_in_files` instead of running `grep` via the generic `run_shell_command` tool, preventing agents from falling back to unnecessary shell commands.
 - fixed argument escaping bug in `fs_run_tests` tool for Meson build system where test names containing spaces were split into separate command line arguments, causing test execution failures. All test name arguments are now robustly shell-escaped, and added a unit test.
 - fixed a bug where the background episode summarization thread did not use the configured default model from the model list/registry, defaulting instead to the agent's current active model.
 - implemented parallel `fs_read_lines` tool call coalescing (merging) within the same assistant turn. When multiple read requests are sent in parallel targeting the same file, they are grouped and merged if the gap between them is within a threshold (20 lines). The parent call reads the contiguous block, and the child calls return a redirection note to avoid redundant file output, saving prompt/context tokens.
