@@ -13,6 +13,7 @@
 #include "../event_queue.h"
 
 #include "../agentlib/ai_model.h"
+#include "../config_manager.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -41,27 +42,50 @@ int main(int argc, char **argv)
 	const char *env_url = std::getenv("LLM_URL");
 	std::string url = env_url ? env_url : "http://192.168.1.55:8080";
 
-	// Set up the transport chain
+	// Load configuration to get the default model from the inventory
+	config_manager::get_instance().load();
+
+	std::string default_model_id = "gpt-4o";
+	api_type default_type = api_type::openai;
+	std::string default_name = "GPT-4o";
+	double cost_tx = 5.0;
+	double cost_rx = 15.0;
+	std::string api_key = "";
+	model_cost_type cost_type = model_cost_type::paid_per_token;
+
+	std::string cfg_model_id = config_manager::get_instance().get_default_model_id();
+	auto registry_model = ai_model_registry::get_instance().get_model(cfg_model_id);
+	if (registry_model) {
+		default_model_id = registry_model->get_id();
+		default_type = registry_model->get_api_type();
+		default_name = registry_model->get_name();
+		cost_tx = registry_model->get_cost_per_1m_tx();
+		cost_rx = registry_model->get_cost_per_1m_rx();
+		api_key = registry_model->get_api_key();
+		cost_type = registry_model->get_cost_type();
+	}
+
+	// Set up the transport chain using the resolved default model details
 #if defined(LLM_TRANSPORT_REPLAY)
 	std::cout << "[Using Replay Transport]" << std::endl;
 	auto player = std::make_shared<replay_transport>(replay_file);
-	llm_client client(player, "gpt-4o");
+	llm_client client(player, default_model_id, default_type);
 
 #elif defined(LLM_TRANSPORT_RECORD)
 	std::cout << "[Using Recording Transport]" << std::endl;
-	auto http_transport = std::make_shared<httplib_transport>(url);
+	auto http_transport = std::make_shared<httplib_transport>(url, api_key);
 	auto recorder = std::make_shared<recording_transport>(http_transport, replay_file);
-	llm_client client(recorder, "gpt-4o");
+	llm_client client(recorder, default_model_id, default_type);
 #else
 	std::cout << "[Using Standard HTTP Transport]" << std::endl;
-	auto http_transport = std::make_shared<httplib_transport>(url);
-	llm_client client(http_transport, "gpt-4o");
+	auto http_transport = std::make_shared<httplib_transport>(url, api_key);
+	llm_client client(http_transport, default_model_id, default_type);
 #endif
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
 	event_queue q;
-	auto model = std::make_shared<ai_model>("cli-model", "CLI Model", url, "CLI Test", 0.0, 0.0);
+	auto model = std::make_shared<ai_model>(default_model_id, default_name, url, "CLI Test", cost_tx, cost_rx, api_key, default_type, 250000, cost_type);
 	auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
 	ctx.active_agent = test_agent.get();
 
