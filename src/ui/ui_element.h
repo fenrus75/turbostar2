@@ -104,6 +104,15 @@ class ui_element
 		is_pressed_ = pressed;
 	}
 
+	bool press_on_esc() const
+	{
+		return press_on_esc_;
+	}
+	void set_press_on_esc(bool val)
+	{
+		press_on_esc_ = val;
+	}
+
 	virtual std::optional<std::string> get_pressed_element_name() const
 	{
 		if (is_pressed_)
@@ -130,6 +139,7 @@ class ui_element
 	int x_, y_, width_, height_;
 	bool has_focus_{false};
 	bool is_pressed_{false};
+	bool press_on_esc_{false};
 	ui_container *parent_{nullptr};
 };
 

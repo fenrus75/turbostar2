@@ -73,7 +73,7 @@ dialog_result dialog::handle_key(int key)
 
 	if (action_ == dialog_result::pending && key == 27) { // Standalone ESC or swallowed ESC
 		for (auto &child : children_) {
-			if (child->name() == "btn_cancel" || child->name() == "Cancel") {
+			if (child->press_on_esc()) {
 				child->set_pressed(true);
 			}
 		}

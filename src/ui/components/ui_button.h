@@ -10,7 +10,7 @@
 class ui_button : public ui_element
 {
       public:
-	ui_button(std::string name, int x, int y, const std::string &text, char hotkey, std::function<void()> on_click);
+	ui_button(std::string name, int x, int y, const std::string &text, char hotkey, std::function<void()> on_click, bool press_on_esc = false);
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
