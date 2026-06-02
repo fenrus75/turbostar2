@@ -8,18 +8,6 @@
 #include "../../markdown_utils.h"
 #include "fs_replace_lines.h"
 
-namespace
-{
-std::string trim_ws(const std::string &str)
-{
-	size_t first = str.find_first_not_of(" \t\r\n");
-	if (first == std::string::npos)
-		return "";
-	size_t last = str.find_last_not_of(" \t\r\n");
-	return str.substr(first, (last - first + 1));
-}
-}
-
 namespace tools
 {
 
@@ -224,8 +212,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			for (size_t i = 0; i < expected_lines.size(); ++i) {
 				std::string actual = lines[test_idx + i];
 				std::string expected = expected_lines[i];
-				std::string actual_trimmed = trim_ws(actual);
-				std::string expected_trimmed = trim_ws(expected);
+				std::string actual_trimmed = markdown_utils::trim(actual);
+				std::string expected_trimmed = markdown_utils::trim(expected);
 
 				if (expected_trimmed.empty()) {
 					if (!actual_trimmed.empty()) {
