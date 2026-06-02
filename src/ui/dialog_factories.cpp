@@ -1021,11 +1021,24 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		}
 	}
 
-	int width = 56;
-	int height = 17;
+	std::vector<std::string> cmd_lines;
 	if (!missing_packages.empty()) {
-		height = 19;
+		std::string current_line = "sudo apt install";
+		for (const auto &pkg : missing_packages) {
+			if (current_line.length() + 1 + pkg.length() > 44) {
+				cmd_lines.push_back(current_line);
+				current_line = "  " + pkg;
+			} else {
+				current_line += " " + pkg;
+			}
+		}
+		cmd_lines.push_back(current_line);
 	}
+
+	int width = 56;
+	int height = 4 + static_cast<int>(tools.size()) + 1 +
+	             (missing_packages.empty() ? 2 : (3 + static_cast<int>(cmd_lines.size()))) +
+	             1 + 2;
 
 	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
 
@@ -1049,11 +1062,9 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "Some dependencies are missing."));
 		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "To install them, run:"));
 
-		std::string apt_cmd = "sudo apt install";
-		for (const auto &pkg : missing_packages) {
-			apt_cmd += " " + pkg;
+		for (const auto &line : cmd_lines) {
+			dlg->add_child(std::make_unique<ui_text_label>(6, current_y++, line));
 		}
-		dlg->add_child(std::make_unique<ui_text_label>(6, current_y++, apt_cmd));
 		current_y++;
 	} else {
 		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "All dependencies are installed!"));

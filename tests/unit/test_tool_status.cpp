@@ -33,6 +33,7 @@ int main()
 			found_ok_btn = true;
 		} else if (child->name() == "text") {
 			label_count++;
+			assert(child->x() + child->width() < dlg->width() - 1);
 		}
 	}
 
