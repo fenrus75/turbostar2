@@ -105,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- modified `fs_replace_lines` tool output warning logic to omit the shifted by 0 lines warning when the net shift is 0 lines, saving context window tokens.
 - implemented OpenAI model auto-import from custom servers: added a Server URL input textbox and an Import button to the model list management TUI dialog, querying the server's /v1/models endpoint, parsing OpenAI-compliant JSON responses, registering all discovered models as free/local entries, showing clean error dialogs on connection/response failure, and including comprehensive unit testing.
 - fixed a bug in `fs_replace_lines` tool safety verification where leading and trailing whitespace differences (such as tabs vs. spaces or omitted leading indentation) in `original_text` caused spurious Stage 2 Security Violations. The tool now performs prefix matching on trimmed lines, and added a corresponding unit test.
 - integrated auto-saving of dirty documents prior to shell tool executions: `run_shell_command` now automatically calls `save_all_documents()` before spawning command runners, preventing out-of-sync disk reads by external shell commands (like `sed`, `grep`, or compilers) and human-induced workspace drifts.

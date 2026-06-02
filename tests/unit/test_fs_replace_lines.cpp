@@ -39,6 +39,7 @@ int main()
 	assert(result.find("1: Line 1") != std::string::npos);
 	assert(result.find("2: Replaced Line 2") != std::string::npos);
 	assert(result.find("3: Line 3") != std::string::npos);
+	assert(result.find("- Note: Lines below this section are shifted") == std::string::npos);
 
 	// Verify the file was changed
 	std::ifstream in(test_file);

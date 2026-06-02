@@ -564,7 +564,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 			}
 		}
 
-		if (show_shift_zones) {
+		if (show_shift_zones && current_shift != 0) {
 			result_msg += std::format("- Note: Lines below this section are shifted by {} lines relative to the original file.\n", current_shift);
 		}
 		result_msg += "\n";
