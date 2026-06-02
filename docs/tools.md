@@ -14,11 +14,11 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `path` *(string, required)*: The path to the directory, relative to the project root.
 
 ### `fs_read_lines`
-*   **Description:** Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single call is strictly limited to 2000. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
+*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
-    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. A maximum of 2000 lines will be returned.
+    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted.
 
 ### `fs_find_in_files`
 *   **Description:** Search for a regular expression across multiple files in the project. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.

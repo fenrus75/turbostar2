@@ -93,8 +93,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	int end = std::max(start, args_.end_line);
 
 	// Prevent reading massive blocks that blow out context window
-	if (end - start > 2000) {
-		end = start + 2000;
+	if (end - start > 50000) {
+		end = start + 50000;
 	}
 
 	// Write them back to args_ so helper methods use the bounded values

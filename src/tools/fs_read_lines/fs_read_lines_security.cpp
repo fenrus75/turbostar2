@@ -35,8 +35,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Reads a specific range of text lines from a file. Note: The maximum number of lines that can be read in a single "
-		       "call is strictly limited to 2000. Output lines are prefixed with their 1-based line number in '<line_number>: <line_text>' format.";
+		return "Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in '<line_number>: <line_text>' format.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -49,8 +48,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted."}}},
 		      {"end_line",
 		       {{"type", "integer"},
-			{"description", "The 1-based line number to end reading at (inclusive). Defaults to start_line + 1999 if omitted. "
-					"A maximum of 2000 lines will be returned."}}}}},
+			{"description", "The 1-based line number to end reading at (inclusive)."}}}}},
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 
