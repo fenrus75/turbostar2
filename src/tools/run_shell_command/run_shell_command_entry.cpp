@@ -33,6 +33,10 @@ bool run_shell_command_tool::validate_runtime(const agentlib::tool_context & /*c
 
 std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 {
+	if (ctx.doc_provider) {
+		ctx.doc_provider->save_all_documents();
+	}
+
 	char rule = '?';
 	{
 		std::lock_guard<std::mutex> lock(g_perms_mutex);
