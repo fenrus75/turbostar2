@@ -1,10 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-- refactor: editor::set_focus: the focus_target to string should be its own helper
-
-- visual: editor::render: checkerboard background pattern should be gray-on-black color
-
 - refactor: we have q_block_mode_, p_block_mode_, is_searching_prompt_ etc .. should we turn these bools into an enum 
   (with "normal" as the base case) so that they are both easier to manage and automatically exclusive
 
@@ -144,6 +140,8 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- updated checkerboard background pattern on empty/unfilled areas to a gray-on-black color scheme (pair 9).
+- refactored `editor::set_focus` by extracting the `focus_target` enum-to-string conversion logic into its own global helper function `focus_target_to_string`.
 - modified `fs_replace_lines` output format to label the modified range output as `"Code after edit for lines X - Y:"` instead of `"[Modified Section lines X - Y]:"`, making it explicitly clear that this represents the post-edit content.
 - renamed `fs_find_in_files` tool to `fs_grep_files` across the codebase (including all class, interaction, test target, documentation, and system prompt references) to explicitly identify it as a built-in replacement for the `grep` shell command.
 - added an optional `pattern` parameter to `fs_list_tests` tool supporting case-insensitive RE2 regular expression and substring filtering, and updated the agent system prompt to explicitly recommend using `fs_list_tests` instead of running `meson test --list` / `ctest --show-only` via the shell, preventing agents from falling back to unnecessary shell commands.

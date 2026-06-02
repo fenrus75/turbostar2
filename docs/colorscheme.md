@@ -15,7 +15,7 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Selected Menu Item** | Black | Green | 14 | Background for the active menu option. |
 | **Sel. Menu Hotkey** | Red | Green | 15 | Hotkey on the active menu option. |
 | **Selection Highlight** | White | Cyan | 8 | The range between Begin and End markers. |
-| **Desktop Pattern** | Cyan | Dark Blue | 9 | The dithered `▒` background. |
+| **Desktop Pattern** | Dark Gray | Black | 9 | The dithered `▒` background. |
 | **Syntax: Keyword** | Bright White | Dark Blue | 12 | C++ keywords like `void`, `int`, etc. |
 | **Syntax: Sel. Keyword** | Bright Yellow | Cyan | 13 | Keyword within a selection. |
 
