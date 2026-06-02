@@ -117,25 +117,11 @@ void dialog::draw() const
 	}
 
 	// Double line border with Pair 11
-	attron(COLOR_PAIR(11));
-	mvaddstr(y_, x_, "╔");
-	for (int i = 1; i < width_ - 1; ++i)
-		addstr("═");
-	addstr("╗");
-
-	for (int i = 1; i < height_ - 1; ++i) {
-		mvaddstr(y_ + i, x_, "║");
-		mvaddstr(y_ + i, x_ + width_ - 1, "║");
-	}
-
-	mvaddstr(y_ + height_ - 1, x_, "╚");
-	for (int i = 1; i < width_ - 1; ++i)
-		addstr("═");
-	addstr("╝");
+	ui_utils::draw_border(x_, y_, width_, height_, ui_utils::border_style::double_line, 11);
 
 	// Close button [■]
+	attron(COLOR_PAIR(11));
 	mvaddstr(y_, x_ + 2, "[■]");
-
 	attroff(COLOR_PAIR(11));
 
 	// Title

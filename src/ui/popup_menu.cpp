@@ -1,4 +1,5 @@
 #include "ui/popup_menu.h"
+#include "ui/ui_element.h"
 #include <cctype>
 #include <ncurses.h>
 
@@ -38,12 +39,10 @@ void popup_menu::draw() const
 		mvaddch(y_ + height_, x_ + 1 + i, ' ');
 	attroff(COLOR_PAIR(6));
 
-	attron(COLOR_PAIR(1));
-	mvaddstr(y_, x_, "┌");
-	for (int j = 1; j < width_ - 1; ++j)
-		addstr("─");
-	addstr("┐");
+	// Draw border
+	ui_utils::draw_border(x_, y_, width_, height_, ui_utils::border_style::single, 1);
 
+	attron(COLOR_PAIR(1));
 	for (size_t i = 0; i < items_.size(); ++i) {
 		const auto &item = items_[i];
 		int row_y = y_ + 1 + i;
@@ -54,7 +53,6 @@ void popup_menu::draw() const
 			addstr("┤");
 		} else {
 			bool selected = (static_cast<int>(i) == selected_idx_);
-			mvaddstr(row_y, x_, "│");
 
 			if (selected)
 				attrset(COLOR_PAIR(14));
@@ -96,15 +94,8 @@ void popup_menu::draw() const
 			}
 
 			attrset(COLOR_PAIR(1));
-			mvaddstr(row_y, x_ + width_ - 1, "│");
 		}
 	}
-
-	attrset(COLOR_PAIR(1));
-	mvaddstr(y_ + height_ - 1, x_, "└");
-	for (int j = 1; j < width_ - 1; ++j)
-		addstr("─");
-	addstr("┘");
 	attrset(0);
 }
 

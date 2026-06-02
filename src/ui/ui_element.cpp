@@ -303,3 +303,53 @@ void ui_container::set_focus_by_name(const std::string &child_name)
 		}
 	}
 }
+
+void ui_utils::draw_border(int x, int y, int width, int height, border_style style, int color_pair)
+{
+	const char *ls = "│";
+	const char *rs = "│";
+	const char *ts = "─";
+	const char *bs = "─";
+	const char *tl = "┌";
+	const char *tr = "┐";
+	const char *bl = "└";
+	const char *br = "┘";
+
+	if (style == border_style::double_line) {
+		ls = "║";
+		rs = "║";
+		ts = "═";
+		bs = "═";
+		tl = "╔";
+		tr = "╗";
+		bl = "╚";
+		br = "╝";
+	}
+
+	if (color_pair != -1) {
+		attron(COLOR_PAIR(color_pair));
+	}
+
+	// Draw horizontal lines (top and bottom)
+	for (int i = 1; i < width - 1; ++i) {
+		mvaddstr(y, x + i, ts);
+		mvaddstr(y + height - 1, x + i, bs);
+	}
+
+	// Draw vertical lines (left and right)
+	for (int i = 1; i < height - 1; ++i) {
+		mvaddstr(y + i, x, ls);
+		mvaddstr(y + i, x + width - 1, rs);
+	}
+
+	// Draw corners
+	mvaddstr(y, x, tl);
+	mvaddstr(y, x + width - 1, tr);
+	mvaddstr(y + height - 1, x, bl);
+	mvaddstr(y + height - 1, x + width - 1, br);
+
+	if (color_pair != -1) {
+		attroff(COLOR_PAIR(color_pair));
+	}
+}
+

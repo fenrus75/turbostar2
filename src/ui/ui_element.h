@@ -174,6 +174,15 @@ class ui_container : public ui_element
 	ui_element *focused_child_{nullptr};
 };
 
+namespace ui_utils {
+	enum class border_style {
+		single,
+		double_line
+	};
+
+	void draw_border(int x, int y, int width, int height, border_style style, int color_pair = -1);
+}
+
 // Represents a single-line text input field.
 
 #include "ui/components/ui_button.h"

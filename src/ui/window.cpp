@@ -1,4 +1,5 @@
 #include "ui/window.h"
+#include "ui/ui_element.h"
 #include <algorithm>
 #include <format>
 #include <string>
@@ -517,27 +518,10 @@ void window::draw_border() const
 	int border_pair = is_active() ? 5 : 38;
 	int widget_pair = is_active() ? 3 : 39;
 
-	attrset(COLOR_PAIR(border_pair));
-
 	std::string current_title = get_displayed_title();
 
-	// Draw top and bottom borders
-	for (int i = 1; i < width_ - 1; ++i) {
-		mvaddstr(y_, x_ + i, "═");
-		mvaddstr(y_ + height_ - 1, x_ + i, "═");
-	}
-
-	// Draw left and right borders
-	for (int i = 1; i < height_ - 1; ++i) {
-		mvaddstr(y_ + i, x_, "║");
-		mvaddstr(y_ + i, x_ + width_ - 1, "║");
-	}
-
-	// Draw corners
-	mvaddstr(y_, x_, "╔");
-	mvaddstr(y_, x_ + width_ - 1, "╗");
-	mvaddstr(y_ + height_ - 1, x_, "╚");
-	mvaddstr(y_ + height_ - 1, x_ + width_ - 1, "╝");
+	ui_utils::draw_border(x_, y_, width_, height_, ui_utils::border_style::double_line, border_pair);
+	attrset(COLOR_PAIR(border_pair));
 
 	// Title
 
