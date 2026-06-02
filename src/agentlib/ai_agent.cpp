@@ -1897,9 +1897,15 @@ void ai_agent::summary_worker_loop()
                 sys.role = "system";
                 sys.content = system_prompt;
                 dummy_convo.push_back(sys);
-                
-                auto transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
-                llm_client local_client(transport, model_->get_id(), model_->get_api_type());
+                auto default_model = model_;
+                std::string default_model_id = config_manager::get_instance().get_default_model_id();
+                auto registry_model = ai_model_registry::get_instance().get_model(default_model_id);
+                if (registry_model) {
+                    default_model = registry_model;
+                }
+
+                auto transport = std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
+                llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
                 
                 if (is_closed_) break;
                 llm_chat_response res = local_client.send_chat(dummy_convo);
