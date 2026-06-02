@@ -86,6 +86,14 @@ bool document::load_from_file(const std::string &filename)
 	}
 
 	filename_ = filename;
+	std::error_code ec;
+	auto mtime = std::filesystem::last_write_time(filename_, ec);
+	if (!ec) {
+		last_disk_mtime_ = mtime;
+		has_last_disk_mtime_ = true;
+	} else {
+		has_last_disk_mtime_ = false;
+	}
 	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
@@ -124,32 +132,33 @@ bool document::load_from_file(const std::string &filename)
 }
 bool document::insert_file(const std::string &filename)
 {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-                event_logger::get_instance().log("Insert File failed: Could not open file {}", filename);
-                return false;
-        }
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Insert File failed: Could not open file {}", filename);
+		return false;
+	}
 
-        std::vector<line> block;
-        std::string line_text;
-        while (std::getline(file, line_text)) {
-                block.emplace_back(line_text);
-        }
+	std::vector<line> block;
+	std::string line_text;
+	while (std::getline(file, line_text)) {
+		block.emplace_back(line_text);
+	}
 
-        if (block.empty())
-                return true;
+	if (block.empty())
+		return true;
 
-        std::unique_lock lock(mutex_);
-        begin_edit_group("Insert file");
-        insert_block(block);
-        end_edit_group();
-        set_modified();
-        lock.unlock();
-        notify_cursor_changed();
-        return true;
+	std::unique_lock lock(mutex_);
+	begin_edit_group("Insert file");
+	insert_block(block);
+	end_edit_group();
+	set_modified();
+	lock.unlock();
+	notify_cursor_changed();
+	return true;
 }
 
-        bool document::save(){
+bool document::save()
+{
 	std::shared_lock lock(mutex_);
 	std::string fname = filename_;
 	bool modified = modified_;
@@ -206,6 +215,14 @@ bool document::save_to_file(const std::string &filename)
 
 	lock.lock();
 	filename_ = filename;
+	std::error_code ec;
+	auto mtime = std::filesystem::last_write_time(filename_, ec);
+	if (!ec) {
+		last_disk_mtime_ = mtime;
+		has_last_disk_mtime_ = true;
+	} else {
+		has_last_disk_mtime_ = false;
+	}
 	safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	refresh_highlighter();
 	modified_ = false;
@@ -625,5 +642,39 @@ void document::apply_external_edits_json(const std::string &json_str)
 		request_redraw();
 	} catch (...) {
 		event_logger::get_instance().log("Failed to parse or apply external edits json");
+	}
+}
+
+bool document::check_disk_changed()
+{
+	std::shared_lock lock(mutex_);
+	if (filename_.empty())
+		return false;
+	std::error_code ec;
+	if (!std::filesystem::exists(filename_, ec))
+		return false;
+	auto mtime = std::filesystem::last_write_time(filename_, ec);
+	if (ec)
+		return false;
+	if (has_last_disk_mtime_ && mtime != last_disk_mtime_) {
+		return true;
+	}
+	return false;
+}
+
+void document::update_last_disk_mtime()
+{
+	std::unique_lock lock(mutex_);
+	if (filename_.empty()) {
+		has_last_disk_mtime_ = false;
+		return;
+	}
+	std::error_code ec;
+	auto mtime = std::filesystem::last_write_time(filename_, ec);
+	if (!ec) {
+		last_disk_mtime_ = mtime;
+		has_last_disk_mtime_ = true;
+	} else {
+		has_last_disk_mtime_ = false;
 	}
 }

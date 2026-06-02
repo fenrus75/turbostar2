@@ -1,8 +1,10 @@
 #include <cassert>
-#include <iostream>
-#include <fstream>
+#include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <thread>
 #include "../../src/document.h"
 #include "../../src/event_queue.h"
 
@@ -50,9 +52,7 @@ int main()
 
 		// Remove lines 6 and 7 (0-indexed 5 and 6)
 		// This should not affect cursor at index 4
-		nlohmann::json remove_edits = nlohmann::json::array({
-			{{"line_number", 6}, {"type", "remove"}, {"lines_to_remove", 2}}
-		});
+		nlohmann::json remove_edits = nlohmann::json::array({{{"line_number", 6}, {"type", "remove"}, {"lines_to_remove", 2}}});
 		doc.apply_external_edits_json(remove_edits.dump());
 		assert(doc.line_count() == 8);
 		assert(doc.get_cursor_y() == 4);
@@ -61,9 +61,7 @@ int main()
 		// Now remove lines 3 and 4 (0-indexed 2 and 3)
 		// Since y=4 is after the edit (edit_idx=2, lines_to_remove=2),
 		// it should shift y by -2 to become y=2.
-		nlohmann::json remove_edits2 = nlohmann::json::array({
-			{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 2}}
-		});
+		nlohmann::json remove_edits2 = nlohmann::json::array({{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 2}}});
 		doc.apply_external_edits_json(remove_edits2.dump());
 		assert(doc.line_count() == 6);
 		assert(doc.get_cursor_y() == 2);
@@ -71,9 +69,8 @@ int main()
 
 		// Now remove line 3 (0-indexed 2, which is the cursor line)
 		// y=2 is inside the deleted block. It should snap to y=2, x=0.
-		nlohmann::json remove_cursor_line = nlohmann::json::array({
-			{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 1}}
-		});
+		nlohmann::json remove_cursor_line =
+		    nlohmann::json::array({{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 1}}});
 		doc.apply_external_edits_json(remove_cursor_line.dump());
 		assert(doc.line_count() == 5);
 		assert(doc.get_cursor_y() == 2);
@@ -91,12 +88,10 @@ int main()
 		std::remove(temp_file3.c_str());
 
 		// Remove line 3 and then line 6 (ascending order)
-		nlohmann::json ascending_edits = nlohmann::json::array({
-			{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 1}},
-			{{"line_number", 6}, {"type", "remove"}, {"lines_to_remove", 1}}
-		});
+		nlohmann::json ascending_edits = nlohmann::json::array({{{"line_number", 3}, {"type", "remove"}, {"lines_to_remove", 1}},
+									{{"line_number", 6}, {"type", "remove"}, {"lines_to_remove", 1}}});
 		doc3.apply_external_edits_json(ascending_edits.dump());
-		
+
 		// If sorted correctly, the final document should be:
 		// Line 1, 2, 4, 5, 7, 8, 9, 10
 		assert(doc3.line_count() == 8);
@@ -117,17 +112,14 @@ int main()
 		assert(doc15.line_count() == 15);
 
 		// Edit line 15 (replace)
-		nlohmann::json edit15 = nlohmann::json::array({
-			{{"line_number", 15}, {"type", "replace"}, {"replace_with", "Replaced Line 15"}}
-		});
+		nlohmann::json edit15 =
+		    nlohmann::json::array({{{"line_number", 15}, {"type", "replace"}, {"replace_with", "Replaced Line 15"}}});
 		doc15.apply_external_edits_json(edit15.dump());
 		assert(doc15.line_count() == 15);
 		assert(doc15.get_line(14)->get_text() == "Replaced Line 15");
 
 		// Add at line 16 (append at end of 15 lines)
-		nlohmann::json add16 = nlohmann::json::array({
-			{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}
-		});
+		nlohmann::json add16 = nlohmann::json::array({{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}});
 		doc15.apply_external_edits_json(add16.dump());
 		assert(doc15.line_count() == 16);
 		assert(doc15.get_line(15)->get_text() == "Line 16");
@@ -138,7 +130,7 @@ int main()
 		document doc(queue);
 		doc.append_line("Original");
 		doc.move_cursor(0, 0); // Put cursor at line 0, x=0
-		
+
 		// Clear whatever was recorded for append_line / cursor move
 		doc.break_undo_coalescing();
 		size_t initial_undos = doc.get_undo_count();
@@ -152,7 +144,7 @@ int main()
 
 		// Without coalescing, this is 5 undos. With coalescing, it must be 1.
 		assert(doc.get_undo_count() - initial_undos == 1);
-		
+
 		// Undo once
 		doc.undo();
 		assert(doc.get_line(0)->get_text() == "Original");
@@ -165,17 +157,17 @@ int main()
 		doc.append_line("Line 2\t ");
 		doc.append_line("Line 3");
 		doc.append_line("   "); // Entirely spaces
-		
+
 		doc.break_undo_coalescing();
-		
+
 		// Trim the whole document
 		doc.trim_trailing_whitespace();
-		
+
 		assert(doc.get_line(0)->get_text() == "Line 1");
 		assert(doc.get_line(1)->get_text() == "Line 2");
 		assert(doc.get_line(2)->get_text() == "Line 3");
 		assert(doc.get_line(3)->get_text() == "");
-		
+
 		// Test undo
 		doc.undo();
 		assert(doc.get_line(0)->get_text() == "Line 1  ");
@@ -185,13 +177,48 @@ int main()
 		// Test selection scope
 		doc.set_selection(1, 0, 2, 6); // Selection covers lines 1 and 2
 		doc.trim_trailing_whitespace();
-		
+
 		// Line 0 (outside selection) should not be trimmed.
 		// Line 1 (inside selection) should be trimmed.
 		// Line 3 (outside selection) should not be trimmed.
 		assert(doc.get_line(0)->get_text() == "Line 1  ");
 		assert(doc.get_line(1)->get_text() == "Line 2");
 		assert(doc.get_line(3)->get_text() == "   ");
+	}
+
+	// Test 6: Check disk change detection
+	{
+		document doc(queue);
+		std::string temp_file = "temp_disk_change.txt";
+		{
+			std::ofstream ofs(temp_file);
+			ofs << "Initial content\n";
+		}
+
+		// Load document
+		bool loaded = doc.load_from_file(temp_file);
+		assert(loaded);
+		assert(!doc.check_disk_changed());
+
+		// Wait slightly to ensure different modification time resolution
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		// Modify file externally on disk
+		{
+			std::ofstream ofs(temp_file);
+			ofs << "External content\n";
+		}
+
+		// It should detect the change
+		assert(doc.check_disk_changed());
+
+		// Update the last write time in document
+		doc.update_last_disk_mtime();
+
+		// It should no longer report changed
+		assert(!doc.check_disk_changed());
+
+		std::remove(temp_file.c_str());
 	}
 
 	std::cout << "document unit test passed!\n";

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <deque>
+#include <filesystem>
 #include <queue>
 #include <shared_mutex>
 #include <string>
@@ -14,19 +15,15 @@
 #include "syntax_highlighter.h"
 
 enum class undo_group_type {
-	none,          // Never merge (e.g., paste, load, formatting, agent edits, word deletes)
-	typing,        // Single-character insertion
-	backspace,     // Single-character backspace/delete
-	delete_line,   // Whole-line deletes (Ctrl-Y)
+	none,	     // Never merge (e.g., paste, load, formatting, agent edits, word deletes)
+	typing,	     // Single-character insertion
+	backspace,   // Single-character backspace/delete
+	delete_line, // Whole-line deletes (Ctrl-Y)
 };
 
 // Represents a single, atomic line modification
 struct edit_action {
-	enum class action_type {
-		replace_line,
-		insert_line,
-		delete_line
-	};
+	enum class action_type { replace_line, insert_line, delete_line };
 
 	action_type type;
 	int y;
@@ -42,7 +39,10 @@ struct action_group {
 	int cursor_x_after{0};
 	undo_group_type type{undo_group_type::none};
 
-	bool empty() const { return actions.empty(); }
+	bool empty() const
+	{
+		return actions.empty();
+	}
 };
 
 /**
@@ -68,9 +68,12 @@ class document
 	~document();
 
 	bool load_from_file(const std::string &filename);
-	bool insert_file(const std::string &filename);	bool save();
+	bool insert_file(const std::string &filename);
+	bool save();
 	bool save_to_file(const std::string &filename);
 	void clear();
+	bool check_disk_changed();
+	void update_last_disk_mtime();
 	const std::string &get_filename() const;
 	const std::string &get_safe_filename() const;
 	bool has_nondefault_filename() const;
@@ -79,7 +82,10 @@ class document
 	std::string get_git_branch() const;
 	void set_git_branch(const std::string &branch);
 
-	virtual bool is_read_only() const { return read_only_; }
+	virtual bool is_read_only() const
+	{
+		return read_only_;
+	}
 	virtual void set_read_only(bool ro);
 
 	// Basic accessors for now
@@ -132,7 +138,8 @@ class document
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void delete_selection_unlocked();
 
-	void notify_cursor_changed() const;	bool find_next(const search_params &params, bool is_repeat = false);
+	void notify_cursor_changed() const;
+	bool find_next(const search_params &params, bool is_repeat = false);
 
 	void format_range(int start_y, int end_y);
 	void format_paragraph();
@@ -148,26 +155,38 @@ class document
 	size_t get_undo_count() const;
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
 	std::string get_undo_name(size_t steps_back) const;
-	
-	void apply_external_edits_json(const std::string& json_str);
 
-	void set_lsp_highlights(const std::vector<text_range> &highlights) {
+	void apply_external_edits_json(const std::string &json_str);
+
+	void set_lsp_highlights(const std::vector<text_range> &highlights)
+	{
 		std::unique_lock lock(mutex_);
 		lsp_highlights_ = highlights;
 	}
-	const std::vector<text_range>& get_lsp_highlights() const { return lsp_highlights_; }
+	const std::vector<text_range> &get_lsp_highlights() const
+	{
+		return lsp_highlights_;
+	}
 
-	void set_lsp_diagnostics(const std::vector<diagnostic_info> &diagnostics) {
+	void set_lsp_diagnostics(const std::vector<diagnostic_info> &diagnostics)
+	{
 		std::unique_lock lock(mutex_);
 		lsp_diagnostics_ = diagnostics;
 	}
-	const std::vector<diagnostic_info>& get_lsp_diagnostics() const { return lsp_diagnostics_; }
+	const std::vector<diagnostic_info> &get_lsp_diagnostics() const
+	{
+		return lsp_diagnostics_;
+	}
 
-	void set_enclosing_scope(const text_range &range) {
+	void set_enclosing_scope(const text_range &range)
+	{
 		std::unique_lock lock(mutex_);
 		enclosing_scope_ = range;
 	}
-	const std::optional<text_range>& get_enclosing_scope() const { return enclosing_scope_; }
+	const std::optional<text_range> &get_enclosing_scope() const
+	{
+		return enclosing_scope_;
+	}
 
       private:
 	std::vector<line> get_selection_block() const;
@@ -189,7 +208,6 @@ class document
 	bool is_space_at_unlocked(int y, int x) const;
 	std::string get_word_under_cursor_unlocked() const;
 
-
 	std::vector<std::shared_ptr<line>> lines_;
 	mutable std::shared_mutex mutex_;
 
@@ -198,6 +216,8 @@ class document
 	std::string git_branch_;
 	bool modified_{false};
 	bool read_only_{false};
+	std::filesystem::file_time_type last_disk_mtime_;
+	bool has_last_disk_mtime_{false};
 
 	int cursor_x_{0};
 	int cursor_y_{0};
@@ -211,7 +231,7 @@ class document
 	int selection_end_y_{-1};
 
 	// Undo/Redo logic
-	void begin_edit_group(const std::string& name = "", undo_group_type type = undo_group_type::none);
+	void begin_edit_group(const std::string &name = "", undo_group_type type = undo_group_type::none);
 	void end_edit_group();
 	void record_action(edit_action::action_type type, int y, std::shared_ptr<line> saved_line);
 	void break_undo_coalescing_unlocked();

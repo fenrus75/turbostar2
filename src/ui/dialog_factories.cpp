@@ -50,10 +50,13 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 		d->set_result("discard");
 		d->set_action(dialog_result::confirmed);
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_start_x + 21, by, " Cancel ", 'C', [d = dlg.get()]() {
-		d->set_result("cancel");
-		d->set_action(dialog_result::cancelled);
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", btn_start_x + 21, by, " Cancel ", 'C',
+	    [d = dlg.get()]() {
+		    d->set_result("cancel");
+		    d->set_action(dialog_result::cancelled);
+	    },
+	    true));
 
 	dlg->set_focus_by_name("btn_save");
 
@@ -167,10 +170,13 @@ class force_quit_dialog_impl : public dialog
 			set_action(dialog_result::confirmed);
 			set_result("save_all");
 		}));
-		add_child(std::make_unique<ui_button>("btn_cancel", 32, by, " Cancel ", 'C', [this]() {
-			set_action(dialog_result::cancelled);
-			set_result("cancel");
-		}, true));
+		add_child(std::make_unique<ui_button>(
+		    "btn_cancel", 32, by, " Cancel ", 'C',
+		    [this]() {
+			    set_action(dialog_result::cancelled);
+			    set_result("cancel");
+		    },
+		    true));
 
 		set_focus_by_name("btn_save_all");
 	}
@@ -269,10 +275,13 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 		}
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 10, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", btn_x_center + 10, btn_y, " Cancel ", 'C',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("btn_approve");
 	return dlg;
@@ -335,10 +344,13 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 		d->set_action(dialog_result::confirmed);
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", btn_x_center + 2, btn_y, " Cancel ", 'C', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", btn_x_center + 2, btn_y, " Cancel ", 'C',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("options");
 	return dlg;
@@ -463,10 +475,13 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	}
 
 	int bx_pos = is_replace ? 34 : 28;
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", bx_pos, btn_y, " Cancel ", 'l', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", bx_pos, btn_y, " Cancel ", 'l',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("query");
 
@@ -540,10 +555,13 @@ std::unique_ptr<dialog> create_settings_dialog()
 		d->set_action(dialog_result::confirmed);
 		d->set_result("save_global");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 42, 22, " Cancel ", 'C', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", 42, 22, " Cancel ", 'C',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 	dlg->set_focus_by_name("style_group");
 
 	return dlg;
@@ -654,10 +672,13 @@ class file_dialog_impl : public dialog
 				}
 			}
 		}));
-		add_child(std::make_unique<ui_button>("btn_cancel", 53, 5, " Cancel ", 'c', [this]() {
-			set_action(dialog_result::cancelled);
-			set_result("cancel");
-		}, true));
+		add_child(std::make_unique<ui_button>(
+		    "btn_cancel", 53, 5, " Cancel ", 'c',
+		    [this]() {
+			    set_action(dialog_result::cancelled);
+			    set_result("cancel");
+		    },
+		    true));
 
 		set_focus_by_name("filename");
 		get_textbox()->set_buffer("");
@@ -805,10 +826,13 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 		}
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 35, by, "  Cancel  ", 'c', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", 35, by, "  Cancel  ", 'c',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("model_list");
 	return dlg;
@@ -864,10 +888,13 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 35, by, " Cancel ", 'c', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", 35, by, " Cancel ", 'c',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("id");
 	return dlg;
@@ -973,10 +1000,13 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_cancel", 38, 13, " Cancel ", 'C', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}, true));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", 38, 13, " Cancel ", 'C',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 
 	dlg->set_focus_by_name("main_executable");
 	return dlg;
@@ -1044,9 +1074,8 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	}
 
 	int width = 56;
-	int height = 4 + static_cast<int>(tools.size()) + 1 +
-	             (missing_packages.empty() ? 2 : (3 + static_cast<int>(cmd_lines.size()))) +
-	             1 + 2;
+	int height =
+	    4 + static_cast<int>(tools.size()) + 1 + (missing_packages.empty() ? 2 : (3 + static_cast<int>(cmd_lines.size()))) + 1 + 2;
 
 	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
 
@@ -1087,5 +1116,50 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 	}));
 
 	dlg->set_focus_by_name("btn_ok");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
+{
+	int max_dlg_width = COLS > 8 ? COLS - 8 : 50;
+	if (max_dlg_width > 120)
+		max_dlg_width = 120;
+
+	int msg_overhead = 35; // Length of "File " + " has changed on disk. Reload?"
+
+	std::string display_name = filename;
+	if (static_cast<int>(display_name.length()) + msg_overhead + 4 > max_dlg_width) {
+		int max_filename_len = max_dlg_width - msg_overhead - 4;
+		if (max_filename_len < 10)
+			max_filename_len = 10;
+		display_name = fs_utils::shorten_filename(display_name, max_filename_len);
+	}
+
+	int desired_width = std::max(50, static_cast<int>(display_name.length()) + msg_overhead + 4);
+
+	auto dlg = std::make_unique<dialog>("File Changed", desired_width, 8);
+
+	std::string msg = "File " + display_name + " has changed on disk. Reload?";
+	int text_x = (desired_width - static_cast<int>(msg.length())) / 2;
+	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+
+	int by = 8 - 3;
+	int total_btn_width = 7 + 4 + 6; // 17 chars total
+	int btn_start_x = (desired_width - total_btn_width) / 2;
+
+	dlg->add_child(std::make_unique<ui_button>("btn_yes", btn_start_x, by, "  Yes  ", 'Y', [d = dlg.get()]() {
+		d->set_result("yes");
+		d->set_action(dialog_result::confirmed);
+	}));
+	dlg->add_child(std::make_unique<ui_button>(
+	    "btn_no", btn_start_x + 11, by, "  No  ", 'N',
+	    [d = dlg.get()]() {
+		    d->set_result("no");
+		    d->set_action(dialog_result::cancelled);
+	    },
+	    true));
+
+	dlg->set_focus_by_name("btn_yes");
+
 	return dlg;
 }

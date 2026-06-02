@@ -24,10 +24,11 @@ namespace fs = std::filesystem;
 
 void editor::resolve_dialog(dialog_result res)
 {
+	auto doc = get_active_doc();
+	if (!doc && !documents_.empty())
+		doc = documents_[0]; // Default fallback
+
 	if (res == dialog_result::confirmed) {
-		auto doc = get_active_doc();
-		if (!doc)
-			doc = documents_[0]; // Default fallback
 
 		if (active_dialog_mode_ == dialog_mode::load) {
 			std::string result_path = active_dialog_->get_result();
@@ -171,7 +172,8 @@ void editor::resolve_dialog(dialog_result res)
 					active_dialog_mode_ = dialog_mode::model_list;
 					set_focus(focus_target::dialog, "model_list");
 				} else {
-					active_dialog_ = create_message_dialog("Import Error", { "Failed to fetch models from server:", error_msg });
+					active_dialog_ =
+					    create_message_dialog("Import Error", {"Failed to fetch models from server:", error_msg});
 					active_dialog_mode_ = dialog_mode::model_list;
 					set_focus(focus_target::dialog, "btn_ok");
 				}
@@ -225,6 +227,18 @@ void editor::resolve_dialog(dialog_result res)
 			active_dialog_.reset();
 			active_dialog_mode_ = dialog_mode::none;
 			return;
+		} else if (active_dialog_mode_ == dialog_mode::reload_prompt) {
+			std::string res_str = active_dialog_->get_result();
+			active_dialog_.reset();
+			active_dialog_mode_ = dialog_mode::none;
+			set_focus(focus_target::window, "dialog_close");
+
+			if (res_str == "yes") {
+				if (doc && !doc->get_filename().empty()) {
+					doc->load_from_file(doc->get_filename());
+				}
+			}
+			return;
 		} else if (active_dialog_mode_ == dialog_mode::save_prompt) {
 			std::string res_str = active_dialog_->get_result();
 			active_dialog_.reset();
@@ -268,6 +282,11 @@ void editor::resolve_dialog(dialog_result res)
 
 	} else if (res == dialog_result::cancelled) {
 		is_quitting_ = false;
+		if (active_dialog_mode_ == dialog_mode::reload_prompt) {
+			if (doc) {
+				doc->update_last_disk_mtime();
+			}
+		}
 		if (active_dialog_mode_ == dialog_mode::ask_user || active_dialog_mode_ == dialog_mode::approve_plan) {
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value("");
@@ -585,7 +604,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 
 		if (ev.key_code == 27) { // ESC key
 			// Make sure no other prompt/dialog is active
-			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && active_mode_ == input_mode::normal) {
+			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
+			    active_mode_ == input_mode::normal) {
 				logger.log("Entering Vim prefix mode via ESC.");
 				vim_prefix_mode_ = true;
 				return;

@@ -101,6 +101,7 @@ class editor : public agentlib::document_provider
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
+	void check_files_changed();
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
 	bool handle_p_block_key(int key);
@@ -117,17 +118,7 @@ class editor : public agentlib::document_provider
 	std::vector<std::unique_ptr<window>> windows_;
 
 	focus_target current_focus_{focus_target::window};
-	enum class input_mode {
-		normal,
-		k_block,
-		q_block,
-		p_block,
-		searching,
-		search_options,
-		going_to_line,
-		inline_agent,
-		vim
-	};
+	enum class input_mode { normal, k_block, q_block, p_block, searching, search_options, going_to_line, inline_agent, vim };
 	input_mode active_mode_{input_mode::normal};
 
 	std::string vim_input_buffer_;
@@ -142,6 +133,7 @@ class editor : public agentlib::document_provider
 		insert_file,
 		settings,
 		save_prompt,
+		reload_prompt,
 		force_quit_prompt,
 		ask_user,
 		approve_plan,
@@ -207,6 +199,7 @@ class editor : public agentlib::document_provider
 	int last_click_window_id_{-1};
 	bool last_click_on_title_bar_{false};
 	std::chrono::steady_clock::time_point last_click_time_;
+	std::chrono::steady_clock::time_point last_mtime_check_time_;
 
 	std::unique_ptr<process_runner> current_build_process_;
 };

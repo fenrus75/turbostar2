@@ -7,6 +7,7 @@
 #include <ncurses.h>
 #include <sstream>
 #include <thread>
+#include "agentlib/ai_model.h"
 #include "build_error_manager.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -16,13 +17,12 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
-#include "ui/dialog_factories.h"
-#include "ui/terminal_window.h"
-#include "agentlib/ai_model.h"
 #include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/crashdump_window.h"
+#include "ui/dialog_factories.h"
 #include "ui/diff_window.h"
+#include "ui/terminal_window.h"
 
 namespace fs = std::filesystem;
 
@@ -30,6 +30,7 @@ editor::editor(editor_options opts)
     : exit_immediately_(opts.exit_immediately), debug_mode_(opts.debug_mode), debug_string_(std::move(opts.debug_string)),
       initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
 {
+	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
 	bool lsp_allowed = !opts.no_lsp && config_manager::get_instance().is_lsp_enabled();
@@ -79,7 +80,6 @@ void editor::new_window(const std::string &filename)
 	windows_.push_back(std::move(win));
 	activate_window(windows_.size() - 1);
 }
-
 
 void editor::new_diff_window()
 {
@@ -426,6 +426,11 @@ void editor::run()
 	auto start_time = std::chrono::steady_clock::now();
 
 	while (is_running_) {
+		auto loop_now = std::chrono::steady_clock::now();
+		if (std::chrono::duration_cast<std::chrono::seconds>(loop_now - last_mtime_check_time_).count() >= 10) {
+			last_mtime_check_time_ = loop_now;
+			check_files_changed();
+		}
 		if (exit_immediately_ >= 0.0) {
 			auto now = std::chrono::steady_clock::now();
 			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() >
@@ -961,39 +966,40 @@ void editor::render()
 
 	std::string status_help = debug_out;
 	switch (active_mode_) {
-	case input_mode::k_block:
-		status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top "
-			      "V:End Q:Quit X:SaveExit F:Find";
-		break;
-	case input_mode::q_block:
-		status_help = "Q-Block: F:Find A:Replace H:History";
-		break;
-	case input_mode::p_block:
-		status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (S)pell (U)ser: _";
-		break;
-	case input_mode::inline_agent:
-		status_help = "Agent Task: " + inline_agent_input_buffer_ + "_";
-		break;
-	case input_mode::searching: {
-		std::string suggestion = get_search_autocomplete();
-		if (!suggestion.empty() && suggestion != search_input_buffer_) {
-			status_help = "Search for: " + search_input_buffer_ + "[" + suggestion.substr(search_input_buffer_.length()) + "]";
-		} else {
-			status_help = "Search for: " + search_input_buffer_ + "_";
+		case input_mode::k_block:
+			status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top "
+				      "V:End Q:Quit X:SaveExit F:Find";
+			break;
+		case input_mode::q_block:
+			status_help = "Q-Block: F:Find A:Replace H:History";
+			break;
+		case input_mode::p_block:
+			status_help = "Agent: (R)eformat (F)ix Warn (C)omment Re(v)iew (T)ODOs (S)pell (U)ser: _";
+			break;
+		case input_mode::inline_agent:
+			status_help = "Agent Task: " + inline_agent_input_buffer_ + "_";
+			break;
+		case input_mode::searching: {
+			std::string suggestion = get_search_autocomplete();
+			if (!suggestion.empty() && suggestion != search_input_buffer_) {
+				status_help =
+				    "Search for: " + search_input_buffer_ + "[" + suggestion.substr(search_input_buffer_.length()) + "]";
+			} else {
+				status_help = "Search for: " + search_input_buffer_ + "_";
+			}
+			break;
 		}
-		break;
-	}
-	case input_mode::search_options:
-		status_help = "Options (I R B K): " + search_options_buffer_ + "_";
-		break;
-	case input_mode::going_to_line:
-		status_help = "Go to line: " + line_input_buffer_ + "_";
-		break;
-	case input_mode::vim:
-		status_help = ":" + vim_input_buffer_ + "_";
-		break;
-	case input_mode::normal:
-		break;
+		case input_mode::search_options:
+			status_help = "Options (I R B K): " + search_options_buffer_ + "_";
+			break;
+		case input_mode::going_to_line:
+			status_help = "Go to line: " + line_input_buffer_ + "_";
+			break;
+		case input_mode::vim:
+			status_help = ":" + vim_input_buffer_ + "_";
+			break;
+		case input_mode::normal:
+			break;
 	}
 
 	std::string diag_text = "";
@@ -1092,7 +1098,6 @@ void editor::render()
 			}
 		}
 	}
-
 }
 
 bool editor::apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload)
@@ -1119,4 +1124,20 @@ void editor::save_all_documents()
 		}
 	}
 	update_window_menu();
+}
+
+void editor::check_files_changed()
+{
+	auto doc = get_active_doc();
+	if (!doc || doc->get_filename().empty() || active_dialog_ || active_popup_)
+		return;
+
+	if (doc->check_disk_changed()) {
+		active_dialog_ = create_reload_prompt_dialog(doc->get_filename());
+		active_dialog_mode_ = dialog_mode::reload_prompt;
+		set_focus(focus_target::dialog, "reload_prompt");
+		editor_event redraw_ev;
+		redraw_ev.type = event_type::redraw;
+		global_queue_.push(redraw_ev);
+	}
 }

@@ -27,4 +27,4 @@ std::unique_ptr<dialog> create_run_settings_dialog();
 void apply_run_settings_from_dialog(const dialog &dlg);
 
 std::unique_ptr<dialog> create_tool_status_dialog();
-
+std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename);
