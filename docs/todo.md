@@ -106,6 +106,7 @@
 
 ## 02-06-2026
 - implemented OpenAI model auto-import from custom servers: added a Server URL input textbox and an Import button to the model list management TUI dialog, querying the server's /v1/models endpoint, parsing OpenAI-compliant JSON responses, registering all discovered models as free/local entries, showing clean error dialogs on connection/response failure, and including comprehensive unit testing.
+- fixed a bug in `fs_replace_lines` tool safety verification where leading and trailing whitespace differences (such as tabs vs. spaces or omitted leading indentation) in `original_text` caused spurious Stage 2 Security Violations. The tool now performs prefix matching on trimmed lines, and added a corresponding unit test.
 
 ## 01-06-2026
 - implemented Ctrl-W (Delete Word Forward) boundary joining behavior: if the cursor is at the end of the line, Ctrl-W now merges the next line into the current one, and added an E2E test verifying this behavior.

@@ -203,6 +203,26 @@ int main()
 
 	std::remove(test_file_15.c_str());
 
+	// Test Whitespace/Indentation Mismatch Verification
+	{
+		std::ofstream out(test_file);
+		out << "    if (x) {\n        // comment\n    }\n";
+		out.close();
+	}
+
+	nlohmann::json indent_args = {
+	    {"path", test_file},
+	    {"edits", nlohmann::json::array({
+		{{"line_number", 1}, {"type", "replace"}, {"original_text", "if (x) {"}, {"replace_with", "    if (y) {"}}
+	    })}
+	};
+
+	std::string indent_result = registry.execute_tool("fs_replace_lines", indent_args.dump(), ctx);
+	std::cout << "Indentation mismatch result: " << indent_result << "\n";
+	assert(indent_result.find("Successfully applied") != std::string::npos);
+
+	std::remove(test_file.c_str());
+
 	std::cout << "fs_replace_lines unit test passed!\n";
 	return 0;
 }
