@@ -1,57 +1,89 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
-- track Git HEAD hash in software_map.json to detect codebase churn and dynamically adjust scanning aggressiveness
+- refactor: editor::set_focus: the focus_target to string should be its own helper
 
-- github copilot oauth authentication
+- visual: editor::render: checkerboard background pattern should be gray-on-black color
+
+- refactor: we have q_block_mode_, p_block_mode_, is_searching_prompt_ etc .. should we turn these bools into an enum 
+  (with "normal" as the base case) so that they are both easier to manage and automatically exclusive
+
+
+- visual: our button colors are inverted between focus/non-focus compared to Turbo Pascal
+
+- refactor: src/ui/dialog.cpp:35 looks weird
+
+- refactor: src/ui/dialog.cpp:76  we should have a "press_on_ESC()" property on children rather than doing string compares
+
+- refactor: src/ui/dialog.cpp:129  consider using wborder() from ncurses
+
+- feature: we have turbocatch.so -- but can we make turbostar print a nice crashdump on crash if it's not being run with libturbocatch?
+
+- feature: a ^K hotkey for "remove all trailing whitespace" - default scope: document, but if there's a selection, scope to selection
+	- great for usability
+	- maybe in smart mode -- hide the hotkey from status bar if there is no whitespace trailing
+
+- feature OSC 52 ansi sequence support for better clipboard interaction
+	- send our block to the clipboard for ^K K
+	- let ^V or similar do a paste (also OSC52)
+
+- feature: should we allow mouse selections natively (separate from block) so that we can do much better for clipboard support
+	- rules: 
+		- global - only one mouse selection possible
+		- on mouse up we OSC52 it to the system clipboard
+		- any other mouse click anywhere clears it
+
+- visual: we have multiple sources of messages for the status bar - they compete for space - so we need to 
+	- make a list of these
+	- set relative priorities of these
+
+
+- feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 	- two parts: 
 		- part 1: using existing oath key
 		- part 2: getting oauth set up
 		
 
-- set "uv" working directory to not share; avoid risk of contamination
+- security: set "uv" working directory to not share; avoid risk of contamination
 
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-- a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
+- feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
-- style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
+- feature: style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
-- do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
+- performance: do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
      that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
    - did a change to turn off the cursor blinking while refreshing -- this solve 98% of the problem
 
-- in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
-	- our cut down some wide columns to make things fit
+- visual: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
+	- need to just spill to the right instead?
+	- or cut down some wide columns to make things fit (replace super long fields with "....")
 
-- when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
-	- not seen recently
-
-- next set of tools for agents:
-      - request-access-to-denied file (to add to the security manager, will ask the user)
-    - crashdump; 
-	- crashdump_read_memory(nr, location, size)
-	- crashdump_gdb(nr, command) (over time -- likely to come later)
 
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
-    - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
-    - low priority
 
-- detect "file has change on disk" by checking file mtime once in a while as the user is typing
+- feature: detect "file has change on disk" by checking file mtime once in a while as the user is typing
 	- rate limit to once per 10 seconds.
 	- dialog offer is "load from disk"
 
 # mid term items
+- feature: add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
+
+- if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
+    - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
+    - low priority
+
+- when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
+	- not seen recently
 
 - gdbserver notes on how to debug an application nicely
 	terminal 1:	gdbserver :1234 ./my_program
@@ -79,6 +111,11 @@
 
 # long term items   
 
+- should we use turbo vision? 
+	- pro: automatic the full look
+	- pro: automatic all window/etc interactions working well
+	- con: total rewrite and cumbersome framework
+
 - full gdbserver support so we can run the application and single step through it from the GUI
     - we're already 80% there!
 
@@ -96,6 +133,8 @@
 - an "auto arrange windows" option of sorts
    - option is all editor files in the right 2/3rd of the screen and the agent status window the right 1/3rd
    - maybe even better, we have a set of templates for certain screen sizes and usages, and use those when appropriate
+
+- a hex editor window type -- for when we open binary files
 
 - a git specific submenu when you click on the branch name in the title bar?
   only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities

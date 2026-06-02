@@ -18,6 +18,11 @@
 #include "project_manager.h"
 #include "ui/dialog_factories.h"
 #include "ui/terminal_window.h"
+#include "agentlib/ai_model.h"
+#include "ui/agent_status_window.h"
+#include "ui/agent_window.h"
+#include "ui/crashdump_window.h"
+#include "ui/diff_window.h"
 
 namespace fs = std::filesystem;
 
@@ -75,11 +80,6 @@ void editor::new_window(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
-#include "agentlib/ai_model.h"
-#include "ui/agent_status_window.h"
-#include "ui/agent_window.h"
-#include "ui/crashdump_window.h"
-#include "ui/diff_window.h"
 
 void editor::new_diff_window()
 {
@@ -183,6 +183,7 @@ void editor::new_agent_window()
 	// Activate the main agent window
 	activate_window(windows_.size() - 2);
 }
+
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 {
 	auto subagent_win =

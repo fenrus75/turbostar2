@@ -1,5 +1,6 @@
 #include "line.h"
 #include <algorithm>
+#include <string>
 #include <mutex>
 #include "utf8.h"
 
