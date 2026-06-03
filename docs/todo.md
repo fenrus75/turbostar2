@@ -14,10 +14,6 @@
 
 - feature: a hex editor window type -- for when we open binary files
 
-- the remembered cursor position (when going down over short lines) is in terms of characters not position on the screen
-	- this causes weird behavior when tabs are involved as those are 8 wide on the screen
-
-
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
@@ -25,6 +21,7 @@
 
 - usability: mouse based selection should do OSC52 immediately on releasing the mouse button
 	- barely usable without this fixed
+
 
 - feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
@@ -141,7 +138,9 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented tab-aware visual column vertical navigation (Ghost X tracking) that maps screen coordinates correctly back to line character offsets, preventing visual jumpiness when navigating vertically across lines containing tabs. Added corresponding unit test coverage in `test_document.cpp`.
 - optimized `window::draw_content` and `window::draw` to return immediately and bypass redraw operations if selection and bracket-matching highlights are unchanged on cursor-only updates.
+
 - updated the editor main loop and `editor::render` to support and trigger cursor-only rendering (`render(true)`) when a window needs a cursor update but no full screen repaint is pending.
 - updated arrow keys (UP, DOWN, LEFT, RIGHT) handling in `window::process_events` to use `invalidate_cursor()` instead of a full `invalidate()`.
 - implemented `window::invalidate_cursor()`, `window::needs_cursor()`, and `window::clear_needs_cursor()`, tracking if cursor-only updates are pending.
