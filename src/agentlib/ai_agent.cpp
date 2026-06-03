@@ -15,6 +15,7 @@
 #include "httplib_transport.h"
 #include "skill_manager.h"
 #include "compaction_engine.h"
+#include "context_dnn.h"
 #include <format>
 
 namespace agentlib
@@ -1696,44 +1697,254 @@ void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::s
 }
 
 
+struct parsed_turn {
+	std::string prompt;
+	std::string response;
+	long long timestamp = 0;
+	long long duration_ms = 0;
+	bool is_boundary = false;
+	bool git_commit = false;
+	bool compile = false;
+	bool test = false;
+};
+
+static std::vector<parsed_turn> parse_turns(const std::vector<message>& convo)
+{
+	std::vector<parsed_turn> turns;
+	parsed_turn current_turn;
+	bool has_current = false;
+
+	for (const auto& msg : convo) {
+		if (msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+			if (has_current) {
+				turns.push_back(current_turn);
+				has_current = false;
+			}
+			if (!turns.empty()) {
+				turns.back().is_boundary = true;
+			}
+			continue;
+		}
+
+		if (msg.role == "user") {
+			if (has_current) {
+				turns.push_back(current_turn);
+			}
+			current_turn = parsed_turn{};
+			current_turn.prompt = msg.content;
+			current_turn.timestamp = msg.timestamp;
+			current_turn.duration_ms = msg.duration_ms;
+			has_current = true;
+		} else if (msg.role == "assistant" && has_current) {
+			if (!msg.content.empty()) {
+				if (!current_turn.response.empty()) {
+					current_turn.response += "\n" + msg.content;
+				} else {
+					current_turn.response = msg.content;
+				}
+			}
+			if (msg.duration_ms > 0) {
+				current_turn.duration_ms += msg.duration_ms;
+			}
+			if (msg.timestamp > 0) {
+				current_turn.timestamp = msg.timestamp;
+			}
+			if (msg.tool_calls) {
+				for (const auto& tc : *msg.tool_calls) {
+					if (tc.function.name == "git_commit") {
+						current_turn.git_commit = true;
+					} else if (tc.function.name == "fs_compile_project" || tc.function.name == "fs_compile_file") {
+						current_turn.compile = true;
+					} else if (tc.function.name == "fs_run_tests") {
+						current_turn.test = true;
+					}
+				}
+			}
+		} else if (msg.role == "tool" && has_current) {
+			if (msg.name == "fs_compile_project" || msg.name == "fs_compile_file") {
+				if (msg.content.find("Error:") == std::string::npos && msg.content.find("FAILED") == std::string::npos) {
+					current_turn.compile = true;
+				}
+			} else if (msg.name == "fs_run_tests") {
+				if (msg.content.find("Error:") == std::string::npos && msg.content.find("FAILED") == std::string::npos) {
+					current_turn.test = true;
+				}
+			}
+		}
+	}
+
+	if (has_current) {
+		turns.push_back(current_turn);
+	}
+	return turns;
+}
+
+static std::string get_last_50_words(const std::string& text)
+{
+	std::vector<std::string> words;
+	std::string current;
+	for (char c : text) {
+		if (std::isspace(static_cast<unsigned char>(c))) {
+			if (!current.empty()) {
+				words.push_back(current);
+				current.clear();
+			}
+		} else {
+			current += c;
+		}
+	}
+	if (!current.empty()) {
+		words.push_back(current);
+	}
+
+	if (words.size() <= 50) {
+		return text;
+	}
+
+	std::string result;
+	for (size_t i = words.size() - 50; i < words.size(); ++i) {
+		if (!result.empty()) {
+			result += " ";
+		}
+		result += words[i];
+	}
+	return result;
+}
+
 void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 {
-    int recent_chars = 0;
-    for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-        if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode") break;
-        if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) break;
-        
-        recent_chars += convo[i].content.length();
-        if (convo[i].reasoning_content) recent_chars += convo[i].reasoning_content->length();
-        if (convo[i].role == "assistant" && convo[i].tool_calls) {
-            for (const auto& tc : *convo[i].tool_calls) {
-                recent_chars += tc.function.arguments.length();
-            }
-        }
-    }
+	int recent_chars = 0;
+	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
+		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode") break;
+		if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) break;
+		
+		recent_chars += convo[i].content.length();
+		if (convo[i].reasoning_content) recent_chars += convo[i].reasoning_content->length();
+		if (convo[i].role == "assistant" && convo[i].tool_calls) {
+			for (const auto& tc : *convo[i].tool_calls) {
+				recent_chars += tc.function.arguments.length();
+			}
+		}
+	}
 
-    if (recent_chars > 192000) {
-        if (!convo.empty()) {
-            const auto& last_msg = convo.back();
-            if (last_msg.role == "tool" || (last_msg.role == "assistant" && last_msg.tool_calls && !last_msg.tool_calls->empty())) {
-                // Wait until the conversation is back to a quiet state before inserting the marker
-                return;
-            }
-        }
-        event_logger::get_instance().log("Context size exceeds 48k tokens. Forcing auto-episode boundary.");
-        increment_stat("auto_episodes_forced");
-        {
-            std::lock_guard<std::mutex> lock(conversation_mutex_);
-            message marker_msg;
-            marker_msg.role = "system";
-            marker_msg.content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: Automatically generated episode boundary due to context size\nTags: [auto-episode]";
-            conversation_.push_back(marker_msg);
-            
-            convo.push_back(marker_msg);
-        }
-        snapshot_episode("Auto-Episode", "Automatically generated episode boundary due to context size", {"auto-episode"});
-        add_interaction(std::make_shared<interaction_system_message>("Auto-Episode boundary inserted (context limit reached)."));
-    }
+	if (!convo.empty()) {
+		const auto& last_msg = convo.back();
+		if (last_msg.role == "tool" || (last_msg.role == "assistant" && last_msg.tool_calls && !last_msg.tool_calls->empty())) {
+			return;
+		}
+	}
+
+	std::vector<parsed_turn> turns = parse_turns(convo);
+	if (turns.size() < 2) {
+		return;
+	}
+
+	const parsed_turn& prev_turn = turns[turns.size() - 2];
+	const parsed_turn& curr_turn = turns[turns.size() - 1];
+
+	if (!turbostar::context_dnn::get_instance().is_loaded()) {
+		turbostar::context_dnn::get_instance().load_weights();
+	}
+
+	bool should_split = false;
+	float boundary_prob = -1.0f;
+
+	if (turbostar::context_dnn::get_instance().is_loaded()) {
+		double active_tokens = 0.0;
+		int last_boundary_idx = -1;
+		for (int i = 0; i < static_cast<int>(turns.size()) - 1; ++i) {
+			if (turns[i].is_boundary) {
+				last_boundary_idx = i;
+			}
+		}
+		for (int i = last_boundary_idx + 1; i < static_cast<int>(turns.size()) - 1; ++i) {
+			double prev_tokens = static_cast<double>(turns[i].prompt.length() + turns[i].response.length()) / 4.0;
+			active_tokens += prev_tokens;
+		}
+
+		std::vector<float> M(16, 0.0f);
+
+		double gap_sec = 0.0;
+		if (curr_turn.timestamp > 0 && prev_turn.timestamp > 0) {
+			gap_sec = static_cast<double>(curr_turn.timestamp) - (static_cast<double>(prev_turn.timestamp) + static_cast<double>(prev_turn.duration_ms) / 1000.0);
+		}
+		if (gap_sec < 60.0) {
+			M[0] = 1.0f;
+		} else if (gap_sec < 300.0) {
+			M[1] = 1.0f;
+		} else {
+			M[2] = 1.0f;
+		}
+
+		double think_sec = static_cast<double>(prev_turn.duration_ms) / 1000.0;
+		if (think_sec < 10.0) {
+			M[3] = 1.0f;
+		} else if (think_sec < 120.0) {
+			M[4] = 1.0f;
+		} else {
+			M[5] = 1.0f;
+		}
+
+		double pressure_ratio = active_tokens / 8192.0;
+		if (pressure_ratio < 0.60) {
+			M[6] = 1.0f;
+		} else if (pressure_ratio < 0.80) {
+			M[7] = 1.0f;
+		} else if (pressure_ratio < 0.95) {
+			M[8] = 1.0f;
+		} else {
+			M[9] = 1.0f;
+		}
+
+		M[10] = prev_turn.git_commit ? 1.0f : 0.0f;
+		M[11] = prev_turn.compile ? 1.0f : 0.0f;
+		M[12] = prev_turn.test ? 1.0f : 0.0f;
+
+		std::string text_prev = prev_turn.prompt + " [Agent Conclusion: ] " + get_last_50_words(prev_turn.response);
+		std::string text_curr = curr_turn.prompt;
+
+		boundary_prob = turbostar::context_dnn::get_instance().predict_boundary(text_prev, text_curr, M);
+
+		if (boundary_prob >= 0.0f) {
+			double threshold = 0.35;
+			if (model_ && model_->get_cost_type() != model_cost_type::free_local) {
+				threshold = 0.65;
+			}
+			if (boundary_prob >= threshold) {
+				should_split = true;
+			}
+		}
+	}
+
+	if (boundary_prob < 0.0f) {
+		if (recent_chars > 192000) {
+			should_split = true;
+			event_logger::get_instance().log("DNN classifier unavailable. Forcing milestone split based on heuristic character budget.");
+		}
+	}
+
+	if (should_split) {
+		std::string reason_msg = "Milestone boundary classification trigger";
+		if (boundary_prob < 0.0f) {
+			reason_msg = "Heuristic context character limit reached";
+		}
+		
+		event_logger::get_instance().log("Triggering auto-episode boundary split: {}", reason_msg);
+		increment_stat("auto_episodes_forced");
+
+		{
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			message marker_msg;
+			marker_msg.role = "system";
+			marker_msg.content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
+			conversation_.push_back(marker_msg);
+			
+			convo.push_back(marker_msg);
+		}
+
+		snapshot_episode("Auto-Episode", reason_msg, {"auto-episode"});
+		add_interaction(std::make_shared<interaction_system_message>("Auto-Episode boundary inserted (" + reason_msg + ")."));
+	}
 }
 
 void ai_agent::evaluate_compaction()
