@@ -12,15 +12,43 @@
 		- part 2: getting oauth set up
 		
 
+- feature: a hex editor window type -- for when we open binary files
+
+- the remembered cursor position (when going down over short lines) is in terms of characters not position on the screen
+	- this causes weird behavior when tabs are involved as those are 8 wide on the screen
+
 
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
+- usability: mouse based selection should do OSC52 immediately on releasing the mouse button
+	- barely usable without this fixed
+
 - feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
-- feature: style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
+- feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
+
+- code review: src/git_manager.cpp:27 (start) -- we should probably detect (and assert?) on double start
+
+- code review: src/fs_utils.cpp: set_override_project_dir should log something to the event log
+
+- code review: src/fs_utils.cpp: should add a is_binary_file(filename) helper that is a bit smarter than the open coded thing in existing places
+
+- code review: src/fs_utils.cpp: get_project_tmp_dir() -- we should make a get_project_dir() helper that all functions then use, rather than 
+     checking g_override_project_dir everywhere
+
+- code review: src/fs_utils.cpp: get_project_dump_dir() should use a helper (may need to create) instead of looking at $HOME etc\
+	- need common helper so we don't repeat all these checks all over
+
+- code review: src/markdown_utils.cpp: is_table_row and is_table_separator probably should use regexps
+
+- bug: if you maximize a window you can then no longer resize it with the mouse - it stays maximized. 
+    - if this is desired behavior we should make "Maximize" in the window-menu a toggle capability!
+    - need to discuss what the best desired behavior is before fixing this issue
+
+- valgrind does not work in our sandbox
 
 - performance: do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
    - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
@@ -40,6 +68,8 @@
 
 # mid term items
 - feature: add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
+
+- feature: style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
 
 - if we have warnings/etc info, the initial system prompt should tell the agent that, or maybe it's an early notification
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
@@ -97,7 +127,6 @@
    - option is all editor files in the right 2/3rd of the screen and the agent status window the right 1/3rd
    - maybe even better, we have a set of templates for certain screen sizes and usages, and use those when appropriate
 
-- a hex editor window type -- for when we open binary files
 
 - a git specific submenu when you click on the branch name in the title bar?
   only useful once we have more than git add implememented, so "long term". We should evaluate this as we add more git capabilities
