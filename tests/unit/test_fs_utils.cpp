@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include "../../src/fs_utils.h"
+#include "../../src/event_logger.h"
 
 namespace fs = std::filesystem;
 
@@ -53,6 +54,40 @@ int main()
 
 	// 5. Directory (should return false)
 	assert(!fs_utils::is_binary_file(temp_dir.string()));
+
+	// 6. Test set_override_project_dir logging and project directory functions
+	std::string test_override_dir = "/tmp/turbostar_dummy_override";
+	fs_utils::set_override_project_dir(test_override_dir);
+
+	// Verify get_project_dir returns override
+	assert(fs_utils::get_project_dir() == test_override_dir);
+
+	// Verify event logging
+	auto match = event_logger::get_instance().get_latest_matching_message("Override project directory set to");
+	assert(match.has_value());
+	assert(match->find(test_override_dir) != std::string::npos);
+
+	// Verify other project directories resolve with override hash
+	std::string tmp_dir = fs_utils::get_project_tmp_dir();
+	std::string dump_dir = fs_utils::get_project_dump_dir();
+	std::string db_dir = fs_utils::get_project_db_dir();
+	std::string history_dir = fs_utils::get_project_history_dir("test");
+
+	std::hash<std::string> hasher;
+	std::string hash_str = std::to_string(hasher(test_override_dir));
+
+	assert(tmp_dir.find(hash_str) != std::string::npos);
+	assert(dump_dir.find(hash_str) != std::string::npos);
+	assert(db_dir.find(hash_str) != std::string::npos);
+	assert(history_dir.find(hash_str) != std::string::npos);
+
+	assert(tmp_dir.find("tmp") != std::string::npos);
+	assert(dump_dir.find("dumps") != std::string::npos);
+	assert(db_dir.find("dbs") != std::string::npos);
+	assert(history_dir.find("history/test") != std::string::npos);
+
+	// Reset override project directory to empty
+	fs_utils::set_override_project_dir("");
 
 	// Cleanup
 	fs::remove_all(temp_dir);

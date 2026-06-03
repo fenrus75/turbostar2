@@ -15,6 +15,11 @@ namespace fs_utils
 void set_override_project_dir(const std::string &path);
 
 /**
+ * @brief Returns the active project directory, resolving any override.
+ */
+std::string get_project_dir();
+
+/**
  * @brief Safely returns the absolute path. If a filesystem error occurs,
  * it logs the error and returns the original path as a fallback.
  */

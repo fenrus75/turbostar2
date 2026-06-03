@@ -23,7 +23,13 @@ static std::string g_override_project_dir;
 
 void set_override_project_dir(const std::string &path)
 {
+	event_logger::get_instance().log("Override project directory set to '{}'", path);
 	g_override_project_dir = path;
+}
+
+std::string get_project_dir()
+{
+	return !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
 }
 
 std::filesystem::path safe_absolute(const std::filesystem::path &p)
@@ -252,8 +258,7 @@ std::string get_global_cache_dir()
 
 std::string get_project_cache_root()
 {
-	std::string project_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
+	std::string project_root = get_project_dir();
 	std::hash<std::string> hasher;
 	size_t hash = hasher(project_root);
 
@@ -274,20 +279,10 @@ std::string get_project_db_dir()
 
 	return db_dir.string();
 }
+
 std::string get_project_tmp_dir()
 {
-	std::string project_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
-	std::hash<std::string> hasher;
-	size_t hash = hasher(project_root);
-
-	const char *home = std::getenv("HOME");
-	std::filesystem::path tmp_dir;
-	if (home) {
-		tmp_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "tmp";
-	} else {
-		tmp_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "tmp";
-	}
+	std::filesystem::path tmp_dir = std::filesystem::path(get_project_cache_root()) / "tmp";
 
 	std::error_code ec;
 	std::filesystem::create_directories(tmp_dir, ec);
@@ -297,19 +292,7 @@ std::string get_project_tmp_dir()
 
 std::string get_project_history_dir(const std::string &agent_name)
 {
-	std::string project_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
-	std::hash<std::string> hasher;
-	size_t hash = hasher(project_root);
-
-	const char *home = std::getenv("HOME");
-	std::filesystem::path history_dir;
-	if (home) {
-		history_dir =
-		    std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "history" / agent_name;
-	} else {
-		history_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "history" / agent_name;
-	}
+	std::filesystem::path history_dir = std::filesystem::path(get_project_cache_root()) / "history" / agent_name;
 
 	std::error_code ec;
 	std::filesystem::create_directories(history_dir, ec);
@@ -319,18 +302,7 @@ std::string get_project_history_dir(const std::string &agent_name)
 
 std::string get_project_dump_dir()
 {
-	std::string project_root =
-	    !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
-	std::hash<std::string> hasher;
-	size_t hash = hasher(project_root);
-
-	const char *home = std::getenv("HOME");
-	std::filesystem::path dump_dir;
-	if (home) {
-		dump_dir = std::filesystem::path(home) / ".cache" / "turbostar" / "projects" / std::to_string(hash) / "dumps";
-	} else {
-		dump_dir = std::filesystem::path(".turbostar") / "projects" / std::to_string(hash) / "dumps";
-	}
+	std::filesystem::path dump_dir = std::filesystem::path(get_project_cache_root()) / "dumps";
 
 	std::error_code ec;
 	std::filesystem::create_directories(dump_dir, ec);
