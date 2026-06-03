@@ -77,6 +77,7 @@ class editor : public agentlib::document_provider
 
       private:
 	void new_window(const std::string &filename);
+	std::string get_k_block_status_help() const;
 	void new_agent_window();
 	void new_crashdump_window();
 	void new_diff_window();

@@ -825,6 +825,13 @@ if uv.found() or python.found()
     workdir: meson.project_build_root(),
     timeout: 60
   )
+  test('e2e_k_block_help', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_k_block_help.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60
+  )
   test('e2e_mouse_copy', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_mouse_copy.py')],
     env: e2e_env,

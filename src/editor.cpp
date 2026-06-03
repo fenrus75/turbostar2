@@ -1,5 +1,6 @@
 #include "editor.h"
 #include <algorithm>
+#include <functional>
 #include <chrono>
 #include <format>
 #include <fstream>
@@ -981,8 +982,7 @@ void editor::render(bool cursor_only)
 	std::string status_help = debug_out;
 	switch (active_mode_) {
 		case input_mode::k_block:
-			status_help = "K-Block: B:Beg K:End Y:Del C:Copy M:Move U:Top "
-				      "V:End Q:Quit X:SaveExit F:Find";
+			status_help = get_k_block_status_help();
 			break;
 		case input_mode::q_block:
 			status_help = "Q-Block: F:Find A:Replace H:History";
@@ -1154,4 +1154,107 @@ void editor::check_files_changed()
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
 	}
+}
+
+std::string editor::get_k_block_status_help() const
+{
+	auto active_doc = get_active_doc();
+
+	struct k_block_option {
+		std::string label;
+		int priority;
+		size_t original_idx;
+		std::function<bool(const editor&, const std::shared_ptr<document>&)> is_applicable;
+	};
+
+	std::vector<k_block_option> options = {
+		{ "^B:Beg",      30, 0,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^K:End",      30, 1,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^H:Hide",     30, 2,  [](const editor&, const std::shared_ptr<document>& doc) { return doc && doc->has_selection(); } },
+		{ "^Y:Del",      30, 3,  [](const editor&, const std::shared_ptr<document>& doc) { return doc && doc->has_selection(); } },
+		{ "^C:Copy",     30, 4,  [](const editor&, const std::shared_ptr<document>& doc) { return doc && doc->has_selection(); } },
+		{ "^M:Move",     30, 5,  [](const editor&, const std::shared_ptr<document>& doc) { return doc && doc->has_selection(); } },
+		{ "^U:Top",      20, 6,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^V:End",      20, 7,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^F:Find",     20, 8,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^L:Line",     20, 9,  [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^S:Save",     30, 10, [](const editor&, const std::shared_ptr<document>& doc) { return doc && doc->is_modified(); } },
+		{ "^A:SaveAll",  10, 11, [](const editor& ed, const std::shared_ptr<document>&) {
+			for (const auto& d : ed.documents_) {
+				if (d && d->is_modified()) return true;
+			}
+			return false;
+		} },
+		{ "^W:Write",    10, 12, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^R:Insert",   10, 13, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^J:Format",   10, 14, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^Z:Zap",      10, 15, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^N:New",      10, 16, [](const editor&, const std::shared_ptr<document>&) { return true; } },
+		{ "^P:Compile",  10, 17, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^G:Error",    10, 18, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } },
+		{ "^Q:Quit",     30, 19, [](const editor&, const std::shared_ptr<document>&) { return true; } },
+		{ "^X:SaveExit", 30, 20, [](const editor&, const std::shared_ptr<document>& doc) { return doc != nullptr; } }
+	};
+
+	// 1. Filter by applicability
+	std::vector<k_block_option> applicable;
+	for (const auto& opt : options) {
+		if (opt.is_applicable(*this, active_doc)) {
+			applicable.push_back(opt);
+		}
+	}
+
+	// 2. Sort applicable options by priority descending
+	// Tie-breaker: original_idx (ascending) to keep sorting stable and deterministic
+	std::sort(applicable.begin(), applicable.end(), [](const k_block_option& a, const k_block_option& b) {
+		if (a.priority != b.priority) {
+			return a.priority > b.priority;
+		}
+		return a.original_idx < b.original_idx;
+	});
+
+	// Helper to calculate printed length (excluding '^' carets)
+	auto get_printed_len = [](const std::string& s) {
+		int len = 0;
+		for (char c : s) {
+			if (c != '^') len++;
+		}
+		return len;
+	};
+
+	// 3. Greedily add options that fit within COLS - 2
+	int limit = COLS - 2;
+	if (limit < 9) limit = 9;
+
+	std::vector<k_block_option> selected;
+	for (const auto& opt : applicable) {
+		std::vector<k_block_option> temp = selected;
+		temp.push_back(opt);
+
+		std::sort(temp.begin(), temp.end(), [](const k_block_option& a, const k_block_option& b) {
+			return a.original_idx < b.original_idx;
+		});
+
+		int total_printed_len = 9; // length of "K-Block: "
+		for (size_t i = 0; i < temp.size(); ++i) {
+			if (i > 0) total_printed_len += 1;
+			total_printed_len += get_printed_len(temp[i].label);
+		}
+
+		if (total_printed_len <= limit) {
+			selected = temp;
+		}
+	}
+
+	// Final sort by original_idx
+	std::sort(selected.begin(), selected.end(), [](const k_block_option& a, const k_block_option& b) {
+		return a.original_idx < b.original_idx;
+	});
+
+	std::string result = "K-Block:";
+	for (const auto& opt : selected) {
+		result += " " + opt.label;
+	}
+
+	return result;
 }
