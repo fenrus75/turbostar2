@@ -42,8 +42,49 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p)
 	}
 }
 
+bool is_binary_file(const std::string &filepath)
+{
+	if (filepath.empty()) {
+		return false;
+	}
+	std::error_code ec;
+	if (!std::filesystem::is_regular_file(filepath, ec)) {
+		return false;
+	}
+	uint64_t size = std::filesystem::file_size(filepath, ec);
+	if (ec || size == 0) {
+		return false;
+	}
+	std::ifstream file(filepath, std::ios::binary);
+	if (!file.is_open()) {
+		return false;
+	}
+	char buffer[4096];
+	file.read(buffer, std::min<size_t>(size, sizeof(buffer)));
+	size_t bytes_read = file.gcount();
+	for (size_t i = 0; i < bytes_read; ++i) {
+		unsigned char b = static_cast<unsigned char>(buffer[i]);
+		if (b == 0) {
+			return true;
+		}
+		// Heuristic: Control characters under 32 (except tab, newline, vertical tab, form feed, carriage return, and escape)
+		// indicate a binary file. DEL (127) also indicates a binary file.
+		if (b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) {
+			return true;
+		}
+		if (b == 127) {
+			return true;
+		}
+	}
+	return false;
+}
+
 std::string count_lines_in_file(const std::string &filepath)
 {
+	if (is_binary_file(filepath)) {
+		return "";
+	}
+
 	struct stat sb;
 	if (stat(filepath.c_str(), &sb) == -1) {
 		return "";
@@ -68,13 +109,6 @@ std::string count_lines_in_file(const std::string &filepath)
 	}
 
 	const char *data = static_cast<const char *>(map);
-
-	// Heuristic: Check the first 4KB for null bytes to detect binary files
-	size_t check_len = std::min<size_t>(sb.st_size, 4096);
-	if (memchr(data, '\0', check_len) != nullptr) {
-		munmap(map, sb.st_size);
-		return ""; // Looks like a binary file
-	}
 
 	// Fast line counting using memchr
 	size_t lines = 0;

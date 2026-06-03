@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "fs_read_lines.h"
+#include "../../fs_utils.h"
 
 #include "../../agentlib/interactions/action.h"
 
@@ -243,22 +244,14 @@ std::string fs_read_lines_tool::read_from_disk(size_t &out_total_lines) const
 		return "Error: File is too large (>50MB) to read directly.";
 	}
 
+	if (fs_utils::is_binary_file(args_.safe_path)) {
+		return "Error: File appears to be binary. Cannot read text lines.";
+	}
+
 	std::ifstream file(args_.safe_path, std::ios::binary);
 	if (!file.is_open()) {
 		return "Error: Could not open file for reading.";
 	}
-
-	// Check for binary data
-	char buffer[4096];
-	file.read(buffer, sizeof(buffer));
-	size_t bytes_read = file.gcount();
-	if (memchr(buffer, '\0', bytes_read) != nullptr) {
-		return "Error: File appears to be binary. Cannot read text lines.";
-	}
-
-	// Reset stream
-	file.clear();
-	file.seekg(0);
 
 	// Fast count of total lines
 	out_total_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');

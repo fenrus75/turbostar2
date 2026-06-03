@@ -134,6 +134,12 @@ test_shell_security = executable('test_shell_security',
   include_directories: inc)
 test('unit_shell_security', test_shell_security)
 
+test_fs_utils = executable('test_fs_utils',
+  ['tests/unit/test_fs_utils.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_fs_utils', test_fs_utils)
+
 test_activate_skill = executable('test_activate_skill',
   ['tests/unit/test_activate_skill.cpp',
    'src/tools/activate_skill/activate_skill_entry.cpp',

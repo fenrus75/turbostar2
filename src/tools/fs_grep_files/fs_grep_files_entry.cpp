@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "../../config_manager.h"
 #include "fs_grep_files.h"
+#include "../../fs_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -145,34 +146,22 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 			// 2. Fallback to direct disk read
-			else {
+			else if (!fs_utils::is_binary_file(abs_path_str)) {
 				struct stat sb;
 				if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size > 0 && sb.st_size < 50 * 1024 * 1024) {
 					std::ifstream file(abs_path_str, std::ios::binary);
 					if (file) {
 						std::string buffer(sb.st_size, ' ');
 						if (file.read(buffer.data(), sb.st_size)) {
-							// Quick binary check
-							bool is_binary = false;
-							size_t check_len = std::min<size_t>(sb.st_size, 1024);
-							for (size_t i = 0; i < check_len; ++i) {
-								if (buffer[i] == '\0') {
-									is_binary = true;
-									break;
+							std::string line;
+							std::istringstream iss(buffer);
+							while (std::getline(iss, line)) {
+								if (!line.empty() && line.back() == '\r') {
+									line.pop_back();
 								}
+								file_lines.push_back(line);
 							}
-
-							if (!is_binary) {
-								std::string line;
-								std::istringstream iss(buffer);
-								while (std::getline(iss, line)) {
-									if (!line.empty() && line.back() == '\r') {
-										line.pop_back();
-									}
-									file_lines.push_back(line);
-								}
-								read_success = true;
-							}
+							read_success = true;
 						}
 					}
 				}

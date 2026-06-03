@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "fs_regexp_lines.h"
+#include "../../fs_utils.h"
 
 namespace tools
 {
@@ -89,20 +90,14 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		return "Error: File is too large (>50MB) to read directly.";
 	}
 
+	if (fs_utils::is_binary_file(args_.safe_path)) {
+		return "Error: File appears to be binary. Cannot run regex on binary data.";
+	}
+
 	std::ifstream file(args_.safe_path, std::ios::binary);
 	if (!file.is_open()) {
 		return "Error: Could not open file for reading.";
 	}
-
-	char buffer[4096];
-	file.read(buffer, sizeof(buffer));
-	size_t bytes_read = file.gcount();
-	if (memchr(buffer, '\0', bytes_read) != nullptr) {
-		return "Error: File appears to be binary. Cannot run regex on binary data.";
-	}
-
-	file.clear();
-	file.seekg(0);
 
 	std::string line;
 	size_t current_line = 1;

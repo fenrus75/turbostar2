@@ -21,6 +21,11 @@ void set_override_project_dir(const std::string &path);
 std::filesystem::path safe_absolute(const std::filesystem::path &p);
 
 /**
+ * @brief Heuristically checks if a file is a binary file by scanning for a null byte in the first 4KB.
+ */
+bool is_binary_file(const std::string &filepath);
+
+/**
  * @brief Rapidly counts the number of lines in a file by scanning memory. Returns empty string if file is binary or too large.
  */
 std::string count_lines_in_file(const std::string &filepath);
