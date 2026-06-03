@@ -43,12 +43,26 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			int dy = ev.mouse_y - drag_start_mouse_y_;
 
 			if (current_drag_mode_ == drag_mode::move) {
+				if (drag_window_->is_maximized()) {
+					logger.log("Auto-restoring maximized window on drag.");
+					drag_window_->set_maximized(false);
+					int rest_w = drag_window_->get_restore_width();
+					int rest_h = drag_window_->get_restore_height();
+					drag_start_win_w_ = rest_w;
+					drag_start_win_h_ = rest_h;
+					drag_start_win_x_ = std::clamp(drag_start_mouse_x_ - rest_w / 2, 0, COLS - rest_w);
+					drag_start_win_y_ = std::clamp(drag_start_mouse_y_, 1, LINES - 1 - rest_h);
+				}
 				int new_x = drag_start_win_x_ + dx;
 				int new_y = drag_start_win_y_ + dy;
 				new_x = std::max(0, std::min(new_x, COLS - drag_start_win_w_));
 				new_y = std::max(1, std::min(new_y, LINES - 1 - drag_start_win_h_));
 				drag_window_->set_bounds(new_x, new_y, drag_start_win_w_, drag_start_win_h_);
 			} else if (current_drag_mode_ == drag_mode::resize) {
+				if (drag_window_->is_maximized()) {
+					logger.log("Auto-restoring maximized window on resize.");
+					drag_window_->set_maximized(false);
+				}
 				int new_w = drag_start_win_w_ + dx;
 				int new_h = drag_start_win_h_ + dy;
 				new_w = std::max(10, std::min(new_w, COLS - drag_start_win_x_));
@@ -153,6 +167,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				    ev.mouse_y < w->get_y() + w->get_height()) {
 
 					// Found the topmost window under the click
+
 
 					// 1. Check for Close Button [■]
 					// The close button is drawn at (y_, x_ + 2) through (y_, x_ + 4)
@@ -275,17 +290,15 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						last_click_window_id_ = -1;
 						last_click_on_title_bar_ = false;
 
-						if (!w->is_maximized()) {
-							logger.log("Mouse clicked bottom-right corner to resize.");
-							current_drag_mode_ = drag_mode::resize;
-							drag_window_ = w;
-							drag_start_mouse_x_ = ev.mouse_x;
-							drag_start_mouse_y_ = ev.mouse_y;
-							drag_start_win_x_ = w->get_x();
-							drag_start_win_y_ = w->get_y();
-							drag_start_win_w_ = w->get_width();
-							drag_start_win_h_ = w->get_height();
-						}
+						logger.log("Mouse clicked bottom-right corner to resize.");
+						current_drag_mode_ = drag_mode::resize;
+						drag_window_ = w;
+						drag_start_mouse_x_ = ev.mouse_x;
+						drag_start_mouse_y_ = ev.mouse_y;
+						drag_start_win_x_ = w->get_x();
+						drag_start_win_y_ = w->get_y();
+						drag_start_win_w_ = w->get_width();
+						drag_start_win_h_ = w->get_height();
 
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {
@@ -337,17 +350,15 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						last_click_on_title_bar_ = true;
 						last_click_time_ = now;
 
-						if (!w->is_maximized()) {
-							logger.log("Mouse clicked title bar to move.");
-							current_drag_mode_ = drag_mode::move;
-							drag_window_ = w;
-							drag_start_mouse_x_ = ev.mouse_x;
-							drag_start_mouse_y_ = ev.mouse_y;
-							drag_start_win_x_ = w->get_x();
-							drag_start_win_y_ = w->get_y();
-							drag_start_win_w_ = w->get_width();
-							drag_start_win_h_ = w->get_height();
-						}
+						logger.log("Mouse clicked title bar to move.");
+						current_drag_mode_ = drag_mode::move;
+						drag_window_ = w;
+						drag_start_mouse_x_ = ev.mouse_x;
+						drag_start_mouse_y_ = ev.mouse_y;
+						drag_start_win_x_ = w->get_x();
+						drag_start_win_y_ = w->get_y();
+						drag_start_win_w_ = w->get_width();
+						drag_start_win_h_ = w->get_height();
 
 						for (size_t i = 0; i < windows_.size(); ++i) {
 							if (windows_[i].get() == w) {

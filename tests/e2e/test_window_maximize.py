@@ -118,6 +118,29 @@ def test_window_maximize():
         # Assert that the click was on the title bar (not inside content)
         runner.assert_in_log("Mouse clicked title bar to move.", timeout=2.0)
 
+        # 8. Test Option 1: Dragging a maximized window automatically restores it!
+        # First, ensure window 1 is active and maximized (double click its title bar at y=5)
+        # Wait, since focus was switched back to window 1 at (35, 5), it is now unmaximized.
+        # Double click to maximize it.
+        runner.send_mouse_click(35, 5)
+        time.sleep(0.1)
+        runner.send_mouse_click(35, 5)
+        time.sleep(0.5)
+
+        # Click and drag the title bar of the maximized window (title bar is at y=1)
+        # Mouse down at (35, 1) -> SGR: button 0, x=36, y=2
+        runner.send_raw_keys(b"\x1b[<0;36;2M")
+        time.sleep(0.2)
+        # Mouse drag to (30, 4) -> SGR: button 32, x=31, y=5
+        runner.send_raw_keys(b"\x1b[<32;31;5M")
+        time.sleep(0.2)
+        # Mouse release at (30, 4) -> SGR: button 0 release, x=31, y=5
+        runner.send_raw_keys(b"\x1b[<0;31;5m")
+        time.sleep(0.5)
+
+        # Assert that it auto-restores on drag
+        runner.assert_in_log("Auto-restoring maximized window on drag.", timeout=2.0)
+
     except Exception as e:
         if hasattr(runner, 'log_path') and os.path.exists(runner.log_path):
             with open(runner.log_path, 'r') as f:

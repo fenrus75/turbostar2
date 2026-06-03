@@ -145,9 +145,11 @@ void editor::update_window_layout()
 		}
 
 		if (win->is_maximized()) {
-			win->set_maximized(false);
-			win->set_bounds(target_x, target_y, target_w, target_h);
-			win->set_maximized(true);
+			if (win->get_document() == nullptr) {
+				win->set_maximized(false);
+				win->set_bounds(target_x, target_y, target_w, target_h);
+				win->set_maximized(true);
+			}
 			win->set_bounds(0, 1, COLS, total_h);
 		} else {
 			if (win->get_document() == nullptr) {

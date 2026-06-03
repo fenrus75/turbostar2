@@ -28,9 +28,6 @@
 	- each key would need a "is applicable" method to hide it
  	   (example, no need to show Copy if no block is active)
 
-- bug: if you maximize a window you can then no longer resize it with the mouse - it stays maximized.
-    - if this is desired behavior we should make "Maximize" in the window-menu a toggle capability!
-    - need to discuss what the best desired behavior is before fixing this issue
 
 - valgrind does not work in our sandbox
 
@@ -115,6 +112,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented auto-restoration of maximized windows when dragged by the title bar or resized by the bottom-right corner. Resizing starts from the maximized bounds, while dragging restores and centers the window under the mouse cursor. Added comprehensive E2E test coverage in `test_window_maximize.py` verifying Option 1 behavior.
 - implemented double-start detection and assertions in `git_manager::start` to prevent thread leaks and std::terminate crashes from duplicate worker loops. Added corresponding unit test coverage in `test_git_manager.cpp`.
 - refactored `markdown_utils.cpp` table heuristics `is_table_row` and `is_header_separator` to use lookahead-free RE2 regular expression parsing, and updated `meson.build` dependency definitions for the affected unit test suites.
 - refactored `fs_utils.cpp` directory functions to use a common `get_project_dir()` helper, log override events in `set_override_project_dir`, and deduplicate project-specific directories (tmp/history/dumps/dbs) to delegate directly to `get_project_cache_root()`. Added unit tests coverage.
