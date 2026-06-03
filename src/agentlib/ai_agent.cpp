@@ -889,6 +889,9 @@ void ai_agent::start_processing()
 			response_msg.duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
 			if (!accumulated_tool_calls.empty()) {
+				for (auto &call : accumulated_tool_calls) {
+					normalize_tool_call(call);
+				}
 				response_msg.tool_calls = accumulated_tool_calls;
 			}
 

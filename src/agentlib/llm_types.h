@@ -106,4 +106,107 @@ struct chat_delta {
     llm_usage usage;
 };
 
+inline void normalize_tool_call(tool_call &call)
+{
+	std::string alias = call.function.name;
+
+	// Normalize name
+	std::string official_name = alias;
+	if (alias == "read_file" || alias == "view_file" || alias == "cat") {
+		official_name = "fs_read_lines";
+	} else if (alias == "grep" || alias == "search_grep" || alias == "find_in_files") {
+		official_name = "fs_grep_files";
+	} else if (alias == "list_dir") {
+		official_name = "fs_list_dir";
+	} else if (alias == "mkdir" || alias == "create_directory") {
+		official_name = "fs_mkdir";
+	} else if (alias == "run_tests") {
+		official_name = "fs_run_tests";
+	} else if (alias == "git_diff") {
+		official_name = "git_diff_unstaged";
+	}
+
+	if (official_name == alias) {
+		return; // No normalization needed
+	}
+
+	call.function.name = official_name;
+
+	// Parse arguments JSON
+	try {
+		nlohmann::json args = nlohmann::json::parse(call.function.arguments);
+		if (!args.is_object()) {
+			return;
+		}
+
+		if (official_name == "fs_read_lines") {
+			// Find a path key and map it to "path"
+			std::string path_val;
+			for (const auto &key : {"file", "file_path", "filepath", "filename", "path"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty()) {
+				new_args["path"] = path_val;
+			} else {
+				// preserve whatever was there if none found
+				new_args = args;
+			}
+			if (args.contains("start_line")) new_args["start_line"] = args["start_line"];
+			if (args.contains("end_line")) new_args["end_line"] = args["end_line"];
+			args = new_args;
+		} else if (official_name == "fs_grep_files") {
+			std::string pattern_val;
+			for (const auto &key : {"pattern", "query", "search_query", "regex", "text"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					pattern_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string dir_path_val;
+			for (const auto &key : {"dir_path", "path", "dir", "directory"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					dir_path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!pattern_val.empty()) {
+				new_args["pattern"] = pattern_val;
+			}
+			if (!dir_path_val.empty()) {
+				new_args["dir_path"] = dir_path_val;
+			}
+			for (const auto &k : {"include_ext", "max_results", "context_lines"}) {
+				if (args.contains(k)) {
+					new_args[k] = args[k];
+				}
+			}
+			args = new_args;
+		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged") {
+			std::string path_val;
+			for (const auto &key : {"path", "file", "file_path", "filepath", "dir", "directory", "dir_path"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty()) {
+				new_args["path"] = path_val;
+			} else if (official_name == "git_diff_unstaged") {
+				new_args["path"] = "."; // default for git_diff
+			}
+			args = new_args;
+		}
+
+		call.function.arguments = args.dump();
+	} catch (...) {
+		// Ignore parse failures, let validator handle bad JSON format
+	}
+}
+
 } // namespace agentlib

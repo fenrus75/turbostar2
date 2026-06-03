@@ -122,6 +122,9 @@ int main(int argc, char **argv)
 		}
 
 		if (response.tool_calls && !response.tool_calls->empty()) {
+			for (auto &call : *response.tool_calls) {
+				agentlib::normalize_tool_call(call);
+			}
 			std::unordered_map<std::string, std::string> merged_to_parent;
 			std::unordered_map<std::string, std::pair<int, int>> parent_ranges;
 			ai_agent::coalesce_tool_calls(*response.tool_calls, merged_to_parent, parent_ranges);
