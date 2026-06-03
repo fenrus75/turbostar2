@@ -124,19 +124,19 @@ bool window::process_events()
 			switch (ev->key_code) {
 				case KEY_UP:
 					doc_->move_cursor(0, -1);
-					invalidate();
+					invalidate_cursor();
 					break;
 				case KEY_DOWN:
 					doc_->move_cursor(0, 1);
-					invalidate();
+					invalidate_cursor();
 					break;
 				case KEY_LEFT:
 					doc_->move_cursor(-1, 0);
-					invalidate();
+					invalidate_cursor();
 					break;
 				case KEY_RIGHT:
 					doc_->move_cursor(1, 0);
-					invalidate();
+					invalidate_cursor();
 					break;
 				case KEY_HOME:
 					doc_->move_to_bol();
