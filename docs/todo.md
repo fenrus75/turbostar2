@@ -141,6 +141,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- updated arrow keys (UP, DOWN, LEFT, RIGHT) handling in `window::process_events` to use `invalidate_cursor()` instead of a full `invalidate()`.
 - implemented `window::invalidate_cursor()`, `window::needs_cursor()`, and `window::clear_needs_cursor()`, tracking if cursor-only updates are pending.
 - updated `window::update_viewport()` to return a `bool` indicating if a scroll occurred, and updated `window::draw` to automatically override/cancel `cursor_only` rendering when the viewport shifts.
 - added optional `bool cursor_only = false` argument to `window::draw` and `window::draw_content` across all 5 window subclasses (`agent_status_window`, `agent_window`, `crashdump_window`, `diff_window`, `terminal_window`), preparing the UI layout hierarchy for cursor-only refresh optimizations.
