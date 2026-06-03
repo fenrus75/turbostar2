@@ -108,7 +108,7 @@ class editor : public agentlib::document_provider
 	void handle_inline_agent_prompt_key(int key);
 	void launch_inline_agent(const std::string &prompt);
 	void execute_vim_command(const std::string &cmd_raw);
-	void render();
+	void render(bool cursor_only = false);
 
 	event_queue global_queue_;
 	menu_bar top_menu_;

@@ -592,6 +592,7 @@ void editor::run()
 		}
 
 		bool needs_render = false;
+		bool needs_cursor_render = false;
 		while (auto ev = global_queue_.pop()) {
 			dispatch(*ev);
 			needs_render = true;
@@ -609,6 +610,10 @@ void editor::run()
 			}
 			if (w->process_events()) {
 				needs_render = true;
+			}
+			if (w->needs_cursor()) {
+				needs_cursor_render = true;
+				w->clear_needs_cursor();
 			}
 		}
 
@@ -634,7 +639,9 @@ void editor::run()
 		}
 
 		if (needs_render) {
-			render();
+			render(false);
+		} else if (needs_cursor_render) {
+			render(true);
 		}
 	}
 
@@ -886,68 +893,72 @@ bool editor::handle_k_block_key(int key)
 	return false;
 }
 
-void editor::render()
+void editor::render(bool cursor_only)
 {
-	redrawwin(stdscr);
-	curs_set(0); // Default to hidden
-
-	// Paint desktop background with dithered pattern
-	attron(COLOR_PAIR(9));
-	for (int y = 1; y < LINES - 1; ++y) {
-		move(y, 0);
-		for (int x = 0; x < COLS; ++x) {
-			addstr("▒");
-		}
-	}
-	attroff(COLOR_PAIR(9));
-
-	// 2. Windows (Z-Index Managed)
 	window *active_win = get_active_window();
 
-	// Create a list of raw pointers to sort
-	std::vector<window *> sorted_windows;
-	for (auto &w : windows_) {
-		sorted_windows.push_back(w.get());
-	}
+	if (!cursor_only) {
+		redrawwin(stdscr);
+		curs_set(0); // Default to hidden
 
-	// Sort: highest priority first. If priority is equal, newest timestamp first.
-	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
-		int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
-		int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
-
-		if (priority_a != priority_b) {
-			return priority_a > priority_b;
-		}
-		return a->get_last_active_timestamp() > b->get_last_active_timestamp();
-	});
-
-	// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
-	// For simplicity in this text editor (and since windows are mostly rectangles),
-	// a window is fully occluded if it's completely inside another single window above it.
-	for (size_t i = 0; i < sorted_windows.size(); ++i) {
-		window *w = sorted_windows[i];
-		w->set_visible(true); // Default to visible
-
-		// Check if fully covered by any single window above it
-		for (size_t j = 0; j < i; ++j) {
-			window *above = sorted_windows[j];
-			if (above->is_visible() && w->get_x() >= above->get_x() && w->get_y() >= above->get_y() &&
-			    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
-			    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
-				w->set_visible(false);
-				break;
+		// Paint desktop background with dithered pattern
+		attron(COLOR_PAIR(9));
+		for (int y = 1; y < LINES - 1; ++y) {
+			move(y, 0);
+			for (int x = 0; x < COLS; ++x) {
+				addstr("▒");
 			}
 		}
-	}
+		attroff(COLOR_PAIR(9));
 
-	// Draw backwards (lowest priority first, so highest priority is on top)
-	for (auto it = sorted_windows.rbegin(); it != sorted_windows.rend(); ++it) {
-		if ((*it)->is_visible()) {
-			(*it)->draw();
+		// 2. Windows (Z-Index Managed)
+		// Create a list of raw pointers to sort
+		std::vector<window *> sorted_windows;
+		for (auto &w : windows_) {
+			sorted_windows.push_back(w.get());
+		}
+
+		// Sort: highest priority first. If priority is equal, newest timestamp first.
+		std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
+			int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
+			int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
+
+			if (priority_a != priority_b) {
+				return priority_a > priority_b;
+			}
+			return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+		});
+
+		// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
+		for (size_t i = 0; i < sorted_windows.size(); ++i) {
+			window *w = sorted_windows[i];
+			w->set_visible(true); // Default to visible
+
+			// Check if fully covered by any single window above it
+			for (size_t j = 0; j < i; ++j) {
+				window *above = sorted_windows[j];
+				if (above->is_visible() && w->get_x() >= above->get_x() && w->get_y() >= above->get_y() &&
+				    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
+				    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
+					w->set_visible(false);
+					break;
+				}
+			}
+		}
+
+		// Draw backwards (lowest priority first, so highest priority is on top)
+		for (auto it = sorted_windows.rbegin(); it != sorted_windows.rend(); ++it) {
+			if ((*it)->is_visible()) {
+				(*it)->draw(false);
+			}
+		}
+
+		top_menu_.draw();
+	} else {
+		if (active_win && active_win->is_visible()) {
+			active_win->draw(true);
 		}
 	}
-
-	top_menu_.draw();
 
 	std::string debug_out;
 	int cur_x = -1, cur_y = -1;
