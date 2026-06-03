@@ -112,8 +112,13 @@ The design leverages a **hybrid training loop** where heavy training happens off
              ▼
 [ Offline / Sidecar Python App ]
        │
+       ├─► Extraction: extract_dataset.py extracts raw features & turn history
+       │
+       ├─► LLM-as-a-judge (Optional): label_with_local_llm.py queries a local
+       │   LLM to refine target milestone boundaries with clean reasoning
+       │
        ├─► Data Augmentation: Clone samples across token_pressure levels
-       ├─► Training: PyTorch (GPU) optimizing binary cross-entropy loss
+       ├─► Training: PyTorch optimizing weighted binary cross-entropy loss
        │
        ▼
   weights.json (weights, biases, & embedding matrices serialized to JSON)
