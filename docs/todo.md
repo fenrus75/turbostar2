@@ -19,15 +19,9 @@
 	- task 2: deriving coding style
 	- ... more to come over time so we need to make this extensible
 
-- usability: mouse based selection should do OSC52 immediately on releasing the mouse button
-	- barely usable without this fixed
-
-
 - feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
-
-- code review: src/git_manager.cpp:27 (start) -- we should probably detect (and assert?) on double start
 
 - feature: make the Ctrl-K status bar message more context ware
 	- need array of possible keys, with relative value for sorting
@@ -39,11 +33,6 @@
     - need to discuss what the best desired behavior is before fixing this issue
 
 - valgrind does not work in our sandbox
-
-- performance: do we need a whole wrefresh on a cursor move within the screen? or just update the cursor position
-   - a "need_cursor_update" flag would be good in addition to need-screen-refresh,
-     that was "small" cursor movements don't need a redraw of the content, only the cursor position and status bar
-   - did a change to turn off the cursor blinking while refreshing -- this solve 98% of the problem
 
 - visual: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
 	- need to just spill to the right instead?
@@ -126,6 +115,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented double-start detection and assertions in `git_manager::start` to prevent thread leaks and std::terminate crashes from duplicate worker loops. Added corresponding unit test coverage in `test_git_manager.cpp`.
 - refactored `markdown_utils.cpp` table heuristics `is_table_row` and `is_header_separator` to use lookahead-free RE2 regular expression parsing, and updated `meson.build` dependency definitions for the affected unit test suites.
 - refactored `fs_utils.cpp` directory functions to use a common `get_project_dir()` helper, log override events in `set_override_project_dir`, and deduplicate project-specific directories (tmp/history/dumps/dbs) to delegate directly to `get_project_cache_root()`. Added unit tests coverage.
 - implemented a smart `fs_utils::is_binary_file` helper detecting both NUL bytes and control character sequences, refactored open-coded checks in `fs_read_lines`, `fs_regexp_lines`, `fs_grep_files`, and `count_lines_in_file` to use the helper, and introduced a unit test suite `unit_fs_utils` verifying text, empty, directory, NUL-based binary, and control-character-based binary files.

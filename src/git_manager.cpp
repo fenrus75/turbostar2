@@ -1,5 +1,6 @@
 #include "git_manager.h"
 #include <array>
+#include <cassert>
 #include <cctype>
 #include <cstdio>
 #include <format>
@@ -24,6 +25,11 @@ git_manager::~git_manager()
 
 void git_manager::start(event_queue &queue)
 {
+	if (worker_thread_.joinable()) {
+		event_logger::get_instance().log("Warning: git_manager::start called on an already running instance");
+		assert(!worker_thread_.joinable() && "git_manager started twice!");
+		return;
+	}
 	global_queue_ = &queue;
 	stop_thread_ = false;
 	worker_thread_ = std::thread(&git_manager::worker_loop, this);
