@@ -316,7 +316,9 @@ void window::draw(bool cursor_only) const
 		cursor_only = false;
 	}
 	draw_content(cursor_only);
-	draw_border();
+	if (!cursor_only) {
+		draw_border();
+	}
 }
 
 bool window::update_viewport() const
@@ -351,7 +353,7 @@ bool window::update_viewport() const
 	return (top_line_ != old_top_line || left_column_ != old_left_column);
 }
 
-void window::draw_content(bool /*cursor_only*/) const
+void window::draw_content(bool cursor_only) const
 {
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
 	std::string filename;
@@ -377,6 +379,15 @@ void window::draw_content(bool /*cursor_only*/) const
 	if (doc_) {
 		match_pos = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
 	}
+
+	if (cursor_only) {
+		bool bracket_changed = (match_pos != last_match_pos_);
+		if (!has_sel && !has_mouse_sel && !bracket_changed) {
+			return;
+		}
+	}
+
+	last_match_pos_ = match_pos;
 
 	if (doc_) {
 		filename = doc_->get_safe_filename();

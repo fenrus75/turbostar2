@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include "document.h"
@@ -184,6 +185,7 @@ class window
 
 	bool needs_render_{false};
 	bool needs_cursor_{false};
+	mutable std::optional<std::pair<int, int>> last_match_pos_;
 
       protected:
 	std::shared_ptr<document> doc_;
