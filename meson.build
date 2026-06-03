@@ -785,7 +785,8 @@ if uv.found() or python.found()
   e2e_env = [
     'MESON_BUILD_ROOT=' + meson.project_build_root(),
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
-    'PROJECT_ROOT=' + meson.project_source_root()
+    'PROJECT_ROOT=' + meson.project_source_root(),
+    'UV_OFFLINE=1'
   ]
   e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt]
 

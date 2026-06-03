@@ -94,9 +94,25 @@ void window::invalidate()
 	needs_render_ = true;
 }
 
+void window::invalidate_cursor()
+{
+	needs_cursor_ = true;
+}
+
+bool window::needs_cursor() const
+{
+	return needs_cursor_;
+}
+
+void window::clear_needs_cursor()
+{
+	needs_cursor_ = false;
+}
+
 bool window::process_events()
 {
 	needs_render_ = false;
+	needs_cursor_ = false;
 	while (auto ev = window_queue_.pop()) {
 		event_logger::get_instance().log("Window {} processing key: {}", id_, ev->key_code);
 		if (ev->type == event_type::key_press && doc_) {
@@ -295,15 +311,21 @@ int window::get_cursor_y() const
 
 void window::draw(bool cursor_only) const
 {
-	update_viewport();
+	bool viewport_changed = update_viewport();
+	if (viewport_changed) {
+		cursor_only = false;
+	}
 	draw_content(cursor_only);
 	draw_border();
 }
 
-void window::update_viewport() const
+bool window::update_viewport() const
 {
 	if (!doc_)
-		return;
+		return false;
+
+	int old_top_line = top_line_;
+	int old_left_column = left_column_;
 
 	auto l = doc_->get_line(doc_->get_cursor_y());
 	int display_col;
@@ -325,6 +347,8 @@ void window::update_viewport() const
 	} else if (display_col >= left_column_ + width_ - 2) {
 		left_column_ = display_col - (width_ - 2) + 1;
 	}
+
+	return (top_line_ != old_top_line || left_column_ != old_left_column);
 }
 
 void window::draw_content(bool /*cursor_only*/) const

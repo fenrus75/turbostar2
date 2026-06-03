@@ -119,6 +119,9 @@ class window
 	 */
 	virtual bool process_events();
 	void invalidate();
+	void invalidate_cursor();
+	bool needs_cursor() const;
+	void clear_needs_cursor();
 	virtual void set_cursor_position() const;
 	virtual bool is_cursor_visible() const
 	{
@@ -167,7 +170,7 @@ class window
 	}
 
       private:
-	void update_viewport() const;
+	bool update_viewport() const;
 
 	std::string title_;
 	bool is_active_{false};
@@ -180,6 +183,7 @@ class window
 	mutable int left_column_{0};
 
 	bool needs_render_{false};
+	bool needs_cursor_{false};
 
       protected:
 	std::shared_ptr<document> doc_;
