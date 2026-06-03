@@ -67,10 +67,44 @@ def main():
     print(f"Loaded {len(samples)} samples from {args.input}")
     print(f"Targeting local LLM endpoint: {args.api_url} using model: {args.model}")
     
+    # Load cache if output file already exists
+    cache = {}
+    if os.path.exists(args.output):
+        try:
+            with open(args.output, "r") as f:
+                cache_data = json.load(f)
+                for item in cache_data:
+                    if "llm_reasoning" in item and item["llm_reasoning"] != "LLM labeling failed or was skipped":
+                        key = (item["text_prev"], item["text_curr"])
+                        cache[key] = {
+                            "label": item["label"],
+                            "llm_reasoning": item["llm_reasoning"]
+                        }
+            print(f"Loaded {len(cache)} cached labels from {args.output}")
+        except Exception as e:
+            print(f"Warning: Failed to load cache from {args.output}: {e}")
+
     labeled_samples = []
     successful_calls = 0
     
     for i, s in enumerate(samples):
+        key = (s["text_prev"], s["text_curr"])
+        if key in cache:
+            print(f"Processing sample {i+1}/{len(samples)}... Cached! Label: {cache[key]['label']} (Reasoning: {cache[key]['llm_reasoning'][:60]}...)")
+            s_labeled = s.copy()
+            s_labeled["label"] = cache[key]["label"]
+            s_labeled["llm_reasoning"] = cache[key]["llm_reasoning"]
+            labeled_samples.append(s_labeled)
+            successful_calls += 1
+            
+            # Save progress dynamically
+            try:
+                with open(args.output, "w") as f:
+                    json.dump(labeled_samples, f, indent=4)
+            except Exception as e:
+                print(f"Warning: Failed to save progress: {e}")
+            continue
+
         # Decode deterministic flags from metadata
         # M = idle_onehot(3) + think_onehot(3) + pressure_onehot(4) + flags(3) + padding(3)
         git_commit = bool(s["metadata"][10])
@@ -139,8 +173,12 @@ You must respond in valid JSON format with the following keys:
         s_labeled["llm_reasoning"] = reasoning
         labeled_samples.append(s_labeled)
         
-    with open(args.output, "w") as f:
-        json.dump(labeled_samples, f, indent=4)
+        # Save progress dynamically
+        try:
+            with open(args.output, "w") as f:
+                json.dump(labeled_samples, f, indent=4)
+        except Exception as e:
+            print(f"Warning: Failed to save progress: {e}")
         
     print(f"\nFinished LLM labeling. Labeled {successful_calls}/{len(samples)} samples successfully.")
     print(f"Saved LLM-labeled dataset to {args.output}")

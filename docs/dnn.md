@@ -115,7 +115,9 @@ The design leverages a **hybrid training loop** where heavy training happens off
        ├─► Extraction: extract_dataset.py extracts raw features & turn history
        │
        ├─► LLM-as-a-judge (Optional): label_with_local_llm.py queries a local
-       │   LLM to refine target milestone boundaries with clean reasoning
+       │   LLM to refine target milestone boundaries with clean reasoning.
+       │   For our local environment, run this script using:
+       │   `python3 dnn_training/label_with_local_llm.py --api-url http://192.168.1.55:8080/v1/chat/completions --model Qwen/Qwen3-Coder-Next-FP8`
        │
        ├─► Data Augmentation: Clone samples across token_pressure levels
        ├─► Training: PyTorch optimizing weighted binary cross-entropy loss
