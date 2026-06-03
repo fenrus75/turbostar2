@@ -188,3 +188,40 @@ std::vector<float> evaluate_layer(const std::vector<float>& input,
     return output;
 }
 ```
+
+---
+
+## 8. Dataset Extraction & Training Walkthrough
+
+Follow these steps to extract logged conversation histories, refine milestone labels via LLM-as-a-judge, train the classifier, and verify the C++ model.
+
+### Step 1: Extract the Raw Heuristic Dataset
+Extract conversation turns and initial boundaries from the active logged history:
+```bash
+python3 dnn_training/extract_dataset.py
+```
+This parses logs under `~/.cache/turbostar/projects/*/history/*` and writes output to `dnn_training/dataset.json`.
+
+### Step 2: Run LLM-as-a-Judge Labeling (with Caching)
+Refine transitions using the local network or local LLM endpoint:
+```bash
+python3 dnn_training/label_with_local_llm.py \
+    --api-url http://192.168.1.55:8080/v1/chat/completions \
+    --model Qwen/Qwen3-Coder-Next-FP8
+```
+*   **Caching & Resiliency:** The script automatically loads previously labeled samples from `dnn_training/dataset_llm_labeled.json` to prevent re-querying the LLM. It also saves progress after every single processed sample, making it safe to interrupt and resume.
+
+### Step 3: Train the Classifier Model
+Train the milestone boundary classification model and export optimized C++ weights:
+```bash
+./dnn_training/train_boundary_dnn.py
+```
+*   This trains the PyTorch model for 150 epochs using data augmentation (cloning across pressure levels) and writes the weights, biases, and embedding matrices to `dnn_training/weights.json`.
+
+### Step 4: Verify C++ Inference Match
+Re-compile the C++ codebase and run the unit tests to confirm the newly trained weights are correctly parsed and evaluated:
+```bash
+ninja -C build && ./build/test_context_dnn
+```
+If successful, it prints `Milestone Boundary C++ DNN unit tests passed successfully!`.
+
