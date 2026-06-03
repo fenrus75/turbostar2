@@ -136,6 +136,10 @@ class window
 		return title_;
 	}
 	virtual std::string get_displayed_title() const;
+	virtual std::string get_status_help() const
+	{
+		return "";
+	}
 	void set_title(const std::string &t)
 	{
 		title_ = t;

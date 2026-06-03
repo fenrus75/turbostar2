@@ -12,8 +12,6 @@
 		- part 2: getting oauth set up
 
 
-- feature: a hex editor window type -- for when we open binary files (spec: [docs/hex-editor.md](file:///home/arjan/git/turbostar2/docs/hex-editor.md))
-
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
@@ -107,6 +105,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented a custom hex editor window class (`hex_editor_window`) and document class (`binary_document`), integrating auto-detection for binary files using `fs_utils::is_binary_file()`, dynamic wrapping in multiples of 16 bytes depending on window width, a tab-toggled double-column cursor focus (hex tuples and ASCII), overwrite-only typing (auto-growing at EOF), live status bar offset and value formatting (hex, decimal, and ASCII), and robust binary saving with symmetric backups (`~`). Added E2E test coverage in `test_hex_editor.py`.
 - implemented a context-aware status bar help message for the `Ctrl-K` block menu. Options are filtered dynamically based on applicability (e.g. selection active, file modified, file open), prioritized (block selection and save actions high, find/navigation medium, compile/other low), greedily packed to fit within `COLS - 2` characters, and re-sorted in a stable defined layout order to preserve muscle memory. Hotkeys are highlighted via `^` caret prefixes. Added a new E2E test suite `test_k_block_help.py` verifying behavior.
 - implemented auto-restoration of maximized windows when dragged by the title bar or resized by the bottom-right corner. Resizing starts from the maximized bounds, while dragging restores and centers the window under the mouse cursor. Added comprehensive E2E test coverage in `test_window_maximize.py` verifying Option 1 behavior.
 - implemented double-start detection and assertions in `git_manager::start` to prevent thread leaks and std::terminate crashes from duplicate worker loops. Added corresponding unit test coverage in `test_git_manager.cpp`.

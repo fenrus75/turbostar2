@@ -65,12 +65,12 @@ class document
       public:
 	document(event_queue &global_queue);
 	document(event_queue &global_queue, const std::string &filename);
-	~document();
+	virtual ~document();
 
-	bool load_from_file(const std::string &filename);
+	virtual bool load_from_file(const std::string &filename);
 	bool insert_file(const std::string &filename);
-	bool save();
-	bool save_to_file(const std::string &filename);
+	virtual bool save();
+	virtual bool save_to_file(const std::string &filename);
 	void clear();
 	bool check_disk_changed();
 	void update_last_disk_mtime();
@@ -79,8 +79,8 @@ class document
 	const std::string &get_filename() const;
 	const std::string &get_safe_filename() const;
 	bool has_nondefault_filename() const;
-	bool is_modified() const;
-	void clear_modified();
+	virtual bool is_modified() const;
+	virtual void clear_modified();
 	std::string get_git_branch() const;
 	void set_git_branch(const std::string &branch);
 
@@ -150,11 +150,11 @@ class document
 	std::optional<std::pair<int, int>> find_matching_bracket(int y, int x) const;
 	void select_enclosing_scope();
 
-	void undo();
-	void redo();
-	void break_undo_coalescing();
+	virtual void undo();
+	virtual void redo();
+	virtual void break_undo_coalescing();
 
-	size_t get_undo_count() const;
+	virtual size_t get_undo_count() const;
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
 	std::string get_undo_name(size_t steps_back) const;
 
@@ -190,7 +190,7 @@ class document
 		return enclosing_scope_;
 	}
 
-      private:
+      protected:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
 	void update_target_cursor_x_unlocked();

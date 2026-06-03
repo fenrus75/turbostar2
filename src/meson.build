@@ -3,6 +3,7 @@ subdir('tools')
 core_sources = files(
   'line.cpp',
   'document.cpp',
+  'binary_document.cpp',
   'document_nav.cpp',
   'document_undo.cpp',
   'document_selection.cpp',
@@ -73,6 +74,7 @@ ui_sources = files(
   'editor_events_lsp.cpp',
   'editor_events_key.cpp',
   'ui/window.cpp',
+  'ui/hex_editor_window.cpp',
   'ui/agent_window.cpp',
   'ui/diff_window.cpp',
   'ui/agent_status_window.cpp',
