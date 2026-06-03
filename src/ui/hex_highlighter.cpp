@@ -22,6 +22,35 @@ std::string demangle_symbol(const std::string &mangled)
 		std::free(demangled);
 		return result;
 	}
+
+	// Try progressively shorter prefixes to handle template constraints
+	// or truncated/cut-off mangled symbols.
+	if (mangled.starts_with("_Z")) {
+		for (size_t len = mangled.length() - 1; len >= 3; --len) {
+			std::string prefix = mangled.substr(0, len);
+			status = 0;
+			demangled = abi::__cxa_demangle(prefix.c_str(), nullptr, nullptr, &status);
+			if (status == 0 && demangled) {
+				std::string result(demangled);
+				std::free(demangled);
+				std::string suffix = mangled.substr(len);
+				if (suffix.starts_with('Q')) {
+					std::string constraint = suffix.substr(1);
+					size_t first_non_digit = 0;
+					while (first_non_digit < constraint.length() &&
+					       constraint[first_non_digit] >= '0' &&
+					       constraint[first_non_digit] <= '9') {
+						first_non_digit++;
+					}
+					if (first_non_digit > 0 && first_non_digit < constraint.length()) {
+						constraint = constraint.substr(first_non_digit);
+					}
+					return std::format("{} [requires {}]", result, constraint);
+				}
+				return std::format("{} [{}]", result, suffix);
+			}
+		}
+	}
 #endif
 	return mangled;
 }

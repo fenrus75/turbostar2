@@ -68,19 +68,19 @@ void test_elf_highlighter()
 	// 3. String Table Data (starts at 360)
 	// Indices:
 	// 0: "\0"
-	// 1: ".text._ZN3foo3barEv\0"
-	// 22: ".shstrtab\0"
+	// 1: ".text._ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2EvQ26is_default_constructible\0"
+	// 93: ".shstrtab\0"
 	size_t strtab_start = 360;
-	std::string text_name = ".text._ZN3foo3barEv";
+	std::string text_name = ".text._ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2EvQ26is_default_constructible";
 	std::string strtab_name = ".shstrtab";
 	std::copy(text_name.begin(), text_name.end(), &data[strtab_start + 1]);
-	std::copy(strtab_name.begin(), strtab_name.end(), &data[strtab_start + 22]);
+	std::copy(strtab_name.begin(), strtab_name.end(), &data[strtab_start + 93]);
 
 	// 4. Shdr [0] - Null Section (128..191) is all zeroes
 
 	// 5. Shdr [1] - .text Section (192..255)
 	size_t sh1_start = 128 + 64;
-	write_u32_le(data, sh1_start, 1);	      // sh_name = 1 (".text._ZN3foo3barEv")
+	write_u32_le(data, sh1_start, 1);	      // sh_name = 1 (".text._ZNSt7__cxx1112basic_stringIc...")
 	write_u32_le(data, sh1_start + 4, 1);	      // sh_type = SHT_PROGBITS
 	write_u64_le(data, sh1_start + 8, 6);	      // sh_flags = SHF_ALLOC | SHF_EXECINSTR
 	write_u64_le(data, sh1_start + 16, 0x401000); // sh_addr
@@ -89,12 +89,12 @@ void test_elf_highlighter()
 
 	// 6. Shdr [2] - .shstrtab Section (256..319)
 	size_t sh2_start = 128 + 128;
-	write_u32_le(data, sh2_start, 22);	 // sh_name = 22 (".shstrtab")
+	write_u32_le(data, sh2_start, 93);	 // sh_name = 93 (".shstrtab")
 	write_u32_le(data, sh2_start + 4, 3);	 // sh_type = SHT_STRTAB
 	write_u64_le(data, sh2_start + 8, 0);	 // sh_flags = 0
 	write_u64_le(data, sh2_start + 16, 0);	 // sh_addr = 0
 	write_u64_le(data, sh2_start + 24, 360); // sh_offset = 360
-	write_u64_le(data, sh2_start + 32, 35);	 // sh_size = 35
+	write_u64_le(data, sh2_start + 32, 110); // sh_size = 110
 
 	elf_hex_highlighter hl;
 	assert(hl.can_handle(data) == true);
@@ -137,12 +137,12 @@ void test_elf_highlighter()
 	assert(inf.description.find("X R") != std::string::npos);
 
 	// Test Section Header Table range (SHT starts at 128, entries size 64)
-	inf = hl.get_info(data, 192); // sh_name field of SHT[1] (.text.foo::bar())
+	inf = hl.get_info(data, 192); // sh_name field of SHT[1]
 	assert(inf.type == hex_semantic_type::sect_header);
 	assert(inf.description.find("sh_name") != std::string::npos);
-	assert(inf.description.find(".text.foo::bar()") != std::string::npos);
+	assert(inf.description.find(".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]") != std::string::npos);
 
-	inf = hl.get_info(data, 196); // sh_type field of SHT[1] (.text.foo::bar())
+	inf = hl.get_info(data, 196); // sh_type field of SHT[1]
 	assert(inf.type == hex_semantic_type::sect_header);
 	assert(inf.description.find("sh_type") != std::string::npos);
 	assert(inf.description.find("SHT_PROGBITS") != std::string::npos);
@@ -150,7 +150,7 @@ void test_elf_highlighter()
 	// Test .text section body range (mapped range: offset 320 to 351)
 	inf = hl.get_info(data, 320);
 	assert(inf.type == hex_semantic_type::code_section);
-	assert(inf.description.find("Sec \".text.foo::bar()\"") != std::string::npos);
+	assert(inf.description.find("Sec \".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]\"") != std::string::npos);
 
 	// Test .shstrtab section body range (mapped range: offset 360 to 379)
 	inf = hl.get_info(data, 365);
