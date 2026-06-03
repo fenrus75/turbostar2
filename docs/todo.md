@@ -1,16 +1,16 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- visual: we have multiple sources of messages for the status bar - they compete for space - so we need to 
+- visual: we have multiple sources of messages for the status bar - they compete for space - so we need to
 	- make a list of these
 	- set relative priorities of these
 
 
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
-	- two parts: 
+	- two parts:
 		- part 1: using existing oath key
 		- part 2: getting oauth set up
-		
+
 
 - feature: a hex editor window type -- for when we open binary files
 
@@ -36,7 +36,7 @@
 
 - code review: src/fs_utils.cpp: should add a is_binary_file(filename) helper that is a bit smarter than the open coded thing in existing places
 
-- code review: src/fs_utils.cpp: get_project_tmp_dir() -- we should make a get_project_dir() helper that all functions then use, rather than 
+- code review: src/fs_utils.cpp: get_project_tmp_dir() -- we should make a get_project_dir() helper that all functions then use, rather than
      checking g_override_project_dir everywhere
 
 - code review: src/fs_utils.cpp: get_project_dump_dir() should use a helper (may need to create) instead of looking at $HOME etc\
@@ -44,7 +44,7 @@
 
 - code review: src/markdown_utils.cpp: is_table_row and is_table_separator probably should use regexps
 
-- bug: if you maximize a window you can then no longer resize it with the mouse - it stays maximized. 
+- bug: if you maximize a window you can then no longer resize it with the mouse - it stays maximized.
     - if this is desired behavior we should make "Maximize" in the window-menu a toggle capability!
     - need to discuss what the best desired behavior is before fixing this issue
 
@@ -88,7 +88,7 @@
 - a github:// VFS namespace (follow up)
 	- implement a persistent disk cache under ~/.cache/turbostar/github_vfs/ for raw files and metadata, with TTL / invalidation checks.
 
-- a few "github" tools 
+- a few "github" tools
 	- create PR
 	- fetch PR info
 
@@ -102,9 +102,9 @@
 		- after any UV deps are installed that is
 	- maybe http MCPs are easier? we have some local ones we created ourselves, start with those
 
-# long term items   
+# long term items
 
-- should we use turbo vision? 
+- should we use turbo vision?
 	- pro: automatic the full look
 	- pro: automatic all window/etc interactions working well
 	- con: total rewrite and cumbersome framework
@@ -122,7 +122,7 @@
 - use a more conformant yaml parser for SKILL.md metadata extraction instead of manual line scanning
 
 - run a small LLM local to decide which model/etc gets to run agent asks
-	
+
 - an "auto arrange windows" option of sorts
    - option is all editor files in the right 2/3rd of the screen and the agent status window the right 1/3rd
    - maybe even better, we have a set of templates for certain screen sizes and usages, and use those when appropriate
