@@ -77,7 +77,7 @@ std::vector<interaction_line> interaction_terminal::format_lines(int width, back
 	int color = get_color_pair(interaction_role::terminal, bg);
 	auto lines = wrap_text("", text_, width, color);
 	for (auto &line : lines) {
-		int len = markdown_utils::utf8_length(line.text);
+		int len = markdown_utils::display_width(line.text);
 		if (len < width) {
 			line.text += std::string(width - len, ' ');
 		}

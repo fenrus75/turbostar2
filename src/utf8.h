@@ -17,6 +17,11 @@ size_t char_len(unsigned char lead_byte);
 size_t length(std::string_view s);
 
 /**
+ * @brief Returns the visual display width of a UTF-8 string on a terminal.
+ */
+size_t display_width(std::string_view s);
+
+/**
  * @brief Translates a character position to a byte offset in a string.
  * Returns s.length() if char_pos is out of bounds.
  */

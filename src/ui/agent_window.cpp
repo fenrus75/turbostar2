@@ -612,10 +612,10 @@ bool agent_window::process_events()
 			if (click_row >= 0 && click_row < available_height && click_row < static_cast<int>(visible_lines_.size())) {
 				int prefix_w = visible_lines_[click_row].prefix.empty()
 						   ? 0
-						   : markdown_utils::utf8_length(visible_lines_[click_row].prefix);
+						   : markdown_utils::display_width(visible_lines_[click_row].prefix);
 				int col = ev->mouse_x - (x_ + 1 + prefix_w);
 				int click_char =
-				    std::clamp(col, 0, static_cast<int>(markdown_utils::utf8_length(visible_lines_[click_row].text)));
+				    std::clamp(col, 0, static_cast<int>(markdown_utils::display_width(visible_lines_[click_row].text)));
 
 				is_mouse_selecting_ = true;
 				mouse_sel_start_char_ = click_char;
@@ -639,10 +639,10 @@ bool agent_window::process_events()
 				if (click_row >= 0 && click_row < static_cast<int>(visible_lines_.size())) {
 					int prefix_w = visible_lines_[click_row].prefix.empty()
 							   ? 0
-							   : markdown_utils::utf8_length(visible_lines_[click_row].prefix);
+							   : markdown_utils::display_width(visible_lines_[click_row].prefix);
 					int col = ev->mouse_x - (x_ + 1 + prefix_w);
 					int click_char = std::clamp(
-					    col, 0, static_cast<int>(markdown_utils::utf8_length(visible_lines_[click_row].text)));
+					    col, 0, static_cast<int>(markdown_utils::display_width(visible_lines_[click_row].text)));
 
 					mouse_sel_end_char_ = click_char;
 					mouse_sel_end_line_ = click_row;
@@ -817,7 +817,7 @@ void agent_window::draw_content() const
 					sep_line.text = sep_left;
 					if (item->needs_subpanel_header()) {
 						std::string label = " " + item->get_subpanel_label() + " ";
-						int label_len = markdown_utils::utf8_length(label);
+						int label_len = markdown_utils::display_width(label);
 						int line_len = inner_width + 2;
 						int left_pad = (line_len - label_len) / 2;
 						int right_pad = line_len - label_len - left_pad;
@@ -843,7 +843,7 @@ void agent_window::draw_content() const
 				l.prefix = vert + " ";
 				l.prefix_color_pair = box_cp;
 
-				int content_len = markdown_utils::utf8_length(line.text);
+				int content_len = markdown_utils::display_width(line.text);
 				int pad_len = inner_width - content_len;
 				if (pad_len < 0)
 					pad_len = 0;
@@ -882,7 +882,7 @@ void agent_window::draw_content() const
 				attron(COLOR_PAIR(line_it->prefix_color_pair));
 				mvprintw(current_y, current_x, "%s", line_it->prefix.c_str());
 				attroff(COLOR_PAIR(line_it->prefix_color_pair));
-				current_x += markdown_utils::utf8_length(line_it->prefix);
+				current_x += markdown_utils::display_width(line_it->prefix);
 			}
 
 			// Draw text with potential selection highlight
@@ -898,7 +898,7 @@ void agent_window::draw_content() const
 				}
 			}
 
-			int text_len = markdown_utils::utf8_length(line_it->text);
+			int text_len = markdown_utils::display_width(line_it->text);
 			size_t byte_off = 0;
 			std::string utf8_char;
 			utf8_char.reserve(4);
@@ -1081,7 +1081,7 @@ std::string agent_window::get_mouse_selected_text() const
 		if (l < 0 || l >= static_cast<int>(visible_lines_.size()))
 			continue;
 		const auto &line = visible_lines_[l];
-		int len = markdown_utils::utf8_length(line.text);
+		int len = markdown_utils::display_width(line.text);
 
 		int from_c = (l == start_l) ? start_c : 0;
 		int to_c = (l == end_l) ? end_c : len;

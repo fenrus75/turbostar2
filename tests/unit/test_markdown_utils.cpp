@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <clocale>
 #include "../../src/markdown_utils.h"
 
 using namespace markdown_utils;
@@ -53,16 +54,17 @@ void test_align_table_utf8()
 
 	auto aligned = table_aligner::align_table_block(table);
 
-	// Each emoji is 1 char wide in our utf8_length assumption
+	// Each emoji is 2 chars wide using display_width
 	assert(aligned.size() == 5);
 	assert(aligned[0] == "| Emoji | Meaning |");
 	assert(aligned[1] == "|-------|---------|");
-	assert(aligned[2] == "| 🦀     | Rust    |");
-	assert(aligned[3] == "| 🚀     | Fast    |");
+	assert(aligned[2] == "| 🦀    | Rust    |");
+	assert(aligned[3] == "| 🚀    | Fast    |");
 }
 
 int main()
 {
+	setlocale(LC_ALL, "");
 	test_is_table_row();
 	test_is_header_separator();
 	test_find_table_ranges();

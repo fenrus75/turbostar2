@@ -44,9 +44,9 @@ private:
 };
 
 /**
- * @brief Get the number of UTF-8 characters in a string.
+ * @brief Get the visual display width of a UTF-8 string on a terminal.
  */
-size_t utf8_length(const std::string& s);
+size_t display_width(const std::string& s);
 
 /**
  * @brief Detects and aligns all markdown tables in a block of text.

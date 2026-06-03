@@ -1,5 +1,5 @@
 #include "utf8.h"
-
+#include <wchar.h>
 namespace utf8
 {
 
@@ -30,6 +30,32 @@ size_t length(std::string_view s)
 		chars++;
 	}
 	return chars;
+}
+
+size_t display_width(std::string_view s)
+{
+	size_t total_width = 0;
+	size_t offset = 0;
+	mbstate_t state = {};
+	while (offset < s.length()) {
+		wchar_t wc;
+		size_t res = mbrtowc(&wc, s.data() + offset, s.length() - offset, &state);
+		if (res == (size_t)-1 || res == (size_t)-2) {
+			// Invalid or incomplete char, assume width 1 and advance 1 byte
+			total_width += 1;
+			offset += 1;
+		} else if (res == 0) {
+			// NUL byte, width 0
+			offset += 1;
+		} else {
+			int w = wcwidth(wc);
+			if (w >= 0) {
+				total_width += w;
+			}
+			offset += res;
+		}
+	}
+	return total_width;
 }
 
 size_t char_to_byte_offset(std::string_view s, size_t char_pos)

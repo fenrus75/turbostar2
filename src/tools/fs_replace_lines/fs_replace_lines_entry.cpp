@@ -109,7 +109,7 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 		}
 
 		for (auto &line : lines) {
-			int len = markdown_utils::utf8_length(line.text);
+			int len = markdown_utils::display_width(line.text);
 			if (len < width) {
 				line.text += std::string(width - len, ' ');
 			}

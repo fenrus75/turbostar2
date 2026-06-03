@@ -42,7 +42,7 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 
 			if (!box_title_.empty()) {
 				std::string title_str = " " + box_title_ + " ";
-				int title_len = markdown_utils::utf8_length(title_str);
+				int title_len = markdown_utils::display_width(title_str);
 				int border_len = inner_width + 2;
 
 				if (title_len >= border_len) {
@@ -72,7 +72,7 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 			cached_lines_.push_back(top_line);
 
 			for (const auto &line : inner_lines) {
-				int content_len = markdown_utils::utf8_length(line.text);
+				int content_len = markdown_utils::display_width(line.text);
 				int pad_len = inner_width - content_len;
 				if (pad_len < 0)
 					pad_len = 0;
@@ -105,7 +105,7 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 std::vector<interaction_line> agent_interaction::wrap_text(const std::string &prefix, const std::string &text, int width, int color_pair)
 {
 	std::vector<interaction_line> lines;
-	int prefix_utf8_len = markdown_utils::utf8_length(prefix);
+	int prefix_utf8_len = markdown_utils::display_width(prefix);
 
 	std::string full_text;
 	size_t line_chars = 0;
