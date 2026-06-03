@@ -173,12 +173,27 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
 					       const std::vector<float> &biases)
 {
 	std::vector<float> output(weights.size());
+	size_t input_size = input.size();
 	for (size_t i = 0; i < weights.size(); ++i) {
-		float sum = biases[i];
-		// Multiples of 16 enables compiler vectorization (SSE/AVX)
-		for (size_t j = 0; j < input.size(); ++j) {
-			sum += input[j] * weights[i][j];
+		const auto &w_row = weights[i];
+		float s0 = biases[i];
+		float s1 = 0.0f;
+		float s2 = 0.0f;
+		float s3 = 0.0f;
+
+		size_t j = 0;
+		// Level 1 Parallel Accumulators: process 4 elements per step to break latency chain
+		for (; j + 3 < input_size; j += 4) {
+			s0 += input[j + 0] * w_row[j + 0];
+			s1 += input[j + 1] * w_row[j + 1];
+			s2 += input[j + 2] * w_row[j + 2];
+			s3 += input[j + 3] * w_row[j + 3];
 		}
+		// Scalar tail fallback (no-op since sizes are multiples of 16)
+		for (; j < input_size; ++j) {
+			s0 += input[j] * w_row[j];
+		}
+		float sum = (s0 + s1) + (s2 + s3);
 		output[i] = sum > 0.0f ? sum : 0.01f * sum;
 	}
 	return output;

@@ -1849,7 +1849,10 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 	bool should_split = false;
 	float boundary_prob = -1.0f;
 
-	if (turbostar::context_dnn::get_instance().is_loaded()) {
+	if (recent_chars > 192000) {
+		should_split = true;
+		event_logger::get_instance().log("Context size exceeds 48k tokens ({} chars). Forcing auto-episode boundary.", recent_chars);
+	} else if (turbostar::context_dnn::get_instance().is_loaded()) {
 		double active_tokens = 0.0;
 		int last_boundary_idx = -1;
 		for (int i = 0; i < static_cast<int>(turns.size()) - 1; ++i) {
@@ -1916,17 +1919,12 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 		}
 	}
 
-	if (boundary_prob < 0.0f) {
-		if (recent_chars > 192000) {
-			should_split = true;
-			event_logger::get_instance().log("DNN classifier unavailable. Forcing milestone split based on heuristic character budget.");
-		}
-	}
-
 	if (should_split) {
-		std::string reason_msg = "Milestone boundary classification trigger";
-		if (boundary_prob < 0.0f) {
+		std::string reason_msg;
+		if (recent_chars > 192000) {
 			reason_msg = "Heuristic context character limit reached";
+		} else {
+			reason_msg = "Milestone boundary classification trigger";
 		}
 		
 		event_logger::get_instance().log("Triggering auto-episode boundary split: {}", reason_msg);
