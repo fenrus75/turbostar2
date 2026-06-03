@@ -2,9 +2,52 @@
 #include <algorithm>
 #include <format>
 
+#if __has_include(<cxxabi.h>)
+#include <cstdlib>
+#include <cxxabi.h>
+#define HAS_CXXABI
+#endif
+
 // Helper functions for bounds-safe endian reading
 namespace
 {
+
+std::string demangle_symbol(const std::string &mangled)
+{
+#ifdef HAS_CXXABI
+	int status = 0;
+	char *demangled = abi::__cxa_demangle(mangled.c_str(), nullptr, nullptr, &status);
+	if (status == 0 && demangled) {
+		std::string result(demangled);
+		std::free(demangled);
+		return result;
+	}
+#endif
+	return mangled;
+}
+
+std::string demangle_section_name(const std::string &name)
+{
+	std::string result;
+	size_t start = 0;
+	while (start < name.length()) {
+		size_t dot = name.find('.', start);
+		std::string part = (dot == std::string::npos) ? name.substr(start) : name.substr(start, dot - start);
+
+		if (part.starts_with("_Z")) {
+			result += demangle_symbol(part);
+		} else {
+			result += part;
+		}
+
+		if (dot == std::string::npos) {
+			break;
+		}
+		result += ".";
+		start = dot + 1;
+	}
+	return result;
+}
 
 uint16_t read_u16(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
 {
@@ -320,6 +363,7 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 				} else {
 					sec.semantic = hex_semantic_type::rodata_section; // Default constant section
 				}
+				sec.name = demangle_section_name(sec.name);
 				sections_.push_back(sec);
 			}
 		}
