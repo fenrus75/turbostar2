@@ -29,8 +29,6 @@
 
 - code review: src/git_manager.cpp:27 (start) -- we should probably detect (and assert?) on double start
 
-- code review: src/markdown_utils.cpp: is_table_row and is_table_separator probably should use regexps
-
 - feature: make the Ctrl-K status bar message more context ware
 	- need array of possible keys, with relative value for sorting
 	- each key would need a "is applicable" method to hide it
@@ -128,6 +126,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- refactored `markdown_utils.cpp` table heuristics `is_table_row` and `is_header_separator` to use lookahead-free RE2 regular expression parsing, and updated `meson.build` dependency definitions for the affected unit test suites.
 - refactored `fs_utils.cpp` directory functions to use a common `get_project_dir()` helper, log override events in `set_override_project_dir`, and deduplicate project-specific directories (tmp/history/dumps/dbs) to delegate directly to `get_project_cache_root()`. Added unit tests coverage.
 - implemented a smart `fs_utils::is_binary_file` helper detecting both NUL bytes and control character sequences, refactored open-coded checks in `fs_read_lines`, `fs_regexp_lines`, `fs_grep_files`, and `count_lines_in_file` to use the helper, and introduced a unit test suite `unit_fs_utils` verifying text, empty, directory, NUL-based binary, and control-character-based binary files.
 - implemented tab-aware visual column vertical navigation (Ghost X tracking) that maps screen coordinates correctly back to line character offsets, preventing visual jumpiness when navigating vertically across lines containing tabs. Added corresponding unit test coverage in `test_document.cpp`.

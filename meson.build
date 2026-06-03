@@ -641,7 +641,7 @@ test_file_security = executable('test_file_security',
 test('unit_file_security', test_file_security)
 test_fs_replace_lines = executable('test_fs_replace_lines',
   ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep],
+  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines)
 
@@ -659,7 +659,7 @@ test('unit_github_vfs', test_github_vfs)
 
 test_skill_manager = executable('test_skill_manager',
   ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
+  dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep, re2_dep],
   include_directories: 'src')
 test('unit_skill_manager', test_skill_manager)
 
@@ -680,7 +680,7 @@ test('unit_markdown_highlighter', test_markdown_highlighter)
 
 test_markdown_utils = executable('test_markdown_utils',
   ['tests/unit/test_markdown_utils.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
-  dependencies : [],
+  dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_markdown_utils', test_markdown_utils)
 

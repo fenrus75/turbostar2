@@ -1,5 +1,6 @@
 #include "markdown_utils.h"
 #include <algorithm>
+#include <re2/re2.h>
 #include <sstream>
 #include "utf8.h"
 
@@ -8,35 +9,14 @@ namespace markdown_utils
 
 bool table_aligner::is_table_row(const std::string &line)
 {
-	// A table row must have at least one pipe character
-	if (line.find('|') == std::string::npos)
-		return false;
-
-	// It shouldn't be just whitespace and pipes
-	bool has_content = false;
-	for (char c : line) {
-		if (!std::isspace(c) && c != '|') {
-			has_content = true;
-			break;
-		}
-	}
-	return has_content;
+	static const re2::RE2 row_re("(?:\\|.*[^|\\s]|[^|\\s].*\\|)");
+	return re2::RE2::PartialMatch(line, row_re);
 }
 
 bool table_aligner::is_header_separator(const std::string &line)
 {
-	if (line.find('|') == std::string::npos)
-		return false;
-
-	// A header separator contains only pipes, dashes, colons, and whitespace
-	for (char c : line) {
-		if (!std::isspace(c) && c != '|' && c != '-' && c != ':') {
-			return false;
-		}
-	}
-
-	// Must have at least some dashes
-	return line.find('-') != std::string::npos;
+	static const re2::RE2 sep_re("^(?:[-:\\s]*-[-|:\\s]*\\||[|:\\s]*\\|[-|:\\s]*-)[-|:\\s]*$");
+	return re2::RE2::FullMatch(line, sep_re);
 }
 
 std::vector<table_range> table_aligner::find_table_ranges(const std::vector<std::string> &lines)
