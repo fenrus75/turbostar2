@@ -141,7 +141,10 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented `window::invalidate_cursor()`, `window::needs_cursor()`, and `window::clear_needs_cursor()`, tracking if cursor-only updates are pending.
+- updated `window::update_viewport()` to return a `bool` indicating if a scroll occurred, and updated `window::draw` to automatically override/cancel `cursor_only` rendering when the viewport shifts.
 - added optional `bool cursor_only = false` argument to `window::draw` and `window::draw_content` across all 5 window subclasses (`agent_status_window`, `agent_window`, `crashdump_window`, `diff_window`, `terminal_window`), preparing the UI layout hierarchy for cursor-only refresh optimizations.
+- configured Meson E2E tests to run in offline mode (`UV_OFFLINE=1`), preventing test run DNS/network timeouts.
 
 ## 02-06-2026
 - made the `type` parameter optional in `fs_replace_lines` tool, defaulting to "replace" when omitted, to make it more agent-friendly. Included comprehensive unit test coverage.
