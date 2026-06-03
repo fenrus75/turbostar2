@@ -14,3 +14,5 @@ lines.txt.org
 format_tmp.cpp
 .antigravity/
 .antigravitycli/
+perf.data*
+agent*json
