@@ -12,7 +12,7 @@
 		- part 2: getting oauth set up
 
 
-- feature: a hex editor window type -- for when we open binary files
+- feature: a hex editor window type -- for when we open binary files (spec: [docs/hex-editor.md](file:///home/arjan/git/turbostar2/docs/hex-editor.md))
 
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
