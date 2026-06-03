@@ -674,7 +674,7 @@ void agent_window::on_agent_update()
 	invalidate();
 }
 
-void agent_window::draw_content() const
+void agent_window::draw_content(bool /*cursor_only*/) const
 {
 	// 1. Draw the chat history in the upper portion
 	int available_height = get_history_viewport_height();

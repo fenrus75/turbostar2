@@ -460,7 +460,7 @@ bool terminal_window::is_cursor_visible() const
 	return emulator_.is_cursor_visible();
 }
 
-void terminal_window::draw_content() const
+void terminal_window::draw_content(bool /*cursor_only*/) const
 {
 	const auto &grid = emulator_.get_grid();
 	for (int y = 0; y < height_ - 2; ++y) {

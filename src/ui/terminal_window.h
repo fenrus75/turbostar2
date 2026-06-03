@@ -58,7 +58,7 @@ class terminal_window : public ::window
 	screenshot_data get_screenshot() const;
 
       protected:
-	void draw_content() const override;
+	void draw_content(bool cursor_only = false) const override;
 	void draw_border() const override;
 	void on_resize(int width, int height) override;
 

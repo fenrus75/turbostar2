@@ -13,7 +13,7 @@ class window
 	window(int id, int x, int y, int width, int height, const std::string &title);
 	virtual ~window();
 
-	void draw() const;
+	void draw(bool cursor_only = false) const;
 	void set_active(bool active);
 	bool is_active() const;
 
@@ -157,7 +157,7 @@ class window
 	bool is_maximized_{false};
 	int id_;
 	int background_color_pair_{3};
-	virtual void draw_content() const;
+	virtual void draw_content(bool cursor_only = false) const;
 	virtual void draw_border() const;
 	virtual void on_resize(int /*width*/, int /*height*/)
 	{

@@ -29,7 +29,7 @@ agent_status_window::agent_status_window(int id, int x, int y, int width, int he
 	    });
 }
 
-void agent_status_window::draw_content() const
+void agent_status_window::draw_content(bool /*cursor_only*/) const
 {
 	if (!is_visible()) {
 		return;

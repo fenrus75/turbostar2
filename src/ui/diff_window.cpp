@@ -188,7 +188,7 @@ void diff_window::set_cursor_position() const
 	curs_set(0);
 }
 
-void diff_window::draw_content() const
+void diff_window::draw_content(bool /*cursor_only*/) const
 {
 	attron(COLOR_PAIR(background_color_pair_));
 	// Clear area

@@ -20,7 +20,7 @@ class agent_window : public window
 	void on_agent_update();
 
 	// Override to draw the input box at the bottom
-	void draw_content() const override;
+	void draw_content(bool cursor_only = false) const override;
 	int get_history_viewport_height() const;
 
 	std::shared_ptr<agentlib::ai_agent> get_agent() const

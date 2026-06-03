@@ -11,7 +11,7 @@ class crashdump_window : public window
 	crashdump_window(int id, int x, int y, int width, int height, event_queue &global_queue);
 	~crashdump_window() override = default;
 
-	void draw_content() const override;
+	void draw_content(bool cursor_only = false) const override;
 	void draw_border() const override;
 	bool process_events() override;
 	void set_cursor_position() const override;

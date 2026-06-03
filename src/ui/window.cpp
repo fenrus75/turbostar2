@@ -293,10 +293,10 @@ int window::get_cursor_y() const
 	return result;
 }
 
-void window::draw() const
+void window::draw(bool cursor_only) const
 {
 	update_viewport();
-	draw_content();
+	draw_content(cursor_only);
 	draw_border();
 }
 
@@ -327,7 +327,7 @@ void window::update_viewport() const
 	}
 }
 
-void window::draw_content() const
+void window::draw_content(bool /*cursor_only*/) const
 {
 	int sel_start_x, sel_start_y, sel_end_x, sel_end_y;
 	std::string filename;

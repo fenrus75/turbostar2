@@ -12,7 +12,7 @@ class diff_window : public window
 	~diff_window() override = default;
 
 	bool process_events() override;
-	void draw_content() const override;
+	void draw_content(bool cursor_only = false) const override;
 	std::string get_displayed_title() const override
 	{
 		return get_title();

@@ -38,7 +38,7 @@ void crashdump_window::populate_listbox()
 	listbox_->set_items(display_items);
 }
 
-void crashdump_window::draw_content() const
+void crashdump_window::draw_content(bool /*cursor_only*/) const
 {
 	if (!is_visible())
 		return;
