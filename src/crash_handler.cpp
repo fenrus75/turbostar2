@@ -1,11 +1,17 @@
 #define UNW_LOCAL_ONLY
 #include "crash_handler.h"
-#include "ansi.h"
 #include <libunwind.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "ansi.h"
+
+#if __has_include(<cxxabi.h>)
+#include <cxxabi.h>
+#include <stdlib.h>
+#define HAS_CXXABI
+#endif
 
 namespace crash_handler
 {
@@ -128,7 +134,15 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 				unw_word_t offset;
 				if (unw_get_proc_name(&cursor, symbol, sizeof(symbol), &offset) == 0) {
 					write(STDOUT_FILENO, " in ", 4);
-					write(STDOUT_FILENO, symbol, safe_strlen(symbol));
+					const char *sym_to_write = symbol;
+#ifdef HAS_CXXABI
+					int status = 0;
+					char *demangled = abi::__cxa_demangle(symbol, nullptr, nullptr, &status);
+					if (status == 0 && demangled) {
+						sym_to_write = demangled;
+					}
+#endif
+					write(STDOUT_FILENO, sym_to_write, safe_strlen(sym_to_write));
 					write(STDOUT_FILENO, " + 0x", 5);
 					char offset_str[32];
 					safe_hex_toa(offset, offset_str, sizeof(offset_str));
