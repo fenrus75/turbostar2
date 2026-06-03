@@ -108,6 +108,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- improved `fs_grep_files` tool to print the target pattern and path while searching, and implemented consecutive duplicate search query detection via a global static tracker to prevent agent infinite search loops.
 - optimized milestone boundary classifier loop (`evaluate_dense_layer`) in `context_dnn.cpp` using SSE2 vectorization and parallel register unrolling.
 - prevented starting/queuing any background AI summarization tasks during application exit by checking a new thread-safe `is_exiting` flag on `project_manager`, eliminating the 7+ second exit delay.
 - isolated `uv run` environments in the Python runner tool by setting `UV_NO_PROJECT=1` and `UV_PROJECT_ENVIRONMENT=.turbostar/uv_env`, preventing any contamination of the user's project configurations or local virtual environments.
