@@ -23,11 +23,6 @@
 
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
 
-- feature: make the Ctrl-K status bar message more context ware
-	- need array of possible keys, with relative value for sorting
-	- each key would need a "is applicable" method to hide it
- 	   (example, no need to show Copy if no block is active)
-
 
 - valgrind does not work in our sandbox
 
@@ -112,6 +107,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented a context-aware status bar help message for the `Ctrl-K` block menu. Options are filtered dynamically based on applicability (e.g. selection active, file modified, file open), prioritized (block selection and save actions high, find/navigation medium, compile/other low), greedily packed to fit within `COLS - 2` characters, and re-sorted in a stable defined layout order to preserve muscle memory. Hotkeys are highlighted via `^` caret prefixes. Added a new E2E test suite `test_k_block_help.py` verifying behavior.
 - implemented auto-restoration of maximized windows when dragged by the title bar or resized by the bottom-right corner. Resizing starts from the maximized bounds, while dragging restores and centers the window under the mouse cursor. Added comprehensive E2E test coverage in `test_window_maximize.py` verifying Option 1 behavior.
 - implemented double-start detection and assertions in `git_manager::start` to prevent thread leaks and std::terminate crashes from duplicate worker loops. Added corresponding unit test coverage in `test_git_manager.cpp`.
 - refactored `markdown_utils.cpp` table heuristics `is_table_row` and `is_header_separator` to use lookahead-free RE2 regular expression parsing, and updated `meson.build` dependency definitions for the affected unit test suites.
