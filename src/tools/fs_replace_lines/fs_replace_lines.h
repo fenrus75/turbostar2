@@ -62,7 +62,7 @@ public:
                             {"type", {
                                 {"type", "string"},
                                 {"enum", nlohmann::json::array({"add", "remove", "replace"})},
-                                {"description", "The type of edit operation."}
+                                {"description", "The type of edit operation. Defaults to 'replace'."}
                             }},
                             {"original_text", {
                                 {"type", "string"},
@@ -73,7 +73,7 @@ public:
                                 {"description", "Required for 'add' and 'replace'. The new content to insert or replace the line with. You MAY use newline characters (\\n) here to insert multiple lines. Pass empty string for 'remove'."}
                             }}
                         }},
-                        {"required", nlohmann::json::array({"line_number", "type"})}
+                        {"required", nlohmann::json::array({"line_number"})}
                     }}
                 }}
             }},

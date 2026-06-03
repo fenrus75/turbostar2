@@ -1,6 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
 - visual: we have multiple sources of messages for the status bar - they compete for space - so we need to 
 	- make a list of these
 	- set relative priorities of these
@@ -108,6 +107,7 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- made the `type` parameter optional in `fs_replace_lines` tool, defaulting to "replace" when omitted, to make it more agent-friendly. Included comprehensive unit test coverage.
 - improved `fs_grep_files` tool to print the target pattern and path while searching, and implemented consecutive duplicate search query detection via a global static tracker to prevent agent infinite search loops.
 - optimized milestone boundary classifier loop (`evaluate_dense_layer`) in `context_dnn.cpp` using SSE2 vectorization and parallel register unrolling.
 - prevented starting/queuing any background AI summarization tasks during application exit by checking a new thread-safe `is_exiting` flag on `project_manager`, eliminating the 7+ second exit delay.

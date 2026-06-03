@@ -36,14 +36,18 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				out_error = "Missing or invalid 'line_number' in edit operation.";
 				return false;
 			}
-			if (!edit_json.contains("type") || !edit_json["type"].is_string()) {
-				out_error = "Missing or invalid 'type' in edit operation.";
-				return false;
-			}
-
 			edit_operation edit;
 			edit.line_number = edit_json["line_number"].get<int>();
-			edit.type = edit_json["type"].get<std::string>();
+
+			if (edit_json.contains("type")) {
+				if (!edit_json["type"].is_string()) {
+					out_error = "Invalid 'type' in edit operation.";
+					return false;
+				}
+				edit.type = edit_json["type"].get<std::string>();
+			} else {
+				edit.type = "replace";
+			}
 
 			if (edit.line_number < 1) {
 				out_error = "line_number must be >= 1.";

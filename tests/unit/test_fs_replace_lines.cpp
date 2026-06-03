@@ -224,6 +224,38 @@ int main()
 
 	std::remove(test_file.c_str());
 
+	// Test Optional Type Defaults to Replace
+	{
+		std::ofstream out(test_file);
+		out << "Line A\nLine B\nLine C\n";
+		out.close();
+	}
+
+	nlohmann::json optional_type_args = {
+	    {"path", test_file},
+	    {"edits", nlohmann::json::array({
+		{{"line_number", 2}, {"original_text", "Line B"}, {"replace_with", "Replaced Line B"}}
+	    })}
+	};
+
+	std::string optional_type_result = registry.execute_tool("fs_replace_lines", optional_type_args.dump(), ctx);
+	std::cout << "Optional type result: " << optional_type_result << "\n";
+	assert(optional_type_result.find("Successfully applied") != std::string::npos);
+
+	{
+		std::ifstream in(test_file);
+		std::string line;
+		std::getline(in, line);
+		assert(line == "Line A");
+		std::getline(in, line);
+		assert(line == "Replaced Line B");
+		std::getline(in, line);
+		assert(line == "Line C");
+		in.close();
+	}
+
+	std::remove(test_file.c_str());
+
 	std::cout << "fs_replace_lines unit test passed!\n";
 	return 0;
 }
