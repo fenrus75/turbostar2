@@ -4,12 +4,12 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <regex>
 #include <map>
-#include <set>
-#include <sstream>
 #include <nlohmann/json.hpp>
 #include <re2/re2.h>
+#include <regex>
+#include <set>
+#include <sstream>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -22,8 +22,8 @@ namespace fs = std::filesystem;
 // JSON serialization macros for software map types
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(lsp_manager::location_info, path, range);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(project_manager::software_map_symbol, name, kind, location, looked_up_count, accumulated_count,
-				   is_seed, is_sampled, base_classes);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(project_manager::software_map_symbol, name, kind, location, looked_up_count, accumulated_count, is_seed,
+				   is_sampled, base_classes);
 
 project_manager &project_manager::get_instance()
 {
@@ -66,10 +66,11 @@ void project_manager::initialize()
 		event_logger::get_instance().log("Thread started: project_manager inventory_thread");
 		// Sleep in 10ms increments to allow fast exit
 		for (int i = 0; i < 10; ++i) {
-			if (stop.stop_requested()) break;
+			if (stop.stop_requested())
+				break;
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
-		
+
 		if (!stop.stop_requested()) {
 			inventory_project(stop);
 		}
@@ -81,10 +82,11 @@ void project_manager::initialize()
 		event_logger::get_instance().log("Thread started: project_manager software_map_thread");
 		// Sleep in 50ms increments to allow fast exit during the 2000ms wait
 		for (int i = 0; i < 40; ++i) {
-			if (stop.stop_requested()) break;
+			if (stop.stop_requested())
+				break;
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 		}
-		
+
 		if (!stop.stop_requested()) {
 			software_map_loop(stop);
 		}
@@ -101,8 +103,8 @@ static bool is_header(const fs::path &path)
 static bool is_source(const fs::path &path)
 {
 	std::string ext = path.extension().string();
-	return ext == ".c" || ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" || 
-	       ext == ".go" || ext == ".rs" || ext == ".js" || ext == ".ts" || ext == ".java" || ext == ".sh";
+	return ext == ".c" || ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" || ext == ".go" || ext == ".rs" ||
+	       ext == ".js" || ext == ".ts" || ext == ".java" || ext == ".sh";
 }
 static bool is_doc_config(const fs::path &path)
 {
@@ -111,8 +113,8 @@ static bool is_doc_config(const fs::path &path)
 		return true;
 
 	std::string filename = path.filename().string();
-	return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "Makefile" ||
-	       filename == "Dockerfile" || filename == "GEMINI.md" || filename == "AGENTS.md";
+	return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "Makefile" || filename == "Dockerfile" ||
+	       filename == "GEMINI.md" || filename == "AGENTS.md";
 }
 
 void project_manager::inventory_project(std::stop_token stop)
@@ -126,9 +128,9 @@ void project_manager::inventory_project(std::stop_token stop)
 	int dir_count = 0;
 
 	// Initial set of potential key files in root
-	auto is_root_key_file = [](const std::string& filename) {
-		return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "configure.ac" || 
-		       filename == "Makefile" || filename == "README.md" || filename == "TODO.md";
+	auto is_root_key_file = [](const std::string &filename) {
+		return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "configure.ac" || filename == "Makefile" ||
+		       filename == "README.md" || filename == "TODO.md";
 	};
 
 	try {
@@ -286,9 +288,7 @@ void project_manager::inventory_project(std::stop_token stop)
 	}
 
 	// Final sort by path for display
-	std::sort(result.begin(), result.end(), [](const directory_info &a, const directory_info &b) {
-		return a.path < b.path;
-	});
+	std::sort(result.begin(), result.end(), [](const directory_info &a, const directory_info &b) { return a.path < b.path; });
 
 	std::sort(key_files.begin(), key_files.end());
 	key_files.erase(std::unique(key_files.begin(), key_files.end()), key_files.end());
@@ -302,8 +302,7 @@ void project_manager::inventory_project(std::stop_token stop)
 
 	auto end_time = std::chrono::steady_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-	event_logger::get_instance().log("Project inventory complete in {}ms. Indexed {} directories.",
-					 duration.count(), dir_count);
+	event_logger::get_instance().log("Project inventory complete in {}ms. Indexed {} directories.", duration.count(), dir_count);
 }
 
 std::string project_manager::get_project_layout_markdown() const
@@ -488,14 +487,16 @@ std::vector<lsp_manager::symbol_info> project_manager::lsp_query_workspace_symbo
 	return {};
 }
 
-std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
+												 int character)
 {
 	if (lsp_manager_)
 		return lsp_manager_->query_call_hierarchy_outgoing(filepath, line, character);
 	return {};
 }
 
-std::vector<lsp_manager::type_hierarchy_item> project_manager::lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::type_hierarchy_item> project_manager::lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
+												   int character)
 {
 	if (lsp_manager_)
 		return lsp_manager_->query_type_hierarchy_supertypes(filepath, line, character);
@@ -514,7 +515,7 @@ void project_manager::refresh_available_tests()
 {
 	std::string build_system = config_manager::get_instance().get_build_system();
 	std::string build_dir = config_manager::get_instance().get_build_directory();
-	
+
 	fs::path build_path(build_dir);
 	if (build_path.is_relative()) {
 		build_path = fs::path(project_root_) / build_path;
@@ -578,7 +579,7 @@ void project_manager::update_software_map_markdown()
 
 	{
 		std::shared_lock<std::shared_mutex> lock(software_map_mutex_);
-		
+
 		bool has_non_zero = false;
 		for (const auto &sym : software_map_.symbols) {
 			if (sym.accumulated_count > 0) {
@@ -630,7 +631,8 @@ void project_manager::update_software_map_markdown()
 			}
 
 			std::string bases = sym.base_classes.empty() ? "-" : sym.base_classes;
-			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + ":" + std::to_string(sym.location.range.start_y + 1) + "` |\n";
+			md += "| `" + sym.name + "` | " + kind_str + " | " + bases + " | `" + rel_path + ":" +
+			      std::to_string(sym.location.range.start_y + 1) + "` |\n";
 			classes_shown++;
 		}
 		md += "\n";
@@ -734,7 +736,8 @@ void project_manager::load_software_map()
 		if (software_map_markdown_cache_.empty()) {
 			update_software_map_markdown();
 		}
-		} catch (const std::exception &e) {		event_logger::get_instance().log("Failed to load Software Map from cache: {}", e.what());
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log("Failed to load Software Map from cache: {}", e.what());
 	}
 }
 
@@ -747,7 +750,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
 			for (int i = 0; i < 50; ++i) {
-				if (stop.stop_requested()) return;
+				if (stop.stop_requested())
+					return;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 			continue;
@@ -801,9 +805,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 				for (const auto &sym : symbols) {
 					if (sym.location.path.starts_with("/usr/"))
 						continue;
-						
+
 					// Filter out anything in a build directory
-					if (sym.location.path.find(build_dir_str) != std::string::npos || sym.location.path.find("/build") != std::string::npos)
+					if (sym.location.path.find(build_dir_str) != std::string::npos ||
+					    sym.location.path.find("/build") != std::string::npos)
 						continue;
 
 					// Filter out absurdly long identifiers (likely noise/macros)
@@ -846,7 +851,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 							sms.accumulated_count = std::max(0, sms.accumulated_count - 2);
 						}
 
-						if (sym.location.path.find("/include/") != std::string::npos || sym.location.path.ends_with(".h")) {
+						if (sym.location.path.find("/include/") != std::string::npos ||
+						    sym.location.path.ends_with(".h")) {
 							sms.accumulated_count += 5;
 						}
 
@@ -877,7 +883,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 			update_software_map_markdown();
 
 			for (int i = 0; i < 50; ++i) {
-				if (stop.stop_requested()) return;
+				if (stop.stop_requested())
+					return;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 			continue;
@@ -888,7 +895,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 		{
 			std::unique_lock<std::shared_mutex> lock(software_map_mutex_);
-			if (software_map_.symbols.empty()) continue;
+			if (software_map_.symbols.empty())
+				continue;
 
 			// Find the highest priority unsampled symbol
 			int best_score = -1;
@@ -900,32 +908,40 @@ void project_manager::software_map_loop(std::stop_token stop)
 			}
 
 			if (target_idx == (size_t)-1) {
-				// All symbols sampled. We could reset them all if there was file churn, 
+				// All symbols sampled. We could reset them all if there was file churn,
 				// but for now we'll just wait.
 				for (int i = 0; i < 50; ++i) {
-					if (stop.stop_requested()) return;
+					if (stop.stop_requested())
+						return;
 					std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				}
 				continue;
 			}
 
 			target_sym = software_map_.symbols[target_idx];
-			software_map_.symbols[target_idx].is_sampled = true; // Mark as sampled immediately so we don't pick it again if we fail
+			software_map_.symbols[target_idx].is_sampled =
+			    true; // Mark as sampled immediately so we don't pick it again if we fail
 		}
 
 		// Perform queries OUTSIDE the lock
-		auto refs = lsp_query_references(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
-		if (stop.stop_requested()) return;
+		auto refs =
+		    lsp_query_references(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+		if (stop.stop_requested())
+			return;
 		int inbound_count = refs.size();
 
-		auto outgoing = lsp_query_call_hierarchy_outgoing(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
-		if (stop.stop_requested()) return;
+		auto outgoing = lsp_query_call_hierarchy_outgoing(target_sym.location.path, target_sym.location.range.start_y,
+								  target_sym.location.range.start_x);
+		if (stop.stop_requested())
+			return;
 
 		std::vector<lsp_manager::type_hierarchy_item> supertypes;
 		if (target_sym.kind == 5 || target_sym.kind == 22 || target_sym.kind == 11) {
-			supertypes = lsp_query_type_hierarchy_supertypes(target_sym.location.path, target_sym.location.range.start_y, target_sym.location.range.start_x);
+			supertypes = lsp_query_type_hierarchy_supertypes(target_sym.location.path, target_sym.location.range.start_y,
+									 target_sym.location.range.start_x);
 		}
-		if (stop.stop_requested()) return;
+		if (stop.stop_requested())
+			return;
 
 		// Update stats INSIDE the lock
 		{
@@ -940,15 +956,18 @@ void project_manager::software_map_loop(std::stop_token stop)
 					std::string bases;
 					for (size_t i = 0; i < supertypes.size(); ++i) {
 						bases += supertypes[i].name;
-						if (i < supertypes.size() - 1) bases += ", ";
+						if (i < supertypes.size() - 1)
+							bases += ", ";
 
 						// Propagate Elo-style importance upwards to base classes
 						auto it = software_map_.name_to_indices.find(supertypes[i].name);
 						if (it != software_map_.name_to_indices.end()) {
 							for (size_t idx : it->second) {
 								auto &base_sym = software_map_.symbols[idx];
-								if (base_sym.location.path == supertypes[i].uri || supertypes[i].uri.ends_with(base_sym.location.path)) {
-									base_sym.accumulated_count += 3; // Extra weight for being a base class
+								if (base_sym.location.path == supertypes[i].uri ||
+								    supertypes[i].uri.ends_with(base_sym.location.path)) {
+									base_sym.accumulated_count +=
+									    3; // Extra weight for being a base class
 									break;
 								}
 							}
@@ -961,9 +980,10 @@ void project_manager::software_map_loop(std::stop_token stop)
 			// Propagate outbound importance
 			std::string build_dir_str = "/" + config_manager::get_instance().get_build_directory() + "/";
 			for (const auto &out_call : outgoing) {
-				if (out_call.uri.find(build_dir_str) != std::string::npos || out_call.uri.find("/build") != std::string::npos || out_call.uri.starts_with("/usr/"))
+				if (out_call.uri.find(build_dir_str) != std::string::npos ||
+				    out_call.uri.find("/build") != std::string::npos || out_call.uri.starts_with("/usr/"))
 					continue;
-					
+
 				auto it = software_map_.name_to_indices.find(out_call.name);
 				if (it != software_map_.name_to_indices.end()) {
 					for (size_t idx : it->second) {
@@ -990,6 +1010,7 @@ void project_manager::software_map_loop(std::stop_token stop)
 }
 void project_manager::shutdown()
 {
+	is_exiting_ = true;
 	if (lsp_manager_) {
 		lsp_manager_->stop();
 	}

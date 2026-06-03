@@ -1,11 +1,12 @@
 #pragma once
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <thread>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "lsp_manager.h"
 
 /**
@@ -30,6 +31,15 @@ class project_manager
 		return project_root_;
 	}
 
+	bool is_exiting() const
+	{
+		return is_exiting_;
+	}
+
+	void set_exiting(bool exiting)
+	{
+		is_exiting_ = exiting;
+	}
 
 	/**
 	 * @brief Returns the content of AGENTS.md or GEMINI.md if found at the root.
@@ -73,8 +83,10 @@ class project_manager
 	std::vector<lsp_manager::location_info> lsp_query_definition(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::symbol_info> lsp_query_workspace_symbols(const std::string &query);
-	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
-	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
+	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
+											int character);
+	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
+											  int character);
 
 	// Test management
 	std::vector<std::string> get_available_tests();
@@ -94,7 +106,7 @@ class project_manager
 		lsp_manager::location_info location;
 		int looked_up_count{0};
 		int accumulated_count{0};
-		bool is_seed{true}; // True if found via initial workspace/symbol scan
+		bool is_seed{true};	// True if found via initial workspace/symbol scan
 		bool is_sampled{false}; // True if exact references and outgoing calls have been verified
 		std::string base_classes;
 	};
@@ -148,4 +160,6 @@ class project_manager
 
 	mutable std::shared_mutex software_map_markdown_mutex_;
 	std::string software_map_markdown_cache_;
+
+	std::atomic<bool> is_exiting_{false};
 };

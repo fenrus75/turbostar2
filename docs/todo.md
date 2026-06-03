@@ -108,6 +108,8 @@
 # done items (move items here on completion)
 
 ## 02-06-2026
+- optimized milestone boundary classifier loop (`evaluate_dense_layer`) in `context_dnn.cpp` using SSE2 vectorization and parallel register unrolling.
+- prevented starting/queuing any background AI summarization tasks during application exit by checking a new thread-safe `is_exiting` flag on `project_manager`, eliminating the 7+ second exit delay.
 - isolated `uv run` environments in the Python runner tool by setting `UV_NO_PROJECT=1` and `UV_PROJECT_ENVIRONMENT=.turbostar/uv_env`, preventing any contamination of the user's project configurations or local virtual environments.
 - fixed a bug where LLM connection or JSON parsing error messages were stored as episode reactivation hints. The background summary worker now filters out such client errors to keep reactivation hints empty/clean when the LLM server is unavailable.
 - implemented "file has changed on disk" detection: checks modification time (mtime) of the active file once every 10 seconds, displays a reload prompt dialog offering to reload or ignore the change, and handles state synchronization to avoid duplicate warnings when changes are ignored. Included comprehensive unit and E2E test coverage.

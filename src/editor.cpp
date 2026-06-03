@@ -397,6 +397,7 @@ std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std
 
 editor::~editor()
 {
+	project_manager::get_instance().set_exiting(true);
 	project_manager::get_instance().lsp_stop();
 	git_manager::get_instance().stop();
 }

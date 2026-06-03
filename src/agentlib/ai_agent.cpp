@@ -1,22 +1,22 @@
 #include "ai_agent.h"
-#include <unordered_map>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <map>
-#include <set>
 #include <nlohmann/json.hpp>
+#include <set>
+#include <unordered_map>
 #include "../config_manager.h"
-#include "../event_queue.h"
 #include "../event_logger.h"
-#include "../project_manager.h"
+#include "../event_queue.h"
 #include "../fs_utils.h"
-#include "httplib_transport.h"
-#include "skill_manager.h"
+#include "../project_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
-#include <format>
+#include "httplib_transport.h"
+#include "skill_manager.h"
 
 namespace agentlib
 {
@@ -42,7 +42,7 @@ std::string agent_status_to_string(agent_status status, const std::string &tool_
 }
 
 std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue,
-                                           document_provider *doc_provider)
+					   document_provider *doc_provider)
 {
 	auto agent = std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
 	// Don't auto-load active state automatically here because it might overwrite system prompts injected right after creation.
@@ -50,10 +50,8 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 	return agent;
 }
 
-void ai_agent::coalesce_tool_calls(
-	std::vector<tool_call> &tool_calls,
-	std::unordered_map<std::string, std::string> &merged_to_parent,
-	std::unordered_map<std::string, std::pair<int, int>> &parent_ranges)
+void ai_agent::coalesce_tool_calls(std::vector<tool_call> &tool_calls, std::unordered_map<std::string, std::string> &merged_to_parent,
+				   std::unordered_map<std::string, std::pair<int, int>> &parent_ranges)
 {
 	struct read_call_info {
 		size_t index;
@@ -79,8 +77,10 @@ void ai_agent::coalesce_tool_calls(
 					if (args_json.contains("end_line") && args_json["end_line"].is_number_integer()) {
 						end = args_json["end_line"].get<int>();
 					}
-					if (start < 1) start = 1;
-					if (end < start) end = start;
+					if (start < 1)
+						start = 1;
+					if (end < start)
+						end = start;
 
 					file_reads[path].push_back({i, path, start, end, call.id});
 				}
@@ -102,9 +102,8 @@ void ai_agent::coalesce_tool_calls(
 		}
 
 		// Sort by start_line
-		std::sort(reads.begin(), reads.end(), [](const read_call_info &a, const read_call_info &b) {
-			return a.start_line < b.start_line;
-		});
+		std::sort(reads.begin(), reads.end(),
+			  [](const read_call_info &a, const read_call_info &b) { return a.start_line < b.start_line; });
 
 		// Merge overlapping/adjacent ranges
 		std::vector<read_call_info> merged;
@@ -139,17 +138,17 @@ void ai_agent::coalesce_tool_calls(
 	}
 }
 
-
-bool ai_agent::page_in_context(const std::string& episode_id, int compression_level)
+bool ai_agent::page_in_context(const std::string &episode_id, int compression_level)
 {
 	return set_episode_state(episode_id, compression_level);
 }
 
-bool ai_agent::set_episode_state(const std::string& episode_id, int target_level)
+bool ai_agent::set_episode_state(const std::string &episode_id, int target_level)
 {
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
-	if (!std::filesystem::exists(filepath)) return false;
+	if (!std::filesystem::exists(filepath))
+		return false;
 
 	std::string title = "Archived Episode";
 	std::string summary = "Summary not available.";
@@ -161,12 +160,15 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 		nlohmann::json root;
 		file >> root;
 
-		if (root.contains("title")) title = root["title"].get<std::string>();
-		if (root.contains("summary")) summary = root["summary"].get<std::string>();
-		if (root.contains("tags")) tags = root["tags"].get<std::vector<std::string>>();
+		if (root.contains("title"))
+			title = root["title"].get<std::string>();
+		if (root.contains("summary"))
+			summary = root["summary"].get<std::string>();
+		if (root.contains("tags"))
+			tags = root["tags"].get<std::vector<std::string>>();
 
 		if (root.contains("conversation") && root["conversation"].is_array() && target_level != 99) {
-			for (const auto& item : root["conversation"]) {
+			for (const auto &item : root["conversation"]) {
 				message msg;
 				from_json(item, msg);
 
@@ -193,7 +195,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 				loaded_msgs.push_back(msg);
 			}
 		}
-	} catch (const std::exception& e) {
+	} catch (const std::exception &e) {
 		event_logger::get_instance().log("Error loading episode {}: {}", episode_id, e.what());
 		return false;
 	}
@@ -201,16 +203,19 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 
 	// Look for existing active turns matching episode_id in memory
-	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& m) {
-		if (m.episode_id == episode_id) return true;
+	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
+		if (m.episode_id == episode_id)
+			return true;
 		if (m.role == "system" && m.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
 			size_t arch_pos = m.content.find("Raw history archive: ");
 			if (arch_pos != std::string::npos) {
 				std::string parsed_id = m.content.substr(arch_pos + 21);
-				while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' || parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+				while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
+							      parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
 					parsed_id.pop_back();
 				}
-				if (parsed_id == episode_id) return true;
+				if (parsed_id == episode_id)
+					return true;
 			}
 		}
 		return false;
@@ -257,7 +262,7 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 		}
 	} else {
 		// Not active in memory. Locate the Anchor message.
-		auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message& m) {
+		auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
 			return m.role == "system" && m.content.find("Raw history archive: " + episode_id) != std::string::npos;
 		});
 
@@ -278,7 +283,8 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 			}
 			// Fallback: Append the loaded messages to the end of the conversation
 			conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log("Agent {} paged IN context {} at level {} (appended)", name_, episode_id, target_level);
+			event_logger::get_instance().log("Agent {} paged IN context {} at level {} (appended)", name_, episode_id,
+							 target_level);
 			increment_stat("context_pages_in");
 		}
 	}
@@ -298,7 +304,8 @@ bool ai_agent::set_episode_state(const std::string& episode_id, int target_level
 		meta_root["lru_seq"] = l_seq;
 		std::ofstream mfile_out(meta_filepath);
 		mfile_out << meta_root.dump(4);
-	} catch (...) {}
+	} catch (...) {
+	}
 
 	// Trigger UI update
 	if (global_queue_) {
@@ -321,18 +328,18 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 
 ai_agent::~ai_agent()
 {
-    close();
+	close();
 
-    {
-        std::lock_guard<std::mutex> lock(summary_mutex_);
-        // is_closed_ is set to true by close(), which we just called
-        // Wake up worker to exit
-    }
-    summary_cv_.notify_all();
-    
-    if (summary_thread_.joinable()) {
-        summary_thread_.join();
-    }
+	{
+		std::lock_guard<std::mutex> lock(summary_mutex_);
+		// is_closed_ is set to true by close(), which we just called
+		// Wake up worker to exit
+	}
+	summary_cv_.notify_all();
+
+	if (summary_thread_.joinable()) {
+		summary_thread_.join();
+	}
 }
 
 void ai_agent::save_active_state() const
@@ -353,7 +360,8 @@ bool ai_agent::load_active_state(bool fresh_agent)
 
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/active_state.json";
-	if (!std::filesystem::exists(filepath)) return false;
+	if (!std::filesystem::exists(filepath))
+		return false;
 
 	try {
 		std::ifstream file(filepath);
@@ -363,14 +371,16 @@ bool ai_agent::load_active_state(bool fresh_agent)
 		if (root.contains("conversation") && root["conversation"].is_array()) {
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
 			conversation_.clear();
-			for (const auto& item : root["conversation"]) {
+			for (const auto &item : root["conversation"]) {
 				message msg;
 				from_json(item, msg);
-				if (msg.episode_id.empty() && msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+				if (msg.episode_id.empty() && msg.role == "system" &&
+				    msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
 					size_t arch_pos = msg.content.find("Raw history archive: ");
 					if (arch_pos != std::string::npos) {
 						std::string parsed_id = msg.content.substr(arch_pos + 21);
-						while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' || parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+						while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
+									      parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
 							parsed_id.pop_back();
 						}
 						msg.episode_id = parsed_id;
@@ -387,14 +397,14 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			std::map<std::string, message> tool_responses;
 
 			// 1. Extract all tool responses
-			for (const auto& msg : conversation_) {
+			for (const auto &msg : conversation_) {
 				if (msg.role == "tool" && msg.tool_call_id) {
 					tool_responses[*msg.tool_call_id] = msg;
 				}
 			}
 
 			// 2. Reconstruct the conversation in the correct order
-			for (const auto& msg : conversation_) {
+			for (const auto &msg : conversation_) {
 				if (msg.role == "tool") {
 					// Skip tool messages; they will be inserted right after their corresponding assistant messages
 					continue;
@@ -403,7 +413,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				normalized_convo.push_back(msg);
 
 				if (msg.role == "assistant" && msg.tool_calls) {
-					for (const auto& tc : *msg.tool_calls) {
+					for (const auto &tc : *msg.tool_calls) {
 						auto it = tool_responses.find(tc.id);
 						if (it != tool_responses.end()) {
 							normalized_convo.push_back(it->second);
@@ -414,10 +424,12 @@ bool ai_agent::load_active_state(bool fresh_agent)
 							abort_msg.role = "tool";
 							abort_msg.tool_call_id = tc.id;
 							abort_msg.name = tc.function.name;
-							abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
+							abort_msg.content =
+							    "Tool execution aborted: Editor session was restarted before completion.";
 							normalized_convo.push_back(abort_msg);
 
-							event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id, tc.function.name);
+							event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id,
+											 tc.function.name);
 						}
 					}
 				}
@@ -427,8 +439,9 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			// These are tool messages that have no matching assistant tool call in the loaded context
 			// (e.g. because the assistant message was paged out / compressed).
 			if (!tool_responses.empty()) {
-				event_logger::get_instance().log("Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
-					tool_responses.size());
+				event_logger::get_instance().log(
+				    "Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
+				    tool_responses.size());
 			}
 
 			conversation_ = std::move(normalized_convo);
@@ -436,7 +449,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
 			return true;
 		}
-	} catch (const std::exception& e) {
+	} catch (const std::exception &e) {
 		event_logger::get_instance().log("Failed to restore active state: {}", std::string(e.what()));
 	}
 	return false;
@@ -447,8 +460,10 @@ void ai_agent::close()
 	if (!is_closed_) {
 		// Implicit Episode: Page out all uncompressed history when the editor closes
 		// so the agent boots up "fresh" (but with pointers) next session.
-		page_out_prior_context("", true, "End of Session", "The user closed the editor or agent window. This session was automatically paged out.", {"session-end"});
-		
+		page_out_prior_context("", true, "End of Session",
+				       "The user closed the editor or agent window. This session was automatically paged out.",
+				       {"session-end"});
+
 		save_active_state();
 	}
 	is_closed_ = true;
@@ -478,9 +493,7 @@ void ai_agent::set_status(agent_status s, int target_id)
 void ai_agent::wait_until_idle()
 {
 	std::unique_lock<std::mutex> lock(state_mutex_);
-	status_cv_.wait(lock, [this]() {
-		return status_ == agent_status::idle || status_ == agent_status::error;
-	});
+	status_cv_.wait(lock, [this]() { return status_ == agent_status::idle || status_ == agent_status::error; });
 }
 
 void ai_agent::cancel_current_task()
@@ -538,11 +551,11 @@ void ai_agent::add_active_skill(const std::string &skill_name)
 
 std::vector<std::string> ai_agent::get_active_skills() const
 {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
-        return active_skills_;
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return active_skills_;
 }
 
-void ai_agent::increment_stat(const std::string& key, int amount)
+void ai_agent::increment_stat(const std::string &key, int amount)
 {
 	std::lock_guard<std::mutex> lock(stats_mutex_);
 	stats_[key] += amount;
@@ -558,7 +571,8 @@ std::map<std::string, int> ai_agent::get_stats() const
 	out["estimated_cost_cents"] = static_cast<int>(estimated_cost_.load() * 100);
 	return out;
 }
-bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error){
+bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error)
+{
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	int match_idx = -1;
 	for (size_t i = 0; i < todos_.size(); ++i) {
@@ -680,8 +694,8 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
 
-	add_interaction(std::make_shared<interaction_system_message>("Model switched to: " + model_->get_name() + " (" +
-								       model_->get_id() + ")"));
+	add_interaction(
+	    std::make_shared<interaction_system_message>("Model switched to: " + model_->get_name() + " (" + model_->get_id() + ")"));
 }
 
 void ai_agent::submit_prompt(const std::string &prompt_text)
@@ -691,8 +705,8 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 		message user_msg;
 		user_msg.role = "user";
 		user_msg.content = prompt_text;
-		user_msg.timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-		    std::chrono::system_clock::now().time_since_epoch()).count();
+		user_msg.timestamp =
+		    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		conversation_.push_back(user_msg);
 	}
 
@@ -747,8 +761,6 @@ void ai_agent::start_processing()
 
 		std::string final_response;
 
-
-
 		while (true) {
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -771,7 +783,7 @@ void ai_agent::start_processing()
 			{
 				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
 				convo.clear();
-				for (const auto& msg : self->conversation_) {
+				for (const auto &msg : self->conversation_) {
 					convo.push_back(msg);
 				}
 				last_synced_index = self->conversation_.size();
@@ -786,8 +798,8 @@ void ai_agent::start_processing()
 			response_msg.role = "assistant";
 
 			auto start_time = std::chrono::steady_clock::now();
-			auto start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-			    std::chrono::system_clock::now().time_since_epoch()).count();
+			auto start_timestamp =
+			    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 			self->client_->send_chat_stream(
 			    convo,
@@ -895,7 +907,8 @@ void ai_agent::start_processing()
 
 				for (const auto &call : accumulated_tool_calls) {
 					if (self->is_closed_) {
-						event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
+						event_logger::get_instance().log(
+						    "Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
 						return;
 					}
 
@@ -962,14 +975,18 @@ void ai_agent::start_processing()
 							p_start = parent_ranges[parent_id].first;
 							p_end = parent_ranges[parent_id].second;
 						}
-						tool_result = std::format("Note: This read request was adjacent to/overlapping with another read request in the same turn. "
-									  "To avoid redundant output and keep the code contiguous, it has been merged into tool call {} "
-									  "(which reads lines {} - {}). Please refer to the output of that tool call for the content.",
+						tool_result = std::format("Note: This read request was adjacent to/overlapping with "
+									  "another read request in the same turn. "
+									  "To avoid redundant output and keep the code contiguous, it has "
+									  "been merged into tool call {} "
+									  "(which reads lines {} - {}). Please refer to the output of that "
+									  "tool call for the content.",
 									  parent_id, p_start, p_end);
 
 						if (!is_silent) {
 							self->add_interaction(std::make_shared<interaction_tool_call>(
-							    call.function.name, std::format("{}(merged into {})", call.function.name, parent_id)));
+							    call.function.name,
+							    std::format("{}(merged into {})", call.function.name, parent_id)));
 							if (self->global_queue_) {
 								editor_event tool_ev;
 								tool_ev.type = event_type::agent_tool_update;
@@ -979,7 +996,8 @@ void ai_agent::start_processing()
 						}
 
 						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-						    std::chrono::system_clock::now().time_since_epoch()).count();
+									   std::chrono::system_clock::now().time_since_epoch())
+									   .count();
 					} else {
 						ctx.tool_call_id = call.id;
 						auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
@@ -1004,7 +1022,8 @@ void ai_agent::start_processing()
 						}
 
 						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-						    std::chrono::system_clock::now().time_since_epoch()).count();
+									   std::chrono::system_clock::now().time_since_epoch())
+									   .count();
 						auto tool_start_time = std::chrono::steady_clock::now();
 
 						if (!prep.error_message.empty()) {
@@ -1018,7 +1037,9 @@ void ai_agent::start_processing()
 						}
 
 						auto tool_end_time = std::chrono::steady_clock::now();
-						tool_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time).count();
+						tool_duration_ms =
+						    std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time)
+							.count();
 					}
 
 					std::string result_preview = tool_result;
@@ -1027,7 +1048,8 @@ void ai_agent::start_processing()
 					}
 
 					if (!is_silent && !custom_interaction) {
-						self->add_interaction(std::make_shared<interaction_tool_result>(call.function.name, result_preview));
+						self->add_interaction(
+						    std::make_shared<interaction_tool_result>(call.function.name, result_preview));
 						if (self->global_queue_) {
 							editor_event result_ev;
 							result_ev.type = event_type::agent_tool_update;
@@ -1059,7 +1081,7 @@ void ai_agent::start_processing()
 						last_synced_index = self->conversation_.size();
 					}
 					convo.push_back(tool_msg);
-					
+
 					// Attempt to zap transient failure loops now that a tool has completed
 					self->compact_ephemeral_errors(convo);
 				}
@@ -1067,21 +1089,22 @@ void ai_agent::start_processing()
 				self->set_status(agent_status::thinking);
 			} else {
 				final_response = response_msg.content;
-				
+
 				bool more_user_input = false;
 				{
-				    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				    if (last_synced_index < self->conversation_.size()) {
-				        more_user_input = true;
-				    }
+					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					if (last_synced_index < self->conversation_.size()) {
+						more_user_input = true;
+					}
 				}
 				if (more_user_input) {
-				    continue; // Loop around to instantly process the queued user prompt!
+					continue; // Loop around to instantly process the queued user prompt!
 				}
-				
+
 				self->evaluate_compaction();
-				self->evaluate_auto_episode(convo); last_synced_index = self->conversation_.size();
-							break;
+				self->evaluate_auto_episode(convo);
+				last_synced_index = self->conversation_.size();
+				break;
 			}
 		}
 
@@ -1091,7 +1114,8 @@ void ai_agent::start_processing()
 		}
 
 		self->set_status(agent_status::idle);
-		event_logger::get_instance().log("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_, self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
+		event_logger::get_instance().log("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
+						 self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
 
 		if (self->global_queue_) {
 			editor_event ev;
@@ -1152,489 +1176,505 @@ void ai_agent::start_processing()
 	}).detach();
 }
 
-void ai_agent::save_conversation(const std::string& filepath) const
+void ai_agent::save_conversation(const std::string &filepath) const
 {
-        std::lock_guard<std::mutex> lock(conversation_mutex_);
-        nlohmann::json root;
-        root["agent_id"] = id_;
-        root["agent_name"] = name_;
-        nlohmann::json conv_array = nlohmann::json::array();
-        for (const auto& msg : conversation_) {
-                nlohmann::json m_json;
-                to_json(m_json, msg);
-                conv_array.push_back(m_json);
-        }
-        root["conversation"] = conv_array;
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	nlohmann::json root;
+	root["agent_id"] = id_;
+	root["agent_name"] = name_;
+	nlohmann::json conv_array = nlohmann::json::array();
+	for (const auto &msg : conversation_) {
+		nlohmann::json m_json;
+		to_json(m_json, msg);
+		conv_array.push_back(m_json);
+	}
+	root["conversation"] = conv_array;
 
-        std::ofstream file(filepath);
-        if (file.is_open()) {
-                file << root.dump(4);
-        }
+	std::ofstream file(filepath);
+	if (file.is_open()) {
+		file << root.dump(4);
+	}
 }
 
-void ai_agent::snapshot_episode(const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+void ai_agent::snapshot_episode(const std::string &title, const std::string &summary, const std::vector<std::string> &tags)
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
 
-    if (conversation_.empty()) return;
+	if (conversation_.empty())
+		return;
 
-    nlohmann::json block_array = nlohmann::json::array();
-    int l0_chars = 0;
-    int l1_chars = 0;
-    int l2_chars = 0;
-    
-    for (const auto& msg : conversation_) {
-        nlohmann::json m_json;
-        to_json(m_json, msg);
-        block_array.push_back(m_json);
-        
-        int msg_chars = m_json.dump().length();
-        l0_chars += msg_chars;
-        
-        int r_chars = 0;
-        if (msg.reasoning_content) {
-            r_chars = msg.reasoning_content->length();
-        }
-        l1_chars += (msg_chars - r_chars);
-        
-        int pseudo_r_chars = 0;
-        if (msg.role == "assistant" && msg.tool_calls && !msg.tool_calls->empty()) {
-            pseudo_r_chars = msg.content.length();
-        }
-        l2_chars += (msg_chars - r_chars - pseudo_r_chars);
-    }
+	nlohmann::json block_array = nlohmann::json::array();
+	int l0_chars = 0;
+	int l1_chars = 0;
+	int l2_chars = 0;
 
-    long long seq = next_episode_seq_++;
-    std::string episode_id = "episode_" + std::to_string(seq);
+	for (const auto &msg : conversation_) {
+		nlohmann::json m_json;
+		to_json(m_json, msg);
+		block_array.push_back(m_json);
 
-    std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string filepath = history_dir + "/" + episode_id + ".json";
-    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+		int msg_chars = m_json.dump().length();
+		l0_chars += msg_chars;
 
-    nlohmann::json root;
-    root["episode_id"] = episode_id;
-    root["title"] = title;
-    root["summary"] = summary;
-    root["tags"] = tags;
-    root["conversation"] = block_array;
+		int r_chars = 0;
+		if (msg.reasoning_content) {
+			r_chars = msg.reasoning_content->length();
+		}
+		l1_chars += (msg_chars - r_chars);
 
-    std::ofstream file(filepath);
-    if (file.is_open()) {
-        file << root.dump(4);
-        event_logger::get_instance().log("Snapshot written to {}", episode_id);
-    }
-    
-    nlohmann::json meta;
-    meta["episode_id"] = episode_id;
-    meta["title"] = title;
-    meta["summary"] = summary;
-    meta["reactivation_hint"] = ""; // Filled asynchronously
-    meta["tags"] = tags;
-    meta["episode_seq"] = seq;
-    long long l_seq = next_lru_seq_++;
-    meta["lru_seq"] = l_seq;
-    meta["tokens_level_0"] = l0_chars / 4;
-    meta["tokens_level_1"] = l1_chars / 4;
-    meta["tokens_level_2"] = l2_chars / 4;
-    
-    std::ofstream meta_file(meta_filepath);
-    if (meta_file.is_open()) {
-        meta_file << meta.dump(4);
-    }
-    
-    episode_index_entry mi;
-    mi.id = episode_id;
-    mi.title = title;
-    mi.summary = summary;
-    mi.tags = tags;
-    mi.episode_seq = seq;
-    mi.lru_seq = l_seq;
-    mi.tokens_level_0 = l0_chars / 4;
-    mi.tokens_level_1 = l1_chars / 4;
-    mi.tokens_level_2 = l2_chars / 4;
-    episode_index_[episode_id] = mi;
+		int pseudo_r_chars = 0;
+		if (msg.role == "assistant" && msg.tool_calls && !msg.tool_calls->empty()) {
+			pseudo_r_chars = msg.content.length();
+		}
+		l2_chars += (msg_chars - r_chars - pseudo_r_chars);
+	}
+
+	long long seq = next_episode_seq_++;
+	std::string episode_id = "episode_" + std::to_string(seq);
+
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/" + episode_id + ".json";
+	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+
+	nlohmann::json root;
+	root["episode_id"] = episode_id;
+	root["title"] = title;
+	root["summary"] = summary;
+	root["tags"] = tags;
+	root["conversation"] = block_array;
+
+	std::ofstream file(filepath);
+	if (file.is_open()) {
+		file << root.dump(4);
+		event_logger::get_instance().log("Snapshot written to {}", episode_id);
+	}
+
+	nlohmann::json meta;
+	meta["episode_id"] = episode_id;
+	meta["title"] = title;
+	meta["summary"] = summary;
+	meta["reactivation_hint"] = ""; // Filled asynchronously
+	meta["tags"] = tags;
+	meta["episode_seq"] = seq;
+	long long l_seq = next_lru_seq_++;
+	meta["lru_seq"] = l_seq;
+	meta["tokens_level_0"] = l0_chars / 4;
+	meta["tokens_level_1"] = l1_chars / 4;
+	meta["tokens_level_2"] = l2_chars / 4;
+
+	std::ofstream meta_file(meta_filepath);
+	if (meta_file.is_open()) {
+		meta_file << meta.dump(4);
+	}
+
+	episode_index_entry mi;
+	mi.id = episode_id;
+	mi.title = title;
+	mi.summary = summary;
+	mi.tags = tags;
+	mi.episode_seq = seq;
+	mi.lru_seq = l_seq;
+	mi.tokens_level_0 = l0_chars / 4;
+	mi.tokens_level_1 = l1_chars / 4;
+	mi.tokens_level_2 = l2_chars / 4;
+	episode_index_[episode_id] = mi;
 }
 
-void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string &title, const std::string &summary,
+				const std::vector<std::string> &tags)
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
 
-    // Identify all tool call groups in conversation_
-    // A group is a pair of {g_start, g_end} (inclusive)
-    // If a tool call in the assistant message is missing a response in the current conversation,
-    // the group is pending and extends to the current end of the conversation (g_end = conversation_.size()).
-    std::vector<std::pair<size_t, size_t>> tool_groups;
-    for (size_t i = 0; i < conversation_.size(); ++i) {
-        if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
-            size_t g_start = i;
-            size_t g_end = i;
-            bool has_pending = false;
-            std::set<std::string> ids;
-            for (const auto& tc : *conversation_[i].tool_calls) {
-                ids.insert(tc.id);
-            }
-            
-            for (size_t j = i + 1; j < conversation_.size(); ++j) {
-                if (conversation_[j].role == "tool" && conversation_[j].tool_call_id && ids.count(*conversation_[j].tool_call_id) > 0) {
-                    g_end = j;
-                }
-            }
-            
-            for (const auto& tc : *conversation_[i].tool_calls) {
-                bool found = false;
-                for (size_t j = i + 1; j < conversation_.size(); ++j) {
-                    if (conversation_[j].role == "tool" && conversation_[j].tool_call_id && *conversation_[j].tool_call_id == tc.id) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    has_pending = true;
-                    break;
-                }
-            }
-            
-            if (has_pending) {
-                g_end = conversation_.size();
-            }
-            
-            tool_groups.push_back({g_start, g_end});
-        }
-    }
+	// Identify all tool call groups in conversation_
+	// A group is a pair of {g_start, g_end} (inclusive)
+	// If a tool call in the assistant message is missing a response in the current conversation,
+	// the group is pending and extends to the current end of the conversation (g_end = conversation_.size()).
+	std::vector<std::pair<size_t, size_t>> tool_groups;
+	for (size_t i = 0; i < conversation_.size(); ++i) {
+		if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
+			size_t g_start = i;
+			size_t g_end = i;
+			bool has_pending = false;
+			std::set<std::string> ids;
+			for (const auto &tc : *conversation_[i].tool_calls) {
+				ids.insert(tc.id);
+			}
 
-    // Adjust boundaries iteratively until no partial intersection remains
-    bool adjusted = true;
-    while (adjusted) {
-        adjusted = false;
-        for (const auto& group : tool_groups) {
-            size_t g_start = group.first;
-            size_t g_end = group.second;
+			for (size_t j = i + 1; j < conversation_.size(); ++j) {
+				if (conversation_[j].role == "tool" && conversation_[j].tool_call_id &&
+				    ids.count(*conversation_[j].tool_call_id) > 0) {
+					g_end = j;
+				}
+			}
 
-            if (start_index < end_index) {
-                size_t active_end = end_index - 1;
-                if (g_start <= active_end && g_end >= start_index) {
-                    if (g_start >= start_index && g_end <= active_end) {
-                        continue;
-                    }
-                    if (g_start < start_index) {
-                        start_index = g_end + 1;
-                        adjusted = true;
-                    }
-                    if (g_end > active_end) {
-                        end_index = g_start;
-                        adjusted = true;
-                    }
-                }
-            }
-        }
-    }
+			for (const auto &tc : *conversation_[i].tool_calls) {
+				bool found = false;
+				for (size_t j = i + 1; j < conversation_.size(); ++j) {
+					if (conversation_[j].role == "tool" && conversation_[j].tool_call_id &&
+					    *conversation_[j].tool_call_id == tc.id) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					has_pending = true;
+					break;
+				}
+			}
 
-    if (start_index >= end_index || end_index > conversation_.size()) return;
+			if (has_pending) {
+				g_end = conversation_.size();
+			}
 
-    // 1. Serialize the block
-    nlohmann::json block_array = nlohmann::json::array();
-    int l0_chars = 0;
-    int l1_chars = 0;
-    int l2_chars = 0;
-    
-    for (size_t i = start_index; i < end_index; ++i) {
-        nlohmann::json m_json;
-        to_json(m_json, conversation_[i]);
-        block_array.push_back(m_json);
-        
-        int msg_chars = m_json.dump().length();
-        l0_chars += msg_chars;
-        
-        int r_chars = 0;
-        if (conversation_[i].reasoning_content) {
-            r_chars = conversation_[i].reasoning_content->length();
-        }
-        
-        l1_chars += (msg_chars - r_chars);
-        
-        int pseudo_r_chars = 0;
-        if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
-            pseudo_r_chars = conversation_[i].content.length();
-        }
-        
-        l2_chars += (msg_chars - r_chars - pseudo_r_chars);
-    }
+			tool_groups.push_back({g_start, g_end});
+		}
+	}
 
-    long long seq = next_episode_seq_++;
-    std::string episode_id = "episode_" + std::to_string(seq);
+	// Adjust boundaries iteratively until no partial intersection remains
+	bool adjusted = true;
+	while (adjusted) {
+		adjusted = false;
+		for (const auto &group : tool_groups) {
+			size_t g_start = group.first;
+			size_t g_end = group.second;
 
-    std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string filepath = history_dir + "/" + episode_id + ".json";
-    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+			if (start_index < end_index) {
+				size_t active_end = end_index - 1;
+				if (g_start <= active_end && g_end >= start_index) {
+					if (g_start >= start_index && g_end <= active_end) {
+						continue;
+					}
+					if (g_start < start_index) {
+						start_index = g_end + 1;
+						adjusted = true;
+					}
+					if (g_end > active_end) {
+						end_index = g_start;
+						adjusted = true;
+					}
+				}
+			}
+		}
+	}
 
-    nlohmann::json root;
-    root["episode_id"] = episode_id;
-    root["title"] = title;
-    root["summary"] = summary;
-    root["tags"] = tags;
-    root["conversation"] = block_array;
+	if (start_index >= end_index || end_index > conversation_.size())
+		return;
 
-    std::ofstream file(filepath);
-    if (file.is_open()) {
-        file << root.dump(4);
-        file.close();
-    } else {
-        event_logger::get_instance().log("Failed to write episode archive to {}", filepath);
-        return; // Don't delete history if we couldn't save it
-    }
+	// 1. Serialize the block
+	nlohmann::json block_array = nlohmann::json::array();
+	int l0_chars = 0;
+	int l1_chars = 0;
+	int l2_chars = 0;
 
-    nlohmann::json meta;
-    meta["episode_id"] = episode_id;
-    meta["title"] = title;
-    meta["summary"] = summary;
-    meta["reactivation_hint"] = ""; // Filled asynchronously
-    meta["tags"] = tags;
-    meta["episode_seq"] = seq;
-    long long l_seq = next_lru_seq_++;
-    meta["lru_seq"] = l_seq;
-    meta["tokens_level_0"] = l0_chars / 4;
-    meta["tokens_level_1"] = l1_chars / 4;
-    meta["tokens_level_2"] = l2_chars / 4;
-    
-    std::ofstream meta_file(meta_filepath);
-    if (meta_file.is_open()) {
-        meta_file << meta.dump(4);
-    }
-    
-    episode_index_entry mi;
-    mi.id = episode_id;
-    mi.title = title;
-    mi.summary = summary;
-    mi.tags = tags;
-    mi.episode_seq = seq;
-    mi.lru_seq = l_seq;
-    mi.tokens_level_0 = l0_chars / 4;
-    mi.tokens_level_1 = l1_chars / 4;
-    mi.tokens_level_2 = l2_chars / 4;
-    episode_index_[episode_id] = mi;
+	for (size_t i = start_index; i < end_index; ++i) {
+		nlohmann::json m_json;
+		to_json(m_json, conversation_[i]);
+		block_array.push_back(m_json);
 
-    // 2. Replace the block with the summary pointer
-    std::stringstream pointer_msg;
-    pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
-    pointer_msg << "Title: " << title << "\n";
-    pointer_msg << "Summary: " << summary << "\n";
-    if (!tags.empty()) {
-        pointer_msg << "Tags: [";
-        for (size_t i = 0; i < tags.size(); ++i) {
-            pointer_msg << tags[i] << (i < tags.size() - 1 ? ", " : "");
-        }
-        pointer_msg << "]\n";
-    }
-    pointer_msg << "Raw history archive: " << episode_id;
+		int msg_chars = m_json.dump().length();
+		l0_chars += msg_chars;
 
-    message summary_msg;
-    summary_msg.role = "system";
-    summary_msg.content = pointer_msg.str();
-    summary_msg.episode_id = episode_id;
-    summary_msg.episode_level = 99;
+		int r_chars = 0;
+		if (conversation_[i].reasoning_content) {
+			r_chars = conversation_[i].reasoning_content->length();
+		}
 
-    conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
-    conversation_.insert(conversation_.begin() + start_index, summary_msg);
+		l1_chars += (msg_chars - r_chars);
 
-    event_logger::get_instance().log("Paged out {} turns to {}", end_index - start_index, episode_id);
-    increment_stat("context_pages_out");
+		int pseudo_r_chars = 0;
+		if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
+			pseudo_r_chars = conversation_[i].content.length();
+		}
 
-    {
-        std::lock_guard<std::mutex> lock(summary_mutex_);
-        summary_queue_.push_back({episode_id, filepath});
-    }
-    summary_cv_.notify_one();
+		l2_chars += (msg_chars - r_chars - pseudo_r_chars);
+	}
+
+	long long seq = next_episode_seq_++;
+	std::string episode_id = "episode_" + std::to_string(seq);
+
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/" + episode_id + ".json";
+	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+
+	nlohmann::json root;
+	root["episode_id"] = episode_id;
+	root["title"] = title;
+	root["summary"] = summary;
+	root["tags"] = tags;
+	root["conversation"] = block_array;
+
+	std::ofstream file(filepath);
+	if (file.is_open()) {
+		file << root.dump(4);
+		file.close();
+	} else {
+		event_logger::get_instance().log("Failed to write episode archive to {}", filepath);
+		return; // Don't delete history if we couldn't save it
+	}
+
+	nlohmann::json meta;
+	meta["episode_id"] = episode_id;
+	meta["title"] = title;
+	meta["summary"] = summary;
+	meta["reactivation_hint"] = ""; // Filled asynchronously
+	meta["tags"] = tags;
+	meta["episode_seq"] = seq;
+	long long l_seq = next_lru_seq_++;
+	meta["lru_seq"] = l_seq;
+	meta["tokens_level_0"] = l0_chars / 4;
+	meta["tokens_level_1"] = l1_chars / 4;
+	meta["tokens_level_2"] = l2_chars / 4;
+
+	std::ofstream meta_file(meta_filepath);
+	if (meta_file.is_open()) {
+		meta_file << meta.dump(4);
+	}
+
+	episode_index_entry mi;
+	mi.id = episode_id;
+	mi.title = title;
+	mi.summary = summary;
+	mi.tags = tags;
+	mi.episode_seq = seq;
+	mi.lru_seq = l_seq;
+	mi.tokens_level_0 = l0_chars / 4;
+	mi.tokens_level_1 = l1_chars / 4;
+	mi.tokens_level_2 = l2_chars / 4;
+	episode_index_[episode_id] = mi;
+
+	// 2. Replace the block with the summary pointer
+	std::stringstream pointer_msg;
+	pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
+	pointer_msg << "Title: " << title << "\n";
+	pointer_msg << "Summary: " << summary << "\n";
+	if (!tags.empty()) {
+		pointer_msg << "Tags: [";
+		for (size_t i = 0; i < tags.size(); ++i) {
+			pointer_msg << tags[i] << (i < tags.size() - 1 ? ", " : "");
+		}
+		pointer_msg << "]\n";
+	}
+	pointer_msg << "Raw history archive: " << episode_id;
+
+	message summary_msg;
+	summary_msg.role = "system";
+	summary_msg.content = pointer_msg.str();
+	summary_msg.episode_id = episode_id;
+	summary_msg.episode_level = 99;
+
+	conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
+	conversation_.insert(conversation_.begin() + start_index, summary_msg);
+
+	event_logger::get_instance().log("Paged out {} turns to {}", end_index - start_index, episode_id);
+	increment_stat("context_pages_out");
+
+	if (!project_manager::get_instance().is_exiting()) {
+		{
+			std::lock_guard<std::mutex> lock(summary_mutex_);
+			summary_queue_.push_back({episode_id, filepath});
+		}
+		summary_cv_.notify_one();
+	}
 }
 
 void ai_agent::load_episode_index()
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
-    episode_index_.clear();
-    
-    std::string history_dir = fs_utils::get_project_history_dir(name_);
-    if (!std::filesystem::exists(history_dir)) return;
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	episode_index_.clear();
 
-    for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
-        std::string filename = entry.path().filename().string();
-        if (entry.is_regular_file() && filename.ends_with("_metadata.json")) {
-            try {
-                std::ifstream f(entry.path());
-                nlohmann::json root;
-                f >> root;
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	if (!std::filesystem::exists(history_dir))
+		return;
 
-                episode_index_entry mi;
-                mi.id = root.value("episode_id", "unknown");
-                mi.title = root.value("title", "Untitled");
-                mi.summary = root.value("summary", "");
-                mi.reactivation_hint = root.value("reactivation_hint", "");
-                mi.episode_seq = root.value("episode_seq", 0LL);
-                mi.lru_seq = root.value("lru_seq", mi.episode_seq);
-                mi.tokens_level_0 = root.value("tokens_level_0", 0);
-                mi.tokens_level_1 = root.value("tokens_level_1", 0);
-                mi.tokens_level_2 = root.value("tokens_level_2", 0);
-                
-                if (root.contains("tags") && root["tags"].is_array()) {
-                    for (const auto& tag : root["tags"]) {
-                        mi.tags.push_back(tag.get<std::string>());
-                    }
-                }
-                
-                episode_index_[mi.id] = mi;
+	for (const auto &entry : std::filesystem::directory_iterator(history_dir)) {
+		std::string filename = entry.path().filename().string();
+		if (entry.is_regular_file() && filename.ends_with("_metadata.json")) {
+			try {
+				std::ifstream f(entry.path());
+				nlohmann::json root;
+				f >> root;
 
-                if (mi.episode_seq >= next_episode_seq_) {
-                    next_episode_seq_ = mi.episode_seq + 1;
-                }
-                if (mi.lru_seq >= next_lru_seq_) {
-                    next_lru_seq_ = mi.lru_seq + 1;
-                }
+				episode_index_entry mi;
+				mi.id = root.value("episode_id", "unknown");
+				mi.title = root.value("title", "Untitled");
+				mi.summary = root.value("summary", "");
+				mi.reactivation_hint = root.value("reactivation_hint", "");
+				mi.episode_seq = root.value("episode_seq", 0LL);
+				mi.lru_seq = root.value("lru_seq", mi.episode_seq);
+				mi.tokens_level_0 = root.value("tokens_level_0", 0);
+				mi.tokens_level_1 = root.value("tokens_level_1", 0);
+				mi.tokens_level_2 = root.value("tokens_level_2", 0);
 
-                if (mi.reactivation_hint.empty()) {
-                    std::string episode_filepath = history_dir + "/" + mi.id + ".json";
-                    std::lock_guard<std::mutex> slock(summary_mutex_);
-                    summary_queue_.push_back({mi.id, episode_filepath});
-                    summary_cv_.notify_one();
-                }
-            } catch (...) {}
-        }
-    }
+				if (root.contains("tags") && root["tags"].is_array()) {
+					for (const auto &tag : root["tags"]) {
+						mi.tags.push_back(tag.get<std::string>());
+					}
+				}
+
+				episode_index_[mi.id] = mi;
+
+				if (mi.episode_seq >= next_episode_seq_) {
+					next_episode_seq_ = mi.episode_seq + 1;
+				}
+				if (mi.lru_seq >= next_lru_seq_) {
+					next_lru_seq_ = mi.lru_seq + 1;
+				}
+
+				if (mi.reactivation_hint.empty() && !project_manager::get_instance().is_exiting()) {
+					std::string episode_filepath = history_dir + "/" + mi.id + ".json";
+					std::lock_guard<std::mutex> slock(summary_mutex_);
+					summary_queue_.push_back({mi.id, episode_filepath});
+					summary_cv_.notify_one();
+				}
+			} catch (...) {
+			}
+		}
+	}
 }
 
 std::string ai_agent::get_memory_index() const
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
-    if (episode_index_.empty()) {
-        return "Memory index is empty (no saved episodes).";
-    }
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	if (episode_index_.empty()) {
+		return "Memory index is empty (no saved episodes).";
+	}
 
-    std::stringstream out;
-    out << "Agent Memory Index (Paged-Out Episodes):\n";
+	std::stringstream out;
+	out << "Agent Memory Index (Paged-Out Episodes):\n";
 
-    // Sort episodes by creation date
-    std::vector<const episode_index_entry*> sorted;
-    for (const auto& pair : episode_index_) {
-        sorted.push_back(&pair.second);
-    }
-    std::sort(sorted.begin(), sorted.end(), [](const episode_index_entry* a, const episode_index_entry* b) {
-        return a->episode_seq < b->episode_seq;
-    });
+	// Sort episodes by creation date
+	std::vector<const episode_index_entry *> sorted;
+	for (const auto &pair : episode_index_) {
+		sorted.push_back(&pair.second);
+	}
+	std::sort(sorted.begin(), sorted.end(),
+		  [](const episode_index_entry *a, const episode_index_entry *b) { return a->episode_seq < b->episode_seq; });
 
-    for (const auto* mi : sorted) {
-        out << "- [" << mi->id << "] " << mi->title << " (~" 
-            << mi->tokens_level_0 << " raw, ~" 
-            << mi->tokens_level_1 << " think-free, ~" 
-            << mi->tokens_level_2 << " think-free+pseudo tokens paged-out)\n";
-        if (!mi->reactivation_hint.empty()) {
-            out << "  Hint: " << mi->reactivation_hint << "\n";
-        }
-        if (!mi->tags.empty()) {
-            out << "  Tags: ";
-            for (size_t i = 0; i < mi->tags.size(); ++i) {
-                out << mi->tags[i] << (i < mi->tags.size() - 1 ? ", " : "");
-            }
-            out << "\n";
-        }
-    }
+	for (const auto *mi : sorted) {
+		out << "- [" << mi->id << "] " << mi->title << " (~" << mi->tokens_level_0 << " raw, ~" << mi->tokens_level_1
+		    << " think-free, ~" << mi->tokens_level_2 << " think-free+pseudo tokens paged-out)\n";
+		if (!mi->reactivation_hint.empty()) {
+			out << "  Hint: " << mi->reactivation_hint << "\n";
+		}
+		if (!mi->tags.empty()) {
+			out << "  Tags: ";
+			for (size_t i = 0; i < mi->tags.size(); ++i) {
+				out << mi->tags[i] << (i < mi->tags.size() - 1 ? ", " : "");
+			}
+			out << "\n";
+		}
+	}
 
-    return out.str();
+	return out.str();
 }
 
-void ai_agent::page_out_prior_context(const std::string& target_episode_id, bool include_all_prior, const std::string& title, const std::string& summary, const std::vector<std::string>& tags)
+void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool include_all_prior, const std::string &title,
+				      const std::string &summary, const std::vector<std::string> &tags)
 {
-    std::unique_lock<std::mutex> lock(conversation_mutex_);
-    
-    if (conversation_.size() < 3) return; // Nothing to compress
-    
-    size_t end_index = conversation_.size() - 2; // Default to current
-    
-    // 1. Find the upper boundary
-    if (!target_episode_id.empty()) {
-        bool found = false;
-        // Search backwards for the specific episode marker
-        for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-            if (conversation_[i].role == "system" && conversation_[i].content.find(target_episode_id) != std::string::npos) {
-                end_index = i; // The boundary is exactly at the target episode
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            event_logger::get_instance().log("Failed to find target episode: {}", target_episode_id);
-            return;
-        }
-    } else {
-        // If no target provided, scan backwards to find the most recent episode marker
-        // We look for either the tool result from agent_mark_episode OR a previously injected pointer.
-        for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-            if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_episode") {
-                end_index = i + 1;
-                break;
-            }
-            if (conversation_[i].role == "system" && conversation_[i].content.find("Episode Archived") != std::string::npos) {
-                end_index = i;
-                break;
-            }
-        }
-    }
-    
-    size_t start_index = 1; // Default to after the root system prompt
-    
-    // 2. Find the lower boundary
-    if (!include_all_prior && end_index > 0) {
-        // Scan backward from end_index to find the previous episode/system marker
-        for (int i = static_cast<int>(end_index) - 1; i >= 0; --i) {
-            if (conversation_[i].role == "system" || conversation_[i].role == "user") {
-                start_index = i + 1;
-                break;
-            }
-        }
-    }
-    
-    if (start_index >= end_index) {
-        event_logger::get_instance().log("Context too small to page out naturally.");
-        return;
-    }
-    
-    // Unlock and delegate to the core paging function
-    lock.unlock();
-    page_out_context(start_index, end_index, title, summary, tags);
+	std::unique_lock<std::mutex> lock(conversation_mutex_);
+
+	if (conversation_.size() < 3)
+		return; // Nothing to compress
+
+	size_t end_index = conversation_.size() - 2; // Default to current
+
+	// 1. Find the upper boundary
+	if (!target_episode_id.empty()) {
+		bool found = false;
+		// Search backwards for the specific episode marker
+		for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
+			if (conversation_[i].role == "system" && conversation_[i].content.find(target_episode_id) != std::string::npos) {
+				end_index = i; // The boundary is exactly at the target episode
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			event_logger::get_instance().log("Failed to find target episode: {}", target_episode_id);
+			return;
+		}
+	} else {
+		// If no target provided, scan backwards to find the most recent episode marker
+		// We look for either the tool result from agent_mark_episode OR a previously injected pointer.
+		for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
+			if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_episode") {
+				end_index = i + 1;
+				break;
+			}
+			if (conversation_[i].role == "system" && conversation_[i].content.find("Episode Archived") != std::string::npos) {
+				end_index = i;
+				break;
+			}
+		}
+	}
+
+	size_t start_index = 1; // Default to after the root system prompt
+
+	// 2. Find the lower boundary
+	if (!include_all_prior && end_index > 0) {
+		// Scan backward from end_index to find the previous episode/system marker
+		for (int i = static_cast<int>(end_index) - 1; i >= 0; --i) {
+			if (conversation_[i].role == "system" || conversation_[i].role == "user") {
+				start_index = i + 1;
+				break;
+			}
+		}
+	}
+
+	if (start_index >= end_index) {
+		event_logger::get_instance().log("Context too small to page out naturally.");
+		return;
+	}
+
+	// Unlock and delegate to the core paging function
+	lock.unlock();
+	page_out_context(start_index, end_index, title, summary, tags);
 }
 
-void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
+void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
+{
 	bool compacted = false;
-	
+
 	while (convo.size() >= 4) {
 		auto it_n0 = convo.end() - 1;
 		auto it_n1 = convo.end() - 2;
 		auto it_n2 = convo.end() - 3;
 		auto it_n3 = convo.end() - 4;
 
-		if (it_n0->role != "tool") break;
-		if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1) break;
-		if (it_n2->role != "tool") break;
-		if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1) break;
+		if (it_n0->role != "tool")
+			break;
+		if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1)
+			break;
+		if (it_n2->role != "tool")
+			break;
+		if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1)
+			break;
 
-		if (!it_n0->name || !it_n2->name) break;
-		if (*it_n0->name != *it_n2->name) break;
+		if (!it_n0->name || !it_n2->name)
+			break;
+		if (*it_n0->name != *it_n2->name)
+			break;
 
 		std::string tool_name = *it_n0->name;
-		if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name) break;
+		if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name)
+			break;
 
-		auto is_error = [](const std::string& content) {
-			return content.starts_with("Error:") || 
-			       content.starts_with("Verification Error:") ||
-			       content.starts_with("Stage 1 Security Violation:") ||
-			       content.starts_with("Stage 2 Security Violation:");
+		auto is_error = [](const std::string &content) {
+			return content.starts_with("Error:") || content.starts_with("Verification Error:") ||
+			       content.starts_with("Stage 1 Security Violation:") || content.starts_with("Stage 2 Security Violation:");
 		};
 
-		if (is_error(it_n0->content)) break; // N-0 must be a success
-		if (!is_error(it_n2->content)) break; // N-2 must be a failure
+		if (is_error(it_n0->content))
+			break; // N-0 must be a success
+		if (!is_error(it_n2->content))
+			break; // N-2 must be a failure
 
 		// We have a match! ZAP N-3 and N-2, and strip N-1
 		it_n1->content.clear();
 		// Reasoning isn't part of standard message serialization currently, but if we add it, we'd clear it here.
 		// Wait, message struct doesn't have reasoning_content right now, it's only in chat_delta!
 		// The assistant's reasoning is actually shoved into `content` in OpenAI format or it's dropped if not requested.
-		
+
 		convo.erase(it_n3, it_n1); // Erases N-3 and N-2
 		increment_stat("ephemeral_errors_zapped");
 		compacted = true;
@@ -1649,26 +1689,34 @@ void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 			auto it_n2 = conversation_.end() - 3;
 			auto it_n3 = conversation_.end() - 4;
 
-			if (it_n0->role != "tool") break;
-			if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1) break;
-			if (it_n2->role != "tool") break;
-			if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1) break;
+			if (it_n0->role != "tool")
+				break;
+			if (it_n1->role != "assistant" || !it_n1->tool_calls || it_n1->tool_calls->size() != 1)
+				break;
+			if (it_n2->role != "tool")
+				break;
+			if (it_n3->role != "assistant" || !it_n3->tool_calls || it_n3->tool_calls->size() != 1)
+				break;
 
-			if (!it_n0->name || !it_n2->name) break;
-			if (*it_n0->name != *it_n2->name) break;
+			if (!it_n0->name || !it_n2->name)
+				break;
+			if (*it_n0->name != *it_n2->name)
+				break;
 
 			std::string tool_name = *it_n0->name;
-			if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name) break;
+			if (it_n1->tool_calls->at(0).function.name != tool_name || it_n3->tool_calls->at(0).function.name != tool_name)
+				break;
 
-			auto is_error = [](const std::string& content) {
-				return content.starts_with("Error:") || 
-				       content.starts_with("Verification Error:") ||
+			auto is_error = [](const std::string &content) {
+				return content.starts_with("Error:") || content.starts_with("Verification Error:") ||
 				       content.starts_with("Stage 1 Security Violation:") ||
 				       content.starts_with("Stage 2 Security Violation:");
 			};
 
-			if (is_error(it_n0->content)) break;
-			if (!is_error(it_n2->content)) break;
+			if (is_error(it_n0->content))
+				break;
+			if (!is_error(it_n2->content))
+				break;
 
 			it_n1->content.clear();
 			conversation_.erase(it_n3, it_n1);
@@ -1677,25 +1725,24 @@ void ai_agent::compact_ephemeral_errors(std::vector<message>& convo){
 	}
 }
 
-void ai_agent::replace_tool_result(const std::string& tool_call_id, const std::string& new_content)
+void ai_agent::replace_tool_result(const std::string &tool_call_id, const std::string &new_content)
 {
-    std::lock_guard<std::mutex> lock(conversation_mutex_);
-    for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
-        if (it->role == "tool" && it->tool_call_id == tool_call_id) {
-            it->content = new_content;
-            
-            // Also notify the UI that context changed silently
-            if (global_queue_) {
-                editor_event ev;
-                ev.type = event_type::agent_tool_update;
-                ev.key_code = id_;
-                global_queue_->push(ev);
-            }
-            return;
-        }
-    }
-}
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
+		if (it->role == "tool" && it->tool_call_id == tool_call_id) {
+			it->content = new_content;
 
+			// Also notify the UI that context changed silently
+			if (global_queue_) {
+				editor_event ev;
+				ev.type = event_type::agent_tool_update;
+				ev.key_code = id_;
+				global_queue_->push(ev);
+			}
+			return;
+		}
+	}
+}
 
 struct parsed_turn {
 	std::string prompt;
@@ -1708,13 +1755,13 @@ struct parsed_turn {
 	bool test = false;
 };
 
-static std::vector<parsed_turn> parse_turns(const std::vector<message>& convo)
+static std::vector<parsed_turn> parse_turns(const std::vector<message> &convo)
 {
 	std::vector<parsed_turn> turns;
 	parsed_turn current_turn;
 	bool has_current = false;
 
-	for (const auto& msg : convo) {
+	for (const auto &msg : convo) {
 		if (msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
 			if (has_current) {
 				turns.push_back(current_turn);
@@ -1750,7 +1797,7 @@ static std::vector<parsed_turn> parse_turns(const std::vector<message>& convo)
 				current_turn.timestamp = msg.timestamp;
 			}
 			if (msg.tool_calls) {
-				for (const auto& tc : *msg.tool_calls) {
+				for (const auto &tc : *msg.tool_calls) {
 					if (tc.function.name == "git_commit") {
 						current_turn.git_commit = true;
 					} else if (tc.function.name == "fs_compile_project" || tc.function.name == "fs_compile_file") {
@@ -1779,7 +1826,7 @@ static std::vector<parsed_turn> parse_turns(const std::vector<message>& convo)
 	return turns;
 }
 
-static std::string get_last_50_words(const std::string& text)
+static std::string get_last_50_words(const std::string &text)
 {
 	std::vector<std::string> words;
 	std::string current;
@@ -1811,24 +1858,27 @@ static std::string get_last_50_words(const std::string& text)
 	return result;
 }
 
-void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
+void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 {
 	int recent_chars = 0;
 	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode") break;
-		if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) break;
-		
+		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode")
+			break;
+		if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos)
+			break;
+
 		recent_chars += convo[i].content.length();
-		if (convo[i].reasoning_content) recent_chars += convo[i].reasoning_content->length();
+		if (convo[i].reasoning_content)
+			recent_chars += convo[i].reasoning_content->length();
 		if (convo[i].role == "assistant" && convo[i].tool_calls) {
-			for (const auto& tc : *convo[i].tool_calls) {
+			for (const auto &tc : *convo[i].tool_calls) {
 				recent_chars += tc.function.arguments.length();
 			}
 		}
 	}
 
 	if (!convo.empty()) {
-		const auto& last_msg = convo.back();
+		const auto &last_msg = convo.back();
 		if (last_msg.role == "tool" || (last_msg.role == "assistant" && last_msg.tool_calls && !last_msg.tool_calls->empty())) {
 			return;
 		}
@@ -1839,12 +1889,13 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 
 	if (recent_chars > 192000) {
 		should_split = true;
-		event_logger::get_instance().log("Context size exceeds 48k tokens ({} chars). Forcing auto-episode boundary.", recent_chars);
+		event_logger::get_instance().log("Context size exceeds 48k tokens ({} chars). Forcing auto-episode boundary.",
+						 recent_chars);
 	} else {
 		std::vector<parsed_turn> turns = parse_turns(convo);
 		if (turns.size() >= 2) {
-			const parsed_turn& prev_turn = turns[turns.size() - 2];
-			const parsed_turn& curr_turn = turns[turns.size() - 1];
+			const parsed_turn &prev_turn = turns[turns.size() - 2];
+			const parsed_turn &curr_turn = turns[turns.size() - 1];
 
 			if (!turbostar::context_dnn::get_instance().is_loaded()) {
 				turbostar::context_dnn::get_instance().load_weights();
@@ -1859,7 +1910,8 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 					}
 				}
 				for (int i = last_boundary_idx + 1; i < static_cast<int>(turns.size()) - 1; ++i) {
-					double prev_tokens = static_cast<double>(turns[i].prompt.length() + turns[i].response.length()) / 4.0;
+					double prev_tokens =
+					    static_cast<double>(turns[i].prompt.length() + turns[i].response.length()) / 4.0;
 					active_tokens += prev_tokens;
 				}
 
@@ -1867,7 +1919,9 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 
 				double gap_sec = 0.0;
 				if (curr_turn.timestamp > 0 && prev_turn.timestamp > 0) {
-					gap_sec = static_cast<double>(curr_turn.timestamp) - (static_cast<double>(prev_turn.timestamp) + static_cast<double>(prev_turn.duration_ms) / 1000.0);
+					gap_sec = static_cast<double>(curr_turn.timestamp) -
+						  (static_cast<double>(prev_turn.timestamp) +
+						   static_cast<double>(prev_turn.duration_ms) / 1000.0);
 				}
 				if (gap_sec < 60.0) {
 					M[0] = 1.0f;
@@ -1915,7 +1969,8 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 				if (global_queue_ && boundary_prob >= 0.0f) {
 					editor_event ev;
 					ev.type = event_type::set_transient_status;
-					ev.payload = std::format("Milestone boundary prob: {:.1f}% (latency: {:.2f} ms)", boundary_prob * 100.0f, duration_ms);
+					ev.payload = std::format("Milestone boundary prob: {:.1f}% (latency: {:.2f} ms)",
+								 boundary_prob * 100.0f, duration_ms);
 					global_queue_->push(ev);
 				}
 
@@ -1941,7 +1996,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 		} else {
 			reason_msg = "Milestone boundary classification trigger";
 		}
-		
+
 		event_logger::get_instance().log("Triggering auto-episode boundary split: {}", reason_msg);
 		increment_stat("auto_episodes_forced");
 
@@ -1949,9 +2004,10 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
 			message marker_msg;
 			marker_msg.role = "system";
-			marker_msg.content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
+			marker_msg.content =
+			    "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
 			conversation_.push_back(marker_msg);
-			
+
 			convo.push_back(marker_msg);
 		}
 
@@ -1962,15 +2018,16 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 
 void ai_agent::evaluate_compaction()
 {
-	if (!model_) return;
+	if (!model_)
+		return;
 
 	// Calculate target bounds based on model's max_context_tokens
 	int max_tokens = model_->get_max_context_tokens();
-	
+
 	// Default to 80% upper bound trigger, 40% lower bound target as requested
 	double upper_pct = 0.8;
 	double lower_pct = 0.4;
-	
+
 	int upper_bound = static_cast<int>(max_tokens * upper_pct);
 	int lower_bound = static_cast<int>(max_tokens * lower_pct);
 
@@ -1982,7 +2039,7 @@ void ai_agent::evaluate_compaction()
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
 		std::set<std::string> accounted_episodes;
 
-		for (const auto& msg : conversation_) {
+		for (const auto &msg : conversation_) {
 			if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
 				active_episodes[msg.episode_id] = msg.episode_level;
 				if (accounted_episodes.find(msg.episode_id) == accounted_episodes.end()) {
@@ -2010,23 +2067,17 @@ void ai_agent::evaluate_compaction()
 		}
 
 		// Populate candidates for compaction
-		for (const auto& [ep_id, level] : active_episodes) {
+		for (const auto &[ep_id, level] : active_episodes) {
 			auto it = episode_index_.find(ep_id);
 			if (it != episode_index_.end()) {
-				candidates.push_back({
-					ep_id,
-					level,
-					it->second.lru_seq,
-					it->second.tokens_level_0,
-					it->second.tokens_level_1,
-					it->second.tokens_level_2
-				});
+				candidates.push_back({ep_id, level, it->second.lru_seq, it->second.tokens_level_0,
+						      it->second.tokens_level_1, it->second.tokens_level_2});
 			}
 		}
 	}
 
 	event_logger::get_instance().log("Active history tokens ({}) exceed upper bound ({}). Triggering compaction engine.",
-	                                 current_active_tokens, upper_bound);
+					 current_active_tokens, upper_bound);
 
 	// Run decision engine to plan transitions (outside lock to avoid recursive deadlocks in set_episode_state)
 	std::vector<transition> planned = compaction_engine::plan_compaction(candidates, current_active_tokens, lower_bound);
@@ -2037,119 +2088,134 @@ void ai_agent::evaluate_compaction()
 	}
 
 	// Apply planned transitions
-	for (const auto& trans : planned) {
+	for (const auto &trans : planned) {
 		event_logger::get_instance().log("Compaction engine: Auto-shifting {} to level {}", trans.episode_id, trans.target_level);
 		set_episode_state(trans.episode_id, trans.target_level);
 	}
 }
 
-void ai_agent::update_episode_hint(const std::string& episode_id, const std::string& hint)
+void ai_agent::update_episode_hint(const std::string &episode_id, const std::string &hint)
 {
-    // Update the index memory
-    {
-        std::lock_guard<std::mutex> lock(conversation_mutex_);
-        if (episode_index_.find(episode_id) != episode_index_.end()) {
-            episode_index_[episode_id].reactivation_hint = hint;
-        }
+	// Update the index memory
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		if (episode_index_.find(episode_id) != episode_index_.end()) {
+			episode_index_[episode_id].reactivation_hint = hint;
+		}
 
-        // Mutate the active conversation
-        for (auto& msg : conversation_) {
-            if (msg.role == "system" && msg.content.find(episode_id) != std::string::npos) {
-                // We found the marker, append the hint
-                msg.content += "\nDemand-Load Hint: " + hint;
-                break;
-            }
-        }
-    }
-    
-    // Rewrite the metadata sidecar
-    std::string history_dir = fs_utils::get_project_history_dir(name_);
-    std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
-    if (std::filesystem::exists(meta_filepath)) {
-        try {
-            std::ifstream file(meta_filepath);
-            nlohmann::json root;
-            file >> root;
-            root["reactivation_hint"] = hint;
-            std::ofstream out(meta_filepath);
-            out << root.dump(4);
-        } catch (...) {}
-    }
+		// Mutate the active conversation
+		for (auto &msg : conversation_) {
+			if (msg.role == "system" && msg.content.find(episode_id) != std::string::npos) {
+				// We found the marker, append the hint
+				msg.content += "\nDemand-Load Hint: " + hint;
+				break;
+			}
+		}
+	}
+
+	// Rewrite the metadata sidecar
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+	if (std::filesystem::exists(meta_filepath)) {
+		try {
+			std::ifstream file(meta_filepath);
+			nlohmann::json root;
+			file >> root;
+			root["reactivation_hint"] = hint;
+			std::ofstream out(meta_filepath);
+			out << root.dump(4);
+		} catch (...) {
+		}
+	}
 }
 
 void ai_agent::summary_worker_loop()
 {
-    event_logger::get_instance().log("Thread started: ai_agent summary worker");
-    
-    while (!is_closed_) {
-        pending_summary task;
-        {
-            std::unique_lock<std::mutex> lock(summary_mutex_);
-            summary_cv_.wait(lock, [this] { return is_closed_ || !summary_queue_.empty(); });
-            
-            if (is_closed_) break;
-            if (summary_queue_.empty()) continue;
-            
-            task = summary_queue_.front();
-            summary_queue_.erase(summary_queue_.begin());
-        }
-        
-        try {
-            if (is_closed_) break;
-            std::ifstream file(task.filepath);
-            if (!file.is_open()) continue;
-            
-            nlohmann::json root;
-            file >> root;
-            
-            if (root.contains("conversation") && root["conversation"].is_array()) {
-                std::string context_dump = root["conversation"].dump(2);
-                
-                if (context_dump.length() < 1000) {
-                    update_episode_hint(task.episode_id, "Trivial or extremely brief episode.");
-                    continue;
-                }
-                
-                std::string system_prompt = "You are an AI context-management assistant on a strict token budget. Below is an archived conversation 'episode' between a software engineer and an AI agent. "
-                    "Write an ultra-terse 'demand-load hint' (max 1-2 sentences) so future AI agents know WHEN to retrieve this episode into their active memory. "
-                    "Focus ONLY on the specific technical problems solved, files modified, and decisions made. Use highly compressed, telegraphic language to save tokens. "
-                    "Start your response exactly with 'Reactivate when:' and do NOT use any conversational filler.\n\n"
-                    "EPISODE JSON:\n" + context_dump;
-                    
-                std::vector<message> dummy_convo;
-                message sys;
-                sys.role = "system";
-                sys.content = system_prompt;
-                dummy_convo.push_back(sys);
-                auto default_model = model_;
-                std::string default_model_id = config_manager::get_instance().get_default_model_id();
-                auto registry_model = ai_model_registry::get_instance().get_model(default_model_id);
-                if (registry_model) {
-                    default_model = registry_model;
-                }
+	event_logger::get_instance().log("Thread started: ai_agent summary worker");
 
-                auto transport = std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
-                llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
-                
-                if (is_closed_) break;
-                llm_chat_response res = local_client.send_chat(dummy_convo);
-                if (is_closed_) break;
-                if (!res.msg.content.empty()) {
-                    bool is_error = res.msg.content.starts_with("Error connecting to LLM server") ||
-                                     res.msg.content.starts_with("Error parsing response JSON");
-                    if (!is_error) {
-                        update_episode_hint(task.episode_id, res.msg.content);
-                        event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
-                    } else {
-                        event_logger::get_instance().log("Skipped saving background summary due to LLM error: {}", res.msg.content);
-                    }
-                }
-            }
-        } catch (const std::exception& e) {
-            event_logger::get_instance().log("Error in background summarization: {}", std::string(e.what()));
-        }
-    }
-    event_logger::get_instance().log("Thread exited: ai_agent summary worker");
+	while (!is_closed_ && !project_manager::get_instance().is_exiting()) {
+		pending_summary task;
+		{
+			std::unique_lock<std::mutex> lock(summary_mutex_);
+			summary_cv_.wait(
+			    lock, [this] { return is_closed_ || project_manager::get_instance().is_exiting() || !summary_queue_.empty(); });
+
+			if (is_closed_ || project_manager::get_instance().is_exiting())
+				break;
+			if (summary_queue_.empty())
+				continue;
+
+			task = summary_queue_.front();
+			summary_queue_.erase(summary_queue_.begin());
+		}
+
+		try {
+			if (is_closed_ || project_manager::get_instance().is_exiting())
+				break;
+			std::ifstream file(task.filepath);
+			if (!file.is_open())
+				continue;
+
+			nlohmann::json root;
+			file >> root;
+
+			if (root.contains("conversation") && root["conversation"].is_array()) {
+				std::string context_dump = root["conversation"].dump(2);
+
+				if (context_dump.length() < 1000) {
+					update_episode_hint(task.episode_id, "Trivial or extremely brief episode.");
+					continue;
+				}
+
+				std::string system_prompt =
+				    "You are an AI context-management assistant on a strict token budget. Below is an archived "
+				    "conversation 'episode' between a software engineer and an AI agent. "
+				    "Write an ultra-terse 'demand-load hint' (max 1-2 sentences) so future AI agents know WHEN to retrieve "
+				    "this episode into their active memory. "
+				    "Focus ONLY on the specific technical problems solved, files modified, and decisions made. Use highly "
+				    "compressed, telegraphic language to save tokens. "
+				    "Start your response exactly with 'Reactivate when:' and do NOT use any conversational filler.\n\n"
+				    "EPISODE JSON:\n" +
+				    context_dump;
+
+				std::vector<message> dummy_convo;
+				message sys;
+				sys.role = "system";
+				sys.content = system_prompt;
+				dummy_convo.push_back(sys);
+				auto default_model = model_;
+				std::string default_model_id = config_manager::get_instance().get_default_model_id();
+				auto registry_model = ai_model_registry::get_instance().get_model(default_model_id);
+				if (registry_model) {
+					default_model = registry_model;
+				}
+
+				auto transport =
+				    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
+				llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
+
+				if (is_closed_ || project_manager::get_instance().is_exiting())
+					break;
+				llm_chat_response res = local_client.send_chat(dummy_convo);
+				if (is_closed_ || project_manager::get_instance().is_exiting())
+					break;
+				if (!res.msg.content.empty()) {
+					bool is_error = res.msg.content.starts_with("Error connecting to LLM server") ||
+							res.msg.content.starts_with("Error parsing response JSON");
+					if (!is_error) {
+						update_episode_hint(task.episode_id, res.msg.content);
+						event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
+					} else {
+						event_logger::get_instance().log("Skipped saving background summary due to LLM error: {}",
+										 res.msg.content);
+					}
+				}
+			}
+		} catch (const std::exception &e) {
+			event_logger::get_instance().log("Error in background summarization: {}", std::string(e.what()));
+		}
+	}
+	event_logger::get_instance().log("Thread exited: ai_agent summary worker");
 }
 
 std::vector<compaction_segment> ai_agent::get_compaction_segments() const
@@ -2161,7 +2227,7 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 	compaction_segment current_seg;
 	bool in_episode = false;
 
-	for (const auto& msg : conversation_) {
+	for (const auto &msg : conversation_) {
 		std::string ep_id = msg.episode_id;
 		int ep_level = msg.episode_level;
 
@@ -2169,7 +2235,8 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 			size_t arch_pos = msg.content.find("Raw history archive: ");
 			if (arch_pos != std::string::npos) {
 				ep_id = msg.content.substr(arch_pos + 21);
-				while (!ep_id.empty() && (ep_id.back() == '\r' || ep_id.back() == '\n' || ep_id.back() == ' ' || ep_id.back() == '\t')) {
+				while (!ep_id.empty() &&
+				       (ep_id.back() == '\r' || ep_id.back() == '\n' || ep_id.back() == ' ' || ep_id.back() == '\t')) {
 					ep_id.pop_back();
 				}
 				ep_level = 99;
@@ -2232,15 +2299,15 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 void ai_agent::inject_archived_episodes_summary()
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	if (episode_index_.empty()) return;
+	if (episode_index_.empty())
+		return;
 
-	std::vector<const episode_index_entry*> sorted;
-	for (const auto& pair : episode_index_) {
+	std::vector<const episode_index_entry *> sorted;
+	for (const auto &pair : episode_index_) {
 		sorted.push_back(&pair.second);
 	}
-	std::sort(sorted.begin(), sorted.end(), [](const episode_index_entry* a, const episode_index_entry* b) {
-		return a->episode_seq < b->episode_seq;
-	});
+	std::sort(sorted.begin(), sorted.end(),
+		  [](const episode_index_entry *a, const episode_index_entry *b) { return a->episode_seq < b->episode_seq; });
 
 	std::stringstream oss;
 	oss << "[SYSTEM MEMORY: Archived Episodes Directory]\n";
@@ -2248,7 +2315,7 @@ void ai_agent::inject_archived_episodes_summary()
 	oss << "| Episode | When to Resume |\n";
 	oss << "|---|---|\n";
 	bool has_any = false;
-	for (const auto* mi : sorted) {
+	for (const auto *mi : sorted) {
 		if (mi->reactivation_hint.find("Trivial or extremely brief") != std::string::npos) {
 			continue;
 		}
@@ -2259,9 +2326,12 @@ void ai_agent::inject_archived_episodes_summary()
 		oss << "| " << mi->id << " | " << hint << " |\n";
 		has_any = true;
 	}
-	if (!has_any) return;
+	if (!has_any)
+		return;
 
-	oss << "\nIf you need to retrieve the detailed history or code changes from any of these past episodes, you can restore them into your active context by calling the `agent_restore_context` tool with the corresponding Episode ID (e.g. `agent_restore_context(\"episode_1\", 1)`).";
+	oss << "\nIf you need to retrieve the detailed history or code changes from any of these past episodes, you can restore them into "
+	       "your active context by calling the `agent_restore_context` tool with the corresponding Episode ID (e.g. "
+	       "`agent_restore_context(\"episode_1\", 1)`).";
 
 	message msg;
 	msg.role = "system";
