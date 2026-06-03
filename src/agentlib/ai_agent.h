@@ -100,6 +100,8 @@ public:
     int get_active_tokens() const { return active_tokens_.load(); }
     std::vector<compaction_segment> get_compaction_segments() const;
     double get_estimated_cost() const { return estimated_cost_; }
+	float get_last_boundary_prob() const { return last_boundary_prob_.load(); }
+	double get_last_inference_duration_ms() const { return last_inference_duration_ms_.load(); }
     void add_active_skill(const std::string& skill_name);
     std::vector<std::string> get_active_skills() const;
 
@@ -207,6 +209,8 @@ private:
 
     std::atomic<long long> next_episode_seq_{1};
     std::atomic<long long> next_lru_seq_{1};
+	std::atomic<float> last_boundary_prob_{-1.0f};
+	std::atomic<double> last_inference_duration_ms_{-1.0};
 };
 
 } // namespace agentlib

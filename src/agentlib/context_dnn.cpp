@@ -37,6 +37,7 @@ bool context_dnn::load_weights(const std::string &custom_path)
 		search_paths.push_back(expand_user_path(custom_path));
 	} else {
 		search_paths.push_back("./dnn_training/weights.json");
+		search_paths.push_back("../dnn_training/weights.json");
 		search_paths.push_back(expand_user_path("~/.cache/turbostar/weights.json"));
 		search_paths.push_back(expand_user_path("~/.turbostar/weights.json"));
 	}

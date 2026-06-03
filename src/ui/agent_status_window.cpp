@@ -1,5 +1,6 @@
 #include "agent_status_window.h"
 #include <algorithm>
+#include <format>
 #include <iomanip>
 #include <ncurses.h>
 #include <sstream>
@@ -113,6 +114,14 @@ void agent_status_window::draw_content() const
 	print_line(start_x, current_y++, " " + status_str);
 
 	current_y++; // Spacing
+
+	float last_prob = agent_->get_last_boundary_prob();
+	if (last_prob >= 0.0f) {
+		print_line(start_x, current_y++, "--- Last Inference ---");
+		print_line(start_x, current_y++, std::format(" Prob: {:.1f}%", last_prob * 100.0f));
+		print_line(start_x, current_y++, std::format(" Latency: {:.2f} ms", agent_->get_last_inference_duration_ms()));
+		current_y++; // Spacing
+	}
 
 	// 2. Skills Section
 	print_line(start_x, current_y++, "--- Skills ---");

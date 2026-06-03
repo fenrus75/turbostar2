@@ -1834,87 +1834,100 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 		}
 	}
 
-	std::vector<parsed_turn> turns = parse_turns(convo);
-	if (turns.size() < 2) {
-		return;
-	}
-
-	const parsed_turn& prev_turn = turns[turns.size() - 2];
-	const parsed_turn& curr_turn = turns[turns.size() - 1];
-
-	if (!turbostar::context_dnn::get_instance().is_loaded()) {
-		turbostar::context_dnn::get_instance().load_weights();
-	}
-
 	bool should_split = false;
 	float boundary_prob = -1.0f;
 
 	if (recent_chars > 192000) {
 		should_split = true;
 		event_logger::get_instance().log("Context size exceeds 48k tokens ({} chars). Forcing auto-episode boundary.", recent_chars);
-	} else if (turbostar::context_dnn::get_instance().is_loaded()) {
-		double active_tokens = 0.0;
-		int last_boundary_idx = -1;
-		for (int i = 0; i < static_cast<int>(turns.size()) - 1; ++i) {
-			if (turns[i].is_boundary) {
-				last_boundary_idx = i;
+	} else {
+		std::vector<parsed_turn> turns = parse_turns(convo);
+		if (turns.size() >= 2) {
+			const parsed_turn& prev_turn = turns[turns.size() - 2];
+			const parsed_turn& curr_turn = turns[turns.size() - 1];
+
+			if (!turbostar::context_dnn::get_instance().is_loaded()) {
+				turbostar::context_dnn::get_instance().load_weights();
 			}
-		}
-		for (int i = last_boundary_idx + 1; i < static_cast<int>(turns.size()) - 1; ++i) {
-			double prev_tokens = static_cast<double>(turns[i].prompt.length() + turns[i].response.length()) / 4.0;
-			active_tokens += prev_tokens;
-		}
 
-		std::vector<float> M(16, 0.0f);
+			if (turbostar::context_dnn::get_instance().is_loaded()) {
+				double active_tokens = 0.0;
+				int last_boundary_idx = -1;
+				for (int i = 0; i < static_cast<int>(turns.size()) - 1; ++i) {
+					if (turns[i].is_boundary) {
+						last_boundary_idx = i;
+					}
+				}
+				for (int i = last_boundary_idx + 1; i < static_cast<int>(turns.size()) - 1; ++i) {
+					double prev_tokens = static_cast<double>(turns[i].prompt.length() + turns[i].response.length()) / 4.0;
+					active_tokens += prev_tokens;
+				}
 
-		double gap_sec = 0.0;
-		if (curr_turn.timestamp > 0 && prev_turn.timestamp > 0) {
-			gap_sec = static_cast<double>(curr_turn.timestamp) - (static_cast<double>(prev_turn.timestamp) + static_cast<double>(prev_turn.duration_ms) / 1000.0);
-		}
-		if (gap_sec < 60.0) {
-			M[0] = 1.0f;
-		} else if (gap_sec < 300.0) {
-			M[1] = 1.0f;
-		} else {
-			M[2] = 1.0f;
-		}
+				std::vector<float> M(16, 0.0f);
 
-		double think_sec = static_cast<double>(prev_turn.duration_ms) / 1000.0;
-		if (think_sec < 10.0) {
-			M[3] = 1.0f;
-		} else if (think_sec < 120.0) {
-			M[4] = 1.0f;
-		} else {
-			M[5] = 1.0f;
-		}
+				double gap_sec = 0.0;
+				if (curr_turn.timestamp > 0 && prev_turn.timestamp > 0) {
+					gap_sec = static_cast<double>(curr_turn.timestamp) - (static_cast<double>(prev_turn.timestamp) + static_cast<double>(prev_turn.duration_ms) / 1000.0);
+				}
+				if (gap_sec < 60.0) {
+					M[0] = 1.0f;
+				} else if (gap_sec < 300.0) {
+					M[1] = 1.0f;
+				} else {
+					M[2] = 1.0f;
+				}
 
-		double pressure_ratio = active_tokens / 8192.0;
-		if (pressure_ratio < 0.60) {
-			M[6] = 1.0f;
-		} else if (pressure_ratio < 0.80) {
-			M[7] = 1.0f;
-		} else if (pressure_ratio < 0.95) {
-			M[8] = 1.0f;
-		} else {
-			M[9] = 1.0f;
-		}
+				double think_sec = static_cast<double>(prev_turn.duration_ms) / 1000.0;
+				if (think_sec < 10.0) {
+					M[3] = 1.0f;
+				} else if (think_sec < 120.0) {
+					M[4] = 1.0f;
+				} else {
+					M[5] = 1.0f;
+				}
 
-		M[10] = prev_turn.git_commit ? 1.0f : 0.0f;
-		M[11] = prev_turn.compile ? 1.0f : 0.0f;
-		M[12] = prev_turn.test ? 1.0f : 0.0f;
+				double pressure_ratio = active_tokens / 8192.0;
+				if (pressure_ratio < 0.60) {
+					M[6] = 1.0f;
+				} else if (pressure_ratio < 0.80) {
+					M[7] = 1.0f;
+				} else if (pressure_ratio < 0.95) {
+					M[8] = 1.0f;
+				} else {
+					M[9] = 1.0f;
+				}
 
-		std::string text_prev = prev_turn.prompt + " [Agent Conclusion: ] " + get_last_50_words(prev_turn.response);
-		std::string text_curr = curr_turn.prompt;
+				M[10] = prev_turn.git_commit ? 1.0f : 0.0f;
+				M[11] = prev_turn.compile ? 1.0f : 0.0f;
+				M[12] = prev_turn.test ? 1.0f : 0.0f;
 
-		boundary_prob = turbostar::context_dnn::get_instance().predict_boundary(text_prev, text_curr, M);
+				std::string text_prev = prev_turn.prompt + " [Agent Conclusion: ] " + get_last_50_words(prev_turn.response);
+				std::string text_curr = curr_turn.prompt;
 
-		if (boundary_prob >= 0.0f) {
-			double threshold = 0.35;
-			if (model_ && model_->get_cost_type() != model_cost_type::free_local) {
-				threshold = 0.65;
-			}
-			if (boundary_prob >= threshold) {
-				should_split = true;
+				auto start = std::chrono::high_resolution_clock::now();
+				boundary_prob = turbostar::context_dnn::get_instance().predict_boundary(text_prev, text_curr, M);
+				auto end = std::chrono::high_resolution_clock::now();
+				double duration_ms = std::chrono::duration<double, std::milli>(end - start).count();
+
+				last_boundary_prob_ = boundary_prob;
+				last_inference_duration_ms_ = duration_ms;
+
+				if (global_queue_ && boundary_prob >= 0.0f) {
+					editor_event ev;
+					ev.type = event_type::set_transient_status;
+					ev.payload = std::format("Milestone boundary prob: {:.1f}% (latency: {:.2f} ms)", boundary_prob * 100.0f, duration_ms);
+					global_queue_->push(ev);
+				}
+
+				if (boundary_prob >= 0.0f) {
+					double threshold = 0.35;
+					if (model_ && model_->get_cost_type() != model_cost_type::free_local) {
+						threshold = 0.65;
+					}
+					if (boundary_prob >= threshold) {
+						should_split = true;
+					}
+				}
 			}
 		}
 	}
@@ -1923,6 +1936,8 @@ void ai_agent::evaluate_auto_episode(std::vector<message>& convo)
 		std::string reason_msg;
 		if (recent_chars > 192000) {
 			reason_msg = "Heuristic context character limit reached";
+		} else if (boundary_prob >= 0.0f) {
+			reason_msg = std::format("Milestone boundary classification trigger, prob: {:.1f}%", boundary_prob * 100.0f);
 		} else {
 			reason_msg = "Milestone boundary classification trigger";
 		}

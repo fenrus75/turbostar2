@@ -42,6 +42,9 @@ int main()
 	// 4. Test loading weights from local dnn_training/weights.json
 	auto &dnn = context_dnn::get_instance();
 	bool load_ok = dnn.load_weights("./dnn_training/weights.json");
+	if (!load_ok) {
+		load_ok = dnn.load_weights("../dnn_training/weights.json");
+	}
 	assert(load_ok);
 	assert(dnn.is_loaded());
 
