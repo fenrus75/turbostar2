@@ -192,7 +192,7 @@ class document
 
       protected:
 	std::vector<line> get_selection_block() const;
-	void insert_block(const std::vector<line> &block);
+	void insert_block(const std::vector<line> &block, bool whole_lines = false);
 	void update_target_cursor_x_unlocked();
 	void set_modified();
 	int line_count_unlocked() const;

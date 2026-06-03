@@ -92,62 +92,74 @@ std::vector<line> document::get_selection_block() const
 
 void document::delete_selection()
 {
-        std::unique_lock lock(mutex_);
-        delete_selection_unlocked();
-        lock.unlock();
-        notify_cursor_changed();
+	std::unique_lock lock(mutex_);
+	delete_selection_unlocked();
+	lock.unlock();
+	notify_cursor_changed();
 }
 
 void document::delete_selection_unlocked()
 {
-        if (selection_start_y_ == -1 || selection_end_y_ == -1) {
-                return;
-        }
+	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+		return;
+	}
 
-        int sx, sy, ex, ey;
-        if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
-                sx = selection_start_x_;
-                sy = selection_start_y_;
-                ex = selection_end_x_;
-                ey = selection_end_y_;
-        } else {
-                sx = selection_end_x_;
-                sy = selection_end_y_;
-                ex = selection_start_x_;
-                ey = selection_start_y_;
-        }
+	int sx, sy, ex, ey;
+	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
+		sx = selection_start_x_;
+		sy = selection_start_y_;
+		ex = selection_end_x_;
+		ey = selection_end_y_;
+	} else {
+		sx = selection_end_x_;
+		sy = selection_end_y_;
+		ex = selection_start_x_;
+		ey = selection_start_y_;
+	}
 
-        begin_edit_group("Delete selection");
+	begin_edit_group("Delete selection");
 
-        if (sy == ey) {
-                record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
-                for (int i = 0; i < (ex - sx); ++i)
-                        lines_[sy]->remove_at(sx);
-                mark_line_dirty(lines_[sy]);
-        } else {
-                record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
-                // Record deletions in reverse order so undo (which reverses) inserts them correctly
-                for (int i = ey; i > sy; --i) {
-                        record_action(edit_action::action_type::delete_line, i, lines_[i]);
-                }
+	bool whole_lines = (sx == 0 && ex == lines_[ey]->length_in_chars() && ex > 0 && (ey - sy + 1 < (int)lines_.size()));
 
-                line tail_line("");
-                lines_[ey]->split_at(ex, tail_line);
-                line throwaway("");
-                lines_[sy]->split_at(sx, throwaway);
-                lines_[sy]->merge(tail_line);
-                mark_line_dirty(lines_[sy]);
-                lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
-        }
+	if (whole_lines) {
+		for (int i = ey; i >= sy; --i) {
+			record_action(edit_action::action_type::delete_line, i, lines_[i]);
+		}
+		lines_.erase(lines_.begin() + sy, lines_.begin() + ey + 1);
+	} else {
+		if (sy == ey) {
+			record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
+			for (int i = 0; i < (ex - sx); ++i)
+				lines_[sy]->remove_at(sx);
+			mark_line_dirty(lines_[sy]);
+		} else {
+			record_action(edit_action::action_type::replace_line, sy, lines_[sy]);
+			// Record deletions in reverse order so undo (which reverses) inserts them correctly
+			for (int i = ey; i > sy; --i) {
+				record_action(edit_action::action_type::delete_line, i, lines_[i]);
+			}
 
-        end_edit_group();
+			line tail_line("");
+			lines_[ey]->split_at(ex, tail_line);
+			line throwaway("");
+			lines_[sy]->split_at(sx, throwaway);
+			lines_[sy]->merge(tail_line);
+			mark_line_dirty(lines_[sy]);
+			lines_.erase(lines_.begin() + sy + 1, lines_.begin() + ey + 1);
+		}
+	}
 
-        cursor_x_ = sx;
-        cursor_y_ = sy;
-        selection_start_x_ = selection_start_y_ = -1;
-        selection_end_x_ = selection_end_y_ = -1;
-        set_modified();
-        update_target_cursor_x_unlocked();
+	end_edit_group();
+
+	cursor_x_ = sx;
+	cursor_y_ = sy;
+	if (cursor_y_ >= (int)lines_.size()) {
+		cursor_y_ = (int)lines_.size() - 1;
+	}
+	selection_start_x_ = selection_start_y_ = -1;
+	selection_end_x_ = selection_end_y_ = -1;
+	set_modified();
+	update_target_cursor_x_unlocked();
 }
 void document::copy_selection()
 {
@@ -162,17 +174,29 @@ void document::copy_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
+	int sx, sy, ex, ey;
+	get_selection_range_unlocked(sx, sy, ex, ey);
+	bool whole_lines = (sx == 0 && ex == lines_[ey]->length_in_chars() && ex > 0 && (ey - sy + 1 < (int)lines_.size()));
+	bool use_structural = whole_lines && (tx == 0);
+
 	begin_edit_group("Copy selection");
-	insert_block(block);
+	insert_block(block, use_structural);
 	end_edit_group();
 
-	selection_start_x_ = tx;
-	selection_start_y_ = ty;
-	selection_end_y_ = ty + block.size() - 1;
-	if (block.size() == 1)
-		selection_end_x_ = tx + block[0].length_in_chars();
-	else
+	if (use_structural) {
+		selection_start_x_ = 0;
+		selection_start_y_ = ty;
+		selection_end_y_ = ty + block.size() - 1;
 		selection_end_x_ = block.back().length_in_chars();
+	} else {
+		selection_start_x_ = tx;
+		selection_start_y_ = ty;
+		selection_end_y_ = ty + block.size() - 1;
+		if (block.size() == 1)
+			selection_end_x_ = tx + block[0].length_in_chars();
+		else
+			selection_end_x_ = block.back().length_in_chars();
+	}
 
 	set_modified();
 	lock.unlock();
@@ -197,8 +221,11 @@ void document::move_selection()
 	int sx, sy, ex, ey;
 	get_selection_range_unlocked(sx, sy, ex, ey);
 
+	bool whole_lines = (sx == 0 && ex == lines_[ey]->length_in_chars() && ex > 0 && (ey - sy + 1 < (int)lines_.size()));
+	int num_deleted_lines = whole_lines ? (ey - sy + 1) : (ey - sy);
+
 	if (ty > ey) {
-		ty -= (ey - sy);
+		ty -= num_deleted_lines;
 	} else if (ty == ey && tx >= ex) {
 		ty = sy;
 		tx = sx + (tx - ex);
@@ -215,62 +242,83 @@ void document::move_selection()
 	cursor_y_ = ty;
 	if (cursor_y_ >= line_count_unlocked())
 		cursor_y_ = line_count_unlocked() - 1;
-	
+
 	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_len)
 		cursor_x_ = line_len;
 
 	int fx = cursor_x_;
 	int fy = cursor_y_;
-	insert_block(block);
+	bool use_structural = whole_lines && (fx == 0);
+	insert_block(block, use_structural);
 
 	end_edit_group();
 
-	selection_start_x_ = fx;
-	selection_start_y_ = fy;
-	selection_end_y_ = fy + block.size() - 1;
-	if (block.size() == 1)
-		selection_end_x_ = fx + block[0].length_in_chars();
-	else
+	if (use_structural) {
+		selection_start_x_ = 0;
+		selection_start_y_ = fy;
+		selection_end_y_ = fy + block.size() - 1;
 		selection_end_x_ = block.back().length_in_chars();
+	} else {
+		selection_start_x_ = fx;
+		selection_start_y_ = fy;
+		selection_end_y_ = fy + block.size() - 1;
+		if (block.size() == 1)
+			selection_end_x_ = fx + block[0].length_in_chars();
+		else
+			selection_end_x_ = block.back().length_in_chars();
+	}
 
 	set_modified();
 	lock.unlock();
 	notify_cursor_changed();
 }
 
-void document::insert_block(const std::vector<line> &block)
+void document::insert_block(const std::vector<line> &block, bool whole_lines)
 {
 	if (block.empty())
 		return;
 
 	begin_edit_group();
-	record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 
-	line tail("");
-	lines_[cursor_y_]->split_at(cursor_x_, tail);
-	lines_[cursor_y_]->merge(block[0]);
-	mark_line_dirty(lines_[cursor_y_]);
-	if (block.size() > 1) {
-		for (size_t i = 1; i < block.size(); ++i) {
+	if (whole_lines) {
+		for (size_t i = 0; i < block.size(); ++i) {
 			auto nl = std::make_shared<line>(block[i]);
 			lines_.insert(lines_.begin() + cursor_y_ + i, nl);
 			record_action(edit_action::action_type::insert_line, cursor_y_ + i, nullptr);
 			mark_line_dirty(nl);
 		}
-
-		record_action(edit_action::action_type::replace_line, cursor_y_ + block.size() - 1, lines_[cursor_y_ + block.size() - 1]);
-		lines_[cursor_y_ + block.size() - 1]->merge(tail);
-		mark_line_dirty(lines_[cursor_y_ + block.size() - 1]);
-	} else {
-		lines_[cursor_y_]->merge(tail);
-		mark_line_dirty(lines_[cursor_y_]);
-	}
-	cursor_y_ += block.size() - 1;
-	if (block.size() == 1)
-		cursor_x_ += block[0].length_in_chars();
-	else
+		cursor_y_ += block.size() - 1;
 		cursor_x_ = block.back().length_in_chars();
+	} else {
+		record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+
+		line tail("");
+		lines_[cursor_y_]->split_at(cursor_x_, tail);
+		lines_[cursor_y_]->merge(block[0]);
+		mark_line_dirty(lines_[cursor_y_]);
+		if (block.size() > 1) {
+			for (size_t i = 1; i < block.size(); ++i) {
+				auto nl = std::make_shared<line>(block[i]);
+				lines_.insert(lines_.begin() + cursor_y_ + i, nl);
+				record_action(edit_action::action_type::insert_line, cursor_y_ + i, nullptr);
+				mark_line_dirty(nl);
+			}
+
+			record_action(edit_action::action_type::replace_line, cursor_y_ + block.size() - 1,
+				      lines_[cursor_y_ + block.size() - 1]);
+			lines_[cursor_y_ + block.size() - 1]->merge(tail);
+			mark_line_dirty(lines_[cursor_y_ + block.size() - 1]);
+		} else {
+			lines_[cursor_y_]->merge(tail);
+			mark_line_dirty(lines_[cursor_y_]);
+		}
+		cursor_y_ += block.size() - 1;
+		if (block.size() == 1)
+			cursor_x_ += block[0].length_in_chars();
+		else
+			cursor_x_ = block.back().length_in_chars();
+	}
 
 	end_edit_group();
 }

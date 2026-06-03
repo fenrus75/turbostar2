@@ -4,30 +4,21 @@
 	- make a list of these
 	- set relative priorities of these
 
-
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 	- two parts:
 		- part 1: using existing oath key
 		- part 2: getting oauth set up
 
-
-- a set of settings (separate dialog!) for a set of tasks, and which model to use for each
-	- task 1: summarizing context history
-	- task 2: deriving coding style
-	- ... more to come over time so we need to make this extensible
-
 - feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
 
-
-- valgrind does not work in our sandbox
+- bug: valgrind does not work in our sandbox
 
 - visual: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
 	- need to just spill to the right instead?
 	- or cut down some wide columns to make things fit (replace super long fields with "....")
-
 
 - sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
@@ -51,8 +42,14 @@
 	terminal 1:	gdbserver :1234 ./my_program
 	terminal 2:	gdb ./my_program
 			target remote localhost:1234
+
 			continue (etc)
 
+- feature: somehow syntax highlighting for specific binary file formats in the hex editor
+	- Targets in priority order:
+		- ELF files 
+		- PNG images
+		- JPEG images?
 
 - a github:// VFS namespace (follow up)
 	- implement a persistent disk cache under ~/.cache/turbostar/github_vfs/ for raw files and metadata, with TTL / invalidation checks.
@@ -72,6 +69,10 @@
 	- maybe http MCPs are easier? we have some local ones we created ourselves, start with those
 
 # long term items
+- a set of settings (separate dialog!) for a set of tasks, and which model to use for each
+	- task 1: summarizing context history
+	- task 2: deriving coding style
+	- ... more to come over time so we need to make this extensible
 
 - should we use turbo vision?
 	- pro: automatic the full look
@@ -105,6 +106,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- fixed off-by-one bug in the vertical direction for block-move when the block ends on the last byte of the previous line (whole line), ensuring structural deletion and insertion of whole-line block selections behaves correctly without eating blank lines.
 - implemented a custom hex editor window class (`hex_editor_window`) and document class (`binary_document`), integrating auto-detection for binary files using `fs_utils::is_binary_file()`, dynamic wrapping in multiples of 16 bytes depending on window width, a tab-toggled double-column cursor focus (hex tuples and ASCII), overwrite-only typing (auto-growing at EOF), live status bar offset and value formatting (hex, decimal, and ASCII), and robust binary saving with symmetric backups (`~`). Added E2E test coverage in `test_hex_editor.py`.
 - implemented a context-aware status bar help message for the `Ctrl-K` block menu. Options are filtered dynamically based on applicability (e.g. selection active, file modified, file open), prioritized (block selection and save actions high, find/navigation medium, compile/other low), greedily packed to fit within `COLS - 2` characters, and re-sorted in a stable defined layout order to preserve muscle memory. Hotkeys are highlighted via `^` caret prefixes. Added a new E2E test suite `test_k_block_help.py` verifying behavior.
 - implemented auto-restoration of maximized windows when dragged by the title bar or resized by the bottom-right corner. Resizing starts from the maximized bounds, while dragging restores and centers the window under the mouse cursor. Added comprehensive E2E test coverage in `test_window_maximize.py` verifying Option 1 behavior.

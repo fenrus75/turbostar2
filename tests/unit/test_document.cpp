@@ -295,7 +295,95 @@ int main()
 		assert(doc.get_cursor_x() == 5);
 	}
 
+	// Test 8: Structural Whole-Line Selection Deletion and Move
+	{
+		document doc(queue);
+		doc.append_line("Line 1");
+		doc.append_line("Line 2");
+		doc.append_line("Line 3");
+		doc.append_line("Line 4");
+
+		// The document initially has 4 lines (the first empty line was replaced by Line 1)
+		assert(doc.get_line_count() == 4);
+		assert(doc.get_line(0)->get_text() == "Line 1");
+		assert(doc.get_line(1)->get_text() == "Line 2");
+		assert(doc.get_line(2)->get_text() == "Line 3");
+		assert(doc.get_line(3)->get_text() == "Line 4");
+
+		// Select Line 2 completely (starts at line 2 index 1 column 0, ends at line 2 index 1 column 6)
+		doc.set_selection(1, 0, 1, 6);
+		doc.break_undo_coalescing();
+
+		// Delete selection
+		doc.delete_selection();
+
+		// Under the new logic: Line 2 should be structurally deleted!
+		// The document should have 3 lines now, and the content of Line 2 should be completely gone.
+		assert(doc.get_line_count() == 3);
+		assert(doc.get_line(0)->get_text() == "Line 1");
+		assert(doc.get_line(1)->get_text() == "Line 3");
+		assert(doc.get_line(2)->get_text() == "Line 4");
+
+		// Test undo
+		doc.undo();
+		assert(doc.get_line_count() == 4);
+		assert(doc.get_line(1)->get_text() == "Line 2");
+	}
+
+	// Test 9: Move whole line followed by a blank line (prevent eating blank line)
+	{
+		document doc(queue);
+		doc.append_line("Line 1");
+		doc.append_line("Line 2");
+		doc.append_line(""); // Blank line
+		doc.append_line("Line 3");
+
+		// Document:
+		// index 0: Line 1
+		// index 1: Line 2
+		// index 2:
+		// index 3: Line 3
+
+		assert(doc.get_line_count() == 4);
+		assert(doc.get_line(1)->get_text() == "Line 2");
+		assert(doc.get_line(2)->get_text() == "");
+
+		// Select Line 2 (index 1) completely
+		doc.set_selection(1, 0, 1, 6);
+		doc.break_undo_coalescing();
+
+		// Move cursor to the blank line (index 2)
+		doc.move_cursor(0, -1); // cursor_y becomes 2
+		assert(doc.get_cursor_y() == 2);
+
+		// Move selection (should be a no-op structurally, but blank line must not be eaten)
+		doc.move_selection();
+
+		assert(doc.get_line_count() == 4);
+		assert(doc.get_line(0)->get_text() == "Line 1");
+		assert(doc.get_line(1)->get_text() == "Line 2");
+		assert(doc.get_line(2)->get_text() == "");
+		assert(doc.get_line(3)->get_text() == "Line 3");
+
+		// Now let's try moving it below the blank line.
+		// Select Line 2 (index 1) again
+		doc.set_selection(1, 0, 1, 6);
+		doc.break_undo_coalescing();
+
+		// Move cursor to Line 3 (index 3)
+		doc.move_cursor(0, 2); // cursor_y becomes 3
+		assert(doc.get_cursor_y() == 3);
+
+		doc.move_selection();
+
+		// Expected output: Line 2 is moved below the blank line (goes to index 2, blank line at index 1)
+		assert(doc.get_line_count() == 4);
+		assert(doc.get_line(0)->get_text() == "Line 1");
+		assert(doc.get_line(1)->get_text() == "");
+		assert(doc.get_line(2)->get_text() == "Line 2");
+		assert(doc.get_line(3)->get_text() == "Line 3");
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
-
