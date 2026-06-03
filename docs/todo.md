@@ -140,6 +140,9 @@
 
 # done items (move items here on completion)
 
+## 03-06-2026
+- added optional `bool cursor_only = false` argument to `window::draw` and `window::draw_content` across all 5 window subclasses (`agent_status_window`, `agent_window`, `crashdump_window`, `diff_window`, `terminal_window`), preparing the UI layout hierarchy for cursor-only refresh optimizations.
+
 ## 02-06-2026
 - made the `type` parameter optional in `fs_replace_lines` tool, defaulting to "replace" when omitted, to make it more agent-friendly. Included comprehensive unit test coverage.
 - improved `fs_grep_files` tool to print the target pattern and path while searching, and implemented consecutive duplicate search query detection via a global static tracker to prevent agent infinite search loops.
