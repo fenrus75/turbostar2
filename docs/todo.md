@@ -44,6 +44,11 @@
 
 - code review: src/markdown_utils.cpp: is_table_row and is_table_separator probably should use regexps
 
+- feature: make the Ctrl-K status bar message more context ware
+	- need array of possible keys, with relative value for sorting
+	- each key would need a "is applicable" method to hide it
+ 	   (example, no need to show Copy if no block is active)
+
 - bug: if you maximize a window you can then no longer resize it with the mouse - it stays maximized.
     - if this is desired behavior we should make "Maximize" in the window-menu a toggle capability!
     - need to discuss what the best desired behavior is before fixing this issue
