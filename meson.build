@@ -720,6 +720,12 @@ test_line = executable('test_line',
   include_directories: inc)
 test('unit_line', test_line)
 
+test_hex_highlighter = executable('test_hex_highlighter',
+  'tests/unit/test_hex_highlighter.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_hex_highlighter', test_hex_highlighter)
+
 
 
 

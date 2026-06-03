@@ -37,11 +37,20 @@ class binary_document : public document
 	uint8_t get_byte(size_t offset) const;
 	void set_byte(size_t offset, uint8_t val);
 	void append_byte(uint8_t val);
+	const std::vector<uint8_t> &get_data() const
+	{
+		return data_;
+	}
+	size_t get_revision() const
+	{
+		return revision_;
+	}
 
       private:
 	void record_byte_edit(size_t offset, uint8_t old_val, uint8_t new_val, bool is_append);
 
 	std::vector<uint8_t> data_;
+	size_t revision_{0};
 
 	std::deque<binary_action_group> binary_undo_stack_;
 	std::deque<binary_action_group> binary_redo_stack_;

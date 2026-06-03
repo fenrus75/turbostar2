@@ -13,6 +13,8 @@
 - feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
 
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
+	- alternative: a convert_file_format() tool call
+	- need to do pro/con between these options
 
 - bug: valgrind does not work in our sandbox
 
@@ -47,7 +49,6 @@
 
 - feature: somehow syntax highlighting for specific binary file formats in the hex editor
 	- Targets in priority order:
-		- ELF files 
 		- PNG images
 		- JPEG images?
 
@@ -106,6 +107,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented a pluggable hex editor syntax highlighting interface (`hex_highlighter` and registry) and integrated it with `hex_editor_window`. Added a detailed `elf_hex_highlighter` subclass that parses ELF files (both 32-bit and 64-bit, Little/Big Endian) to highlight ELF headers (Ehdr), Program Header Tables (PHT), Section Header Tables (SHT), and specific mapped sections (like `.text`, `.data`, `.rodata`, and `.symtab`) in distinct foreground colors while leaving the dark blue window background aesthetic intact. Also decodes structure fields under the cursor into detailed descriptions on the status line. Added unit test suite coverage in `test_hex_highlighter.cpp`.
 - fixed off-by-one bug in the vertical direction for block-move when the block ends on the last byte of the previous line (whole line), ensuring structural deletion and insertion of whole-line block selections behaves correctly without eating blank lines.
 - implemented a custom hex editor window class (`hex_editor_window`) and document class (`binary_document`), integrating auto-detection for binary files using `fs_utils::is_binary_file()`, dynamic wrapping in multiples of 16 bytes depending on window width, a tab-toggled double-column cursor focus (hex tuples and ASCII), overwrite-only typing (auto-growing at EOF), live status bar offset and value formatting (hex, decimal, and ASCII), and robust binary saving with symmetric backups (`~`). Added E2E test coverage in `test_hex_editor.py`.
 - implemented a context-aware status bar help message for the `Ctrl-K` block menu. Options are filtered dynamically based on applicability (e.g. selection active, file modified, file open), prioritized (block selection and save actions high, find/navigation medium, compile/other low), greedily packed to fit within `COLS - 2` characters, and re-sorted in a stable defined layout order to preserve muscle memory. Hotkeys are highlighted via `^` caret prefixes. Added a new E2E test suite `test_k_block_help.py` verifying behavior.

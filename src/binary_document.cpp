@@ -59,6 +59,7 @@ bool binary_document::load_from_file(const std::string &filename)
 	binary_undo_stack_.clear();
 	binary_redo_stack_.clear();
 	binary_current_group_.actions.clear();
+	revision_++;
 
 	return true;
 }
@@ -150,6 +151,7 @@ void binary_document::undo()
 
 	binary_redo_stack_.push_back(group);
 	modified_ = true;
+	revision_++;
 	notify_undo_changed_event();
 }
 
@@ -174,6 +176,7 @@ void binary_document::redo()
 
 	binary_undo_stack_.push_back(group);
 	modified_ = true;
+	revision_++;
 	notify_undo_changed_event();
 }
 
@@ -227,4 +230,5 @@ void binary_document::record_byte_edit(size_t offset, uint8_t old_val, uint8_t n
 	binary_edit_action act{offset, old_val, new_val, is_append};
 	binary_current_group_.actions.push_back(act);
 	modified_ = true;
+	revision_++;
 }

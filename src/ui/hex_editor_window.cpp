@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <ncurses.h>
 #include <sstream>
+#include "ui/hex_highlighter.h"
 
 hex_editor_window::hex_editor_window(int id, int x, int y, int width, int height, const std::string &title,
 				     std::shared_ptr<binary_document> doc)
@@ -68,12 +69,7 @@ void hex_editor_window::draw_content(bool /*cursor_only*/) const
 
 			if (byte_offset < bin_doc->size()) {
 				uint8_t val = bin_doc->get_byte(byte_offset);
-				int pair = 3; // Printable default (yellow)
-				if (val == 0) {
-					pair = 9; // Null byte (dim gray)
-				} else if (val < 32 || val > 126) {
-					pair = 4; // Control byte (cyan)
-				}
+				int pair = get_color_pair_for_byte(byte_offset, val, bin_doc);
 
 				attron(COLOR_PAIR(pair));
 				printw("%02X", val);
@@ -97,12 +93,7 @@ void hex_editor_window::draw_content(bool /*cursor_only*/) const
 			if (byte_offset < bin_doc->size()) {
 				uint8_t val = bin_doc->get_byte(byte_offset);
 				char c = (val >= 32 && val <= 126) ? static_cast<char>(val) : '.';
-				int pair = 3;
-				if (val == 0) {
-					pair = 9;
-				} else if (val < 32 || val > 126) {
-					pair = 4;
-				}
+				int pair = get_color_pair_for_byte(byte_offset, val, bin_doc);
 
 				attron(COLOR_PAIR(pair));
 				addch(c);
@@ -317,14 +308,37 @@ std::string hex_editor_window::get_status_help() const
 		return std::format("Offset: 0x{:08X} ({})  ^T^a^b:Switch", cursor_offset_, cursor_offset_);
 	}
 
+	update_highlighter();
+
+	std::string base_help;
 	if (cursor_offset_ < bin_doc->size()) {
 		uint8_t val = bin_doc->get_byte(cursor_offset_);
 		char ascii_char = (val >= 32 && val <= 126) ? static_cast<char>(val) : '.';
-		return std::format("Offset: 0x{:08X} ({})  Value: 0x{:02X} ({}, '{}')  ^T^a^b:Switch", cursor_offset_, cursor_offset_, val,
-				   val, ascii_char);
+		base_help =
+		    std::format("Offset: 0x{:08X} ({})  Value: 0x{:02X} ({}, '{}')", cursor_offset_, cursor_offset_, val, val, ascii_char);
 	} else {
-		return std::format("Offset: 0x{:08X} ({})  Value: --  ^T^a^b:Switch", cursor_offset_, cursor_offset_);
+		base_help = std::format("Offset: 0x{:08X} ({})  Value: --", cursor_offset_, cursor_offset_);
 	}
+
+	std::string extra_help;
+	if (highlighter_ && cursor_offset_ < bin_doc->size()) {
+		highlight_info info = highlighter_->get_info(bin_doc->get_data(), cursor_offset_);
+		if (!info.description.empty()) {
+			extra_help = " | " + info.description;
+		}
+	}
+
+	std::string suffix = "  ^T^a^b:Switch";
+	int max_len = COLS - 2 - static_cast<int>(suffix.length());
+	if (max_len < 20)
+		max_len = 20;
+
+	std::string combined = base_help + extra_help;
+	if (static_cast<int>(combined.length()) > max_len) {
+		combined = combined.substr(0, max_len - 3) + "...";
+	}
+
+	return combined + suffix;
 }
 
 size_t hex_editor_window::get_bytes_per_line() const
@@ -337,4 +351,68 @@ size_t hex_editor_window::get_bytes_per_line() const
 	if (b < 16)
 		b = 16;
 	return static_cast<size_t>(b);
+}
+
+void hex_editor_window::update_highlighter() const
+{
+	auto bin_doc = std::dynamic_pointer_cast<binary_document>(doc_);
+	if (!bin_doc)
+		return;
+
+	size_t current_rev = bin_doc->get_revision();
+	if (current_rev != last_highlighter_revision_) {
+		last_highlighter_revision_ = current_rev;
+		highlighter_ = hex_highlighter_registry::get_instance().detect_highlighter(bin_doc->get_data());
+		if (highlighter_) {
+			highlighter_->parse(bin_doc->get_data());
+		}
+	}
+}
+
+int hex_editor_window::get_color_pair_for_byte(size_t offset, uint8_t val, const std::shared_ptr<binary_document> &bin_doc) const
+{
+	update_highlighter();
+	int pair = 3;
+	if (highlighter_) {
+		highlight_info info = highlighter_->get_info(bin_doc->get_data(), offset);
+		switch (info.type) {
+			case hex_semantic_type::magic:
+				pair = 30;
+				break;
+			case hex_semantic_type::file_header:
+				pair = 12;
+				break;
+			case hex_semantic_type::prog_header:
+				pair = 32;
+				break;
+			case hex_semantic_type::sect_header:
+				pair = 23;
+				break;
+			case hex_semantic_type::code_section:
+				pair = 30;
+				break;
+			case hex_semantic_type::data_section:
+				pair = 4;
+				break;
+			case hex_semantic_type::rodata_section:
+				pair = 3;
+				break;
+			case hex_semantic_type::symtab_section:
+				pair = 9;
+				break;
+			default:
+				if (val == 0)
+					pair = 9;
+				else if (val < 32 || val > 126)
+					pair = 4;
+				break;
+		}
+	} else {
+		if (val == 0) {
+			pair = 9;
+		} else if (val < 32 || val > 126) {
+			pair = 4;
+		}
+	}
+	return pair;
 }
