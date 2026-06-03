@@ -7,18 +7,18 @@ int main()
 	using namespace turbostar;
 
 	// 1. Test standard CRC32 computations matching Python's binascii.crc32
-	// "hello" -> 0xF7D189B4
+	// "hello" -> 0x3610a686
 	uint32_t hello_crc = context_dnn::compute_crc32("hello");
 	std::cout << "hello_crc: 0x" << std::hex << hello_crc << std::dec << std::endl;
-	assert(hello_crc == 0xF7D189B4);
+	assert(hello_crc == 0x3610a686);
 
-	// "world" -> 0x3D116035
+	// "world" -> 0x3a771143
 	uint32_t world_crc = context_dnn::compute_crc32("world");
-	assert(world_crc == 0x3D116035);
+	assert(world_crc == 0x3a771143);
 
-	// "turbostar" -> 0x4296716E
+	// "turbostar" -> 0x62c01344
 	uint32_t turbostar_crc = context_dnn::compute_crc32("turbostar");
-	assert(turbostar_crc == 0x4296716E);
+	assert(turbostar_crc == 0x62c01344);
 
 	// 2. Test alphanumeric lowercased Tokenizer
 	std::string raw_text = "Hello, World! 123... Turbostar-editor.";
