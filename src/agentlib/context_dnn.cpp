@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <immintrin.h>
 #include <fstream>
 #include <iostream>
 #include "../event_logger.h"
@@ -177,25 +178,52 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
 	size_t input_size = input.size();
 	for (size_t i = 0; i < weights.size(); ++i) {
 		const auto &w_row = weights[i];
-		float s0 = biases[i];
-		float s1 = 0.0f;
-		float s2 = 0.0f;
-		float s3 = 0.0f;
+		__m128 acc0 = _mm_setzero_ps();
+		__m128 acc1 = _mm_setzero_ps();
+		__m128 acc2 = _mm_setzero_ps();
+		__m128 acc3 = _mm_setzero_ps();
 
 		size_t j = 0;
-		// Level 1 Parallel Accumulators: process 4 elements per step to break latency chain
-		for (; j + 3 < input_size; j += 4) {
-			s0 += input[j + 0] * w_row[j + 0];
-			s1 += input[j + 1] * w_row[j + 1];
-			s2 += input[j + 2] * w_row[j + 2];
-			s3 += input[j + 3] * w_row[j + 3];
+		// Process 16 elements per iteration using 4 SSE registers to break dependency chain
+		for (; j + 15 < input_size; j += 16) {
+			__m128 in0 = _mm_loadu_ps(&input[j + 0]);
+			__m128 w0  = _mm_loadu_ps(&w_row[j + 0]);
+			acc0 = _mm_add_ps(acc0, _mm_mul_ps(in0, w0));
+
+			__m128 in1 = _mm_loadu_ps(&input[j + 4]);
+			__m128 w1  = _mm_loadu_ps(&w_row[j + 4]);
+			acc1 = _mm_add_ps(acc1, _mm_mul_ps(in1, w1));
+
+			__m128 in2 = _mm_loadu_ps(&input[j + 8]);
+			__m128 w2  = _mm_loadu_ps(&w_row[j + 8]);
+			acc2 = _mm_add_ps(acc2, _mm_mul_ps(in2, w2));
+
+			__m128 in3 = _mm_loadu_ps(&input[j + 12]);
+			__m128 w3  = _mm_loadu_ps(&w_row[j + 12]);
+			acc3 = _mm_add_ps(acc3, _mm_mul_ps(in3, w3));
 		}
-		// Scalar tail fallback (no-op since sizes are multiples of 16)
+
+		// Scalar tail fallback (no-op since sizes are multiples of 16, but kept for correctness)
+		float s0 = biases[i];
 		for (; j < input_size; ++j) {
 			s0 += input[j] * w_row[j];
 		}
-		float sum = (s0 + s1) + (s2 + s3);
-		output[i] = sum > 0.0f ? sum : 0.01f * sum;
+
+		// Combine the 4 SSE accumulators
+		__m128 acc_sum = _mm_add_ps(_mm_add_ps(acc0, acc1), _mm_add_ps(acc2, acc3));
+
+		// Horizontal reduction of the 4 floats in acc_sum
+		__m128 shuf = _mm_shuffle_ps(acc_sum, acc_sum, _MM_SHUFFLE(2, 3, 0, 1));
+		__m128 sums = _mm_add_ps(acc_sum, shuf);
+		shuf = _mm_shuffle_ps(sums, sums, _MM_SHUFFLE(1, 0, 3, 2));
+		sums = _mm_add_ps(sums, shuf);
+		float sum = _mm_cvtss_f32(sums) + s0;
+
+		if (sum > 0.0f) {
+			output[i] = sum;
+		} else {
+			output[i] = 0.01f * sum;
+		}
 	}
 	return output;
 }
