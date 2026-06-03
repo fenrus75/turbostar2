@@ -29,18 +29,21 @@ void document::move_cursor(int dx, int dy)
 		} else {
 			cursor_x_ += dx;
 		}
-		target_cursor_x_ = cursor_x_;
+		update_target_cursor_x_unlocked();
 	}
 
 	if (dy != 0) {
 		cursor_y_ += dy;
-		cursor_x_ = target_cursor_x_; // Attempt to use target X when moving vertically
 	}
 
 	if (cursor_y_ < 0)
 		cursor_y_ = 0;
 	if (cursor_y_ >= line_count_unlocked())
 		cursor_y_ = line_count_unlocked() - 1;
+
+	if (dy != 0) {
+		cursor_x_ = lines_[cursor_y_]->display_col_to_char_pos(target_cursor_x_);
+	}
 
 	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < 0)
@@ -57,7 +60,7 @@ void document::move_to_bol()
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
 	cursor_x_ = 0;
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -69,7 +72,7 @@ void document::move_to_eol()
 	if (cursor_y_ >= 0 && cursor_y_ < line_count_unlocked()) {
 		cursor_x_ = lines_[cursor_y_]->length_in_chars();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -80,7 +83,7 @@ void document::move_to_top()
 	break_undo_coalescing_unlocked();
 	cursor_x_ = 0;
 	cursor_y_ = 0;
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -91,7 +94,7 @@ void document::move_to_bottom()
 	break_undo_coalescing_unlocked();
 	cursor_y_ = line_count_unlocked() - 1;
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -102,7 +105,7 @@ void document::move_page_up(int page_height)
 	break_undo_coalescing_unlocked();
 	cursor_y_ -= page_height;
 	cursor_y_ = std::max(0, cursor_y_);
-	cursor_x_ = target_cursor_x_;
+	cursor_x_ = lines_[cursor_y_]->display_col_to_char_pos(target_cursor_x_);
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
@@ -119,7 +122,7 @@ void document::move_page_down(int page_height)
 	if (cursor_y_ >= line_count_unlocked()) {
 		cursor_y_ = line_count_unlocked() - 1;
 	}
-	cursor_x_ = target_cursor_x_;
+	cursor_x_ = lines_[cursor_y_]->display_col_to_char_pos(target_cursor_x_);
 
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ > line_char_len)
@@ -134,18 +137,8 @@ void document::move_next_word()
 	break_undo_coalescing_unlocked();
 	std::string text = lines_[cursor_y_]->get_text();
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
-
-	if (cursor_x_ >= line_char_len) {
-		if (cursor_y_ < line_count_unlocked() - 1) {
-			cursor_y_++;
-			cursor_x_ = 0;
-		}
-		lock.unlock();
-		notify_cursor_changed();
-		return;
-	}
-
 	int i = cursor_x_;
+
 	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
 		i++;
 	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
@@ -158,7 +151,7 @@ void document::move_next_word()
 		cursor_x_ = i;
 	}
 
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -184,7 +177,7 @@ void document::move_prev_word()
 		i--;
 
 	cursor_x_ = i;
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }

@@ -29,7 +29,7 @@ void document::insert_char(const std::string &utf8_char)
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -68,7 +68,7 @@ void document::backspace()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -100,7 +100,7 @@ void document::delete_char()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -123,7 +123,7 @@ void document::delete_to_eol()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -146,7 +146,7 @@ void document::delete_to_bol()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -170,7 +170,7 @@ void document::delete_word_forward()
 			set_modified();
 			end_edit_group();
 		}
-		target_cursor_x_ = cursor_x_;
+		update_target_cursor_x_unlocked();
 		lock.unlock();
 		notify_cursor_changed();
 		return;
@@ -194,7 +194,7 @@ void document::delete_word_forward()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -229,7 +229,7 @@ void document::delete_word_backward()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -257,7 +257,7 @@ void document::split_line()
 		set_modified();
 		end_edit_group();
 	}
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -278,7 +278,7 @@ void document::append_line(const std::string &text)
 
 	cursor_y_ = static_cast<int>(lines_.size() - 1);
 	cursor_x_ = lines_[cursor_y_]->length_in_chars();
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 
 	set_modified();
 	lock.unlock();
@@ -313,7 +313,7 @@ void document::trim_top_lines(int max_lines)
 			selection_end_y_ = 0;
 	}
 
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 
 	set_modified();
 	lock.unlock();
@@ -352,7 +352,7 @@ void document::delete_line()
 	cursor_x_ = 0;
 	set_modified();
 	end_edit_group();
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -417,7 +417,7 @@ void document::insert_text(const std::string &text)
 
 	set_modified();
 	end_edit_group();
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }

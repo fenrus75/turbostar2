@@ -181,7 +181,7 @@ void document::format_range(int start_y, int end_y)
 
 	end_edit_group();
 	set_modified();
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -271,7 +271,7 @@ void document::trim_trailing_whitespace()
 		int max_x = lines_[cursor_y_]->length_in_chars();
 		if (cursor_x_ > max_x) {
 			cursor_x_ = max_x;
-			target_cursor_x_ = cursor_x_;
+			update_target_cursor_x_unlocked();
 		}
 	}
 

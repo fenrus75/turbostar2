@@ -233,6 +233,69 @@ int main()
 		std::remove(temp_file.c_str());
 	}
 
+	// Test 7: Tab-aware Ghost X vertical navigation
+	{
+		document doc(queue);
+		std::string temp_file = "temp_ghost_x_tabs.txt";
+		{
+			std::ofstream ofs(temp_file);
+			ofs << "\t\tfoo\n";
+			ofs << "bar\n";
+			ofs << "\t\tbar\n";
+		}
+		doc.load_from_file(temp_file);
+		std::remove(temp_file.c_str());
+
+		assert(doc.line_count() == 3);
+		assert(doc.get_cursor_y() == 0);
+		assert(doc.get_cursor_x() == 0);
+
+		// Move to the end of the first line: "\t\tfoo" (2 tabs + 3 letters = 5 characters)
+		doc.move_cursor(5, 0);
+		assert(doc.get_cursor_y() == 0);
+		assert(doc.get_cursor_x() == 5);
+
+		// Move down to Line 1 ("bar", length 3)
+		doc.move_cursor(0, 1);
+		assert(doc.get_cursor_y() == 1);
+		// Since Line 1 only has 3 characters, cursor_x should clamp to 3
+		assert(doc.get_cursor_x() == 3);
+
+		// Move down to Line 2 ("\t\tbar")
+		doc.move_cursor(0, 1);
+		assert(doc.get_cursor_y() == 2);
+		// Visual column target (19) should be restored.
+		// "\t\tbar" has 2 tabs + 3 letters = 5 characters.
+		// So cursor_x should be restored to 5.
+		assert(doc.get_cursor_x() == 5);
+
+		// Go back to the top
+		doc.move_cursor(0, -2);
+		assert(doc.get_cursor_y() == 0);
+		assert(doc.get_cursor_x() == 5);
+
+		// Test move_page_down(1) to line 1
+		doc.move_page_down(1);
+		assert(doc.get_cursor_y() == 1);
+		assert(doc.get_cursor_x() == 3);
+
+		// Test move_page_down(1) to line 2
+		doc.move_page_down(1);
+		assert(doc.get_cursor_y() == 2);
+		assert(doc.get_cursor_x() == 5);
+
+		// Test move_page_up(1) back to line 1
+		doc.move_page_up(1);
+		assert(doc.get_cursor_y() == 1);
+		assert(doc.get_cursor_x() == 3);
+
+		// Test move_page_up(1) back to line 0
+		doc.move_page_up(1);
+		assert(doc.get_cursor_y() == 0);
+		assert(doc.get_cursor_x() == 5);
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
+

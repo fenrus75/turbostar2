@@ -147,7 +147,7 @@ void document::delete_selection_unlocked()
         selection_start_x_ = selection_start_y_ = -1;
         selection_end_x_ = selection_end_y_ = -1;
         set_modified();
-        target_cursor_x_ = cursor_x_;
+        update_target_cursor_x_unlocked();
 }
 void document::copy_selection()
 {

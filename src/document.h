@@ -193,6 +193,7 @@ class document
       private:
 	std::vector<line> get_selection_block() const;
 	void insert_block(const std::vector<line> &block);
+	void update_target_cursor_x_unlocked();
 	void set_modified();
 	int line_count_unlocked() const;
 	void adjust_selection_for_insert(int y, int x, int count);

@@ -156,7 +156,7 @@ void document::undo()
 
 	set_modified();
 	is_recording_actions_ = true;
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 	notify_undo_changed_event();
@@ -211,7 +211,7 @@ void document::redo()
 
 	set_modified();
 	is_recording_actions_ = true;
-	target_cursor_x_ = cursor_x_;
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 	notify_undo_changed_event();

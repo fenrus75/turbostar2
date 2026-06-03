@@ -122,7 +122,7 @@ bool document::load_from_file(const std::string &filename)
 			cursor_x_ = lines_[cursor_y_]->length_in_chars();
 		if (cursor_x_ < 0)
 			cursor_x_ = 0;
-		target_cursor_x_ = cursor_x_;
+		update_target_cursor_x_unlocked();
 	}
 
 	lock.unlock();
@@ -634,7 +634,7 @@ void document::apply_external_edits_json(const std::string &json_str)
 		clamp_coords(selection_start_x_, selection_start_y_);
 		clamp_coords(selection_end_x_, selection_end_y_);
 
-		target_cursor_x_ = cursor_x_;
+		update_target_cursor_x_unlocked();
 
 		end_edit_group();
 		set_modified();
@@ -692,4 +692,13 @@ void document::set_ignore_disk_changes(bool ignore)
 {
 	std::unique_lock lock(mutex_);
 	ignore_disk_changes_ = ignore;
+}
+
+void document::update_target_cursor_x_unlocked()
+{
+	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
+		target_cursor_x_ = lines_[cursor_y_]->char_to_display_col(cursor_x_);
+	} else {
+		target_cursor_x_ = cursor_x_;
+	}
 }
