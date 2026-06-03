@@ -141,6 +141,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- optimized `window::draw_content` and `window::draw` to return immediately and bypass redraw operations if selection and bracket-matching highlights are unchanged on cursor-only updates.
 - updated the editor main loop and `editor::render` to support and trigger cursor-only rendering (`render(true)`) when a window needs a cursor update but no full screen repaint is pending.
 - updated arrow keys (UP, DOWN, LEFT, RIGHT) handling in `window::process_events` to use `invalidate_cursor()` instead of a full `invalidate()`.
 - implemented `window::invalidate_cursor()`, `window::needs_cursor()`, and `window::clear_needs_cursor()`, tracking if cursor-only updates are pending.
