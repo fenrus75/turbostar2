@@ -269,6 +269,50 @@ if __name__ == "__main__":
 	manager.stop_all_servers();
 	assert(s_mock->is_running() == false);
 
+	// 7. Test Bandit Scan Security
+	std::cout << "Testing Bandit scan security checks..." << std::endl;
+	bool bandit_installed = (system("which bandit > /dev/null 2>&1") == 0);
+	if (bandit_installed) {
+		std::string vulnerable_mock = R"py(import sys
+import json
+import ssl
+
+# Vulnerability: insecure SSL version (High severity)
+ssl.wrap_socket(ssl_version=ssl.PROTOCOL_SSLv3)
+
+def main():
+    pass
+)py";
+		write_file(temp_proj / "vulnerable_mcp.py", vulnerable_mock);
+
+		// Write configuration putting it as a system level server
+		std::string system_vuln_json = R"({
+			"mcpServers": {
+				"vulnerable-system-server": {
+					"command": "python3",
+					"args": [")" + (temp_proj / "vulnerable_mcp.py").string() + R"("]
+				}
+			}
+		})";
+		write_file(temp_home / ".claude/mcp.json", system_vuln_json);
+
+		// Reset manager state by reloading
+		manager.discover_and_load(temp_proj.string());
+
+		auto s_vuln = manager.find_server("vulnerable-system-server");
+		assert(s_vuln != nullptr);
+		// It must NOT be enabled by default despite being a system server!
+		assert(s_vuln->is_enabled() == false);
+
+		// Even if we explicitly enable it, starting it should fail
+		s_vuln->set_enabled(true);
+		bool start_result = s_vuln->start();
+		assert(start_result == false);
+		assert(s_vuln->is_running() == false);
+	} else {
+		std::cout << "Bandit not installed, skipping bandit security checks." << std::endl;
+	}
+
 	// Cleanup files
 	fs::remove_all(temp_home);
 	fs::remove_all(temp_proj);

@@ -251,6 +251,14 @@ void mcp_manager::load_servers_from_file(const std::string &path, bool is_system
 			server->auto_detect_type();
 
 			bool default_enabled = is_system;
+			if (is_system && server->get_mcp_type() == "python") {
+				std::string scan_output;
+				if (!server->run_bandit_scan(scan_output)) {
+					default_enabled = false;
+					event_logger::get_instance().log(
+					    "System MCP server '{}' has critical Bandit violations. Disabling by default.", name);
+				}
+			}
 			bool enabled = cfg.is_mcp_server_enabled(name, is_system, default_enabled);
 			server->set_enabled(enabled);
 

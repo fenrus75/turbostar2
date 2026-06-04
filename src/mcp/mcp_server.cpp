@@ -51,10 +51,64 @@ void mcp_server::auto_detect_type()
 	}
 }
 
+std::string mcp_server::get_python_script_path() const
+{
+	if (mcp_type_ != "python") {
+		return "";
+	}
+	if (command_.ends_with(".py") || command_.find(".py") != std::string::npos) {
+		return command_;
+	}
+	for (const auto &arg : args_) {
+		if (arg.ends_with(".py") || arg.find(".py") != std::string::npos) {
+			return arg;
+		}
+	}
+	return "";
+}
+
+static std::string expand_tilde(const std::string &path)
+{
+	if (path.starts_with("~/")) {
+		const char *home = std::getenv("HOME");
+		if (home) {
+			return std::string(home) + path.substr(1);
+		}
+	}
+	return path;
+}
+
+bool mcp_server::run_bandit_scan(std::string &scan_output) const
+{
+	bool bandit_installed = (system("which bandit > /dev/null 2>&1") == 0);
+	if (!bandit_installed) {
+		return true;
+	}
+	std::string script_path = get_python_script_path();
+	if (script_path.empty()) {
+		return true;
+	}
+	script_path = expand_tilde(script_path);
+
+	sync_command_runner bandit_runner;
+	bandit_runner.apply_build_profile();
+	scan_output = bandit_runner.execute_and_get_output("bandit --severity-level=high {} 2>&1", script_path);
+	int exit_code = bandit_runner.get_exit_code();
+	return (exit_code == 0);
+}
+
 bool mcp_server::start()
 {
 	if (is_running()) {
 		return true;
+	}
+
+	if (mcp_type_ == "python") {
+		std::string scan_output;
+		if (!run_bandit_scan(scan_output)) {
+			event_logger::get_instance().log("Security Validation Failed: Bandit detected high-severity issues in Python MCP server '{}':\n{}", name_, scan_output);
+			return false;
+		}
 	}
 
 	// 1. Create pipes
