@@ -378,7 +378,9 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		for (auto &win : windows_) {
 			// Find a status window or main agent window that knows about this subagent
 			if (auto aw = dynamic_cast<agent_window *>(win.get())) {
-				for (auto &sub : aw->get_agent()->get_subagents()) {
+				auto agent = aw->get_agent();
+				if (!agent) continue;
+				for (auto &sub : agent->get_subagents()) {
 					if (sub->get_id() == target_id) {
 						found_subagent = sub;
 						break;
@@ -402,12 +404,18 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		// Find the active agent window
 		for (auto &win : windows_) {
 			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
-				if (agent_win->get_agent()->get_id() == ev.key_code) {
+				if (agent_win->get_agent() && agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
 					break;
 				}
 			}
 		}
+
+		// Clean up headless agent if it exists
+		headless_agents_.erase(
+		    std::remove_if(headless_agents_.begin(), headless_agents_.end(),
+				   [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) { return agent && agent->get_id() == ev.key_code; }),
+		    headless_agents_.end());
 		return;
 	}
 
@@ -480,15 +488,6 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		active_dialog_ = create_plan_approval_dialog(ev.payload);
 		active_dialog_mode_ = dialog_mode::approve_plan;
 		set_focus(focus_target::dialog, "approve_plan");
-		return;
-	}
-
-	if (ev.type == event_type::agent_response) {
-		// Clean up headless agent if it exists
-		headless_agents_.erase(
-		    std::remove_if(headless_agents_.begin(), headless_agents_.end(),
-				   [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) { return agent->get_id() == ev.key_code; }),
-		    headless_agents_.end());
 		return;
 	}
 
@@ -591,6 +590,8 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
 			logger.log("Failed to start gdb process.");
 			app_tw->stop_process();
+			std::error_code ec;
+			fs::remove(fifo_path, ec);
 			return {-1, -1};
 		}
 

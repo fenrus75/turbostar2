@@ -158,7 +158,7 @@ void line::merge(const line &other_line)
 	std::lock(lock_this, lock_other);
 
 	text_ += other_line.text_;
-	attributes_.assign(utf8::length(text_), syntax_attribute::normal);
+	attributes_.insert(attributes_.end(), other_line.attributes_.begin(), other_line.attributes_.end());
 }
 
 int line::char_to_display_col(int char_pos) const

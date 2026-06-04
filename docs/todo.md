@@ -1,5 +1,12 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- mega fature: activate_tool_family() tool call
+	- allows us to make families of tools that are not in the context by default, but can be activated -- similar to skills
+	- it would reset the system prompt (so kvcache/token cache invalidation) but that's the price of a normally smaller set of tools
+ 	- we can use this for MCPs as well -- even ask the LLM to summarize the "when to invoke this MCP"
+
+
+
 - MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
 

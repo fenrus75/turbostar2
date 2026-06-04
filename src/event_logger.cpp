@@ -29,6 +29,7 @@ void event_logger::set_log_file(const std::string &filename)
 
 void event_logger::log(const std::string &message)
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
 
@@ -36,8 +37,10 @@ void event_logger::log(const std::string &message)
 	ss << "[" << std::setw(6) << std::setfill('0') << ms << "ms] " << message;
 	std::string formatted_message = ss.str();
 
-	std::lock_guard<std::mutex> lock(mutex_);
 	events.push_back(formatted_message);
+	if (events.size() > 5000) {
+		events.erase(events.begin());
+	}
 	if (log_stream_.is_open()) {
 		log_stream_ << formatted_message << std::endl;
 	}

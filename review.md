@@ -1,373 +1,389 @@
-# Code Review: `src/agentlib/virtual_file_system.cpp`
+# Code Review Summary
 
-**Date:** 2025-01-10  
-**Reviewer:** AI Assistant  
-**File:** `src/agentlib/virtual_file_system.cpp` (650 lines)  
-**Related Header:** `src/agentlib/virtual_file_system.h`
+This document contains comprehensive code reviews of key files in the TurboStar editor codebase.
 
 ---
 
-## Executive Summary
+## Review 1: `src/line.cpp`
 
-This file implements a **Virtual File System (VFS)** layer that supports multiple URI schemes (`skills://`, `agent://`, `github://`) for the TurboStar editor's agent framework. The code is generally well-structured with good separation of concerns between providers. However, there are several critical issues that need attention, particularly around **thread safety**, **error handling**, and **resource management**.
+### Top 3 Issues
 
-**Overall Rating:** ⚠️ **Needs Refactoring** (6/10)
+#### 1. Inconsistent Mutex Locking in `byte_at_unlocked()`
 
----
+**Issue**: The `byte_at_unlocked()` method is named to indicate it should only be called without holding the mutex, but it's called from `byte_at()` which **does** hold the lock. This creates a dangerous pattern where:
+- If `byte_at_unlocked()` is ever called directly without locking, it will deadlock (trying to lock an already-locked mutex in the same thread)
+- The naming is misleading because the method itself doesn't enforce the "unlocked" requirement
 
-## Architecture Overview
+**Location**: Lines 196-202
 
-### Components
-
-| Component | Purpose | Lines |
-|-----------|---------|-------|
-| `mmap_handle` | RAII wrapper for memory-mapped files | 50 |
-| `memory_vfs_provider` | In-memory file storage with mmap support | 150 |
-| `github_vfs_provider` | GitHub API integration with caching | 400 |
-| `virtual_file_system` | Main coordinator, scheme routing | 50 |
-
-### Design Pattern
-- **Strategy Pattern**: Multiple `vfs_provider` implementations
-- **Factory Pattern**: `get_provider_for_uri()` routes to appropriate provider
-- **LRU Cache**: File and directory caching in `github_vfs_provider`
+**Risk**: Medium - potential for deadlocks if used incorrectly elsewhere
 
 ---
 
-## Critical Issues
+#### 2. Missing Range Check in `remove_at()` Causes Potential Crash
 
-### 🔴 CRITICAL: Thread Safety Violations
+**Issue**: In `remove_at()`, when calling `utf8::char_len(byte_at_unlocked(offset))`, there's no guarantee that `offset` is actually a valid starting byte for a UTF-8 character. If `offset` points to a continuation byte (128-191), `utf8::char_len()` will return 0 or an invalid value, causing `text_.erase()` to have undefined behavior.
 
-**Location:** Throughout `github_vfs_provider`
+**Location**: Line 120
 
-**Issue:** All cache members are marked `mutable` but are accessed without synchronization:
+**Risk**: High - potential crash or memory corruption with malformed UTF-8
+
+**Fix**: Should validate that `offset` points to a valid UTF-8 start byte before calculating `next_offset`.
+
+---
+
+#### 3. Double UTF-8 Length Calculation in `insert_at()` and `remove_at()`
+
+**Issue**: Both `insert_at()` and `remove_at()` calculate `char_to_byte_offset()` while holding the lock, but then call `utf8::char_len()` on the already-locked text. This is inefficient and inconsistent - if we're already holding the lock, we should use the unlocked version directly, but there's no unlocked accessor for getting character length.
+
+**Location**: Lines 97 and 117 for `char_to_byte_offset`, then lines 120 for `utf8::char_len`
+
+**Risk**: Medium - performance issue and code inconsistency
+
+**Better approach**: Either:
+- Provide an unlocked method to get UTF-8 character length, or
+- Avoid the lock/unlock cycle by doing the UTF-8 math outside the critical section (but this requires more careful design to ensure atomicity)
+
+---
+
+#### Bonus Issue: In `merge()` (line 160), the attributes are completely reset to `normal` instead of preserving or merging the attributes from `other_line`. This may be intentional, but it's worth documenting why full syntax highlighting is discarded on merge.
+
+---
+
+## Review 2: `src/mcp/mcp_server.cpp`
+
+### Top 3 Issues
+
+#### 1. Race Condition in `send_request()` - Missing Atomicity for Request ID Generation
+
+**Issue**: In `send_request()` (lines 303-337), the request ID is generated inside a `lock_guard`, but then the ID is used **outside** the lock when calling `write()` at line 322. This creates a race condition where:
+- Thread A: generates ID = 5, acquires lock, stores promise, releases lock
+- Thread B: generates ID = 6, acquires lock, stores promise, releases lock  
+- Thread A: writes ID=5 request
+- Thread B: writes ID=6 request
+- **But**: The `pending_requests_` map could be modified by another thread during the `write()` call, potentially causing corruption
+
+**Root cause**: The lock should cover both the `pending_requests_` insertion AND the actual write to stdin, since the `reader_loop()` is consuming from stdin and matching IDs.
+
+**Risk**: High - potential crash or request/response mismatch under concurrent tool calls
+
+**Fix**: Keep the lock held during the write operation:
 ```cpp
-mutable std::map<std::string, std::string> file_cache_;      // Line 148
-mutable std::vector<std::string> file_lru_;                   // Line 149
-mutable std::map<std::string, std::vector<vfs_file_info>> dir_cache_;  // Line 150
-mutable std::map<std::string, std::string> branch_cache_;     // Line 151
-```
-
-**Impact:** If multiple threads access the VFS simultaneously (likely in an agent framework), this will cause:
-- Data races
-- Cache corruption
-- Undefined behavior
-
-**Fix Required:**
-```cpp
-#include <mutex>
-
-mutable std::mutex cache_mutex_;  // Add to class
-
-std::optional<std::string> cache_get(const std::string &key) const {
-    std::lock_guard<std::mutex> lock(cache_mutex_);
-    auto it = file_cache_.find(key);
-    // ... rest of method
-}
-```
-
-### 🔴 CRITICAL: HTTP Client Reuse Bug
-
-**Location:** Lines 498-560 (`http_get` method)
-
-**Issue:** Two separate `httplib::Client` instances are created (`api_client_` and `raw_client_`), but they're stored as member variables. This means:
-1. They persist across requests (good for connection pooling)
-2. **But** they're created lazily without thread synchronization
-3. **And** they're never explicitly cleaned up
-
-**Code Snippet (Lines 500-505):**
-```cpp
-if (!api_client_) {
-    api_client_ = std::make_unique<httplib::Client>(host);
-    // ... configuration
-}
-cli = api_client_.get();
-```
-
-**Fix Required:** Add mutex protection or use `std::call_once` for initialization.
-
-### 🔴 CRITICAL: Empty Catch Blocks
-
-**Location:** Lines 343, 388, 422, 606 (`github_vfs_provider`)
-
-**Issue:** JSON parsing errors are silently swallowed:
-```cpp
-} catch (...) {
-}
-```
-
-**Impact:** Network failures, malformed JSON, or API errors are invisible to the caller, making debugging extremely difficult.
-
-**Fix Required:** At minimum, log the error or set an error code:
-```cpp
-} catch (const nlohmann::json::exception &e) {
-    // Log error or set error state
-    return std::nullopt;
+{
+    std::lock_guard<std::mutex> lock(requests_mutex_);
+    id = next_request_id_++;
+    pending_requests_[id] = std::move(prom);
+    nlohmann::json req = {{"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}};
+    std::string payload = req.dump() + "\n";
+    ssize_t written = write(stdin_fd_, payload.c_str(), payload.length());
+    // ... error handling
+    // Don't erase from pending_requests_ here - that's done in reader_loop()
 }
 ```
 
 ---
 
-## Major Issues
+#### 2. Buffer Overrun Risk in `reader_loop()` - No Bounds Check for JSON ID Parsing
 
-### 🟡 MAJOR: Line Counting Inefficiency
+**Issue**: In `reader_loop()` (lines 376-396), when parsing JSON IDs, the code converts both integer and string IDs but doesn't validate the string-to-integer conversion for overflow:
 
-**Location:** `count_lines` function (Lines 15-39)
-
-**Issue:** Uses `memchr` in a loop, which is O(n) but called for every file mount. For large files, this is expensive.
-
-**Current Implementation:**
 ```cpp
-while (p < end) {
-    const char *next = static_cast<const char *>(memchr(p, '\n', end - p));
-    if (next == nullptr) {
-        break;
+if (json["id"].is_string()) {
+    id = std::stoi(json["id"].get<std::string>());  // ❌ No exception handling!
+}
+```
+
+**Risk**: Medium - if the MCP server sends a malformed ID like `"9999999999999999999999"`, `std::stoi` will throw `std::out_of_range`, which is caught by the generic `catch (...)` but then silently ignored, potentially losing the response.
+
+**Fix**: Use `try-catch` for the string conversion specifically:
+```cpp
+if (json["id"].is_string()) {
+    try {
+        id = std::stoi(json["id"].get<std::string>());
+    } catch (const std::exception&) {
+        // Log malformed ID and skip
+        continue;
     }
-    lines++;
-    p = next + 1;
-}
-```
-
-**Suggestion:** Consider caching line counts or using a more efficient algorithm. For very large files, consider lazy line counting.
-
-### 🟡 MAJOR: Memory Leak Risk in `mount_buffer`
-
-**Location:** Lines 112-129
-
-**Issue:** If `malloc` succeeds but `count_lines` throws (e.g., out of memory), the allocated memory is leaked because `mmap_handle` destructor won't be called.
-
-**Code Snippet:**
-```cpp
-handle->data = malloc(handle->size);
-if (!handle->data)
-    return false;
-memcpy(handle->data, buffer.data(), handle->size);
-
-handle->size_in_lines = count_lines(handle->data, handle->size);  // Could throw!
-
-ensure_directories_exist(uri);
-mounts_[uri] = std::move(handle);  // Only reached if count_lines succeeds
-```
-
-**Fix Required:** Use `std::unique_ptr` with custom deleter or wrap in try-catch:
-```cpp
-auto handle = std::make_shared<mmap_handle>();
-handle->type = 'M';
-handle->size = buffer.size();
-
-if (handle->size > 0) {
-    void *allocated = malloc(handle->size);
-    if (!allocated)
-        return false;
-    handle->data = allocated;
-    memcpy(handle->data, buffer.data(), handle->size);
-}
-
-try {
-    handle->size_in_lines = count_lines(handle->data, handle->size);
-} catch (...) {
-    // handle destructor will free data
-    throw;
-}
-```
-
-### 🟡 MAJOR: Missing Validation in URI Parsing
-
-**Location:** `parse_uri` method (Lines 429-475)
-
-**Issue:** No validation of user/repo names. Could accept invalid characters or extremely long strings.
-
-**Suggestion:** Add validation:
-```cpp
-// Validate owner/repo contains only valid characters
-if (res.owner.empty() || res.owner.length() > 39) {
-    return std::nullopt;  // GitHub username max is 39 chars
 }
 ```
 
 ---
 
-## Minor Issues
+#### 3. Security Issue: Bandit Scan Uses Shell Execution Instead of Direct Path
 
-### 🟢 MINOR: Magic Numbers
-
-**Location:** Line 636
-
-**Issue:** Hardcoded cache size limit:
+**Issue**: In `run_bandit_scan()` (lines 81-98), the function uses:
 ```cpp
-if (file_cache_.size() >= 50) {
+system("which bandit > /dev/null 2>&1")
 ```
 
-**Fix:** Make this a configurable constant:
+This is problematic because:
+1. **Security**: `system()` uses `/bin/sh -c`, which respects environment variables like `PATH`. If an attacker can manipulate `PATH`, they could inject a malicious `bandit` executable
+2. **Performance**: Spawns a shell process just to check if an executable exists
+
+**Risk**: Medium - potential security bypass if environment is compromised
+
+**Fix**: Use `fs_utils::find_in_path()` or similar project utility, or use `execinfo.h`'s `access()` with explicit paths. If no utility exists, use:
 ```cpp
-static constexpr size_t MAX_FILE_CACHE_SIZE = 50;
+bool bandit_installed = (access("/usr/bin/bandit", X_OK) == 0 || access("/usr/local/bin/bandit", X_OK) == 0);
 ```
 
-### 🟢 MINOR: Unused Include
+---
 
-**Location:** Line 6
+#### Bonus Issues
 
-**Issue:** `<httplib.h>` is included in the `.cpp` file but should only be needed in the header (forward declaration exists). Verify this is actually needed here.
+- **B1. Missing Synchronization in `get_tools()`**: The `get_tools()` method returns a copy of `tools_` without acquiring `mutex_`. This is safe because `tools_` is only written during initialization, but it's not documented.
 
-### 🟢 MINOR: Inconsistent Error Handling
+- **B2. Double-Free Risk in File Descriptors**: In `start()`, if `fork()` fails, the code closes all pipes. But there's no cleanup if assignments fail after `fork()`.
 
-**Location:** Throughout
+- **B3. Hardcoded Timeout Values**: The 10-second timeout (line 330) and 1-second wait loops (lines 257-265) are hardcoded.
 
-**Issue:** Some methods return `false` on error, others return `std::nullopt`, others throw exceptions implicitly.
+---
 
-**Suggestion:** Establish a consistent pattern. For example:
-- `mount_*` methods: return `bool` (already done)
-- `read_file`, `get_file_info`: return `std::optional` (already done)
-- Add error codes or exceptions for diagnostic information
+## Review 3: `src/mcp/mcp_manager.cpp`
 
-### 🟢 MINOR: Missing `noexcept` Specifiers
+### Top 3 Issues
 
-**Location:** Destructor and simple methods
+#### 1. `start()`/`stop()` Not Thread-Safe - Critical Architectural Flaw
 
-**Suggestion:** Add `noexcept` where appropriate:
+**Issue**: `mcp_server::start()` and `mcp_server::stop()` modify shared state (`pid_`, `stdin_fd_`, `stdout_fd_`, `stderr_fd_`, `reader_running_`, `reader_thread_`, `stderr_thread_`, `pending_requests_`) without proper synchronization. The design assumes `mcp_manager::mutex_` protects all operations, but `mcp_server` methods don't know about this and could be called directly elsewhere.
+
+**Risk**: High - race conditions and undefined behavior when starting/stopping servers
+
+**Fix**: Add a `std::mutex` to `mcp_server` and make `start()`/`stop()` acquire it:
 ```cpp
-~mmap_handle() noexcept;
-bool exists(const std::string &uri) const noexcept override;
+// In mcp_server.h:
+class mcp_server {
+private:
+    mutable std::mutex server_mutex_;  // Add this
+    // ... rest of class
+};
+
+// In mcp_server.cpp, start() and stop() should acquire server_mutex_ first
 ```
 
-### 🟢 MINOR: Proxy Configuration Duplication
+---
 
-**Location:** Lines 510-533 and 545-568
+#### 2. No Size Limit on `events` Vector - Potential Memory Leak
 
-**Issue:** Proxy configuration logic is duplicated for both `api_client_` and `raw_client_`.
+**Issue**: The `events` vector in `event_logger` grows indefinitely as log messages are added. There's no maximum size limit or circular buffer implementation.
 
-**Fix:** Extract to a helper method:
+**Risk**: Medium - in long-running sessions with many log messages, memory consumption could grow unbounded
+
+**Fix**: Add a maximum size limit (e.g., 1000 entries) and implement a circular buffer:
 ```cpp
-void configure_proxy(httplib::Client &client) const {
-    const char *env_proxy = std::getenv("https_proxy");
-    if (!env_proxy)
-        env_proxy = std::getenv("http_proxy");
-    // ... rest of proxy logic
+static constexpr size_t MAX_EVENTS = 1000;
+
+void event_logger::log(const std::string &message)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    events.push_back(message);
+    if (events.size() > MAX_EVENTS) {
+        events.erase(events.begin());
+    }
+    // ... rest of logic
 }
 ```
 
 ---
 
-## Code Style & Conventions
+#### 3. `discover_and_load()` Uses Hardcoded System Paths
 
-### ✅ Good Practices Observed
+**Issue**: Lines 36-42 hardcode paths like `~/.claude/mcp.json`, `~/.copilot/mcp-config.json`, etc. This is inflexible and doesn't follow the MCP specification which allows arbitrary locations.
 
-1. **RAII Usage:** `mmap_handle` destructor properly cleans up resources
-2. **Smart Pointers:** Extensive use of `std::shared_ptr` and `std::unique_ptr`
-3. **Namespace Usage:** Proper `agentlib` namespace
-4. **Const Correctness:** Most methods are properly marked `const`
-5. **Early Returns:** Good use of early return pattern for error handling
-
-### ⚠️ Style Inconsistencies
-
-1. **Mixed Comment Styles:** Both `//` and `/** */` comments used
-2. **Variable Naming:** Inconsistent (e.g., `cli` vs `api_client_`)
-3. **Brace Style:** Linux style followed (good per `.clang-format`)
+**Risk**: Low - inflexibility, not following standards
 
 ---
 
-## Security Considerations
+#### Bonus Issues
 
-### 🔒 Security Review
+- **B1. `set_tools()` Relies on Caller for Thread-Safety**: No mutex enforcement, fragile design.
 
-| Concern | Status | Notes |
-|---------|--------|-------|
-| Input Validation | ⚠️ Partial | URI parsing lacks validation |
-| Authentication | ✅ OK | GITHUB_TOKEN support implemented |
-| Path Traversal | ✅ OK | URI-based, no filesystem traversal |
-| SSRF | ⚠️ Review | HTTP client could be redirected |
-| Rate Limiting | ⚠️ Missing | No GitHub API rate limit handling |
+- **B2. No JSON Validation in `load_servers_from_file()`**: Malformed config files not properly rejected.
 
-**Recommendation:** Add rate limit detection for GitHub API:
+- **B3. Race condition in `start_async()`**: `mutex_` held while spawning thread (misleading, not actually buggy).
+
+---
+
+## Review 4: `src/event_logger.cpp`
+
+### Top 3 Issues
+
+#### 1. Race Condition on `start_time_` - High Severity
+
+**Issue**: In `log()` (lines 30-47), the `start_time_` is read **before acquiring the lock** (line 33), but `enable_stdout_logging()` (lines 49-56) modifies `start_time_` **while holding the lock** (line 54).
+
+**Race condition scenario**:
+- Thread A calls `log()` and reads `start_time_` at line 33
+- Thread B calls `enable_stdout_logging(true)` at line 54, which sets `start_time_ = std::chrono::steady_clock::now()`
+- Thread A continues and uses the old `start_time_` value, causing incorrect timestamps
+
+**Root cause**: The `start_time_` modification in `enable_stdout_logging()` should also update the `events` vector's logical time base, or `start_time_` should only be modified when the logger is inactive.
+
+**Fix**: Move the `start_time_` reset inside the lock AND calculate the timestamp after acquiring the lock:
 ```cpp
-if (status == 403 && body.contains("rate limit")) {
-    // Handle rate limit gracefully
+void event_logger::log(const std::string &message)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto now = std::chrono::steady_clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
+    
+    std::ostringstream ss;
+    ss << "[" << std::setw(6) << std::setfill('0') << ms << "ms] " << message;
+    std::string formatted_message = ss.str();
+    
+    events.push_back(formatted_message);
+    if (log_stream_.is_open()) {
+        log_stream_ << formatted_message << std::endl;
+    }
+    if (stdout_logging_ && ms >= 50) {
+        std::cout << formatted_message << std::endl;
+    }
+}
+
+void event_logger::enable_stdout_logging(bool enable)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    stdout_logging_ = enable;
+    if (enable) {
+        start_time_ = std::chrono::steady_clock::now();
+    }
 }
 ```
 
 ---
 
-## Performance Considerations
+#### 2. No Size Limit on `events` Vector
 
-### 📊 Performance Analysis
+**Issue**: The `events` vector grows indefinitely as log messages are added. There's no maximum size limit or circular buffer implementation.
 
-| Operation | Complexity | Notes |
-|-----------|------------|-------|
-| `read_file` (cached) | O(1) | HashMap lookup |
-| `read_file` (network) | O(n) | HTTP request + JSON parse |
-| `list_directory` | O(n) | HTTP request + JSON parse |
-| `count_lines` | O(n) | Single pass through data |
-| LRU Update | O(n) | Linear search in `file_lru_` |
+**Risk**: Medium - memory consumption could grow unbounded
 
-**Bottleneck:** LRU list update (Line 647) is O(n):
+**Fix**: Add a maximum size limit (e.g., 1000 entries) and implement a circular buffer (see above).
+
+---
+
+#### 3. Missing Nullptr Check for `std::cout`
+
+**Issue**: The `log()` method writes to `std::cout` at line 45, but `std::cout` is a global stream that may not be available in all contexts (e.g., when running as a Windows GUI application, or when stdout is closed).
+
+**Risk**: Low - `std::cout` is typically always available in a terminal application
+
+**Fix**: Add a check or use `std::cerr` as a fallback for critical logging.
+
+---
+
+#### Bonus Issues
+
+- **B1. No Error Checking in `set_log_file()`**: Failed file opens silently ignored
+- **B2. `enable_stdout_logging()` Resets Timing**: Makes previous log entries show incorrect timestamps
+
+---
+
+## Review 5: `src/editor_events_ui.cpp`
+
+### Top 3 Issues
+
+#### 1. Duplicate Event Handler: `event_type::agent_response` Handled Twice
+
+**Issue**: The `agent_response` event type is handled **twice** in the same `dispatch_event_ui()` function:
+- **First handler** (lines 400-412): Updates agent windows by calling `on_agent_update()`
+- **Second handler** (lines 486-493): Cleans up headless agents
+
+**Problem**: The second handler will **never execute** because the first handler always returns early, and both handlers are in the same `if/else if` chain.
+
+**Risk**: High - headless agents will never be cleaned up, causing memory leaks
+
+**Fix**: Remove the duplicate handler or restructure the code:
 ```cpp
-auto it = std::find(file_lru_.begin(), file_lru_.end(), key);
+if (ev.type == event_type::agent_response) {
+    // 1. Update agent windows
+    for (auto &win : windows_) {
+        if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
+            if (agent_win->get_agent()->get_id() == ev.key_code) {
+                agent_win->on_agent_update();
+            }
+        }
+    }
+    
+    // 2. Clean up headless agents (no return here!)
+    headless_agents_.erase(
+        std::remove_if(headless_agents_.begin(), headless_agents_.end(),
+                       [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) { 
+                           return agent->get_id() == ev.key_code; 
+                       }),
+        headless_agents_.end());
+    return;
+}
 ```
 
-**Fix:** Use `std::list` with iterator caching or `std::unordered_map` for O(1) lookup.
+---
+
+#### 2. Missing Nullptr Check in `open_subagent()`
+
+**Issue**: In `open_subagent()` (lines 361-398), line 381 calls `aw->get_agent()->get_subagents()` without checking if `aw->get_agent()` returns `nullptr`.
+
+**Risk**: High - potential crash if `aw->get_agent()` returns `nullptr`
+
+**Fix**: Add a null check:
+```cpp
+if (auto aw = dynamic_cast<agent_window *>(win.get())) {
+    auto agent = aw->get_agent();
+    if (!agent) continue;
+    for (auto &sub : agent->get_subagents()) {
+        if (sub->get_id() == target_id) {
+            found_subagent = sub;
+            break;
+        }
+    }
+}
+```
 
 ---
 
-## Testing Recommendations
+#### 3. FIFO Resource Leak in `start_app()` (Debug Mode)
 
-### 🧪 Required Test Cases
+**Issue**: In `start_app()` (lines 540-637), when `use_debugger` is true, a FIFO is created but not removed on all error paths. Specifically, if `gdb_tw->start_process()` fails, the FIFO is not cleaned up.
 
-1. **Thread Safety:** Concurrent access to `github_vfs_provider`
-2. **Cache Eviction:** Verify LRU works correctly at 50-item limit
-3. **Error Handling:** Network failures, invalid JSON, 404 responses
-4. **URI Edge Cases:** Empty paths, special characters, very long URIs
-5. **Memory Management:** Large files, mmap failures, buffer overflows
-6. **Proxy Configuration:** Various proxy formats and environments
+**Risk**: High - file descriptor leak
 
----
+**Fix**: Ensure FIFO is removed on all error paths:
+```cpp
+// Generate a unique FIFO path
+static std::atomic<unsigned int> fifo_counter{0};
+fs::path fifo_path = fs::path(project_root) / std::format(".turbostar_fifo_{}_{}_{}", getpid(), app_id, ++fifo_counter);
+if (mkfifo(fifo_path.c_str(), 0600) != 0) {
+    logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
+    return {-1, -1};  // Exit early if FIFO creation fails
+}
 
-## Documentation Gaps
+// ... later, in error paths ...
+if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false)) {
+    logger.log("Failed to start gdbserver process.");
+    std::error_code ec;
+    fs::remove(fifo_path, ec);
+    return {-1, -1};
+}
 
-### 📚 Missing Documentation
-
-1. **URI Format Specification:** No documentation on valid `github://` URI formats
-2. **Cache Behavior:** No docs on cache sizes, eviction policy, or expiration
-3. **Error Codes:** No documentation on what `false`/`nullopt` means for each method
-4. **Thread Safety Contract:** No mention of thread safety guarantees (or lack thereof)
-
-**Suggestion:** Add Doxygen comments to public methods.
-
----
-
-## Recommendations Summary
-
-### Priority 1 (Blockers - Fix Before Merge)
-
-- [ ] Add thread synchronization to all cache accesses
-- [ ] Remove or log empty catch blocks
-- [ ] Fix HTTP client initialization race condition
-
-### Priority 2 (High - Fix Soon)
-
-- [ ] Extract proxy configuration to shared method
-- [ ] Add input validation to URI parsing
-- [ ] Improve error reporting for network failures
-
-### Priority 3 (Medium - Technical Debt)
-
-- [ ] Optimize LRU cache implementation
-- [ ] Add `noexcept` specifiers
-- [ ] Document URI format and cache behavior
-- [ ] Add rate limit handling for GitHub API
-
-### Priority 4 (Low - Nice to Have)
-
-- [ ] Extract magic numbers to constants
-- [ ] Add unit tests for edge cases
-- [ ] Consider adding file expiration to cache
+if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
+    logger.log("Failed to start gdb process.");
+    app_tw->stop_process();
+    std::error_code ec;
+    fs::remove(fifo_path, ec);  // Add this line
+    return {-1, -1};
+}
+```
 
 ---
 
-## Conclusion
+#### Bonus Issues
 
-The `virtual_file_system.cpp` file implements a sophisticated multi-scheme VFS with GitHub integration. The architecture is sound, but **thread safety issues must be addressed before this code can be considered production-ready**. The caching mechanism is well-designed but needs synchronization. Error handling is inconsistent and often silent, which will make debugging difficult in production.
-
-**Recommended Action:** Address Priority 1 items immediately, then schedule Priority 2 items for the next sprint.
+- **B1. `active_ask_user_promise_` Not Cleared on Error**: Caller may wait forever if dialog creation fails
+- **B2. `find_terminal_window()` Returns Raw Pointer**: Ownership semantics unclear
+- **B3. Race Condition in `write_to_run()`**: Values could change between check and write
 
 ---
 
-*Review generated by AI Assistant following TurboStar code review guidelines*
+## Document Information
+
+- **Last Updated**: 2026-05-31
+- **Files Reviewed**: `src/line.cpp`, `src/mcp/mcp_server.cpp`, `src/mcp/mcp_manager.cpp`, `src/event_logger.cpp`, `src/editor_events_ui.cpp`
