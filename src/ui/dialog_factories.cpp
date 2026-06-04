@@ -5,6 +5,7 @@
 #include "config_manager.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
+#include "mcp/mcp_manager.h"
 #include "project_manager.h"
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_dropdown.h"
@@ -1165,5 +1166,107 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 
 	dlg->set_focus_by_name("btn_yes");
 
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_mcp_config_dialog()
+{
+	auto dlg = std::make_unique<dialog>("MCP Servers", 64, 20);
+	auto &manager = agentlib::mcp_manager::get_instance();
+	const auto &servers = manager.get_servers();
+
+	std::vector<std::string> item_labels;
+	for (const auto &server : servers) {
+		std::string state_box = server->is_enabled() ? "[X]" : "[ ]";
+		std::string type_str = server->is_system() ? "System" : "Project";
+		std::string status_str = server->is_running() ? "Running" : "Stopped";
+		item_labels.push_back(state_box + " " + server->get_name() + " (" + type_str + ", " + status_str + ")");
+	}
+
+	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 2, 2, 60, 12, nullptr, nullptr);
+	lb->set_items(item_labels);
+	auto lb_ptr = lb.get();
+	dlg->add_child(std::move(lb));
+
+	int by = 16;
+	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto &manager = agentlib::mcp_manager::get_instance();
+			const auto &servers = manager.get_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("toggle:" + servers[idx]->get_name());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_tools", 18, by, " Tools... ", 'o', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto &manager = agentlib::mcp_manager::get_instance();
+			const auto &servers = manager.get_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("tools:" + servers[idx]->get_name());
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_close", 44, by, " Close ", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("mcp_server_list");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name)
+{
+	auto dlg = std::make_unique<dialog>("Tools - " + server_name, 64, 20);
+	auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
+	if (!server) {
+		dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Error: Server not found."));
+		dlg->add_child(std::make_unique<ui_button>("btn_close", 26, 16, " Close ", 'c', [d = dlg.get()]() {
+			d->set_action(dialog_result::cancelled);
+			d->set_result("cancel");
+		}));
+		return dlg;
+	}
+
+	auto tools = server->get_tools();
+	std::vector<std::string> item_labels;
+	for (const auto &tool : tools) {
+		std::string state_box = tool.enabled ? "[X]" : "[ ]";
+		item_labels.push_back(state_box + " " + tool.name + " - " + tool.description);
+	}
+
+	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 2, 2, 60, 12, nullptr, nullptr);
+	lb->set_items(item_labels);
+	auto lb_ptr = lb.get();
+	dlg->add_child(std::move(lb));
+
+	int by = 16;
+	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr, server_name]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
+			if (server) {
+				auto tools = server->get_tools();
+				if (idx < (int)tools.size()) {
+					d->set_action(dialog_result::confirmed);
+					d->set_result("toggle:" + tools[idx].name);
+				}
+			}
+		}
+	}));
+
+	dlg->add_child(std::make_unique<ui_button>("btn_close", 44, by, " Back ", 'b', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	dlg->set_focus_by_name("mcp_tool_list");
 	return dlg;
 }

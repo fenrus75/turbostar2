@@ -21,6 +21,25 @@ void tool_registry::register_validator(validator_factory factory)
 	}
 }
 
+void tool_registry::unregister_validator(const std::string &name)
+{
+	validator_factories_.erase(name);
+}
+
+static std::string serialize_mcp_name(const std::string &name)
+{
+	if (!name.starts_with("mcp:")) {
+		return name;
+	}
+	std::string res = name;
+	size_t pos = 0;
+	while ((pos = res.find(':', pos)) != std::string::npos) {
+		res.replace(pos, 1, "__");
+		pos += 2;
+	}
+	return res;
+}
+
 nlohmann::json tool_registry::get_tools_json() const
 {
 	nlohmann::json tools_array = nlohmann::json::array();
@@ -35,11 +54,14 @@ nlohmann::json tool_registry::get_tools_json() const
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}
 
-		nlohmann::json tool_schema = {{"type", "function"},
-					      {"function",
-					       {{"name", validator->get_name()},
-						{"description", desc},
-						{"parameters", validator->get_parameters_schema()}}}};
+		std::string tool_name = validator->get_name();
+		if (tool_name.starts_with("mcp:")) {
+			tool_name = serialize_mcp_name(tool_name);
+		}
+
+		nlohmann::json tool_schema = {
+		    {"type", "function"},
+		    {"function", {{"name", tool_name}, {"description", desc}, {"parameters", validator->get_parameters_schema()}}}};
 		tools_array.push_back(tool_schema);
 	}
 	return tools_array;
@@ -59,16 +81,15 @@ nlohmann::json tool_registry::get_gemini_tools_json() const
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}
 
-		nlohmann::json func_decl = {
-			{"name", validator->get_name()},
-			{"description", desc},
-			{"parameters", validator->get_parameters_schema()}
-		};
+		std::string tool_name = validator->get_name();
+		if (tool_name.starts_with("mcp:")) {
+			tool_name = serialize_mcp_name(tool_name);
+		}
+
+		nlohmann::json func_decl = {{"name", tool_name}, {"description", desc}, {"parameters", validator->get_parameters_schema()}};
 		tools_array.push_back(func_decl);
 	}
-	return nlohmann::json::array({
-		{ {"functionDeclarations", tools_array} }
-	});
+	return nlohmann::json::array({{{"functionDeclarations", tools_array}}});
 }
 
 bool tool_registry::is_tool_silent(const std::string &name) const
@@ -101,8 +122,8 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	}
 
 	if (ctx.active_agent && ctx.active_agent->is_planning() && !validator->is_pure() && name != "exit_plan_mode") {
-		res.error_message =
-		    "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name + "'. You must call exit_plan_mode first.";
+		res.error_message = "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
+				    "'. You must call exit_plan_mode first.";
 		return res;
 	}
 

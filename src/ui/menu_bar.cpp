@@ -44,14 +44,20 @@ menu_bar::menu_bar()
 	      {"Run Settings...", event_type::run_settings, 's', "", false}}},
 	    {"Options",
 	     'p',
-	     {{"Preferences...", event_type::settings, 'p', "", false}, {"Models...", event_type::models_config, 'M', "", false}}},
+	     {{"Preferences...", event_type::settings, 'p', "", false},
+	      {"Models...", event_type::models_config, 'M', "", false},
+	      {"MCP Servers...", event_type::mcp_config, 'C', "", false}}},
 	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},
 	    {"Agent",
 	     'a',
 	     {{"Open Chat...", event_type::open_agent, 'o', "", false},
 	      {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
 	    {"Window", 'w', {}},
-	    {"Help", 'h', {{"Key bindings", event_type::help, 'k', "F1", false}, {"Tool status", event_type::tool_status, 't', "", false}, {"About...", event_type::about, 'a', "", false}}}};
+	    {"Help",
+	     'h',
+	     {{"Key bindings", event_type::help, 'k', "F1", false},
+	      {"Tool status", event_type::tool_status, 't', "", false},
+	      {"About...", event_type::about, 'a', "", false}}}};
 }
 
 bool menu_bar::handle_alt_key(char c, event_queue &queue)
@@ -376,8 +382,7 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 				const auto &item = cat.items[selected_item_];
 				ev.type = item.action;
 				ev.key_code = item.action_key_code;
-				event_logger::get_instance().log("Menu (mouse) pushing event: {}",
-								 static_cast<int>(ev.type));
+				event_logger::get_instance().log("Menu (mouse) pushing event: {}", static_cast<int>(ev.type));
 				queue.push(ev);
 				close_menu();
 			}

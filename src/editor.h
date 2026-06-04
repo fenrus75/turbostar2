@@ -1,10 +1,10 @@
 #pragma once
 
+#include <chrono>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <map>
-#include <chrono>
 #include "agentlib/document_provider.h"
 #include "document.h"
 #include "event_queue.h"
@@ -77,7 +77,8 @@ class editor : public agentlib::document_provider
 	bool apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload) override;
 	void save_all_documents() override;
 
-	void set_status_message(const std::string &message, int priority = 0, std::chrono::milliseconds duration = std::chrono::milliseconds::max());
+	void set_status_message(const std::string &message, int priority = 0,
+				std::chrono::milliseconds duration = std::chrono::milliseconds::max());
 	void clear_status_message(int priority);
 	std::string get_active_status_message() const;
 
@@ -148,12 +149,15 @@ class editor : public agentlib::document_provider
 		model_edit,
 		model_selection,
 		welcome,
-		run_settings
+		run_settings,
+		mcp_config,
+		mcp_tools
 	};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
+	std::string configuring_mcp_server_;
 
 	search_params current_search_;
 	std::string search_input_buffer_;

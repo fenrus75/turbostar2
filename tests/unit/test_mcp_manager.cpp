@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "../../src/agentlib/tool_registry.h"
 #include "../../src/config_manager.h"
 #include "../../src/event_logger.h"
 #include "../../src/mcp/mcp_manager.h"
@@ -37,6 +38,83 @@ int main()
 
 	setenv("HOME", temp_home.c_str(), 1);
 
+	// Write the Python mock MCP server script
+	std::string python_mock = R"(import sys
+import json
+
+def main():
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            req = json.loads(line)
+            if "method" in req:
+                method = req["method"]
+                req_id = req.get("id")
+                if method == "initialize":
+                    resp = {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "protocolVersion": "2024-11-05",
+                            "capabilities": {},
+                            "serverInfo": {"name": "mock-server", "version": "1.0.0"}
+                        }
+                    }
+                    sys.stdout.write(json.dumps(resp) + "\n")
+                    sys.stdout.flush()
+                elif method == "tools/list":
+                    resp = {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "tools": [
+                                {
+                                    "name": "mock_tool",
+                                    "description": "A mock test tool",
+                                    "inputSchema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "msg": {"type": "string"}
+                                        },
+                                        "required": ["msg"]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                    sys.stdout.write(json.dumps(resp) + "\n")
+                    sys.stdout.flush()
+                elif method == "tools/call":
+                    tool_name = req["params"]["name"]
+                    args = req["params"]["arguments"]
+                    msg_val = args.get("msg", "default")
+                    
+                    resp = {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Called " + tool_name + " with msg: " + msg_val
+                                }
+                            ]
+                        }
+                    }
+                    sys.stdout.write(json.dumps(resp) + "\n")
+                    sys.stdout.flush()
+        except Exception as e:
+            sys.stderr.write(f"Error: {e}\n")
+            sys.stderr.flush()
+
+if __name__ == "__main__":
+    main()
+)";
+
+	write_file(temp_proj / "mock_mcp.py", python_mock);
+
 	// 2. Setup mock discovery files
 	std::string claude_json = R"({
 		"mcpServers": {
@@ -70,6 +148,11 @@ int main()
 			"conflict-server": {
 				"command": "uvx",
 				"args": ["local-args-override"]
+			},
+			"mock-python-server": {
+				"command": "python3",
+				"args": ["-u", ")" +
+				   (temp_proj / "mock_mcp.py").string() + R"("]
 			}
 		}
 	})";
@@ -89,9 +172,9 @@ int main()
 
 	const auto &servers = manager.get_servers();
 
-	// Assert discovered count (everything-system, gemini-system, project-local, conflict-server(project overrides))
+	// Assert discovered count (everything-system, gemini-system, project-local, conflict-server(project overrides), mock-python-server)
 	std::cout << "Servers found: " << servers.size() << std::endl;
-	assert(servers.size() == 4);
+	assert(servers.size() == 5);
 
 	auto s_everything = manager.find_server("everything-system");
 	assert(s_everything != nullptr);
@@ -118,7 +201,6 @@ int main()
 
 	// 4. Test Twist in Conflict Resolution:
 	// If the global one is enabled and the local one is disabled, the global one should win.
-	// Reset state
 	config_manager::get_instance().set_mcp_server_enabled("conflict-server", false, false); // disabled project-local
 	config_manager::get_instance().set_mcp_server_enabled("conflict-server", true, true);	// enabled system-level
 	manager.discover_and_load(temp_proj.string());
@@ -139,6 +221,53 @@ int main()
 	// Reload config manager
 	config_manager::get_instance().load();
 	assert(config_manager::get_instance().is_mcp_server_enabled("project-local", false) == true);
+
+	// 6. Test Active Server Spawning & JSON-RPC Handshake / Tool Execution
+	std::cout << "Testing server start and execution..." << std::endl;
+	auto s_mock = manager.find_server("mock-python-server");
+	assert(s_mock != nullptr);
+	assert(s_mock->is_enabled() == false); // Project servers disabled by default
+	s_mock->set_enabled(true);
+	s_mock->set_system(true); // Bypass sandboxing for unit tests
+
+	// Start enabled servers
+	if (auto s = manager.find_server("everything-system"))
+		s->set_enabled(false);
+	if (auto s = manager.find_server("gemini-system"))
+		s->set_enabled(false);
+	if (auto s = manager.find_server("project-local"))
+		s->set_enabled(false);
+	if (auto s = manager.find_server("conflict-server"))
+		s->set_enabled(false);
+
+	manager.start_active_servers();
+	assert(s_mock->is_running() == true);
+	assert(s_mock->get_tools().size() == 1);
+	assert(s_mock->get_tools()[0].name == "mock_tool");
+
+	// Schema serialization check (get_tools_json should map colons to __)
+	nlohmann::json tools_json = tool_registry::get_instance().get_tools_json();
+	std::cout << "Discovered tools count: " << tools_json.size() << std::endl;
+	bool found_serialized_tool = false;
+	for (const auto &t : tools_json) {
+		if (t.contains("function") && t["function"].contains("name") &&
+		    t["function"]["name"].get<std::string>() == "mcp__mock-python-server__mock_tool") {
+			found_serialized_tool = true;
+			break;
+		}
+	}
+	assert(found_serialized_tool == true);
+
+	// Tool execution check
+	tool_context ctx;
+	std::string result =
+	    tool_registry::get_instance().execute_tool("mcp:mock-python-server:mock_tool", "{\"msg\": \"antigravity\"}", ctx);
+	std::cout << "Tool execution output: " << result << std::endl;
+	assert(result == "Called mock_tool with msg: antigravity");
+
+	// Stop servers
+	manager.stop_all_servers();
+	assert(s_mock->is_running() == false);
 
 	// Cleanup files
 	fs::remove_all(temp_home);

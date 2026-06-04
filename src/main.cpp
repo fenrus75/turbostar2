@@ -12,6 +12,7 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "mcp/mcp_manager.h"
 #include "project_manager.h"
 
 namespace fs = std::filesystem;
@@ -208,6 +209,11 @@ int main(int argc, char **argv)
 		}
 	}
 
+	// Initialize and start MCP servers
+	std::string project_root = project_manager::get_instance().get_project_root();
+	agentlib::mcp_manager::get_instance().discover_and_load(project_root);
+	agentlib::mcp_manager::get_instance().start_active_servers();
+
 	if (!override_model_id.empty()) {
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
@@ -233,6 +239,7 @@ int main(int argc, char **argv)
 	}
 
 	logger.log("Exiting application loop.");
+	agentlib::mcp_manager::get_instance().stop_all_servers();
 	project_manager::get_instance().shutdown();
 
 	logger.log("Application exiting main().");

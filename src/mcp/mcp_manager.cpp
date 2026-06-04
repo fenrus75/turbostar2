@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "../agentlib/tool_registry.h"
 #include "../config_manager.h"
 #include "../event_logger.h"
 
@@ -55,7 +56,6 @@ std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) co
 
 void mcp_manager::save_configs(const std::string &project_root)
 {
-	// Sync the manager's memory states to config_manager
 	auto &cfg = config_manager::get_instance();
 	for (const auto &server : servers_) {
 		cfg.set_mcp_server_enabled(server->get_name(), server->is_system(), server->is_enabled());
@@ -64,10 +64,100 @@ void mcp_manager::save_configs(const std::string &project_root)
 		}
 	}
 
-	// Persist the actual config files
 	cfg.save_global();
 	if (!project_root.empty()) {
 		cfg.save_project(project_root);
+	}
+}
+
+void mcp_manager::start_active_servers()
+{
+	for (auto &server : servers_) {
+		if (server->is_enabled()) {
+			if (server->start()) {
+				for (const auto &tool : server->get_tools()) {
+					if (tool.enabled) {
+						std::string server_name = server->get_name();
+						bool is_system = server->is_system();
+						tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
+							return std::make_unique<mcp_tool_validator>(server_name, tool, is_system);
+						});
+					}
+				}
+			}
+		}
+	}
+}
+
+void mcp_manager::stop_all_servers()
+{
+	for (auto &server : servers_) {
+		server->stop();
+		for (const auto &tool : server->get_tools()) {
+			tool_registry::get_instance().unregister_validator("mcp:" + server->get_name() + ":" + tool.name);
+		}
+	}
+}
+
+void mcp_manager::toggle_server(const std::string &name, bool enable)
+{
+	auto server = find_server(name);
+	if (!server) {
+		return;
+	}
+
+	if (enable == server->is_enabled()) {
+		return;
+	}
+
+	server->set_enabled(enable);
+	if (enable) {
+		if (server->start()) {
+			for (const auto &tool : server->get_tools()) {
+				if (tool.enabled) {
+					std::string server_name = server->get_name();
+					bool is_system = server->is_system();
+					tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
+						return std::make_unique<mcp_tool_validator>(server_name, tool, is_system);
+					});
+				}
+			}
+		}
+	} else {
+		server->stop();
+		for (const auto &tool : server->get_tools()) {
+			tool_registry::get_instance().unregister_validator("mcp:" + server->get_name() + ":" + tool.name);
+		}
+	}
+}
+
+void mcp_manager::toggle_tool(const std::string &server_name, const std::string &tool_name, bool enable)
+{
+	auto server = find_server(server_name);
+	if (!server) {
+		return;
+	}
+
+	auto tools = server->get_tools();
+	for (auto &tool : tools) {
+		if (tool.name == tool_name) {
+			if (tool.enabled == enable) {
+				return;
+			}
+			tool.enabled = enable;
+			server->set_tools(tools);
+
+			std::string reg_name = "mcp:" + server_name + ":" + tool_name;
+			if (enable && server->is_running()) {
+				bool is_system = server->is_system();
+				tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
+					return std::make_unique<mcp_tool_validator>(server_name, tool, is_system);
+				});
+			} else {
+				tool_registry::get_instance().unregister_validator(reg_name);
+			}
+			break;
+		}
 	}
 }
 
@@ -124,17 +214,13 @@ void mcp_manager::load_servers_from_file(const std::string &path, bool is_system
 
 			server->auto_detect_type();
 
-			// Read enabled status from config with priority-based defaults (system = true, project = false)
 			bool default_enabled = is_system;
 			bool enabled = cfg.is_mcp_server_enabled(name, is_system, default_enabled);
 			server->set_enabled(enabled);
 
-			// Conflict resolution
 			auto existing = find_server(name);
 			if (existing) {
 				if (existing->is_system() && !is_system) {
-					// Local project server definition overrides global system definition with a twist:
-					// If global one is enabled and local is disabled, the global one still wins and remains active.
 					bool global_enabled = existing->is_enabled();
 					bool local_enabled = enabled;
 					if (global_enabled && !local_enabled) {
@@ -142,14 +228,12 @@ void mcp_manager::load_servers_from_file(const std::string &path, bool is_system
 						    "MCP Conflict: Keeping global server '{}' over disabled project server.", name);
 						continue;
 					} else {
-						// Overwrite system with project definition
 						servers_.erase(std::remove(servers_.begin(), servers_.end(), existing), servers_.end());
 						servers_.push_back(server);
 						event_logger::get_instance().log(
 						    "MCP Conflict: Overriding global server '{}' with project definition.", name);
 					}
 				} else {
-					// Duplicate in same category: replace
 					servers_.erase(std::remove(servers_.begin(), servers_.end(), existing), servers_.end());
 					servers_.push_back(server);
 				}

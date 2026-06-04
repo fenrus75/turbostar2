@@ -291,6 +291,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::mcp_config) {
+		logger.log("Dispatching mcp_config event.");
+		active_dialog_ = create_mcp_config_dialog();
+		active_dialog_mode_ = dialog_mode::mcp_config;
+		set_focus(focus_target::dialog, "mcp_config");
+		return;
+	}
+
 	if (ev.type == event_type::agent_switch_model) {
 		int target_id = ev.key_code;
 		if (target_id == 0) {

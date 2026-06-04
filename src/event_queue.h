@@ -71,9 +71,10 @@ enum class event_type {
 	open_file,		    ///< Request to open a file in the editor
 	run_program,		    ///< Request to run the main program executable
 	run_settings,		    ///< Request to show run settings/options dialog
-	run_in_debugger,		    ///< Request to run the main program in debugger
+	run_in_debugger,	    ///< Request to run the main program in debugger
 	tool_status,		    ///< Request to show the Tool status dialog
-	notify_undo_changed	    ///< Notification that the undo stack has changed
+	notify_undo_changed,	    ///< Notification that the undo stack has changed
+	mcp_config		    ///< Request to show MCP configuration dialog
 };
 
 namespace status_priorities
@@ -128,7 +129,7 @@ struct editor_event {
 	std::string payload;			  ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
 	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
-	int priority{0};                          ///< Status message priority (0 = lowest)
+	int priority{0};			  ///< Status message priority (0 = lowest)
 
 	// Payload for prompt_user
 	std::vector<std::string> prompt_options;
