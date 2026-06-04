@@ -210,9 +210,89 @@ void test_elf_highlighter()
 	assert(hl.get_next_symbol_offset(450) == 450);
 }
 
+void test_png_highlighter()
+{
+	std::vector<uint8_t> data(100, 0);
+
+	// PNG Signature (8 bytes)
+	data[0] = 0x89;
+	data[1] = 0x50;
+	data[2] = 0x4E;
+	data[3] = 0x47;
+	data[4] = 0x0D;
+	data[5] = 0x0A;
+	data[6] = 0x1A;
+	data[7] = 0x0A;
+
+	// IHDR chunk (starts at offset 8): length 13
+	// length (4 bytes): 13 (Big Endian -> 0 0 0 13)
+	data[8] = 0; data[9] = 0; data[10] = 0; data[11] = 13;
+	// type (4 bytes): IHDR
+	data[12] = 'I'; data[13] = 'H'; data[14] = 'D'; data[15] = 'R';
+	// data (13 bytes):
+	// width (4 bytes): 100 (0 0 0 100) -> data[16..19]
+	data[19] = 100;
+	// height (4 bytes): 200 (0 0 0 200) -> data[20..23]
+	data[23] = 200;
+	// bit depth (1 byte): 8
+	data[24] = 8;
+	// color type (1 byte): 2
+	data[25] = 2;
+	// compression, filter, interlace (1 byte each): 0
+	data[26] = 0; data[27] = 0; data[28] = 0;
+	// CRC (4 bytes): data[29..32]
+
+	// IEND chunk (starts at offset 8 + 12 + 13 = 33): length 0
+	// length (4 bytes): 0
+	data[33] = 0; data[34] = 0; data[35] = 0; data[36] = 0;
+	// type (4 bytes): IEND
+	data[37] = 'I'; data[38] = 'E'; data[39] = 'N'; data[40] = 'D';
+	// CRC (4 bytes): data[41..44]
+
+	png_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+
+	bool success = hl.parse(data);
+	assert(success == true);
+
+	// Test signature
+	highlight_info inf = hl.get_info(data, 0);
+	assert(inf.type == hex_semantic_type::magic);
+	assert(inf.description.find("Signature") != std::string::npos);
+
+	// Test IHDR length field (offset 8)
+	inf = hl.get_info(data, 8);
+	assert(inf.type == hex_semantic_type::file_header);
+	assert(inf.description.find("Length = 13") != std::string::npos);
+
+	// Test IHDR type field (offset 12)
+	inf = hl.get_info(data, 12);
+	assert(inf.type == hex_semantic_type::sect_header);
+	assert(inf.description.find("Type") != std::string::npos);
+
+	// Test IHDR data (offset 16)
+	inf = hl.get_info(data, 16);
+	assert(inf.type == hex_semantic_type::code_section);
+	assert(inf.description.find("Width = 100") != std::string::npos);
+	assert(inf.description.find("Height = 200") != std::string::npos);
+	assert(inf.description.find("ColorType = 2") != std::string::npos);
+
+	// Test get_next_symbol_offset
+	assert(hl.get_next_symbol_offset(0) == 8);    // first chunk (IHDR) starts at 8
+	assert(hl.get_next_symbol_offset(8) == 33);   // next chunk (IEND) starts at 33
+	assert(hl.get_next_symbol_offset(33) == 33);  // no more chunks
+
+	// Test auto-detect registry
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<png_hex_highlighter *>(detected.get()) != nullptr);
+}
+
 int main()
 {
 	test_elf_highlighter();
+	test_png_highlighter();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }
