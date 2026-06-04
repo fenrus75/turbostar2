@@ -40,18 +40,18 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
-		// 3. Security case: reject overly long title (> 200 characters)
+		// 3. Security case: reject overly long title (> 500 characters)
 		{
-			std::string long_title(201, 'a');
+			std::string long_title(501, 'a');
 			auto prep = registry.prepare_tool("agent_mark_episode",
 				"{\"title\": \"" + long_title + "\", \"summary\": \"Summary\", \"tags\": []}", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
-		// 4. Security case: reject overly long summary (> 200 characters)
+		// 4. Security case: reject overly long summary (> 500 characters)
 		{
-			std::string long_summary(201, 'b');
+			std::string long_summary(501, 'b');
 			auto prep = registry.prepare_tool("agent_mark_episode",
 				"{\"title\": \"Title\", \"summary\": \"" + long_summary + "\", \"tags\": []}", ctx);
 			assert(prep.tool == nullptr);

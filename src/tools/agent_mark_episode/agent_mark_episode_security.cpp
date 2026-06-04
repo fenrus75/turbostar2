@@ -34,16 +34,16 @@ bool agent_mark_episode_validator::validate_args_impl(const nlohmann::json& raw_
             out_error = "Title cannot be empty";
             return false;
         }
-        if (args_.title.length() > 200) {
-            out_error = "Title length exceeds limit of 200 characters";
+        if (args_.title.length() > 500) {
+            out_error = "Title length exceeds limit of 500 characters";
             return false;
         }
         if (args_.summary.empty()) {
             out_error = "Summary cannot be empty";
             return false;
         }
-        if (args_.summary.length() > 200) {
-            out_error = "Summary length exceeds limit of 200 characters";
+        if (args_.summary.length() > 500) {
+            out_error = "Summary length exceeds limit of 500 characters";
             return false;
         }
         return true;
