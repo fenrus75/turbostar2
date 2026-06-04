@@ -109,6 +109,35 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text == "/mcp") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::mcp_config;
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
+		if (trimmed_text == "/skills") {
+			input_box_->set_buffer(""); // Clear the box
+			auto &skills = skill_manager::get_instance().get_skills();
+			std::string skills_text = "Available Skills:\n";
+			if (skills.empty()) {
+				skills_text += "  (No skills available)";
+			} else {
+				for (const auto &s : skills) {
+					skills_text += std::format("- {} ({})\n", s.name, s.description);
+				}
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/save")) {
 			input_box_->set_buffer(""); // Clear the box
 			std::string filepath;
@@ -161,7 +190,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
 					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
 					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-					       "  /model            - Switch the AI model for this agent";
+					       "  /model            - Switch the AI model for this agent\n"
+					       "  /mcp              - Open the MCP Servers dialog\n"
+					       "  /skills           - List all available agent skills";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
 			invalidate();
@@ -278,7 +309,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (text.starts_with("/")) {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model";
+			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);

@@ -48,7 +48,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted."}}},
 		      {"end_line",
 		       {{"type", "integer"},
-			{"description", "The 1-based line number to end reading at (inclusive)."}}}}},
+			{"description", "The 1-based line number to end reading at (inclusive). This parameter is optional. If omitted, the tool reads all lines from start_line to the end of the file."}}}}},
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 

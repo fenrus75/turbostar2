@@ -1,13 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- the fs_read_lines call description is not explicit enough that the end argument is optional and that leaving it out gives
-   the agent the whole file .. some models are getting confused and end up reasoning a very long time about this.
-
 - MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
-
-- a /mcp command in the agent window that just opens the existing MCP dialog
-- we should consider a /skills command as well
 
 
 - feature: github copilot oauth authentication
@@ -114,6 +108,8 @@
 # done items (move items here on completion)
 
 ## 04-06-2026
+- added `/mcp` and `/skills` slash commands in the agent TUI window, enabling users to launch the MCP Servers configuration dialog or list available skills directly from chat.
+- clarified the `fs_read_lines` schema description for `end_line` to explicitly state that it is optional and defaults to reading to the end of the file, preventing LLM reasoning loop issues.
 - rewrote the MCP configuration and tool dialogs from scratch, removing the problematic group boxes to restore native container-based tab ordering, and spacing controls symmetrically within the 64x20 dialog bounds.
 - implemented space key toggling of listbox checkboxes in MCP config and tools dialogs, including selection index preservation on toggle and back-button navigation. Added unit tests in `tests/unit/test_listbox.cpp`.
 - implemented Bandit security scanning for Python MCP servers. Discovered Python MCPs have their target script scanned using Bandit (if installed); system-level MCPs are disabled by default if critical high-severity issues are detected, and starting any Python MCP is blocked if Bandit fails the scan. Added a comprehensive test case in `test_mcp_manager.cpp`.
