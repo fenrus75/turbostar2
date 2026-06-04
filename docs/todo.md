@@ -1,5 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- the fs_read_lines call description is not explicit enough that the end argument is optional and that leaving it out gives
+   the agent the whole file 
+
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 	- two parts:
@@ -20,7 +23,7 @@
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- MCP support
+- MCP support									
 	- each tool will get a prefix to make sure they are unique
 	- each MCP should have its own "uv sandbox"
 	- permission model: need to have permission BEFORE executing anything from the project directory

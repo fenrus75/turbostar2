@@ -675,6 +675,12 @@ test_virtual_file_system = executable('test_virtual_file_system',
   include_directories: 'src')
 test('unit_virtual_file_system', test_virtual_file_system)
 
+test_mcp_manager = executable('test_mcp_manager',
+  'tests/unit/test_mcp_manager.cpp',
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_mcp_manager', test_mcp_manager)
+
 test_github_vfs = executable('test_github_vfs',
   ['tests/unit/test_github_vfs.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],

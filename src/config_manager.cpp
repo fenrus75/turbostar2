@@ -82,6 +82,29 @@ void config_manager::load_from_file(const std::string &path)
 			run_target_mode_ = value;
 		} else if (key == "gdb_auto_continue") {
 			gdb_auto_continue_ = (value == "true" || value == "1");
+		} else if (key.starts_with("mcp.")) {
+			bool is_project = (path.find(".turbostar") == std::string::npos);
+			size_t dot1 = 4; // length of "mcp."
+			size_t dot2 = key.find('.', dot1);
+			if (dot2 != std::string::npos) {
+				std::string server_name = key.substr(dot1, dot2 - dot1);
+				std::string subkey = key.substr(dot2 + 1);
+				if (subkey == "enabled") {
+					if (is_project) {
+						project_mcp_servers_enabled_[server_name] = (value == "true" || value == "1");
+					} else {
+						mcp_servers_enabled_[server_name] = (value == "true" || value == "1");
+					}
+				} else if (subkey.ends_with(".enabled")) {
+					std::string tool_name = subkey.substr(0, subkey.length() - 8);
+					if (is_project) {
+						project_mcp_tools_enabled_[server_name + ":" + tool_name] =
+						    (value == "true" || value == "1");
+					} else {
+						mcp_tools_enabled_[server_name + ":" + tool_name] = (value == "true" || value == "1");
+					}
+				}
+			}
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from {}", path);
@@ -98,7 +121,8 @@ void config_manager::save_project(const std::string &target_path)
 	std::string path = target_path;
 
 	// If it's a directory (like a repo root), append config.ini
-	if (fs::is_directory(path) || (!fs::exists(path) && path.find(".turbostar") == std::string::npos && path.find("config.ini") == std::string::npos)) {
+	if (fs::is_directory(path) ||
+	    (!fs::exists(path) && path.find(".turbostar") == std::string::npos && path.find("config.ini") == std::string::npos)) {
 		path = fs::path(path) / "config.ini";
 	}
 
@@ -124,5 +148,86 @@ void config_manager::save_project(const std::string &target_path)
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
 
+	bool is_project = (target_path.find(".turbostar") == std::string::npos);
+
+	if (is_project) {
+		for (const auto &[server, enabled] : project_mcp_servers_enabled_) {
+			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
+		}
+		for (const auto &[key_pair, enabled] : project_mcp_tools_enabled_) {
+			size_t colon = key_pair.find(':');
+			if (colon != std::string::npos) {
+				std::string server = key_pair.substr(0, colon);
+				std::string tool = key_pair.substr(colon + 1);
+				file << "mcp." << server << "." << tool << ".enabled=" << (enabled ? "true" : "false") << "\n";
+			}
+		}
+	} else {
+		for (const auto &[server, enabled] : mcp_servers_enabled_) {
+			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
+		}
+		for (const auto &[key_pair, enabled] : mcp_tools_enabled_) {
+			size_t colon = key_pair.find(':');
+			if (colon != std::string::npos) {
+				std::string server = key_pair.substr(0, colon);
+				std::string tool = key_pair.substr(colon + 1);
+				file << "mcp." << server << "." << tool << ".enabled=" << (enabled ? "true" : "false") << "\n";
+			}
+		}
+	}
+
 	event_logger::get_instance().log("Configuration saved to {}", path);
+}
+
+bool config_manager::is_mcp_server_enabled(const std::string &server_name, bool is_system, bool default_val) const
+{
+	if (is_system) {
+		auto it = mcp_servers_enabled_.find(server_name);
+		if (it != mcp_servers_enabled_.end()) {
+			return it->second;
+		}
+	} else {
+		auto it = project_mcp_servers_enabled_.find(server_name);
+		if (it != project_mcp_servers_enabled_.end()) {
+			return it->second;
+		}
+	}
+	return default_val;
+}
+
+void config_manager::set_mcp_server_enabled(const std::string &server_name, bool is_system, bool enabled)
+{
+	if (is_system) {
+		mcp_servers_enabled_[server_name] = enabled;
+	} else {
+		project_mcp_servers_enabled_[server_name] = enabled;
+	}
+}
+
+bool config_manager::is_mcp_tool_enabled(const std::string &server_name, const std::string &tool_name, bool is_system,
+					 bool default_val) const
+{
+	std::string key = server_name + ":" + tool_name;
+	if (is_system) {
+		auto it = mcp_tools_enabled_.find(key);
+		if (it != mcp_tools_enabled_.end()) {
+			return it->second;
+		}
+	} else {
+		auto it = project_mcp_tools_enabled_.find(key);
+		if (it != project_mcp_tools_enabled_.end()) {
+			return it->second;
+		}
+	}
+	return default_val;
+}
+
+void config_manager::set_mcp_tool_enabled(const std::string &server_name, const std::string &tool_name, bool is_system, bool enabled)
+{
+	std::string key = server_name + ":" + tool_name;
+	if (is_system) {
+		mcp_tools_enabled_[key] = enabled;
+	} else {
+		project_mcp_tools_enabled_[key] = enabled;
+	}
 }

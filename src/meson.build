@@ -57,7 +57,9 @@ agentlib_sources = files(
   'agentlib/api_formatter.cpp',
   'agentlib/skill_manager.cpp',
   'agentlib/compaction_engine.cpp',
-  'agentlib/context_dnn.cpp'
+  'agentlib/context_dnn.cpp',
+  'mcp/mcp_server.cpp',
+  'mcp/mcp_manager.cpp'
 )
 
 ui_sources = files(
