@@ -17,6 +17,7 @@ std::string agent_set_status_tool::execute(agentlib::tool_context &ctx)
 		editor_event ev;
 		ev.type = event_type::set_transient_status;
 		ev.payload = args_.message;
+		ev.priority = status_priorities::INFO;
 		ctx.queue->push(ev);
 		set_success(ctx);
 		return "Status message updated.";

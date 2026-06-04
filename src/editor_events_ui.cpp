@@ -332,11 +332,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload = "Saved conversation to " + filepath;
+			status_ev.priority = status_priorities::INFO;
 			global_queue_.push(status_ev);
 		} else {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload = "Error: No active agent window.";
+			status_ev.priority = status_priorities::WARNING;
 			global_queue_.push(status_ev);
 		}
 		return;
@@ -483,8 +485,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::set_transient_status) {
-		transient_status_message_ = ev.payload;
-		transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		set_status_message(ev.payload, ev.priority, std::chrono::seconds(5));
 		return;
 	}
 

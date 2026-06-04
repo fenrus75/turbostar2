@@ -24,7 +24,7 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		if (text.length() > static_cast<size_t>(COLS - 20)) {
 			text = text.substr(0, COLS - 20) + "...";
 		}
-		hover_text_ = text;
+		set_status_message(text, status_priorities::HOVER);
 		return;
 	}
 

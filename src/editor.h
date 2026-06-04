@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
+#include <chrono>
 #include "agentlib/document_provider.h"
 #include "document.h"
 #include "event_queue.h"
@@ -74,6 +76,10 @@ class editor : public agentlib::document_provider
 	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string &safe_path) const override;
 	bool apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload) override;
 	void save_all_documents() override;
+
+	void set_status_message(const std::string &message, int priority = 0, std::chrono::milliseconds duration = std::chrono::milliseconds::max());
+	void clear_status_message(int priority);
+	std::string get_active_status_message() const;
 
       private:
 	void new_window(const std::string &filename);
@@ -165,13 +171,14 @@ class editor : public agentlib::document_provider
 
 	std::vector<std::shared_ptr<agentlib::ai_agent>> headless_agents_;
 
-	std::string transient_status_message_;
-	std::chrono::steady_clock::time_point transient_status_expiry_;
+	struct status_message {
+		std::string text;
+		std::chrono::steady_clock::time_point expiry;
+	};
+	std::map<int, status_message> active_status_messages_;
 
 	std::string editing_model_id_;
 	int switching_agent_id_{-1};
-
-	std::string hover_text_;
 	std::string get_search_autocomplete() const;
 
 	bool is_running_{true};

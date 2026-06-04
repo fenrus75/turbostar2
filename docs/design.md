@@ -150,6 +150,15 @@ Based on the Turbo Pascal interface, Turbostar implements the following core UI 
   - **Border**: Double-line box drawing characters over a light gray background.
   - **Shadow**: A black block-character shadow offset to the right and bottom to simulate depth.
   - **Controls**: Interactive buttons with distinct background colors (e.g., Green for OK) and text labels.
+- **Status Message Priority System**:
+  - To prevent multiple active status bar messages (LSP hover help, compiler/build errors, agent statuses, transient dialog notifications) from competing for screen space, the editor implements a priority-based status message manager.
+  - Message sources are mapped to distinct, defined priorities in `status_priorities`:
+    - `HOVER` (Priority 10): Local hover help (e.g. LSP symbol hovers).
+    - `INFO` (Priority 20): General transient info (e.g. "Saved conversation to...", "Agent: Thinking...").
+    - `WARNING` (Priority 30): Compiler build errors or LSP diagnostic messages at the cursor.
+    - `CRITICAL` (Priority 40): Fatal alerts or system warnings.
+  - At render time, the status bar displays the active, non-expired message with the highest priority. When a higher priority message is cleared or expires, the display seamlessly falls back to the next highest active status message.
+
 
 ## Testing and Diagnostics
 

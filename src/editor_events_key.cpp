@@ -315,7 +315,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			old_x = doc->get_cursor_x();
 		}
 
-		hover_text_ = ""; // Clear hover text on any input
+		clear_status_message(status_priorities::HOVER); // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
 		// Global shortcuts
@@ -933,8 +933,7 @@ void editor::launch_inline_agent(const std::string &prompt)
 
 	headless_agents_.push_back(agent);
 
-	transient_status_message_ = "Agent: Thinking...";
-	transient_status_expiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	set_status_message("Agent: Thinking...", status_priorities::INFO, std::chrono::seconds(10));
 }
 
 void editor::execute_vim_command(const std::string &cmd_raw)
@@ -961,6 +960,7 @@ void editor::execute_vim_command(const std::string &cmd_raw)
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload = "Error: No write since last change (add ! to override)";
+			status_ev.priority = status_priorities::WARNING;
 			global_queue_.push(status_ev);
 		} else {
 			editor_event quit_ev;
@@ -1009,6 +1009,7 @@ void editor::execute_vim_command(const std::string &cmd_raw)
 		editor_event status_ev;
 		status_ev.type = event_type::set_transient_status;
 		status_ev.payload = "Error: Unknown command: " + cmd;
+		status_ev.priority = status_priorities::WARNING;
 		global_queue_.push(status_ev);
 	}
 }

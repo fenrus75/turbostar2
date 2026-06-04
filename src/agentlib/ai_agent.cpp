@@ -1974,6 +1974,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 					ev.type = event_type::set_transient_status;
 					ev.payload = std::format("Milestone boundary prob: {:.1f}% (latency: {:.2f} ms)",
 								 boundary_prob * 100.0f, duration_ms);
+					ev.priority = status_priorities::INFO;
 					global_queue_->push(ev);
 				}
 

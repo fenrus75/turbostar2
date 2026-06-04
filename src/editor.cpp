@@ -1057,11 +1057,10 @@ void editor::render(bool cursor_only)
 		}
 	}
 
-	std::string combined_hover = hover_text_;
 	if (!diag_text.empty()) {
-		if (!combined_hover.empty())
-			combined_hover += " | ";
-		combined_hover += diag_text;
+		set_status_message(diag_text, status_priorities::WARNING);
+	} else {
+		clear_status_message(status_priorities::WARNING);
 	}
 
 	// Find active agent status
@@ -1078,21 +1077,12 @@ void editor::render(bool cursor_only)
 	}
 
 	if (!agent_status_text.empty()) {
-		if (!combined_hover.empty())
-			combined_hover += " | ";
-		combined_hover += agent_status_text;
+		set_status_message(agent_status_text, status_priorities::INFO);
+	} else {
+		clear_status_message(status_priorities::INFO);
 	}
 
-	// Check for transient status message
-	if (!transient_status_message_.empty()) {
-		if (std::chrono::steady_clock::now() < transient_status_expiry_) {
-			if (!combined_hover.empty())
-				combined_hover += " | ";
-			combined_hover += "[ " + transient_status_message_ + " ]";
-		} else {
-			transient_status_message_ = "";
-		}
-	}
+	std::string combined_hover = get_active_status_message();
 
 	bool has_history = false;
 	auto active_doc = get_active_doc();
@@ -1270,4 +1260,32 @@ std::string editor::get_k_block_status_help() const
 	}
 
 	return result;
+}
+
+void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration)
+{
+	status_message msg;
+	msg.text = message;
+	if (duration == std::chrono::milliseconds::max()) {
+		msg.expiry = std::chrono::steady_clock::time_point::max();
+	} else {
+		msg.expiry = std::chrono::steady_clock::now() + duration;
+	}
+	active_status_messages_[priority] = msg;
+}
+
+void editor::clear_status_message(int priority)
+{
+	active_status_messages_.erase(priority);
+}
+
+std::string editor::get_active_status_message() const
+{
+	auto now = std::chrono::steady_clock::now();
+	for (auto it = active_status_messages_.rbegin(); it != active_status_messages_.rend(); ++it) {
+		if (now < it->second.expiry && !it->second.text.empty()) {
+			return it->second.text;
+		}
+	}
+	return "";
 }

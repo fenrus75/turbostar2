@@ -76,6 +76,15 @@ enum class event_type {
 	notify_undo_changed	    ///< Notification that the undo stack has changed
 };
 
+namespace status_priorities
+{
+constexpr int LOWEST = 0;
+constexpr int HOVER = 10;
+constexpr int INFO = 20;
+constexpr int WARNING = 30;
+constexpr int CRITICAL = 40;
+} // namespace status_priorities
+
 struct text_range {
 	int start_y;
 	int start_x;
@@ -119,6 +128,7 @@ struct editor_event {
 	std::string payload;			  ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
 	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
+	int priority{0};                          ///< Status message priority (0 = lowest)
 
 	// Payload for prompt_user
 	std::vector<std::string> prompt_options;
