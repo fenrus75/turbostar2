@@ -109,6 +109,7 @@
 # done items (move items here on completion)
 
 ## 04-06-2026
+- implemented Bandit security scanning for Python MCP servers. Discovered Python MCPs have their target script scanned using Bandit (if installed); system-level MCPs are disabled by default if critical high-severity issues are detected, and starting any Python MCP is blocked if Bandit fails the scan. Added a comprehensive test case in `test_mcp_manager.cpp`.
 - implemented MCP integration: added "MCP Servers..." menu option under the "Options" top-level menu, hooked it up to event dispatching, implemented TUI configuration and tool dialogs with dynamic state toggling (server process and individual tools) and persistence, and verified implementation with passing E2E and unit test coverage.
 - optimized application startup performance by shifting MCP server discovery and initialization to a background thread (`mcp_manager::start_async()`), and added thread-safe locks (`std::mutex` and `std::recursive_mutex`) guarding the tool registry and manager.
 
