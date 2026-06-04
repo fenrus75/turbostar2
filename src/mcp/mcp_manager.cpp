@@ -19,8 +19,16 @@ mcp_manager &mcp_manager::get_instance()
 	return instance;
 }
 
+mcp_manager::~mcp_manager()
+{
+	if (startup_thread_.joinable()) {
+		startup_thread_.join();
+	}
+}
+
 void mcp_manager::discover_and_load(const std::string &project_root)
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	servers_.clear();
 
 	// 1. Discover System MCPs
@@ -44,8 +52,15 @@ void mcp_manager::discover_and_load(const std::string &project_root)
 	}
 }
 
+std::vector<std::shared_ptr<mcp_server>> mcp_manager::get_servers() const
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	return servers_;
+}
+
 std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) const
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	for (const auto &server : servers_) {
 		if (server->get_name() == name) {
 			return server;
@@ -56,6 +71,7 @@ std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) co
 
 void mcp_manager::save_configs(const std::string &project_root)
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	auto &cfg = config_manager::get_instance();
 	for (const auto &server : servers_) {
 		cfg.set_mcp_server_enabled(server->get_name(), server->is_system(), server->is_enabled());
@@ -70,8 +86,21 @@ void mcp_manager::save_configs(const std::string &project_root)
 	}
 }
 
+void mcp_manager::start_async(const std::string &project_root)
+{
+	if (startup_thread_.joinable()) {
+		startup_thread_.join();
+	}
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	startup_thread_ = std::thread([this, project_root]() {
+		discover_and_load(project_root);
+		start_active_servers();
+	});
+}
+
 void mcp_manager::start_active_servers()
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	for (auto &server : servers_) {
 		if (server->is_enabled()) {
 			if (server->start()) {
@@ -91,6 +120,10 @@ void mcp_manager::start_active_servers()
 
 void mcp_manager::stop_all_servers()
 {
+	if (startup_thread_.joinable()) {
+		startup_thread_.join();
+	}
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	for (auto &server : servers_) {
 		server->stop();
 		for (const auto &tool : server->get_tools()) {
@@ -101,6 +134,7 @@ void mcp_manager::stop_all_servers()
 
 void mcp_manager::toggle_server(const std::string &name, bool enable)
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	auto server = find_server(name);
 	if (!server) {
 		return;
@@ -133,6 +167,7 @@ void mcp_manager::toggle_server(const std::string &name, bool enable)
 
 void mcp_manager::toggle_tool(const std::string &server_name, const std::string &tool_name, bool enable)
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	auto server = find_server(server_name);
 	if (!server) {
 		return;
@@ -163,6 +198,7 @@ void mcp_manager::toggle_tool(const std::string &server_name, const std::string 
 
 void mcp_manager::load_servers_from_file(const std::string &path, bool is_system)
 {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	if (!fs::exists(path)) {
 		return;
 	}

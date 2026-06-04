@@ -2,6 +2,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
 #include "tool_context.h"
@@ -44,6 +45,7 @@ class tool_registry
       private:
 	tool_registry() = default;
 	std::map<std::string, validator_factory> validator_factories_;
+	mutable std::mutex mutex_;
 };
 
 // Helper macro for static self-registration

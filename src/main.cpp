@@ -209,10 +209,9 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// Initialize and start MCP servers
+	// Initialize and start MCP servers asynchronously in a background thread
 	std::string project_root = project_manager::get_instance().get_project_root();
-	agentlib::mcp_manager::get_instance().discover_and_load(project_root);
-	agentlib::mcp_manager::get_instance().start_active_servers();
+	agentlib::mcp_manager::get_instance().start_async(project_root);
 
 	if (!override_model_id.empty()) {
 		config_manager::get_instance().set_default_model_id(override_model_id);

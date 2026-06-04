@@ -17,12 +17,14 @@ void tool_registry::register_validator(validator_factory factory)
 	auto dummy = factory();
 	if (dummy) {
 		std::string name = dummy->get_name();
+		std::lock_guard<std::mutex> lock(mutex_);
 		validator_factories_[name] = std::move(factory);
 	}
 }
 
 void tool_registry::unregister_validator(const std::string &name)
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	validator_factories_.erase(name);
 }
 
@@ -42,6 +44,7 @@ static std::string serialize_mcp_name(const std::string &name)
 
 nlohmann::json tool_registry::get_tools_json() const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
@@ -69,6 +72,7 @@ nlohmann::json tool_registry::get_tools_json() const
 
 nlohmann::json tool_registry::get_gemini_tools_json() const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
@@ -94,6 +98,7 @@ nlohmann::json tool_registry::get_gemini_tools_json() const
 
 bool tool_registry::is_tool_silent(const std::string &name) const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	auto it = validator_factories_.find(name);
 	if (it != validator_factories_.end()) {
 		auto validator = it->second();
@@ -106,14 +111,19 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 								   tool_context &ctx) const
 {
 	tool_preparation_result res;
-	auto it = validator_factories_.find(name);
-	if (it == validator_factories_.end()) {
-		res.error_message = "Error: tool not found.";
-		return res;
+	validator_factory factory;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		auto it = validator_factories_.find(name);
+		if (it == validator_factories_.end()) {
+			res.error_message = "Error: tool not found.";
+			return res;
+		}
+		factory = it->second;
 	}
 
 	// Create a transient validator instance for this execution to ensure thread-safe state!
-	auto validator = it->second();
+	auto validator = factory();
 
 	if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
 		res.error_message =
