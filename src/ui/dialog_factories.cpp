@@ -1183,10 +1183,12 @@ std::unique_ptr<dialog> create_mcp_config_dialog()
 		item_labels.push_back(state_box + " " + server->get_name() + " (" + type_str + ", " + status_str + ")");
 	}
 
-	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 2, 2, 60, 12, nullptr, nullptr);
+	auto group = std::make_unique<ui_group_box>("server_group", 2, 2, 60, 13, " Servers ");
+	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 1, 1, 58, 11, nullptr, nullptr);
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
-	dlg->add_child(std::move(lb));
+	group->add_child(std::move(lb));
+	dlg->add_child(std::move(group));
 
 	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr]() {
@@ -1242,10 +1244,12 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name)
 		item_labels.push_back(state_box + " " + tool.name + " - " + tool.description);
 	}
 
-	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 2, 2, 60, 12, nullptr, nullptr);
+	auto group = std::make_unique<ui_group_box>("tool_group", 2, 2, 60, 13, " Tools ");
+	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 1, 1, 58, 11, nullptr, nullptr);
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
-	dlg->add_child(std::move(lb));
+	group->add_child(std::move(lb));
+	dlg->add_child(std::move(group));
 
 	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr, server_name]() {
