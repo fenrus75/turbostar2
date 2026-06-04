@@ -18,18 +18,20 @@ namespace tools
 
 struct last_search_info {
 	std::string pattern;
-	std::string safe_dir_path;
+	std::string safe_search_path;
 	std::string include_ext;
+	bool is_regex{false};
 };
 static last_search_info g_last_search;
 
 fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::move(args))
 {
 	RE2::Options options;
-	compiled_regex_ = std::make_unique<RE2>(args_.pattern, options);
+	std::string final_pattern = args_.is_regex ? args_.pattern : RE2::QuoteMeta(args_.pattern);
+	compiled_regex_ = std::make_unique<RE2>(final_pattern, options);
 	std::string display_path = "";
-	if (args_.dir_path) {
-		display_path = *args_.dir_path;
+	if (args_.search_path) {
+		display_path = *args_.search_path;
 	}
 	interaction_ = std::make_shared<agentlib::interaction_fs_grep_files>(args_.pattern, display_path);
 }
@@ -63,19 +65,20 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		curr_ext = *args_.include_ext;
 	}
 
-	if (g_last_search.pattern == args_.pattern && g_last_search.safe_dir_path == args_.safe_dir_path &&
-	    g_last_search.include_ext == curr_ext) {
+	if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
+	    g_last_search.include_ext == curr_ext && g_last_search.is_regex == args_.is_regex) {
 		is_duplicate = true;
 	}
 
 	g_last_search.pattern = args_.pattern;
-	g_last_search.safe_dir_path = args_.safe_dir_path;
+	g_last_search.safe_search_path = args_.safe_search_path;
 	g_last_search.include_ext = curr_ext;
+	g_last_search.is_regex = args_.is_regex;
 
 	if (is_duplicate) {
 		std::string display_path = "project root";
-		if (args_.dir_path) {
-			display_path = *args_.dir_path;
+		if (args_.search_path) {
+			display_path = *args_.search_path;
 		}
 		return "WARNING: You have already performed this exact search query (fs_grep_files with pattern: \"" + args_.pattern +
 		       "\" in " + display_path +
@@ -87,7 +90,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	fs::path root_path = ctx.fs_security.get_working_directory();
 
 	// Use the resolved, safe starting path
-	fs::path search_path(args_.safe_dir_path);
+	fs::path search_path(args_.safe_search_path);
 
 	std::set<std::string> open_files;
 	if (ctx.doc_provider) {
@@ -102,31 +105,9 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	std::set<std::string> overflow_files;
 
 	try {
-		for (auto it = fs::recursive_directory_iterator(search_path, fs::directory_options::skip_permission_denied);
-		     it != fs::recursive_directory_iterator(); ++it) {
-
-			const auto &path = it->path();
-
-			if (it->is_directory()) {
-				std::string name = path.filename().string();
-				bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root_path;
-
-				// Skip hidden dirs, build dirs, and tmp/temp
-				if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
-				    (is_top_level && name.starts_with("build"))) {
-					it.disable_recursion_pending();
-				}
-				continue;
-			}
-
-			if (!fs::is_regular_file(path)) {
-				continue;
-			}
-
-			if (args_.include_ext) {
-				if (path.extension().string() != *args_.include_ext) {
-					continue;
-				}
+		auto process_file = [&](const fs::path &path) {
+			if (args_.include_ext && path.extension().string() != *args_.include_ext) {
+				return;
 			}
 
 			std::string abs_path_str = path.string();
@@ -213,12 +194,37 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					}
 				}
 			}
+		};
 
-			// If we've hit max results, we could keep scanning to populate overflow_files.
-			// For massive codebases, finding ALL files might take a while, but it's useful.
-			// If performance becomes an issue, we could cap overflow_files at e.g. 100.
-			if (overflow_files.size() > 50) {
-				break; // Hard cap on overflow files to prevent infinite hangs
+		if (fs::is_regular_file(search_path)) {
+			process_file(search_path);
+		} else {
+			for (auto it = fs::recursive_directory_iterator(search_path, fs::directory_options::skip_permission_denied);
+			     it != fs::recursive_directory_iterator(); ++it) {
+
+				const auto &path = it->path();
+
+				if (it->is_directory()) {
+					std::string name = path.filename().string();
+					bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root_path;
+
+					// Skip hidden dirs, build dirs, and tmp/temp
+					if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
+					    (is_top_level && name.starts_with("build"))) {
+						it.disable_recursion_pending();
+					}
+					continue;
+				}
+
+				if (!fs::is_regular_file(path)) {
+					continue;
+				}
+
+				process_file(path);
+
+				if (overflow_files.size() > 50) {
+					break; // Hard cap on overflow files to prevent infinite hangs
+				}
 			}
 		}
 	} catch (const std::exception &e) {
@@ -277,7 +283,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		ss << "---\n";
 		ss << "*Note: `max_results` (" << args_.max_results
 		   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or specifying "
-		      "a `dir_path`.*\n";
+		      "a `search_path`.*\n";
 		for (const auto &f : overflow_files) {
 			ss << "- `" << f << "`\n";
 		}

@@ -81,7 +81,7 @@ int main()
 	// Test 1: Disk search (mmap)
 	tools::fs_grep_files_args args1;
 	args1.pattern = "hello";
-	args1.safe_dir_path = temp_dir.string();
+	args1.safe_search_path = temp_dir.string();
 	tools::fs_grep_files_tool tool1(args1);
 
 	std::string res1 = tool1.execute(ctx);
@@ -96,7 +96,7 @@ int main()
 
 	tools::fs_grep_files_args args2;
 	args2.pattern = "dirty";
-	args2.safe_dir_path = temp_dir.string();
+	args2.safe_search_path = temp_dir.string();
 	tools::fs_grep_files_tool tool2(args2);
 
 	std::string res2 = tool2.execute(ctx);
@@ -106,7 +106,7 @@ int main()
 	// Test 3: Context Lines
 	tools::fs_grep_files_args args3;
 	args3.pattern = "hello";
-	args3.safe_dir_path = temp_dir.string();
+	args3.safe_search_path = temp_dir.string();
 	args3.context_lines = 1;
 	tools::fs_grep_files_tool tool3(args3);
 
@@ -119,7 +119,7 @@ int main()
 	// Test 4: Overlapping Context Lines
 	tools::fs_grep_files_args args4;
 	args4.pattern = "hello block";
-	args4.safe_dir_path = temp_dir.string();
+	args4.safe_search_path = temp_dir.string();
 	args4.context_lines = 1;
 	tools::fs_grep_files_tool tool4(args4);
 
@@ -136,8 +136,8 @@ int main()
 		// Execute tool twice with identical parameters
 		tools::fs_grep_files_args args5;
 		args5.pattern = "hello_dup";
-		args5.safe_dir_path = temp_dir.string();
-		args5.dir_path = temp_dir.string();
+		args5.safe_search_path = temp_dir.string();
+		args5.search_path = temp_dir.string();
 
 		tools::fs_grep_files_tool tool5a(args5);
 		std::string res5a = tool5a.execute(ctx);

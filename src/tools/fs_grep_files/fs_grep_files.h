@@ -14,12 +14,13 @@ namespace tools {
 struct fs_grep_files_args {
     std::string pattern;
     std::optional<std::string> include_ext;
-    std::optional<std::string> dir_path;
+    std::optional<std::string> search_path;
+    bool is_regex{false};
     int max_results{50};
     int context_lines{0};
     
     // Resolved safe path
-    std::string safe_dir_path;
+    std::string safe_search_path;
 };
 
 class fs_grep_files_tool : public agentlib::llm_tool {
@@ -41,7 +42,7 @@ private:
 class fs_grep_files_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_grep_files"; }
-    std::string get_description() const override { return "Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches."; }
+    std::string get_description() const override { return "Search for a pattern within a specific file or across directories. Use this instead of shell grep. Automatically limits results to prevent context window overflow."; }
     nlohmann::json get_parameters_schema() const override;
     bool is_pure() const override { return true; }
 
