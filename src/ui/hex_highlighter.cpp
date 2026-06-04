@@ -8,6 +8,10 @@
 #define HAS_CXXABI
 #endif
 
+#ifdef HAVE_ZYDIS
+#include <Zydis/Zydis.h>
+#endif
+
 // Helper functions for bounds-safe endian reading
 namespace
 {
@@ -298,6 +302,7 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 {
 	parsed_successfully_ = false;
 	sections_.clear();
+	symbols_.clear();
 
 	if (!can_handle(data))
 		return false;
@@ -315,6 +320,7 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 
 	// Read Ehdr fields bounds-safely
 	bool lsb = header_.is_lsb;
+	header_.e_machine = read_u16(data, 18, lsb);
 	if (header_.is_64) {
 		header_.e_entry = read_u64(data, 24, lsb);
 		header_.e_phoff = read_u64(data, 32, lsb);
@@ -396,6 +402,124 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 				sections_.push_back(sec);
 			}
 		}
+	}
+
+	// Parse symbol table bounds-safely if SHT exists
+	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40)) {
+		uint64_t symtab_offset = 0;
+		uint64_t symtab_size = 0;
+		uint64_t symtab_entsize = 0;
+		uint32_t symtab_link = 0;
+
+		for (size_t i = 1; i < header_.e_shnum; ++i) {
+			size_t entry_start = header_.e_shoff + i * header_.e_shentsize;
+			if (entry_start + header_.e_shentsize > data.size())
+				break;
+			uint32_t type = read_u32(data, entry_start + 4, lsb);
+			if (type == 2) { // SHT_SYMTAB
+				if (header_.is_64) {
+					symtab_offset = read_u64(data, entry_start + 24, lsb);
+					symtab_size = read_u64(data, entry_start + 32, lsb);
+					symtab_link = read_u32(data, entry_start + 40, lsb);
+					symtab_entsize = read_u64(data, entry_start + 56, lsb);
+				} else {
+					symtab_offset = read_u32(data, entry_start + 16, lsb);
+					symtab_size = read_u32(data, entry_start + 20, lsb);
+					symtab_link = read_u32(data, entry_start + 24, lsb);
+					symtab_entsize = read_u32(data, entry_start + 36, lsb);
+				}
+				break;
+			}
+		}
+
+		uint64_t symstr_offset = 0;
+		uint64_t symstr_size = 0;
+		if (symtab_offset > 0 && symtab_size > 0 && symtab_entsize > 0 && symtab_link < header_.e_shnum) {
+			size_t entry_start = header_.e_shoff + symtab_link * header_.e_shentsize;
+			if (entry_start + header_.e_shentsize <= data.size()) {
+				if (header_.is_64) {
+					symstr_offset = read_u64(data, entry_start + 24, lsb);
+					symstr_size = read_u64(data, entry_start + 32, lsb);
+				} else {
+					symstr_offset = read_u32(data, entry_start + 16, lsb);
+					symstr_size = read_u32(data, entry_start + 20, lsb);
+				}
+			}
+
+			size_t sym_count = symtab_size / symtab_entsize;
+			for (size_t j = 0; j < sym_count; ++j) {
+				size_t sym_start = symtab_offset + j * symtab_entsize;
+				if (sym_start + symtab_entsize > data.size())
+					break;
+
+				uint32_t st_name = 0;
+				uint8_t st_info = 0;
+				uint16_t st_shndx = 0;
+				uint64_t st_value = 0;
+				uint64_t st_size = 0;
+
+				if (header_.is_64) {
+					st_name = read_u32(data, sym_start, lsb);
+					st_info = data[sym_start + 4];
+					st_shndx = read_u16(data, sym_start + 6, lsb);
+					st_value = read_u64(data, sym_start + 8, lsb);
+					st_size = read_u64(data, sym_start + 16, lsb);
+				} else {
+					st_name = read_u32(data, sym_start, lsb);
+					st_value = read_u32(data, sym_start + 4, lsb);
+					st_size = read_u32(data, sym_start + 8, lsb);
+					st_info = data[sym_start + 12];
+					st_shndx = read_u16(data, sym_start + 14, lsb);
+				}
+
+				uint8_t sym_type = st_info & 0xF;
+				if (sym_type == 2 && st_size > 0 && st_shndx < header_.e_shnum) {
+					uint64_t sym_file_offset = 0;
+					bool resolved = false;
+
+					for (const auto &sec : sections_) {
+						if (sec.index == st_shndx) {
+							uint16_t e_type = read_u16(data, 16, lsb);
+							if (e_type == 1) { // ET_REL
+								sym_file_offset = sec.offset + st_value;
+							} else {
+								size_t sec_entry = header_.e_shoff + sec.index * header_.e_shentsize;
+								uint64_t sh_addr = 0;
+								if (header_.is_64) {
+									sh_addr = read_u64(data, sec_entry + 16, lsb);
+								} else {
+									sh_addr = read_u32(data, sec_entry + 12, lsb);
+								}
+								if (st_value >= sh_addr && st_value < sh_addr + sec.size) {
+									sym_file_offset = sec.offset + (st_value - sh_addr);
+								} else {
+									continue;
+								}
+							}
+							resolved = true;
+							break;
+						}
+					}
+
+					if (resolved) {
+						parsed_symbol sym;
+						if (symstr_offset > 0 && st_name < symstr_size) {
+							sym.name = read_string(data, symstr_offset + st_name, 128);
+							sym.name = demangle_section_name(sym.name);
+						} else {
+							sym.name = std::format("sym_func_{:X}", st_value);
+						}
+						sym.offset = sym_file_offset;
+						sym.size = st_size;
+						symbols_.push_back(sym);
+					}
+				}
+			}
+		}
+
+		std::sort(symbols_.begin(), symbols_.end(), [](const parsed_symbol &a, const parsed_symbol &b) {
+			return a.offset < b.offset;
+		});
 	}
 
 	parsed_successfully_ = true;
@@ -789,6 +913,71 @@ highlight_info elf_hex_highlighter::get_info(const std::vector<uint8_t> &data, s
 	for (const auto &sec : sections_) {
 		if (offset >= sec.offset && offset < sec.offset + sec.size) {
 			size_t relative = offset - sec.offset;
+#ifdef HAVE_ZYDIS
+			if (sec.semantic == hex_semantic_type::code_section && (header_.e_machine == 3 || header_.e_machine == 62)) {
+				ZydisMachineMode machine_mode = (header_.e_machine == 62) ? ZYDIS_MACHINE_MODE_LONG_64 : ZYDIS_MACHINE_MODE_LEGACY_32;
+
+				const parsed_symbol *found_sym = nullptr;
+				for (const auto &sym : symbols_) {
+					if (offset >= sym.offset && offset < sym.offset + sym.size) {
+						found_sym = &sym;
+						break;
+					}
+				}
+
+				size_t start_offset = found_sym ? found_sym->offset : sec.offset;
+				size_t limit_offset = found_sym ? (found_sym->offset + found_sym->size) : (sec.offset + sec.size);
+
+				if (!found_sym && offset - start_offset > 65536) {
+					start_offset = offset - (offset % 16);
+				}
+
+				if (limit_offset > data.size()) {
+					limit_offset = data.size();
+				}
+
+				size_t inst_start = start_offset;
+				size_t sec_entry = header_.e_shoff + sec.index * header_.e_shentsize;
+				uint64_t sh_addr = 0;
+				if (header_.is_64) {
+					sh_addr = read_u64(data, sec_entry + 16, header_.is_lsb);
+				} else {
+					sh_addr = read_u32(data, sec_entry + 12, header_.is_lsb);
+				}
+				ZyanU64 runtime_address = sh_addr + (inst_start - sec.offset);
+
+				while (inst_start < limit_offset && inst_start <= offset) {
+					ZydisDisassembledInstruction instruction;
+					if (!ZYAN_SUCCESS(ZydisDisassembleIntel(
+						machine_mode,
+						runtime_address,
+						data.data() + inst_start,
+						data.size() - inst_start,
+						&instruction
+					))) {
+						break;
+					}
+
+					size_t inst_len = instruction.info.length;
+					if (inst_len == 0) {
+						break;
+					}
+
+					if (offset >= inst_start && offset < inst_start + inst_len) {
+						std::string symbol_ctx;
+						if (found_sym) {
+							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, offset - found_sym->offset);
+						}
+						return {sec.semantic, std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})",
+										  instruction.text, symbol_ctx, sec.name,
+										  get_shdr_type_desc(sec.type_val), sec.offset, relative)};
+					}
+
+					inst_start += inst_len;
+					runtime_address += inst_len;
+				}
+			}
+#endif
 			return {sec.semantic, std::format("ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})", sec.name,
 							  get_shdr_type_desc(sec.type_val), sec.offset, relative)};
 		}

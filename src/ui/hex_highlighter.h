@@ -52,6 +52,7 @@ class elf_hex_highlighter : public hex_highlighter
 	struct elf_parsed_data {
 		bool is_64{false};
 		bool is_lsb{true};
+		uint16_t e_machine{0};
 		uint64_t e_entry{0};
 		uint64_t e_phoff{0};
 		uint64_t e_shoff{0};
@@ -72,8 +73,15 @@ class elf_hex_highlighter : public hex_highlighter
 		hex_semantic_type semantic{hex_semantic_type::normal};
 	};
 
+	struct parsed_symbol {
+		std::string name;
+		uint64_t offset{0};
+		uint64_t size{0};
+	};
+
 	elf_parsed_data header_;
 	std::vector<parsed_section> sections_;
+	std::vector<parsed_symbol> symbols_;
 	bool parsed_successfully_{false};
 };
 

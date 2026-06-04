@@ -35,6 +35,24 @@ cc_c = meson.get_compiler('c')
 libunwind_dep = cc_c.find_library('unwind', required: true)
 dl_dep = cc_c.find_library('dl', required: false)
 
+zydis_found = false
+zydis_dep = dependency('zydis', required: false)
+if zydis_dep.found()
+  zydis_found = true
+else
+  zydis_lib = cc.find_library('Zydis', required: false)
+  if zydis_lib.found() and cc.has_header('Zydis/Zydis.h')
+    zydis_dep = declare_dependency(dependencies : zydis_lib)
+    zydis_found = true
+  else
+    zydis_dep = declare_dependency()
+  endif
+endif
+
+if zydis_found
+  add_project_arguments('-DHAVE_ZYDIS=1', language : 'cpp')
+endif
+
 subdir('src')
 
 libturbocatch = shared_library('turbocatch',
