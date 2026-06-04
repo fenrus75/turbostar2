@@ -90,10 +90,16 @@ class mcp_server
 		mcp_type_ = type;
 	}
 
+	// Note: get_tools() returns a copy of tools_ and does NOT acquire mutex_
+	// This is safe because tools_ is only written during initialization in start()
+	// after the MCP handshake completes, and is read-only afterwards.
+	// If tools_ needs to be modified at runtime, this method must acquire mutex_.
 	std::vector<mcp_tool> get_tools() const
 	{
 		return tools_;
 	}
+	// Note: set_tools() does NOT acquire mutex_. Callers must ensure thread-safety.
+	// Currently only called from mcp_manager::toggle_tool() which already holds mutex_.
 	void set_tools(const std::vector<mcp_tool> &tools)
 	{
 		tools_ = tools;
@@ -133,6 +139,8 @@ class mcp_server
 	std::atomic<bool> reader_running_{false};
 	std::thread reader_thread_;
 	std::thread stderr_thread_;
+
+	std::mutex state_mutex_;
 
 	// JSON-RPC Request Matcher
 	std::mutex requests_mutex_;

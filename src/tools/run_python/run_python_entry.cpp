@@ -3,6 +3,7 @@
 #include <fstream>
 #include <random>
 #include <sstream>
+#include <unistd.h>
 #include "../../command_runner.h"
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
@@ -52,7 +53,7 @@ bool run_python_tool::validate_runtime(const agentlib::tool_context &ctx, std::s
 
 std::string run_python_tool::execute(agentlib::tool_context &ctx)
 {
-	bool bandit_installed = (system("which bandit > /dev/null 2>&1") == 0);
+	bool bandit_installed = (access("/usr/bin/bandit", X_OK) == 0);
 	std::string bandit_target_path;
 	std::filesystem::path temp_file_path;
 

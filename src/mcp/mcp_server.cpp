@@ -80,7 +80,7 @@ static std::string expand_tilde(const std::string &path)
 
 bool mcp_server::run_bandit_scan(std::string &scan_output) const
 {
-	bool bandit_installed = (system("which bandit > /dev/null 2>&1") == 0);
+	bool bandit_installed = (access("/usr/bin/bandit", X_OK) == 0);
 	if (!bandit_installed) {
 		return true;
 	}
@@ -99,6 +99,7 @@ bool mcp_server::run_bandit_scan(std::string &scan_output) const
 
 bool mcp_server::start()
 {
+	std::lock_guard<std::mutex> lock(state_mutex_);
 	if (is_running()) {
 		return true;
 	}
@@ -237,6 +238,7 @@ bool mcp_server::start()
 
 void mcp_server::stop()
 {
+	std::lock_guard<std::mutex> lock(state_mutex_);
 	if (pid_ <= 0) {
 		return;
 	}
