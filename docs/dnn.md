@@ -117,7 +117,7 @@ The design leverages a **hybrid training loop** where heavy training happens off
        ├─► LLM-as-a-judge (Optional): label_with_local_llm.py queries a local
        │   LLM to refine target milestone boundaries with clean reasoning.
        │   For our local environment, run this script using:
-       │   `python3 dnn_training/label_with_local_llm.py --api-url http://192.168.1.55:8080/v1/chat/completions --model Qwen/Qwen3-Coder-Next-FP8`
+       │   `python3 dnn_training/label_with_local_llm.py --api-url http://192.168.1.55:8080/v1/chat/completions --model Qwen/Qwen3-Coder-Next`
        │
        ├─► Data Augmentation: Clone samples across token_pressure levels
        ├─► Training: PyTorch optimizing weighted binary cross-entropy loss
@@ -207,7 +207,7 @@ Refine transitions using the local network or local LLM endpoint:
 ```bash
 python3 dnn_training/label_with_local_llm.py \
     --api-url http://192.168.1.55:8080/v1/chat/completions \
-    --model Qwen/Qwen3-Coder-Next-FP8
+    --model Qwen/Qwen3-Coder-Next
 ```
 *   **Caching & Resiliency:** The script automatically loads previously labeled samples from `dnn_training/dataset_llm_labeled.json` to prevent re-querying the LLM. It also saves progress after every single processed sample, making it safe to interrupt and resume.
 
@@ -224,4 +224,3 @@ Re-compile the C++ codebase and run the unit tests to confirm the newly trained 
 ninja -C build && ./build/test_context_dnn
 ```
 If successful, it prints `Milestone Boundary C++ DNN unit tests passed successfully!`.
-
