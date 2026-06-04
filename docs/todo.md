@@ -1,7 +1,14 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 - the fs_read_lines call description is not explicit enough that the end argument is optional and that leaving it out gives
-   the agent the whole file 
+   the agent the whole file .. some models are getting confused and end up reasoning a very long time about this.
+
+- MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
+      - we could build an auto-update feature!
+
+- a /mcp command in the agent window that just opens the existing MCP dialog
+- we should consider a /skills command as well
+
 
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -29,12 +36,10 @@
 	- permission model: need to have permission BEFORE executing anything from the project directory
 	   (persistent option) but system MCPs are assumed safe
 		- concept: system MCPs are on by default, project ones are off by default
-	- a menu somewhere so we can turn on and off individual tools per mcp?
 	- option to run the MCP in a fully read only sandbox, if the MCP claims to be read only
 		- after any UV deps are installed that is
 	- asking the MCP what tools it supports should be read only sandbox
 	- github integration! (check if there is a newer upstream etc)
-	- stdio only for now - https can come later
 
 
 # mid term items
@@ -109,6 +114,8 @@
 # done items (move items here on completion)
 
 ## 04-06-2026
+- rewrote the MCP configuration and tool dialogs from scratch, removing the problematic group boxes to restore native container-based tab ordering, and spacing controls symmetrically within the 64x20 dialog bounds.
+- implemented space key toggling of listbox checkboxes in MCP config and tools dialogs, including selection index preservation on toggle and back-button navigation. Added unit tests in `tests/unit/test_listbox.cpp`.
 - implemented Bandit security scanning for Python MCP servers. Discovered Python MCPs have their target script scanned using Bandit (if installed); system-level MCPs are disabled by default if critical high-severity issues are detected, and starting any Python MCP is blocked if Bandit fails the scan. Added a comprehensive test case in `test_mcp_manager.cpp`.
 - implemented MCP integration: added "MCP Servers..." menu option under the "Options" top-level menu, hooked it up to event dispatching, implemented TUI configuration and tool dialogs with dynamic state toggling (server process and individual tools) and persistence, and verified implementation with passing E2E and unit test coverage.
 - optimized application startup performance by shifting MCP server discovery and initialization to a background thread (`mcp_manager::start_async()`), and added thread-safe locks (`std::mutex` and `std::recursive_mutex`) guarding the tool registry and manager.

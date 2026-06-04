@@ -90,6 +90,11 @@ bool ui_listbox::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y
 				}
 				return true;
 			}
+		} else if (key == ' ') {
+			if (on_space_ && !items_.empty() && selected_index_ >= 0 && selected_index_ < (int)items_.size()) {
+				on_space_(selected_index_);
+				return true;
+			}
 		} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
 			if (on_submit_ && !items_.empty() && selected_index_ >= 0 && selected_index_ < (int)items_.size()) {
 				on_submit_(selected_index_);
@@ -98,4 +103,12 @@ bool ui_listbox::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y
 		}
 	}
 	return false;
+}
+
+std::optional<std::string> ui_listbox::get_value(const std::string &target_name) const
+{
+	if (name_ == target_name) {
+		return std::to_string(selected_index_);
+	}
+	return std::nullopt;
 }

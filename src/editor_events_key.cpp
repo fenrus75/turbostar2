@@ -212,6 +212,14 @@ void editor::resolve_dialog(dialog_result res)
 			switching_agent_id_ = -1;
 		} else if (active_dialog_mode_ == dialog_mode::mcp_config) {
 			std::string res_str = active_dialog_->get_result();
+			int current_idx = 0;
+			auto idx_opt = active_dialog_->get_value("mcp_server_list");
+			if (idx_opt) {
+				try {
+					current_idx = std::stoi(*idx_opt);
+				} catch (...) {}
+			}
+
 			if (res_str.starts_with("toggle:")) {
 				std::string name = res_str.substr(7);
 				auto server = agentlib::mcp_manager::get_instance().find_server(name);
@@ -221,7 +229,7 @@ void editor::resolve_dialog(dialog_result res)
 					std::string project_root = project_manager::get_instance().get_project_root();
 					agentlib::mcp_manager::get_instance().save_configs(project_root);
 				}
-				active_dialog_ = create_mcp_config_dialog();
+				active_dialog_ = create_mcp_config_dialog(current_idx);
 				active_dialog_mode_ = dialog_mode::mcp_config;
 				set_focus(focus_target::dialog, "mcp_config");
 				return;
@@ -235,6 +243,14 @@ void editor::resolve_dialog(dialog_result res)
 			}
 		} else if (active_dialog_mode_ == dialog_mode::mcp_tools) {
 			std::string res_str = active_dialog_->get_result();
+			int current_idx = 0;
+			auto idx_opt = active_dialog_->get_value("mcp_tool_list");
+			if (idx_opt) {
+				try {
+					current_idx = std::stoi(*idx_opt);
+				} catch (...) {}
+			}
+
 			if (res_str.starts_with("toggle:")) {
 				std::string tool_name = res_str.substr(7);
 				auto server = agentlib::mcp_manager::get_instance().find_server(configuring_mcp_server_);
@@ -250,12 +266,21 @@ void editor::resolve_dialog(dialog_result res)
 					std::string project_root = project_manager::get_instance().get_project_root();
 					agentlib::mcp_manager::get_instance().save_configs(project_root);
 				}
-				active_dialog_ = create_mcp_tools_dialog(configuring_mcp_server_);
+				active_dialog_ = create_mcp_tools_dialog(configuring_mcp_server_, current_idx);
 				active_dialog_mode_ = dialog_mode::mcp_tools;
 				set_focus(focus_target::dialog, "mcp_tools");
 				return;
 			} else {
-				active_dialog_ = create_mcp_config_dialog();
+				int server_idx = 0;
+				auto &manager = agentlib::mcp_manager::get_instance();
+				const auto &servers = manager.get_servers();
+				for (size_t i = 0; i < servers.size(); ++i) {
+					if (servers[i]->get_name() == configuring_mcp_server_) {
+						server_idx = static_cast<int>(i);
+						break;
+					}
+				}
+				active_dialog_ = create_mcp_config_dialog(server_idx);
 				active_dialog_mode_ = dialog_mode::mcp_config;
 				set_focus(focus_target::dialog, "mcp_config");
 				return;

@@ -1,5 +1,6 @@
 #include "ui/dialog_factories.h"
 #include <cstdlib>
+#include <format>
 #include <ncurses.h>
 #include "agentlib/ai_model.h"
 #include "config_manager.h"
@@ -1169,7 +1170,7 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 	return dlg;
 }
 
-std::unique_ptr<dialog> create_mcp_config_dialog()
+std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 {
 	auto dlg = std::make_unique<dialog>("MCP Servers", 64, 20);
 	auto &manager = agentlib::mcp_manager::get_instance();
@@ -1180,15 +1181,27 @@ std::unique_ptr<dialog> create_mcp_config_dialog()
 		std::string state_box = server->is_enabled() ? "[X]" : "[ ]";
 		std::string type_str = server->is_system() ? "System" : "Project";
 		std::string status_str = server->is_running() ? "Running" : "Stopped";
-		item_labels.push_back(state_box + " " + server->get_name() + " (" + type_str + ", " + status_str + ")");
+		item_labels.push_back(std::format("{} {} ({}, {})", state_box, server->get_name(), type_str, status_str));
 	}
 
-	auto group = std::make_unique<ui_group_box>("server_group", 2, 2, 60, 13, " Servers ");
-	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 1, 1, 58, 11, nullptr, nullptr);
+	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 2, 2, 60, 12, nullptr, nullptr);
 	lb->set_items(item_labels);
+	lb->set_selected_index(initial_selection);
 	auto lb_ptr = lb.get();
-	group->add_child(std::move(lb));
-	dlg->add_child(std::move(group));
+
+	lb->set_on_space([d = dlg.get(), lb_ptr](int /*idx*/) {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto &manager = agentlib::mcp_manager::get_instance();
+			const auto &servers = manager.get_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result(std::format("toggle:{}", servers[idx]->get_name()));
+			}
+		}
+	});
+
+	dlg->add_child(std::move(lb));
 
 	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr]() {
@@ -1198,24 +1211,24 @@ std::unique_ptr<dialog> create_mcp_config_dialog()
 			const auto &servers = manager.get_servers();
 			if (idx < (int)servers.size()) {
 				d->set_action(dialog_result::confirmed);
-				d->set_result("toggle:" + servers[idx]->get_name());
+				d->set_result(std::format("toggle:{}", servers[idx]->get_name()));
 			}
 		}
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_tools", 18, by, " Tools... ", 'o', [d = dlg.get(), lb_ptr]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_tools", 16, by, " Tools... ", 'o', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto &manager = agentlib::mcp_manager::get_instance();
 			const auto &servers = manager.get_servers();
 			if (idx < (int)servers.size()) {
 				d->set_action(dialog_result::confirmed);
-				d->set_result("tools:" + servers[idx]->get_name());
+				d->set_result(std::format("tools:{}", servers[idx]->get_name()));
 			}
 		}
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_close", 44, by, " Close ", 'c', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_close", 52, by, " Close ", 'c', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
@@ -1224,9 +1237,9 @@ std::unique_ptr<dialog> create_mcp_config_dialog()
 	return dlg;
 }
 
-std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name)
+std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, int initial_selection)
 {
-	auto dlg = std::make_unique<dialog>("Tools - " + server_name, 64, 20);
+	auto dlg = std::make_unique<dialog>(std::format("Tools - {}", server_name), 64, 20);
 	auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
 	if (!server) {
 		dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Error: Server not found."));
@@ -1241,15 +1254,29 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name)
 	std::vector<std::string> item_labels;
 	for (const auto &tool : tools) {
 		std::string state_box = tool.enabled ? "[X]" : "[ ]";
-		item_labels.push_back(state_box + " " + tool.name + " - " + tool.description);
+		item_labels.push_back(std::format("{} {} - {}", state_box, tool.name, tool.description));
 	}
 
-	auto group = std::make_unique<ui_group_box>("tool_group", 2, 2, 60, 13, " Tools ");
-	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 1, 1, 58, 11, nullptr, nullptr);
+	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 2, 2, 60, 12, nullptr, nullptr);
 	lb->set_items(item_labels);
+	lb->set_selected_index(initial_selection);
 	auto lb_ptr = lb.get();
-	group->add_child(std::move(lb));
-	dlg->add_child(std::move(group));
+
+	lb->set_on_space([d = dlg.get(), lb_ptr, server_name](int /*idx*/) {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
+			if (server) {
+				auto tools = server->get_tools();
+				if (idx < (int)tools.size()) {
+					d->set_action(dialog_result::confirmed);
+					d->set_result(std::format("toggle:{}", tools[idx].name));
+				}
+			}
+		}
+	});
+
+	dlg->add_child(std::move(lb));
 
 	int by = 16;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr, server_name]() {
@@ -1260,15 +1287,15 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name)
 				auto tools = server->get_tools();
 				if (idx < (int)tools.size()) {
 					d->set_action(dialog_result::confirmed);
-					d->set_result("toggle:" + tools[idx].name);
+					d->set_result(std::format("toggle:{}", tools[idx].name));
 				}
 			}
 		}
 	}));
 
-	dlg->add_child(std::make_unique<ui_button>("btn_close", 44, by, " Back ", 'b', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
+	dlg->add_child(std::make_unique<ui_button>("btn_back", 54, by, " Back ", 'b', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("back");
 	}));
 
 	dlg->set_focus_by_name("mcp_tool_list");

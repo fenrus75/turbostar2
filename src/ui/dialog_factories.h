@@ -29,5 +29,5 @@ void apply_run_settings_from_dialog(const dialog &dlg);
 std::unique_ptr<dialog> create_tool_status_dialog();
 std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename);
 
-std::unique_ptr<dialog> create_mcp_config_dialog();
-std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name);
+std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection = 0);
+std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, int initial_selection = 0);
