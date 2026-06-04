@@ -108,6 +108,9 @@
 
 # done items (move items here on completion)
 
+## 04-06-2026
+- implemented MCP integration: added "MCP Servers..." menu option under the "Options" top-level menu, hooked it up to event dispatching, implemented TUI configuration and tool dialogs with dynamic state toggling (server process and individual tools) and persistence, and verified implementation with passing E2E and unit test coverage.
+
 ## 03-06-2026
 - implemented an optional `no_ask` boolean parameter for the `web_fetch` tool. When set to true, `web_fetch` fails silently with a permission error instead of prompting the user, facilitating automated workflows. Updated schemas, validator overrides, and negative/positive unit tests in `test_web_fetch.cpp`, and documented it in `docs/tools.md`.
 - implemented a priority-based status message infrastructure (`status_priorities` namespace and `active_status_messages_` map in `editor`) where sources of status text (LSP hover, agent status, diagnostics, and transient warnings/errors) declare a priority. The status bar displays the single highest priority active message, resolving space conflicts and preventing truncation. Added unit tests in `test_vim_emulation.cpp`.
