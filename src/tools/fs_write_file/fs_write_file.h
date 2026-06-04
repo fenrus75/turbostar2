@@ -8,7 +8,6 @@ namespace tools {
 struct fs_write_file_args {
     std::string path;
     std::string content;
-    bool force_overwrite;
     bool append;
     std::string safe_path;
 };
@@ -43,13 +42,9 @@ public:
                     {"type", "string"},
                     {"description", "The entire complete content to write into the file, or content to append."}
                 }},
-                {"force_overwrite", {
-                    {"type", "boolean"},
-                    {"description", "Set to true to overwrite an existing file. Defaults to false. Mutually exclusive with append."}
-                }},
                 {"append", {
                     {"type", "boolean"},
-                    {"description", "Set to true to safely append content to the end of an existing file. Defaults to false. Mutually exclusive with force_overwrite."}
+                    {"description", "Set to true to safely append content to the end of an existing file. Defaults to false."}
                 }}
             }},
             {"required", nlohmann::json::array({"path", "content"})}

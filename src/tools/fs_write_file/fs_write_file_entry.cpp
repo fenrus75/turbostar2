@@ -30,13 +30,7 @@ bool fs_write_file_tool::validate_runtime(const agentlib::tool_context &ctx, std
 		}
 	}
 
-	// 2. Existence Check
-	if (std::filesystem::exists(args_.safe_path)) {
-		if (!args_.force_overwrite && !args_.append) {
-			out_error = "Error: File already exists. Set force_overwrite to true if you explicitly want to overwrite it, or append to true to safely append.";
-			return false;
-		}
-	}
+
 
 	return true;
 }
