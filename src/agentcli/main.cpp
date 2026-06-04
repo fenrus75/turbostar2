@@ -53,8 +53,7 @@ int main(int argc, char **argv)
 	std::string api_key = "";
 	model_cost_type cost_type = model_cost_type::paid_per_token;
 
-	std::string cfg_model_id = config_manager::get_instance().get_default_model_id();
-	auto registry_model = ai_model_registry::get_instance().get_model(cfg_model_id);
+	auto registry_model = ai_model_registry::get_instance().get_default_model();
 	if (registry_model) {
 		default_model_id = registry_model->get_id();
 		default_type = registry_model->get_api_type();

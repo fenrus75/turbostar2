@@ -77,6 +77,7 @@ public:
 
     void register_model(std::shared_ptr<ai_model> model);
     std::shared_ptr<ai_model> get_model(const std::string& id) const;
+    std::shared_ptr<ai_model> get_default_model() const;
     std::vector<std::shared_ptr<ai_model>> get_all_models() const;
 
     void remove_model(const std::string& id);

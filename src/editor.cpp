@@ -171,12 +171,7 @@ void editor::update_window_layout()
 
 void editor::new_agent_window()
 {
-	std::string default_model_id = config_manager::get_instance().get_default_model_id();
-	auto model = agentlib::ai_model_registry::get_instance().get_model(default_model_id);
-	if (!model) {
-		// Fallback if the configured model isn't found
-		model = agentlib::ai_model_registry::get_instance().get_model("gpt-4o");
-	}
+	auto model = agentlib::ai_model_registry::get_instance().get_default_model();
 
 	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model,
 							     global_queue_, this, fresh_agent_);

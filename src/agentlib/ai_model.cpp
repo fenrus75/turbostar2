@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "../fs_utils.h"
 #include "../event_logger.h"
+#include "../config_manager.h"
 #include <format>
 
 using json = nlohmann::json;
@@ -39,7 +40,7 @@ ai_model_registry::ai_model_registry()
 	if (models_.empty()) {
 		// Standard baseline models
 		register_model(
-		    std::make_shared<ai_model>("Qwen/Qwen3-Coder-Next-FP8", "Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0, "", api_type::openai));
+		    std::make_shared<ai_model>("Qwen/Qwen3-Coder-Next", "Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0, "", api_type::openai));
 
 		register_model(
 		    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00, "", api_type::openai));
@@ -79,6 +80,22 @@ std::shared_ptr<ai_model> ai_model_registry::get_model(const std::string &id) co
 	if (it != models_.end()) {
 		return it->second;
 	}
+	return nullptr;
+}
+
+std::shared_ptr<ai_model> ai_model_registry::get_default_model() const
+{
+	std::string default_id = config_manager::get_instance().get_default_model_id();
+	auto model = get_model(default_id);
+	if (model) {
+		return model;
+	}
+
+	// Fallback to the first available model if the configured one isn't found
+	if (!models_.empty()) {
+		return models_.begin()->second;
+	}
+
 	return nullptr;
 }
 

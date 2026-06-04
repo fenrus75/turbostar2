@@ -37,6 +37,9 @@
 
 
 # mid term items
+
+- find a security scan tool for javascript/nodejs
+
 - feature: add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
 - feature: style estimator : look at the current codebase and use clang-format with various options to approximate/detect the coding style (detecting/creating a .clang-format from the codebase if none exists), and then send as a summary to the LLM as part of system prompt. See `docs/design-clang-detect.md` for architecture.
@@ -108,6 +111,7 @@
 # done items (move items here on completion)
 
 ## 04-06-2026
+- fixed a bug where background summaries of episodes and new agent connections did not honor the global model registry default or project settings, falling back to a hardcoded "gpt-4o" model instead of the user's preferred defaults.
 - added `/mcp` and `/skills` slash commands in the agent TUI window, enabling users to launch the MCP Servers configuration dialog or list available skills directly from chat.
 - clarified the `fs_read_lines` schema description for `end_line` to explicitly state that it is optional and defaults to reading to the end of the file, preventing LLM reasoning loop issues.
 - rewrote the MCP configuration and tool dialogs from scratch, removing the problematic group boxes to restore native container-based tab ordering, and spacing controls symmetrically within the 64x20 dialog bounds.

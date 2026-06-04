@@ -155,7 +155,7 @@ class config_manager
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
-	std::string default_model_id_{"Qwen/Qwen3-Coder-Next-FP8"};
+	std::string default_model_id_{"Qwen/Qwen3-Coder-Next"};
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};

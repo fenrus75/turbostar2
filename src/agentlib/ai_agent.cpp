@@ -2187,11 +2187,9 @@ void ai_agent::summary_worker_loop()
 				sys.role = "system";
 				sys.content = system_prompt;
 				dummy_convo.push_back(sys);
-				auto default_model = model_;
-				std::string default_model_id = config_manager::get_instance().get_default_model_id();
-				auto registry_model = ai_model_registry::get_instance().get_model(default_model_id);
-				if (registry_model) {
-					default_model = registry_model;
+				auto default_model = ai_model_registry::get_instance().get_default_model();
+				if (!default_model) {
+					default_model = model_;
 				}
 
 				auto transport =
