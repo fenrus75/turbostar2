@@ -214,6 +214,16 @@ bool hex_editor_window::process_events()
 				nibble_focus_ = 0;
 				bin_doc->break_undo_coalescing();
 				redrawn = true;
+			} else if (key == 12) { // Ctrl-L (Jump to next symbol boundary)
+				if (highlighter_) {
+					size_t next_offset = highlighter_->get_next_symbol_offset(cursor_offset_);
+					if (next_offset != cursor_offset_ && next_offset < bin_doc->size()) {
+						cursor_offset_ = next_offset;
+						nibble_focus_ = 0;
+						bin_doc->break_undo_coalescing();
+						redrawn = true;
+					}
+				}
 			} else if (key == KEY_BACKSPACE || key == 127 || key == 8) { // Backspace
 				if (hex_focus_) {
 					if (nibble_focus_ == 1) {

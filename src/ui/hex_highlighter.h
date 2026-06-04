@@ -37,6 +37,9 @@ class hex_highlighter
 
 	// Query information for a byte offset
 	virtual highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const = 0;
+
+	// Query the next symbol boundary offset after the current_offset
+	virtual size_t get_next_symbol_offset(size_t current_offset) const { return current_offset; }
 };
 
 // ELF implementation
@@ -49,6 +52,7 @@ class elf_hex_highlighter : public hex_highlighter
 	bool can_handle(const std::vector<uint8_t> &data) const override;
 	bool parse(const std::vector<uint8_t> &data) override;
 	highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const override;
+	size_t get_next_symbol_offset(size_t current_offset) const override;
 
       private:
 	struct elf_parsed_data {

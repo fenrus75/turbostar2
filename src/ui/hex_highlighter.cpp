@@ -1012,3 +1012,13 @@ std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(co
 	}
 	return nullptr;
 }
+
+size_t elf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
+{
+	for (const auto &sym : symbols_) {
+		if (sym.offset > current_offset) {
+			return sym.offset;
+		}
+	}
+	return current_offset;
+}

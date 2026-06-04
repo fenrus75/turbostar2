@@ -204,6 +204,10 @@ void test_elf_highlighter()
 	auto detected = reg.detect_highlighter(data);
 	assert(detected != nullptr);
 	assert(dynamic_cast<elf_hex_highlighter *>(detected.get()) != nullptr);
+
+	// Test get_next_symbol_offset
+	assert(hl.get_next_symbol_offset(0) == 450);
+	assert(hl.get_next_symbol_offset(450) == 450);
 }
 
 int main()
