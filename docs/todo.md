@@ -20,6 +20,18 @@
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
+- MCP support
+	- each tool will get a prefix to make sure they are unique
+	- each MCP should have its own "uv sandbox"
+	- permission model: need to have permission BEFORE executing anything from the project directory
+	   (persistent option) but system MCPs are assumed safe
+		- concept: system MCPs are on by default, project ones are off by default
+	- a menu somewhere so we can turn on and off individual tools per mcp?
+	- option to run the MCP in a fully read only sandbox, if the MCP claims to be read only
+		- after any UV deps are installed that is
+	- asking the MCP what tools it supports should be read only sandbox
+	- github integration! (check if there is a newer upstream etc)
+	- stdio only for now - https can come later
 
 
 # mid term items
@@ -53,15 +65,8 @@
 	- create PR
 	- fetch PR info
 
-- MCP support
-	- each tool will get a prefix
-	- each MCP should have its own "uv sandbox"
-	- permission model: need to have permission BEFORE executing anything from the project directory
-	   (persistent option) but system MCPs are assumed safe
-	- a menu somewhere so we can turn on and off individual tools
-	- option to run the MCP in a fully read only sandbox, if the MCP claims to be read only
-		- after any UV deps are installed that is
-	- maybe http MCPs are easier? we have some local ones we created ourselves, start with those
+	
+	
 
 # long term items
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
