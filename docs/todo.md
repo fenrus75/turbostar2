@@ -1,9 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- visual: we have multiple sources of messages for the status bar - they compete for space - so we need to
-	- make a list of these
-	- set relative priorities of these
-
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
 	- two parts:
@@ -107,6 +103,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented a priority-based status message infrastructure (`status_priorities` namespace and `active_status_messages_` map in `editor`) where sources of status text (LSP hover, agent status, diagnostics, and transient warnings/errors) declare a priority. The status bar displays the single highest priority active message, resolving space conflicts and preventing truncation. Added unit tests in `test_vim_emulation.cpp`.
 - implemented a pluggable hex editor syntax highlighting interface (`hex_highlighter` and registry) and integrated it with `hex_editor_window`. Added a detailed `elf_hex_highlighter` subclass that parses ELF files (both 32-bit and 64-bit, Little/Big Endian) to highlight ELF headers (Ehdr), Program Header Tables (PHT), Section Header Tables (SHT), and specific mapped sections (like `.text`, `.data`, `.rodata`, and `.symtab`) in distinct foreground colors while leaving the dark blue window background aesthetic intact. Also decodes structure fields under the cursor into detailed descriptions on the status line. Added unit test suite coverage in `test_hex_highlighter.cpp`.
 - fixed off-by-one bug in the vertical direction for block-move when the block ends on the last byte of the previous line (whole line), ensuring structural deletion and insertion of whole-line block selections behaves correctly without eating blank lines.
 - implemented a custom hex editor window class (`hex_editor_window`) and document class (`binary_document`), integrating auto-detection for binary files using `fs_utils::is_binary_file()`, dynamic wrapping in multiples of 16 bytes depending on window width, a tab-toggled double-column cursor focus (hex tuples and ASCII), overwrite-only typing (auto-growing at EOF), live status bar offset and value formatting (hex, decimal, and ASCII), and robust binary saving with symmetric backups (`~`). Added E2E test coverage in `test_hex_editor.py`.
