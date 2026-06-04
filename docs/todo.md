@@ -6,8 +6,6 @@
 		- part 1: using existing oath key
 		- part 2: getting oauth set up
 
-- feature: a "no_ask" optional argument to web_fetch and maybe some other tools, that causes the tool call not to ask the user for permission but just silently fail
-
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
 	- alternative: a convert_file_format() tool call
 	- need to do pro/con between these options
@@ -103,6 +101,7 @@
 # done items (move items here on completion)
 
 ## 03-06-2026
+- implemented an optional `no_ask` boolean parameter for the `web_fetch` tool. When set to true, `web_fetch` fails silently with a permission error instead of prompting the user, facilitating automated workflows. Updated schemas, validator overrides, and negative/positive unit tests in `test_web_fetch.cpp`, and documented it in `docs/tools.md`.
 - implemented a priority-based status message infrastructure (`status_priorities` namespace and `active_status_messages_` map in `editor`) where sources of status text (LSP hover, agent status, diagnostics, and transient warnings/errors) declare a priority. The status bar displays the single highest priority active message, resolving space conflicts and preventing truncation. Added unit tests in `test_vim_emulation.cpp`.
 - implemented a pluggable hex editor syntax highlighting interface (`hex_highlighter` and registry) and integrated it with `hex_editor_window`. Added a detailed `elf_hex_highlighter` subclass that parses ELF files (both 32-bit and 64-bit, Little/Big Endian) to highlight ELF headers (Ehdr), Program Header Tables (PHT), Section Header Tables (SHT), and specific mapped sections (like `.text`, `.data`, `.rodata`, and `.symtab`) in distinct foreground colors while leaving the dark blue window background aesthetic intact. Also decodes structure fields under the cursor into detailed descriptions on the status line. Added unit test suite coverage in `test_hex_highlighter.cpp`.
 - fixed off-by-one bug in the vertical direction for block-move when the block ends on the last byte of the previous line (whole line), ensuring structural deletion and insertion of whole-line block selections behaves correctly without eating blank lines.

@@ -36,7 +36,7 @@ static bool is_local_ip(const std::string &domain)
 	return false;
 }
 
-web_fetch_tool::web_fetch_tool(std::string url) : url_(std::move(url))
+web_fetch_tool::web_fetch_tool(std::string url, bool no_ask) : url_(std::move(url)), no_ask_(no_ask)
 {
 	domain_ = extract_domain(url_);
 }
@@ -75,6 +75,10 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (rule != 'A') {
+		if (no_ask_) {
+			return "Error: Permission denied (silent failure).";
+		}
+
 		if (!ctx.queue) {
 			return "Error: No event queue available to prompt the user for network permission.";
 		}

@@ -1,16 +1,16 @@
 #include <cassert>
 #include <chrono>
-#include <iostream>
-#include <thread>
-#include <future>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <cstdlib>
+#include <future>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <thread>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/project_manager.h"
 
 using namespace agentlib;
 
@@ -159,6 +159,22 @@ int main()
 
 		std::cout << "Result Once: " << result << std::endl;
 		assert(result.find("Blacklisted") == std::string::npos);
+	}
+
+	// H. silent failure check (no_ask is true)
+	{
+		nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"no_ask", true}};
+		std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
+		std::cout << "Result with no_ask: " << result << std::endl;
+		assert(result.find("silent failure") != std::string::npos);
+	}
+
+	// I. Validation failure: invalid type for no_ask (must be boolean)
+	{
+		nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"no_ask", 123}};
+		auto prep = registry.prepare_tool("web_fetch", args.dump(), ctx);
+		assert(prep.tool == nullptr);
+		assert(!prep.error_message.empty());
 	}
 
 	// Clean up
