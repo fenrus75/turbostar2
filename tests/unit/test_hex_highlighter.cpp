@@ -185,8 +185,11 @@ void test_elf_highlighter()
 	inf = hl.get_info(data, 450);
 	assert(inf.type == hex_semantic_type::code_section);
 #ifdef HAVE_ZYDIS
-	assert(inf.description.find("push rcx") != std::string::npos);
+	assert(inf.description.find("push") != std::string::npos);
+	assert(inf.description.find("%rcx") != std::string::npos);
 	assert(inf.description.find("in my_func") != std::string::npos);
+	assert(inf.range_start == 450);
+	assert(inf.range_size == 1);
 #else
 	assert(inf.description.find("Sec \".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]\"") != std::string::npos);
 #endif

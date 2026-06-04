@@ -360,18 +360,48 @@ void hex_editor_window::update_highlighter() const
 		return;
 
 	size_t current_rev = bin_doc->get_revision();
-	if (current_rev != last_highlighter_revision_) {
+	bool rev_changed = (current_rev != last_highlighter_revision_);
+	if (rev_changed) {
 		last_highlighter_revision_ = current_rev;
 		highlighter_ = hex_highlighter_registry::get_instance().detect_highlighter(bin_doc->get_data());
 		if (highlighter_) {
 			highlighter_->parse(bin_doc->get_data());
 		}
 	}
+
+	if (highlighter_) {
+		if (rev_changed || cursor_offset_ != last_cursor_offset_for_inst_) {
+			last_cursor_offset_for_inst_ = cursor_offset_;
+			if (cursor_offset_ < bin_doc->size()) {
+				highlight_info info = highlighter_->get_info(bin_doc->get_data(), cursor_offset_);
+				if (info.type == hex_semantic_type::code_section) {
+					current_inst_start_ = info.range_start;
+					current_inst_size_ = info.range_size;
+				} else {
+					current_inst_start_ = 0;
+					current_inst_size_ = 0;
+				}
+			} else {
+				current_inst_start_ = 0;
+				current_inst_size_ = 0;
+			}
+		}
+	} else {
+		current_inst_start_ = 0;
+		current_inst_size_ = 0;
+		last_cursor_offset_for_inst_ = static_cast<size_t>(-1);
+	}
 }
 
 int hex_editor_window::get_color_pair_for_byte(size_t offset, uint8_t val, const std::shared_ptr<binary_document> &bin_doc) const
 {
 	update_highlighter();
+
+	// If Zydis decoded an instruction under the cursor, highlight its byte range using Selection Highlight (pair 8)
+	if (current_inst_size_ > 0 && offset >= current_inst_start_ && offset < current_inst_start_ + current_inst_size_) {
+		return 8;
+	}
+
 	int pair = 3;
 	if (highlighter_) {
 		highlight_info info = highlighter_->get_info(bin_doc->get_data(), offset);

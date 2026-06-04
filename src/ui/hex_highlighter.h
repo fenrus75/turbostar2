@@ -20,6 +20,8 @@ enum class hex_semantic_type {
 struct highlight_info {
 	hex_semantic_type type{hex_semantic_type::normal};
 	std::string description;
+	size_t range_start{0};
+	size_t range_size{0};
 };
 
 class hex_highlighter

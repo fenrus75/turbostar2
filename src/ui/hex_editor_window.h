@@ -30,4 +30,7 @@ class hex_editor_window : public window
 
 	mutable std::shared_ptr<hex_highlighter> highlighter_{nullptr};
 	mutable size_t last_highlighter_revision_{static_cast<size_t>(-1)};
+	mutable size_t current_inst_start_{0};
+	mutable size_t current_inst_size_{0};
+	mutable size_t last_cursor_offset_for_inst_{static_cast<size_t>(-1)};
 };

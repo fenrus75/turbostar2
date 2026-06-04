@@ -948,7 +948,7 @@ highlight_info elf_hex_highlighter::get_info(const std::vector<uint8_t> &data, s
 
 				while (inst_start < limit_offset && inst_start <= offset) {
 					ZydisDisassembledInstruction instruction;
-					if (!ZYAN_SUCCESS(ZydisDisassembleIntel(
+					if (!ZYAN_SUCCESS(ZydisDisassembleATT(
 						machine_mode,
 						runtime_address,
 						data.data() + inst_start,
@@ -968,9 +968,14 @@ highlight_info elf_hex_highlighter::get_info(const std::vector<uint8_t> &data, s
 						if (found_sym) {
 							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, offset - found_sym->offset);
 						}
-						return {sec.semantic, std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})",
+						highlight_info info;
+						info.type = sec.semantic;
+						info.description = std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})",
 										  instruction.text, symbol_ctx, sec.name,
-										  get_shdr_type_desc(sec.type_val), sec.offset, relative)};
+										  get_shdr_type_desc(sec.type_val), sec.offset, relative);
+						info.range_start = inst_start;
+						info.range_size = inst_len;
+						return info;
 					}
 
 					inst_start += inst_len;
