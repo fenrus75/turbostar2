@@ -678,15 +678,41 @@ agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
 
 bool editor::terminate_run(int run_id)
 {
+	std::vector<window *> to_close;
 	for (auto it = windows_.begin(); it != windows_.end(); ++it) {
 		if ((*it)->get_id() == run_id) {
-			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
-				tw->stop_process();
+			to_close.push_back(it->get());
+			for (auto *linked : (*it)->get_linked_windows()) {
+				to_close.push_back(linked);
 			}
-			windows_.erase(it);
-			update_window_layout();
-			return true;
+			break;
 		}
 	}
-	return false;
+
+	if (to_close.empty())
+		return false;
+
+	for (auto *win : to_close) {
+		if (auto tw = dynamic_cast<ui::terminal_window *>(win)) {
+			if (tw->get_title() == "Debugger (GDB)") {
+				int fd = tw->get_pty_master_fd();
+				if (fd >= 0 && tw->is_alive()) {
+					std::string quit_cmd = "quit\ny\n";
+					// Ignore write result
+					if (write(fd, quit_cmd.c_str(), quit_cmd.length()) < 0) {}
+				}
+			}
+			tw->stop_process();
+		}
+		for (auto it = windows_.begin(); it != windows_.end();) {
+			if (it->get() == win) {
+				it = windows_.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+
+	update_window_layout();
+	return true;
 }

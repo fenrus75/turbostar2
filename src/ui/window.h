@@ -37,6 +37,7 @@ class window
 	}
 	void link_window(window *other);
 	void unlink_window(window *other);
+	const std::vector<window *> &get_linked_windows() const { return linked_windows_; }
 
 	bool is_visible() const
 	{
