@@ -82,6 +82,21 @@ void config_manager::load_from_file(const std::string &path)
 			run_target_mode_ = value;
 		} else if (key == "gdb_auto_continue") {
 			gdb_auto_continue_ = (value == "true" || value == "1");
+		} else if (key.starts_with("family.")) {
+			bool is_project = (path.find(".turbostar") == std::string::npos);
+			size_t dot1 = 7; // length of "family."
+			size_t dot2 = key.find('.', dot1);
+			if (dot2 != std::string::npos) {
+				std::string family_name = key.substr(dot1, dot2 - dot1);
+				std::string subkey = key.substr(dot2 + 1);
+				if (subkey == "enabled") {
+					if (is_project) {
+						project_tool_families_enabled_[family_name] = (value == "true" || value == "1");
+					} else {
+						tool_families_enabled_[family_name] = (value == "true" || value == "1");
+					}
+				}
+			}
 		} else if (key.starts_with("mcp.")) {
 			bool is_project = (path.find(".turbostar") == std::string::npos);
 			size_t dot1 = 4; // length of "mcp."
@@ -162,6 +177,9 @@ void config_manager::save_project(const std::string &target_path)
 				file << "mcp." << server << "." << tool << ".enabled=" << (enabled ? "true" : "false") << "\n";
 			}
 		}
+		for (const auto &[family, enabled] : project_tool_families_enabled_) {
+			file << "family." << family << ".enabled=" << (enabled ? "true" : "false") << "\n";
+		}
 	} else {
 		for (const auto &[server, enabled] : mcp_servers_enabled_) {
 			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
@@ -173,6 +191,9 @@ void config_manager::save_project(const std::string &target_path)
 				std::string tool = key_pair.substr(colon + 1);
 				file << "mcp." << server << "." << tool << ".enabled=" << (enabled ? "true" : "false") << "\n";
 			}
+		}
+		for (const auto &[family, enabled] : tool_families_enabled_) {
+			file << "family." << family << ".enabled=" << (enabled ? "true" : "false") << "\n";
 		}
 	}
 
@@ -229,5 +250,36 @@ void config_manager::set_mcp_tool_enabled(const std::string &server_name, const 
 		mcp_tools_enabled_[key] = enabled;
 	} else {
 		project_mcp_tools_enabled_[key] = enabled;
+	}
+}
+
+bool config_manager::is_tool_family_enabled(const std::string &family_name, bool is_system, bool default_val) const
+{
+	if (family_name == "base") {
+		return true; // base is always enabled
+	}
+	if (is_system) {
+		auto it = tool_families_enabled_.find(family_name);
+		if (it != tool_families_enabled_.end()) {
+			return it->second;
+		}
+	} else {
+		auto it = project_tool_families_enabled_.find(family_name);
+		if (it != project_tool_families_enabled_.end()) {
+			return it->second;
+		}
+	}
+	return default_val;
+}
+
+void config_manager::set_tool_family_enabled(const std::string &family_name, bool is_system, bool enabled)
+{
+	if (family_name == "base") {
+		return; // base is always enabled
+	}
+	if (is_system) {
+		tool_families_enabled_[family_name] = enabled;
+	} else {
+		project_tool_families_enabled_[family_name] = enabled;
 	}
 }

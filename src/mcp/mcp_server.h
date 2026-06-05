@@ -178,6 +178,10 @@ class mcp_tool_validator : public tool_validator
 	{
 		return false;
 	}
+	std::string get_family() const override
+	{
+		return server_name_;
+	}
 
       protected:
 	bool validate_args_impl(const nlohmann::json &, const tool_context &, std::string &) const override

@@ -4,10 +4,11 @@
 	- allows us to make families of tools that are not in the context by default, but can be activated -- similar to skills
 	- it would reset the system prompt (so kvcache/token cache invalidation) but that's the price of a normally smaller set of tools
  	- we can use this for MCPs as well -- even ask the LLM to summarize the "when to invoke this MCP"
-	- steps
-		- instroduce "tool family" concept/class with description etc
-		- map existing tools to families (mostly "base" which is always there)
-		- decision: do we let MCPs "join" families? and how ? or are MCPs their own family 
+	- steps (Step 1 & 2 completed)
+		- [x] introduce "tool family" concept/class with description etc (Step 1)
+		- [x] map existing tools to families (mostly "base" which is always there) (Step 2)
+		- [x] decision: do we let MCPs "join" families? and how ? or are MCPs their own family (Step 2: MCPs are their own family by definition)
+		- Step 3: implement the actual `activate_tool_family()` tool call, reset/rebuild system prompt, and filter active tools in context.
 	
 
 
@@ -89,6 +90,11 @@
 	
 
 # long term items
+- tool classes
+	- x86 asm
+	- image edit/convert/select/resize/zoom/rotate
+	- PDF ?
+
 - a set of settings (separate dialog!) for a set of tasks, and which model to use for each
 	- task 1: summarizing context history
 	- task 2: deriving coding style
@@ -98,6 +104,7 @@
 	- pro: automatic the full look
 	- pro: automatic all window/etc interactions working well
 	- con: total rewrite and cumbersome framework
+	- con: agents struggle with turbo vision framework - it's ancient and not well trained on
 
 - full gdbserver support so we can run the application and single step through it from the GUI
     - we're already 80% there!
@@ -126,6 +133,7 @@
 # done items (move items here on completion)
 
 ## 05-06-2026
+- implemented Step 1 and Step 2 of the Tool Family feature: defined the `tool_family` structure, mapped all existing tools to the `"base"` family by default via `tool_validator`, mapped MCP tools to their server's family by definition, and added configuration loading/saving/getting/setting support in `config_manager`. Added unit tests in `test_run_config.cpp`.
 - implemented thread-per-MCP parallel server startup, and optimized wait loops and exiting signals to prevent shutdown hangs.
 - implemented `agent_set_application_binary` agent tool to let the agent configure the main executable for run/debug settings, and added a corresponding unit test.
 

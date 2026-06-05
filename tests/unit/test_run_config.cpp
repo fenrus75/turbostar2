@@ -6,6 +6,7 @@
 #include "../../src/event_queue.h"
 #include "../../src/project_manager.h"
 #include "../../src/ui/components/ui_dropdown.h"
+#include "../../src/config_manager.h"
 
 // Mock ncurses constants if needed, but they are included via ncurses.h in ui_dropdown.h
 #ifndef KEY_UP
@@ -133,10 +134,92 @@ void test_dropdown_widget()
 	std::cout << "test_dropdown_widget passed!" << std::endl;
 }
 
+void test_tool_families_config()
+{
+	std::cout << "Running test_tool_families_config..." << std::endl;
+
+	// Isolate HOME directory for global config
+	const char *orig_home = getenv("HOME");
+	std::string orig_home_str = orig_home ? orig_home : "";
+
+	std::filesystem::path temp_home = std::filesystem::current_path() / "test_temp_home";
+	std::filesystem::path temp_proj = std::filesystem::current_path() / "test_temp_proj";
+
+	std::filesystem::remove_all(temp_home);
+	std::filesystem::remove_all(temp_proj);
+	std::filesystem::create_directories(temp_home);
+	std::filesystem::create_directories(temp_proj);
+
+	setenv("HOME", temp_home.string().c_str(), 1);
+
+	// Get config_manager instance
+	config_manager &cfg = config_manager::get_instance();
+
+	// Test 1: "base" family is always enabled
+	assert(cfg.is_tool_family_enabled("base", true) == true);
+	assert(cfg.is_tool_family_enabled("base", false) == true);
+
+	// Trying to set "base" family enabled/disabled should do nothing/remain enabled
+	cfg.set_tool_family_enabled("base", true, false);
+	cfg.set_tool_family_enabled("base", false, false);
+	assert(cfg.is_tool_family_enabled("base", true) == true);
+	assert(cfg.is_tool_family_enabled("base", false) == true);
+
+	// Test 2: Other families default to false (or whatever default_val is supplied)
+	assert(cfg.is_tool_family_enabled("some_family", true) == false);
+	assert(cfg.is_tool_family_enabled("some_family", true, true) == true);
+	assert(cfg.is_tool_family_enabled("some_family", false) == false);
+
+	// Test 3: Set and retrieve system family state
+	cfg.set_tool_family_enabled("family_a", true, true);
+	assert(cfg.is_tool_family_enabled("family_a", true) == true);
+	assert(cfg.is_tool_family_enabled("family_a", false) == false); // Project level still defaults/unaffected
+
+	// Test 4: Set and retrieve project family state
+	cfg.set_tool_family_enabled("family_b", false, true);
+	assert(cfg.is_tool_family_enabled("family_b", false) == true);
+	assert(cfg.is_tool_family_enabled("family_b", true) == false); // System level still defaults/unaffected
+
+	// Test 5: Save and load global config
+	cfg.save_global();
+	// Verify that the global config file exists and contains the correct settings
+	std::filesystem::path global_file = temp_home / ".turbostar";
+	assert(std::filesystem::exists(global_file));
+
+	// Test 6: Save and load project config
+	cfg.save_project(temp_proj.string());
+	std::filesystem::path proj_file = temp_proj / "config.ini";
+	assert(std::filesystem::exists(proj_file));
+
+	// Let's clear the state in config_manager to verify load works
+	cfg.set_tool_family_enabled("family_a", true, false);
+	cfg.set_tool_family_enabled("family_b", false, false);
+
+	// Load global config
+	cfg.load();
+	assert(cfg.is_tool_family_enabled("family_a", true) == true);
+
+	// Load project config
+	cfg.load_from_file(proj_file.string());
+	assert(cfg.is_tool_family_enabled("family_b", false) == true);
+
+	// Clean up
+	if (!orig_home_str.empty()) {
+		setenv("HOME", orig_home_str.c_str(), 1);
+	} else {
+		unsetenv("HOME");
+	}
+	std::filesystem::remove_all(temp_home);
+	std::filesystem::remove_all(temp_proj);
+
+	std::cout << "test_tool_families_config passed!" << std::endl;
+}
+
 int main()
 {
 	test_candidate_detection();
 	test_dropdown_widget();
+	test_tool_families_config();
 	std::cout << "All run config tests passed!" << std::endl;
 	return 0;
 }

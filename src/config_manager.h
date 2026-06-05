@@ -148,6 +148,9 @@ class config_manager
 				 bool default_val = true) const;
 	void set_mcp_tool_enabled(const std::string &server_name, const std::string &tool_name, bool is_system, bool enabled);
 
+	bool is_tool_family_enabled(const std::string &family_name, bool is_system, bool default_val = false) const;
+	void set_tool_family_enabled(const std::string &family_name, bool is_system, bool enabled);
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -172,4 +175,6 @@ class config_manager
 	std::map<std::string, bool> mcp_tools_enabled_;
 	std::map<std::string, bool> project_mcp_servers_enabled_;
 	std::map<std::string, bool> project_mcp_tools_enabled_;
+	std::map<std::string, bool> tool_families_enabled_;
+	std::map<std::string, bool> project_tool_families_enabled_;
 };

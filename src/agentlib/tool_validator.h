@@ -20,6 +20,9 @@ public:
     // Pure tools (e.g., read, list, status) can be safely executed repeatedly.
     virtual bool is_pure() const { return false; }
 
+    // Returns the tool family name (default is "base")
+    virtual std::string get_family() const { return "base"; }
+
     // Indicates if the tool's execution should be hidden from the UI by default.
     virtual bool is_silent_by_default() const { return is_pure(); }
 
