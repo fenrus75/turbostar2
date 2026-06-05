@@ -1887,13 +1887,17 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 		}
 	}
 
+	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
+	int safeguard_tokens = static_cast<int>(max_tokens * 0.256);
+	int limit_chars = safeguard_tokens * 4;
+
 	bool should_split = false;
 	float boundary_prob = -1.0f;
 
-	if (recent_chars > 256000) {
+	if (recent_chars > limit_chars) {
 		should_split = true;
-		event_logger::get_instance().log("Context size exceeds 64k tokens ({} chars). Forcing auto-episode boundary.",
-						 recent_chars);
+		event_logger::get_instance().log("Context size exceeds {} tokens ({} chars). Forcing auto-episode boundary.",
+						 safeguard_tokens, recent_chars);
 	} else {
 		std::vector<parsed_turn> turns = parse_turns(convo);
 		if (turns.size() >= 2) {
@@ -1993,8 +1997,8 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 	if (should_split) {
 		std::string reason_msg;
-		if (recent_chars > 256000) {
-			reason_msg = "Heuristic context character limit reached";
+		if (recent_chars > limit_chars) {
+			reason_msg = std::format("Heuristic context character limit reached ({} tokens)", safeguard_tokens);
 		} else if (boundary_prob >= 0.0f) {
 			reason_msg = std::format("Milestone boundary classification trigger, prob: {:.1f}%", boundary_prob * 100.0f);
 		} else {
@@ -2182,15 +2186,31 @@ void ai_agent::summary_worker_loop()
 				    "EPISODE JSON:\n" +
 				    context_dump;
 
+				auto default_model = ai_model_registry::get_instance().get_default_model();
+				if (!default_model) {
+					default_model = model_;
+				}
+
+				size_t max_chars = default_model ? static_cast<size_t>(default_model->get_max_context_tokens() * 4) : 250000;
+
+				if (system_prompt.length() > max_chars) {
+					std::string fallback_hint = "Reactivate when: Large episode. Title: " + 
+						root.value("title", "Untitled") + ". Summary: " + 
+						root.value("summary", "No summary provided.");
+					if (fallback_hint.length() > 500) {
+						fallback_hint = fallback_hint.substr(0, 500) + "...";
+					}
+					update_episode_hint(task.episode_id, fallback_hint);
+					event_logger::get_instance().log("Skipped background LLM summary for {} because size ({}) exceeds context limit ({}). Used fallback hint.", 
+									 task.episode_id, system_prompt.length(), max_chars);
+					continue;
+				}
+
 				std::vector<message> dummy_convo;
 				message sys;
 				sys.role = "system";
 				sys.content = system_prompt;
 				dummy_convo.push_back(sys);
-				auto default_model = ai_model_registry::get_instance().get_default_model();
-				if (!default_model) {
-					default_model = model_;
-				}
 
 				auto transport =
 				    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());

@@ -183,6 +183,52 @@ int main()
 			assert(has_archive_msg);
 		}
 
+		// 9. Test fallback summary for large episode (> 250,000 characters)
+		{
+			std::string history_dir = fs_utils::get_project_history_dir("TestAgent3");
+			if (std::filesystem::exists(history_dir)) {
+				std::filesystem::remove_all(history_dir);
+			}
+
+			auto test_model = std::make_shared<ai_model>("test-model-3", "Test Model 3", "http://localhost:1", "Test", 0.0, 0.0);
+			test_model->set_max_context_tokens(64000);
+			ai_model_registry::get_instance().register_model(test_model);
+			config_manager::get_instance().set_default_model_id("test-model-3");
+			auto test_agent = ai_agent::create(3, "TestAgent3", test_model, &q, nullptr);
+			ctx.active_agent = test_agent.get();
+
+			// Inject 260,000 characters
+			test_agent->inject_context("user", "Start big");
+			test_agent->inject_context("assistant", std::string(260000, 'x'));
+			test_agent->inject_context("user", "Follow up");
+			test_agent->inject_context("assistant", "Sure");
+
+			// Execute history compression
+			std::string compress_res = registry.execute_tool("agent_compress_history",
+				"{\"title\": \"Huge Milestone\", \"summary\": \"Heavy compilation errors.\", \"include_all_prior\": true}", ctx);
+			assert(compress_res.find("successfully") != std::string::npos);
+
+			// Wait for background summary worker to run (it should finish instantly using fallback)
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+			history_dir = fs_utils::get_project_history_dir(test_agent->get_name());
+			bool found_meta = false;
+			for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
+				std::string filename = entry.path().filename().string();
+				if (filename.find("episode_") != std::string::npos && filename.ends_with("_metadata.json")) {
+					found_meta = true;
+					std::ifstream f(entry.path());
+					nlohmann::json root;
+					f >> root;
+					std::string hint = root.value("reactivation_hint", "");
+					std::cout << "Large episode metadata hint: '" << hint << "'" << std::endl;
+					assert(hint.find("Large episode") != std::string::npos);
+					assert(hint.find("Huge Milestone") != std::string::npos);
+				}
+			}
+			assert(found_meta);
+		}
+
 		std::cout << "agent_compress_history tool verified successfully!" << std::endl;
 	}
 
