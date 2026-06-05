@@ -74,7 +74,9 @@ enum class event_type {
 	run_in_debugger,	    ///< Request to run the main program in debugger
 	tool_status,		    ///< Request to show the Tool status dialog
 	notify_undo_changed,	    ///< Notification that the undo stack has changed
-	mcp_config		    ///< Request to show MCP configuration dialog
+	mcp_config,		    ///< Request to show MCP configuration dialog
+	terminate_run,		    ///< Request to terminate a run
+	agent_start_app		    ///< Request to start app from agent
 };
 
 namespace status_priorities
@@ -134,6 +136,7 @@ struct editor_event {
 	// Payload for prompt_user
 	std::vector<std::string> prompt_options;
 	std::shared_ptr<std::promise<std::string>> prompt_promise;
+	std::shared_ptr<void> generic_promise;
 };
 
 /**

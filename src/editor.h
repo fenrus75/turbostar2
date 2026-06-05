@@ -119,6 +119,12 @@ class editor : public agentlib::document_provider
 	void render(bool cursor_only = false);
 
 	event_queue global_queue_;
+
+	std::thread::id main_thread_id_;
+	bool is_main_thread() const { return std::this_thread::get_id() == main_thread_id_; }
+
+	friend class agentlib::ai_agent;
+
 	menu_bar top_menu_;
 	status_bar bottom_status_;
 

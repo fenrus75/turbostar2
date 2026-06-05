@@ -33,6 +33,7 @@ editor::editor(editor_options opts)
     : exit_immediately_(opts.exit_immediately), debug_mode_(opts.debug_mode), debug_string_(std::move(opts.debug_string)),
       initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
 {
+	main_thread_id_ = std::this_thread::get_id();
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);

@@ -58,6 +58,24 @@ void editor::dispatch_event_ui(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
 
+	if (ev.type == event_type::terminate_run) {
+		bool res = terminate_run(ev.key_code);
+		if (ev.generic_promise) {
+			auto prom = std::static_pointer_cast<std::promise<bool>>(ev.generic_promise);
+			prom->set_value(res);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::agent_start_app) {
+		auto res = start_app(ev.payload, ev.alt_pressed);
+		if (ev.generic_promise) {
+			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
+			prom->set_value(res);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::force_quit) {
 		logger.log("Dispatching force_quit event.");
 
@@ -504,6 +522,18 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger)
 {
+	if (!is_main_thread()) {
+		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
+		auto fut = prom->get_future();
+		editor_event ev;
+		ev.type = event_type::agent_start_app;
+		ev.payload = args;
+		ev.alt_pressed = use_debugger;
+		ev.generic_promise = prom;
+		global_queue_.push(ev);
+		return fut.get();
+	}
+
 	auto &logger = event_logger::get_instance();
 	logger.log("start_app called with args: '" + args + "', debugger: " + (use_debugger ? "true" : "false"));
 
@@ -678,6 +708,17 @@ agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
 
 bool editor::terminate_run(int run_id)
 {
+	if (!is_main_thread()) {
+		auto prom = std::make_shared<std::promise<bool>>();
+		auto fut = prom->get_future();
+		editor_event ev;
+		ev.type = event_type::terminate_run;
+		ev.key_code = run_id;
+		ev.generic_promise = prom;
+		global_queue_.push(ev);
+		return fut.get();
+	}
+
 	std::vector<window *> to_close;
 	for (auto it = windows_.begin(); it != windows_.end(); ++it) {
 		if ((*it)->get_id() == run_id) {
