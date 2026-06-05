@@ -501,3 +501,21 @@ These tools allow the agent to interact with the project's Git repository.
     *   `instruction` *(string, required)*: The assembly instruction to assemble (e.g. `'mov eax, eax'`).
     *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
     *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
+
+### `hex_inspect_range` (Family: `x86`)
+*   **Description:** Inspects the semantic/structural details of a binary file range using registered syntax highlighters (like ELF or PNG). Returns a markdown list of fields, offsets, sizes, and annotations in the range.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the binary file relative to project root.
+    *   `start_offset` *(integer, optional)*: 0-based byte offset to start inspecting. Defaults to 0.
+    *   `size` *(integer, optional)*: Number of bytes to inspect. Defaults to 256. Maximum 4096.
+
+### `elf_list_sections` (Family: `x86`)
+*   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the ELF file relative to project root.
+
+### `elf_list_symbols` (Family: `x86`)
+*   **Description:** Lists all symbols in the symbol table of an ELF file, providing their name, offset/value, and size. Allows optional case-insensitive substring or regex filtering via the 'pattern' argument.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the ELF file relative to project root.
+    *   `pattern` *(string, optional)*: Optional substring or regex pattern to filter symbol names.

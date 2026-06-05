@@ -190,6 +190,31 @@ test_x86_assemble = executable('test_x86_assemble',
   include_directories: inc)
 test('unit_test_x86_assemble', test_x86_assemble)
 
+test_hex_inspect_range = executable('test_hex_inspect_range',
+  ['tests/unit/test_hex_inspect_range.cpp',
+   'src/tools/hex_inspect_range/hex_inspect_range_entry.cpp',
+   'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_hex_inspect_range', test_hex_inspect_range)
+
+test_elf_list_sections = executable('test_elf_list_sections',
+  ['tests/unit/test_elf_list_sections.cpp',
+   'src/tools/elf_list_sections/elf_list_sections_entry.cpp',
+   'src/tools/elf_list_sections/elf_list_sections_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_elf_list_sections', test_elf_list_sections)
+
+test_elf_list_symbols = executable('test_elf_list_symbols',
+  ['tests/unit/test_elf_list_symbols.cpp',
+   'src/tools/elf_list_symbols/elf_list_symbols_entry.cpp',
+   'src/tools/elf_list_symbols/elf_list_symbols_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_elf_list_symbols', test_elf_list_symbols)
+
+
 test_list_skills = executable('test_list_skills',
   ['tests/unit/test_list_skills.cpp',
    'src/tools/list_skills/list_skills_entry.cpp',

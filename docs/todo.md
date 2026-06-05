@@ -1,16 +1,11 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- mega feature: activate_tool_family() tool call
-	- allows us to make families of tools that are not in the context by default, but can be activated -- similar to skills
-	- it would reset the system prompt (so kvcache/token cache invalidation) but that's the price of a normally smaller set of tools
- 	- we can use this for MCPs as well -- even ask the LLM to summarize the "when to invoke this MCP"
-	- steps (Step 1 & 2 completed)
-		- [x] introduce "tool family" concept/class with description etc (Step 1)
-		- [x] map existing tools to families (mostly "base" which is always there) (Step 2)
-		- [x] decision: do we let MCPs "join" families? and how ? or are MCPs their own family (Step 2: MCPs are their own family by definition)
-		- Step 3: implement the actual `activate_tool_family()` tool call, reset/rebuild system prompt, and filter active tools in context.
-	
 
+
+
+- since we have github:// and skills://
+	- we could add skills by just a git hub url somehow clever so no need for local storage
+	- useful for domain activated skills say in the x86 namespace
 
 
 - Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
@@ -130,6 +125,9 @@
 # done items (move items here on completion)
 
 ## 05-06-2026
+- fully completed the Tool Family feature: implemented Step 3 including the `activate_tool_family` tool call, prompt rebuilding, and active tool filtering in agent context, with passing unit test coverage.
+- implemented a hybrid ELF format inspection solution comprising three new tools belonging to the `"x86"` family: `hex_inspect_range` (semantic range inspector querying syntax highlighters), `elf_list_sections` (ELF section header listing), and `elf_list_symbols` (ELF symbol table search with RE2 pattern filtering).
+- created and registered three new unit test suites: `test_hex_inspect_range.cpp`, `test_elf_list_sections.cpp`, and `test_elf_list_symbols.cpp`, sharing mock ELF byte generation via a common `elf_test_helper.h` header, and verified all three tests pass successfully.
 - built the first non-base tool family `"x86"`, implementing the `x86_disassemble` and `x86_assemble` built-in tools. `x86_disassemble` integrates Zydis to disassemble machine code in Hex and Base64 formats. `x86_assemble` integrates the system GNU Assembler (`as`) to assemble single instruction strings into space-separated hex bytes. Both tools support 16/32/64-bit CPU modes and Intel/AT&T syntaxes. Added unit test suites and updated documentation. Enhanced `fs_read_binary` to support the new optional `format` parameter (`"hex"` or `"base64"`), allowing it to return space-separated hex bytes.
 - implemented Step 1 and Step 2 of the Tool Family feature: defined the `tool_family` structure, mapped all existing tools to the `"base"` family by default via `tool_validator`, mapped MCP tools to their server's family by definition, and added configuration loading/saving/getting/setting support in `config_manager`. Added unit tests in `test_run_config.cpp`.
 - implemented thread-per-MCP parallel server startup, and optimized wait loops and exiting signals to prevent shutdown hangs.
