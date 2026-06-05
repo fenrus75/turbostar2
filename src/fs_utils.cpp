@@ -375,6 +375,32 @@ std::string escape_shell_arg(const std::string &arg)
 	return escaped;
 }
 
+std::string unescape_string(const std::string &input)
+{
+	std::string result;
+	result.reserve(input.size());
+	for (size_t i = 0; i < input.size(); ++i) {
+		if (input[i] == '\\' && i + 1 < input.size()) {
+			switch (input[i + 1]) {
+			case 'n': result += '\n'; break;
+			case 'r': result += '\r'; break;
+			case 't': result += '\t'; break;
+			case '\\': result += '\\'; break;
+			case '"': result += '"'; break;
+			case '\'': result += '\''; break;
+			default:
+				result += '\\';
+				result += input[i + 1];
+				break;
+			}
+			++i;
+		} else {
+			result += input[i];
+		}
+	}
+	return result;
+}
+
 std::string shorten_filename(const std::string &filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

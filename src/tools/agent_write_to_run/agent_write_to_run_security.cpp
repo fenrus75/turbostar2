@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
+#include "../../fs_utils.h"
 #include "agent_write_to_run.h"
 
 namespace tools
@@ -55,7 +56,7 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 				return false;
 			}
 			args_.run_id = raw.run_id;
-			args_.data = raw.data;
+			args_.data = fs_utils::unescape_string(raw.data);
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());
