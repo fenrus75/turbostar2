@@ -156,13 +156,14 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 
 void terminal_window::stop_process()
 {
-	if (pid_ > 0 && is_alive_) {
-		kill(-pid_, SIGTERM);
+	pid_t target_pid = pid_;
+	if (target_pid > 0 && is_alive_) {
+		kill(-target_pid, SIGTERM);
 		usleep(50000); // Wait 50ms
 		int status;
-		if (waitpid(pid_, &status, WNOHANG) == 0) {
-			kill(-pid_, SIGKILL);
-			waitpid(pid_, &status, 0);
+		if (waitpid(target_pid, &status, WNOHANG) == 0) {
+			kill(-target_pid, SIGKILL);
+			waitpid(target_pid, &status, 0);
 		}
 		is_alive_ = false;
 		pid_ = -1;
