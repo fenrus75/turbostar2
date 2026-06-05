@@ -244,7 +244,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			} else {
 				// Too far, reject with hint
 				std::string error_msg = std::format("Verification Error: The block you provided is not at line {}, but it matches starting at line {}. Please update your line_number.\n\nCode snippet showing the shifted range:\n", edit.line_number, matched_line);
-				int print_start = std::min(edit.line_number, matched_line);
+				int print_start = std::min(edit.line_number, matched_line) - 2;
 				int print_end = std::max(edit.line_number, matched_line + static_cast<int>(expected_lines.size()) - 1) + 2;
 				print_start = std::max(1, print_start);
 				print_end = std::min(static_cast<int>(lines.size()), print_end);
