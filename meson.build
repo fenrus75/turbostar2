@@ -123,7 +123,7 @@ test_command_runner = executable('test_command_runner',
 test('unit_command_runner', test_command_runner)
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
-  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
+  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp'],
   dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_tool_infrastructure', test_tool_infrastructure)
@@ -165,6 +165,14 @@ test_activate_skill = executable('test_activate_skill',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_activate_skill', test_activate_skill)
+
+test_activate_tool_family = executable('test_activate_tool_family',
+  ['tests/unit/test_activate_tool_family.cpp',
+   'src/tools/activate_tool_family/activate_tool_family_entry.cpp',
+   'src/tools/activate_tool_family/activate_tool_family_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_activate_tool_family', test_activate_tool_family)
 
 test_list_skills = executable('test_list_skills',
   ['tests/unit/test_list_skills.cpp',

@@ -23,10 +23,12 @@ class tool_registry
 	void unregister_validator(const std::string &name);
 
 	// Returns the JSON array of tools to inject into the OpenAI payload
-	nlohmann::json get_tools_json() const;
+	nlohmann::json get_tools_json(const std::vector<std::string> &active_families = {}) const;
 
 	// Returns the JSON array of tools to inject into the Gemini payload
-	nlohmann::json get_gemini_tools_json() const;
+	nlohmann::json get_gemini_tools_json(const std::vector<std::string> &active_families = {}) const;
+
+	std::vector<std::string> get_all_registered_families() const;
 
 	// Checks if the tool should be silent in the UI by default
 	bool is_tool_silent(const std::string &name) const;

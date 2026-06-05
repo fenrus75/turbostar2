@@ -179,6 +179,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the skill to activate.
 
+### `activate_tool_family`
+*   **Description:** Activates a specialized tool family by name. This makes all tools belonging to that family available in the agent's context. By default, only the 'base' family is active.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name of the tool family to activate.
+
 ### `list_skills`
 *   **Description:** Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.
 *   **Arguments:** None.

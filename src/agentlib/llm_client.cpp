@@ -13,20 +13,20 @@ llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string mod
 	formatter_ = api_formatter::create(type);
 }
 
-static std::vector<message> normalize_conversation_history(const std::vector<message>& conversation)
+static std::vector<message> normalize_conversation_history(const std::vector<message> &conversation)
 {
 	std::vector<message> normalized_convo;
 	std::map<std::string, message> tool_responses;
 
 	// 1. Extract all tool responses
-	for (const auto& msg : conversation) {
+	for (const auto &msg : conversation) {
 		if (msg.role == "tool" && msg.tool_call_id) {
 			tool_responses[*msg.tool_call_id] = msg;
 		}
 	}
 
 	// 2. Reconstruct the conversation in the correct order
-	for (const auto& msg : conversation) {
+	for (const auto &msg : conversation) {
 		if (msg.role == "tool") {
 			// Skip tool messages; they will be inserted right after their corresponding assistant messages
 			continue;
@@ -35,7 +35,7 @@ static std::vector<message> normalize_conversation_history(const std::vector<mes
 		normalized_convo.push_back(msg);
 
 		if (msg.role == "assistant" && msg.tool_calls) {
-			for (const auto& tc : *msg.tool_calls) {
+			for (const auto &tc : *msg.tool_calls) {
 				auto it = tool_responses.find(tc.id);
 				if (it != tool_responses.end()) {
 					normalized_convo.push_back(it->second);
@@ -56,10 +56,11 @@ static std::vector<message> normalize_conversation_history(const std::vector<mes
 	return normalized_convo;
 }
 
-llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry)
+llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry,
+					const std::vector<std::string> &active_families)
 {
 	std::vector<message> normalized = normalize_conversation_history(conversation);
-	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, false);
+	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, false, active_families);
 	std::string endpoint = formatter_->get_endpoint_path(model_id_, false);
 
 	auto res = transport_->post(endpoint, body);
@@ -77,32 +78,34 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 }
 
 void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-				  const tool_registry *registry)
+				  const tool_registry *registry, const std::vector<std::string> &active_families)
 {
 	std::vector<message> normalized = normalize_conversation_history(conversation);
-	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, true);
+	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, true, active_families);
 	std::string endpoint = formatter_->get_endpoint_path(model_id_, true);
 	std::string line_buffer;
 
-	bool success =
-	    transport_->post_stream(endpoint, body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
-		    line_buffer.append(data, len);
+	bool success = transport_->post_stream(endpoint, body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
+		line_buffer.append(data, len);
 
-		    size_t pos;
-		    while ((pos = line_buffer.find('\n')) != std::string::npos) {
-			    std::string line = line_buffer.substr(0, pos);
-			    line_buffer.erase(0, pos + 1);
+		size_t pos;
+		while ((pos = line_buffer.find('\n')) != std::string::npos) {
+			std::string line = line_buffer.substr(0, pos);
+			line_buffer.erase(0, pos + 1);
 
-			    if (line.rfind("data: ", 0) == 0) {
-			            std::string json_str = line.substr(6);
-			            chat_delta delta = formatter_->parse_stream_chunk(json_str);
-			            if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final || delta.usage.total_tokens > 0) {
-			                    callback(delta);
-			            }
-			            if (delta.is_final) return true;
-			    }		    }
-		    return true;
-	    });
+			if (line.rfind("data: ", 0) == 0) {
+				std::string json_str = line.substr(6);
+				chat_delta delta = formatter_->parse_stream_chunk(json_str);
+				if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final ||
+				    delta.usage.total_tokens > 0) {
+					callback(delta);
+				}
+				if (delta.is_final)
+					return true;
+			}
+		}
+		return true;
+	});
 
 	if (!success) {
 		chat_delta error_delta;

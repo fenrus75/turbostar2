@@ -555,6 +555,112 @@ std::vector<std::string> ai_agent::get_active_skills() const
 	return active_skills_;
 }
 
+void ai_agent::add_active_tool_family(const std::string &family_name)
+{
+	{
+		std::lock_guard<std::mutex> lock(state_mutex_);
+		if (std::find(active_tool_families_.begin(), active_tool_families_.end(), family_name) == active_tool_families_.end()) {
+			active_tool_families_.push_back(family_name);
+			if (global_queue_) {
+				editor_event tool_ev;
+				tool_ev.type = event_type::agent_tool_update;
+				tool_ev.key_code = id_;
+				global_queue_->push(tool_ev);
+			}
+		}
+	}
+	update_system_prompt_with_families();
+}
+
+std::vector<std::string> ai_agent::get_active_tool_families() const
+{
+	std::vector<std::string> families = {"base"};
+
+	// Add dynamically activated ones
+	{
+		std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+		for (const auto &fam : active_tool_families_) {
+			if (std::find(families.begin(), families.end(), fam) == families.end()) {
+				families.push_back(fam);
+			}
+		}
+	}
+
+	// Add configured families (from global/project config or active MCP servers)
+	auto registered_families = tool_registry::get_instance().get_all_registered_families();
+	for (const auto &fam : registered_families) {
+		if (is_tool_family_active(fam)) {
+			if (std::find(families.begin(), families.end(), fam) == families.end()) {
+				families.push_back(fam);
+			}
+		}
+	}
+
+	return families;
+}
+
+bool ai_agent::is_tool_family_active(const std::string &family_name) const
+{
+	if (family_name == "base") {
+		return true;
+	}
+
+	// Check if dynamically activated for this agent session
+	{
+		std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+		if (std::find(active_tool_families_.begin(), active_tool_families_.end(), family_name) != active_tool_families_.end()) {
+			return true;
+		}
+	}
+
+	// Check if enabled in configuration (global or project)
+	config_manager &cfg = config_manager::get_instance();
+	if (cfg.is_tool_family_enabled(family_name, true) || cfg.is_tool_family_enabled(family_name, false)) {
+		return true;
+	}
+
+	// Check if it's an enabled MCP server family
+	if (cfg.is_mcp_server_enabled(family_name, true) || cfg.is_mcp_server_enabled(family_name, false)) {
+		return true;
+	}
+
+	return false;
+}
+
+void ai_agent::update_system_prompt_with_families()
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	if (conversation_.empty()) {
+		return;
+	}
+
+	// Find the first system message
+	for (auto &msg : conversation_) {
+		if (msg.role == "system") {
+			// If we haven't stashed the original system prompt, stash it now
+			if (original_system_prompt_.empty()) {
+				original_system_prompt_ = msg.content;
+			}
+
+			// Rebuild the system prompt content
+			std::string families_str;
+			auto families = get_active_tool_families();
+			for (size_t i = 0; i < families.size(); ++i) {
+				if (i > 0) {
+					families_str += ", ";
+				}
+				families_str += "'" + families[i] + "'";
+			}
+
+			msg.content =
+			    original_system_prompt_ + "\n\n*** ACTIVE TOOL FAMILIES ***\n" +
+			    "The following tool families are currently active and available: [" + families_str + "].\n" +
+			    "If you need to use tools from another family, you must first call `activate_tool_family(family_name)`.";
+			break;
+		}
+	}
+}
+
 void ai_agent::increment_stat(const std::string &key, int amount)
 {
 	std::lock_guard<std::mutex> lock(stats_mutex_);
@@ -676,6 +782,10 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 		conversation_.push_back(context_msg);
 	}
 
+	if (role == "system") {
+		update_system_prompt_with_families();
+	}
+
 	add_interaction(std::make_shared<interaction_system_message>(content));
 
 	if (trigger_processing && status_ == agent_status::idle) {
@@ -758,6 +868,7 @@ void ai_agent::start_processing()
 		ctx.doc_provider = self->doc_provider_;
 		ctx.queue = self->global_queue_;
 		ctx.active_agent = self.get();
+		ctx.is_family_active = [self](const std::string &family) { return self->is_tool_family_active(family); };
 
 		std::string final_response;
 
@@ -877,7 +988,7 @@ void ai_agent::start_processing()
 					    }
 				    }
 			    },
-			    &registry);
+			    &registry, self->get_active_tool_families());
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -2191,17 +2302,19 @@ void ai_agent::summary_worker_loop()
 					default_model = model_;
 				}
 
-				size_t max_chars = default_model ? static_cast<size_t>(default_model->get_max_context_tokens() * 4) : 250000;
+				size_t max_chars =
+				    default_model ? static_cast<size_t>(default_model->get_max_context_tokens() * 4) : 250000;
 
 				if (system_prompt.length() > max_chars) {
-					std::string fallback_hint = "Reactivate when: Large episode. Title: " + 
-						root.value("title", "Untitled") + ". Summary: " + 
-						root.value("summary", "No summary provided.");
+					std::string fallback_hint =
+					    "Reactivate when: Large episode. Title: " + root.value("title", "Untitled") +
+					    ". Summary: " + root.value("summary", "No summary provided.");
 					if (fallback_hint.length() > 500) {
 						fallback_hint = fallback_hint.substr(0, 500) + "...";
 					}
 					update_episode_hint(task.episode_id, fallback_hint);
-					event_logger::get_instance().log("Skipped background LLM summary for {} because size ({}) exceeds context limit ({}). Used fallback hint.", 
+					event_logger::get_instance().log("Skipped background LLM summary for {} because size ({}) exceeds "
+									 "context limit ({}). Used fallback hint.",
 									 task.episode_id, system_prompt.length(), max_chars);
 					continue;
 				}

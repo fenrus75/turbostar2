@@ -1,8 +1,8 @@
 #include <cassert>
 #include <iostream>
+#include "../../src/agentlib/llm_types.h"
 #include "../../src/agentlib/single_string_tool_validator.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/agentlib/llm_types.h"
 
 using namespace agentlib;
 
@@ -150,6 +150,100 @@ int main()
 		assert(tc6.function.name == "git_diff_unstaged");
 		auto parsed6 = nlohmann::json::parse(tc6.function.arguments);
 		assert(parsed6["path"] == "src/utf8.cpp");
+	}
+
+	// 5. Test Tool Families
+	{
+		std::cout << "Running tool family tests..." << std::endl;
+		tool_registry &registry = tool_registry::get_instance();
+
+		class family_mock_validator : public single_string_tool_validator
+		{
+		      public:
+			std::string get_name() const override
+			{
+				return "family_mock";
+			}
+			std::string get_description() const override
+			{
+				return "family mock desc";
+			}
+			std::string get_family() const override
+			{
+				return "test_family";
+			}
+			std::string get_parameter_name() const override
+			{
+				return "param";
+			}
+			std::string get_parameter_description() const override
+			{
+				return "param desc";
+			}
+
+			bool validate_string_arg(const std::string & /*arg*/, const tool_context & /*ctx*/,
+						 std::string & /*out_error*/) const override
+			{
+				return true;
+			}
+
+			std::unique_ptr<llm_tool> create_tool_from_string(const std::string &arg) const override
+			{
+				return std::make_unique<mock_tool>(arg);
+			}
+		};
+
+		registry.register_validator([]() { return std::make_unique<family_mock_validator>(); });
+
+		// Test active families filtering in get_tools_json
+		std::vector<std::string> active_families = {"base"};
+		nlohmann::json tools = registry.get_tools_json(active_families);
+		bool found_family_mock = false;
+		for (const auto &t : tools) {
+			if (t["function"]["name"] == "family_mock") {
+				found_family_mock = true;
+			}
+		}
+		assert(!found_family_mock && "family_mock should NOT be in base family context!");
+
+		active_families.push_back("test_family");
+		tools = registry.get_tools_json(active_families);
+		found_family_mock = false;
+		for (const auto &t : tools) {
+			if (t["function"]["name"] == "family_mock") {
+				found_family_mock = true;
+			}
+		}
+		assert(found_family_mock && "family_mock SHOULD be in context when test_family is active!");
+
+		// Test validation and prepare_tool under inactive family
+		tool_context family_ctx;
+		bool is_active_called = false;
+		family_ctx.is_family_active = [&](const std::string &fam) {
+			is_active_called = true;
+			return fam == "base"; // only base is active
+		};
+
+		auto prep_res = registry.prepare_tool("family_mock", "{\"param\": \"val\"}", family_ctx);
+		assert(is_active_called);
+		assert(prep_res.tool == nullptr && "prepare_tool should fail for inactive family!");
+		assert(prep_res.error_message.find("not active") != std::string::npos);
+
+		// Test validation and prepare_tool under active family
+		is_active_called = false;
+		family_ctx.is_family_active = [&](const std::string &fam) {
+			is_active_called = true;
+			return fam == "base" || fam == "test_family";
+		};
+
+		prep_res = registry.prepare_tool("family_mock", "{\"param\": \"val\"}", family_ctx);
+		assert(is_active_called);
+		assert(prep_res.tool != nullptr && "prepare_tool should succeed for active family!");
+		assert(prep_res.error_message.empty());
+
+		// Clean up
+		registry.unregister_validator("family_mock");
+		std::cout << "Tool family tests passed!\n";
 	}
 
 	std::cout << "Tool infrastructure NVI invariant tests passed!\n";

@@ -42,12 +42,26 @@ static std::string serialize_mcp_name(const std::string &name)
 	return res;
 }
 
-nlohmann::json tool_registry::get_tools_json() const
+nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
+		if (!validator) {
+			continue;
+		}
+
+		std::string family = validator->get_family();
+		bool allowed = true;
+		if (!active_families.empty()) {
+			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		}
+
+		if (!allowed) {
+			continue;
+		}
+
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {
 			desc += " [Read-Only: Safe for Plan Mode]";
@@ -70,12 +84,26 @@ nlohmann::json tool_registry::get_tools_json() const
 	return tools_array;
 }
 
-nlohmann::json tool_registry::get_gemini_tools_json() const
+nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
+		if (!validator) {
+			continue;
+		}
+
+		std::string family = validator->get_family();
+		bool allowed = true;
+		if (!active_families.empty()) {
+			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		}
+
+		if (!allowed) {
+			continue;
+		}
+
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {
 			desc += " [Read-Only: Safe for Plan Mode]";
@@ -94,6 +122,22 @@ nlohmann::json tool_registry::get_gemini_tools_json() const
 		tools_array.push_back(func_decl);
 	}
 	return nlohmann::json::array({{{"functionDeclarations", tools_array}}});
+}
+
+std::vector<std::string> tool_registry::get_all_registered_families() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::vector<std::string> families;
+	for (const auto &[name, factory] : validator_factories_) {
+		auto validator = factory();
+		if (validator) {
+			std::string family = validator->get_family();
+			if (std::find(families.begin(), families.end(), family) == families.end()) {
+				families.push_back(family);
+			}
+		}
+	}
+	return families;
 }
 
 bool tool_registry::is_tool_silent(const std::string &name) const
@@ -124,6 +168,15 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 
 	// Create a transient validator instance for this execution to ensure thread-safe state!
 	auto validator = factory();
+
+	std::string family = validator->get_family();
+	if (ctx.is_family_active && !ctx.is_family_active(family)) {
+		res.error_message = "Security Violation: Tool family '" + family +
+				    "' is not active. "
+				    "You must call activate_tool_family(\"" +
+				    family + "\") first to use this tool.";
+		return res;
+	}
 
 	if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
 		res.error_message =
