@@ -820,7 +820,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 
 		// Generate all lines for this turn's box
 		std::vector<interaction_line> box_lines;
-		int box_cp = get_color_pair(turn.items.front()->get_role(), turn.bg);
+		int box_cp = get_color_pair(interaction_role::agent, turn.bg);
 
 		// Top border
 		interaction_line top_line;
