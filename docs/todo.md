@@ -18,8 +18,6 @@
 - we should build x86 (and arm etc) built in tools because we already have a disasm built in which can also do the asm side
 	- behind the activate_tool_family("x86") or "asm" call
 
-- Functionality: we need an agent tool for set_application_binary (Main Executable from the Run settings)
-
 
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -129,6 +127,7 @@
 
 ## 05-06-2026
 - implemented thread-per-MCP parallel server startup, and optimized wait loops and exiting signals to prevent shutdown hangs.
+- implemented `agent_set_application_binary` agent tool to let the agent configure the main executable for run/debug settings, and added a corresponding unit test.
 
 
 ## 04-06-2026
