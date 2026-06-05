@@ -96,6 +96,17 @@ int main()
 		assert(parsed1["start_line"] == 10);
 		assert(parsed1["end_line"] == 20);
 
+		// Test Group 1b: fs_read_file -> fs_read_lines
+		tool_call tc1b;
+		tc1b.function.name = "fs_read_file";
+		tc1b.function.arguments = "{\"path\": \"src/main.cpp\", \"start_line\": 10, \"end_line\": 20}";
+		normalize_tool_call(tc1b);
+		assert(tc1b.function.name == "fs_read_lines");
+		auto parsed1b = nlohmann::json::parse(tc1b.function.arguments);
+		assert(parsed1b["path"] == "src/main.cpp");
+		assert(parsed1b["start_line"] == 10);
+		assert(parsed1b["end_line"] == 20);
+
 		// Test Group 2: search_grep -> fs_grep_files
 		tool_call tc2;
 		tc2.function.name = "search_grep";

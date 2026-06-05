@@ -141,7 +141,7 @@ inline void normalize_tool_call(tool_call &call)
 
 	// Normalize name
 	std::string official_name = alias;
-	if (alias == "read_file" || alias == "view_file" || alias == "cat") {
+	if (alias == "read_file" || alias == "view_file" || alias == "cat" || alias == "fs_read_file") {
 		official_name = "fs_read_lines";
 	} else if (alias == "grep" || alias == "search_grep" || alias == "find_in_files") {
 		official_name = "fs_grep_files";
