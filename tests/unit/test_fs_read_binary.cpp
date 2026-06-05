@@ -35,6 +35,17 @@ int main()
 			assert(res.find("Error:") == std::string::npos);
 		}
 
+		// Success case: read first 4 bytes of poem.txt in hex format
+		{
+			std::string args = "{\"path\": \"" + poem_path + "\", \"start_offset\": 0, \"size\": 4, \"format\": \"hex\"}";
+			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
+			std::cout << "Read binary result (hex): " << res << std::endl;
+			assert(!res.empty());
+			assert(res.find("Error:") == std::string::npos);
+			assert(res.length() == 11);
+			assert(res[2] == ' ' && res[5] == ' ' && res[8] == ' ');
+		}
+
 		// 2. Execution failure case: nonexistent file
 		{
 			std::string args = "{\"path\": \"nonexistent_file.bin\"}";

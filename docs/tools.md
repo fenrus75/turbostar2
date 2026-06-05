@@ -29,11 +29,12 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `max_results` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
 
 ### `fs_read_binary`
-*   **Description:** Reads binary content from a file and returns it as a base64 encoded string. Can read a specific range using start_offset and size.
+*   **Description:** Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. Can read a specific range using start_offset and size.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
     *   `start_offset` *(integer, optional)*: The 0-based byte offset to start reading from. Defaults to 0.
     *   `size` *(integer, optional)*: The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.
+    *   `format` *(string, optional)*: The output format (`'base64'` or `'hex'`). Defaults to `'base64'`.
 
 ### `fs_regexp_lines`
 *   **Description:** Search for a regular expression within a file and return matching lines as a Markdown table.

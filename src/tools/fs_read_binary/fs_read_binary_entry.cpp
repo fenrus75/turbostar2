@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <span>
 #include <sstream>
@@ -9,6 +10,21 @@
 
 namespace tools
 {
+
+static std::string format_binary_output(std::span<const unsigned char> data, const std::string &format)
+{
+	if (format == "hex") {
+		std::string hex_str;
+		for (size_t i = 0; i < data.size(); ++i) {
+			if (i > 0) {
+				hex_str += " ";
+			}
+			hex_str += std::format("{:02x}", data[i]);
+		}
+		return hex_str;
+	}
+	return fs_utils::base64_encode(data);
+}
 
 fs_read_binary_tool::fs_read_binary_tool(fs_read_binary_args args) : args_(std::move(args))
 {
@@ -41,8 +57,9 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 				if (len == 0) {
 					return "";
 				}
-				return fs_utils::base64_encode(
-				    std::span<const unsigned char>(reinterpret_cast<const unsigned char *>(view.data()) + start, len));
+				return format_binary_output(
+				    std::span<const unsigned char>(reinterpret_cast<const unsigned char *>(view.data()) + start, len),
+				    args_.format);
 			}
 		}
 		return "Error: Virtual file not found or not mounted.";
@@ -97,7 +114,7 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 		return "Requested range is empty or past the end of the file.";
 	}
 
-	return fs_utils::base64_encode(std::span<const unsigned char>(buffer.data(), bytes_read));
+	return format_binary_output(std::span<const unsigned char>(buffer.data(), bytes_read), args_.format);
 }
 
 } // namespace tools
