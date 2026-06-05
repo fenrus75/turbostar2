@@ -136,6 +136,7 @@ int main()
 	std::cout << "100-line add result (should fail): " << result_100 << "\n";
 	assert(result_100.find("Verification Error") != std::string::npos);
 	assert(result_100.find("out of bounds") != std::string::npos);
+	assert(result_100.find("The file is 16 lines long.") != std::string::npos);
 
 	// Test Out of Order (Non-descending) line numbers auto-sorting
 	nlohmann::json args_out_of_order = {

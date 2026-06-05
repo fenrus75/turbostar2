@@ -147,7 +147,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 
 				std::string result_text;
 				if (ss.str().empty()) {
-					result_text = "Requested line range is empty or past the end of the file.";
+					result_text = std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", total_lines);
 					if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 						custom_interaction->set_status(interaction_fs_read_lines::status::failure);
 					}
@@ -221,7 +221,7 @@ std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot *
 	int end_idx = std::min<int>(args_.end_line - 1, static_cast<int>(out_total_lines) - 1);
 
 	if (start_idx >= static_cast<int>(out_total_lines)) {
-		return "Requested start line is past the end of the file.";
+		return std::format("Requested start line is past the end of the file. The file is {} lines long.", out_total_lines);
 	}
 
 	for (int i = start_idx; i <= end_idx; ++i) {
@@ -289,7 +289,7 @@ std::string fs_read_lines_tool::read_from_disk(size_t &out_total_lines) const
 	}
 
 	if (ss.str().empty()) {
-		return "Requested line range is empty or past the end of the file.";
+		return std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", out_total_lines);
 	}
 
 	return ss.str();

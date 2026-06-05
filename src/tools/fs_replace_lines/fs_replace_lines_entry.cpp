@@ -181,7 +181,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		int max_idx = (edit.type == "add") ? static_cast<int>(lines.size()) : static_cast<int>(lines.size()) - 1;
 
 		if (idx < 0 || idx > max_idx) {
-			mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds.", edit.line_number));
+			mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds. The file is {} lines long.", edit.line_number, lines.size()));
 			continue;
 		}
 
