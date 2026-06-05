@@ -1,14 +1,27 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- mega fature: activate_tool_family() tool call
+- mega feature: activate_tool_family() tool call
 	- allows us to make families of tools that are not in the context by default, but can be activated -- similar to skills
 	- it would reset the system prompt (so kvcache/token cache invalidation) but that's the price of a normally smaller set of tools
  	- we can use this for MCPs as well -- even ask the LLM to summarize the "when to invoke this MCP"
+	- steps
+		- instroduce "tool family" concept/class with description etc
+		- map existing tools to families (mostly "base" which is always there)
+		- decision: do we let MCPs "join" families? and how ? or are MCPs their own family 
+	
 
 
 
-- MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
+- Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
+
+- Usability: The MCP starting/etc thread does not honor the "we're existing" signals so holds the editor open too long on exit
+
+- Usability: we should do 1 thread per MCP (probably managed by the mcp manager thread)
+	- right now there is a 100msec delay somewhere, but parallel is just better regardless
+
+- we should build x86 (and arm etc) built in tools because we already have a disasm built in which can also do the asm side
+	- behind the activate_tool_family("x86") or "asm" call
 
 
 - feature: github copilot oauth authentication
