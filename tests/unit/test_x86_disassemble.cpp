@@ -117,6 +117,25 @@ int main()
 		assert(b64_res.find("Error") != std::string::npos);
 	}
 
+	// 8. Test system prompt modification with x86 tool family table
+	{
+		auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+		auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
+
+		agent->inject_context("system", "Test original system prompt", false);
+		auto conv = agent->get_conversation();
+		assert(!conv.empty());
+		std::string sys_prompt = conv[0].content;
+		std::cout << "Generated System Prompt:\n" << sys_prompt << "\n";
+
+		// Verify description and table presence
+		assert(sys_prompt.find("Test original system prompt") != std::string::npos);
+		assert(sys_prompt.find("*** ACTIVE TOOL FAMILIES ***") != std::string::npos);
+		assert(sys_prompt.find("activate_tool_family") != std::string::npos);
+		assert(sys_prompt.find("| Tool Family | When to Activate |") != std::string::npos);
+		assert(sys_prompt.find("| x86 | Activate when working with x86 assembly |") != std::string::npos);
+	}
+
 	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }

@@ -649,13 +649,35 @@ void ai_agent::update_system_prompt_with_families()
 				if (i > 0) {
 					families_str += ", ";
 				}
-				families_str += "'" + families[i] + "'";
+				families_str += std::format("'{}'", families[i]);
 			}
 
-			msg.content =
-			    original_system_prompt_ + "\n\n*** ACTIVE TOOL FAMILIES ***\n" +
-			    "The following tool families are currently active and available: [" + families_str + "].\n" +
-			    "If you need to use tools from another family, you must first call `activate_tool_family(family_name)`.";
+			std::string table_str;
+			auto registered_families = tool_registry::get_instance().get_all_registered_families();
+			std::vector<std::string> non_base_families;
+			for (const auto &fam : registered_families) {
+				if (fam != "base") {
+					non_base_families.push_back(fam);
+				}
+			}
+			std::sort(non_base_families.begin(), non_base_families.end());
+
+			if (!non_base_families.empty()) {
+				table_str = "\n\nIf you need to use tools from another family, you must call the `activate_tool_family` "
+					    "tool. Here are the available tool families and when to activate them:\n\n"
+					    "| Tool Family | When to Activate |\n"
+					    "| --- | --- |\n";
+				for (const auto &fam : non_base_families) {
+					std::string reason = (fam == "x86")
+								 ? "Activate when working with x86 assembly"
+								 : std::format("Activate when needing tools from the {} family", fam);
+					table_str += std::format("| {} | {} |\n", fam, reason);
+				}
+			}
+
+			msg.content = std::format("{}\n\n*** ACTIVE TOOL FAMILIES ***\n"
+						  "The following tool families are currently active and available: [{}].{}",
+						  original_system_prompt_, families_str, table_str);
 			break;
 		}
 	}
