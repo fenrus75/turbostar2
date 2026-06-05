@@ -130,7 +130,7 @@
 # done items (move items here on completion)
 
 ## 05-06-2026
-- built the first non-base tool family `"x86"`, implementing the `x86_disassemble` built-in tool that integrates Zydis to disassemble machine code in Hex (contiguous and space-separated) and Base64 formats for 16-bit, 32-bit, and 64-bit CPU modes in Intel or AT&T syntax, rendering the output as a Markdown table. Added unit test suite `test_x86_disassemble` and updated documentation.
+- built the first non-base tool family `"x86"`, implementing the `x86_disassemble` and `x86_assemble` built-in tools. `x86_disassemble` integrates Zydis to disassemble machine code in Hex and Base64 formats. `x86_assemble` integrates the system GNU Assembler (`as`) to assemble single instruction strings into space-separated hex bytes. Both tools support 16/32/64-bit CPU modes and Intel/AT&T syntaxes. Added unit test suites and updated documentation.
 - implemented Step 1 and Step 2 of the Tool Family feature: defined the `tool_family` structure, mapped all existing tools to the `"base"` family by default via `tool_validator`, mapped MCP tools to their server's family by definition, and added configuration loading/saving/getting/setting support in `config_manager`. Added unit tests in `test_run_config.cpp`.
 - implemented thread-per-MCP parallel server startup, and optimized wait loops and exiting signals to prevent shutdown hangs.
 - implemented `agent_set_application_binary` agent tool to let the agent configure the main executable for run/debug settings, and added a corresponding unit test.

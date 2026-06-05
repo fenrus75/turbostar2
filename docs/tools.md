@@ -493,3 +493,10 @@ These tools allow the agent to interact with the project's Git repository.
     *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
     *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
     *   `address` *(integer, optional)*: The starting runtime address/IP offset. Defaults to 0.
+
+### `x86_assemble` (Family: `x86`)
+*   **Description:** Assembles a single x86/x64 assembly instruction string into its corresponding machine code bytes (space-separated hex).
+*   **Arguments:**
+    *   `instruction` *(string, required)*: The assembly instruction to assemble (e.g. `'mov eax, eax'`).
+    *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
+    *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
