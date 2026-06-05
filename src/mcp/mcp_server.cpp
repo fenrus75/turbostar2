@@ -12,6 +12,7 @@
 #include "../event_logger.h"
 #include "../fs_utils.h"
 #include "mcp_manager.h"
+#include "../project_manager.h"
 
 namespace agentlib
 {
@@ -102,6 +103,9 @@ bool mcp_server::start()
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	if (is_running()) {
 		return true;
+	}
+	if (project_manager::get_instance().is_exiting()) {
+		return false;
 	}
 
 	if (mcp_type_ == "python") {
@@ -257,16 +261,16 @@ void mcp_server::stop()
 
 	int status;
 	int waited = 0;
-	while (waited < 10) {
+	while (waited < 50) {
 		pid_t res = waitpid(pid_, &status, WNOHANG);
 		if (res == pid_ || res < 0) {
 			break;
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		waited++;
 	}
 
-	if (waited >= 10) {
+	if (waited >= 50) {
 		kill(-pid_, SIGKILL);
 		waitpid(pid_, &status, 0);
 	}
@@ -307,6 +311,9 @@ nlohmann::json mcp_server::send_request(const std::string &method, const nlohman
 	if (!is_running()) {
 		return {{"error", {{"code", -32603}, {"message", "Server not running."}}}};
 	}
+	if (project_manager::get_instance().is_exiting()) {
+		return {{"error", {{"code", -32603}, {"message", "Application is exiting."}}}};
+	}
 
 	int id;
 	std::promise<nlohmann::json> prom;
@@ -328,12 +335,29 @@ nlohmann::json mcp_server::send_request(const std::string &method, const nlohman
 		return {{"error", {{"code", -32603}, {"message", "Write to server stdin failed."}}}};
 	}
 
-	// 10s execution timeout
-	if (fut.wait_for(std::chrono::seconds(10)) == std::future_status::ready) {
+	// 10s execution timeout checking for exiting
+	int timeout_ms = 10000;
+	int elapsed_ms = 0;
+	bool ready = false;
+	while (elapsed_ms < timeout_ms) {
+		if (project_manager::get_instance().is_exiting()) {
+			break;
+		}
+		if (fut.wait_for(std::chrono::milliseconds(50)) == std::future_status::ready) {
+			ready = true;
+			break;
+		}
+		elapsed_ms += 50;
+	}
+
+	if (ready) {
 		return fut.get();
 	} else {
 		std::lock_guard<std::mutex> lock(requests_mutex_);
 		pending_requests_.erase(id);
+		if (project_manager::get_instance().is_exiting()) {
+			return {{"error", {{"code", -32603}, {"message", "Application is exiting."}}}};
+		}
 		return {{"error", {{"code", -32603}, {"message", "Request timeout."}}}};
 	}
 }

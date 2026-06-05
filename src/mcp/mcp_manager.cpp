@@ -7,6 +7,7 @@
 #include "../agentlib/tool_registry.h"
 #include "../config_manager.h"
 #include "../event_logger.h"
+#include "../project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -100,26 +101,42 @@ void mcp_manager::start_async(const std::string &project_root)
 
 void mcp_manager::start_active_servers()
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
-	for (auto &server : servers_) {
-		if (server->is_enabled()) {
-			if (server->start()) {
-				for (const auto &tool : server->get_tools()) {
-					if (tool.enabled) {
-						std::string server_name = server->get_name();
-						bool is_system = server->is_system();
-						tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
-							return std::make_unique<mcp_tool_validator>(server_name, tool, is_system);
-						});
+	std::vector<std::thread> start_threads;
+	{
+		std::lock_guard<std::recursive_mutex> lock(mutex_);
+		for (auto &server : servers_) {
+			if (server->is_enabled()) {
+				start_threads.push_back(std::thread([this, server]() {
+					if (project_manager::get_instance().is_exiting()) {
+						return;
 					}
-				}
+					if (server->start()) {
+						std::lock_guard<std::recursive_mutex> reg_lock(mutex_);
+						for (const auto &tool : server->get_tools()) {
+							if (tool.enabled) {
+								std::string server_name = server->get_name();
+								bool is_system = server->is_system();
+								tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
+									return std::make_unique<mcp_tool_validator>(server_name, tool, is_system);
+								});
+							}
+						}
+					}
+				}));
 			}
+		}
+	}
+
+	for (auto &t : start_threads) {
+		if (t.joinable()) {
+			t.join();
 		}
 	}
 }
 
 void mcp_manager::stop_all_servers()
 {
+	project_manager::get_instance().set_exiting(true);
 	if (startup_thread_.joinable()) {
 		startup_thread_.join();
 	}

@@ -15,13 +15,10 @@
 - Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
 
-- Usability: The MCP starting/etc thread does not honor the "we're existing" signals so holds the editor open too long on exit
-
-- Usability: we should do 1 thread per MCP (probably managed by the mcp manager thread)
-	- right now there is a 100msec delay somewhere, but parallel is just better regardless
-
 - we should build x86 (and arm etc) built in tools because we already have a disasm built in which can also do the asm side
 	- behind the activate_tool_family("x86") or "asm" call
+
+- Functionality: we need an agent tool for set_application_binary (Main Executable from the Run settings)
 
 
 - feature: github copilot oauth authentication
@@ -129,6 +126,10 @@
     - ...
 
 # done items (move items here on completion)
+
+## 05-06-2026
+- implemented thread-per-MCP parallel server startup, and optimized wait loops and exiting signals to prevent shutdown hangs.
+
 
 ## 04-06-2026
 - fixed a bug where background summaries of episodes and new agent connections did not honor the global model registry default or project settings, falling back to a hardcoded "gpt-4o" model instead of the user's preferred defaults.
