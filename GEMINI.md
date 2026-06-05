@@ -17,6 +17,23 @@ Top design documentation: `docs/design.md`
 - read `.clang-format` on startup
 - prefer std::format over string concatinations, and clean up any existing cases as you see them
 - the project uses C++23
+- each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
+- use #pragma ONCE for include guards
+- when creating a subclass, add or update the header of the parent class with a table that matches this example template:
+```c
+/*
+
+# subclasses of <parent class>
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| <subclass 1> | <project relative path to the header for subclass 1> |
+
+*/
+```
+	Check is such comment with table already exists, and add a line when it does.
+	When no such comment exists, create a new comment ABOVE the class definition.
+
 
 ## Documentation Files
 The `docs/` directory contains crucial context. Keep these files updated as we make changes to the system:
