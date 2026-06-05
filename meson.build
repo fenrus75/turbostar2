@@ -174,6 +174,14 @@ test_activate_tool_family = executable('test_activate_tool_family',
   include_directories: inc)
 test('unit_test_activate_tool_family', test_activate_tool_family)
 
+test_x86_disassemble = executable('test_x86_disassemble',
+  ['tests/unit/test_x86_disassemble.cpp',
+   'src/tools/x86_disassemble/x86_disassemble_entry.cpp',
+   'src/tools/x86_disassemble/x86_disassemble_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_x86_disassemble', test_x86_disassemble)
+
 test_list_skills = executable('test_list_skills',
   ['tests/unit/test_list_skills.cpp',
    'src/tools/list_skills/list_skills_entry.cpp',

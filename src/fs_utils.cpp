@@ -382,16 +382,28 @@ std::string unescape_string(const std::string &input)
 	for (size_t i = 0; i < input.size(); ++i) {
 		if (input[i] == '\\' && i + 1 < input.size()) {
 			switch (input[i + 1]) {
-			case 'n': result += '\n'; break;
-			case 'r': result += '\r'; break;
-			case 't': result += '\t'; break;
-			case '\\': result += '\\'; break;
-			case '"': result += '"'; break;
-			case '\'': result += '\''; break;
-			default:
-				result += '\\';
-				result += input[i + 1];
-				break;
+				case 'n':
+					result += '\n';
+					break;
+				case 'r':
+					result += '\r';
+					break;
+				case 't':
+					result += '\t';
+					break;
+				case '\\':
+					result += '\\';
+					break;
+				case '"':
+					result += '"';
+					break;
+				case '\'':
+					result += '\'';
+					break;
+				default:
+					result += '\\';
+					result += input[i + 1];
+					break;
 			}
 			++i;
 		} else {
@@ -520,6 +532,58 @@ std::string base64_encode(std::span<const unsigned char> data)
 std::string base64_encode(std::string_view text)
 {
 	return base64_encode(std::span<const unsigned char>(reinterpret_cast<const unsigned char *>(text.data()), text.size()));
+}
+
+std::vector<unsigned char> base64_decode(std::string_view encoded)
+{
+	static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+						"abcdefghijklmnopqrstuvwxyz"
+						"0123456789+/";
+
+	auto is_base64 = [](unsigned char c) -> bool { return (isalnum(c) || (c == '+') || (c == '/')); };
+
+	size_t in_len = encoded.size();
+	size_t i = 0;
+	size_t j = 0;
+	int in_ = 0;
+	unsigned char char_array_4[4], char_array_3[3];
+	std::vector<unsigned char> ret;
+
+	while (in_len-- && (encoded[in_] != '=') && is_base64(encoded[in_])) {
+		char_array_4[i++] = encoded[in_];
+		in_++;
+		if (i == 4) {
+			for (i = 0; i < 4; i++) {
+				char_array_4[i] = static_cast<unsigned char>(base64_chars.find(char_array_4[i]));
+			}
+			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+			for (i = 0; (i < 3); i++) {
+				ret.push_back(char_array_3[i]);
+			}
+			i = 0;
+		}
+	}
+
+	if (i) {
+		for (j = i; j < 4; j++) {
+			char_array_4[j] = 0;
+		}
+		for (j = 0; j < 4; j++) {
+			char_array_4[j] = static_cast<unsigned char>(base64_chars.find(char_array_4[j]));
+		}
+		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+		for (j = 0; (j < i - 1); j++) {
+			ret.push_back(char_array_3[j]);
+		}
+	}
+
+	return ret;
 }
 
 } // namespace fs_utils

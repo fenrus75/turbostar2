@@ -480,3 +480,16 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Terminates/stops a running process and closes its window based on its run ID.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+
+---
+
+## 10. Specialized Tool Families
+
+### `x86_disassemble` (Family: `x86`)
+*   **Description:** Disassembles raw x86/x64 machine code bytes into human-readable assembly instructions. Outputs a Markdown table containing the instruction bytes and the formatted instruction.
+*   **Arguments:**
+    *   `data` *(string, required)*: The raw machine code bytes to disassemble. Can be Base64 or space-separated ASCII hex.
+    *   `format` *(string, optional)*: The input format (`'hex'`, `'base64'`, or `'auto'`). Defaults to `'auto'`.
+    *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
+    *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
+    *   `address` *(integer, optional)*: The starting runtime address/IP offset. Defaults to 0.

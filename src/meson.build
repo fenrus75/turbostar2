@@ -126,7 +126,7 @@ libtools = static_library('tools',
   tools_sources,
   include_directories : inc,
   cpp_pch : 'pch/pch.h',
-  dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep])
+  dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zydis_dep])
 
 libturbostar_ui = static_library('turbostar_ui',
   ui_sources + [help_text_h],
