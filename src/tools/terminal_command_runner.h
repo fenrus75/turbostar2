@@ -2,6 +2,7 @@
 
 #include "../command_runner.h"
 #include "../agentlib/interactions/terminal.h"
+#include "../utf8.h"
 #include <deque>
 #include <string>
 #include <functional>
@@ -88,7 +89,7 @@ public:
         start_time_ = std::chrono::steady_clock::now();
     }
 
-    std::string get_final_output() const { return parser_.get_full_output(); }
+    std::string get_final_output() const { return utf8::sanitize(parser_.get_full_output()); }
     
     void set_timeout(int seconds) { timeout_seconds_ = seconds; }
 

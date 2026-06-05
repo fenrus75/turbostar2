@@ -39,4 +39,9 @@ size_t byte_to_char_pos(std::string_view s, size_t byte_offset);
  */
 bool next_character(std::string_view s, size_t &byte_offset, std::string &out_char);
 
+/**
+ * @brief Sanitizes a string by replacing invalid UTF-8 sequences with '?'.
+ */
+std::string sanitize(std::string_view s);
+
 } // namespace utf8

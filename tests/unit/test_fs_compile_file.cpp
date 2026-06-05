@@ -1,5 +1,7 @@
 #include <cassert>
 #include <iostream>
+#include <thread>
+#include <chrono>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
@@ -45,6 +47,30 @@ int main()
 			auto prep = registry.prepare_tool("fs_compile_file", "{\"path\": \"/etc/passwd\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
+		}
+
+		// 4. Success case: compile file (async)
+		{
+			std::string args = "{\"path\": \"src/main.cpp\", \"async\": true}";
+			std::string res = registry.execute_tool("fs_compile_file", args, ctx);
+			std::cout << "Compile file async result: " << res << std::endl;
+			assert(res.find("background") != std::string::npos);
+
+			// Now wait for the detached thread to run and update the agent
+			bool found_msg = false;
+			for (int i = 0; i < 100; ++i) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				auto conv = agent->get_conversation();
+				for (const auto &msg : conv) {
+					if (msg.role == "system" && (msg.content.find("successfully") != std::string::npos || msg.content.find("with errors") != std::string::npos)) {
+						found_msg = true;
+						std::cout << "Found expected async message: " << msg.content << std::endl;
+						break;
+					}
+				}
+				if (found_msg) break;
+			}
+			assert(found_msg);
 		}
 
 		std::cout << "fs_compile_file tool verified successfully!" << std::endl;

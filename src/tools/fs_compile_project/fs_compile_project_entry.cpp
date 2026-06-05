@@ -6,6 +6,7 @@
 #include "../output_filter.h"
 #include "fs_compile_project.h"
 #include <thread>
+#include <format>
 
 namespace tools
 {
@@ -61,12 +62,12 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
                 }
                 std::string captured_tool_call_id = ctx.tool_call_id;
 
-                std::thread([this, runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent, captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
+                std::thread([runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent, captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
                         runner->set_enable_crash_catcher(true);
                         runner->set_project_dir(workspace_dir);
 
                         size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
-                        runner->execute(cmd);
+                        int exit_code = runner->execute(cmd);
 
                         std::string output = runner->get_final_output();
                         runner->get_new_crashdumps(); // Trigger refresh in the runner to update the manager
@@ -97,7 +98,11 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
                                 std::string formatted_injection = "```bash\n$ " + cmd + "\n" + output + "\n```";
                                 agent->replace_tool_result(captured_tool_call_id, formatted_injection);
-                                agent->inject_context("system", "The background task 'fs_compile_project' has completed. I updated your previous tool result with the output.", true);
+                                std::string status = (exit_code == 0) ? "successfully" : "with errors";
+                                std::string system_msg = std::format(
+                                        "The background task 'fs_compile_project' has completed {}. I updated your previous tool result with the output.",
+                                        status);
+                                agent->inject_context("system", system_msg, true);
                         }
                 }).detach();
 

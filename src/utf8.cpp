@@ -114,4 +114,47 @@ bool next_character(std::string_view s, size_t &byte_offset, std::string &out_ch
 	return true;
 }
 
+std::string sanitize(std::string_view s)
+{
+	std::string res;
+	res.reserve(s.length());
+	size_t offset = 0;
+	while (offset < s.length()) {
+		unsigned char c = static_cast<unsigned char>(s[offset]);
+		if (c < 0x80) {
+			res.push_back(s[offset]);
+			offset++;
+			continue;
+		}
+		size_t clen = char_len(c);
+		if (clen == 1) {
+			// Invalid UTF-8 lead byte (continuation byte or invalid value)
+			res.push_back('?');
+			offset++;
+			continue;
+		}
+		if (offset + clen > s.length()) {
+			res.append(s.length() - offset, '?');
+			break;
+		}
+		// Verify continuation bytes
+		bool valid = true;
+		for (size_t i = 1; i < clen; ++i) {
+			unsigned char next_c = static_cast<unsigned char>(s[offset + i]);
+			if ((next_c & 0xC0) != 0x80) {
+				valid = false;
+				break;
+			}
+		}
+		if (valid) {
+			res.append(s.data() + offset, clen);
+			offset += clen;
+		} else {
+			res.push_back('?');
+			offset++; // consume lead byte
+		}
+	}
+	return res;
+}
+
 } // namespace utf8
