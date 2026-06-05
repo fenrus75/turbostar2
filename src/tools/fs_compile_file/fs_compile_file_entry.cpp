@@ -39,6 +39,8 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Cannot find compile command for this file in compile_commands.json.";
 	}
 
+	cmd = "export LC_ALL=C.UTF-8 LANG=C.UTF-8 && " + cmd;
+
 	if (args_.async) {
 		std::weak_ptr<agentlib::ai_agent> weak_agent;
 		if (ctx.active_agent) {

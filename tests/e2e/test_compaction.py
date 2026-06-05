@@ -180,8 +180,8 @@ def test_think_free_restore(tmp_path):
     assert found_restored_msg, f"Failed to restore context from disk. Conversation: {json.dumps(conv, indent=2)}"
 
 def test_auto_episode(tmp_path):
-    # Mock a response with 200,000 characters of reasoning_content
-    huge_reasoning = "a" * 200000
+    # Mock a response with 270,000 characters of reasoning_content
+    huge_reasoning = "a" * 270000
     traffic_file = create_traffic_file(tmp_path, "auto_episode_traffic.json", [
         {
             "role": "assistant",

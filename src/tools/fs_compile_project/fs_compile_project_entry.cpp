@@ -55,6 +55,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
                 cmd = build_system + " " + build_dir; // Fallback
         }
 
+        cmd = "export LC_ALL=C.UTF-8 LANG=C.UTF-8 && " + cmd;
+
         if (args_.async) {
                 std::weak_ptr<agentlib::ai_agent> weak_agent;
                 if (ctx.active_agent) {

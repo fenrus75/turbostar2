@@ -1890,9 +1890,9 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 	bool should_split = false;
 	float boundary_prob = -1.0f;
 
-	if (recent_chars > 192000) {
+	if (recent_chars > 256000) {
 		should_split = true;
-		event_logger::get_instance().log("Context size exceeds 48k tokens ({} chars). Forcing auto-episode boundary.",
+		event_logger::get_instance().log("Context size exceeds 64k tokens ({} chars). Forcing auto-episode boundary.",
 						 recent_chars);
 	} else {
 		std::vector<parsed_turn> turns = parse_turns(convo);
@@ -1993,7 +1993,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 	if (should_split) {
 		std::string reason_msg;
-		if (recent_chars > 192000) {
+		if (recent_chars > 256000) {
 			reason_msg = "Heuristic context character limit reached";
 		} else if (boundary_prob >= 0.0f) {
 			reason_msg = std::format("Milestone boundary classification trigger, prob: {:.1f}%", boundary_prob * 100.0f);
