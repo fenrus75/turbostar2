@@ -36,7 +36,7 @@ def pool_text(tokens, embed_weight):
     return pooled
 
 class MilestoneBoundaryClassifier(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout_prob=0.1):
         super().__init__()
         self.embed = nn.Embedding(1024, 128)
         # Uniform initialization
@@ -46,7 +46,8 @@ class MilestoneBoundaryClassifier(nn.Module):
         self.fc1 = nn.Linear(1040, 256)
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 1)
+        self.fc4 = nn.Linear(64, 2)
+        self.dropout = nn.Dropout(dropout_prob)
         
         # Initialize dense layers
         nn.init.xavier_uniform_(self.fc1.weight)
@@ -65,9 +66,13 @@ class MilestoneBoundaryClassifier(nn.Module):
             v_curr = pool_text(batch_tokens_curr[i], self.embed.weight)
             x = torch.cat([v_prev, v_curr, batch_metadata[i]], dim=0)
             x = F.leaky_relu(self.fc1(x), negative_slope=0.01)
+            x = self.dropout(x)
             x = F.leaky_relu(self.fc2(x), negative_slope=0.01)
+            x = self.dropout(x)
             x = F.leaky_relu(self.fc3(x), negative_slope=0.01)
-            x = torch.sigmoid(self.fc4(x))
+            x = self.dropout(x)
+            x = self.fc4(x)
+            x = F.softmax(x, dim=-1)
             outputs.append(x)
         return torch.stack(outputs)
 
@@ -126,13 +131,17 @@ def train():
     batch_metadata = torch.tensor([s['metadata'] for s in samples], dtype=torch.float)
     batch_labels = torch.tensor([[s['label']] for s in samples], dtype=torch.float)
     
+    # Class targets for CrossEntropyLoss: 0 for boundary (label 1.0), 1 for no boundary (label 0.0)
+    batch_targets = torch.where(batch_labels == 1.0, 0, 1).squeeze(-1).long()
+    
     # Model & optimizer
     model = MilestoneBoundaryClassifier()
     optimizer = optim.Adam(model.parameters(), lr=0.002, weight_decay=1e-4)
     
-    # Weighted Binary Cross Entropy Loss to handle imbalance
-    pos_weight = torch.tensor([float(num_neg) / max(1.0, float(num_pos))])
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    # Weighted Cross Entropy Loss
+    pos_weight_val = float(num_neg) / max(1.0, float(num_pos))
+    class_weights = torch.tensor([pos_weight_val, 1.0])
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     
     # Training loop
     print("Training model...")
@@ -140,28 +149,46 @@ def train():
     for epoch in range(150):
         optimizer.zero_grad()
         # forward pass (logits)
-        # To get logits instead of sigmoid for BCEWithLogitsLoss, we evaluate without sigmoid:
+        # To get logits instead of softmax for CrossEntropyLoss, we evaluate without softmax:
         logits = []
         for i in range(len(samples)):
             v_prev = pool_text(batch_tokens_prev[i], model.embed.weight)
             v_curr = pool_text(batch_tokens_curr[i], model.embed.weight)
             x = torch.cat([v_prev, v_curr, batch_metadata[i]], dim=0)
             x = F.leaky_relu(model.fc1(x), negative_slope=0.01)
+            x = model.dropout(x)
             x = F.leaky_relu(model.fc2(x), negative_slope=0.01)
+            x = model.dropout(x)
             x = F.leaky_relu(model.fc3(x), negative_slope=0.01)
+            x = model.dropout(x)
             logit = model.fc4(x)
             logits.append(logit)
         logits = torch.stack(logits)
         
-        loss = criterion(logits, batch_labels)
+        loss = criterion(logits, batch_targets)
         loss.backward()
         optimizer.step()
         
         if (epoch + 1) % 15 == 0 or epoch == 0:
-            # Calculate accuracy
+            # Calculate accuracy without dropout
+            model.eval()
             with torch.no_grad():
-                probs = torch.sigmoid(logits)
-                preds = (probs > 0.5).float()
+                eval_logits = []
+                for i in range(len(samples)):
+                    v_prev = pool_text(batch_tokens_prev[i], model.embed.weight)
+                    v_curr = pool_text(batch_tokens_curr[i], model.embed.weight)
+                    x = torch.cat([v_prev, v_curr, batch_metadata[i]], dim=0)
+                    x = F.leaky_relu(model.fc1(x), negative_slope=0.01)
+                    x = F.leaky_relu(model.fc2(x), negative_slope=0.01)
+                    x = F.leaky_relu(model.fc3(x), negative_slope=0.01)
+                    logit = model.fc4(x)
+                    eval_logits.append(logit)
+                eval_logits = torch.stack(eval_logits)
+                probs = F.softmax(eval_logits, dim=-1)
+                
+                # First element (index 0) is the prob of boundary (new episode)
+                prob_boundary = probs[:, 0:1]
+                preds = (prob_boundary > 0.5).float()
                 correct = (preds == batch_labels).float().sum().item()
                 acc = correct / len(samples)
                 
@@ -173,6 +200,7 @@ def train():
                 recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
                 
             print(f"Epoch {epoch+1:03d} | Loss: {loss.item():.4f} | Acc: {acc:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
+            model.train()
             
     # Save weights.json
     print("Saving weights to weights.json...")

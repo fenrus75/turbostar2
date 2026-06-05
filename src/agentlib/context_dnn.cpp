@@ -83,8 +83,8 @@ bool context_dnn::load_weights(const std::string &custom_path)
 		    weights_.fc2_bias.size() != 128 ||
 		    weights_.fc3_weight.size() != 64 || weights_.fc3_weight[0].size() != 128 ||
 		    weights_.fc3_bias.size() != 64 ||
-		    weights_.fc4_weight.size() != 1 || weights_.fc4_weight[0].size() != 64 ||
-		    weights_.fc4_bias.size() != 1) {
+		    weights_.fc4_weight.size() != 2 || weights_.fc4_weight[0].size() != 64 ||
+		    weights_.fc4_bias.size() != 2) {
 			event_logger::get_instance().log("Weights file {} loaded but has incorrect tensor dimensions.", resolved_path);
 			return false;
 		}
@@ -228,10 +228,6 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
 	return output;
 }
 
-static float run_sigmoid(float val)
-{
-	return 1.0f / (1.0f + std::exp(-val));
-}
 
 float context_dnn::predict_boundary(const std::string &text_prev, const std::string &text_curr, const std::vector<float> &metadata)
 {
@@ -264,12 +260,21 @@ float context_dnn::predict_boundary(const std::string &text_prev, const std::str
 	std::vector<float> h2 = evaluate_dense_layer(h1, weights_.fc2_weight, weights_.fc2_bias);
 	std::vector<float> h3 = evaluate_dense_layer(h2, weights_.fc3_weight, weights_.fc3_bias);
 
-	// fc4 output (single node sigmoid)
-	float output_val = weights_.fc4_bias[0];
-	for (size_t i = 0; i < h3.size(); ++i) {
-		output_val += h3[i] * weights_.fc4_weight[0][i];
+	// fc4 output (2 nodes, linear + softmax)
+	std::vector<float> logits(2, 0.0f);
+	for (size_t i = 0; i < 2; ++i) {
+		logits[i] = weights_.fc4_bias[i];
+		for (size_t j = 0; j < h3.size(); ++j) {
+			logits[i] += h3[j] * weights_.fc4_weight[i][j];
+		}
 	}
-	float probability = run_sigmoid(output_val);
+
+	// Softmax
+	float max_logit = std::max(logits[0], logits[1]);
+	float e0 = std::exp(logits[0] - max_logit);
+	float e1 = std::exp(logits[1] - max_logit);
+	float sum_e = e0 + e1;
+	float probability = e0 / sum_e;
 
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();

@@ -84,9 +84,9 @@ $$\text{Prob}(A > B) = \sigma(\text{Score}_A - \text{Score}_B)$$
 
 ### Case 2: Classifier
 $$\text{Input} = [ V_{T-1} \,\|\, V_T \,\|\, M ] \in \mathbb{R}^{1040}$$
-$$\text{Prob}(\text{Boundary}) = \sigma(\text{MLP}(\text{Input}))$$
-*   **MLP Layer Sizes:** $1040 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 1$.
-*   **Activation:** LeakyReLU for hidden layers, Sigmoid ($\sigma$) for the final probability.
+$$\text{Prob}(\text{Boundary}) = \text{softmax}(\text{MLP}(\text{Input}))[0]$$
+*   **MLP Layer Sizes:** $1040 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 2$.
+*   **Activation & Regularization:** LeakyReLU for hidden layers, Dropout (prob $0.1$) during training to prevent overfitting, and Softmax for the final outputs. The first element corresponds to "new episode" (boundary) and the second element to "no new episode".
 
 ---
 
