@@ -449,6 +449,11 @@ These tools allow the agent to interact with the project's Git repository.
 
 ## 9. Interactive Execution & Debugging
 
+### `agent_set_application_binary`
+*   **Description:** Sets the main application binary/executable path for run and debug operations. Note: The path must be specified relative to the `build/` directory (e.g., `'turbostar'` or `'test_tool_infrastructure'`).
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
+
 ### `agent_start_app`
 *   **Description:** Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with `app_run_id` and `gdb_run_id`.
 *   **Arguments:**

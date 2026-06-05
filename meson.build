@@ -463,6 +463,14 @@ test_agent_start_app = executable('test_agent_start_app',
   include_directories: inc)
 test('unit_test_agent_start_app', test_agent_start_app)
 
+test_agent_set_application_binary = executable('test_agent_set_application_binary',
+  ['tests/unit/test_agent_set_application_binary.cpp',
+   'src/tools/agent_set_application_binary/agent_set_application_binary_entry.cpp',
+   'src/tools/agent_set_application_binary/agent_set_application_binary_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_set_application_binary', test_agent_set_application_binary)
+
 test_agent_status = executable('test_agent_status',
   ['tests/unit/test_agent_status.cpp',
    'src/tools/agent_status/agent_status_entry.cpp',

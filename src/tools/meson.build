@@ -139,6 +139,8 @@ tools_sources = files(
   'clear_all_errors/clear_all_errors_security.cpp',
   'agent_set_timer/agent_set_timer_entry.cpp',
   'agent_set_timer/agent_set_timer_security.cpp',
+  'agent_set_application_binary/agent_set_application_binary_entry.cpp',
+  'agent_set_application_binary/agent_set_application_binary_security.cpp',
   'agent_list_episodes/agent_list_episodes_entry.cpp',
   'agent_list_episodes/agent_list_episodes_security.cpp',
   'open_in_editor/open_in_editor_entry.cpp',
