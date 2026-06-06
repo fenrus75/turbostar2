@@ -229,6 +229,58 @@ int main()
 			assert(found_meta);
 		}
 
+		// 10. Test page_in_history_auto backward-paging with 50% context window limit
+		{
+			auto test_model = std::make_shared<ai_model>("test-model-4", "Test Model 4", "http://localhost:1", "Test", 0.0, 0.0);
+			test_model->set_max_context_tokens(1000); // 50% is 500 tokens
+			ai_model_registry::get_instance().register_model(test_model);
+			config_manager::get_instance().set_default_model_id("test-model-4");
+			auto test_agent = ai_agent::create(4, "TestAgent4", test_model, &q, nullptr);
+
+			// Clean/ensure empty history first
+			std::string hist_dir = fs_utils::get_project_history_dir("TestAgent4");
+			if (std::filesystem::exists(hist_dir)) {
+				std::filesystem::remove_all(hist_dir);
+			}
+
+			// Add some base messages (e.g. system message / user messages)
+			test_agent->inject_context("user", "Base message"); // ~10 tokens
+
+			// Episode 1 (oldest): Title A, ~100 tokens
+			test_agent->inject_context("assistant", std::string(400, 'x')); // 100 tokens
+			test_agent->page_out_context(1, 2, "Milestone A", "Summary A", {"tagA"});
+
+			// Episode 2: Title B, ~200 tokens
+			test_agent->inject_context("assistant", std::string(800, 'y')); // 200 tokens
+			test_agent->page_out_context(2, 3, "Milestone B", "Summary B", {"tagB"});
+
+			// Episode 3 (newest): Title C, ~400 tokens
+			test_agent->inject_context("assistant", std::string(1600, 'z')); // 400 tokens
+			test_agent->page_out_context(3, 4, "Milestone C", "Summary C", {"tagC"});
+
+			// Now, max_context_tokens is 1000, 50% limit is 500 tokens.
+			// Base message is ~10 tokens.
+			// The three paged-out episodes are:
+			// - episode_3 (newest, ~400 tokens)
+			// - episode_2 (middle, ~200 tokens)
+			// - episode_1 (oldest, ~100 tokens)
+			//
+			// If we call page_in_history_auto(1), it should:
+			// 1. Consider episode_3: fits (10 + 400 = 410 <= 500). Paged in.
+			// 2. Consider episode_2: does not fit (410 + 200 = 610 > 500). Stop.
+			// 3. episode_1 should not be considered/paged in because we stopped.
+			//
+			// So only episode_3 should be paged in!
+			std::vector<std::string> paged_in = test_agent->page_in_history_auto(1);
+			std::cout << "Paged-in count: " << paged_in.size() << std::endl;
+			for (const auto& id : paged_in) {
+				std::cout << "  Paged in ID: " << id << std::endl;
+			}
+
+			assert(paged_in.size() == 1);
+			assert(paged_in[0] == "episode_3");
+		}
+
 		std::cout << "agent_compress_history tool verified successfully!" << std::endl;
 	}
 

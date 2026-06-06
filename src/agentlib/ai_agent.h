@@ -206,6 +206,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void update_episode_hint(const std::string &episode_id, const std::string &hint);
 	bool page_in_context(const std::string &episode_id, int compression_level = 1);
 	bool set_episode_state(const std::string &episode_id, int target_level);
+	std::vector<std::string> page_in_history_auto(int default_level = 1);
+	int calculate_current_tokens() const;
 
 	void save_active_state() const;
 	bool load_active_state(bool fresh_agent = false);
@@ -290,6 +292,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<message> conversation_;
 	std::map<std::string, episode_index_entry> episode_index_;
 	std::unique_ptr<llm_client> client_;
+	std::shared_ptr<llm_transport> background_transport_;
+	mutable std::mutex background_transport_mutex_;
 
 	std::mutex summary_mutex_;
 	std::condition_variable summary_cv_;

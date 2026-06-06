@@ -261,28 +261,44 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
-		if (trimmed_text.starts_with("/pagein ")) {
+		if (trimmed_text == "/pagein" || trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string args = trimmed_text.substr(8);
-			std::string episode_id = args;
-			int level = 1;
-
-			size_t space_pos = args.find(' ');
-			if (space_pos != std::string::npos) {
-				episode_id = args.substr(0, space_pos);
-				try {
-					level = std::stoi(args.substr(space_pos + 1));
-				} catch (...) {
-					level = 1;
+			if (trimmed_text == "/pagein") {
+				// Default no-argument behavior: page in as much as possible backward from the front
+				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
+				if (paged_in.empty()) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+						"No episodes paged in (either 50% limit reached or all episodes already active)."));
+				} else {
+					std::string msg = "Successfully paged in episodes: ";
+					for (size_t i = 0; i < paged_in.size(); ++i) {
+						msg += paged_in[i] + (i < paged_in.size() - 1 ? ", " : "");
+					}
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(msg));
 				}
-			}
-
-			if (agent_->set_episode_state(episode_id, level)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-				    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(
-				    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+				// Argument provided
+				std::string args = trimmed_text.substr(8);
+				std::string episode_id = args;
+				int level = 1;
+
+				size_t space_pos = args.find(' ');
+				if (space_pos != std::string::npos) {
+					episode_id = args.substr(0, space_pos);
+					try {
+						level = std::stoi(args.substr(space_pos + 1));
+					} catch (...) {
+						level = 1;
+					}
+				}
+
+				if (agent_->set_episode_state(episode_id, level)) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+						"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+				} else {
+					agent_->add_interaction(
+						std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+				}
 			}
 			scroll_offset_ = 0;
 			invalidate();
@@ -526,28 +542,44 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
-		if (trimmed_text.starts_with("/pagein ")) {
+		if (trimmed_text == "/pagein" || trimmed_text.starts_with("/pagein ")) {
 			input_box_->set_buffer("");
-			std::string args = trimmed_text.substr(8);
-			std::string episode_id = args;
-			int level = 1;
-
-			size_t space_pos = args.find(' ');
-			if (space_pos != std::string::npos) {
-				episode_id = args.substr(0, space_pos);
-				try {
-					level = std::stoi(args.substr(space_pos + 1));
-				} catch (...) {
-					level = 1;
+			if (trimmed_text == "/pagein") {
+				// Default no-argument behavior: page in as much as possible backward from the front
+				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
+				if (paged_in.empty()) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+						"No episodes paged in (either 50% limit reached or all episodes already active)."));
+				} else {
+					std::string msg = "Successfully paged in episodes: ";
+					for (size_t i = 0; i < paged_in.size(); ++i) {
+						msg += paged_in[i] + (i < paged_in.size() - 1 ? ", " : "");
+					}
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(msg));
 				}
-			}
-
-			if (agent_->set_episode_state(episode_id, level)) {
-				agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-				    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 			} else {
-				agent_->add_interaction(
-				    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+				// Argument provided
+				std::string args = trimmed_text.substr(8);
+				std::string episode_id = args;
+				int level = 1;
+
+				size_t space_pos = args.find(' ');
+				if (space_pos != std::string::npos) {
+					episode_id = args.substr(0, space_pos);
+					try {
+						level = std::stoi(args.substr(space_pos + 1));
+					} catch (...) {
+						level = 1;
+					}
+				}
+
+				if (agent_->set_episode_state(episode_id, level)) {
+					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+						"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+				} else {
+					agent_->add_interaction(
+						std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+				}
 			}
 			scroll_offset_ = 0;
 			invalidate();

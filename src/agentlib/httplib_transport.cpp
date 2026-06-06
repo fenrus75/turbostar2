@@ -131,7 +131,10 @@ httplib_transport::~httplib_transport() = default;
 
 void httplib_transport::cancel()
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	// Note: We intentionally do not lock mutex_ here. post() and post_stream()
+	// hold mutex_ for the entire duration of their network requests.
+	// httplib::Client::stop() is thread-safe and designed to be called concurrently
+	// to interrupt blocking network calls.
 	if (cli_) {
 		cli_->stop();
 	}

@@ -144,6 +144,118 @@ bool ai_agent::page_in_context(const std::string &episode_id, int compression_le
 	return set_episode_state(episode_id, compression_level);
 }
 
+int ai_agent::calculate_current_tokens() const
+{
+	int current_active_tokens = 0;
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	std::set<std::string> accounted_episodes;
+
+	for (const auto &msg : conversation_) {
+		if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
+			if (accounted_episodes.find(msg.episode_id) == accounted_episodes.end()) {
+				accounted_episodes.insert(msg.episode_id);
+				auto it = episode_index_.find(msg.episode_id);
+				if (it != episode_index_.end()) {
+					if (msg.episode_level == 0) {
+						current_active_tokens += it->second.tokens_level_0;
+					} else if (msg.episode_level == 1) {
+						current_active_tokens += it->second.tokens_level_1;
+					} else if (msg.episode_level == 2) {
+						current_active_tokens += it->second.tokens_level_2;
+					}
+				}
+			}
+		} else {
+			current_active_tokens += static_cast<int>(compaction_engine::estimate_message_tokens(msg));
+		}
+	}
+	return current_active_tokens;
+}
+
+std::vector<std::string> ai_agent::page_in_history_auto(int default_level)
+{
+	std::set<std::string> active_episodes;
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		for (const auto &msg : conversation_) {
+			if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
+				active_episodes.insert(msg.episode_id);
+			}
+		}
+	}
+
+	std::vector<const episode_index_entry *> paged_out;
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		for (const auto &pair : episode_index_) {
+			if (active_episodes.find(pair.first) == active_episodes.end()) {
+				paged_out.push_back(&pair.second);
+			}
+		}
+	}
+
+	// Sort descending by episode_seq (newest/most recent first)
+	std::sort(paged_out.begin(), paged_out.end(),
+		  [](const episode_index_entry *a, const episode_index_entry *b) { return a->episode_seq > b->episode_seq; });
+
+	int current_tokens = calculate_current_tokens();
+	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
+	int limit_tokens = static_cast<int>(max_tokens * 0.5);
+
+	std::vector<std::string> paged_in_ids;
+
+	for (const auto *entry : paged_out) {
+		int ep_tokens = 0;
+		if (default_level == 0) ep_tokens = entry->tokens_level_0;
+		else if (default_level == 1) ep_tokens = entry->tokens_level_1;
+		else if (default_level == 2) ep_tokens = entry->tokens_level_2;
+		if (ep_tokens <= 0) ep_tokens = entry->tokens_level_0;
+
+		std::stringstream pointer_msg;
+		pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
+		pointer_msg << "Title: " << entry->title << "\n";
+		pointer_msg << "Summary: " << entry->summary << "\n";
+		if (!entry->tags.empty()) {
+			pointer_msg << "Tags: [";
+			for (size_t i = 0; i < entry->tags.size(); ++i) {
+				pointer_msg << entry->tags[i] << (i < entry->tags.size() - 1 ? ", " : "");
+			}
+			pointer_msg << "]\n";
+		}
+		pointer_msg << "Raw history archive: " << entry->id;
+
+		message anchor_msg;
+		anchor_msg.role = "system";
+		anchor_msg.content = pointer_msg.str();
+		int anchor_tokens = static_cast<int>(compaction_engine::estimate_message_tokens(anchor_msg));
+
+		bool has_anchor = false;
+		{
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
+				return m.role == "system" && m.content.find("Raw history archive: " + entry->id) != std::string::npos;
+			});
+			if (anchor_it != conversation_.end()) {
+				has_anchor = true;
+			}
+		}
+
+		int net_change = ep_tokens - (has_anchor ? anchor_tokens : 0);
+		if (current_tokens + net_change <= limit_tokens) {
+			if (set_episode_state(entry->id, default_level)) {
+				current_tokens += net_change;
+				paged_in_ids.push_back(entry->id);
+			}
+		} else {
+			// Stop once we hit the 50% limit
+			break;
+		}
+	}
+
+	active_tokens_.store(current_tokens);
+	return paged_in_ids;
+}
+
 bool ai_agent::set_episode_state(const std::string &episode_id, int target_level)
 {
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
@@ -505,6 +617,12 @@ void ai_agent::cancel_current_task()
 {
 	if (client_) {
 		client_->cancel();
+	}
+	{
+		std::lock_guard<std::mutex> lock(background_transport_mutex_);
+		if (background_transport_) {
+			background_transport_->cancel();
+		}
 	}
 }
 
@@ -2372,9 +2490,27 @@ void ai_agent::summary_worker_loop()
 				    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
 				llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
 
-				if (is_closed_ || project_manager::get_instance().is_exiting())
+				bool should_break = false;
+				{
+					std::lock_guard<std::mutex> lock(background_transport_mutex_);
+					if (is_closed_ || project_manager::get_instance().is_exiting()) {
+						should_break = true;
+					} else {
+						background_transport_ = transport;
+					}
+				}
+
+				if (should_break) {
 					break;
+				}
+
 				llm_chat_response res = local_client.send_chat(dummy_convo);
+
+				{
+					std::lock_guard<std::mutex> lock(background_transport_mutex_);
+					background_transport_.reset();
+				}
+
 				if (is_closed_ || project_manager::get_instance().is_exiting())
 					break;
 				if (!res.msg.content.empty()) {
