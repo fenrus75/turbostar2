@@ -1,6 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-
 - since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
@@ -123,6 +122,8 @@
 # done items (move items here on completion)
 
 ## 06-06-2026
+- fixed save prompt loop on exit: when exiting, the editor now activates the window of the dirty document before prompting, and clears the document's modified flag on discard, preventing redundant prompts for clean or duplicate windows.
+- fixed modal dialog input leak: key and mouse events are now intercepted at the very beginning of the ncurses event dispatching loops when a modal dialog is active, preventing them from falling through to underlying windows, documents, or global shortcuts.
 - implemented Plan Mode file isolation, allowing `enter_plan_mode` to specify a `plan_file` (defaulting to `docs/plan.md`) and enforcing an allow-list for `fs_write_file` and `fs_replace_lines` tools to only modify that specific file during plan mode via the new `is_allowed_in_plan_mode` tool validator interface. Also allowed the `agent_add_todo` tool in plan mode to let agents track planned steps.
 - fixed `fs_replace_lines` boundary check bug that blocked appending to the end of a file (line index == total lines + 1), and removed misleading "shifted by X" warnings for append-only operations.
 - fixed `ask_user` TUI screen corruption caused by improper word-wrapping boundaries on re-asks.
