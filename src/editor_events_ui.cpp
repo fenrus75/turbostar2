@@ -593,7 +593,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		gdbserver_cmd += " < " + fs_utils::escape_shell_arg(fifo_path.string()) + " 2>/dev/null";
 
 		logger.log("Starting gdbserver: " + gdbserver_cmd);
-		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false, true)) {
+		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false, config_manager::get_instance().is_shell_display_access())) {
 			logger.log("Failed to start gdbserver process.");
 			std::error_code ec;
 			fs::remove(fifo_path, ec);
@@ -648,7 +648,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		}
 
 		logger.log("Starting app: " + raw_cmd);
-		if (!tw->start_process(raw_cmd, nullptr, false, false, true)) {
+		if (!tw->start_process(raw_cmd, nullptr, false, false, config_manager::get_instance().is_shell_display_access())) {
 			logger.log("Failed to start app process.");
 			return {-1, -1};
 		}
