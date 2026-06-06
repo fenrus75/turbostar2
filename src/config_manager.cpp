@@ -110,6 +110,12 @@ void config_manager::load_from_file(const std::string &path)
 					} else {
 						mcp_servers_enabled_[server_name] = (value == "true" || value == "1");
 					}
+				} else if (subkey == "when_to_activate") {
+					if (is_project) {
+						project_mcp_servers_when_to_activate_[server_name] = value;
+					} else {
+						mcp_servers_when_to_activate_[server_name] = value;
+					}
 				} else if (subkey.ends_with(".enabled")) {
 					std::string tool_name = subkey.substr(0, subkey.length() - 8);
 					if (is_project) {
@@ -169,6 +175,11 @@ void config_manager::save_project(const std::string &target_path)
 		for (const auto &[server, enabled] : project_mcp_servers_enabled_) {
 			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
 		}
+		for (const auto &[server, text] : project_mcp_servers_when_to_activate_) {
+			if (!text.empty()) {
+				file << "mcp." << server << ".when_to_activate=" << text << "\n";
+			}
+		}
 		for (const auto &[key_pair, enabled] : project_mcp_tools_enabled_) {
 			size_t colon = key_pair.find(':');
 			if (colon != std::string::npos) {
@@ -183,6 +194,11 @@ void config_manager::save_project(const std::string &target_path)
 	} else {
 		for (const auto &[server, enabled] : mcp_servers_enabled_) {
 			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
+		}
+		for (const auto &[server, text] : mcp_servers_when_to_activate_) {
+			if (!text.empty()) {
+				file << "mcp." << server << ".when_to_activate=" << text << "\n";
+			}
 		}
 		for (const auto &[key_pair, enabled] : mcp_tools_enabled_) {
 			size_t colon = key_pair.find(':');
@@ -281,5 +297,30 @@ void config_manager::set_tool_family_enabled(const std::string &family_name, boo
 		tool_families_enabled_[family_name] = enabled;
 	} else {
 		project_tool_families_enabled_[family_name] = enabled;
+	}
+}
+
+std::string config_manager::get_mcp_server_when_to_activate(const std::string &server_name, bool is_system) const
+{
+	if (is_system) {
+		auto it = mcp_servers_when_to_activate_.find(server_name);
+		if (it != mcp_servers_when_to_activate_.end()) {
+			return it->second;
+		}
+	} else {
+		auto it = project_mcp_servers_when_to_activate_.find(server_name);
+		if (it != project_mcp_servers_when_to_activate_.end()) {
+			return it->second;
+		}
+	}
+	return "";
+}
+
+void config_manager::set_mcp_server_when_to_activate(const std::string &server_name, bool is_system, const std::string &text)
+{
+	if (is_system) {
+		mcp_servers_when_to_activate_[server_name] = text;
+	} else {
+		project_mcp_servers_when_to_activate_[server_name] = text;
 	}
 }

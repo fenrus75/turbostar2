@@ -108,6 +108,7 @@ class mcp_server
 	void auto_detect_type();
 	std::string get_python_script_path() const;
 	bool run_bandit_scan(std::string &scan_output) const;
+	void statically_analyze_tools();
 
 	// Lifecycle management
 	bool start();

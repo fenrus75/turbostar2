@@ -6,6 +6,7 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
+#include "../../src/config_manager.h"
 
 using namespace agentlib;
 

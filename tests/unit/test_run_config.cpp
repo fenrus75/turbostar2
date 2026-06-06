@@ -203,6 +203,28 @@ void test_tool_families_config()
 	cfg.load_from_file(proj_file.string());
 	assert(cfg.is_tool_family_enabled("family_b", false) == true);
 
+	// Test 7: set and retrieve when_to_activate descriptions
+	cfg.set_mcp_server_when_to_activate("server_a", true, "Activate when needing server A.");
+	cfg.set_mcp_server_when_to_activate("server_b", false, "Activate when needing server B.");
+	assert(cfg.get_mcp_server_when_to_activate("server_a", true) == "Activate when needing server A.");
+	assert(cfg.get_mcp_server_when_to_activate("server_b", false) == "Activate when needing server B.");
+	assert(cfg.get_mcp_server_when_to_activate("server_a", false) == "");
+	assert(cfg.get_mcp_server_when_to_activate("server_b", true) == "");
+
+	cfg.save_global();
+	cfg.save_project(temp_proj.string());
+
+	// Clear state
+	cfg.set_mcp_server_when_to_activate("server_a", true, "");
+	cfg.set_mcp_server_when_to_activate("server_b", false, "");
+
+	// Load
+	cfg.load();
+	cfg.load_from_file(proj_file.string());
+
+	assert(cfg.get_mcp_server_when_to_activate("server_a", true) == "Activate when needing server A.");
+	assert(cfg.get_mcp_server_when_to_activate("server_b", false) == "Activate when needing server B.");
+
 	// Clean up
 	if (!orig_home_str.empty()) {
 		setenv("HOME", orig_home_str.c_str(), 1);

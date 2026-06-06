@@ -313,6 +313,45 @@ def main():
 		std::cout << "Bandit not installed, skipping bandit security checks." << std::endl;
 	}
 
+	// 8. Test Python Static Analysis tool discovery
+	std::cout << "Testing Python Static Analysis tool discovery..." << std::endl;
+	std::string static_mock = R"py(
+import mcp
+
+@mcp.tool()
+def add_values(a: int, b: int) -> int:
+    """
+    Add two integer values.
+    Returns the sum.
+    """
+    return a + b
+
+@mcp.tool(name="custom_multiply", description="Multiply two values.")
+def mul(x, y):
+    pass
+)py";
+	write_file(temp_proj / "static_mcp.py", static_mock);
+
+	auto s_static = std::make_shared<mcp_server>();
+	s_static->set_name("static-analysis-server");
+	s_static->set_command("python3");
+	s_static->set_args({(temp_proj / "static_mcp.py").string()});
+	s_static->auto_detect_type();
+
+	assert(s_static->get_mcp_type() == "python");
+	s_static->statically_analyze_tools();
+
+	const auto &static_tools = s_static->get_tools();
+	std::cout << "Static tools found: " << static_tools.size() << std::endl;
+	assert(static_tools.size() == 2);
+
+	assert(static_tools[0].name == "add_values");
+	assert(static_tools[0].description.find("Add two integer values.") != std::string::npos);
+	assert(static_tools[0].description.find("Returns the sum.") != std::string::npos);
+
+	assert(static_tools[1].name == "custom_multiply");
+	assert(static_tools[1].description == "Multiply two values.");
+
 	// Cleanup files
 	fs::remove_all(temp_home);
 	fs::remove_all(temp_proj);

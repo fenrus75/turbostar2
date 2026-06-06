@@ -17,6 +17,7 @@
 #include "context_dnn.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
+#include "../mcp/mcp_manager.h"
 
 namespace agentlib
 {
@@ -624,7 +625,8 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 	}
 
 	// Check if it's an enabled MCP server family
-	if (cfg.is_mcp_server_enabled(family_name, true) || cfg.is_mcp_server_enabled(family_name, false)) {
+	auto server = mcp_manager::get_instance().find_server(family_name);
+	if (server && server->is_enabled()) {
 		return true;
 	}
 
@@ -658,23 +660,34 @@ void ai_agent::update_system_prompt_with_families()
 
 			std::string table_str;
 			auto registered_families = tool_registry::get_instance().get_all_registered_families();
-			std::vector<std::string> non_base_families;
+			std::vector<std::string> inactive_families;
 			for (const auto &fam : registered_families) {
-				if (fam != "base") {
-					non_base_families.push_back(fam);
+				if (fam != "base" && !is_tool_family_active(fam)) {
+					inactive_families.push_back(fam);
 				}
 			}
-			std::sort(non_base_families.begin(), non_base_families.end());
+			std::sort(inactive_families.begin(), inactive_families.end());
 
-			if (!non_base_families.empty()) {
+			if (!inactive_families.empty()) {
 				table_str = "\n\nIf you need to use tools from another family, you must call the `activate_tool_family` "
 					    "tool. Here are the available tool families and when to activate them:\n\n"
 					    "| Tool Family | When to Activate |\n"
 					    "| --- | --- |\n";
-				for (const auto &fam : non_base_families) {
-					std::string reason = (fam == "x86")
-								 ? "Activate when working with x86 assembly"
-								 : std::format("Activate when needing tools from the {} family", fam);
+				for (const auto &fam : inactive_families) {
+					std::string reason;
+					if (fam == "x86") {
+						reason = "Activate when working with x86 assembly";
+					} else {
+						std::string cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
+						if (cached.empty()) {
+							cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
+						}
+						if (!cached.empty()) {
+							reason = cached;
+						} else {
+							reason = std::format("Activate when needing tools from the {} family", fam);
+						}
+					}
 					table_str += std::format("| {} | {} |\n", fam, reason);
 				}
 			}

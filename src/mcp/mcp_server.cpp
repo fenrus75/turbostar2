@@ -1,4 +1,9 @@
 #include "mcp_server.h"
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+namespace fs = std::filesystem;
 #include <array>
 #include <cerrno>
 #include <chrono>
@@ -96,6 +101,139 @@ bool mcp_server::run_bandit_scan(std::string &scan_output) const
 	scan_output = bandit_runner.execute_and_get_output("bandit --severity-level=high {} 2>&1", script_path);
 	int exit_code = bandit_runner.get_exit_code();
 	return (exit_code == 0);
+}
+
+void mcp_server::statically_analyze_tools()
+{
+	std::string script_path = get_python_script_path();
+	if (script_path.empty()) {
+		return;
+	}
+	script_path = expand_tilde(script_path);
+	if (!fs::path(script_path).is_absolute()) {
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		if (!proj_root.empty()) {
+			script_path = (fs::path(proj_root) / script_path).string();
+		}
+	}
+
+	if (!fs::exists(script_path)) {
+		return;
+	}
+
+	std::ifstream file(script_path);
+	if (!file.is_open()) {
+		return;
+	}
+
+	std::vector<mcp_tool> static_tools;
+	std::string line;
+	bool inside_tool = false;
+	std::string decorator_content;
+
+	while (std::getline(file, line)) {
+		std::string trimmed = line;
+		trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+		trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+
+		if (trimmed.starts_with("@") && trimmed.find(".tool") != std::string::npos) {
+			inside_tool = true;
+			decorator_content = trimmed;
+			continue;
+		}
+
+		if (inside_tool) {
+			if (trimmed.starts_with("def ")) {
+				size_t space = 4;
+				size_t lparen = trimmed.find('(', space);
+				if (lparen != std::string::npos) {
+					std::string func_name = trimmed.substr(space, lparen - space);
+					func_name.erase(0, func_name.find_first_not_of(" \t"));
+					func_name.erase(func_name.find_last_not_of(" \t") + 1);
+
+					mcp_tool t;
+					t.name = func_name;
+					t.enabled = true;
+
+					size_t name_pos = decorator_content.find("name=");
+					if (name_pos != std::string::npos) {
+						size_t quote_start = decorator_content.find_first_of("\"'", name_pos);
+						if (quote_start != std::string::npos) {
+							size_t quote_end = decorator_content.find_first_of("\"'", quote_start + 1);
+							if (quote_end != std::string::npos) {
+								t.name = decorator_content.substr(quote_start + 1, quote_end - quote_start - 1);
+							}
+						}
+					}
+
+					size_t desc_pos = decorator_content.find("description=");
+					if (desc_pos != std::string::npos) {
+						size_t quote_start = decorator_content.find_first_of("\"'", desc_pos);
+						if (quote_start != std::string::npos) {
+							size_t quote_end = decorator_content.find_first_of("\"'", quote_start + 1);
+							if (quote_end != std::string::npos) {
+								t.description = decorator_content.substr(quote_start + 1, quote_end - quote_start - 1);
+							}
+						}
+					}
+
+					if (t.description.empty()) {
+						std::string docstring;
+						std::streampos pos = file.tellg();
+						std::string body_line;
+						bool found_doc = false;
+						while (std::getline(file, body_line)) {
+							std::string body_trimmed = body_line;
+							body_trimmed.erase(0, body_trimmed.find_first_not_of(" \t\r\n"));
+							body_trimmed.erase(body_trimmed.find_last_not_of(" \t\r\n") + 1);
+							if (body_trimmed.empty()) {
+								continue;
+							}
+							if (body_trimmed.starts_with("\"\"\"") || body_trimmed.starts_with("'''")) {
+								found_doc = true;
+								std::string quote_char = body_trimmed.substr(0, 3);
+								std::string doc_content = body_trimmed.substr(3);
+								if (doc_content.ends_with(quote_char)) {
+									docstring = doc_content.substr(0, doc_content.length() - 3);
+								} else {
+									docstring = doc_content;
+									while (std::getline(file, body_line)) {
+										std::string inner_trimmed = body_line;
+										inner_trimmed.erase(0, inner_trimmed.find_first_not_of(" \t\r\n"));
+										inner_trimmed.erase(inner_trimmed.find_last_not_of(" \t\r\n") + 1);
+										if (inner_trimmed.find(quote_char) != std::string::npos) {
+											size_t idx = inner_trimmed.find(quote_char);
+											docstring += "\n" + inner_trimmed.substr(0, idx);
+											break;
+										} else {
+											docstring += "\n" + body_line;
+										}
+									}
+								}
+								break;
+							} else {
+								break;
+							}
+						}
+						if (found_doc) {
+							docstring.erase(0, docstring.find_first_not_of(" \t\r\n"));
+							docstring.erase(docstring.find_last_not_of(" \t\r\n") + 1);
+							t.description = docstring;
+						} else {
+							file.seekg(pos);
+						}
+					}
+
+					static_tools.push_back(t);
+				}
+				inside_tool = false;
+			}
+		}
+	}
+
+	if (!static_tools.empty()) {
+		tools_ = static_tools;
+	}
 }
 
 bool mcp_server::start()

@@ -1,8 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 
-
-
 - since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
