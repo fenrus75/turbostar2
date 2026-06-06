@@ -125,6 +125,7 @@
 # done items (move items here on completion)
 
 ## 05-06-2026
+- fixed a critical bug in the Gemini API payload formatter where multiple system messages in the conversation history were overwriting the systemInstruction payload, leading to the loss of project-specific coding rules, tool instructions, or subagent profiles. System messages are now cleanly consolidated and concatenated into a single system instruction payload. Added a dedicated unit test suite `test_api_formatter.cpp`.
 - integrated agent status sidebar (active subagents and todo list) directly into agent_window with a vertical 70/30 split, collapsible with both Ctrl-T hotkey and clickable arrow icons (◄/►), and deleted the standalone agent_status_window.
 - fully completed the Tool Family feature: implemented Step 3 including the `activate_tool_family` tool call, prompt rebuilding, and active tool filtering in agent context, with passing unit test coverage.
 - implemented a hybrid ELF format inspection solution comprising three new tools belonging to the `"x86"` family: `hex_inspect_range` (semantic range inspector querying syntax highlighters), `elf_list_sections` (ELF section header listing), and `elf_list_symbols` (ELF symbol table search with RE2 pattern filtering).
