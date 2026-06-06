@@ -339,6 +339,29 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		}
 		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
 	}
+
+	todos_list_ = std::make_unique<ui_listbox>(
+	    "todos", 0, 0, 1, 1,
+	    [this](int) { invalidate(); },
+	    [](int) {}
+	);
+
+	subagents_list_ = std::make_unique<ui_listbox>(
+	    "subagents", 0, 0, 1, 1,
+	    [this](int) { invalidate(); },
+	    [this](int index) {
+		    auto subagents = agent_->get_subagents();
+		    if (index >= 0 && index < (int)subagents.size()) {
+			    editor_event sub_ev;
+			    sub_ev.type = event_type::open_subagent;
+			    sub_ev.key_code = subagents[index]->get_id();
+			    if (agent_->get_global_queue()) {
+				    agent_->get_global_queue()->push(sub_ev);
+			    } else {
+				    get_queue().push(sub_ev);
+			    }
+		    }
+	    });
 }
 
 agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent)
@@ -571,6 +594,29 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			}
 		}
 	});
+
+	todos_list_ = std::make_unique<ui_listbox>(
+	    "todos", 0, 0, 1, 1,
+	    [this](int) { invalidate(); },
+	    [](int) {}
+	);
+
+	subagents_list_ = std::make_unique<ui_listbox>(
+	    "subagents", 0, 0, 1, 1,
+	    [this](int) { invalidate(); },
+	    [this](int index) {
+		    auto subagents = agent_->get_subagents();
+		    if (index >= 0 && index < (int)subagents.size()) {
+			    editor_event sub_ev;
+			    sub_ev.type = event_type::open_subagent;
+			    sub_ev.key_code = subagents[index]->get_id();
+			    if (agent_->get_global_queue()) {
+				    agent_->get_global_queue()->push(sub_ev);
+			    } else {
+				    get_queue().push(sub_ev);
+			    }
+		    }
+	    });
 }
 
 agent_window::~agent_window()
@@ -585,6 +631,14 @@ bool agent_window::process_events()
 	bool needs_render = false;
 
 	while (auto ev = get_queue().pop()) {
+		bool has_todos = !agent_->get_todos().empty();
+		bool has_subagents = !agent_->get_subagents().empty();
+		bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
+		int sidebar_w = (width_ * 30) / 100;
+		sidebar_w = std::max(15, std::min(sidebar_w, width_ - 20));
+		int divider_x = width_ - 1 - sidebar_w;
+		int divider_y = 1 + (height_ - 2) / 2;
+
 		if (ev->type == event_type::key_press) {
 			is_mouse_selecting_ = false;
 			mouse_sel_start_char_ = -1;
@@ -594,15 +648,68 @@ bool agent_window::process_events()
 
 			int key = ev->key_code;
 
+			// Handle sidebar toggle via Ctrl-T (20)
+			if (key == 20) {
+				sidebar_expanded_ = !sidebar_expanded_;
+				invalidate();
+				needs_render = true;
+				continue;
+			}
+
+			// Handle Tab focus cycling
+			if (show_sidebar && key == 9) {
+				if (sidebar_focus_ == sidebar_focus::input) {
+					if (has_todos) {
+						sidebar_focus_ = sidebar_focus::todos;
+					} else if (has_subagents) {
+						sidebar_focus_ = sidebar_focus::subagents;
+					}
+				} else if (sidebar_focus_ == sidebar_focus::todos) {
+					if (has_subagents) {
+						sidebar_focus_ = sidebar_focus::subagents;
+					} else {
+						sidebar_focus_ = sidebar_focus::input;
+					}
+				} else { // subagents
+					sidebar_focus_ = sidebar_focus::input;
+				}
+				invalidate();
+				needs_render = true;
+				continue;
+			}
+
+			// Esc returns focus to input box
+			if (show_sidebar && key == 27 && sidebar_focus_ != sidebar_focus::input) {
+				sidebar_focus_ = sidebar_focus::input;
+				invalidate();
+				needs_render = true;
+				continue;
+			}
+
 			if ((agent_->get_status() != agent_status::idle)) {
 				if (key == 27) {
 					agent_->cancel_current_task();
 					needs_render = true;
 					continue;
 				}
-				// We no longer block input while waiting! Users can queue up responses.
 			}
 
+			// Route based on focus
+			if (show_sidebar && sidebar_focus_ == sidebar_focus::todos) {
+				if (todos_list_->handle_event(*ev, 0, 0)) {
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+			} else if (show_sidebar && sidebar_focus_ == sidebar_focus::subagents) {
+				if (subagents_list_->handle_event(*ev, 0, 0)) {
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+			}
+
+			// Default: Route to input box
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 				continue;
@@ -633,18 +740,102 @@ bool agent_window::process_events()
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}
-		} else if (ev->type == event_type::mouse_scroll_up) {
-			scroll_offset_ += 3;
-			needs_render = true;
-		} else if (ev->type == event_type::mouse_scroll_down) {
-			scroll_offset_ -= 3;
-			if (scroll_offset_ < 0)
-				scroll_offset_ = 0;
+		} else if (ev->type == event_type::mouse_scroll_up || ev->type == event_type::mouse_scroll_down) {
+			if (show_sidebar) {
+				if (has_todos) {
+					int todos_y_start = y_ + 1;
+					int todos_y_end = has_subagents ? y_ + divider_y - 1 : y_ + height_ - 2;
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
+					    ev->mouse_y >= todos_y_start && ev->mouse_y <= todos_y_end) {
+						editor_event sim_ev;
+						sim_ev.type = event_type::key_press;
+						sim_ev.key_code = (ev->type == event_type::mouse_scroll_up) ? KEY_UP : KEY_DOWN;
+						todos_list_->handle_event(sim_ev, 0, 0);
+						invalidate();
+						needs_render = true;
+						continue;
+					}
+				}
+
+				if (has_subagents) {
+					int sub_y_start = has_todos ? y_ + divider_y + 1 : y_ + 1;
+					int sub_y_end = y_ + height_ - 2;
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
+					    ev->mouse_y >= sub_y_start && ev->mouse_y <= sub_y_end) {
+						editor_event sim_ev;
+						sim_ev.type = event_type::key_press;
+						sim_ev.key_code = (ev->type == event_type::mouse_scroll_up) ? KEY_UP : KEY_DOWN;
+						subagents_list_->handle_event(sim_ev, 0, 0);
+						invalidate();
+						needs_render = true;
+						continue;
+					}
+				}
+			}
+
+			// Fallback to chat history scroll
+			if (ev->type == event_type::mouse_scroll_up) {
+				scroll_offset_ += 3;
+			} else {
+				scroll_offset_ -= 3;
+				if (scroll_offset_ < 0)
+					scroll_offset_ = 0;
+			}
 			needs_render = true;
 		} else if (ev->type == event_type::mouse_click) {
+			if (show_sidebar) {
+				// 1. Clicked on collapse button on vertical divider?
+				if (ev->mouse_x == x_ + divider_x && ev->mouse_y == y_ + 2) {
+					sidebar_expanded_ = false;
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+
+				// 2. Clicked inside Todos?
+				if (has_todos) {
+					int todos_y_start = y_ + 1;
+					int todos_y_end = has_subagents ? y_ + divider_y - 1 : y_ + height_ - 2;
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
+					    ev->mouse_y >= todos_y_start && ev->mouse_y <= todos_y_end) {
+						sidebar_focus_ = sidebar_focus::todos;
+						todos_list_->handle_event(*ev, 0, 0);
+						invalidate();
+						needs_render = true;
+						continue;
+					}
+				}
+
+				// 3. Clicked inside Subagents?
+				if (has_subagents) {
+					int sub_y_start = has_todos ? y_ + divider_y + 1 : y_ + 1;
+					int sub_y_end = y_ + height_ - 2;
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
+					    ev->mouse_y >= sub_y_start && ev->mouse_y <= sub_y_end) {
+						sidebar_focus_ = sidebar_focus::subagents;
+						subagents_list_->handle_event(*ev, 0, 0);
+						invalidate();
+						needs_render = true;
+						continue;
+					}
+				}
+			} else if (has_todos || has_subagents) {
+				// Clicked on expand button on right border?
+				if (ev->mouse_x == x_ + width_ - 1 && ev->mouse_y == y_ + 2) {
+					sidebar_expanded_ = true;
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+			}
+
+			// Clicked inside chat history?
+			int chat_max_x = show_sidebar ? (x_ + divider_x - 1) : (x_ + width_ - 2);
 			int available_height = get_history_viewport_height();
 			int click_row = ev->mouse_y - y_ - 1;
-			if (click_row >= 0 && click_row < available_height && click_row < static_cast<int>(visible_lines_.size())) {
+			if (click_row >= 0 && click_row < available_height && click_row < static_cast<int>(visible_lines_.size()) &&
+			    ev->mouse_x >= x_ + 1 && ev->mouse_x <= chat_max_x) {
+				sidebar_focus_ = sidebar_focus::input;
 				int prefix_w = visible_lines_[click_row].prefix.empty()
 						   ? 0
 						   : markdown_utils::display_width(visible_lines_[click_row].prefix);
@@ -664,6 +855,10 @@ bool agent_window::process_events()
 				mouse_sel_start_line_ = -1;
 				mouse_sel_end_char_ = -1;
 				mouse_sel_end_line_ = -1;
+				// If clicked in input box area, focus input
+				if (ev->mouse_y >= y_ + height_ - 4) {
+					sidebar_focus_ = sidebar_focus::input;
+				}
 				needs_render = true;
 			}
 		} else if (ev->type == event_type::mouse_drag) {
@@ -712,17 +907,26 @@ void agent_window::on_agent_update()
 void agent_window::draw_content(bool /*cursor_only*/) const
 {
 	// 1. Draw the chat history in the upper portion
+	bool has_todos = !agent_->get_todos().empty();
+	bool has_subagents = !agent_->get_subagents().empty();
+	bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
+	int sidebar_w = (width_ * 30) / 100;
+	sidebar_w = std::max(15, std::min(sidebar_w, width_ - 20));
+	int divider_x = width_ - 1 - sidebar_w;
+	int abs_divider_x = x_ + divider_x;
+	int divider_y = 1 + (height_ - 2) / 2;
+
 	int available_height = get_history_viewport_height();
 	visible_lines_.clear();
 	visible_lines_.resize(available_height);
 	int current_y = y_ + 1 + available_height - 1; // start from bottom of available area
 	int start_x = x_ + 1;
-	int max_width = width_ - 2;
+	int max_width = show_sidebar ? (divider_x - 1) : (width_ - 2);
 
 	attron(COLOR_PAIR(get_background_color_pair()));
 
 	// First, clear the content area
-	for (int i = 1; i <= available_height; ++i) {
+	for (int i = 1; i < height_ - 1; ++i) {
 		move(y_ + i, x_ + 1);
 		for (int j = 0; j < width_ - 2; ++j)
 			addch(' ');
@@ -1081,8 +1285,65 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 		}
 
 		input_box_->set_bounds(start_x, input_box_y, max_width, 3);
-		input_box_->set_focus(is_active());
+		input_box_->set_focus(is_active() && (!show_sidebar || sidebar_focus_ == sidebar_focus::input));
 		input_box_->draw(0, 0);
+	}
+
+	// 3. Draw sidebar if active
+	if (show_sidebar) {
+		int border_pair = is_active() ? 5 : 38;
+
+		// Draw vertical divider
+		attrset(COLOR_PAIR(border_pair));
+		for (int i = 1; i < height_ - 1; ++i) {
+			if (has_todos && has_subagents && i == divider_y) {
+				mvaddstr(y_ + i, abs_divider_x, "┤");
+			} else if (i == 2) {
+				mvaddstr(y_ + i, abs_divider_x, "►");
+			} else {
+				mvaddstr(y_ + i, abs_divider_x, "│");
+			}
+		}
+
+		// Draw horizontal divider if both exist
+		if (has_todos && has_subagents) {
+			for (int col = abs_divider_x + 1; col < x_ + width_ - 1; ++col) {
+				mvaddstr(y_ + divider_y, col, "─");
+			}
+		}
+		attroff(COLOR_PAIR(border_pair));
+
+		// Draw Todos listbox
+		if (has_todos) {
+			std::vector<std::string> todo_strings;
+			for (const auto &item : agent_->get_todos()) {
+				std::string box = item.completed ? "\xE2\x98\x91" : "\xE2\x98\x90";
+				todo_strings.push_back(box + " " + item.text);
+			}
+			int todos_h = has_subagents ? divider_y - 1 : height_ - 2;
+			todos_list_->set_bounds(abs_divider_x + 1, y_ + 1, width_ - 2 - divider_x, todos_h);
+			todos_list_->set_items(todo_strings);
+			todos_list_->set_focus(is_active() && sidebar_focus_ == sidebar_focus::todos);
+			todos_list_->draw(0, 0);
+		}
+
+		// Draw Subagents listbox
+		if (has_subagents) {
+			std::vector<std::string> subagent_strings;
+			for (const auto &sub : agent_->get_subagents()) {
+				std::string sub_status = agent_status_to_string(sub->get_status(), sub->get_current_tool());
+				if (sub->get_status() == agent_status::waiting) {
+					sub_status = "Waiting (" + std::to_string(sub->get_waiting_on_id()) + ")";
+				}
+				subagent_strings.push_back(sub->get_name() + " [" + sub_status + "]");
+			}
+			int sub_y = has_todos ? y_ + divider_y + 1 : y_ + 1;
+			int sub_h = has_todos ? (height_ - 2) - divider_y : height_ - 2;
+			subagents_list_->set_bounds(abs_divider_x + 1, sub_y, width_ - 2 - divider_x, sub_h);
+			subagents_list_->set_items(subagent_strings);
+			subagents_list_->set_focus(is_active() && sidebar_focus_ == sidebar_focus::subagents);
+			subagents_list_->draw(0, 0);
+		}
 	}
 }
 
@@ -1137,9 +1398,58 @@ std::string agent_window::get_mouse_selected_text() const
 	return result;
 }
 
+void agent_window::draw_border() const
+{
+	window::draw_border();
+
+	bool has_todos = !agent_->get_todos().empty();
+	bool has_subagents = !agent_->get_subagents().empty();
+	bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
+
+	if (show_sidebar) {
+		int sidebar_w = (width_ * 30) / 100;
+		sidebar_w = std::max(15, std::min(sidebar_w, width_ - 20));
+		int divider_x = width_ - 1 - sidebar_w;
+		int abs_divider_x = x_ + divider_x;
+
+		int border_pair = is_active() ? 5 : 38;
+		attrset(COLOR_PAIR(border_pair));
+
+		// Top junction
+		mvaddstr(y_, abs_divider_x, "╤");
+
+		// Bottom junction
+		mvaddstr(y_ + height_ - 1, abs_divider_x, "╧");
+
+		// If both exist, draw the right-border junction for the horizontal divider
+		if (has_todos && has_subagents) {
+			int divider_y = 1 + (height_ - 2) / 2;
+			mvaddstr(y_ + divider_y, x_ + width_ - 1, "╢");
+		}
+
+		attroff(COLOR_PAIR(border_pair));
+	} else if (sidebar_expanded_ && (has_todos || has_subagents)) {
+		// Draw expand button on right border when collapsed
+		int border_pair = is_active() ? 5 : 38;
+		attrset(COLOR_PAIR(border_pair));
+		mvaddstr(y_ + 2, x_ + width_ - 1, "◄");
+		attroff(COLOR_PAIR(border_pair));
+	}
+}
+
 void agent_window::set_cursor_position() const
 {
-	if (is_active() && input_box_) {
-		input_box_->draw(0, 0);
+	if (is_active()) {
+		bool has_todos = !agent_->get_todos().empty();
+		bool has_subagents = !agent_->get_subagents().empty();
+		bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
+
+		if (show_sidebar && sidebar_focus_ == sidebar_focus::todos && todos_list_) {
+			todos_list_->set_cursor_position(0, 0);
+		} else if (show_sidebar && sidebar_focus_ == sidebar_focus::subagents && subagents_list_) {
+			subagents_list_->set_cursor_position(0, 0);
+		} else if (input_box_) {
+			input_box_->draw(0, 0);
+		}
 	}
 }

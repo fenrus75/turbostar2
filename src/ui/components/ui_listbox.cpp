@@ -70,7 +70,7 @@ void ui_listbox::draw(int abs_x, int abs_y) const
 	}
 }
 
-bool ui_listbox::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y*/)
+bool ui_listbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
 	if (ev.type == event_type::key_press) {
 		int key = ev.key_code;
@@ -101,8 +101,29 @@ bool ui_listbox::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y
 			}
 			return true;
 		}
+	} else if (ev.type == event_type::mouse_click) {
+		int rx = ev.mouse_x - (abs_x + x_);
+		int ry = ev.mouse_y - (abs_y + y_);
+		if (rx >= 0 && rx < width_ && ry >= 0 && ry < height_) {
+			int item_idx = scroll_top_ + ry;
+			if (item_idx >= 0 && item_idx < (int)items_.size()) {
+				set_selected_index(item_idx);
+				if (on_selection_changed_) {
+					on_selection_changed_(selected_index_);
+				}
+				if (on_submit_) {
+					on_submit_(selected_index_);
+				}
+				return true;
+			}
+		}
 	}
 	return false;
+}
+
+void ui_listbox::set_cursor_position(int abs_x, int abs_y) const
+{
+	move(abs_y + y_ + (selected_index_ - scroll_top_), abs_x + x_);
 }
 
 std::optional<std::string> ui_listbox::get_value(const std::string &target_name) const

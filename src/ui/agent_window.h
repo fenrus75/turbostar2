@@ -2,6 +2,7 @@
 #include <memory>
 #include "agentlib/ai_agent.h"
 #include "ui/components/ui_multiline_edit.h"
+#include "ui/components/ui_listbox.h"
 #include "ui/window.h"
 
 class agent_window : public window
@@ -21,6 +22,7 @@ class agent_window : public window
 
 	// Override to draw the input box at the bottom
 	void draw_content(bool cursor_only = false) const override;
+	void draw_border() const override;
 	int get_history_viewport_height() const;
 
 	std::shared_ptr<agentlib::ai_agent> get_agent() const
@@ -31,10 +33,17 @@ class agent_window : public window
 	std::string get_mouse_selected_text() const override;
 
       private:
+	enum class sidebar_focus { input, todos, subagents };
+
 	mutable int scroll_offset_{0};
 	mutable int max_scroll_offset_{0};
+	mutable bool sidebar_expanded_{true};
+	mutable sidebar_focus sidebar_focus_{sidebar_focus::input};
 
 	std::unique_ptr<ui_multiline_edit> input_box_;
 	std::shared_ptr<agentlib::ai_agent> agent_;
 	mutable std::vector<agentlib::interaction_line> visible_lines_;
+
+	std::unique_ptr<ui_listbox> todos_list_;
+	std::unique_ptr<ui_listbox> subagents_list_;
 };

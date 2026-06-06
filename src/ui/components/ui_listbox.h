@@ -19,6 +19,7 @@ public:
     int get_selected_index() const { return selected_index_; }
     void set_selected_index(int index);
     void set_on_space(std::function<void(int)> on_space) { on_space_ = std::move(on_space); }
+    void set_cursor_position(int abs_x, int abs_y) const;
     std::optional<std::string> get_value(const std::string &target_name) const override;
 
 private:

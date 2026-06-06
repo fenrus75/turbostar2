@@ -80,7 +80,6 @@ ui_sources = files(
   'ui/hex_editor_window.cpp',
   'ui/agent_window.cpp',
   'ui/diff_window.cpp',
-  'ui/agent_status_window.cpp',
   'ui/crashdump_window.cpp',
   'ui/ansi_terminal_emulator.cpp',
   'ui/terminal_window.cpp',

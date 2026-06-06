@@ -19,7 +19,6 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
-#include "ui/agent_status_window.h"
 #include "ui/agent_window.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
@@ -104,24 +103,7 @@ void editor::new_diff_window()
 
 void editor::update_window_layout()
 {
-	bool has_agent = false;
-	for (const auto &win : windows_) {
-		if (dynamic_cast<agent_window *>(win.get()) != nullptr) {
-			if (win->is_active() || win->get_display_priority() == 9998) {
-				has_agent = true;
-				break;
-			}
-		}
-	}
-
 	int main_w = COLS;
-	int status_w = 0;
-	int agent_w = COLS;
-	if (has_agent) {
-		agent_w = (COLS * 70) / 100;
-		status_w = COLS - agent_w;
-		main_w = agent_w;
-	}
 
 	window *run_win = nullptr;
 	window *gdb_win = nullptr;
@@ -144,10 +126,7 @@ void editor::update_window_layout()
 		int target_w = main_w;
 		int target_h = total_h;
 
-		if (has_agent && dynamic_cast<agent_status_window *>(win.get())) {
-			target_x = agent_w;
-			target_w = status_w;
-		} else if (win.get() == run_win && gdb_win != nullptr) {
+		if (win.get() == run_win && gdb_win != nullptr) {
 			target_h = app_h;
 		} else if (win.get() == gdb_win && run_win != nullptr) {
 			target_y = 1 + app_h;
@@ -177,18 +156,12 @@ void editor::new_agent_window()
 	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model,
 							     global_queue_, this, fresh_agent_);
 
-	auto status_win = std::make_unique<agent_status_window>(static_cast<int>(windows_.size() + 2), 0, 1, COLS, LINES - 2,
-								"Agent Status", main_agent_win->get_agent(), global_queue_);
-
-	main_agent_win->link_window(status_win.get());
-
 	windows_.push_back(std::move(main_agent_win));
-	windows_.push_back(std::move(status_win));
 
 	update_window_layout();
 
 	// Activate the main agent window
-	activate_window(windows_.size() - 2);
+	activate_window(windows_.size() - 1);
 }
 
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
