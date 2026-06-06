@@ -125,6 +125,7 @@
 # done items (move items here on completion)
 
 ## 05-06-2026
+- integrated agent status sidebar (active subagents and todo list) directly into agent_window with a vertical 70/30 split, collapsible with both Ctrl-T hotkey and clickable arrow icons (◄/►), and deleted the standalone agent_status_window.
 - fully completed the Tool Family feature: implemented Step 3 including the `activate_tool_family` tool call, prompt rebuilding, and active tool filtering in agent context, with passing unit test coverage.
 - implemented a hybrid ELF format inspection solution comprising three new tools belonging to the `"x86"` family: `hex_inspect_range` (semantic range inspector querying syntax highlighters), `elf_list_sections` (ELF section header listing), and `elf_list_symbols` (ELF symbol table search with RE2 pattern filtering).
 - created and registered three new unit test suites: `test_hex_inspect_range.cpp`, `test_elf_list_sections.cpp`, and `test_elf_list_symbols.cpp`, sharing mock ELF byte generation via a common `elf_test_helper.h` header, and verified all three tests pass successfully.
