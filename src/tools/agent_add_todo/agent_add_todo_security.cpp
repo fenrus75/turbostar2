@@ -27,6 +27,11 @@ class agent_add_todo_validator : public agentlib::single_string_tool_validator
 		return "The description of the task to add.";
 	}
 
+	bool is_allowed_in_plan_mode(const nlohmann::json & /*args*/, const agentlib::tool_context & /*ctx*/) const override
+	{
+		return true;
+	}
+
 	bool validate_string_arg(const std::string &arg, const agentlib::tool_context & /*ctx*/,
 	                         std::string &out_error) const override
 	{

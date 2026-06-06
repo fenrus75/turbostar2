@@ -123,7 +123,7 @@
 # done items (move items here on completion)
 
 ## 06-06-2026
-- implemented Plan Mode file isolation, allowing `enter_plan_mode` to specify a `plan_file` (defaulting to `docs/plan.md`) and enforcing an allow-list for `fs_write_file` and `fs_replace_lines` tools to only modify that specific file during plan mode via the new `is_allowed_in_plan_mode` tool validator interface.
+- implemented Plan Mode file isolation, allowing `enter_plan_mode` to specify a `plan_file` (defaulting to `docs/plan.md`) and enforcing an allow-list for `fs_write_file` and `fs_replace_lines` tools to only modify that specific file during plan mode via the new `is_allowed_in_plan_mode` tool validator interface. Also allowed the `agent_add_todo` tool in plan mode to let agents track planned steps.
 - fixed `fs_replace_lines` boundary check bug that blocked appending to the end of a file (line index == total lines + 1), and removed misleading "shifted by X" warnings for append-only operations.
 - fixed `ask_user` TUI screen corruption caused by improper word-wrapping boundaries on re-asks.
 
