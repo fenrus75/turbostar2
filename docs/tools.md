@@ -95,7 +95,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
 
 ### `fs_compile_file`
-*   **Description:** Compiles a single file and returns the raw console output. Populates the workspace error list. Can be run asynchronously.
+*   **Description:** Compiles a single file and returns the raw console output. Populates the workspace error list. Can be run asynchronously. NOTE: This only compiles the individual file (e.g. checking syntax/errors) but does NOT link the project, so the executable binary will NOT be updated. To rebuild/link the whole project binary, use `fs_compile_project`.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file to compile, relative to the project root.
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
