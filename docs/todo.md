@@ -144,6 +144,7 @@
 - fixed a deadlock/blocking bug in `httplib_transport::cancel()` by removing the redundant mutex lock, allowing concurrent cancellation of active blocking HTTP requests.
 - added a robust unit test case verifying that the agent destructs and terminates its background threads under 1.5 seconds even when a background request is blocked/waiting on a slow network connection.
 - implemented the default no-argument `/pagein` slash command behavior, dynamically calculating current memory token counts and automatically paging in archived episodes starting chronologically backward from the newest up to a limit of 50% of the model's maximum context window.
+- implemented `allow_display` security permission for the sandboxed command runner. It automatically allows network access, sets `SDL_VIDEODRIVER=x11`, binds `/tmp/.X11-unix` and `/tmp/.Xauthority` into the sandbox, and passes `DISPLAY` and `XAUTHORITY` environment variables to support running graphical X11/SDL2 applications. Added unit test verification.
 
 ## 04-06-2026
 - fixed a bug where background summaries of episodes and new agent connections did not honor the global model registry default or project settings, falling back to a hardcoded "gpt-4o" model instead of the user's preferred defaults.
