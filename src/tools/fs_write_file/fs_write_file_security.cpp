@@ -3,8 +3,17 @@
 #include "../../agentlib/tool_registry.h"
 #include "fs_write_file.h"
 
+#include "../../agentlib/ai_agent.h"
+
 namespace tools
 {
+
+bool fs_write_file_validator::is_allowed_in_plan_mode(const nlohmann::json& args, const agentlib::tool_context& ctx) const {
+    if (!ctx.active_agent) return false;
+    if (!args.contains("path") || !args["path"].is_string()) return false;
+    std::string plan_file = ctx.active_agent->get_plan_file();
+    return !plan_file.empty() && args["path"].get<std::string>() == plan_file;
+}
 
 // A struct to deserialize the JSON arguments into, before validation.
 struct fs_write_file_raw_args {

@@ -169,10 +169,23 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		is_planning_.store(planning);
 		if (planning)
 			planning_start_index_ = start_index;
+		else
+			set_plan_file("");
 	}
 	size_t get_planning_start_index() const
 	{
 		return planning_start_index_;
+	}
+
+	std::string get_plan_file() const
+	{
+		std::lock_guard<std::mutex> lock(planning_mutex_);
+		return plan_file_;
+	}
+	void set_plan_file(const std::string& file)
+	{
+		std::lock_guard<std::mutex> lock(planning_mutex_);
+		plan_file_ = file;
 	}
 
 	void set_parent(std::weak_ptr<ai_agent> parent)
@@ -242,6 +255,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<bool> read_only_{false};
 	std::atomic<bool> is_planning_{false};
 	size_t planning_start_index_{0};
+	mutable std::mutex planning_mutex_;
+	std::string plan_file_;
 	std::atomic<int> waiting_on_id_{-1};
 
 	std::weak_ptr<ai_agent> parent_agent_;

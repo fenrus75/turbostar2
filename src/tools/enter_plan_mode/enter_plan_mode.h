@@ -7,6 +7,7 @@ namespace tools {
 
 struct enter_plan_mode_args {
     std::string reason;
+    std::string plan_file;
 };
 
 class enter_plan_mode_tool : public agentlib::llm_tool {
@@ -35,6 +36,10 @@ public:
                 {"reason", {
                     {"type", "string"},
                     {"description", "Short reason explaining why you are entering plan mode."}
+                }},
+                {"plan_file", {
+                    {"type", "string"},
+                    {"description", "Optional path to the plan file to store your plan. If omitted, a default plan file will be generated and provided to you."}
                 }}
             }},
             {"required", nlohmann::json::array()}

@@ -7,6 +7,7 @@ namespace tools
 bool enter_plan_mode_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const
 {
     parsed_args_.reason = args.value("reason", "");
+    parsed_args_.plan_file = args.value("plan_file", "");
     return true;
 }
 

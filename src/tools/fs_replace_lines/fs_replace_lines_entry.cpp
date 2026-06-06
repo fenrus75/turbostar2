@@ -180,12 +180,10 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		int idx = edit.line_number - 1;
 		int max_idx = (edit.type == "add") ? static_cast<int>(lines.size()) : static_cast<int>(lines.size()) - 1;
 
-		if (idx < 0 || idx > max_idx) {
-			mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds. The file is {} lines long.", edit.line_number, lines.size()));
-			continue;
-		}
-
 		if (edit.type == "add") {
+			if (idx < 0 || idx > max_idx) {
+				mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds. The file is {} lines long.", edit.line_number, lines.size()));
+			}
 			continue;
 		}
 
@@ -231,7 +229,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 		}
 
 		if (matching_lines.empty()) {
-			mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], lines[idx]));
+			std::string actual_content = (idx >= 0 && idx < static_cast<int>(lines.size())) ? lines[idx] : "(Out of bounds)";
+			mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], actual_content));
 		} else if (matching_lines.size() == 1) {
 			int matched_line = matching_lines[0];
 			int offset = std::abs(matched_line - edit.line_number);
@@ -572,7 +571,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 			}
 		}
 
-		if (show_shift_zones && current_shift != 0) {
+		if (show_shift_zones && current_shift != 0 && r.second < static_cast<int>(lines.size())) {
 			result_msg += std::format("- Note: Lines below this section are shifted by {} lines relative to the original file.\n", current_shift);
 		}
 		result_msg += "\n";

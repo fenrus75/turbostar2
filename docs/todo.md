@@ -122,6 +122,11 @@
 
 # done items (move items here on completion)
 
+## 06-06-2026
+- implemented Plan Mode file isolation, allowing `enter_plan_mode` to specify a `plan_file` (defaulting to `docs/plan.md`) and enforcing an allow-list for `fs_write_file` and `fs_replace_lines` tools to only modify that specific file during plan mode via the new `is_allowed_in_plan_mode` tool validator interface.
+- fixed `fs_replace_lines` boundary check bug that blocked appending to the end of a file (line index == total lines + 1), and removed misleading "shifted by X" warnings for append-only operations.
+- fixed `ask_user` TUI screen corruption caused by improper word-wrapping boundaries on re-asks.
+
 ## 05-06-2026
 - fixed a critical bug in the Gemini API payload formatter where multiple system messages in the conversation history were overwriting the systemInstruction payload, leading to the loss of project-specific coding rules, tool instructions, or subagent profiles. System messages are now cleanly consolidated and concatenated into a single system instruction payload. Added a dedicated unit test suite `test_api_formatter.cpp`.
 - integrated agent status sidebar (active subagents and todo list) directly into agent_window with a vertical 70/30 split, collapsible with both Ctrl-T hotkey and clickable arrow icons (◄/►), and deleted the standalone agent_status_window.

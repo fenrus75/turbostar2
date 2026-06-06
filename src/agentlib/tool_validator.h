@@ -26,6 +26,12 @@ public:
     // Indicates if the tool's execution should be hidden from the UI by default.
     virtual bool is_silent_by_default() const { return is_pure(); }
 
+    // Indicates if the tool can be executed while the agent is in plan mode.
+    // By default, pure tools are allowed.
+    virtual bool is_allowed_in_plan_mode(const nlohmann::json& /*args*/, const tool_context& /*ctx*/) const {
+        return is_pure();
+    }
+
     // Non-Virtual Interface (NVI): Enforces state and execution order.
     // Parses and validates args before the tool is allowed to be instantiated.
     bool validate_args(const nlohmann::json& args, const tool_context& ctx, std::string& out_error) {

@@ -304,14 +304,42 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 	while (!trimmed_q.empty() && isspace(trimmed_q.front()))
 		trimmed_q.erase(0, 1);
 
+	int max_x = getmaxx(stdscr);
+	int max_text_width = std::max(40, max_x - 16);
+
 	std::vector<std::string> lines;
-	size_t start = 0;
-	size_t end;
-	while ((end = trimmed_q.find('\n', start)) != std::string::npos) {
-		lines.push_back(trimmed_q.substr(start, end - start));
-		start = end + 1;
+	std::string current_line;
+	std::string word;
+	for (char c : trimmed_q) {
+		if (isspace(c)) {
+			if (!word.empty()) {
+				if (!current_line.empty() && current_line.length() + 1 + word.length() > (size_t)max_text_width) {
+					lines.push_back(current_line);
+					current_line = word;
+				} else {
+					if (!current_line.empty()) current_line += " ";
+					current_line += word;
+				}
+				word.clear();
+			}
+			if (c == '\n') {
+				lines.push_back(current_line);
+				current_line.clear();
+			}
+		} else {
+			word += c;
+		}
 	}
-	lines.push_back(trimmed_q.substr(start));
+	if (!word.empty()) {
+		if (!current_line.empty() && current_line.length() + 1 + word.length() > (size_t)max_text_width) {
+			lines.push_back(current_line);
+			current_line = word;
+		} else {
+			if (!current_line.empty()) current_line += " ";
+			current_line += word;
+		}
+	}
+	if (!current_line.empty()) lines.push_back(current_line);
 
 	size_t max_line_len = 0;
 	for (const auto &l : lines) {
@@ -319,7 +347,10 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 			max_line_len = l.length();
 	}
 
-	int width = std::max<int>(70, max_line_len + 12);
+	int width = std::max<int>(70, static_cast<int>(max_line_len) + 12);
+	if (width > max_x - 4) {
+		width = std::max(70, max_x - 4);
+	}
 
 	auto opt_group = std::make_unique<tools::ui_ask_user_group>("options", 0, 0, width - 4, options);
 	int options_height = opt_group->height();

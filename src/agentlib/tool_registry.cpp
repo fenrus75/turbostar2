@@ -184,18 +184,20 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (ctx.active_agent && ctx.active_agent->is_planning() && !validator->is_pure() && name != "exit_plan_mode") {
-		res.error_message = "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
-				    "'. You must call exit_plan_mode first.";
-		return res;
-	}
-
 	nlohmann::json args;
 	try {
 		args = nlohmann::json::parse(args_json_string);
 	} catch (const std::exception &e) {
 		res.error_message = "Error parsing tool arguments: " + std::string(e.what());
 		return res;
+	}
+
+	if (ctx.active_agent && ctx.active_agent->is_planning() && name != "exit_plan_mode") {
+		if (!validator->is_allowed_in_plan_mode(args, ctx)) {
+			res.error_message = "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
+					    "'. You must call exit_plan_mode first, or only edit the designated plan file.";
+			return res;
+		}
 	}
 
 	// Stage 1 Security: Pre-invocation validation
