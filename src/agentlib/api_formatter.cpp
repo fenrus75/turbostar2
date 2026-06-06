@@ -150,6 +150,7 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 	json payload = json::object();
 
 	json contents = json::array();
+	std::string system_instruction;
 	for (const auto &msg : convo) {
 		json part = json::object();
 
@@ -204,8 +205,10 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 			role = "function";
 
 		if (msg.role == "system") {
-			// Gemini handles system instruction separately, but if we inline it:
-			payload["systemInstruction"] = {{"parts", json::array({{{"text", msg.content}}})}};
+			if (!system_instruction.empty()) {
+				system_instruction += "\n\n";
+			}
+			system_instruction += msg.content;
 			continue;
 		}
 
@@ -213,6 +216,10 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 	}
 
 	payload["contents"] = contents;
+
+	if (!system_instruction.empty()) {
+		payload["systemInstruction"] = {{"parts", json::array({{{"text", system_instruction}}})}};
+	}
 
 	json tools_array = json::array();
 

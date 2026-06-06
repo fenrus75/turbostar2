@@ -476,6 +476,12 @@ test_agent_report_final_result = executable('test_agent_report_final_result',
   include_directories: inc)
 test('unit_test_agent_report_final_result', test_agent_report_final_result)
 
+test_api_formatter = executable('test_api_formatter',
+  ['tests/unit/test_api_formatter.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_api_formatter', test_api_formatter)
+
 test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
   ['tests/unit/test_agent_get_run_screenshot.cpp',
    'src/tools/agent_get_run_screenshot/agent_get_run_screenshot_entry.cpp',
