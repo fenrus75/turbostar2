@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -95,6 +96,33 @@ int main()
 		assert_contains(cmd, "systemd-run");
 		assert_contains(cmd, "-p ProtectHome=tmpfs");
 		assert_contains(cmd, "-p PrivateNetwork=true");
+	}
+
+	{
+		test_command_runner runner;
+		runner.apply_strict_agent_profile();
+		runner.set_allow_display(true);
+
+		// Set dummy environment variables to test
+		setenv("DISPLAY", ":99", 1);
+		setenv("XAUTHORITY", "/tmp/mock_xauth", 1);
+		// Ensure a mock xauth file exists so exists() checks pass in test
+		std::string mock_xauth = "/tmp/mock_xauth";
+		std::ofstream f(mock_xauth);
+		f.close();
+
+		std::string cmd = runner.test_build_command("my_gui_app");
+		std::cout << "Allow display command line: " << cmd << "\n";
+		assert_contains(cmd, "systemd-run");
+		assert_contains(cmd, "-p 'Environment=DISPLAY=:99'");
+		assert_contains(cmd, "-p 'Environment=SDL_VIDEODRIVER=x11'");
+		assert_not_contains(cmd, "-p PrivateNetwork=true");
+		assert_contains(cmd, "BindReadOnlyPaths=");
+		assert_contains(cmd, "'Environment=XAUTHORITY=/tmp/.Xauthority'");
+
+		std::filesystem::remove(mock_xauth);
+		unsetenv("DISPLAY");
+		unsetenv("XAUTHORITY");
 	}
 
 	// Test paranoid mode

@@ -60,7 +60,7 @@ terminal_window::~terminal_window()
 }
 
 bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network,
-				    bool enable_crash_catcher)
+				    bool enable_crash_catcher, bool allow_display)
 {
 	stop_process();
 	parser_ = std::move(parser);
@@ -97,7 +97,11 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	if (enable_network) {
 		runner.set_network_access(true);
 	}
+	if (allow_display) {
+		runner.set_allow_display(true);
+	}
 	std::string sandboxed_cmd = runner.build_command(raw_command);
+	event_logger::get_instance().log("Terminal window start_process sandboxed cmd: " + sandboxed_cmd);
 
 	pid_ = fork();
 	if (pid_ < 0) {

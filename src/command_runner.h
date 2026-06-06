@@ -18,6 +18,7 @@ public:
     // Configuration Setters
     void set_bypass_sandbox(bool bypass) { bypass_sandbox_ = bypass; }
     void set_network_access(bool access) { network_access_ = access; }
+    void set_allow_display(bool allow) { allow_display_ = allow; }
     void set_home_access(home_access_t access) { home_access_ = access; }
     void set_project_dir(const std::string& dir) { project_dir_ = dir; }
     void set_project_hash(const std::string& hash) { project_hash_ = hash; }
@@ -101,6 +102,7 @@ protected:
 private:
     bool bypass_sandbox_{false};
     bool network_access_{false};
+    bool allow_display_{false};
     home_access_t home_access_{home_access_t::hidden};
     std::string project_dir_;
     std::string project_hash_;

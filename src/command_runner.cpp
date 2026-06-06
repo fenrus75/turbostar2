@@ -24,6 +24,7 @@ void command_runner::apply_default_profile()
 {
 	bypass_sandbox_ = false;
 	network_access_ = false;
+	allow_display_ = false;
 	home_access_ = home_access_t::hidden;
 	project_dir_ = "";
 	project_hash_ = "default";
@@ -97,8 +98,36 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	cmd += "-p ProtectControlGroups=true ";
 	cmd += "-p RestrictRealtime=true ";
 
-	if (!network_access_) {
+	if (!network_access_ && !allow_display_) {
 		cmd += "-p PrivateNetwork=true ";
+	}
+
+	if (allow_display_) {
+		const char *display_env = std::getenv("DISPLAY");
+		if (display_env) {
+			cmd += "-p " + fs_utils::escape_shell_arg("Environment=DISPLAY=" + std::string(display_env)) + " ";
+		}
+		cmd += "-p " + fs_utils::escape_shell_arg("Environment=SDL_VIDEODRIVER=x11") + " ";
+
+		if (fs::exists("/tmp/.X11-unix")) {
+			cmd += "-p BindReadOnlyPaths=/tmp/.X11-unix ";
+		}
+
+		const char *xauth_env = std::getenv("XAUTHORITY");
+		std::string xauth_path;
+		if (xauth_env) {
+			xauth_path = xauth_env;
+		} else {
+			const char *home_env = std::getenv("HOME");
+			if (home_env) {
+				xauth_path = std::string(home_env) + "/.Xauthority";
+			}
+		}
+
+		if (!xauth_path.empty() && fs::exists(xauth_path)) {
+			cmd += "-p " + fs_utils::escape_shell_arg("BindReadOnlyPaths=" + xauth_path + ":/tmp/.Xauthority") + " ";
+			cmd += "-p " + fs_utils::escape_shell_arg("Environment=XAUTHORITY=/tmp/.Xauthority") + " ";
+		}
 	}
 
 	if (home_access_ == home_access_t::hidden) {
