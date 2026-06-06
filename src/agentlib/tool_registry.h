@@ -47,7 +47,7 @@ class tool_registry
       private:
 	tool_registry() = default;
 	std::map<std::string, validator_factory> validator_factories_;
-	mutable std::mutex mutex_;
+	mutable std::recursive_mutex mutex_;
 };
 
 // Helper macro for static self-registration

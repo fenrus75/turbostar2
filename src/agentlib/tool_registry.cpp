@@ -17,14 +17,14 @@ void tool_registry::register_validator(validator_factory factory)
 	auto dummy = factory();
 	if (dummy) {
 		std::string name = dummy->get_name();
-		std::lock_guard<std::mutex> lock(mutex_);
+		std::lock_guard<std::recursive_mutex> lock(mutex_);
 		validator_factories_[name] = std::move(factory);
 	}
 }
 
 void tool_registry::unregister_validator(const std::string &name)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	validator_factories_.erase(name);
 }
 
@@ -44,7 +44,7 @@ static std::string serialize_mcp_name(const std::string &name)
 
 nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families) const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
@@ -86,7 +86,7 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 
 nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families) const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
@@ -126,7 +126,7 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 
 std::vector<std::string> tool_registry::get_all_registered_families() const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	std::vector<std::string> families;
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
@@ -142,7 +142,7 @@ std::vector<std::string> tool_registry::get_all_registered_families() const
 
 bool tool_registry::is_tool_silent(const std::string &name) const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	auto it = validator_factories_.find(name);
 	if (it != validator_factories_.end()) {
 		auto validator = it->second();
@@ -157,7 +157,7 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	tool_preparation_result res;
 	validator_factory factory;
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		std::lock_guard<std::recursive_mutex> lock(mutex_);
 		auto it = validator_factories_.find(name);
 		if (it == validator_factories_.end()) {
 			res.error_message = "Error: tool not found.";
