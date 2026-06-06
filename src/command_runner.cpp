@@ -128,6 +128,25 @@ std::string command_runner::build_command(const std::string &raw_command) const
 			cmd += "-p " + fs_utils::escape_shell_arg("BindReadOnlyPaths=" + xauth_path + ":/tmp/.Xauthority") + " ";
 			cmd += "-p " + fs_utils::escape_shell_arg("Environment=XAUTHORITY=/tmp/.Xauthority") + " ";
 		}
+
+		const char *home_env = std::getenv("HOME");
+		if (home_env) {
+			std::string home(home_env);
+			if (!home.starts_with("/tmp") && !home.starts_with("/var/tmp")) {
+				std::string mesa_cache = home + "/.cache/mesa_shader_cache";
+				std::error_code ec;
+				if (!fs::exists(mesa_cache, ec)) {
+					fs::create_directories(mesa_cache, ec);
+				}
+				if (fs::exists(mesa_cache, ec)) {
+					if (home_access_ == home_access_t::hidden) {
+						cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(mesa_cache) + " ";
+					} else {
+						cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(mesa_cache) + " ";
+					}
+				}
+			}
+		}
 	}
 
 	if (home_access_ == home_access_t::hidden) {

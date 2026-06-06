@@ -119,6 +119,7 @@ int main()
 		assert_not_contains(cmd, "-p PrivateNetwork=true");
 		assert_contains(cmd, "BindReadOnlyPaths=");
 		assert_contains(cmd, "'Environment=XAUTHORITY=/tmp/.Xauthority'");
+		assert_contains(cmd, "mesa_shader_cache");
 
 		std::filesystem::remove(mock_xauth);
 		unsetenv("DISPLAY");
