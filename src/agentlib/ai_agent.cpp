@@ -367,6 +367,10 @@ bool ai_agent::load_active_state(bool fresh_agent)
 		std::ifstream file(filepath);
 		nlohmann::json root;
 		file >> root;
+		if (root.contains("final_result") && root["final_result"].is_string()) {
+			std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
+			final_result_ = root["final_result"].get<std::string>();
+		}
 
 		if (root.contains("conversation") && root["conversation"].is_array()) {
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -1318,6 +1322,10 @@ void ai_agent::save_conversation(const std::string &filepath) const
 	nlohmann::json root;
 	root["agent_id"] = id_;
 	root["agent_name"] = name_;
+	{
+		std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
+		root["final_result"] = final_result_;
+	}
 	nlohmann::json conv_array = nlohmann::json::array();
 	for (const auto &msg : conversation_) {
 		nlohmann::json m_json;
@@ -2500,6 +2508,24 @@ void ai_agent::inject_archived_episodes_summary()
 	} else {
 		conversation_.insert(conversation_.begin() + 1, msg);
 	}
+}
+
+void ai_agent::set_final_result(const std::string &result)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	final_result_ = result;
+}
+
+std::string ai_agent::get_final_result() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return final_result_;
+}
+
+bool ai_agent::has_final_result() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return !final_result_.empty();
 }
 
 } // namespace agentlib

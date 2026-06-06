@@ -25,6 +25,9 @@ class agent_window : public window
 	void draw_border() const override;
 	int get_history_viewport_height() const;
 
+	void set_sidebar_expanded(bool expanded) { sidebar_expanded_ = expanded; invalidate(); }
+	bool is_sidebar_expanded() const { return sidebar_expanded_; }
+
 	std::shared_ptr<agentlib::ai_agent> get_agent() const
 	{
 		return agent_;

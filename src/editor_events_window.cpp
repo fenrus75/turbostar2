@@ -13,6 +13,7 @@
 #include "history_manager.h"
 #include "lsp_manager.h"
 #include "ui/dialog_factories.h"
+#include "ui/agent_window.h"
 
 namespace fs = std::filesystem;
 
@@ -121,6 +122,34 @@ void editor::dispatch_event_window(const editor_event &ev)
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::agent_hide_sidebar) {
+		logger.log("Dispatching agent_hide_sidebar event.");
+		window *w = get_active_window();
+		if (w) {
+			if (auto aw = dynamic_cast<agent_window *>(w)) {
+				aw->set_sidebar_expanded(false);
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			}
+		}
+		return;
+	}
+
+	if (ev.type == event_type::agent_show_sidebar) {
+		logger.log("Dispatching agent_show_sidebar event.");
+		window *w = get_active_window();
+		if (w) {
+			if (auto aw = dynamic_cast<agent_window *>(w)) {
+				aw->set_sidebar_expanded(true);
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			}
 		}
 		return;
 	}

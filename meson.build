@@ -464,6 +464,18 @@ test_agent_get_output = executable('test_agent_get_output',
   include_directories: inc)
 test('unit_test_agent_get_output', test_agent_get_output)
 
+test_agent_report_final_result = executable('test_agent_report_final_result',
+  ['tests/unit/test_agent_report_final_result.cpp',
+   'src/tools/agent_report_final_result/agent_report_final_result_entry.cpp',
+   'src/tools/agent_report_final_result/agent_report_final_result_security.cpp',
+   'src/tools/agent_get_output/agent_get_output_entry.cpp',
+   'src/tools/agent_get_output/agent_get_output_security.cpp',
+   'src/tools/wait_for_agent/wait_for_agent_entry.cpp',
+   'src/tools/wait_for_agent/wait_for_agent_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_report_final_result', test_agent_report_final_result)
+
 test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
   ['tests/unit/test_agent_get_run_screenshot.cpp',
    'src/tools/agent_get_run_screenshot/agent_get_run_screenshot_entry.cpp',

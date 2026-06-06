@@ -51,6 +51,8 @@ tools_sources = files(
   'message_agent/message_agent_security.cpp',
   'agent_get_output/agent_get_output_entry.cpp',
   'agent_get_output/agent_get_output_security.cpp',
+  'agent_report_final_result/agent_report_final_result_entry.cpp',
+  'agent_report_final_result/agent_report_final_result_security.cpp',
   'wait_for_agent/wait_for_agent_entry.cpp',
   'wait_for_agent/wait_for_agent_security.cpp',
   'run_python/run_python_entry.cpp',

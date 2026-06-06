@@ -174,6 +174,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::close_window:
 		case event_type::maximize_window:
 		case event_type::select_window:
+		case event_type::agent_hide_sidebar:
+		case event_type::agent_show_sidebar:
 			dispatch_event_window(ev);
 			break;
 		case event_type::find:

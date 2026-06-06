@@ -312,6 +312,11 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to query.
 
+### `agent_report_final_result`
+*   **Description:** Reports the final result or summary of the completed task back to the parent agent. This replaces the default full interaction history returned to the parent with only the reported final result.
+*   **Arguments:**
+    *   `result` *(string, required)*: The final result or outcome to report to the parent.
+
 ### `end_agent`
 *   **Description:** Closes and terminates a specific subagent.
 *   **Arguments:**

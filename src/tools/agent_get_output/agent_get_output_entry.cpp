@@ -50,6 +50,14 @@ std::string agent_get_output_tool::execute(agentlib::tool_context &ctx)
 		return std::format("Error: Could not find subagent with ID {}", args_.id);
 	}
 
+	if (target_agent->has_final_result()) {
+		std::string final_res = target_agent->get_final_result();
+		if (!args_.keep) {
+			ctx.active_agent->remove_subagent(target_agent->get_id());
+		}
+		return final_res;
+	}
+
 	auto interactions = target_agent->get_interactions();
 	if (interactions.empty()) {
 		return std::format("Agent ID {} has no interaction history.", args_.id);

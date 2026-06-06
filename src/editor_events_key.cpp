@@ -796,9 +796,16 @@ void editor::dispatch_event_key(const editor_event &ev)
 					std::string max_label = active_win->is_maximized() ? "Restore" : "Maximize";
 					char max_hotkey = active_win->is_maximized() ? 'R' : 'M';
 
-					if (dynamic_cast<agent_window *>(active_win)) {
+					if (auto aw = dynamic_cast<agent_window *>(active_win)) {
 						items.push_back(
 						    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
+						if (aw->is_sidebar_expanded()) {
+							items.push_back(
+							    {static_cast<int>(event_type::agent_hide_sidebar), "Hide status pane", 'H', false});
+						} else {
+							items.push_back(
+							    {static_cast<int>(event_type::agent_show_sidebar), "Show status pane", 'H', false});
+						}
 						items.push_back(
 						    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
 						items.push_back({0, "", 0, true});

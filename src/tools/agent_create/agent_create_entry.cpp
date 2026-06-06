@@ -49,6 +49,7 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 
 	// Always inject base project knowledge into subagents
 	new_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
+	new_agent->inject_context("system", "Instructions for subagent: When you have completed your task, you MUST call the `agent_report_final_result` tool to report your final findings back to the parent agent. This ensures that the parent agent receives only your final response rather than your entire conversation history.");
 
 	if (!args_.profile.empty() && !args_.task.empty()) {
 		new_agent->inject_context("system", args_.profile);
@@ -72,6 +73,10 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 
 	if (new_agent->get_status() == agentlib::agent_status::error) {
 		return std::format("Agent '{}' encountered an error during execution.", args_.name);
+	}
+
+	if (new_agent->has_final_result()) {
+		return new_agent->get_final_result();
 	}
 
 	// Retrieve interactions and find the last LLM response

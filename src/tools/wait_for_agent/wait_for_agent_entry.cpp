@@ -44,7 +44,8 @@ std::string wait_for_agent_tool::execute(agentlib::tool_context &ctx)
 		base_msg = "Subagent finished with an error state.";
 	}
 
-	return base_msg + " Use agent_get_output(" + std::to_string(args_.id) + ") to retrieve its interaction history.";
+	std::string result_desc = target_agent->has_final_result() ? "final result." : "interaction history.";
+	return base_msg + " Use agent_get_output(" + std::to_string(args_.id) + ") to retrieve its " + result_desc;
 }
 
 } // namespace tools

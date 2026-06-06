@@ -6,6 +6,16 @@
 
 namespace agentlib {
 
+/*
+
+# subclasses of llm_tool
+
+| subclass                       | filename                                                        |
+| ------------------------------ | --------------------------------------------------------------- | 
+| agent_report_final_result_tool | src/tools/agent_report_final_result/agent_report_final_result.h |
+
+*/
+
 class llm_tool {
 public:
     virtual ~llm_tool() = default;

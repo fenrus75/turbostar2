@@ -63,6 +63,8 @@ enum class event_type {
 	open_crashdump_viewer,	    ///< Request to open the crashdump viewer
 	agent_switch_model,	    ///< Request to switch the model for a specific agent
 	agent_save_history,	    ///< Request to save the active agent's history to a JSON file
+	agent_hide_sidebar,	    ///< Request to hide the active agent window's sidebar status pane
+	agent_show_sidebar,	    ///< Request to show the active agent window's sidebar status pane
 	apply_edits,		    ///< Request to apply JSON-serialized LLM edits to the live document
 	prompt_user,		    ///< Request to prompt the user with a question and options
 	approve_plan,		    ///< Request to prompt the user to approve a plan

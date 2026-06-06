@@ -198,6 +198,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	bool load_active_state(bool fresh_agent = false);
 	void load_episode_index();
 	std::string get_memory_index() const;
+	void set_final_result(const std::string &result);
+	std::string get_final_result() const;
+	bool has_final_result() const;
 	std::map<std::string, episode_index_entry> get_episode_index() const
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -254,6 +257,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<std::string> active_tool_families_;
 	std::string original_system_prompt_;
 	std::vector<std::shared_ptr<agent_interaction>> interactions_;
+	std::string final_result_;
 
       private:
 	void update_system_prompt_with_families();
