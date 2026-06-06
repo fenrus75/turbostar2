@@ -21,6 +21,10 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 	auto &logger = event_logger::get_instance();
 
 	if (ev.type == event_type::mouse_release) {
+		if (active_dialog_) {
+			active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
+			return;
+		}
 		if (current_drag_mode_ != drag_mode::none) {
 			logger.log("Mouse drag released.");
 			current_drag_mode_ = drag_mode::none;
@@ -38,6 +42,10 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::mouse_drag) {
+		if (active_dialog_) {
+			active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
+			return;
+		}
 		if (current_drag_mode_ != drag_mode::none && drag_window_ != nullptr) {
 			int dx = ev.mouse_x - drag_start_mouse_x_;
 			int dy = ev.mouse_y - drag_start_mouse_y_;
@@ -93,12 +101,12 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				dialog_result dres = res.value();
 				if (dres != dialog_result::pending) {
 					resolve_dialog(dres);
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
-					return;
 				}
 			}
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+			return;
 		}
 
 		if (active_popup_) {
@@ -411,6 +419,13 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			}
 		}
 	} else if (ev.type == event_type::mouse_scroll_up || ev.type == event_type::mouse_scroll_down) {
+		if (active_dialog_) {
+			active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+			return;
+		}
 		// Find window under mouse (Z-order sorted, topmost first)
 		std::vector<window *> sorted_windows;
 		for (auto &w : windows_) {

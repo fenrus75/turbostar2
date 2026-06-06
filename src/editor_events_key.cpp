@@ -403,6 +403,18 @@ void editor::dispatch_event_key(const editor_event &ev)
 		clear_status_message(status_priorities::HOVER); // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
+		// 1. Modal Dialogs have highest priority
+		if (active_dialog_) {
+			dialog_result res = active_dialog_->handle_key(ev.key_code);
+			if (res != dialog_result::pending) {
+				resolve_dialog(res);
+			}
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+			return;
+		}
+
 		// Global shortcuts
 		if (ev.key_code == KEY_F(1)) {
 			logger.log("Help shortcut pressed.");
@@ -479,17 +491,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			return;
 		}
 
-		// 1. Modal Dialogs have highest priority
-		if (current_focus_ == focus_target::dialog && active_dialog_) {
-			dialog_result res = active_dialog_->handle_key(ev.key_code);
-			if (res != dialog_result::pending) {
-				resolve_dialog(res);
-			}
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
-			return;
-		}
+
 
 		// 1.5 Vim command prompt
 		if (active_mode_ == input_mode::vim) {
