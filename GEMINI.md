@@ -53,6 +53,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 | `style.md` | C++ coding style guide and formatting conventions. |
 | `test-guidelines.md` | Guidelines and best practices for the E2E testing framework. |
 | `testcoverage.md` | Guide on generating and reading test coverage reports. |
+| `thread-lifecycle.md` | Blueprint for thread management and subprocess teardown. |
 | `todo.md` | Short-term task backlog and long-term completed items tracker. |
 | `tools.md` | Comprehensive schema and registry of all LLM agent tools. |
 

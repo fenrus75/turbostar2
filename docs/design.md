@@ -23,6 +23,8 @@ sections updated as enhancements are made to the project.
 | `docs/llmtools.md`     | LLM Tool Infrastructure    |
 | `docs/design-gdb-io.md` | GDB IO architecture        |
 | `docs/mcp.md`           | Model Context Protocol (MCP) design |
+| `docs/thread-lifecycle.md` | Thread lifecycle and teardown blueprint |
+
 
 # Git policy
 

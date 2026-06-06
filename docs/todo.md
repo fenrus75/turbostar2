@@ -122,6 +122,7 @@
 # done items (move items here on completion)
 
 ## 06-06-2026
+- analyzed source code threads, established core thread life cycle design patterns (Mutex/CV workers, Subprocess I/O readers, and Detached dynamic tasks), and created the comprehensive `docs/thread-lifecycle.md` architecture blueprint, registering it in both `GEMINI.md` and `docs/design.md`.
 - implemented interactive event latency measurement tracking right after get_wch() returns a valid event, calculating elapsed processing time through std::chrono::steady_clock at the end of each loop iteration. Added average, maximum, minimum, and distribution percentage metrics (> 1ms, > 5ms, > 10ms) printed to standard output upon ncurses exit, and integrated corresponding assertions and print validation tests in `test_vim_emulation.cpp`.
 - fixed save prompt loop on exit: when exiting, the editor now activates the window of the dirty document before prompting, and clears the document's modified flag on discard, preventing redundant prompts for clean or duplicate windows.
 - fixed modal dialog input leak: key and mouse events are now intercepted at the very beginning of the ncurses event dispatching loops when a modal dialog is active, preventing them from falling through to underlying windows, documents, or global shortcuts.
