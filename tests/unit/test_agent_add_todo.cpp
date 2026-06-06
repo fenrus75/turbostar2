@@ -31,6 +31,25 @@ int main()
 		std::cout << "Result: " << add_todo_res << std::endl;
 		assert(add_todo_res.find("Added todo: My valid todo") != std::string::npos);
 
+		// Multi-line todo addition with list prefix stripping
+		size_t initial_count = agent->get_todos().size();
+		std::string multi_todo_res = registry.execute_tool("agent_add_todo",
+			"{\"text\": \"1. First todo\\n- Second todo\\n* Third todo\\n\\u2022 Fourth todo\"}", ctx);
+		std::cout << "Multi-Result: " << multi_todo_res << std::endl;
+		assert(multi_todo_res.find("4 todo items added") != std::string::npos);
+
+		auto current_todos = agent->get_todos();
+		assert(current_todos.size() == initial_count + 4);
+		assert(current_todos[initial_count].text == "First todo");
+		assert(current_todos[initial_count + 1].text == "Second todo");
+		assert(current_todos[initial_count + 2].text == "Third todo");
+		assert(current_todos[initial_count + 3].text == "Fourth todo");
+
+		// Test that non-bullet lines are not stripped
+		std::string plain_todo_res = registry.execute_tool("agent_add_todo",
+			"{\"text\": \"Create a TownScene class\"}", ctx);
+		assert(agent->get_todos().back().text == "Create a TownScene class");
+
 		// Rejection of empty text (validation fails)
 		auto prep_todo = registry.prepare_tool("agent_add_todo", "{\"text\": \"\"}", ctx);
 		assert(prep_todo.tool == nullptr);

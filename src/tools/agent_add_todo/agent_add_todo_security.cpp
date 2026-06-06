@@ -40,10 +40,12 @@ class agent_add_todo_validator : public agentlib::single_string_tool_validator
 			return false;
 		}
 
-		// Security check: Reject control characters and escape sequences
-		if (!fs_utils::is_safe_for_ui(arg)) {
-			out_error = "Security Violation: Todo text contains unsafe control characters or escape sequences.";
-			return false;
+		// Security check: Reject control characters and escape sequences (allow LF/CR for multi-todo support)
+		for (unsigned char c : arg) {
+			if ((c < 32 && c != 10 && c != 13) || c == 127) {
+				out_error = "Security Violation: Todo text contains unsafe control characters or escape sequences.";
+				return false;
+			}
 		}
 
 		return true;
