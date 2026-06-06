@@ -18,6 +18,7 @@ Top design documentation: `docs/design.md`
 - prefer std::format over string concatinations, and clean up any existing cases as you see them
 - the project uses C++23
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
+- add extensive comments to the code when fixing issues, but comment desired/required code behavior, not changes done.
 - use #pragma ONCE for include guards
 - when creating a subclass, add or update the header of the parent class with a table that matches this example template:
 ```c
