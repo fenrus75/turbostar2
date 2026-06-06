@@ -196,7 +196,7 @@ test_hex_inspect_range = executable('test_hex_inspect_range',
    'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_hex_inspect_range', test_hex_inspect_range)
+test('unit_test_hex_inspect_range', test_hex_inspect_range, is_parallel: false)
 
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
@@ -204,7 +204,7 @@ test_elf_list_sections = executable('test_elf_list_sections',
    'src/tools/elf_list_sections/elf_list_sections_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_sections', test_elf_list_sections)
+test('unit_test_elf_list_sections', test_elf_list_sections, is_parallel: false)
 
 test_elf_list_symbols = executable('test_elf_list_symbols',
   ['tests/unit/test_elf_list_symbols.cpp',
@@ -212,7 +212,7 @@ test_elf_list_symbols = executable('test_elf_list_symbols',
    'src/tools/elf_list_symbols/elf_list_symbols_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_symbols', test_elf_list_symbols)
+test('unit_test_elf_list_symbols', test_elf_list_symbols, is_parallel: false)
 
 
 test_list_skills = executable('test_list_skills',
@@ -424,7 +424,7 @@ test_agent_compress_history = executable('test_agent_compress_history',
    'src/tools/agent_compress_history/agent_compress_history_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_compress_history', test_agent_compress_history)
+test('unit_test_agent_compress_history', test_agent_compress_history, is_parallel: false)
 
 test_exit_summarization = executable('test_exit_summarization',
   ['tests/unit/test_exit_summarization.cpp'],
