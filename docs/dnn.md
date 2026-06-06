@@ -18,6 +18,11 @@ As the user communicates with the agent, the editor needs to decide when to auto
 *   **Architecture:** Concatenation Classification Network.
 *   **Function:** Classifies whether the transition from the previous turn to the current prompt marks a new episode boundary.
 
+### Case 3: Context Auto-Page In ("Should we automatically restore past context?")
+When the user types a new prompt, the system scans the indices, tags, and demand-load hints of all paged-out milestones. The DNN determines if any archived milestone is highly relevant to the new user prompt to automatically restore it before LLM invocation.
+*   **Architecture:** Dual-Encoder Matcher / Relevance Classifier.
+*   **Function:** Evaluates the semantic relevance between the current prompt $T$ and the candidate milestone summary/hint $S$ to decide if a proactive page-in should be triggered.
+
 ---
 
 ## 2. Input Representation & Feature Engineering
@@ -31,6 +36,17 @@ To prevent massive compiler outputs, raw file reads, or tool execution logs from
     [Previous User Prompt] + " [Agent Conclusion: ] " + [Last 50 words of Agent's Response]
     ```
 *   **Task Description:** The active overarching project task/goal description.
+
+### Pro/Con Analysis: Whole Episode vs. Demand-Load Hint for Auto-Page In
+
+For Case 3 (Auto-Page In), we must decide whether the DNN should match the user prompt against the **whole text** of the paged-out episode or against the **demand-load hint** (the 1-2 sentence "when to page back in" description).
+
+| Approach | Pros | Cons |
+| :--- | :--- | :--- |
+| **Whole Episode Text** | • **High Granularity:** Captures specific C++ class names, function signatures, variables, and file paths not mentioned in the summary.<br>• **LLM-Independent:** Does not fail if the LLM generates a poor or generic summary. | • **High Noise-to-Signal Ratio:** Diff hunks, compiler logs, and system prompt text dilute the semantic signal.<br>• **Hash Collisions:** Large files saturate the $V=1024$ hash space, causing high collision rates.<br>• **CPU Overhead:** Large inputs require tokenizing and pooling thousands of words on every prompt, degrading UI responsiveness. |
+| **Short Description (Demand-Load Hint)** | • **Extremely Focused:** The agent writes the hint specifically to define when to load the block, maximizing signal-to-noise.<br>• **Low Hash Collisions:** Small text lengths minimize hashing collisions.<br>• **High Speed:** Tokenizing and pooling a few dozen words is extremely fast ($<1$ ms), preserving TUI responsiveness. | • **Symbol Amnesia:** Specific code symbols or variables not in the summary cannot be matched.<br>• **LLM Dependency:** Relies on the agent writing a high-quality, descriptive demand-load hint. |
+
+**Architectural Decision:** Turbostar implements the **Short Description (Demand-Load Hint) augmented with Tags** as the primary input representation for the candidate episode. This maximizes performance and minimizes TUI latency. To mitigate the "Symbol Amnesia" con, the system automatically appends the list of modified filenames and active tags to the hint text before tokenization.
 
 ### Tokenization & Feature Hashing
 To maintain a zero-dependency local C++ runtime without loading large vocabulary dictionaries:
@@ -88,6 +104,12 @@ $$\text{Prob}(\text{Boundary}) = \text{softmax}(\text{MLP}(\text{Input}))[0]$$
 *   **MLP Layer Sizes:** $1040 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 2$.
 *   **Activation & Regularization:** LeakyReLU for hidden layers, Dropout (prob $0.1$) during training to prevent overfitting, and Softmax for the final outputs. The first element corresponds to "new episode" (boundary) and the second element to "no new episode".
 
+### Case 3: Relevance Matcher
+$$\text{Input} = [ V_T \,\|\, V_S \,\|\, |V_T - V_S| \,\|\, V_T \odot V_S ] \in \mathbb{R}^{2048}$$
+$$\text{Prob}(\text{Relevant}) = \sigma(\text{MLP}(\text{Input}))$$
+*   **MLP Layer Sizes:** $2048 \rightarrow 512 \rightarrow 128 \rightarrow 64 \rightarrow 1$ (Score).
+*   **Activation:** LeakyReLU (slope $0.01$) for hidden layers, Sigmoid activation for the final relevance score.
+
 ---
 
 ## 5. Decision Thresholds (Business-Model Driven)
@@ -95,6 +117,12 @@ $$\text{Prob}(\text{Boundary}) = \text{softmax}(\text{MLP}(\text{Input}))[0]$$
 The probability threshold used to trigger a milestone split is dynamically derived from the model's cost classification:
 *   **Free / Local Inference Models:** Set threshold to **`0.35`** to prioritize smaller active contexts and lower execution latencies.
 *   **Paid / Token-Based API Models:** Set threshold to **`0.65`** to favor larger context retention and maximize prompt caching prefix matches.
+
+### Case 3 (Auto-Page In) Relevance Thresholds
+The relevance threshold for Auto-Page In is dynamically scaled based on active token pressure to prevent context window bloat:
+*   **Normal Pressure (< 60% of target budget):** Set threshold to **`0.50`** (permissive page-in, restoring context using Level 1 "think-free" compression).
+*   **Warning / High Pressure (60% to 95% of target budget):** Set threshold to **`0.75`** (restrictive page-in, restoring context using Level 2/3 aggressive compression).
+*   **Critical Pressure (>= 95% of target budget):** Auto-page-in is disabled (effective threshold of **`1.00`**) to protect the model's active token budget.
 
 ---
 
