@@ -349,6 +349,9 @@ void editor::resolve_dialog(dialog_result res)
 					}
 				}
 			} else if (res_str == "discard") {
+				if (is_quitting_ && doc) {
+					doc->clear_modified();
+				}
 				editor_event close_ev;
 				close_ev.type = event_type::close_window;
 				close_ev.key_code = 1;

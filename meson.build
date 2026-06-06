@@ -1371,6 +1371,14 @@ if uv.found() or python.found()
     timeout: 60,
     is_parallel: false
   )
+  test('e2e_exit_save_prompt_loop', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_save_prompt_loop.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false
+  )
   test('e2e_sqlite_tools', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_sqlite_tools.py')],
     env: e2e_env,

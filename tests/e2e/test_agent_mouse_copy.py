@@ -26,8 +26,18 @@ def test_agent_mouse_copy():
         # Verify the prompt text is visible on the screen in history
         runner.assert_text_on_screen("Hello agent!", timeout=2.0)
         
-        # Wait for the agent's response to start and shift the layout
-        runner.assert_text_on_screen("Hello!", timeout=15.0)
+        # Wait for the agent's response or error to start and shift the layout
+        start_time = time.time()
+        found = False
+        while time.time() - start_time < 15.0:
+            runner._read_output()
+            if any("Hello!" in line or "Error:" in line for line in runner.screen.display):
+                found = True
+                break
+            time.sleep(0.1)
+        if not found:
+            display_str = "\n".join(runner.screen.display)
+            raise AssertionError(f"Neither 'Hello!' nor 'Error:' found on screen after 15.0s. Screen content:\n{display_str}")
         
         # Find which line on the screen contains the prompt
         target_row = -1

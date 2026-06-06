@@ -116,6 +116,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				if (fname.empty())
 					fname = "untitled.txt";
 
+				// Find a window displaying this document and activate it!
+				for (size_t i = 0; i < windows_.size(); ++i) {
+					if (windows_[i]->get_document() == doc) {
+						activate_window(i);
+						break;
+					}
+				}
+
 				// Make sure we only prompt if we aren't already prompting
 				if (active_dialog_mode_ != dialog_mode::save_prompt) {
 					active_dialog_ = create_save_prompt_dialog(fname);
