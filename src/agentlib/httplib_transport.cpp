@@ -4,10 +4,38 @@
 #include <nlohmann/json.hpp>
 #include <format>
 #include <cstdlib>
+#include <cerrno>
+#include <cstring>
 
 
 namespace agentlib
 {
+
+static std::string format_rich_diagnostics(httplib::Error err, int err_num)
+{
+	(void)err;
+	std::string diag;
+	if (err_num != 0) {
+		diag += std::format(", errno={} ({})", err_num, std::strerror(err_num));
+	}
+	const char* env_https_proxy = std::getenv("https_proxy");
+	const char* env_http_proxy = std::getenv("http_proxy");
+	if (env_https_proxy) {
+		diag += std::format(", https_proxy={}", env_https_proxy);
+	} else if (env_http_proxy) {
+		diag += std::format(", http_proxy={}", env_http_proxy);
+	}
+
+	const char* ssl_cert_file = std::getenv("SSL_CERT_FILE");
+	const char* ssl_cert_dir = std::getenv("SSL_CERT_DIR");
+	if (ssl_cert_file) {
+		diag += std::format(", SSL_CERT_FILE={}", ssl_cert_file);
+	}
+	if (ssl_cert_dir) {
+		diag += std::format(", SSL_CERT_DIR={}", ssl_cert_dir);
+	}
+	return diag;
+}
 
 static std::string error_to_string(httplib::Error err)
 {
@@ -143,8 +171,9 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 		response.body = res->body;
 		last_error_ = "";
 	} else {
+		int err_num = errno;
 		response.status_code = -1;
-		last_error_ = error_to_string(res.error());
+		last_error_ = error_to_string(res.error()) + format_rich_diagnostics(res.error(), err_num);
 		response.body = "Connection failed or cancelled: " + last_error_;
 	}
 	return response;
@@ -203,7 +232,8 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 	}
 
 	if (!res) {
-		last_error_ = error_to_string(res.error()) + " (Path: " + requested_path + ")";
+		int err_num = errno;
+		last_error_ = error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
 		return false;
 	}
 

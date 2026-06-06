@@ -98,7 +98,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
 | `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
 | `^K A` | Save All | Saves all open, modified documents. |
-| `^K W` | Write / Save As | Prompts for a filename to save the current document. |
+| `^K W` | Write / Save As | Prompts for a filename to save the current document (writes only the selected block if a selection is active). |
 | `^K R` | Insert File | Prompts for a filename to insert at the cursor position. |
 | `^K Q` | Quit / Abort | Exits the application without saving. |
 | `^K X` | Save & Exit | Saves the current document and exits. |

@@ -103,6 +103,17 @@ int main()
 	assert(stream_success);
 	assert(stream_body == "slow response completed");
 
+	// Test connection failure diagnostics
+	{
+		::setenv("https_proxy", "http://127.0.0.1:9999", 1);
+		agentlib::httplib_transport bad_transport("https://generativelanguage.googleapis.com");
+		auto r = bad_transport.post("/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?alt=sse", "{}");
+		std::string err = bad_transport.get_last_error();
+		std::cout << "Captured error: " << err << std::endl;
+		assert(err.find("https_proxy=http://127.0.0.1:9999") != std::string::npos);
+		::unsetenv("https_proxy");
+	}
+
 	std::cout << "httplib_transport timeout test passed successfully!" << std::endl;
 	return 0;
 }
