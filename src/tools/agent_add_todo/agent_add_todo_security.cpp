@@ -15,8 +15,7 @@ class agent_add_todo_validator : public agentlib::single_string_tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Adds a new task to the AI agent's internal todo (task) list. Use this to track steps during complex multi-part "
-		       "requests.";
+		return "Adds one or more tasks to the AI agent's internal todo list. Multiple tasks can be added at once by separating them with newlines (\\n).";
 	}
 	std::string get_parameter_name() const override
 	{
@@ -24,7 +23,7 @@ class agent_add_todo_validator : public agentlib::single_string_tool_validator
 	}
 	std::string get_parameter_description() const override
 	{
-		return "The description of the task to add.";
+		return "The description of the task or tasks to add. Multiple items can be added by separating them with newlines (\\n).";
 	}
 
 	bool is_allowed_in_plan_mode(const nlohmann::json & /*args*/, const agentlib::tool_context & /*ctx*/) const override

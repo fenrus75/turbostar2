@@ -220,9 +220,9 @@ These tools provide semantic understanding of code by leveraging the Language Se
 ## 7. Agent State & To-Do Management
 
 ### `agent_add_todo`
-*   **Description:** Adds a new task to the AI agent's internal todo list. Use this to track steps during complex multi-part requests.
+*   **Description:** Adds one or more tasks to the AI agent's internal todo list. Use this to track steps during complex multi-part requests. Multiple tasks can be added at once by separating them with newlines (`\n`).
 *   **Arguments:**
-    *   `text` *(string, required)*: The description of the task to add.
+    *   `text` *(string, required)*: The description of the task or tasks to add. Multiple items can be added by separating them with newlines (`\n`).
 
 ### `agent_list_todos`
 *   **Description:** Lists all tasks currently in the AI agent's internal todo list, formatted as markdown checkboxes.
