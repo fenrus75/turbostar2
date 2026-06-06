@@ -135,6 +135,7 @@ class document
 	void copy_selection();
 	void move_selection();
 	bool has_selection() const;
+	bool write_selection_to_file(const std::string &filename);
 
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;

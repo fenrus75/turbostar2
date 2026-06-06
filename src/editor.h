@@ -157,7 +157,8 @@ class editor : public agentlib::document_provider
 		welcome,
 		run_settings,
 		mcp_config,
-		mcp_tools
+		mcp_tools,
+		write_block
 	};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;

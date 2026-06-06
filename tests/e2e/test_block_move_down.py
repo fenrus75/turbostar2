@@ -40,6 +40,9 @@ def test_block_move_down():
         # 3. Trigger Block Move (^KM)
         runner.send_ctrlk('m')
         
+        # Clear selection so assert_content_is can save the whole file
+        runner.send_ctrlk('h')
+        
         # 4. Verify content matches golden
         runner.assert_content_is('tests/data/block_move_golden.txt')
         

@@ -56,6 +56,12 @@ void editor::resolve_dialog(dialog_result res)
 				quit_ev.type = event_type::quit;
 				global_queue_.push(quit_ev);
 			}
+		} else if (active_dialog_mode_ == dialog_mode::write_block) {
+			std::string result_path = active_dialog_->get_result();
+			if (doc) {
+				doc->write_selection_to_file(result_path);
+				history_manager::get_instance().add_file(result_path);
+			}
 		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
 			history_manager::get_instance().add_search(current_search_.query);

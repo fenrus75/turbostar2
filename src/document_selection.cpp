@@ -422,3 +422,50 @@ void document::adjust_selection_for_line_delete(int y)
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
 }
+
+bool document::write_selection_to_file(const std::string &filename)
+{
+	std::unique_lock lock(mutex_);
+	std::vector<line> block = get_selection_block();
+	lock.unlock();
+
+	if (block.empty()) {
+		event_logger::get_instance().log("Write selection failed: Selection is empty");
+		return false;
+	}
+
+	std::string text_to_save;
+	for (size_t i = 0; i < block.size(); ++i) {
+		text_to_save += block[i].get_text();
+		if (i < block.size() - 1) {
+			text_to_save += "\n";
+		}
+	}
+
+	std::string backup_filename = std::format("{}~", filename);
+	if (fs::exists(filename)) {
+		try {
+			std::error_code ec;
+			fs::rename(filename, backup_filename, ec);
+			if (ec) {
+				event_logger::get_instance().log("Backup rename failed: {}", ec.message());
+				// Fallback to copy if rename fails
+				fs::copy_file(filename, backup_filename, fs::copy_options::overwrite_existing);
+			}
+		} catch (const std::exception &e) {
+			event_logger::get_instance().log("Backup failed: {}", e.what());
+		}
+	}
+
+	std::ofstream file(filename);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Write selection failed: Could not open file {}", filename);
+		return false;
+	}
+
+	file << text_to_save;
+	file.close();
+
+	event_logger::get_instance().log("Block selection written to: {}", filename);
+	return true;
+}

@@ -384,6 +384,32 @@ int main()
 		assert(doc.get_line(3)->get_text() == "Line 3");
 	}
 
+	// Test 10: write_selection_to_file
+	{
+		document doc(queue);
+		doc.append_line("Line 1");
+		doc.append_line("Line 2");
+		doc.append_line("Line 3");
+		doc.append_line("Line 4");
+
+		// Select Line 2 and Line 3
+		// Selection: Line 2 start to Line 3 end
+		doc.set_selection(1, 0, 2, 6);
+
+		std::string temp_file = "temp_selection_write.txt";
+		std::filesystem::remove(temp_file);
+
+		bool success = doc.write_selection_to_file(temp_file);
+		assert(success);
+
+		// Read content of temp_file and verify it contains Line 2 and Line 3 only
+		std::ifstream ifs(temp_file);
+		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(content == "Line 2\nLine 3");
+
+		std::filesystem::remove(temp_file);
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

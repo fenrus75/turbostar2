@@ -105,9 +105,15 @@ void editor::dispatch_event_file(const editor_event &ev)
 		} else {
 			filename_arg = ".";
 		}
-		active_dialog_ = create_file_dialog("Save File As", filename_arg);
-		active_dialog_mode_ = dialog_mode::save;
-		set_focus(focus_target::dialog, "menu_save");
+		if (active_doc->has_selection()) {
+			active_dialog_ = create_file_dialog("Write Block to File", filename_arg);
+			active_dialog_mode_ = dialog_mode::write_block;
+			set_focus(focus_target::dialog, "menu_save");
+		} else {
+			active_dialog_ = create_file_dialog("Save File As", filename_arg);
+			active_dialog_mode_ = dialog_mode::save;
+			set_focus(focus_target::dialog, "menu_save");
+		}
 		return;
 	}
 
