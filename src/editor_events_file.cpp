@@ -90,8 +90,8 @@ void editor::dispatch_event_file(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::save_as) {
-		logger.log("Dispatching save_as event.");
+	if (ev.type == event_type::save_as || ev.type == event_type::write_block) {
+		logger.log("Dispatching save_as/write_block event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
 
 		if (!active_doc || active_doc->is_read_only()) {
@@ -105,7 +105,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 		} else {
 			filename_arg = ".";
 		}
-		if (active_doc->has_selection()) {
+		if (ev.type == event_type::write_block && active_doc->has_selection()) {
 			active_dialog_ = create_file_dialog("Write Block to File", filename_arg);
 			active_dialog_mode_ = dialog_mode::write_block;
 			set_focus(focus_target::dialog, "menu_save");

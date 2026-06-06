@@ -26,6 +26,7 @@ void print_with_hotkeys(const std::string &str)
 
 void status_bar::draw(const std::string &mode_help, const std::string &hover_text, int cursor_x, int cursor_y, bool has_history) const
 {
+	(void)has_history;
 	int max_y, max_x;
 	getmaxyx(stdscr, max_y, max_x);
 

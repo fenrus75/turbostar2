@@ -52,6 +52,17 @@ def test_block_write():
             content = f.read()
         assert content == "Line 2\nLine 3", f"Expected 'Line 2\\nLine 3', got {repr(content)}"
 
+        # 4.5. Test that menu option "File -> Save as..." writes the whole file even with active selection
+        # (Selection is still active here)
+        runner.send_keys(KEY_ESC + 'f')
+        runner.assert_text_on_screen("Save as...", timeout=2.0)
+        runner.send_keys('a') # Select "Save as..."
+        runner.assert_text_on_screen("Save File As", timeout=2.0)
+        
+        # Cancel the dialog
+        runner.send_keys(KEY_ESC)
+        runner.assert_text_not_on_screen("Save File As", timeout=2.0)
+
         # 5. Clear selection (^KH)
         runner.send_ctrlk('h')
 

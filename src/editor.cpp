@@ -849,7 +849,7 @@ bool editor::handle_k_block_key(int key)
 			return true;
 		}
 		editor_event ev;
-		ev.type = event_type::save_as;
+		ev.type = event_type::write_block;
 		global_queue_.push(ev);
 		return true;
 	} else if (c == 'q') {

@@ -25,6 +25,7 @@ enum class event_type {
 	load,			    ///< Request to load a file (triggers dialog)
 	save,			    ///< Request to save a file (smart save)
 	save_as,		    ///< Request to save as (always triggers dialog)
+	write_block,		    ///< Request to write block selection to file (triggers dialog if selection active)
 	save_all,		    ///< Request to save all modified documents
 	new_doc,		    ///< Request to clear current document
 	revert,			    ///< Request to revert current document to saved state or clean dirty flag

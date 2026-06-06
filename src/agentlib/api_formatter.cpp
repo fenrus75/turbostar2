@@ -146,6 +146,7 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 						 const std::vector<std::string> &active_families) const
 {
 	(void)model_id; // Gemini expects model in the URL path, not payload
+	(void)stream;
 	json payload = json::object();
 
 	json contents = json::array();
