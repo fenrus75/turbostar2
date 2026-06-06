@@ -20,6 +20,12 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 {
 	auto &logger = event_logger::get_instance();
 
+	// Modal Dialog mouse event interception:
+	// If a modal dialog is active, we MUST route all mouse input events (clicks, releases, drags, scrolls)
+	// directly to it and return immediately. Allowing any mouse event to fall through to the underlying
+	// layers (like editor windows or menus) would cause them to gain focus or handle coordinates incorrectly,
+	// breaking modality and leading to event leaks/corruptions.
+
 	if (ev.type == event_type::mouse_release) {
 		if (active_dialog_) {
 			active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
@@ -106,6 +112,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
+			// CRITICAL: Return immediately. Clicks outside the dialog must NOT fall through to
+			// underlying window components, as that would shift window focus and hijack keyboard input.
 			return;
 		}
 
@@ -424,6 +432,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			editor_event redraw_ev;
 			redraw_ev.type = event_type::redraw;
 			global_queue_.push(redraw_ev);
+			// Swallowed by active dialog
 			return;
 		}
 		// Find window under mouse (Z-order sorted, topmost first)

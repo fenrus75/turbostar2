@@ -116,7 +116,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				if (fname.empty())
 					fname = "untitled.txt";
 
-				// Find a window displaying this document and activate it!
+				// CRITICAL SAVE PROMPT TARGET RESOLUTION:
+				// When prompting the user to save/discard a modified document during exit, the window
+				// displaying that document MUST be activated first. This ensures that get_active_doc()
+				// correctly returns the targeted dirty document when resolve_dialog() is executed to
+				// process the dialog's confirmation or discard action.
 				for (size_t i = 0; i < windows_.size(); ++i) {
 					if (windows_[i]->get_document() == doc) {
 						activate_window(i);

@@ -403,7 +403,20 @@ void editor::dispatch_event_key(const editor_event &ev)
 		clear_status_message(status_priorities::HOVER); // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
-		// 1. Modal Dialogs have highest priority
+		// 1. Modal Dialogs Interception
+		//
+		// CRITICAL IMPLEMENTATION DETAIL FOR MODALITY:
+		// When a modal dialog (active_dialog_) is visible on the screen, it MUST have absolute
+		// priority over all keyboard input. We check for an active dialog here, at the very
+		// beginning of key dispatching, BEFORE checking global shortcuts (F1-F9, Alt-F3, etc.).
+		//
+		// Historically, global shortcuts were processed first. This meant that pressing F2 (Save)
+		// or F9 (Compile) while a dialog was open would leak the keystroke to the document below,
+		// triggering unexpected side-effects.
+		//
+		// By intercepting keys here and returning early, we guarantee that all keyboard events
+		// are routed exclusively to the dialog controls (buttons, textboxes, lists). If the dialog
+		// does not handle the key, it is safely swallowed rather than falling through to the editor.
 		if (active_dialog_) {
 			dialog_result res = active_dialog_->handle_key(ev.key_code);
 			if (res != dialog_result::pending) {
