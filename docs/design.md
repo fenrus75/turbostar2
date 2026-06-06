@@ -118,7 +118,7 @@ The central controller that manages the overall application state.
 - **Documents**: Owns a list of all open `Document` objects.
 - **Windows**: Manages the layout and lifecycle of `Window` objects on the screen.
 - **UI Components**: Owns and coordinates the rendering of the `menu_bar` and `status_bar`.
-- **Input Loop**: Drives the primary thread using a non-blocking `getch` loop (`timeout(50)`). It reads keybindings, wraps them into `editor_event` objects, and pushes them into the **Global Event Queue**.
+- **Input Loop**: Drives the primary thread using a non-blocking `getch` loop (`timeout(50)`). It reads keybindings, wraps them into `editor_event` objects, pushes them into the **Global Event Queue**, and tracks interactive event response latency metrics (printing statistics like average, max, and threshold distributions upon exit).
 ## Focus Management and Event Routing
 
 To ensure predictable interaction, Turbostar uses a focused-based event routing model:

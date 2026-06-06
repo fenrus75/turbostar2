@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <limits>
 #include <thread>
 #include "../../src/editor.h"
 
@@ -11,7 +12,8 @@ void test_vim_emulation()
 	opts.no_lsp = true;
 	opts.no_welcome = true;
 
-	editor ed(opts);
+	{
+		editor ed(opts);
 
 	// Test 1: Verify initial state
 	assert(ed.is_running_ == true);
@@ -76,6 +78,61 @@ void test_vim_emulation()
 	ed.dispatch_event_key(bs_ev);
 	assert(ed.active_mode_ == editor::input_mode::normal);
 	std::cout << "Test 9 passed: Backspace on empty buffer cancels prompt\n";
+
+	// Test 10: Latency tracking initial state
+	assert(ed.total_input_events_ == 0);
+	assert(ed.total_latency_us_ == 0);
+	assert(ed.max_latency_us_ == 0);
+	assert(ed.min_latency_us_ == std::numeric_limits<uint64_t>::max());
+	std::cout << "Test 10 passed: Latency tracking initial state verified\n";
+
+	// Test 11: Manually simulating event latency updates
+	// First event: 500 us (0.5ms)
+	{
+		uint64_t dur = 500;
+		ed.total_latency_us_ += dur;
+		ed.total_input_events_++;
+		if (dur > ed.max_latency_us_) ed.max_latency_us_ = dur;
+		if (dur < ed.min_latency_us_) ed.min_latency_us_ = dur;
+		if (dur > 1000) ed.slow_events_count_1ms_++;
+	}
+	assert(ed.total_input_events_ == 1);
+	assert(ed.total_latency_us_ == 500);
+	assert(ed.min_latency_us_ == 500);
+	assert(ed.max_latency_us_ == 500);
+	assert(ed.slow_events_count_1ms_ == 0);
+
+	// Second event: 1500 us (1.5ms)
+	{
+		uint64_t dur = 1500;
+		ed.total_latency_us_ += dur;
+		ed.total_input_events_++;
+		if (dur > ed.max_latency_us_) ed.max_latency_us_ = dur;
+		if (dur < ed.min_latency_us_) ed.min_latency_us_ = dur;
+		if (dur > 1000) ed.slow_events_count_1ms_++;
+		if (dur > 5000) ed.slow_events_count_5ms_++;
+		if (dur > 10000) ed.slow_events_count_10ms_++;
+	}
+	assert(ed.total_input_events_ == 2);
+	assert(ed.total_latency_us_ == 2000);
+	assert(ed.min_latency_us_ == 500);
+	assert(ed.max_latency_us_ == 1500);
+	assert(ed.slow_events_count_1ms_ == 1);
+	assert(ed.slow_events_count_5ms_ == 0);
+	std::cout << "Test 11 passed: Latency tracking manual simulation verified\n";
+
+	// Verify report printout doesn't crash
+	std::cout << "--- Simulating printing report (should show 2 events, 50% > 1ms) ---\n";
+	ed.print_latency_report();
+	}
+
+	// Test 12: Print report with 0 events
+	{
+		editor ed_empty(opts);
+		std::cout << "--- Simulating printing empty report ---\n";
+		ed_empty.print_latency_report();
+		std::cout << "Test 12 passed: Empty report printed safely without crash\n";
+	}
 
 	std::cout << "All vim_emulation unit tests passed!\n";
 }

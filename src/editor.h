@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -56,6 +57,11 @@ class editor : public agentlib::document_provider
 	 * @brief Main execution loop.
 	 */
 	void run();
+
+	/**
+	 * @brief Prints the interactive event response latency metrics to the console.
+	 */
+	void print_latency_report() const;
 
 	/**
 	 * @brief Changes the current focus target.
@@ -221,4 +227,13 @@ class editor : public agentlib::document_provider
 	std::chrono::steady_clock::time_point last_mtime_check_time_;
 
 	std::unique_ptr<process_runner> current_build_process_;
+
+	// Latency tracking metrics for user-initiated interactive events
+	uint64_t total_latency_us_{0};
+	uint64_t max_latency_us_{0};
+	uint64_t min_latency_us_{std::numeric_limits<uint64_t>::max()};
+	uint64_t total_input_events_{0};
+	uint64_t slow_events_count_1ms_{0};
+	uint64_t slow_events_count_5ms_{0};
+	uint64_t slow_events_count_10ms_{0};
 };

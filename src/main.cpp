@@ -233,6 +233,9 @@ int main(int argc, char **argv)
 
 	endwin();
 
+	// Print interactive event response latency metrics
+	main_editor.print_latency_report();
+
 	if (log_file.empty()) {
 		logger.enable_stdout_logging(true);
 	}

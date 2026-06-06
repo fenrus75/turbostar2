@@ -4,6 +4,7 @@
 #include <format>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
@@ -424,6 +425,15 @@ void editor::run()
 		wint_t wch;
 		int res = get_wch(&wch);
 
+		// Record the start timestamp if we received a valid user input event
+		// to measure interactive response latency.
+		bool processed_event = false;
+		std::chrono::steady_clock::time_point event_start;
+		if (res != ERR) {
+			event_start = std::chrono::steady_clock::now();
+			processed_event = true;
+		}
+
 		// Handle dialog tick (auto-countdown)
 		if (active_dialog_mode_ == dialog_mode::force_quit_prompt && active_dialog_) {
 			if (active_dialog_->tick()) {
@@ -622,6 +632,33 @@ void editor::run()
 			render(false);
 		} else if (needs_cursor_render) {
 			render(true);
+		}
+
+		// Calculate event processing duration and update accumulated latency metrics
+		if (processed_event) {
+			auto event_end = std::chrono::steady_clock::now();
+			uint64_t duration_us = static_cast<uint64_t>(
+				std::chrono::duration_cast<std::chrono::microseconds>(event_end - event_start).count());
+
+			total_latency_us_ += duration_us;
+			total_input_events_++;
+
+			if (duration_us > max_latency_us_) {
+				max_latency_us_ = duration_us;
+			}
+			if (duration_us < min_latency_us_) {
+				min_latency_us_ = duration_us;
+			}
+
+			if (duration_us > 10000) {
+				slow_events_count_10ms_++;
+			}
+			if (duration_us > 5000) {
+				slow_events_count_5ms_++;
+			}
+			if (duration_us > 1000) {
+				slow_events_count_1ms_++;
+			}
 		}
 	}
 
@@ -1258,3 +1295,40 @@ std::string editor::get_active_status_message() const
 	}
 	return "";
 }
+
+/**
+ * Prints the interactive event response latency metrics to the console.
+ * Calculates average, minimum, maximum latencies, and computes percentages
+ * of events exceeding specific performance thresholds (1ms, 5ms, 10ms).
+ */
+void editor::print_latency_report() const
+{
+	if (total_input_events_ == 0) {
+		std::cout << "\nNo interactive input events were processed during this session.\n";
+		return;
+	}
+
+	double avg_ms = (static_cast<double>(total_latency_us_) / total_input_events_) / 1000.0;
+	double max_ms = static_cast<double>(max_latency_us_) / 1000.0;
+	double min_ms = static_cast<double>(min_latency_us_) / 1000.0;
+
+	double pct_1ms = (static_cast<double>(slow_events_count_1ms_) / total_input_events_) * 100.0;
+	double pct_5ms = (static_cast<double>(slow_events_count_5ms_) / total_input_events_) * 100.0;
+	double pct_10ms = (static_cast<double>(slow_events_count_10ms_) / total_input_events_) * 100.0;
+
+	std::cout << "\n"
+		  << "--------------------------------------------------\n"
+		  << "Turbostar Interactive Latency Report\n"
+		  << "--------------------------------------------------\n"
+		  << std::format("Total input events processed: {}\n", total_input_events_)
+		  << std::format("Minimum processing latency:   {:.3f} ms\n", min_ms)
+		  << std::format("Average processing latency:   {:.3f} ms\n", avg_ms)
+		  << std::format("Maximum processing latency:   {:.3f} ms\n", max_ms)
+		  << "\n"
+		  << "Latency Distribution:\n"
+		  << std::format("  Events taking >  1 ms:      {} ({:.2f}%)\n", slow_events_count_1ms_, pct_1ms)
+		  << std::format("  Events taking >  5 ms:      {} ({:.2f}%)\n", slow_events_count_5ms_, pct_5ms)
+		  << std::format("  Events taking > 10 ms:      {} ({:.2f}%)\n", slow_events_count_10ms_, pct_10ms)
+		  << "--------------------------------------------------\n";
+}
+
