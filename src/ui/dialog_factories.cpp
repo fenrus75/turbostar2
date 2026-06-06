@@ -525,7 +525,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 std::unique_ptr<dialog> create_settings_dialog()
 {
-	auto dlg = std::make_unique<dialog>("Preferences", 60, 24);
+	auto dlg = std::make_unique<dialog>("Preferences", 60, 25);
 
 	// Clang Format Style group
 	auto style_group = std::make_unique<ui_group_box>("style_group", 4, 2, 30, 9, " Clang Format Style ");
@@ -578,18 +578,20 @@ std::unique_ptr<dialog> create_settings_dialog()
 						     config_manager::get_instance().is_log_all_tool_calls()));
 	dlg->add_child(std::make_unique<ui_checkbox>("software_map", 4, 20, "Auto Software Map (Background LSP)", 'M',
 						     config_manager::get_instance().is_software_map_enabled()));
+	dlg->add_child(std::make_unique<ui_checkbox>("shell_display_access", 4, 21, "Give shell tool [d]isplay access", 'd',
+						     config_manager::get_instance().is_shell_display_access()));
 
 	// Buttons
-	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 22, " OK (Save Project) ", 'O', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_ok", 4, 23, " OK (Save Project) ", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	dlg->add_child(std::make_unique<ui_button>("btn_global", 26, 22, " Save Global ", 'v', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_global", 26, 23, " Save Global ", 'v', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("save_global");
 	}));
 	dlg->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 42, 22, " Cancel ", 'C',
+	    "btn_cancel", 42, 23, " Cancel ", 'C',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -639,6 +641,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto sw_map = dlg.get_value("software_map");
 	if (sw_map)
 		cfg.set_software_map_enabled(*sw_map == "true");
+
+	auto shell_display = dlg.get_value("shell_display_access");
+	if (shell_display)
+		cfg.set_shell_display_access(*shell_display == "true");
 
 	// Note: We don't save here anymore. The key event handler does it so it knows whether to save global or project.
 }

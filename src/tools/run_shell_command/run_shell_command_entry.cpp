@@ -3,8 +3,9 @@
 #include <future>
 #include <mutex>
 #include <unordered_map>
-#include "../../agentlib/tool_context.h"
 #include "../../agentlib/ai_agent.h"
+#include "../../agentlib/tool_context.h"
+#include "../../config_manager.h"
 #include "../../fs_utils.h"
 #include "../terminal_command_runner.h"
 #include "run_shell_command.h"
@@ -90,6 +91,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 	// Permission granted
 	auto runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update);
 	runner->apply_strict_agent_profile();
+	runner->set_allow_display(config_manager::get_instance().is_shell_display_access());
 	runner->set_enable_crash_catcher(true);
 	runner->set_project_dir(ctx.fs_security.get_working_directory().string());
 	runner->set_timeout(args_.timeout);

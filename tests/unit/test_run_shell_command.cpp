@@ -1,13 +1,16 @@
 #include <cassert>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <future>
 #include <iostream>
 #include <thread>
-#include <future>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/config_manager.h"
 
 using namespace agentlib;
 
@@ -105,6 +108,65 @@ int main()
 		std::string result = registry.execute_tool("run_shell_command", args.dump(), no_q_ctx);
 		std::cout << "Result with no queue: " << result << std::endl;
 		assert(result.find("No event queue available") != std::string::npos);
+	}
+
+	// 7. Test shell_display_access setting propagation
+	{
+		std::cout << "Testing shell_display_access setting..." << std::endl;
+		setenv("DISPLAY", ":99", 1);
+		setenv("XAUTHORITY", "/tmp/mock_xauth", 1);
+		std::ofstream f("/tmp/mock_xauth");
+		f.close();
+
+		// Case 7a: shell_display_access is false -> DISPLAY should NOT be passed
+		config_manager::get_instance().set_shell_display_access(false);
+		{
+			std::thread worker([&q]() {
+				while (true) {
+					auto ev = q.pop();
+					if (ev) {
+						if (ev->type == event_type::prompt_user) {
+							ev->prompt_promise->set_value("Once");
+							break;
+						}
+					}
+					std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				}
+			});
+
+			nlohmann::json args = {{"command", "echo \"val:${DISPLAY}\""}};
+			std::string result = registry.execute_tool("run_shell_command", args.dump(), ctx);
+			worker.join();
+			std::cout << "Result with display disabled: " << result << std::endl;
+			assert(result.find(":99") == std::string::npos);
+		}
+
+		// Case 7b: shell_display_access is true -> DISPLAY should be passed
+		config_manager::get_instance().set_shell_display_access(true);
+		{
+			std::thread worker([&q]() {
+				while (true) {
+					auto ev = q.pop();
+					if (ev) {
+						if (ev->type == event_type::prompt_user) {
+							ev->prompt_promise->set_value("Once");
+							break;
+						}
+					}
+					std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				}
+			});
+
+			nlohmann::json args = {{"command", "echo \"val:${DISPLAY}\""}};
+			std::string result = registry.execute_tool("run_shell_command", args.dump(), ctx);
+			worker.join();
+			std::cout << "Result with display enabled: " << result << std::endl;
+			assert(result.find(":99") != std::string::npos);
+		}
+
+		std::filesystem::remove("/tmp/mock_xauth");
+		unsetenv("DISPLAY");
+		unsetenv("XAUTHORITY");
 	}
 
 	std::cout << "run_shell_command tests passed successfully.\n";

@@ -105,6 +105,15 @@ class config_manager
 		log_all_tool_calls_ = log_all;
 	}
 
+	bool is_shell_display_access() const
+	{
+		return shell_display_access_;
+	}
+	void set_shell_display_access(bool allow)
+	{
+		shell_display_access_ = allow;
+	}
+
 	std::string get_main_executable() const
 	{
 		return main_executable_;
@@ -168,6 +177,7 @@ class config_manager
 	bool software_map_enabled_{false};
 	bool paranoid_mode_{false};
 	bool log_all_tool_calls_{false};
+	bool shell_display_access_{false};
 
 	std::string main_executable_{""};
 	std::string run_arguments_{""};
