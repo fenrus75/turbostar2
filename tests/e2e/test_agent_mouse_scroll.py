@@ -26,10 +26,8 @@ def test_agent_mouse_scroll():
             runner.send_keys(KEY_CTRL_A)
             runner.send_keys(KEY_BACKSPACE * 50)
             
-            cmd = f"/save {path}"
-            for char in cmd:
-                runner.send_keys(char)
-            runner.send_keys('\n')
+            cmd = f"/save {path}\n"
+            runner.send_keys(cmd)
             time.sleep(0.15)
             
         # Verify the last marker is visible
