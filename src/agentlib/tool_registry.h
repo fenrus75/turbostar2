@@ -47,7 +47,17 @@ class tool_registry
       private:
 	tool_registry() = default;
 	std::map<std::string, validator_factory> validator_factories_;
-	mutable std::recursive_mutex mutex_;
+
+	/*
+	 * mutex_ protects the validator_factories_ map which registers LLM agent tools.
+	 *
+	 * Locking Rules:
+	 * - Held briefly during tool registration, unregistration, tool list querying,
+	 *   and tool preparation lookup.
+	 * - MUST NOT be held while executing tools or performing blocking operations to
+	 *   prevent blocking other threads.
+	 */
+	mutable std::mutex mutex_;
 };
 
 // Helper macro for static self-registration
