@@ -20,6 +20,7 @@ Top design documentation: `docs/design.md`
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
 - add extensive comments to the code when fixing issues, but comment desired/required code behavior, not changes done.
 - use #pragma ONCE for include guards
+- when declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining: (1) what specific member data or resources the mutex protects, and (2) the general locking rules, lifecycle, or ordering guidelines associated with it.
 - when creating a subclass, add or update the header of the parent class with a table that matches this example template:
 ```c
 /*
