@@ -229,14 +229,14 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:** None.
 
 ### `agent_complete_todo`
-*   **Description:** Marks a task as complete in the AI agent's internal todo list.
+*   **Description:** Marks a task as complete in the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to complete all tasks.
 *   **Arguments:**
-    *   `text` *(string, required)*: The exact task text or a unique substring to match.
+    *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to complete all tasks.
 
 ### `agent_delete_todo`
-*   **Description:** Deletes a task from the AI agent's internal todo list.
+*   **Description:** Deletes a task from the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to delete all tasks.
 *   **Arguments:**
-    *   `text` *(string, required)*: The exact task text or a unique substring to match.
+    *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to delete all tasks.
 
 ### `agent_mark_milestone`
 *   **Description:** Used to signal that a major task is complete or that you are pivoting to a completely new area. This helps the system manage long-term memory and context windows efficiently by compressing old history.
