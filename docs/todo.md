@@ -121,6 +121,13 @@
 
 # done items (move items here on completion)
 
+## 07-06-2026
+- implemented automatic startup page-in of history up to a 30% target in load_active_state().
+- resolved a recursive mutex self-deadlock in load_active_state() by releasing conversation_mutex_ before calling page_in_history_auto().
+- updated drift warning prefix from 'Warning' to 'Mandatory' in fs_replace_lines tool output and updated corresponding unit test assertions.
+- cleaned up and resolved all compiler warnings in Clang builds (-Wkeyword-macro, -Wunused-but-set-variable, -Wunused-private-field, and -Winconsistent-missing-override).
+- resolved AddressSanitizer signal interception crash in test_fallback_crash by skipping the test when running under ASan.
+
 ## 06-06-2026
 - fixed a deadlock in `mcp_server::start()` where the state mutex was held during blocking initialization and handshake requests. Unlocking the mutex during I/O handshakes allows concurrent shutdown requests (e.g., from `stop_all_servers()`) to proceed immediately, reducing exit latency under the quick exit reproducer from 67s to less than 0.28s.
 - fixed a corrupt control character `\x15` in `dnn_training/weights.json` causing `unit_context_dnn` to fail, allowing the full test suite to pass cleanly.
