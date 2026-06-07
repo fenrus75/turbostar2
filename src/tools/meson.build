@@ -137,6 +137,8 @@ tools_sources = files(
   'fs_write_file/fs_write_file_security.cpp',
   'fs_replace_lines/fs_replace_lines_entry.cpp',
   'fs_replace_lines/fs_replace_lines_security.cpp',
+  'fs_replace_content/fs_replace_content_entry.cpp',
+  'fs_replace_content/fs_replace_content_security.cpp',
   'flag_as_error/flag_as_error_entry.cpp',
   'flag_as_error/flag_as_error_security.cpp',
   'clear_all_errors/clear_all_errors_entry.cpp',

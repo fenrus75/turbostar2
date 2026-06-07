@@ -7,6 +7,15 @@
 
 namespace agentlib {
 
+/*
+
+# subclasses of tool_validator
+
+| subclass                     | filename                                                    |
+| ---------------------------- | ----------------------------------------------------------- | 
+| fs_replace_content_validator | src/tools/fs_replace_content/fs_replace_content.h           |
+
+*/
 class tool_validator {
 public:
     virtual ~tool_validator() = default;

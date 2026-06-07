@@ -151,6 +151,8 @@ inline void normalize_tool_call(tool_call &call)
 		official_name = "fs_glob";
 	} else if (alias == "mkdir" || alias == "create_directory") {
 		official_name = "fs_mkdir";
+	} else if (alias == "replace_content" || alias == "edit_content" || alias == "fs_replace_content") {
+		official_name = "fs_replace_content";
 	} else if (alias == "run_tests") {
 		official_name = "fs_run_tests";
 	} else if (alias == "git_diff") {
@@ -248,6 +250,34 @@ inline void normalize_tool_call(tool_call &call)
 			} else {
 				new_args = args;
 			}
+			args = new_args;
+		} else if (official_name == "fs_replace_content") {
+			std::string path_val;
+			for (const auto &key : {"path", "file", "file_path", "filepath"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string target_val;
+			for (const auto &key : {"target_content", "target", "original_text", "old_text"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					target_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string replace_val;
+			for (const auto &key : {"replacement_content", "replacement", "replace_with", "new_text"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					replace_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty()) new_args["path"] = path_val;
+			if (!target_val.empty()) new_args["target_content"] = target_val;
+			if (!replace_val.empty()) new_args["replacement_content"] = replace_val;
+			if (args.contains("line_hint")) new_args["line_hint"] = args["line_hint"];
 			args = new_args;
 		}
 
