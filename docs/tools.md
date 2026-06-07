@@ -229,7 +229,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:** None.
 
 ### `agent_complete_todo`
-*   **Description:** Marks a task as complete in the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to complete all tasks.
+*   **Description:** Marks a task as complete in the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to complete all tasks. Upon successful completion, the tool response includes a reminder message listing the number of remaining outstanding todos and the text of the next todo item (repetition-limited to 2 reminders per item).
 *   **Arguments:**
     *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to complete all tasks.
 
@@ -239,7 +239,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to delete all tasks.
 
 ### `agent_mark_milestone`
-*   **Description:** Used to signal that a major task is complete or that you are pivoting to a completely new area. This helps the system manage long-term memory and context windows efficiently by compressing old history.
+*   **Description:** Used to signal that a major task is complete or that you are pivoting to a completely new area. This helps the system manage long-term memory and context windows efficiently by compressing old history. Upon success, the tool response includes a reminder message listing the number of remaining outstanding todos and the text of the next todo item (repetition-limited to 2 reminders per item).
 *   **Arguments:**
     *   `title` *(string, required)*: A short title for the completed task or the new milestone.
     *   `summary` *(string, required)*: A concise summary of the work that was just completed and the goal of the new phase.
