@@ -18,7 +18,8 @@ class agent_delete_todo_validator : public agentlib::single_string_tool_validato
 	}
 	std::string get_description() const override
 	{
-		return "Deletes a task from the AI agent's internal todo list. Provide an exact string match or a unique substring.";
+		return "Deletes a task from the AI agent's internal todo list. Provide an exact match, a unique "
+		       "substring (excluding leading list numbers/indices like '1.'), or '*' to delete all tasks.";
 	}
 	std::string get_parameter_name() const override
 	{
@@ -26,7 +27,8 @@ class agent_delete_todo_validator : public agentlib::single_string_tool_validato
 	}
 	std::string get_parameter_description() const override
 	{
-		return "The exact task text or a unique substring to match.";
+		return "The task text or unique substring to match. Do not include leading list numbers or prefixes "
+		       "(e.g., match 'Read README' instead of '1. Read README'). Use '*' to delete all tasks.";
 	}
 
 	bool validate_string_arg(const std::string &arg, const agentlib::tool_context & /*ctx*/,

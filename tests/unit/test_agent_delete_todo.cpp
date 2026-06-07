@@ -34,6 +34,13 @@ int main()
 		std::cout << "Result: " << delete_todo_res << std::endl;
 		assert(delete_todo_res.find("deleted") != std::string::npos);
 
+		// Test wildcard deletion
+		agent->add_todo("Task 1");
+		agent->add_todo("Task 2");
+		std::string delete_all_res = registry.execute_tool("agent_delete_todo", "{\"text\": \"*\"}", ctx);
+		assert(delete_all_res.find("deleted") != std::string::npos);
+		assert(agent->get_todos().empty());
+
 		// Rejection of empty text (validation fails)
 		auto prep_delete = registry.prepare_tool("agent_delete_todo", "{\"text\": \"\"}", ctx);
 		assert(prep_delete.tool == nullptr);

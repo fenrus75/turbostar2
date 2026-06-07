@@ -34,6 +34,15 @@ int main()
 		std::cout << "Result: " << complete_todo_res << std::endl;
 		assert(complete_todo_res.find("complete") != std::string::npos);
 
+		// Test wildcard completion
+		agent->add_todo("Task 1");
+		agent->add_todo("Task 2");
+		std::string complete_all_res = registry.execute_tool("agent_complete_todo", "{\"text\": \"*\"}", ctx);
+		assert(complete_all_res.find("complete") != std::string::npos);
+		for (const auto &todo : agent->get_todos()) {
+			assert(todo.completed == true);
+		}
+
 		// Rejection of empty text (validation fails)
 		auto prep_complete = registry.prepare_tool("agent_complete_todo", "{\"text\": \"\"}", ctx);
 		assert(prep_complete.tool == nullptr);

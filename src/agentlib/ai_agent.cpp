@@ -837,6 +837,12 @@ std::map<std::string, int> ai_agent::get_stats() const
 bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &out_error)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
+	if (text_match == "*") {
+		for (auto &todo : todos_) {
+			todo.completed = true;
+		}
+		return true;
+	}
 	int match_idx = -1;
 	for (size_t i = 0; i < todos_.size(); ++i) {
 		if (todos_[i].text.find(text_match) != std::string::npos) {
@@ -860,6 +866,10 @@ bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &ou
 bool ai_agent::delete_todo(const std::string &text_match, std::string &out_error)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
+	if (text_match == "*") {
+		todos_.clear();
+		return true;
+	}
 	int match_idx = -1;
 	for (size_t i = 0; i < todos_.size(); ++i) {
 		if (todos_[i].text.find(text_match) != std::string::npos) {
