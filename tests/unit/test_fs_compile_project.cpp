@@ -1,9 +1,10 @@
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <thread>
-#include <chrono>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/config_manager.h"
 #include "../../src/project_manager.h"
 
 using namespace agentlib;
@@ -11,6 +12,14 @@ using namespace agentlib;
 int main()
 {
 	project_manager::get_instance().initialize();
+
+	// Save original build configuration
+	std::string orig_build_system = config_manager::get_instance().get_build_system();
+	std::string orig_build_dir = config_manager::get_instance().get_build_directory();
+
+	// Set dummy build system/directory to speed up test execution
+	config_manager::get_instance().set_build_system("echo CompileSuccessful");
+	config_manager::get_instance().set_build_directory("");
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
@@ -55,19 +64,25 @@ int main()
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				auto conv = agent->get_conversation();
 				for (const auto &msg : conv) {
-					if (msg.role == "system" && (msg.content.find("successfully") != std::string::npos || msg.content.find("with errors") != std::string::npos)) {
+					if (msg.role == "system" && (msg.content.find("successfully") != std::string::npos ||
+								     msg.content.find("with errors") != std::string::npos)) {
 						found_msg = true;
 						std::cout << "Found expected async message: " << msg.content << std::endl;
 						break;
 					}
 				}
-				if (found_msg) break;
+				if (found_msg)
+					break;
 			}
 			assert(found_msg);
 		}
 
 		std::cout << "fs_compile_project tool verified successfully!" << std::endl;
 	}
+
+	// Restore original build configuration
+	config_manager::get_instance().set_build_system(orig_build_system);
+	config_manager::get_instance().set_build_directory(orig_build_dir);
 
 	return 0;
 }
