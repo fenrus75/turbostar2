@@ -51,7 +51,9 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 				}
 			} catch (const std::exception &e) {
 				s->is_running.store(false);
-				event_logger::get_instance().log("LSP message loop error: {}", e.what());
+				if (!project_manager::get_instance().is_exiting()) {
+					event_logger::get_instance().log("LSP message loop error: {}", e.what());
+				}
 			}
 			event_logger::get_instance().log("Thread exited: lsp_manager message_thread");
 		});
@@ -127,21 +129,22 @@ void lsp_manager::stop()
 			try {
 				(void)server->message_handler->sendRequest<lsp::requests::Shutdown>();
 			} catch (...) {
-				event_logger::get_instance().log("LSP: Caught unknown exception during shutdown request");
+				// ignore
 			}
 
 			try {
 				server->message_handler->sendNotification<lsp::notifications::Exit>();
 			} catch (...) {
-				event_logger::get_instance().log("LSP: Caught unknown exception during exit notification");
+				// ignore
 			}
 
-			try {
-				if (server->process) {
-					server->process->terminate();
-				}
-			} catch (...) {
-				event_logger::get_instance().log("LSP: Caught unknown exception during process termination");
+			// Move the process unique_ptr to a detached thread to destroy it asynchronously.
+			// This closes the pipes, forcing the child process to terminate immediately (via SIGKILL in destructor)
+			// and reap in the background without blocking the editor exit path.
+			if (server->process) {
+				std::thread([p = std::move(server->process)]() {
+					// Destructor of Process runs here in the background
+				}).detach();
 			}
 
 			server->is_running.store(false);
