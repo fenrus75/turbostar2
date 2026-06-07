@@ -133,7 +133,7 @@ The design leverages a **hybrid training loop** where heavy training happens off
 ```
 [ Turbostar C++ TUI ]
        │
-       ├─► Inference: Load weights.json, run forward-pass loops (LeakyReLU)
+       ├─► Inference: mmap weights.bin, run forward-pass loops (LeakyReLU)
        │
        └─► Logging: Conversation logs contain Unix timestamps & durations on turns
              │
@@ -152,6 +152,9 @@ The design leverages a **hybrid training loop** where heavy training happens off
        │
        ▼
   weights.json (weights, biases, & embedding matrices serialized to JSON)
+       │
+       ▼
+[ convert_weights.py ] ──► weights.bin (compact binary weights mapped via mmap)
 ```
 
 ---
@@ -245,8 +248,10 @@ python3 dnn_training/label_with_local_llm_fast.py \
 Train the milestone boundary classification model and export optimized C++ weights:
 ```bash
 ./dnn_training/train_boundary_dnn.py
+python3 dnn_training/convert_weights.py
 ```
 *   This trains the PyTorch model using data augmentation (cloning across pressure levels) and writes the weights, biases, and embedding matrices to `dnn_training/weights.json`.
+*   The `convert_weights.py` script is then executed to serialize `weights.json` to the compact binary format `dnn_training/weights.bin` loaded by the C++ engine.
 *   **Early Stopping:** To prevent overfitting and avoid unnecessary training epochs once the loss converges, the script implements an early stopping trigger when the training loss falls below `0.001`.
 
 ### Step 4: Verify C++ Inference Match
