@@ -181,6 +181,51 @@ When exiting the editor, child processes (LSP language servers, MCP servers, run
 
 ---
 
+## 3.1 Pipelining Shutdown: "Request Async First, Then Wait for Everyone"
+
+When coordinating the shutdown of multiple services, threads, or subprocesses, sequentially stopping them one-by-one is a major bottleneck (causing exit latencies to scale linearly with the number of services). 
+
+> [!TIP]
+> **Recommended Teardown Pattern**: 
+> 1. **Signal/Request Stop to Everyone (Asynchronously)**: Fire all asynchronous termination requests, close pipes, send signals, and flag threads to stop *first*.
+> 2. **Block and Wait/Join Everyone (Synchronously)**: Only after all services have been notified do we execute the blocking `join()` or `wait()` steps.
+> 
+> This pipelines the teardown phase so all background services perform cleanup and terminate *concurrently in parallel*, reducing total exit latency to the maximum teardown duration of a single service (instead of the sum of all durations).
+
+### Example: Concurrent LSP Shutdown
+Instead of sequentially stopping each language server on the main thread, Turbostar starts a pool of short-lived helper threads to shut down each server concurrently, and then joins the helper threads:
+
+```cpp
+void lsp_manager::stop()
+{
+	std::lock_guard<std::mutex> lock(servers_mutex_);
+	std::vector<std::thread> stop_threads;
+
+	// Phase 1: Notify all servers in parallel
+	for (auto &server : servers_) {
+		if (!server->is_running) continue;
+
+		stop_threads.push_back(std::thread([server]() {
+			server->message_handler->sendRequest<lsp::requests::Shutdown>();
+			server->message_handler->sendNotification<lsp::notifications::Exit>();
+			server->process->terminate(); // Synchronously waits for this child
+			server->is_running.store(false);
+			if (server->message_thread.joinable()) {
+				server->message_thread.join();
+			}
+		}));
+	}
+
+	// Phase 2: Join all termination threads
+	for (auto &t : stop_threads) {
+		if (t.joinable()) t.join();
+	}
+	servers_.clear();
+}
+```
+
+---
+
 ## 4. Case Study: LSP Manager Exit Latency
 
 In `lsp_manager::lsp_stop()`, the main thread blocks during exit:
