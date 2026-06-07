@@ -10,8 +10,8 @@ event_logger::event_logger() : start_time_(std::chrono::steady_clock::now())
 
 event_logger &event_logger::get_instance()
 {
-	static event_logger instance;
-	return instance;
+	static event_logger *instance = new event_logger();
+	return *instance;
 }
 
 event_logger::~event_logger()
