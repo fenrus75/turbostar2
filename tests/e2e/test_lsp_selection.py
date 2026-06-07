@@ -21,11 +21,11 @@ def test_lsp_selection():
         
         # 4. Expand Selection
         runner.send_ctrlk(']')
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # 5. Expand again
         runner.send_ctrlk(']')
-        time.sleep(0.5)
+        time.sleep(0.1)
 
         # 6. Delete block
         runner.send_ctrlk('y')
