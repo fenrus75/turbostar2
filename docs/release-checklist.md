@@ -33,6 +33,7 @@ The following Meson configuration options are used for the release validation bu
 | **UBSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=undefined build_ubsan` |
 | **MSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=memory build_msan` (Requires instrumented system libs) |
 | **TSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=thread build-tsan` |
+| **Clang Thread Safety** | `CXX=clang++ CC=clang meson setup --wipe build_clang` (Verifies compile-time thread safety analysis annotations) |
 
 ## Release automation & validation
 - [ ] Run `scripts/run_release_builds.sh` to automate the verification of all required build types.

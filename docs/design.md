@@ -44,6 +44,7 @@ After making a change, create a git commit for the change. Before committing, en
     - **Line-level**: Each `line` uses its own `std::shared_mutex` to protect its internal UTF-8 string data. This allows background threads to process different lines of the same document concurrently without blocking the main document or each other.
     - **Lock Ordering**: To prevent deadlocks, the locking order is always **Document -> Line**.
     - **Snapshots**: `line::get_text()` returns a `std::string` copy to provide a thread-safe snapshot of the line content to readers.
+    - **Compile-Time Thread Safety**: Clang's Thread Safety Analysis annotations (defined in `src/thread_annotations.h` via `safe_mutex`, `safe_lock_guard`, `safe_unique_lock`, `GUARDED_BY`, `REQUIRES`, etc.) are used across the codebase to statically verify locking discipline at compile time under Clang (using `-Wthread-safety`).
   - Per-Window/Document Event Queues: Thread-safe queues for passing events between threads.
 - **Selection Model**:
   - Turbostar uses a **Persistent Marker Selection** model (WordStar/Joe style) for block operations.

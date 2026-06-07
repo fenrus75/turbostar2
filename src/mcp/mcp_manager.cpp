@@ -33,7 +33,7 @@ mcp_manager::~mcp_manager()
 
 void mcp_manager::discover_and_load(const std::string &project_root)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	servers_.clear();
 
 	// 1. Discover System MCPs
@@ -66,13 +66,13 @@ void mcp_manager::discover_and_load(const std::string &project_root)
 
 std::vector<std::shared_ptr<mcp_server>> mcp_manager::get_servers() const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	return servers_;
 }
 
 std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) const
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	return find_server_unlocked(name);
 }
 
@@ -88,7 +88,7 @@ std::shared_ptr<mcp_server> mcp_manager::find_server_unlocked(const std::string 
 
 void mcp_manager::save_configs(const std::string &project_root)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	auto &cfg = config_manager::get_instance();
 	for (const auto &server : servers_) {
 		cfg.set_mcp_server_enabled(server->get_name(), server->is_system(), server->is_enabled());
@@ -108,7 +108,7 @@ void mcp_manager::start_async(const std::string &project_root)
 	if (startup_thread_.joinable()) {
 		startup_thread_.join();
 	}
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	startup_thread_ = std::thread([this, project_root]() {
 		discover_and_load(project_root);
 		start_active_servers();
@@ -119,7 +119,7 @@ void mcp_manager::start_active_servers()
 {
 	std::vector<std::thread> start_threads;
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		safe_lock_guard lock(mutex_);
 		for (auto &server : servers_) {
 			if (server->is_enabled()) {
 				start_threads.push_back(std::thread([this, server]() {
@@ -127,7 +127,7 @@ void mcp_manager::start_active_servers()
 						return;
 					}
 					if (server->start()) {
-						std::lock_guard<std::mutex> reg_lock(mutex_);
+						safe_lock_guard reg_lock(mutex_);
 						bool has_tools = !server->get_tools().empty();
 						for (const auto &tool : server->get_tools()) {
 							if (tool.enabled) {
@@ -161,14 +161,14 @@ void mcp_manager::stop_all_servers()
 		startup_thread_.join();
 	}
 	{
-		std::lock_guard<std::mutex> lock(prompt_mutex_);
+		safe_lock_guard lock(prompt_mutex_);
 		prompt_cv_.notify_all();
 	}
 	if (prompt_generation_thread_.joinable()) {
 		prompt_generation_thread_.join();
 	}
 
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	for (auto &server : servers_) {
 		server->stop();
 		for (const auto &tool : server->get_tools()) {
@@ -179,7 +179,7 @@ void mcp_manager::stop_all_servers()
 
 void mcp_manager::toggle_server(const std::string &name, bool enable)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	auto server = find_server_unlocked(name);
 	if (!server) {
 		return;
@@ -216,7 +216,7 @@ void mcp_manager::toggle_server(const std::string &name, bool enable)
 
 void mcp_manager::toggle_tool(const std::string &server_name, const std::string &tool_name, bool enable)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
+	safe_lock_guard lock(mutex_);
 	auto server = find_server_unlocked(server_name);
 	if (!server) {
 		return;
@@ -346,13 +346,13 @@ void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool 
 
 void mcp_manager::queue_prompt_generation(const std::string &server_name, bool is_system)
 {
-	std::lock_guard<std::mutex> reg_lock(mutex_);
+	safe_lock_guard reg_lock(mutex_);
 	queue_prompt_generation_unlocked(server_name, is_system);
 }
 
 void mcp_manager::queue_prompt_generation_unlocked(const std::string &server_name, bool is_system)
 {
-	std::lock_guard<std::mutex> lock(prompt_mutex_);
+	safe_lock_guard lock(prompt_mutex_);
 
 	for (const auto &p : prompt_generation_queue_) {
 		if (p.first == server_name) {
@@ -387,10 +387,10 @@ void mcp_manager::prompt_worker_loop()
 	while (!project_manager::get_instance().is_exiting()) {
 		std::pair<std::string, bool> task;
 		{
-			std::unique_lock<std::mutex> lock(prompt_mutex_);
-			prompt_cv_.wait(lock, [this] {
-				return project_manager::get_instance().is_exiting() || !prompt_generation_queue_.empty();
-			});
+			safe_unique_lock lock(prompt_mutex_);
+			while (!project_manager::get_instance().is_exiting() && prompt_generation_queue_.empty()) {
+				prompt_cv_.wait(lock);
+			}
 
 			if (project_manager::get_instance().is_exiting()) {
 				break;
@@ -459,7 +459,7 @@ void mcp_manager::prompt_worker_loop()
 					break;
 				}
 				{
-					std::lock_guard<std::mutex> lock(prompt_mutex_);
+					safe_lock_guard lock(prompt_mutex_);
 					prompt_generation_queue_.push_back(task);
 				}
 				continue;

@@ -5,7 +5,7 @@
 #include "ansi_terminal_emulator.h"
 #include "window.h"
 
-class build_log_parser;
+#include "build_log_parser.h"
 
 namespace ui
 {

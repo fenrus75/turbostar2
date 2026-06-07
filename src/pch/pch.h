@@ -1,5 +1,6 @@
 #pragma once
 
+#include "thread_annotations.h"
 #include <string>
 #include <vector>
 #include <memory>

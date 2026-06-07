@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <mutex>
+#include "../thread_annotations.h"
 #include <string>
 #include <thread>
 #include <vector>
@@ -32,13 +33,6 @@ class mcp_manager
       private:
 	mcp_manager() = default;
 	~mcp_manager();
-	void load_servers_from_file_unlocked(const std::string &path, bool is_system);
-	void prompt_worker_loop();
-
-	std::shared_ptr<mcp_server> find_server_unlocked(const std::string &name) const;
-	void queue_prompt_generation_unlocked(const std::string &server_name, bool is_system);
-
-	std::vector<std::shared_ptr<mcp_server>> servers_;
 
 	/*
 	 * mutex_ protects the servers_ registry map and controls MCP manager operations.
@@ -48,11 +42,17 @@ class mcp_manager
 	 * - Internal helper calls (such as find_server_unlocked) must be used when the mutex is already
 	 *   held by the calling thread to prevent deadlocks with standard std::mutex.
 	 */
-	mutable std::mutex mutex_;
-	std::thread startup_thread_;
+	mutable safe_mutex mutex_;
 
-	std::vector<std::pair<std::string, bool>> prompt_generation_queue_;
-	std::thread prompt_generation_thread_;
+	std::vector<std::shared_ptr<mcp_server>> servers_ GUARDED_BY(mutex_);
+
+	void load_servers_from_file_unlocked(const std::string &path, bool is_system) REQUIRES(mutex_);
+	void prompt_worker_loop();
+
+	std::shared_ptr<mcp_server> find_server_unlocked(const std::string &name) const REQUIRES(mutex_);
+	void queue_prompt_generation_unlocked(const std::string &server_name, bool is_system) REQUIRES(mutex_);
+
+	std::thread startup_thread_;
 
 	/*
 	 * prompt_mutex_ protects prompt_generation_queue_ and controls the lifecycle
@@ -66,7 +66,11 @@ class mcp_manager
 	 * - Lock Ordering: Can be acquired while holding mutex_. To avoid deadlocks,
 	 *   never acquire mutex_ while holding prompt_mutex_.
 	 */
-	std::mutex prompt_mutex_;
+	mutable safe_mutex prompt_mutex_;
+
+	std::vector<std::pair<std::string, bool>> prompt_generation_queue_ GUARDED_BY(prompt_mutex_);
+	std::thread prompt_generation_thread_;
+
 	std::condition_variable prompt_cv_;
 	std::atomic<bool> prompt_thread_running_{false};
 };

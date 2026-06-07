@@ -5,6 +5,10 @@ project('turbostar', ['cpp', 'c'],
 add_project_arguments('-DTURBOSTAR_VERSION="' + meson.project_version() + '"', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
+
+if cc.get_id() == 'clang'
+  add_project_arguments('-Wthread-safety', language : 'cpp')
+endif
 git_prog = find_program('git', required: false)
 ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
