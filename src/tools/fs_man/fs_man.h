@@ -27,7 +27,7 @@ class fs_man_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "fs_man"; }
 	std::string get_description() const override {
-		return "Lookup and render system man pages (C library calls, command line tools, or system calls) as Markdown.";
+		return "Lookup and render system man pages (C library calls, command line tools, or system calls) as Markdown. Use to find exact API format and descriptions for system and library functions";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
