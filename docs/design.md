@@ -69,6 +69,7 @@ After making a change, create a git commit for the change. Before committing, en
   - A fallback crash handler using `libunwind` is installed in `main.cpp` for fatal signals (`SIGSEGV`, `SIGABRT`, etc.) and outputs a clean stack trace directly to `stdout`.
   - Prior to installation, it queries the active `SIGSEGV` handler; if any custom handler is already registered (such as by `libturbocatch.so`), it automatically steps back to respect it.
   - On crash, the fallback handler writes raw ANSI escape sequences directly to `stdout` to reset raw mode, show the cursor, and restore terminal colors to prevent garbled console states.
+- **Project Directory Override**: The active project directory (normally resolved dynamically from the git tree root) can be overridden by setting the `TURBOSTAR_PROJECT_ROOT` environment variable. This allows C++ and E2E tests to run in isolated staging areas to prevent resource conflicts and allow parallel execution.
 
 
 
@@ -89,7 +90,7 @@ The document class represents a whole file and serves as the primary "Model" in 
     - `int selection_start_x, selection_start_y`
     - `int selection_end_x, selection_end_y`
 - **Methods**: High-level operations like `insert_char()`, `delete_line()`, `undo()`, `redo()`, `load_from_file()`, `save()`.
-- **External Modification Detection**: Tracks the file's modification time (`last_write_time`) on disk. The Editor periodically queries this value (rate-limited to once every 10 seconds). If a change is detected, a reload confirmation dialog is prompted. If declined, the timestamp is synchronized to the current disk mtime to prevent continuous prompting.
+- **External Modification Detection**: Tracks the file's modification time (`last_write_time`) on disk. The Editor periodically queries this value (rate-limited to once every 10 seconds by default, or configurable via the `TURBOSTAR_MTIME_CHECK_INTERVAL` environment variable). If a change is detected, a reload confirmation dialog is prompted. If declined, the timestamp is synchronized to the current disk mtime to prevent continuous prompting.
 
 ## Line class
 
