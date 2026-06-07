@@ -169,6 +169,34 @@ def train():
         loss.backward()
         optimizer.step()
         
+        if loss.item() < 0.001:
+            model.eval()
+            with torch.no_grad():
+                eval_logits = []
+                for i in range(len(samples)):
+                    v_prev = pool_text(batch_tokens_prev[i], model.embed.weight)
+                    v_curr = pool_text(batch_tokens_curr[i], model.embed.weight)
+                    x = torch.cat([v_prev, v_curr, batch_metadata[i]], dim=0)
+                    x = F.leaky_relu(model.fc1(x), negative_slope=0.01)
+                    x = F.leaky_relu(model.fc2(x), negative_slope=0.01)
+                    x = F.leaky_relu(model.fc3(x), negative_slope=0.01)
+                    logit = model.fc4(x)
+                    eval_logits.append(logit)
+                eval_logits = torch.stack(eval_logits)
+                probs = F.softmax(eval_logits, dim=-1)
+                prob_boundary = probs[:, 0:1]
+                preds = (prob_boundary > 0.5).float()
+                correct = (preds == batch_labels).float().sum().item()
+                acc = correct / len(samples)
+                tp = ((preds == 1.0) & (batch_labels == 1.0)).float().sum().item()
+                fp = ((preds == 1.0) & (batch_labels == 0.0)).float().sum().item()
+                fn = ((preds == 0.0) & (batch_labels == 1.0)).float().sum().item()
+                precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+                recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            print(f"Epoch {epoch+1:03d} | Loss: {loss.item():.4f} | Acc: {acc:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
+            print(f"Early stopping at epoch {epoch+1} with loss {loss.item():.6f}")
+            break
+            
         if (epoch + 1) % 15 == 0 or epoch == 0:
             # Calculate accuracy without dropout
             model.eval()
