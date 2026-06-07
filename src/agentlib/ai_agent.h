@@ -184,7 +184,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		std::lock_guard<std::mutex> lock(planning_mutex_);
 		return plan_file_;
 	}
-	void set_plan_file(const std::string& file)
+	void set_plan_file(const std::string &file)
 	{
 		std::lock_guard<std::mutex> lock(planning_mutex_);
 		plan_file_ = file;
@@ -193,6 +193,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_parent(std::weak_ptr<ai_agent> parent)
 	{
 		parent_agent_ = std::move(parent);
+	}
+	std::shared_ptr<ai_agent> get_parent() const
+	{
+		return parent_agent_.lock();
 	}
 	event_queue *get_global_queue() const
 	{

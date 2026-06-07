@@ -152,6 +152,18 @@ void editor::update_window_layout()
 
 void editor::new_agent_window()
 {
+	// Check if there is already an open main agent window
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		if (auto aw = dynamic_cast<agent_window *>(windows_[i].get())) {
+			if (auto agent = aw->get_agent()) {
+				if (agent->get_parent() == nullptr) {
+					activate_window(i);
+					return;
+				}
+			}
+		}
+	}
+
 	auto model = agentlib::ai_model_registry::get_instance().get_default_model();
 
 	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model,
@@ -637,8 +649,8 @@ void editor::run()
 		// Calculate event processing duration and update accumulated latency metrics
 		if (processed_event) {
 			auto event_end = std::chrono::steady_clock::now();
-			uint64_t duration_us = static_cast<uint64_t>(
-				std::chrono::duration_cast<std::chrono::microseconds>(event_end - event_start).count());
+			uint64_t duration_us =
+			    static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(event_end - event_start).count());
 
 			total_latency_us_ += duration_us;
 			total_input_events_++;
@@ -1326,12 +1338,10 @@ void editor::print_latency_report() const
 		  << std::format("Total input events processed: {}\n", total_input_events_)
 		  << std::format("Minimum processing latency:   {:.3f} ms\n", min_ms)
 		  << std::format("Average processing latency:   {:.3f} ms\n", avg_ms)
-		  << std::format("Maximum processing latency:   {:.3f} ms\n", max_ms)
-		  << "\n"
+		  << std::format("Maximum processing latency:   {:.3f} ms\n", max_ms) << "\n"
 		  << "Latency Distribution:\n"
 		  << std::format("  Events taking >  1 ms:      {} ({:.2f}%)\n", slow_events_count_1ms_, pct_1ms)
 		  << std::format("  Events taking >  5 ms:      {} ({:.2f}%)\n", slow_events_count_5ms_, pct_5ms)
 		  << std::format("  Events taking > 10 ms:      {} ({:.2f}%)\n", slow_events_count_10ms_, pct_10ms)
 		  << "--------------------------------------------------\n";
 }
-
