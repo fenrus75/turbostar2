@@ -33,7 +33,7 @@ mcp_manager::~mcp_manager()
 
 void mcp_manager::discover_and_load(const std::string &project_root)
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
 	servers_.clear();
 
 	// 1. Discover System MCPs
@@ -47,32 +47,37 @@ void mcp_manager::discover_and_load(const std::string &project_root)
 	}
 
 	for (const auto &path : system_paths) {
-		load_servers_from_file(path, true);
+		load_servers_from_file_unlocked(path, true);
 	}
 
 	// 2. Discover Project MCPs
 	if (!project_root.empty()) {
 		std::string project_path = project_root + "/.agents/mcp_config.json";
-		load_servers_from_file(project_path, false);
+		load_servers_from_file_unlocked(project_path, false);
 	}
 
 	// Queue prompt generation for discovered servers that have tools
 	for (const auto &server : servers_) {
 		if (!server->get_tools().empty()) {
-			queue_prompt_generation(server->get_name(), server->is_system());
+			queue_prompt_generation_unlocked(server->get_name(), server->is_system());
 		}
 	}
 }
 
 std::vector<std::shared_ptr<mcp_server>> mcp_manager::get_servers() const
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
 	return servers_;
 }
 
 std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) const
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
+	return find_server_unlocked(name);
+}
+
+std::shared_ptr<mcp_server> mcp_manager::find_server_unlocked(const std::string &name) const
+{
 	for (const auto &server : servers_) {
 		if (server->get_name() == name) {
 			return server;
@@ -83,7 +88,7 @@ std::shared_ptr<mcp_server> mcp_manager::find_server(const std::string &name) co
 
 void mcp_manager::save_configs(const std::string &project_root)
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
 	auto &cfg = config_manager::get_instance();
 	for (const auto &server : servers_) {
 		cfg.set_mcp_server_enabled(server->get_name(), server->is_system(), server->is_enabled());
@@ -103,7 +108,7 @@ void mcp_manager::start_async(const std::string &project_root)
 	if (startup_thread_.joinable()) {
 		startup_thread_.join();
 	}
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
 	startup_thread_ = std::thread([this, project_root]() {
 		discover_and_load(project_root);
 		start_active_servers();
@@ -114,7 +119,7 @@ void mcp_manager::start_active_servers()
 {
 	std::vector<std::thread> start_threads;
 	{
-		std::lock_guard<std::recursive_mutex> lock(mutex_);
+		std::lock_guard<std::mutex> lock(mutex_);
 		for (auto &server : servers_) {
 			if (server->is_enabled()) {
 				start_threads.push_back(std::thread([this, server]() {
@@ -122,7 +127,7 @@ void mcp_manager::start_active_servers()
 						return;
 					}
 					if (server->start()) {
-						std::lock_guard<std::recursive_mutex> reg_lock(mutex_);
+						std::lock_guard<std::mutex> reg_lock(mutex_);
 						bool has_tools = !server->get_tools().empty();
 						for (const auto &tool : server->get_tools()) {
 							if (tool.enabled) {
@@ -134,7 +139,7 @@ void mcp_manager::start_active_servers()
 							}
 						}
 						if (has_tools) {
-							queue_prompt_generation(server->get_name(), server->is_system());
+							queue_prompt_generation_unlocked(server->get_name(), server->is_system());
 						}
 					}
 				}));
@@ -163,7 +168,7 @@ void mcp_manager::stop_all_servers()
 		prompt_generation_thread_.join();
 	}
 
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto &server : servers_) {
 		server->stop();
 		for (const auto &tool : server->get_tools()) {
@@ -174,8 +179,8 @@ void mcp_manager::stop_all_servers()
 
 void mcp_manager::toggle_server(const std::string &name, bool enable)
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
-	auto server = find_server(name);
+	std::lock_guard<std::mutex> lock(mutex_);
+	auto server = find_server_unlocked(name);
 	if (!server) {
 		return;
 	}
@@ -198,7 +203,7 @@ void mcp_manager::toggle_server(const std::string &name, bool enable)
 				}
 			}
 			if (has_tools) {
-				queue_prompt_generation(server->get_name(), server->is_system());
+				queue_prompt_generation_unlocked(server->get_name(), server->is_system());
 			}
 		}
 	} else {
@@ -211,8 +216,8 @@ void mcp_manager::toggle_server(const std::string &name, bool enable)
 
 void mcp_manager::toggle_tool(const std::string &server_name, const std::string &tool_name, bool enable)
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
-	auto server = find_server(server_name);
+	std::lock_guard<std::mutex> lock(mutex_);
+	auto server = find_server_unlocked(server_name);
 	if (!server) {
 		return;
 	}
@@ -240,9 +245,8 @@ void mcp_manager::toggle_tool(const std::string &server_name, const std::string 
 	}
 }
 
-void mcp_manager::load_servers_from_file(const std::string &path, bool is_system)
+void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool is_system)
 {
-	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	if (!fs::exists(path)) {
 		return;
 	}
@@ -309,7 +313,7 @@ void mcp_manager::load_servers_from_file(const std::string &path, bool is_system
 			bool enabled = cfg.is_mcp_server_enabled(name, is_system, default_enabled);
 			server->set_enabled(enabled);
 
-			auto existing = find_server(name);
+			auto existing = find_server_unlocked(name);
 			if (existing) {
 				if (existing->is_system() && !is_system) {
 					bool global_enabled = existing->is_enabled();
@@ -342,7 +346,12 @@ void mcp_manager::load_servers_from_file(const std::string &path, bool is_system
 
 void mcp_manager::queue_prompt_generation(const std::string &server_name, bool is_system)
 {
-	std::lock_guard<std::recursive_mutex> reg_lock(mutex_);
+	std::lock_guard<std::mutex> reg_lock(mutex_);
+	queue_prompt_generation_unlocked(server_name, is_system);
+}
+
+void mcp_manager::queue_prompt_generation_unlocked(const std::string &server_name, bool is_system)
+{
 	std::lock_guard<std::mutex> lock(prompt_mutex_);
 
 	for (const auto &p : prompt_generation_queue_) {
@@ -351,7 +360,7 @@ void mcp_manager::queue_prompt_generation(const std::string &server_name, bool i
 		}
 	}
 
-	auto server = find_server(server_name);
+	auto server = find_server_unlocked(server_name);
 	bool enabled = server && server->is_enabled();
 
 	if (enabled) {
