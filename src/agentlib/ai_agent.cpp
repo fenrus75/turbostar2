@@ -315,6 +315,24 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 						msg.reasoning_content.reset();
 						increment_stat("explicit_think_blocks_stripped");
 					}
+
+					// Also strip inline <think>...</think> tags from content.
+					size_t start_pos = 0;
+					while ((start_pos = msg.content.find("<think>")) != std::string::npos) {
+						size_t end_pos = msg.content.find("</think>", start_pos);
+						if (end_pos != std::string::npos) {
+							msg.content.erase(start_pos, (end_pos + 8) - start_pos);
+							increment_stat("explicit_think_blocks_stripped");
+						} else {
+							msg.content.erase(start_pos);
+							increment_stat("explicit_think_blocks_stripped");
+							break;
+						}
+					}
+					// Trim leading newlines/whitespace if any
+					while (!msg.content.empty() && std::isspace(static_cast<unsigned char>(msg.content.front()))) {
+						msg.content.erase(msg.content.begin());
+					}
 				}
 
 				// Level 2: Strip conversational pseudo-reasoning (used by GPT-4o/Gemini) if a tool call was made.

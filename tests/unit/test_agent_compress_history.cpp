@@ -287,6 +287,43 @@ int main()
 			assert(paged_in[0] == "episode_3");
 		}
 
+		// 9. Test stripping of <think>...</think> tags on compaction
+		{
+			auto test_model =
+			    std::make_shared<ai_model>("test-model-3", "Test Model 3", "http://localhost:1", "Test", 0.0, 0.0);
+			auto test_agent = ai_agent::create(3, "TestAgent3", test_model, &q, nullptr);
+
+			// Inject message with <think> tag
+			test_agent->inject_context("user", "Hello");
+			test_agent->inject_context("assistant", "<think>Some inner thought here.</think>Here is the actual answer.");
+
+			// Page out to level 1
+			test_agent->page_out_context(1, 2, "Milestone Think", "Summary Think", {"tagThink"});
+
+			// Page in
+			test_agent->page_in_context("episode_1", 1);
+
+			// Check conversation content
+			bool found_assistant = false;
+			for (const auto& msg : test_agent->get_conversation()) {
+				if (msg.role == "assistant") {
+					found_assistant = true;
+					std::cout << "Compacted content: '" << msg.content << "'" << std::endl;
+					assert(msg.content.find("<think>") == std::string::npos);
+					assert(msg.content.find("inner thought") == std::string::npos);
+					assert(msg.content.find("actual answer") != std::string::npos);
+				}
+			}
+			assert(found_assistant);
+			std::cout << "Test 9 passed: <think> tags stripped successfully.\n";
+
+			// Cleanup
+			std::string h_dir = fs_utils::get_project_history_dir("TestAgent3");
+			if (std::filesystem::exists(h_dir)) {
+				std::filesystem::remove_all(h_dir);
+			}
+		}
+
 		std::cout << "agent_compress_history tool verified successfully!" << std::endl;
 	}
 
