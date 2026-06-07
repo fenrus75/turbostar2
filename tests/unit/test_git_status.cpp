@@ -5,14 +5,21 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 
+#include "git_test_helper.h"
+
 using namespace agentlib;
 
 int main()
 {
 	project_manager::get_instance().initialize();
 
+	temp_git_repo repo("status");
+
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	ctx.fs_security.set_working_directory(repo.get_path());
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::read);
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::write);
 
 	std::cout << "Testing git_status..." << std::endl;
 
@@ -21,8 +28,7 @@ int main()
 		std::string result = registry.execute_tool("git_status", "{}", ctx);
 		std::cout << "Result:\n" << result << std::endl;
 		assert(!result.empty());
-		assert(result.find("Git Status") != std::string::npos ||
-		       result.find("Working tree clean") != std::string::npos);
+		assert(result.find("Git Status") != std::string::npos || result.find("Working tree clean") != std::string::npos);
 	}
 
 	// 2. Validation failure: unexpected arguments (should fail validation as per review recommendations)

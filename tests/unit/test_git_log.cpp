@@ -5,14 +5,21 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 
+#include "git_test_helper.h"
+
 using namespace agentlib;
 
 int main()
 {
 	project_manager::get_instance().initialize();
 
+	temp_git_repo repo("log");
+
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	ctx.fs_security.set_working_directory(repo.get_path());
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::read);
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::write);
 
 	std::cout << "Testing git_log..." << std::endl;
 

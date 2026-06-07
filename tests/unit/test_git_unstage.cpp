@@ -5,8 +5,10 @@
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
+#include "../../src/project_manager.h"
+
+#include "git_test_helper.h"
 
 using namespace agentlib;
 
@@ -21,19 +23,20 @@ int main()
 {
 	project_manager::get_instance().initialize();
 
+	temp_git_repo repo("unstage");
+	std::string test_dir = repo.get_path();
+
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-
-	std::string project_root = project_manager::get_instance().get_project_root();
-	ctx.fs_security.set_working_directory(project_root);
-	ctx.fs_security.add_allowed_root(project_root, access_type::read);
-	ctx.fs_security.add_allowed_root(project_root, access_type::write);
+	ctx.fs_security.set_working_directory(test_dir);
+	ctx.fs_security.add_allowed_root(test_dir, access_type::read);
+	ctx.fs_security.add_allowed_root(test_dir, access_type::write);
 
 	std::cout << "Testing git_unstage..." << std::endl;
 
 	// 1. Success case: stage a file, then unstage it
 	{
-		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "temp_unstage_test.txt";
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "temp_unstage_test.txt";
 		write_file(dummy_file, "content\n");
 
 		// Stage file

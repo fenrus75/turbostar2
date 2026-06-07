@@ -5,8 +5,10 @@
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
+#include "../../src/project_manager.h"
+
+#include "git_test_helper.h"
 
 using namespace agentlib;
 
@@ -21,13 +23,14 @@ int main()
 {
 	project_manager::get_instance().initialize();
 
+	temp_git_repo repo("diff_staged");
+	std::string test_dir = repo.get_path();
+
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-
-	std::string project_root = project_manager::get_instance().get_project_root();
-	ctx.fs_security.set_working_directory(project_root);
-	ctx.fs_security.add_allowed_root(project_root, access_type::read);
-	ctx.fs_security.add_allowed_root(project_root, access_type::write);
+	ctx.fs_security.set_working_directory(test_dir);
+	ctx.fs_security.add_allowed_root(test_dir, access_type::read);
+	ctx.fs_security.add_allowed_root(test_dir, access_type::write);
 
 	std::cout << "Testing git_diff_staged..." << std::endl;
 
@@ -41,7 +44,7 @@ int main()
 
 	// 2. Success case: stage a file and retrieve staged diff
 	{
-		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "dummy_diff_staged.txt";
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "dummy_diff_staged.txt";
 		write_file(dummy_file, "staged change content\n");
 		fs_utils::execute_command_sync("git add dummy_diff_staged.txt");
 
