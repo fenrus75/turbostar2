@@ -15,7 +15,7 @@ def test_advanced_search():
         # 2. Test Case Sensitivity (OFF by default)
         runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # Dialog open. Input "Apple".
         runner.send_keys(KEY_CTRL_Y)
@@ -33,13 +33,13 @@ def test_advanced_search():
         
         # Find next (^L) - should find "Apple" at 3:1 (skipping lowercase "apple")
         runner.send_keys(KEY_CTRL_L)
-        time.sleep(0.5)
+        time.sleep(0.1)
         runner.assert_cursor_position(3, 1)
         
         # 3. Test Backward Search
         runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # Toggle Backward (hotkey 'b' -> Alt-B)
         runner.send_keys('\x1b' + 'b')
@@ -54,13 +54,13 @@ def test_advanced_search():
             
         # Find next (^L) to step back to previous match
         runner.send_keys(KEY_CTRL_L) # ^L
-        time.sleep(0.5)
+        time.sleep(0.1)
         runner.assert_cursor_position(1, 1)
         
         # 4. Test Whole Words
         runner.send_keys('\x1b' + 's') # Alt-S
         runner.send_keys('f')          # Find...
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # Input "App"
         runner.send_keys(KEY_CTRL_Y)
