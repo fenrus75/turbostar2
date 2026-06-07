@@ -422,10 +422,6 @@ void editor::run()
 	while (is_running_) {
 		auto loop_now = std::chrono::steady_clock::now();
 		int check_interval = 10;
-		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
-		if (in_testsuite && std::string(in_testsuite) == "1") {
-			check_interval = 1;
-		}
 		const char *env_interval = std::getenv("TURBOSTAR_MTIME_CHECK_INTERVAL");
 		if (env_interval && *env_interval) {
 			try {

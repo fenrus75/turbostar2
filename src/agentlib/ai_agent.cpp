@@ -2264,11 +2264,6 @@ static std::string get_last_50_words(const std::string &text)
 
 void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 {
-	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
-	if (in_testsuite && std::string(in_testsuite) == "1") {
-		return;
-	}
-
 	int recent_chars = 0;
 	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
 		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode")
@@ -2310,7 +2305,9 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 			const parsed_turn &prev_turn = turns[turns.size() - 2];
 			const parsed_turn &curr_turn = turns[turns.size() - 1];
 
-			if (!turbostar::context_dnn::get_instance().is_loaded()) {
+			const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+			bool skip_weights = (in_testsuite && std::string(in_testsuite) == "1");
+			if (!skip_weights && !turbostar::context_dnn::get_instance().is_loaded()) {
 				turbostar::context_dnn::get_instance().load_weights();
 			}
 

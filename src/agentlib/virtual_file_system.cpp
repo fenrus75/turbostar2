@@ -543,8 +543,8 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 	// Timeouts
 	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	if (in_testsuite && std::string(in_testsuite) == "1") {
-		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 50L);
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 100L);
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 500L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 2000L);
 	} else {
 		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
