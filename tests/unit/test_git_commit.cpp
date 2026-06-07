@@ -7,6 +7,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
+#include "git_test_helper.h"
 
 using namespace agentlib;
 
@@ -23,8 +24,13 @@ int main()
 {
 	project_manager::get_instance().initialize();
 
+	temp_git_repo repo("commit");
+
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	ctx.fs_security.set_working_directory(repo.get_path());
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::read);
+	ctx.fs_security.add_allowed_root(repo.get_path(), access_type::write);
 
 	std::cout << "Testing git_commit..." << std::endl;
 
@@ -36,22 +42,17 @@ int main()
 		assert(result.find("No staged changes found") != std::string::npos);
 	}
 
-	// 2. Success case: stage a file, commit it, reset HEAD to clean up
+	// 2. Success case: stage a file, commit it
 	{
-		std::string project_root = project_manager::get_instance().get_project_root();
-		std::filesystem::path dummy_file = std::filesystem::path(project_root) / "dummy_commit_test.txt";
+		std::string test_dir = repo.get_path();
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "dummy_commit_test.txt";
 		write_file(dummy_file, "dummy content modified");
-		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", project_root);
+		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", test_dir);
 
 		nlohmann::json args = {{"message", "test: dummy commit for unit test"}};
 		std::string result = registry.execute_tool("git_commit", args.dump(), ctx);
 		std::cout << "Result success commit: " << result << std::endl;
 		assert(result.find("Successfully created commit") != std::string::npos);
-
-		// Clean up: reset to previous commit and remove staged file
-		fs_utils::execute_command_sync("git -C {} reset --soft HEAD~1", project_root);
-		fs_utils::execute_command_sync("git -C {} restore --staged dummy_commit_test.txt", project_root);
-		std::filesystem::remove(dummy_file);
 	}
 
 	// 3. Validation failure: empty commit message

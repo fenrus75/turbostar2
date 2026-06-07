@@ -49,9 +49,14 @@ project_manager::~project_manager()
 
 void project_manager::initialize()
 {
-	project_root_ = git_manager::get_instance().get_repository_root();
-	if (project_root_.empty()) {
-		project_root_ = fs::current_path().string();
+	const char *env_root = std::getenv("TURBOSTAR_PROJECT_ROOT");
+	if (env_root && *env_root) {
+		project_root_ = env_root;
+	} else {
+		project_root_ = git_manager::get_instance().get_repository_root();
+		if (project_root_.empty()) {
+			project_root_ = fs::current_path().string();
+		}
 	}
 
 	// Clean up previous runs' crash dumps on startup

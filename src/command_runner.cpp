@@ -44,7 +44,7 @@ void command_runner::apply_build_profile()
 	apply_default_profile();
 	network_access_ = true;
 	home_access_ = home_access_t::read_only;
-	project_dir_ = project_manager::get_instance().get_project_root();
+	project_dir_ = fs_utils::get_project_dir();
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 
 	// Allow ccache write access if the user has it configured
@@ -66,7 +66,7 @@ void command_runner::apply_strict_agent_profile()
 	apply_default_profile();
 	network_access_ = false;
 	home_access_ = home_access_t::hidden;
-	project_dir_ = project_manager::get_instance().get_project_root();
+	project_dir_ = fs_utils::get_project_dir();
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 }
 

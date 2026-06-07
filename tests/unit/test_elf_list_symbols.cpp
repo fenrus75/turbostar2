@@ -20,7 +20,7 @@ int main()
 	ctx.fs_security.add_allowed_root(project_root, access_type::read);
 	ctx.fs_security.add_allowed_root(project_root, access_type::write);
 
-	std::string elf_path = "tests/unit/mock_elf.bin";
+	std::string elf_path = "tests/unit/mock_elf_list_symbols.bin";
 	std::string full_elf_path = project_root + "/" + elf_path;
 
 	// Write mock ELF file to disk

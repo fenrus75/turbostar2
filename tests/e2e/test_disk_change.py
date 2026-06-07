@@ -5,6 +5,7 @@ import tempfile
 import shutil
 
 def test_disk_change_reload():
+    os.environ['TURBOSTAR_MTIME_CHECK_INTERVAL'] = '1'
     runner = TurbostarRunner()
     
     # 1. Create a temp directory and file with initial content
@@ -27,9 +28,9 @@ def test_disk_change_reload():
         with open(test_file, 'w') as f:
             f.write("External modification line\n")
             
-        # 5. Wait for the 10-second check rate limit to expire
-        # We sleep for 11 seconds to guarantee the tick triggers
-        time.sleep(11.0)
+        # 5. Wait for the check rate limit to expire
+        # We sleep for 1.5 seconds to guarantee the tick triggers
+        time.sleep(1.5)
         
         # 6. Verify that the "File Changed" reload prompt is shown
         runner.assert_text_on_screen("File Changed", timeout=2.0)
@@ -56,6 +57,7 @@ def test_disk_change_reload():
                 pass
 
 def test_disk_change_never():
+    os.environ['TURBOSTAR_MTIME_CHECK_INTERVAL'] = '1'
     runner = TurbostarRunner()
     
     # 1. Create a temp directory and file with initial content
@@ -78,8 +80,8 @@ def test_disk_change_never():
         with open(test_file, 'w') as f:
             f.write("External modification 1\n")
             
-        # 5. Wait for the check to trigger (11 seconds)
-        time.sleep(11.0)
+        # 5. Wait for the check to trigger (1.5 seconds)
+        time.sleep(1.5)
         
         # 6. Verify that the "File Changed" reload prompt is shown
         runner.assert_text_on_screen("File Changed", timeout=2.0)
@@ -96,8 +98,8 @@ def test_disk_change_never():
         with open(test_file, 'w') as f:
             f.write("External modification 2\n")
             
-        # 9. Wait for another 11 seconds
-        time.sleep(11.0)
+        # 9. Wait for another 1.5 seconds
+        time.sleep(1.5)
         
         # 10. Verify that the reload prompt is NOT shown
         runner.assert_text_not_on_screen("File Changed", timeout=2.0)

@@ -421,7 +421,14 @@ void editor::run()
 
 	while (is_running_) {
 		auto loop_now = std::chrono::steady_clock::now();
-		if (std::chrono::duration_cast<std::chrono::seconds>(loop_now - last_mtime_check_time_).count() >= 10) {
+		int check_interval = 10;
+		const char *env_interval = std::getenv("TURBOSTAR_MTIME_CHECK_INTERVAL");
+		if (env_interval && *env_interval) {
+			try {
+				check_interval = std::stoi(env_interval);
+			} catch (...) {}
+		}
+		if (std::chrono::duration_cast<std::chrono::seconds>(loop_now - last_mtime_check_time_).count() >= check_interval) {
 			last_mtime_check_time_ = loop_now;
 			check_files_changed();
 		}

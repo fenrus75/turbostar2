@@ -206,7 +206,7 @@ test_hex_inspect_range = executable('test_hex_inspect_range',
    'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_hex_inspect_range', test_hex_inspect_range, is_parallel: false)
+test('unit_test_hex_inspect_range', test_hex_inspect_range)
 
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
@@ -214,7 +214,7 @@ test_elf_list_sections = executable('test_elf_list_sections',
    'src/tools/elf_list_sections/elf_list_sections_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_sections', test_elf_list_sections, is_parallel: false)
+test('unit_test_elf_list_sections', test_elf_list_sections)
 
 test_elf_list_symbols = executable('test_elf_list_symbols',
   ['tests/unit/test_elf_list_symbols.cpp',
@@ -222,7 +222,7 @@ test_elf_list_symbols = executable('test_elf_list_symbols',
    'src/tools/elf_list_symbols/elf_list_symbols_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_symbols', test_elf_list_symbols, is_parallel: false)
+test('unit_test_elf_list_symbols', test_elf_list_symbols)
 
 
 test_list_skills = executable('test_list_skills',
@@ -311,7 +311,7 @@ test_git_commit = executable('test_git_commit',
    'src/tools/git_commit/git_commit_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_commit', test_git_commit, is_parallel: false)
+test('unit_test_git_commit', test_git_commit)
 
 test_git_diff_from_branch = executable('test_git_diff_from_branch',
   ['tests/unit/test_git_diff_from_branch.cpp',
@@ -343,7 +343,7 @@ test_git_init = executable('test_git_init',
    'src/tools/git_init/git_init_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_init', test_git_init, is_parallel: false)
+test('unit_test_git_init', test_git_init)
 
 test_git_log = executable('test_git_log',
   ['tests/unit/test_git_log.cpp',
