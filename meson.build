@@ -9,6 +9,12 @@ cc = meson.get_compiler('cpp')
 if cc.get_id() == 'clang'
   add_project_arguments('-Wthread-safety', language : 'cpp')
 endif
+
+if get_option('enable-analyzer')
+  if cc.get_id() == 'gcc' and cc.has_argument('-fanalyzer')
+    add_project_arguments('-fanalyzer', language : 'cpp')
+  endif
+endif
 git_prog = find_program('git', required: false)
 ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
