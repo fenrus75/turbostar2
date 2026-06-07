@@ -9,6 +9,11 @@
 
 int main(int argc, char **argv)
 {
+#if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
+	std::cout << "Skipping test_fallback_crash because it is incompatible with AddressSanitizer (ASan)." << std::endl;
+	return 77;
+#endif
+
 	// Child process code path: triggers the signal handler
 	if (argc > 1 && std::string(argv[1]) == "child") {
 		// Install the fallback signal handler

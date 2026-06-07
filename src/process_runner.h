@@ -29,7 +29,6 @@ class process_runner
 	void worker_loop(std::string command);
 
 	std::shared_ptr<document> doc_;
-	int max_lines_;
 	std::unique_ptr<build_log_parser> parser_;
 
 	std::thread worker_thread_;

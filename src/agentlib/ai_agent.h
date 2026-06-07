@@ -206,7 +206,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void update_episode_hint(const std::string &episode_id, const std::string &hint);
 	bool page_in_context(const std::string &episode_id, int compression_level = 1);
 	bool set_episode_state(const std::string &episode_id, int target_level);
-	std::vector<std::string> page_in_history_auto(int default_level = 1);
+	std::vector<std::string> page_in_history_auto(int default_level = 1, double target_fraction = 0.5);
 	int calculate_current_tokens() const;
 
 	void save_active_state() const;

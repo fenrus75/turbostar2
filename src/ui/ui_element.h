@@ -162,10 +162,10 @@ class ui_container : public ui_element
 
 	void set_focus(bool focus) override;
 
-	virtual bool focus_next();
-	virtual bool focus_first();
-	virtual bool focus_previous();
-	virtual bool focus_last();
+	bool focus_next() override;
+	bool focus_first() override;
+	bool focus_previous() override;
+	bool focus_last() override;
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
 

@@ -67,6 +67,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	// Trailing whitespace highlighting (Simple Backward Scan)
 	// Since ' ' and '\t' are single-byte ASCII, we can safely scan the raw string backwards.
 	// We also know that the attrs array maps 1:1 with characters, so we just work backwards.
+	/*
 	int trailing_spaces = 0;
 	for (int i = static_cast<int>(text.length()) - 1; i >= 0; --i) {
 		if (text[i] == ' ' || text[i] == '\t') {
@@ -76,7 +77,6 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	}
 
-	/*
 	for (int i = 0; i < trailing_spaces; ++i) {
 		if (attrs.size() > static_cast<size_t>(i)) {
 			attrs[attrs.size() - 1 - i] = syntax_attribute::trailing_space;

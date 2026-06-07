@@ -172,7 +172,7 @@ int ai_agent::calculate_current_tokens() const
 	return current_active_tokens;
 }
 
-std::vector<std::string> ai_agent::page_in_history_auto(int default_level)
+std::vector<std::string> ai_agent::page_in_history_auto(int default_level, double target_fraction)
 {
 	std::set<std::string> active_episodes;
 	{
@@ -200,7 +200,7 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level)
 
 	int current_tokens = calculate_current_tokens();
 	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
-	int limit_tokens = static_cast<int>(max_tokens * 0.5);
+	int limit_tokens = static_cast<int>(max_tokens * target_fraction);
 
 	std::vector<std::string> paged_in_ids;
 
@@ -486,82 +486,87 @@ bool ai_agent::load_active_state(bool fresh_agent)
 		}
 
 		if (root.contains("conversation") && root["conversation"].is_array()) {
-			std::lock_guard<std::mutex> lock(conversation_mutex_);
-			conversation_.clear();
-			for (const auto &item : root["conversation"]) {
-				message msg;
-				from_json(item, msg);
-				if (msg.episode_id.empty() && msg.role == "system" &&
-				    msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
-					size_t arch_pos = msg.content.find("Raw history archive: ");
-					if (arch_pos != std::string::npos) {
-						std::string parsed_id = msg.content.substr(arch_pos + 21);
-						while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
-									      parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
-							parsed_id.pop_back();
-						}
-						msg.episode_id = parsed_id;
-						msg.episode_level = 99;
-					}
-				}
-				conversation_.push_back(msg);
-			}
-
-			// Normalizer: Ensure that every tool response message immediately follows
-			// the assistant message containing its tool_call definition.
-			// This satisfies the strict sequencing required by LLM APIs (OpenAI/Gemini/Jinja templates).
 			std::vector<message> normalized_convo;
-			std::map<std::string, message> tool_responses;
-
-			// 1. Extract all tool responses
-			for (const auto &msg : conversation_) {
-				if (msg.role == "tool" && msg.tool_call_id) {
-					tool_responses[*msg.tool_call_id] = msg;
+			{
+				std::lock_guard<std::mutex> lock(conversation_mutex_);
+				conversation_.clear();
+				for (const auto &item : root["conversation"]) {
+					message msg;
+					from_json(item, msg);
+					if (msg.episode_id.empty() && msg.role == "system" &&
+					    msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+						size_t arch_pos = msg.content.find("Raw history archive: ");
+						if (arch_pos != std::string::npos) {
+							std::string parsed_id = msg.content.substr(arch_pos + 21);
+							while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
+											  parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+								parsed_id.pop_back();
+							}
+							msg.episode_id = parsed_id;
+							msg.episode_level = 99;
+						}
+					}
+					conversation_.push_back(msg);
 				}
-			}
 
-			// 2. Reconstruct the conversation in the correct order
-			for (const auto &msg : conversation_) {
-				if (msg.role == "tool") {
-					// Skip tool messages; they will be inserted right after their corresponding assistant messages
-					continue;
+				// Normalizer: Ensure that every tool response message immediately follows
+				// the assistant message containing its tool_call definition.
+				// This satisfies the strict sequencing required by LLM APIs (OpenAI/Gemini/Jinja templates).
+				std::map<std::string, message> tool_responses;
+
+				// 1. Extract all tool responses
+				for (const auto &msg : conversation_) {
+					if (msg.role == "tool" && msg.tool_call_id) {
+						tool_responses[*msg.tool_call_id] = msg;
+					}
 				}
 
-				normalized_convo.push_back(msg);
+				// 2. Reconstruct the conversation in the correct order
+				for (const auto &msg : conversation_) {
+					if (msg.role == "tool") {
+						// Skip tool messages; they will be inserted right after their corresponding assistant messages
+						continue;
+					}
 
-				if (msg.role == "assistant" && msg.tool_calls) {
-					for (const auto &tc : *msg.tool_calls) {
-						auto it = tool_responses.find(tc.id);
-						if (it != tool_responses.end()) {
-							normalized_convo.push_back(it->second);
-							tool_responses.erase(it);
-						} else {
-							// Pending tool call with no response: Create an abort message
-							message abort_msg;
-							abort_msg.role = "tool";
-							abort_msg.tool_call_id = tc.id;
-							abort_msg.name = tc.function.name;
-							abort_msg.content =
-							    "Tool execution aborted: Editor session was restarted before completion.";
-							normalized_convo.push_back(abort_msg);
+					normalized_convo.push_back(msg);
 
-							event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id,
-											 tc.function.name);
+					if (msg.role == "assistant" && msg.tool_calls) {
+						for (const auto &tc : *msg.tool_calls) {
+							auto it = tool_responses.find(tc.id);
+							if (it != tool_responses.end()) {
+								normalized_convo.push_back(it->second);
+								tool_responses.erase(it);
+							} else {
+								// Pending tool call with no response: Create an abort message
+								message abort_msg;
+								abort_msg.role = "tool";
+								abort_msg.tool_call_id = tc.id;
+								abort_msg.name = tc.function.name;
+								abort_msg.content =
+								    "Tool execution aborted: Editor session was restarted before completion.";
+								normalized_convo.push_back(abort_msg);
+
+								event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id,
+												 tc.function.name);
+							}
 						}
 					}
 				}
+
+				// 3. Discard any orphan tool responses to prevent API sequencing violations.
+				// These are tool messages that have no matching assistant tool call in the loaded context
+				// (e.g. because the assistant message was paged out / compressed).
+				if (!tool_responses.empty()) {
+					event_logger::get_instance().log(
+					    "Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
+					    tool_responses.size());
+				}
+
+				conversation_ = std::move(normalized_convo);
 			}
 
-			// 3. Discard any orphan tool responses to prevent API sequencing violations.
-			// These are tool messages that have no matching assistant tool call in the loaded context
-			// (e.g. because the assistant message was paged out / compressed).
-			if (!tool_responses.empty()) {
-				event_logger::get_instance().log(
-				    "Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
-				    tool_responses.size());
-			}
-
-			conversation_ = std::move(normalized_convo);
+			// Page in recent episodes up to 30% target fraction on startup
+			page_in_history_auto(1, 0.3);
 
 			event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
 			return true;

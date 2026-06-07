@@ -10,8 +10,9 @@
 #include "command_runner.h"
 #include "event_logger.h"
 
-process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines) : doc_(output_doc), max_lines_(max_lines)
+process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines) : doc_(output_doc)
 {
+	(void)max_lines;
 }
 
 process_runner::~process_runner()

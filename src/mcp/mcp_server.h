@@ -175,8 +175,9 @@ class mcp_tool_validator : public tool_validator
 {
       public:
 	mcp_tool_validator(const std::string &server_name, const mcp_tool &tool, bool is_system)
-	    : server_name_(server_name), tool_(tool), is_system_(is_system)
+	    : server_name_(server_name), tool_(tool)
 	{
+		(void)is_system;
 	}
 
 	std::string get_name() const override
@@ -213,7 +214,6 @@ class mcp_tool_validator : public tool_validator
       private:
 	std::string server_name_;
 	mcp_tool tool_;
-	bool is_system_;
 };
 
 class mcp_llm_tool : public llm_tool

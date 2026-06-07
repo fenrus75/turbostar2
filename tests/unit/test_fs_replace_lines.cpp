@@ -199,8 +199,8 @@ int main()
 	};
 	std::string result_drift_15 = registry.execute_tool("fs_replace_lines", args_drift_15.dump(), ctx);
 	std::cout << "Drift >= 15 result:\n" << result_drift_15 << "\n";
-	assert(result_drift_15.find("Warning: File has drifted by ") != std::string::npos);
-	assert(result_drift_15.find("Before making further edits, we recommend refreshing your view with fs_read_lines.") != std::string::npos);
+	assert(result_drift_15.find("Mandatory: File has drifted by ") != std::string::npos);
+	assert(result_drift_15.find("Before making further edits, you must refresh your view with fs_read_lines") != std::string::npos);
 	assert(result_drift_15.find("- Note: Lines below this section are shifted") == std::string::npos);
 
 	std::remove(test_file_15.c_str());

@@ -29,7 +29,14 @@
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #include "../../src/agentlib/ai_agent.h"
 #undef private
 

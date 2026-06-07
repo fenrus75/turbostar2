@@ -549,7 +549,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 
 	if (!show_shift_zones && total_drift > 0) {
-		result_msg += std::format("Warning: File has drifted by {} lines. Before making further edits, you must refresh your view with fs_read_lines(path=\"{}\").\n\n", total_drift, args_.path);
+		result_msg += std::format("Mandatory: File has drifted by {} lines. Before making further edits, you must refresh your view with fs_read_lines(path=\"{}\").\n\n", total_drift, args_.path);
 	}
 
 	int current_shift = 0;
