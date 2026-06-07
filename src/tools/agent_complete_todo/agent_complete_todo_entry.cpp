@@ -34,6 +34,10 @@ std::string agent_complete_todo_tool::execute(agentlib::tool_context &ctx)
 	std::string err;
 	if (ctx.active_agent->mark_todo_complete(text_match_, err)) {
 		set_success(ctx);
+		std::string reminder = ctx.active_agent->get_todo_reminder_msg();
+		if (!reminder.empty()) {
+			return std::format("Task marked complete. {}", reminder);
+		}
 		return std::format("Task marked complete.");
 	}
 	set_failure(ctx, err);

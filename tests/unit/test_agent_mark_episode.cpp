@@ -32,6 +32,17 @@ int main()
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Episode marked") != std::string::npos || result.find("archived") != std::string::npos || result.find("Episode manually recorded") != std::string::npos);
 
+		// Test reminder message integration in mark_episode
+		agent->add_todo("Next task");
+		std::string result_with_reminder = registry.execute_tool("agent_mark_episode",
+			"{\"title\": \"Episode 2\", \"summary\": \"Completed task B\", \"tags\": [\"milestone\"]}", ctx);
+		std::cout << "Result with reminder: " << result_with_reminder << std::endl;
+		assert(result_with_reminder.find("1 todo item remaining. Next todo item: 'Next task'") != std::string::npos);
+		
+		// Clean up todo
+		std::string err;
+		agent->delete_todo("*", err);
+
 		// 2. Security case: reject unexpected arguments (based on review recommendations)
 		{
 			auto prep = registry.prepare_tool("agent_mark_episode",

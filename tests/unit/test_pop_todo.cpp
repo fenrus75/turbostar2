@@ -13,6 +13,7 @@ void test_tool_call_recovery()
 {
 	// 1. Setup temporary home directory
 	std::string test_dir = "/tmp/turbostar_test_agent_recovery";
+	std::filesystem::remove_all(test_dir);
 	std::filesystem::create_directories(test_dir);
 	setenv("HOME", test_dir.c_str(), 1);
 
@@ -122,6 +123,55 @@ void test_tool_call_recovery()
 	std::cout << "test_tool_call_recovery unit test passed successfully!" << std::endl;
 }
 
+void test_todo_serialization()
+{
+	std::string test_dir = "/tmp/turbostar_test_todos_serialization";
+	std::filesystem::remove_all(test_dir);
+	std::filesystem::create_directories(test_dir);
+	setenv("HOME", test_dir.c_str(), 1);
+
+	event_queue q;
+	auto model = std::make_shared<agentlib::ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+
+	{
+		auto agent = agentlib::ai_agent::create(1, "TestAgent", model, &q, nullptr);
+		// Add some todos
+		agent->add_todo("Task A");
+		agent->add_todo("Task B");
+		
+		// Set reminder count on one of them
+		auto todos = agent->get_todos();
+		assert(todos.size() == 2);
+		std::string msg = agent->get_todo_reminder_msg();
+		assert(msg.find("Task A") != std::string::npos);
+
+		// Now Task A should have reminder_count == 1
+		todos = agent->get_todos();
+		assert(todos[0].reminder_count == 1);
+
+		// Now close/save active state
+		agent->close();
+	}
+
+	// Create a new agent and load state
+	{
+		auto agent2 = agentlib::ai_agent::create(1, "TestAgent", model, &q, nullptr);
+		bool loaded = agent2->load_active_state();
+		assert(loaded);
+
+		auto todos = agent2->get_todos();
+		assert(todos.size() == 2);
+		assert(todos[0].text == "Task A");
+		assert(todos[0].reminder_count == 1);
+		assert(todos[1].text == "Task B");
+		assert(todos[1].reminder_count == 0);
+	}
+
+	// Clean up
+	std::filesystem::remove_all(test_dir);
+	std::cout << "test_todo_serialization unit test passed successfully!" << std::endl;
+}
+
 int main()
 {
 	event_queue q;
@@ -154,6 +204,7 @@ int main()
 	std::cout << "pop_todo unit test passed successfully!" << std::endl;
 
 	test_tool_call_recovery();
+	test_todo_serialization();
 
 	return 0;
 }

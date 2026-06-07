@@ -22,6 +22,26 @@
 namespace agentlib
 {
 
+void to_json(nlohmann::json &j, const todo_item &todo)
+{
+	j = nlohmann::json{
+		{"text", todo.text},
+		{"completed", todo.completed},
+		{"reminder_count", todo.reminder_count}
+	};
+}
+
+void from_json(const nlohmann::json &j, todo_item &todo)
+{
+	j.at("text").get_to(todo.text);
+	j.at("completed").get_to(todo.completed);
+	if (j.contains("reminder_count")) {
+		j.at("reminder_count").get_to(todo.reminder_count);
+	} else {
+		todo.reminder_count = 0;
+	}
+}
+
 std::string agent_status_to_string(agent_status status, const std::string &tool_name)
 {
 	switch (status) {
@@ -460,6 +480,33 @@ void ai_agent::save_active_state() const
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/active_state.json";
 	save_conversation(filepath);
+	save_todos_internal();
+}
+
+void ai_agent::save_todos_internal() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	save_todos_internal_unlocked();
+}
+
+void ai_agent::save_todos_internal_unlocked() const
+{
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	std::string filepath = history_dir + "/todos.json";
+	try {
+		nlohmann::json todo_root = nlohmann::json::array();
+		for (const auto &todo : todos_) {
+			nlohmann::json item;
+			to_json(item, todo);
+			todo_root.push_back(item);
+		}
+		std::ofstream todo_file(filepath);
+		if (todo_file.is_open()) {
+			todo_file << todo_root.dump(4);
+		}
+	} catch (const std::exception &e) {
+		event_logger::get_instance().log("Failed to save todos.json: {}", std::string(e.what()));
+	}
 }
 
 bool ai_agent::load_active_state(bool fresh_agent)
@@ -475,6 +522,27 @@ bool ai_agent::load_active_state(bool fresh_agent)
 	std::string filepath = history_dir + "/active_state.json";
 	if (!std::filesystem::exists(filepath))
 		return false;
+
+	// Load todos from todos.json if it exists
+	std::string todo_filepath = history_dir + "/todos.json";
+	if (std::filesystem::exists(todo_filepath)) {
+		try {
+			std::ifstream todo_file(todo_filepath);
+			nlohmann::json todo_root;
+			todo_file >> todo_root;
+			if (todo_root.is_array()) {
+				std::lock_guard<std::mutex> state_lock(state_mutex_);
+				todos_.clear();
+				for (const auto &item : todo_root) {
+					todo_item todo;
+					from_json(item, todo);
+					todos_.push_back(todo);
+				}
+			}
+		} catch (const std::exception &e) {
+			event_logger::get_instance().log("Failed to load todos.json: {}", std::string(e.what()));
+		}
+	}
 
 	try {
 		std::ifstream file(filepath);
@@ -635,6 +703,7 @@ void ai_agent::add_todo(const std::string &task)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	todos_.push_back({task, false});
+	save_todos_internal_unlocked();
 }
 
 std::vector<todo_item> ai_agent::get_todos() const
@@ -651,6 +720,7 @@ std::optional<std::string> ai_agent::pop_todo()
 
 	std::string text = todos_.front().text;
 	todos_.erase(todos_.begin());
+	save_todos_internal_unlocked();
 
 	if (global_queue_) {
 		editor_event tool_ev;
@@ -846,6 +916,7 @@ bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &ou
 		for (auto &todo : todos_) {
 			todo.completed = true;
 		}
+		save_todos_internal_unlocked();
 		return true;
 	}
 	int match_idx = -1;
@@ -865,6 +936,7 @@ bool ai_agent::mark_todo_complete(const std::string &text_match, std::string &ou
 	}
 
 	todos_[match_idx].completed = true;
+	save_todos_internal_unlocked();
 	return true;
 }
 
@@ -873,6 +945,7 @@ bool ai_agent::delete_todo(const std::string &text_match, std::string &out_error
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	if (text_match == "*") {
 		todos_.clear();
+		save_todos_internal_unlocked();
 		return true;
 	}
 	int match_idx = -1;
@@ -892,7 +965,45 @@ bool ai_agent::delete_todo(const std::string &text_match, std::string &out_error
 	}
 
 	todos_.erase(todos_.begin() + match_idx);
+	save_todos_internal_unlocked();
 	return true;
+}
+
+std::string ai_agent::get_todo_reminder_msg()
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	int outstanding_count = 0;
+	todo_item *next_todo = nullptr;
+
+	for (auto &todo : todos_) {
+		if (!todo.completed) {
+			outstanding_count++;
+			if (!next_todo) {
+				next_todo = &todo;
+			}
+		}
+	}
+
+	if (outstanding_count == 0) {
+		return "";
+	}
+
+	std::string msg;
+	if (outstanding_count == 1) {
+		msg = "1 todo item remaining.";
+	} else {
+		msg = std::format("{} todo items remaining.", outstanding_count);
+	}
+
+	if (next_todo) {
+		if (next_todo->reminder_count < 2) {
+			msg += std::format(" Next todo item: '{}'", next_todo->text);
+			next_todo->reminder_count++;
+			save_todos_internal_unlocked();
+		}
+	}
+
+	return msg;
 }
 
 std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string &name)

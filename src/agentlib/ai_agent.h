@@ -26,6 +26,7 @@ std::string agent_status_to_string(agent_status status, const std::string &tool_
 struct todo_item {
 	std::string text;
 	bool completed{false};
+	int reminder_count{0};
 };
 
 struct episode_index_entry {
@@ -97,6 +98,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::optional<std::string> pop_todo();
 	bool mark_todo_complete(const std::string &text_match, std::string &out_error);
 	bool delete_todo(const std::string &text_match, std::string &out_error);
+	std::string get_todo_reminder_msg();
 
 	std::shared_ptr<ai_agent> spawn_subagent(const std::string &task_description);
 	void remove_subagent(int id);
@@ -292,6 +294,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
       private:
 	void update_system_prompt_with_families();
+	void save_todos_internal() const;
+	void save_todos_internal_unlocked() const;
 
 	std::atomic<int> tokens_tx_{0};
 	std::atomic<int> tokens_rx_{0};

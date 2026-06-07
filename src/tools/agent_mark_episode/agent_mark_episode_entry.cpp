@@ -17,10 +17,15 @@ bool agent_mark_episode_tool::validate_runtime(const agentlib::tool_context& /*c
 }
 
 std::string agent_mark_episode_tool::execute(agentlib::tool_context& ctx) {
+    std::string res = "Episode marked: '" + args_.title + "' was successfully recorded and written to disk. The system has noted your transition.";
     if (ctx.active_agent) {
         ctx.active_agent->snapshot_episode(args_.title, args_.summary, args_.tags);
+        std::string reminder = ctx.active_agent->get_todo_reminder_msg();
+        if (!reminder.empty()) {
+            res += " " + reminder;
+        }
     }
-    return "Episode marked: '" + args_.title + "' was successfully recorded and written to disk. The system has noted your transition.";
+    return res;
 }
 
 } // namespace tools
