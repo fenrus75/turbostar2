@@ -29,7 +29,7 @@ def test_modal_dialogs():
         
         # 5. Cancel dialog (ESC)
         runner.send_keys(KEY_ESC)
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # Verify dialog is closed and document did NOT receive "Z" (except maybe if it was in the dialog, but not the document)
         runner.assert_text_not_on_screen("Find")
@@ -44,7 +44,7 @@ def test_modal_dialogs():
         
         # Press F2 (Save shortcut). Since the dialog is active, it must not trigger the Save As dialog
         runner.send_keys('\x1bOQ')
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # If F2 was not blocked, "Save File As" dialog would be open. Check that it is NOT open!
         runner.assert_text_not_on_screen("Save File As")
