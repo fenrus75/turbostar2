@@ -42,10 +42,8 @@ static bool match_man_file(const std::filesystem::path& file_path, const std::st
 	std::string filename = file_path.filename().string();
 	
 	// If it ends with .gz, strip it for matching.
-	bool is_gz = false;
 	if (filename.ends_with(".gz")) {
 		filename = filename.substr(0, filename.size() - 3);
-		is_gz = true;
 	}
 	
 	// Filename must start with <name> + "."

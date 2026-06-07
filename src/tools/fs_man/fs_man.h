@@ -27,7 +27,7 @@ class fs_man_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "fs_man"; }
 	std::string get_description() const override {
-		return "Lookup and render system man pages (C library calls, command line tools, or system calls) as Markdown. Use to find exact API format and descriptions for system and library functions";
+		return "Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities. Highly recommended before writing or debugging API calls.";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
@@ -36,11 +36,11 @@ public:
 			{"properties", {
 				{"name", {
 					{"type", "string"},
-					{"description", "The command or function name to lookup (e.g., 'printf', 'mmap', 'ls')."}
+					{"description", "The name of the function, library call, system call, or command to lookup (e.g., 'malloc', 'mmap', 'open', 'printf', 'pthread_create')."}
 				}},
 				{"section", {
 					{"type", "string"},
-					{"description", "Optional man page section (e.g., '3' for library functions, '1' for commands). If omitted, prioritizes library calls first."}
+					{"description", "Optional man page section (e.g., '3' for library functions, '2' for system calls, '1' for commands). If omitted, prioritizes library calls (section 3) first."}
 				}}
 			}},
 			{"required", nlohmann::json::array({"name"})}

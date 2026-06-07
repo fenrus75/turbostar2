@@ -58,10 +58,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `pattern` *(string, required)*: The glob pattern to search for, relative to the project root (e.g. `src/**/*.cpp` or `docs/*.md`).
 
 ### `fs_man`
-*   **Description:** Lookup and render system man pages (C library calls, command line tools, or system calls) as Markdown.
+*   **Description:** Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities.
 *   **Arguments:**
-    *   `name` *(string, required)*: The command or function name to lookup (e.g., `"printf"`, `"mmap"`, `"ls"`).
-    *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
+    *   `name` *(string, required)*: The name of the function, library call, system call, or command to lookup (e.g., `'malloc'`, `'mmap'`, `'open'`, `'printf'`, `'pthread_create'`).
+    *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"2"` for system calls, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
 
 ---
 
