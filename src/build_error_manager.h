@@ -31,5 +31,12 @@ class build_error_manager
 
 	std::vector<build_error> errors_;
 	int current_index_{-1};
+	/*
+	 * mutex_ protects the errors_ list, navigation current_index_, and last_compile_time_.
+	 * Locking Rules:
+	 * - Held briefly when clearing, adding, or querying errors, navigating through errors,
+	 *   or updating the compilation timestamp.
+	 */
 	mutable std::mutex mutex_;
-	std::time_t last_compile_time_{0};};
+	std::time_t last_compile_time_{0};
+};

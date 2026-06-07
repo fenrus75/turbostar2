@@ -30,6 +30,13 @@ private:
     std::string api_key_;
     std::string last_error_;
     std::unique_ptr<httplib::Client> cli_;
+    /*
+     * mutex_ serializes HTTP request executions on the underlying cli_ client.
+     * Locking Rules:
+     * - Held during post() and post_stream() for the entire duration of the request.
+     * - Intentionally NOT held in cancel() because httplib::Client::stop() is thread-safe
+     *   and is called concurrently to interrupt blocking network calls.
+     */
     std::mutex mutex_;
 };
 

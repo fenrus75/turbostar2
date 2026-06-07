@@ -152,6 +152,12 @@ class github_vfs_provider : public vfs_provider
 	mutable std::vector<std::string> file_lru_;
 	mutable std::map<std::string, std::vector<vfs_file_info>> dir_cache_;
 	mutable std::map<std::string, std::string> branch_cache_;
+	/*
+	 * mutex_ protects the internal GitHub VFS cache maps and LRU lists (file_cache_,
+	 * file_lru_, dir_cache_, branch_cache_).
+	 * Locking Rules:
+	 * - Held briefly when querying or putting items into the VFS cache, or updating the LRU.
+	 */
 	mutable std::mutex mutex_;
 };
 

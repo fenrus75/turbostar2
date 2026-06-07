@@ -257,6 +257,12 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<bool> read_only_{false};
 	std::atomic<bool> is_planning_{false};
 	size_t planning_start_index_{0};
+
+	/*
+	 * planning_mutex_ protects the plan_file_ path string.
+	 * Locking Rules:
+	 * - Held briefly during get_plan_file() and set_plan_file() accesses.
+	 */
 	mutable std::mutex planning_mutex_;
 	std::string plan_file_;
 	std::atomic<int> waiting_on_id_{-1};
@@ -266,6 +272,14 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	event_queue *global_queue_;
 	document_provider *doc_provider_;
 
+	/*
+	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
+	 * including todos_, subagents_, active_skills_, active_tool_families_, original_system_prompt_,
+	 * interactions_, and final_result_.
+	 * Locking Rules:
+	 * - Held during status changes, subagent spawning/management, and todo list modifications.
+	 * - status_cv_ is used in conjunction with state_mutex_ for waiting until the agent is idle.
+	 */
 	std::mutex state_mutex_;
 	std::condition_variable status_cv_;
 	std::vector<todo_item> todos_;
@@ -285,16 +299,41 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<int> active_tokens_{0};
 	std::atomic<double> estimated_cost_{0.0};
 
+	/*
+	 * stats_mutex_ protects the stats_ statistics map.
+	 * Locking Rules:
+	 * - Held briefly when incrementing or querying stats.
+	 */
 	mutable std::mutex stats_mutex_;
 	std::map<std::string, int> stats_;
 
+	/*
+	 * conversation_mutex_ protects conversation_ history, episode_index_ maps,
+	 * and the client_ object.
+	 * Locking Rules:
+	 * - Held during conversation serialization, prompt submission, compaction evaluation,
+	 *   and memory/episode loading or paging operations.
+	 */
 	mutable std::mutex conversation_mutex_;
 	std::vector<message> conversation_;
 	std::map<std::string, episode_index_entry> episode_index_;
 	std::unique_ptr<llm_client> client_;
 	std::shared_ptr<llm_transport> background_transport_;
+
+	/*
+	 * background_transport_mutex_ protects the active background transport object.
+	 * Locking Rules:
+	 * - Held during background task creation to prevent concurrent transport modification.
+	 */
 	mutable std::mutex background_transport_mutex_;
 
+	/*
+	 * summary_mutex_ protects the summary_queue_ and controls the lifecycle
+	 * of the asynchronous summary worker thread (summary_thread_).
+	 * Locking Rules:
+	 * - Held briefly when pushing a new summary task to the queue and popping it inside the worker loop.
+	 * - Used in conjunction with summary_cv_ to signal the summary worker thread.
+	 */
 	std::mutex summary_mutex_;
 	std::condition_variable summary_cv_;
 	std::vector<pending_summary> summary_queue_;

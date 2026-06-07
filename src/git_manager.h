@@ -78,11 +78,24 @@ class git_manager
 	};
 
 	std::thread worker_thread_;
+
+	/*
+	 * queue_mutex_ protects the pending_requests_ queue of git requests (status/add).
+	 * Locking Rules:
+	 * - Held briefly when queuing new requests or popping them inside the worker thread.
+	 * - Used in conjunction with cv_ to wake up the worker thread.
+	 */
 	std::mutex queue_mutex_;
 	std::condition_variable cv_;
 	std::queue<git_request> pending_requests_;
 	std::atomic<bool> stop_thread_{false};
 
+	/*
+	 * cache_mutex_ protects the status_cache_ map of file paths to cached git statuses.
+	 * Locking Rules:
+	 * - Held briefly when retrieving cached info or updating it after a git status command completes.
+	 */
 	mutable std::mutex cache_mutex_;
 	std::unordered_map<std::string, git_info> status_cache_;
-	std::atomic<event_queue*> global_queue_{nullptr};};
+	std::atomic<event_queue*> global_queue_{nullptr};
+};

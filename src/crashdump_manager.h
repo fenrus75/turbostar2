@@ -35,5 +35,11 @@ private:
 
     std::vector<crashdump_info> crashdumps_;
     std::set<std::string> seen_crash_ids_;
+    /*
+     * mutex_ protects the crashdumps_ list and seen_crash_ids_ set.
+     * Locking Rules:
+     * - Held briefly when refreshing crash dumps, querying list, formatting tables,
+     *   or clearing dumps.
+     */
     std::mutex mutex_;
 };

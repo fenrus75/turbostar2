@@ -157,5 +157,11 @@ class event_queue
 
       private:
 	std::queue<editor_event> queue_;
+
+	/*
+	 * mutex_ protects the internal queue_ structure to ensure thread-safe pushes and pops.
+	 * Locking Rules:
+	 * - Held briefly during push() and pop() operations.
+	 */
 	mutable std::mutex mutex_;
 };

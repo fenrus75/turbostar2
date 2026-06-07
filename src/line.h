@@ -44,5 +44,13 @@ class line
 	unsigned char byte_at_unlocked(int offset) const;
 	std::string text_;
 	std::vector<syntax_attribute> attributes_;
+	/*
+	 * mutex_ is a shared reader-writer mutex protecting the individual line's text_ content
+	 * and syntax highlighting attributes_.
+	 * Locking Rules:
+	 * - Shared locks (readers) are used for get_text(), get_content(), length_in_chars(), etc.
+	 * - Exclusive locks (writers) are used for set_text(), insert_at(), remove_at(),
+	 *   split_at(), and merge() operations.
+	 */
 	mutable std::shared_mutex mutex_;
 };

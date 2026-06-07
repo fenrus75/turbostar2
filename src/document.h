@@ -213,6 +213,17 @@ class document
 	std::string get_word_under_cursor_unlocked() const;
 
 	std::vector<std::shared_ptr<line>> lines_;
+
+	/*
+	 * mutex_ is a shared reader-writer mutex protecting the document content (lines_),
+	 * cursor coordinates (cursor_x_, cursor_y_, target_cursor_x_), file metadata/state
+	 * (filename_, modified_, read_only_, last_disk_mtime_), selection boundaries,
+	 * and the undo/redo stacks.
+	 * Locking Rules:
+	 * - Shared locks (readers) are used for get_line(), line_count(), get_all_lines(), etc.
+	 * - Exclusive locks (writers) are used for load, save, insert, delete, cursor movement,
+	 *   selection modifications, and undo/redo operations.
+	 */
 	mutable std::shared_mutex mutex_;
 
 	std::string filename_;
@@ -252,6 +263,14 @@ class document
 	// Threading for highlighting
 	event_queue &global_queue_;
 	std::queue<std::shared_ptr<line>> dirty_lines_;
+
+	/*
+	 * dirty_mutex_ protects the dirty_lines_ queue of lines requiring syntax highlighting.
+	 * Locking Rules:
+	 * - Held briefly when marking a line as dirty and adding it to the queue, or when
+	 *   popping lines from the queue inside the background highlighter thread.
+	 * - Used in conjunction with dirty_cv_ to wake up the highlighter thread.
+	 */
 	std::mutex dirty_mutex_;
 	std::condition_variable dirty_cv_;
 	std::jthread highlighter_thread_;

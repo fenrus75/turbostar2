@@ -30,6 +30,13 @@ class event_logger
 	event_logger &operator=(const event_logger &) = delete;
 
 	std::vector<std::string> events;
+	/*
+	 * mutex_ protects the events history log vector, the log_stream_ file handle,
+	 * and stdout_logging_ settings.
+	 * Locking Rules:
+	 * - Held briefly when adding new log events, changing the log file destination,
+	 *   or searching for matching log strings.
+	 */
 	mutable std::mutex mutex_;
 	std::ofstream log_stream_;
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;

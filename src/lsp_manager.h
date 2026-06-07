@@ -85,9 +85,21 @@ class lsp_manager
 	std::shared_ptr<server_instance> get_server_for_file(const std::string& filepath);
 
 	std::vector<std::shared_ptr<server_instance>> servers_;
+
+	/*
+	 * servers_mutex_ protects the servers_ active LSP server instances list.
+	 * Locking Rules:
+	 * - Held briefly when starting, stopping, retrieving, or checking the status
+	 *   of LSP servers.
+	 */
 	std::mutex servers_mutex_;
 	event_queue *global_queue_{nullptr};
-	
+
+	/*
+	 * doc_mutex_ protects the doc_versions_ map of document URIs to document versions.
+	 * Locking Rules:
+	 * - Held briefly when opening or updating documents to increment their version sequence.
+	 */
 	std::mutex doc_mutex_;
 	std::unordered_map<std::string, int> doc_versions_;
 };

@@ -154,14 +154,31 @@ class project_manager
 	std::vector<std::string> available_tests_;
 	bool tests_ready_{false};
 
+	/*
+	 * layout_mutex_ protects the project_layout structure.
+	 * Locking Rules:
+	 * - Held briefly when querying or updating the cached project layout during directory inventory.
+	 */
 	mutable std::mutex layout_mutex_;
 	project_layout layout_;
 	std::jthread inventory_thread_;
 
+	/*
+	 * software_map_mutex_ is a shared reader-writer mutex protecting the software_map_ data.
+	 * Locking Rules:
+	 * - Shared locks (readers) are used when querying symbol details from the software map.
+	 * - Exclusive locks (writers) are used when loading, saving, or performing background LSP scans.
+	 */
 	mutable std::shared_mutex software_map_mutex_;
 	software_map_data software_map_;
 	std::jthread software_map_thread_;
 
+	/*
+	 * software_map_markdown_mutex_ is a shared reader-writer mutex protecting the cached markdown string of the software map.
+	 * Locking Rules:
+	 * - Shared locks (readers) are used when retrieving the markdown representation.
+	 * - Exclusive locks (writers) are used when generating/updating the markdown string.
+	 */
 	mutable std::shared_mutex software_map_markdown_mutex_;
 	std::string software_map_markdown_cache_;
 
