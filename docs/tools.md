@@ -57,6 +57,12 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `pattern` *(string, required)*: The glob pattern to search for, relative to the project root (e.g. `src/**/*.cpp` or `docs/*.md`).
 
+### `fs_man`
+*   **Description:** Lookup and render system man pages (C library calls, command line tools, or system calls) as Markdown.
+*   **Arguments:**
+    *   `name` *(string, required)*: The command or function name to lookup (e.g., `"printf"`, `"mmap"`, `"ls"`).
+    *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
+
 ---
 
 ## 2. File System Mutation

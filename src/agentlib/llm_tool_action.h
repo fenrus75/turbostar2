@@ -11,6 +11,7 @@ namespace agentlib {
 | subclass     | filename                                             |
 | ------------ | ---------------------------------------------------- | 
 | fs_glob_tool | src/tools/fs_glob/fs_glob.h                          |
+| fs_man_tool   | src/tools/fs_man/fs_man.h                            |
 
 */
 class llm_tool_action : public llm_tool {

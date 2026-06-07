@@ -13,6 +13,7 @@ namespace agentlib {
 
 | subclass                     | filename                                                    |
 | ---------------------------- | ----------------------------------------------------------- | 
+| fs_man_validator             | src/tools/fs_man/fs_man.h                                   |
 | fs_replace_content_validator | src/tools/fs_replace_content/fs_replace_content.h           |
 
 */

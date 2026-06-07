@@ -157,6 +157,8 @@ inline void normalize_tool_call(tool_call &call)
 		official_name = "fs_run_tests";
 	} else if (alias == "git_diff") {
 		official_name = "git_diff_unstaged";
+	} else if (alias == "man" || alias == "man_page" || alias == "manual") {
+		official_name = "fs_man";
 	}
 
 	if (official_name == alias) {
@@ -278,6 +280,35 @@ inline void normalize_tool_call(tool_call &call)
 			if (!target_val.empty()) new_args["target_content"] = target_val;
 			if (!replace_val.empty()) new_args["replacement_content"] = replace_val;
 			if (args.contains("line_hint")) new_args["line_hint"] = args["line_hint"];
+			args = new_args;
+		} else if (official_name == "fs_man") {
+			std::string name_val;
+			for (const auto &key : {"name", "command", "function", "cmd", "query"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					name_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string section_val;
+			for (const auto &key : {"section", "sec"}) {
+				if (args.contains(key)) {
+					if (args[key].is_string()) {
+						section_val = args[key].get<std::string>();
+					} else if (args[key].is_number_integer()) {
+						section_val = std::to_string(args[key].get<int>());
+					}
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!name_val.empty()) {
+				new_args["name"] = name_val;
+			} else {
+				new_args = args;
+			}
+			if (!section_val.empty()) {
+				new_args["section"] = section_val;
+			}
 			args = new_args;
 		}
 

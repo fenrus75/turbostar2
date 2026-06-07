@@ -32,6 +32,7 @@ nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
+zlib_dep = dependency('zlib', required : true)
 
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
@@ -172,6 +173,13 @@ test_fs_utils = executable('test_fs_utils',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_fs_utils', test_fs_utils)
+
+test_fs_man = executable('test_fs_man',
+  ['tests/unit/test_fs_man.cpp'],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, zlib_dep],
+  include_directories: inc)
+test('unit_test_fs_man', test_fs_man)
+
 
 test_activate_skill = executable('test_activate_skill',
   ['tests/unit/test_activate_skill.cpp',
