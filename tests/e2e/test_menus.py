@@ -15,7 +15,7 @@ def test_menus_open_close():
         
         # Test Edit menu
         runner.send_keys(KEY_ESC + 'e')
-        runner.assert_text_on_screen("Undo", timeout=2.0)
+        runner.assert_text_on_screen("Delete Line", timeout=2.0)
         runner.send_keys(KEY_ESC)
         time.sleep(0.1)
         runner.assert_in_log("Menu activated: Edit")
@@ -29,7 +29,7 @@ def test_menus_open_close():
         
         # Test Help menu
         runner.send_keys(KEY_ESC + 'h')
-        runner.assert_text_on_screen("Help Index", timeout=2.0)
+        runner.assert_text_on_screen("Key bindings", timeout=2.0)
         runner.send_keys(KEY_ESC)
         time.sleep(0.1)
         runner.assert_in_log("Menu activated: Help")
