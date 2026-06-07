@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- performance: migrate context DNN model weights from JSON to a compact binary format (e.g. raw float array dump) to avoid heavy JSON parsing and memory allocation overhead under ASan/runtime.
+
 - since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
