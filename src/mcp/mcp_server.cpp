@@ -238,7 +238,7 @@ void mcp_server::statically_analyze_tools()
 
 bool mcp_server::start()
 {
-	std::lock_guard<std::mutex> lock(state_mutex_);
+	std::unique_lock<std::mutex> lock(state_mutex_);
 	if (is_running()) {
 		return true;
 	}
@@ -252,6 +252,11 @@ bool mcp_server::start()
 			event_logger::get_instance().log("Security Validation Failed: Bandit detected high-severity issues in Python MCP server '{}':\n{}", name_, scan_output);
 			return false;
 		}
+	}
+
+	// Double check exiting after potentially long Bandit scan
+	if (project_manager::get_instance().is_exiting()) {
+		return false;
 	}
 
 	// 1. Create pipes
@@ -333,6 +338,13 @@ bool mcp_server::start()
 
 	event_logger::get_instance().log("MCP server '{}' spawned with PID {}.", name_, pid_);
 
+	// Release the state_mutex_ lock before performing the blocking MCP
+	// initialization handshake and tool querying. This prevents blocking
+	// concurrent TUI thread lifecycle calls (such as stop() or shutdown requests)
+	// and avoids deadlocks since send_request might fail and call stop()
+	// from within the same thread.
+	lock.unlock();
+
 	// 4. MCP Initialization Handshake
 	try {
 		nlohmann::json init_params = {{"protocolVersion", "2024-11-05"},
@@ -365,9 +377,16 @@ bool mcp_server::start()
 				tool.enabled = is_enabled;
 				tools.push_back(tool);
 			}
-			tools_ = tools;
-			event_logger::get_instance().log("MCP server '{}' initialized successfully. Discovered {} tools.", name_,
-							 tools_.size());
+
+			// Protect write to tools_ and ensure state consistency
+			std::lock_guard<std::mutex> lock_state(state_mutex_);
+			if (pid_ > 0) {
+				tools_ = tools;
+				event_logger::get_instance().log("MCP server '{}' initialized successfully. Discovered {} tools.", name_,
+								 tools_.size());
+			} else {
+				return false;
+			}
 		}
 	} catch (const std::exception &e) {
 		event_logger::get_instance().log("MCP server '{}' handshake exception: {}", name_, e.what());
@@ -375,7 +394,9 @@ bool mcp_server::start()
 		return false;
 	}
 
-	return true;
+	// Verify the server is still running before claiming successful start
+	std::lock_guard<std::mutex> lock_state(state_mutex_);
+	return pid_ > 0;
 }
 
 void mcp_server::stop()
