@@ -3,20 +3,33 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
 #include <filesystem>
-#include <immintrin.h>
 #include <fstream>
+#include <immintrin.h>
 #include <iostream>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../event_logger.h"
 
 namespace fs = std::filesystem;
 
-namespace turbostar {
+namespace turbostar
+{
 
 context_dnn &context_dnn::get_instance()
 {
 	static context_dnn instance;
 	return instance;
+}
+
+context_dnn::~context_dnn()
+{
+	if (weights_.loaded && weights_.mmap_addr) {
+		::munmap(weights_.mmap_addr, weights_.mmap_size);
+	}
 }
 
 static std::string expand_user_path(const std::string &path)
@@ -31,16 +44,32 @@ static std::string expand_user_path(const std::string &path)
 	return std::string(home) + path.substr(1);
 }
 
+struct alignas(8) weights_header {
+	char magic[8]; // "TSDNNWGT"
+	uint32_t version;
+	uint32_t embed_rows;
+	uint32_t embed_cols;
+	uint32_t fc1_out;
+	uint32_t fc1_in;
+	uint32_t fc2_out;
+	uint32_t fc2_in;
+	uint32_t fc3_out;
+	uint32_t fc3_in;
+	uint32_t fc4_out;
+	uint32_t fc4_in;
+	uint32_t reserved; // padding to align to 8 bytes
+};
+
 bool context_dnn::load_weights(const std::string &custom_path)
 {
 	std::vector<std::string> search_paths;
 	if (!custom_path.empty()) {
 		search_paths.push_back(expand_user_path(custom_path));
 	} else {
-		search_paths.push_back("./dnn_training/weights.json");
-		search_paths.push_back("../dnn_training/weights.json");
-		search_paths.push_back(expand_user_path("~/.cache/turbostar/weights.json"));
-		search_paths.push_back(expand_user_path("~/.turbostar/weights.json"));
+		search_paths.push_back("./dnn_training/weights.bin");
+		search_paths.push_back("../dnn_training/weights.bin");
+		search_paths.push_back(expand_user_path("~/.cache/turbostar/weights.bin"));
+		search_paths.push_back(expand_user_path("~/.turbostar/weights.bin"));
 	}
 
 	std::string resolved_path;
@@ -52,50 +81,92 @@ bool context_dnn::load_weights(const std::string &custom_path)
 	}
 
 	if (resolved_path.empty()) {
-		event_logger::get_instance().log("DNN context classifier weights file not found in search paths. Falling back to heuristic.");
+		event_logger::get_instance().log("DNN context classifier weights file not found in search paths.");
 		return false;
 	}
 
-	try {
-		std::ifstream file(resolved_path);
-		if (!file.is_open()) {
-			event_logger::get_instance().log("Failed to open weights file: {}", resolved_path);
-			return false;
-		}
-
-		nlohmann::json root = nlohmann::json::parse(file);
-
-		weights_.embedding_matrix = root.at("embedding_matrix").get<std::vector<std::vector<float>>>();
-		weights_.fc1_weight = root.at("fc1_weight").get<std::vector<std::vector<float>>>();
-		weights_.fc1_bias = root.at("fc1_bias").get<std::vector<float>>();
-		weights_.fc2_weight = root.at("fc2_weight").get<std::vector<std::vector<float>>>();
-		weights_.fc2_bias = root.at("fc2_bias").get<std::vector<float>>();
-		weights_.fc3_weight = root.at("fc3_weight").get<std::vector<std::vector<float>>>();
-		weights_.fc3_bias = root.at("fc3_bias").get<std::vector<float>>();
-		weights_.fc4_weight = root.at("fc4_weight").get<std::vector<std::vector<float>>>();
-		weights_.fc4_bias = root.at("fc4_bias").get<std::vector<float>>();
-
-		// Basic validation of dimensions
-		if (weights_.embedding_matrix.size() != 1024 || weights_.embedding_matrix[0].size() != 128 ||
-		    weights_.fc1_weight.size() != 256 || weights_.fc1_weight[0].size() != 1040 ||
-		    weights_.fc1_bias.size() != 256 ||
-		    weights_.fc2_weight.size() != 128 || weights_.fc2_weight[0].size() != 256 ||
-		    weights_.fc2_bias.size() != 128 ||
-		    weights_.fc3_weight.size() != 64 || weights_.fc3_weight[0].size() != 128 ||
-		    weights_.fc3_bias.size() != 64 ||
-		    weights_.fc4_weight.size() != 2 || weights_.fc4_weight[0].size() != 64 ||
-		    weights_.fc4_bias.size() != 2) {
-			event_logger::get_instance().log("Weights file {} loaded but has incorrect tensor dimensions.", resolved_path);
-			return false;
-		}
-
-		weights_.loaded = true;
-		event_logger::get_instance().log("Successfully loaded Milestone Boundary DNN weights from {}", resolved_path);
-		return true;
-	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Error parsing context DNN weights {}: {}", resolved_path, e.what());
+	int fd = ::open(resolved_path.c_str(), O_RDONLY);
+	if (fd < 0) {
+		event_logger::get_instance().log("Failed to open weights file: {}", resolved_path);
 		return false;
 	}
+
+	struct stat sb;
+	if (::fstat(fd, &sb) < 0) {
+		event_logger::get_instance().log("Failed to stat weights file: {}", resolved_path);
+		::close(fd);
+		return false;
+	}
+
+	size_t file_size = sb.st_size;
+	if (file_size < sizeof(weights_header)) {
+		event_logger::get_instance().log("Weights file {} is too small.", resolved_path);
+		::close(fd);
+		return false;
+	}
+
+	void *addr = ::mmap(nullptr, file_size, PROT_READ, MAP_SHARED, fd, 0);
+	::close(fd);
+
+	if (addr == MAP_FAILED) {
+		event_logger::get_instance().log("Failed to mmap weights file: {}", resolved_path);
+		return false;
+	}
+
+	const weights_header *header = static_cast<const weights_header *>(addr);
+
+	if (std::memcmp(header->magic, "TSDNNWGT", 8) != 0) {
+		event_logger::get_instance().log("Weights file {} has invalid magic.", resolved_path);
+		::munmap(addr, file_size);
+		return false;
+	}
+
+	if (header->version != 1) {
+		event_logger::get_instance().log("Weights file {} has unsupported version: {}", resolved_path, header->version);
+		::munmap(addr, file_size);
+		return false;
+	}
+
+	// Basic validation of dimensions
+	if (header->embed_rows != 1024 || header->embed_cols != 128 || header->fc1_out != 256 || header->fc1_in != 1040 ||
+	    header->fc2_out != 128 || header->fc2_in != 256 || header->fc3_out != 64 || header->fc3_in != 128 || header->fc4_out != 2 ||
+	    header->fc4_in != 64) {
+		event_logger::get_instance().log("Weights file {} has incorrect dimensions.", resolved_path);
+		::munmap(addr, file_size);
+		return false;
+	}
+
+	// Calculate float array start and total size
+	const float *float_data = reinterpret_cast<const float *>(reinterpret_cast<const char *>(addr) + sizeof(weights_header));
+	size_t expected_floats = 1024 * 128 + 256 * 1040 + 256 + 128 * 256 + 128 + 64 * 128 + 64 + 2 * 64 + 2;
+
+	if (file_size < sizeof(weights_header) + expected_floats * sizeof(float)) {
+		event_logger::get_instance().log("Weights file {} is truncated.", resolved_path);
+		::munmap(addr, file_size);
+		return false;
+	}
+
+	// Unmap previous if already loaded (shouldn't happen under standard flow)
+	if (weights_.loaded && weights_.mmap_addr) {
+		::munmap(weights_.mmap_addr, weights_.mmap_size);
+	}
+
+	weights_.mmap_addr = addr;
+	weights_.mmap_size = file_size;
+
+	weights_.embedding_matrix = float_data;
+	weights_.fc1_weight = float_data + 131072;
+	weights_.fc1_bias = float_data + 131072 + 266240;
+	weights_.fc2_weight = float_data + 131072 + 266240 + 256;
+	weights_.fc2_bias = float_data + 131072 + 266240 + 256 + 32768;
+	weights_.fc3_weight = float_data + 131072 + 266240 + 256 + 32768 + 128;
+	weights_.fc3_bias = float_data + 131072 + 266240 + 256 + 32768 + 128 + 8192;
+	weights_.fc4_weight = float_data + 131072 + 266240 + 256 + 32768 + 128 + 8192 + 64;
+	weights_.fc4_bias = float_data + 131072 + 266240 + 256 + 32768 + 128 + 8192 + 64 + 128;
+
+	weights_.loaded = true;
+	event_logger::get_instance().log("Successfully loaded Milestone Boundary DNN weights from {}", resolved_path);
+	return true;
 }
 
 uint32_t context_dnn::compute_crc32(const std::string &str)
@@ -134,10 +205,10 @@ std::vector<std::string> context_dnn::tokenize(const std::string &text)
 	return tokens;
 }
 
-std::vector<float> context_dnn::pool_text(const std::vector<std::string> &tokens, const std::vector<std::vector<float>> &embed_matrix)
+std::vector<float> context_dnn::pool_text(const std::vector<std::string> &tokens, const float *embed_matrix)
 {
 	std::vector<float> pooled(512, 0.0f);
-	if (tokens.empty()) {
+	if (tokens.empty() || !embed_matrix) {
 		return pooled;
 	}
 
@@ -156,7 +227,7 @@ std::vector<float> context_dnn::pool_text(const std::vector<std::string> &tokens
 		size_t count = end - start;
 		for (size_t i = start; i < end; ++i) {
 			uint32_t hash_idx = compute_crc32(tokens[i]) % 1024;
-			const auto &emb = embed_matrix[hash_idx];
+			const float *emb = embed_matrix + hash_idx * 128;
 			for (int d = 0; d < 128; ++d) {
 				sum[d] += emb[d];
 			}
@@ -170,14 +241,13 @@ std::vector<float> context_dnn::pool_text(const std::vector<std::string> &tokens
 	return pooled;
 }
 
-static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
-					       const std::vector<std::vector<float>> &weights,
-					       const std::vector<float> &biases)
+static std::vector<float> evaluate_dense_layer(const std::vector<float> &input, const float *weights, const float *biases, size_t out_dim,
+					       size_t in_dim)
 {
-	std::vector<float> output(weights.size());
+	std::vector<float> output(out_dim);
 	size_t input_size = input.size();
-	for (size_t i = 0; i < weights.size(); ++i) {
-		const auto &w_row = weights[i];
+	for (size_t i = 0; i < out_dim; ++i) {
+		const float *w_row = weights + i * in_dim;
 		__m128 acc0 = _mm_setzero_ps();
 		__m128 acc1 = _mm_setzero_ps();
 		__m128 acc2 = _mm_setzero_ps();
@@ -187,19 +257,19 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
 		// Process 16 elements per iteration using 4 SSE registers to break dependency chain
 		for (; j + 15 < input_size; j += 16) {
 			__m128 in0 = _mm_loadu_ps(&input[j + 0]);
-			__m128 w0  = _mm_loadu_ps(&w_row[j + 0]);
+			__m128 w0 = _mm_loadu_ps(&w_row[j + 0]);
 			acc0 = _mm_add_ps(acc0, _mm_mul_ps(in0, w0));
 
 			__m128 in1 = _mm_loadu_ps(&input[j + 4]);
-			__m128 w1  = _mm_loadu_ps(&w_row[j + 4]);
+			__m128 w1 = _mm_loadu_ps(&w_row[j + 4]);
 			acc1 = _mm_add_ps(acc1, _mm_mul_ps(in1, w1));
 
 			__m128 in2 = _mm_loadu_ps(&input[j + 8]);
-			__m128 w2  = _mm_loadu_ps(&w_row[j + 8]);
+			__m128 w2 = _mm_loadu_ps(&w_row[j + 8]);
 			acc2 = _mm_add_ps(acc2, _mm_mul_ps(in2, w2));
 
 			__m128 in3 = _mm_loadu_ps(&input[j + 12]);
-			__m128 w3  = _mm_loadu_ps(&w_row[j + 12]);
+			__m128 w3 = _mm_loadu_ps(&w_row[j + 12]);
 			acc3 = _mm_add_ps(acc3, _mm_mul_ps(in3, w3));
 		}
 
@@ -228,7 +298,6 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input,
 	return output;
 }
 
-
 float context_dnn::predict_boundary(const std::string &text_prev, const std::string &text_curr, const std::vector<float> &metadata)
 {
 	if (!weights_.loaded) {
@@ -256,16 +325,17 @@ float context_dnn::predict_boundary(const std::string &text_prev, const std::str
 	}
 
 	// 3. Forward pass layers
-	std::vector<float> h1 = evaluate_dense_layer(input, weights_.fc1_weight, weights_.fc1_bias);
-	std::vector<float> h2 = evaluate_dense_layer(h1, weights_.fc2_weight, weights_.fc2_bias);
-	std::vector<float> h3 = evaluate_dense_layer(h2, weights_.fc3_weight, weights_.fc3_bias);
+	std::vector<float> h1 = evaluate_dense_layer(input, weights_.fc1_weight, weights_.fc1_bias, 256, 1040);
+	std::vector<float> h2 = evaluate_dense_layer(h1, weights_.fc2_weight, weights_.fc2_bias, 128, 256);
+	std::vector<float> h3 = evaluate_dense_layer(h2, weights_.fc3_weight, weights_.fc3_bias, 64, 128);
 
 	// fc4 output (2 nodes, linear + softmax)
 	std::vector<float> logits(2, 0.0f);
 	for (size_t i = 0; i < 2; ++i) {
 		logits[i] = weights_.fc4_bias[i];
+		const float *w_row = weights_.fc4_weight + i * 64;
 		for (size_t j = 0; j < h3.size(); ++j) {
-			logits[i] += h3[j] * weights_.fc4_weight[i][j];
+			logits[i] += h3[j] * w_row[j];
 		}
 	}
 

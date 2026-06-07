@@ -32,18 +32,18 @@ int main()
 	assert(tokens[4] == "editor");
 
 	// 3. Test Regional Pooling dimensions and values
-	std::vector<std::vector<float>> embed_matrix(1024, std::vector<float>(128, 0.5f));
-	std::vector<float> pooled = context_dnn::pool_text(tokens, embed_matrix);
+	std::vector<float> embed_matrix(1024 * 128, 0.5f);
+	std::vector<float> pooled = context_dnn::pool_text(tokens, embed_matrix.data());
 	assert(pooled.size() == 512);
 	for (float val : pooled) {
 		assert(std::abs(val - 0.5f) < 1e-5f);
 	}
 
-	// 4. Test loading weights from local dnn_training/weights.json
+	// 4. Test loading weights from local dnn_training/weights.bin
 	auto &dnn = context_dnn::get_instance();
-	bool load_ok = dnn.load_weights("./dnn_training/weights.json");
+	bool load_ok = dnn.load_weights("./dnn_training/weights.bin");
 	if (!load_ok) {
-		load_ok = dnn.load_weights("../dnn_training/weights.json");
+		load_ok = dnn.load_weights("../dnn_training/weights.bin");
 	}
 	assert(load_ok);
 	assert(dnn.is_loaded());

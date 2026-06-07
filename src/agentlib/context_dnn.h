@@ -1,29 +1,34 @@
 #pragma once
 
-#include <string>
-#include <vector>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
 
-namespace turbostar {
+namespace turbostar
+{
 
 struct dnn_weights {
-	std::vector<std::vector<float>> embedding_matrix;
-	std::vector<std::vector<float>> fc1_weight;
-	std::vector<float> fc1_bias;
-	std::vector<std::vector<float>> fc2_weight;
-	std::vector<float> fc2_bias;
-	std::vector<std::vector<float>> fc3_weight;
-	std::vector<float> fc3_bias;
-	std::vector<std::vector<float>> fc4_weight;
-	std::vector<float> fc4_bias;
+	const float *embedding_matrix = nullptr;
+	const float *fc1_weight = nullptr;
+	const float *fc1_bias = nullptr;
+	const float *fc2_weight = nullptr;
+	const float *fc2_bias = nullptr;
+	const float *fc3_weight = nullptr;
+	const float *fc3_bias = nullptr;
+	const float *fc4_weight = nullptr;
+	const float *fc4_bias = nullptr;
 
+	void *mmap_addr = nullptr;
+	size_t mmap_size = 0;
 	bool loaded = false;
 };
 
-class context_dnn {
+class context_dnn
+{
       public:
 	static context_dnn &get_instance();
+	~context_dnn();
 
 	/**
 	 * @brief Attempts to load weights from the specified path or default fallback paths.
@@ -43,12 +48,15 @@ class context_dnn {
 	/**
 	 * @brief Checks if weights are currently loaded.
 	 */
-	bool is_loaded() const { return weights_.loaded; }
+	bool is_loaded() const
+	{
+		return weights_.loaded;
+	}
 
 	// Exposed utilities for testing
 	static uint32_t compute_crc32(const std::string &str);
 	static std::vector<std::string> tokenize(const std::string &text);
-	static std::vector<float> pool_text(const std::vector<std::string> &tokens, const std::vector<std::vector<float>> &embed_matrix);
+	static std::vector<float> pool_text(const std::vector<std::string> &tokens, const float *embed_matrix);
 
       private:
 	context_dnn() = default;
