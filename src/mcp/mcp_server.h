@@ -141,9 +141,28 @@ class mcp_server
 	std::thread reader_thread_;
 	std::thread stderr_thread_;
 
+	/*
+	 * state_mutex_ protects the MCP server subprocess lifecycle state:
+	 * - Process handles (pid_)
+	 * - Stream file descriptors (stdin_fd_, stdout_fd_, stderr_fd_)
+	 * - Reader thread flags and discovered tools list (tools_).
+	 *
+	 * Locking Rules:
+	 * - Must be released before calling blocking network or process handshakes
+	 *   (such as send_request) to allow concurrent stop() calls to terminate
+	 *   the server and prevent self-deadlocks.
+	 */
 	std::mutex state_mutex_;
 
-	// JSON-RPC Request Matcher
+	/*
+	 * requests_mutex_ protects JSON-RPC request tracking:
+	 * - The ID generator (next_request_id_)
+	 * - The registry of pending request promises (pending_requests_).
+	 *
+	 * Locking Rules:
+	 * - Held briefly when enqueuing new requests or resolving/erasing
+	 *   promises upon receiving JSON-RPC responses.
+	 */
 	std::mutex requests_mutex_;
 	int next_request_id_{1};
 	std::map<int, std::promise<nlohmann::json>> pending_requests_;
