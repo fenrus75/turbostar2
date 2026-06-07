@@ -92,11 +92,7 @@ protected:
     // Optional Virtuals
     // ------------------------------------------------------------------------
 
-    // Allows subclasses to interrupt a running command. 
-    // The execution loop will poll this periodically. Default is always true.
-    virtual bool should_continue() const {
-        return true; 
-    }
+    virtual bool should_continue() const;
 
 
 private:

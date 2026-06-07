@@ -516,7 +516,7 @@ void mcp_server::reader_loop()
 {
 	std::string buffer;
 	char chunk[1024];
-	while (reader_running_) {
+	while (reader_running_ && !project_manager::get_instance().is_exiting()) {
 		ssize_t bytes = read(stdout_fd_, chunk, sizeof(chunk) - 1);
 		if (bytes <= 0) {
 			break;
@@ -566,7 +566,7 @@ void mcp_server::stderr_loop()
 {
 	std::string buffer;
 	char chunk[1024];
-	while (reader_running_) {
+	while (reader_running_ && !project_manager::get_instance().is_exiting()) {
 		ssize_t bytes = read(stderr_fd_, chunk, sizeof(chunk) - 1);
 		if (bytes <= 0) {
 			break;

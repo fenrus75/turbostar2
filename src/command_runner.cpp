@@ -388,3 +388,8 @@ void sync_command_runner::on_output_line(const std::string &line)
 {
 	full_output_ += line + "\n";
 }
+
+bool command_runner::should_continue() const
+{
+	return !project_manager::get_instance().is_exiting();
+}

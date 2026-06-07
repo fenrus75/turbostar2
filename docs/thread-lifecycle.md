@@ -22,6 +22,25 @@ The Turbostar editor leverages a multi-threaded architecture to decouple heavy I
 
 ---
 
+## 1.1 The Distinction Between `is_running_` and `is_exiting()`
+
+A clear distinction must be maintained between the local UI loop flag and the global application shutdown state:
+
+| Property | `is_running_` (in `editor`) | `is_exiting()` (in `project_manager`) |
+| :--- | :--- | :--- |
+| **Scope** | Local member of the `editor` class (Main Thread only). | Global atomic state accessible by all background threads. |
+| **Purpose** | Controls the ncurses main loop execution. | Signals background processes/threads to cancel and abort. |
+| **Lifecycle** | Set to `false` when a clean quit is committed (after saving/discarding all dirty documents) or a force quit is triggered. | Set to `true` immediately after the `is_running_` loop terminates (or in `editor`'s destructor as a fallback). |
+| **Thread Safety** | Non-thread-safe. Must only be accessed by the main UI thread. | Fully thread-safe (`std::atomic<bool>`). |
+| **Abortability** | Can be aborted (e.g. user hits "Cancel" on a save prompt, keeping `is_running_` `true`). | Irreversible. Once `true`, the application is exiting. |
+
+> [!NOTE]
+> During exit, the user may have unsaved files. The editor dispatches a `quit` event, but does **not** set `is_running_ = false` yet; it first prompts the user to save/discard each file. If the user selects **"Cancel"**, the exit sequence is aborted, and the editor remains fully running. 
+> 
+> By keeping `project_manager::is_exiting()` set to `false` during this prompt phase, we prevent background services (like LSP or MCP) from being killed prematurely. Only after all prompts are resolved and `is_running_` becomes `false` does `project_manager::set_exiting(true)` execute.
+
+---
+
 ## 2. Core Thread Design Patterns
 
 To prevent exit delays and hangs, all threads in Turbostar must implement one of the following termination patterns.

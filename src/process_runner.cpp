@@ -88,7 +88,7 @@ class streaming_command_runner : public command_runner
 
 	bool should_continue() const override
 	{
-		return !stop_requested_.load();
+		return !stop_requested_.load() && command_runner::should_continue();
 	}
 
       public:

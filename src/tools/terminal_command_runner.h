@@ -95,6 +95,9 @@ public:
 
 protected:
     bool should_continue() const override {
+        if (!command_runner::should_continue()) {
+            return false;
+        }
         if (timeout_seconds_ > 0) {
             auto now = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count() > timeout_seconds_) {

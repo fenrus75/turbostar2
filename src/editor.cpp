@@ -662,6 +662,9 @@ void editor::run()
 		}
 	}
 
+	// Signal to all background threads that the main application is exiting
+	project_manager::get_instance().set_exiting(true);
+
 	// Save cursor and project history on exit
 	for (const auto &doc : documents_) {
 		if (doc && !doc->get_filename().empty() && doc->has_nondefault_filename() && !doc->is_read_only()) {

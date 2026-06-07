@@ -9,6 +9,7 @@
 #include <memory>
 #include "command_runner.h"
 #include "event_logger.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -94,12 +95,12 @@ std::string git_manager::get_repository_root() const
 void git_manager::worker_loop()
 {
 	event_logger::get_instance().log("Thread started: git_manager worker_loop");
-        while (!stop_thread_) {
+        while (!stop_thread_ && !project_manager::get_instance().is_exiting()) {
                 git_request req;
                 {
                         std::unique_lock lock(queue_mutex_);
-                        cv_.wait(lock, [this] { return !pending_requests_.empty() || stop_thread_; });
-                        if (stop_thread_)
+                        cv_.wait(lock, [this] { return !pending_requests_.empty() || stop_thread_ || project_manager::get_instance().is_exiting(); });
+                        if (stop_thread_ || project_manager::get_instance().is_exiting())
                                 break;
                         req = pending_requests_.front();
                         pending_requests_.pop();
