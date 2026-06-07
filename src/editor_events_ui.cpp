@@ -660,7 +660,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		}
 
 		logger.log("Starting app: " + raw_cmd);
-		if (!tw->start_process(raw_cmd, nullptr, false, false, config_manager::get_instance().is_shell_display_access())) {
+		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access())) {
 			logger.log("Failed to start app process.");
 			return {-1, -1};
 		}
