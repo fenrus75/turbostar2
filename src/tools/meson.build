@@ -71,6 +71,8 @@ tools_sources = files(
   'fs_file_size/fs_file_size_security.cpp',
   'fs_list_dir/fs_list_dir_entry.cpp',
   'fs_list_dir/fs_list_dir_security.cpp',
+  'fs_glob/fs_glob_entry.cpp',
+  'fs_glob/fs_glob_security.cpp',
   'fs_mkdir/fs_mkdir_entry.cpp',
   'fs_mkdir/fs_mkdir_security.cpp',
   'git_status/git_status_entry.cpp',

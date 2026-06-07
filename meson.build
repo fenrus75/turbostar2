@@ -669,6 +669,14 @@ test_fs_list_dir = executable('test_fs_list_dir',
   include_directories: inc)
 test('unit_test_fs_list_dir', test_fs_list_dir)
 
+test_fs_glob = executable('test_fs_glob',
+  ['tests/unit/test_fs_glob.cpp',
+   'src/tools/fs_glob/fs_glob_entry.cpp',
+   'src/tools/fs_glob/fs_glob_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_fs_glob', test_fs_glob)
+
 test_fs_mkdir = executable('test_fs_mkdir',
   ['tests/unit/test_fs_mkdir.cpp',
    'src/tools/fs_mkdir/fs_mkdir_entry.cpp',

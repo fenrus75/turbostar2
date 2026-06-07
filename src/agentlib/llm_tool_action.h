@@ -4,6 +4,15 @@
 
 namespace agentlib {
 
+/*
+
+# subclasses of llm_tool_action
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| fs_glob_tool | src/tools/fs_glob/fs_glob.h                          |
+
+*/
 class llm_tool_action : public llm_tool {
 public:
     explicit llm_tool_action(std::string action_text) {

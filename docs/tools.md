@@ -52,6 +52,11 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `pattern` *(string, optional)*: Optional pattern (string or RE2 regular expression) to filter test names.
 
+### `fs_glob`
+*   **Description:** Returns a list of files matching a glob pattern (supporting double-star `**` wildcards) relative to the project root.
+*   **Arguments:**
+    *   `pattern` *(string, required)*: The glob pattern to search for, relative to the project root (e.g. `src/**/*.cpp` or `docs/*.md`).
+
 ---
 
 ## 2. File System Mutation

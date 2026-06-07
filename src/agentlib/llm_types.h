@@ -147,6 +147,8 @@ inline void normalize_tool_call(tool_call &call)
 		official_name = "fs_grep_files";
 	} else if (alias == "list_dir") {
 		official_name = "fs_list_dir";
+	} else if (alias == "glob" || alias == "find_files" || alias == "fs_glob") {
+		official_name = "fs_glob";
 	} else if (alias == "mkdir" || alias == "create_directory") {
 		official_name = "fs_mkdir";
 	} else if (alias == "run_tests") {
@@ -230,6 +232,21 @@ inline void normalize_tool_call(tool_call &call)
 				new_args["path"] = path_val;
 			} else if (official_name == "git_diff_unstaged") {
 				new_args["path"] = "."; // default for git_diff
+			}
+			args = new_args;
+		} else if (official_name == "fs_glob") {
+			std::string pattern_val;
+			for (const auto &key : {"pattern", "file_pattern", "query", "glob"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					pattern_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!pattern_val.empty()) {
+				new_args["pattern"] = pattern_val;
+			} else {
+				new_args = args;
 			}
 			args = new_args;
 		}

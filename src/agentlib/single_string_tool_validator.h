@@ -9,6 +9,15 @@ namespace agentlib {
 // A specialized base class for the extremely common case of a tool that
 // takes exactly one string parameter. This hides all JSON parsing and schema
 // generation from the derived tool.
+/*
+
+# subclasses of single_string_tool_validator
+
+| subclass          | filename                                             |
+| ----------------- | ---------------------------------------------------- | 
+| fs_glob_validator | src/tools/fs_glob/fs_glob.h                          |
+
+*/
 class single_string_tool_validator : public tool_validator {
 public:
     virtual ~single_string_tool_validator() = default;
