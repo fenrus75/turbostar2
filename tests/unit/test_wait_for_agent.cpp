@@ -1,8 +1,8 @@
 #include <cassert>
-#include <iostream>
-#include <thread>
 #include <chrono>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <thread>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
@@ -20,13 +20,12 @@ int main()
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 
-	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost:1", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "ParentAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
 
 	// Create subagent
-	std::string create_res = registry.execute_tool("create_agent",
-		"{\"name\": \"sub_wait\", \"task\": \"Perform task\"}", ctx);
+	std::string create_res = registry.execute_tool("create_agent", "{\"name\": \"sub_wait\", \"task\": \"Perform task\"}", ctx);
 	assert(create_res.find("successfully") != std::string::npos);
 
 	auto subagents = agent->get_subagents();
@@ -40,8 +39,7 @@ int main()
 		nlohmann::json args = {{"id", sub_id}};
 		std::string result = registry.execute_tool("wait_for_agent", args.dump(), ctx);
 		std::cout << "Result: " << result << std::endl;
-		assert(result.find("reached idle state") != std::string::npos ||
-		       result.find("finished with") != std::string::npos);
+		assert(result.find("reached idle state") != std::string::npos || result.find("finished with") != std::string::npos);
 	}
 
 	// 2. Failure case: subagent not found

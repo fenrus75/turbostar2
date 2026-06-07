@@ -1,8 +1,8 @@
 #include <cassert>
-#include <iostream>
-#include <thread>
 #include <chrono>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <thread>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
@@ -20,13 +20,12 @@ int main()
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 
-	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost:1", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "ParentAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
 
 	// 1. Create a subagent so we have a target to message
-	std::string create_res = registry.execute_tool("create_agent",
-		"{\"name\": \"sub1\", \"task\": \"Test subagent\"}", ctx);
+	std::string create_res = registry.execute_tool("create_agent", "{\"name\": \"sub1\", \"task\": \"Test subagent\"}", ctx);
 	assert(create_res.find("successfully") != std::string::npos);
 
 	auto subagents = agent->get_subagents();

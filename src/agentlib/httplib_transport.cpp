@@ -1,12 +1,11 @@
 #include "httplib_transport.h"
-#include <httplib.h>
-#include <chrono>
-#include <nlohmann/json.hpp>
-#include <format>
-#include <cstdlib>
 #include <cerrno>
+#include <chrono>
+#include <cstdlib>
 #include <cstring>
-
+#include <format>
+#include <httplib.h>
+#include <nlohmann/json.hpp>
 
 namespace agentlib
 {
@@ -18,16 +17,16 @@ static std::string format_rich_diagnostics(httplib::Error err, int err_num)
 	if (err_num != 0) {
 		diag += std::format(", errno={} ({})", err_num, std::strerror(err_num));
 	}
-	const char* env_https_proxy = std::getenv("https_proxy");
-	const char* env_http_proxy = std::getenv("http_proxy");
+	const char *env_https_proxy = std::getenv("https_proxy");
+	const char *env_http_proxy = std::getenv("http_proxy");
 	if (env_https_proxy) {
 		diag += std::format(", https_proxy={}", env_https_proxy);
 	} else if (env_http_proxy) {
 		diag += std::format(", http_proxy={}", env_http_proxy);
 	}
 
-	const char* ssl_cert_file = std::getenv("SSL_CERT_FILE");
-	const char* ssl_cert_dir = std::getenv("SSL_CERT_DIR");
+	const char *ssl_cert_file = std::getenv("SSL_CERT_FILE");
+	const char *ssl_cert_dir = std::getenv("SSL_CERT_DIR");
 	if (ssl_cert_file) {
 		diag += std::format(", SSL_CERT_FILE={}", ssl_cert_file);
 	}
@@ -71,13 +70,12 @@ static std::string error_to_string(httplib::Error err)
 	}
 }
 
-httplib_transport::httplib_transport(const std::string &base_url, const std::string &api_key)
-    : base_url_(base_url), api_key_(api_key)
+httplib_transport::httplib_transport(const std::string &base_url, const std::string &api_key) : base_url_(base_url), api_key_(api_key)
 {
 	std::string host = base_url_;
 	size_t scheme_end = host.find("://");
 	size_t path_start = std::string::npos;
-	
+
 	if (scheme_end != std::string::npos) {
 		path_start = host.find('/', scheme_end + 3);
 	} else {
@@ -94,37 +92,45 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 	}
 
 	cli_ = std::make_unique<httplib::Client>(host);
-	cli_->set_connection_timeout(std::chrono::seconds(5));
-	cli_->set_read_timeout(std::chrono::seconds(300));
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		cli_->set_connection_timeout(std::chrono::milliseconds(50));
+		cli_->set_read_timeout(std::chrono::milliseconds(100));
+	} else {
+		cli_->set_connection_timeout(std::chrono::seconds(5));
+		cli_->set_read_timeout(std::chrono::seconds(300));
+	}
 	cli_->set_follow_location(true);
 
 	// Optional proxy support via environment variables
-	const char* env_proxy = std::getenv("https_proxy");
-	if (!env_proxy) env_proxy = std::getenv("http_proxy");
+	const char *env_proxy = std::getenv("https_proxy");
+	if (!env_proxy)
+		env_proxy = std::getenv("http_proxy");
 
 	if (env_proxy) {
-	        std::string proxy(env_proxy);
-	        size_t scheme_pos = proxy.find("://");
-	        if (scheme_pos != std::string::npos) {
-	                proxy = proxy.substr(scheme_pos + 3);
-	        }
+		std::string proxy(env_proxy);
+		size_t scheme_pos = proxy.find("://");
+		if (scheme_pos != std::string::npos) {
+			proxy = proxy.substr(scheme_pos + 3);
+		}
 
-	        size_t port_pos = proxy.find(':');
-	        std::string p_host = proxy;
-	        int p_port = 80;
+		size_t port_pos = proxy.find(':');
+		std::string p_host = proxy;
+		int p_port = 80;
 
-	        if (port_pos != std::string::npos) {
-	                p_host = proxy.substr(0, port_pos);
-	                try {
-	                        p_port = std::stoi(proxy.substr(port_pos + 1));
-	                } catch (...) {}
-	        }
+		if (port_pos != std::string::npos) {
+			p_host = proxy.substr(0, port_pos);
+			try {
+				p_port = std::stoi(proxy.substr(port_pos + 1));
+			} catch (...) {
+			}
+		}
 
-	        if (!p_host.empty() && p_host.back() == '/') {
-	                p_host.pop_back();
-	        }
+		if (!p_host.empty() && p_host.back() == '/') {
+			p_host.pop_back();
+		}
 
-	        cli_->set_proxy(p_host, p_port);
+		cli_->set_proxy(p_host, p_port);
 	}
 }
 httplib_transport::~httplib_transport() = default;
@@ -236,7 +242,8 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 	if (!res) {
 		int err_num = errno;
-		last_error_ = error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
+		last_error_ =
+		    error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
 		return false;
 	}
 
@@ -286,13 +293,20 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 
 	try {
 		httplib::Client cli(host);
-		cli.set_connection_timeout(std::chrono::seconds(5));
-		cli.set_read_timeout(std::chrono::seconds(10));
+		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+		if (in_testsuite && std::string(in_testsuite) == "1") {
+			cli.set_connection_timeout(std::chrono::milliseconds(50));
+			cli.set_read_timeout(std::chrono::milliseconds(100));
+		} else {
+			cli.set_connection_timeout(std::chrono::seconds(5));
+			cli.set_read_timeout(std::chrono::seconds(10));
+		}
 		cli.set_follow_location(true);
 
 		// Proxy support identical to httplib_transport constructor
-		const char* env_proxy = std::getenv("https_proxy");
-		if (!env_proxy) env_proxy = std::getenv("http_proxy");
+		const char *env_proxy = std::getenv("https_proxy");
+		if (!env_proxy)
+			env_proxy = std::getenv("http_proxy");
 		if (env_proxy) {
 			std::string proxy(env_proxy);
 			size_t scheme_pos = proxy.find("://");
@@ -306,7 +320,8 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 				p_host = proxy.substr(0, port_pos);
 				try {
 					p_port = std::stoi(proxy.substr(port_pos + 1));
-				} catch (...) {}
+				} catch (...) {
+				}
 			}
 			if (!p_host.empty() && p_host.back() == '/') {
 				p_host.pop_back();
@@ -336,11 +351,9 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 				std::string id = item["id"];
 				std::string name = item.value("name", id);
 				std::string purpose = std::format("Imported from {}", server_url);
-				
-				result.push_back(std::make_shared<ai_model>(
-					id, name, server_url, purpose, 0.0, 0.0, "", 
-					api_type::openai, 250000, model_cost_type::free_local
-				));
+
+				result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, "", api_type::openai,
+									    250000, model_cost_type::free_local));
 			}
 		}
 

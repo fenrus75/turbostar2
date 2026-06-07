@@ -26,7 +26,7 @@ struct curl_global_guard {
 	}
 };
 static curl_global_guard g_curl_global_guard;
-}
+} // namespace
 
 static size_t count_lines(const void *data, size_t size)
 {
@@ -541,8 +541,14 @@ std::string github_vfs_provider::http_get(const std::string &url, int &out_statu
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Turbostar/1.0");
 
 	// Timeouts
-	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 50L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 100L);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+	}
 
 	// Set write callback
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);

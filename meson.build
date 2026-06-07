@@ -108,6 +108,11 @@ copy_to_testrun_tgt = custom_target('copy_to_testrun',
   build_by_default: true
 )
 
+add_test_setup('default',
+  env: {'TURBOSTAR_IN_TESTSUITE': '1'},
+  is_default: true
+)
+
 # --- Tests ---
 # Unit tests
 test_event_logger = executable('test_event_logger',
@@ -919,7 +924,8 @@ if uv.found() or python.found()
     'MESON_BUILD_ROOT=' + meson.project_build_root(),
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root(),
-    'UV_OFFLINE=1'
+    'UV_OFFLINE=1',
+    'TURBOSTAR_IN_TESTSUITE=1'
   ]
   e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt]
 

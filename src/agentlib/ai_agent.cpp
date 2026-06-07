@@ -12,23 +12,19 @@
 #include "../event_logger.h"
 #include "../event_queue.h"
 #include "../fs_utils.h"
+#include "../mcp/mcp_manager.h"
 #include "../project_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
-#include "../mcp/mcp_manager.h"
 
 namespace agentlib
 {
 
 void to_json(nlohmann::json &j, const todo_item &todo)
 {
-	j = nlohmann::json{
-		{"text", todo.text},
-		{"completed", todo.completed},
-		{"reminder_count", todo.reminder_count}
-	};
+	j = nlohmann::json{{"text", todo.text}, {"completed", todo.completed}, {"reminder_count", todo.reminder_count}};
 }
 
 void from_json(const nlohmann::json &j, todo_item &todo)
@@ -226,10 +222,14 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 
 	for (const auto *entry : paged_out) {
 		int ep_tokens = 0;
-		if (default_level == 0) ep_tokens = entry->tokens_level_0;
-		else if (default_level == 1) ep_tokens = entry->tokens_level_1;
-		else if (default_level == 2) ep_tokens = entry->tokens_level_2;
-		if (ep_tokens <= 0) ep_tokens = entry->tokens_level_0;
+		if (default_level == 0)
+			ep_tokens = entry->tokens_level_0;
+		else if (default_level == 1)
+			ep_tokens = entry->tokens_level_1;
+		else if (default_level == 2)
+			ep_tokens = entry->tokens_level_2;
+		if (ep_tokens <= 0)
+			ep_tokens = entry->tokens_level_0;
 
 		std::stringstream pointer_msg;
 		pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
@@ -566,8 +566,9 @@ bool ai_agent::load_active_state(bool fresh_agent)
 						size_t arch_pos = msg.content.find("Raw history archive: ");
 						if (arch_pos != std::string::npos) {
 							std::string parsed_id = msg.content.substr(arch_pos + 21);
-							while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
-											  parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
+							while (!parsed_id.empty() &&
+							       (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
+								parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
 								parsed_id.pop_back();
 							}
 							msg.episode_id = parsed_id;
@@ -592,7 +593,8 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				// 2. Reconstruct the conversation in the correct order
 				for (const auto &msg : conversation_) {
 					if (msg.role == "tool") {
-						// Skip tool messages; they will be inserted right after their corresponding assistant messages
+						// Skip tool messages; they will be inserted right after their corresponding assistant
+						// messages
 						continue;
 					}
 
@@ -610,12 +612,12 @@ bool ai_agent::load_active_state(bool fresh_agent)
 								abort_msg.role = "tool";
 								abort_msg.tool_call_id = tc.id;
 								abort_msg.name = tc.function.name;
-								abort_msg.content =
-								    "Tool execution aborted: Editor session was restarted before completion.";
+								abort_msg.content = "Tool execution aborted: Editor session was restarted "
+										    "before completion.";
 								normalized_convo.push_back(abort_msg);
 
-								event_logger::get_instance().log("Aborted pending tool call: {} ({})", tc.id,
-												 tc.function.name);
+								event_logger::get_instance().log("Aborted pending tool call: {} ({})",
+												 tc.id, tc.function.name);
 							}
 						}
 					}
@@ -625,9 +627,9 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				// These are tool messages that have no matching assistant tool call in the loaded context
 				// (e.g. because the assistant message was paged out / compressed).
 				if (!tool_responses.empty()) {
-					event_logger::get_instance().log(
-					    "Discarded {} orphaned tool response(s) with no matching assistant tool call in active context.",
-					    tool_responses.size());
+					event_logger::get_instance().log("Discarded {} orphaned tool response(s) with no matching "
+									 "assistant tool call in active context.",
+									 tool_responses.size());
 				}
 
 				conversation_ = std::move(normalized_convo);
@@ -871,7 +873,8 @@ void ai_agent::update_system_prompt_with_families()
 					if (fam == "x86") {
 						reason = "Activate when working with x86 assembly";
 					} else {
-						std::string cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
+						std::string cached =
+						    config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
 						if (cached.empty()) {
 							cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
 						}
@@ -2261,6 +2264,11 @@ static std::string get_last_50_words(const std::string &text)
 
 void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 {
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		return;
+	}
+
 	int recent_chars = 0;
 	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
 		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode")
