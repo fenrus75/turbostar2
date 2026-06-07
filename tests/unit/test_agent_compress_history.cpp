@@ -1,16 +1,16 @@
 #include <cassert>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <thread>
-#include <chrono>
-#include <fstream>
-#include <filesystem>
-#include "../../src/event_logger.h"
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
 #include "../../src/config_manager.h"
-#include "../../src/fs_utils.h"
+#include "../../src/event_logger.h"
 #include "../../src/event_queue.h"
+#include "../../src/fs_utils.h"
+#include "../../src/project_manager.h"
 #include "tools/agent_compress_history/agent_compress_history.h"
 
 using namespace agentlib;
@@ -54,8 +54,9 @@ int main()
 	std::cout << "Conversation size: " << agent->get_conversation().size() << std::endl;
 	{
 		// 1. Successful execution
-		std::string compress_res = registry.execute_tool("agent_compress_history",
-			"{\"title\": \"Milestone 1\", \"summary\": \"Completed first step.\", \"include_all_prior\": true}", ctx);
+		std::string compress_res = registry.execute_tool(
+		    "agent_compress_history",
+		    "{\"title\": \"Milestone 1\", \"summary\": \"Completed first step.\", \"include_all_prior\": true}", ctx);
 		std::cout << "Result: " << compress_res << std::endl;
 		assert(compress_res.find("successfully") != std::string::npos);
 
@@ -79,7 +80,7 @@ int main()
 		{
 			std::string long_title(201, 'a');
 			auto prep = registry.prepare_tool("agent_compress_history",
-				"{\"title\": \"" + long_title + "\", \"summary\": \"summary\"}", ctx);
+							  "{\"title\": \"" + long_title + "\", \"summary\": \"summary\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Title exceeds") != std::string::npos);
 		}
@@ -88,7 +89,7 @@ int main()
 		{
 			std::string long_summary(2001, 'b');
 			auto prep = registry.prepare_tool("agent_compress_history",
-				"{\"title\": \"title\", \"summary\": \"" + long_summary + "\"}", ctx);
+							  "{\"title\": \"title\", \"summary\": \"" + long_summary + "\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Summary exceeds") != std::string::npos);
 		}
@@ -96,7 +97,7 @@ int main()
 		// 6. Rejection of unsafe control characters in title
 		{
 			auto prep = registry.prepare_tool("agent_compress_history",
-				"{\"title\": \"unsafe\\u001btitle\", \"summary\": \"summary\"}", ctx);
+							  "{\"title\": \"unsafe\\u001btitle\", \"summary\": \"summary\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("unsafe control characters") != std::string::npos);
 		}
@@ -104,8 +105,8 @@ int main()
 		// 7. Rejection if agent is read-only
 		auto original_ro = agent->is_read_only();
 		agent->set_read_only(true);
-		auto prep = registry.prepare_tool("agent_compress_history",
-			"{\"title\": \"Valid title\", \"summary\": \"Valid summary\"}", ctx);
+		auto prep =
+		    registry.prepare_tool("agent_compress_history", "{\"title\": \"Valid title\", \"summary\": \"Valid summary\"}", ctx);
 		assert(prep.tool == nullptr);
 		assert(prep.error_message.find("read-only") != std::string::npos);
 
@@ -121,12 +122,12 @@ int main()
 
 		// Wait for background summary worker thread to process and fail (connecting to localhost)
 		std::cout << "Waiting for background summarization to fail..." << std::endl;
-		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
 		// Check the metadata files to ensure reactivation_hint does not store the error message
 		std::string history_dir = fs_utils::get_project_history_dir(agent->get_name());
 		bool found_metadata = false;
-		for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
+		for (const auto &entry : std::filesystem::directory_iterator(history_dir)) {
 			std::string filename = entry.path().filename().string();
 			if (filename.ends_with("_metadata.json")) {
 				found_metadata = true;
@@ -143,7 +144,8 @@ int main()
 
 		// 8. Test 64k tokens (256,000 characters) hard limit in evaluate_auto_episode
 		{
-			auto test_model = std::make_shared<ai_model>("test-model-2", "Test Model 2", "http://localhost:1", "Test", 0.0, 0.0);
+			auto test_model =
+			    std::make_shared<ai_model>("test-model-2", "Test Model 2", "http://localhost:1", "Test", 0.0, 0.0);
 			auto test_agent = ai_agent::create(2, "TestAgent2", test_model, &q, nullptr);
 
 			// We need at least two turns so parse_turns doesn't early exit or we just test the character limit check
@@ -190,7 +192,8 @@ int main()
 				std::filesystem::remove_all(history_dir);
 			}
 
-			auto test_model = std::make_shared<ai_model>("test-model-3", "Test Model 3", "http://localhost:1", "Test", 0.0, 0.0);
+			auto test_model =
+			    std::make_shared<ai_model>("test-model-3", "Test Model 3", "http://localhost:1", "Test", 0.0, 0.0);
 			test_model->set_max_context_tokens(64000);
 			ai_model_registry::get_instance().register_model(test_model);
 			config_manager::get_instance().set_default_model_id("test-model-3");
@@ -204,16 +207,18 @@ int main()
 			test_agent->inject_context("assistant", "Sure");
 
 			// Execute history compression
-			std::string compress_res = registry.execute_tool("agent_compress_history",
-				"{\"title\": \"Huge Milestone\", \"summary\": \"Heavy compilation errors.\", \"include_all_prior\": true}", ctx);
+			std::string compress_res = registry.execute_tool(
+			    "agent_compress_history",
+			    "{\"title\": \"Huge Milestone\", \"summary\": \"Heavy compilation errors.\", \"include_all_prior\": true}",
+			    ctx);
 			assert(compress_res.find("successfully") != std::string::npos);
 
 			// Wait for background summary worker to run (it should finish instantly using fallback)
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 			history_dir = fs_utils::get_project_history_dir(test_agent->get_name());
 			bool found_meta = false;
-			for (const auto& entry : std::filesystem::directory_iterator(history_dir)) {
+			for (const auto &entry : std::filesystem::directory_iterator(history_dir)) {
 				std::string filename = entry.path().filename().string();
 				if (filename.find("episode_") != std::string::npos && filename.ends_with("_metadata.json")) {
 					found_meta = true;
@@ -231,7 +236,8 @@ int main()
 
 		// 10. Test page_in_history_auto backward-paging with 50% context window limit
 		{
-			auto test_model = std::make_shared<ai_model>("test-model-4", "Test Model 4", "http://localhost:1", "Test", 0.0, 0.0);
+			auto test_model =
+			    std::make_shared<ai_model>("test-model-4", "Test Model 4", "http://localhost:1", "Test", 0.0, 0.0);
 			test_model->set_max_context_tokens(1000); // 50% is 500 tokens
 			ai_model_registry::get_instance().register_model(test_model);
 			config_manager::get_instance().set_default_model_id("test-model-4");
@@ -273,7 +279,7 @@ int main()
 			// So only episode_3 should be paged in!
 			std::vector<std::string> paged_in = test_agent->page_in_history_auto(1);
 			std::cout << "Paged-in count: " << paged_in.size() << std::endl;
-			for (const auto& id : paged_in) {
+			for (const auto &id : paged_in) {
 				std::cout << "  Paged in ID: " << id << std::endl;
 			}
 
