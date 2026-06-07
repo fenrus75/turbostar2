@@ -1,27 +1,44 @@
 import time
 from turbostar_runner import *
 
-def check_menu(key, expected_menu_name):
+def test_menus_open_close():
     runner = TurbostarRunner()
-    log_contents = ""
     try:
         runner.start()
-        runner.send_keys(f'{KEY_ESC}{key}') # ESC + key = Alt+key
-        runner.send_keys(KEY_ESC)       # ESC to close menu
-        time.sleep(0.5)
-
-        runner.assert_in_log(f"Menu activated: {expected_menu_name}")
+        
+        # Test File menu
+        runner.send_keys(KEY_ESC + 'f')
+        runner.assert_text_on_screen("New", timeout=2.0)
+        runner.send_keys(KEY_ESC)
+        time.sleep(0.1)
+        runner.assert_in_log("Menu activated: File")
+        
+        # Test Edit menu
+        runner.send_keys(KEY_ESC + 'e')
+        runner.assert_text_on_screen("Undo", timeout=2.0)
+        runner.send_keys(KEY_ESC)
+        time.sleep(0.1)
+        runner.assert_in_log("Menu activated: Edit")
+        
+        # Test Search menu
+        runner.send_keys(KEY_ESC + 's')
+        runner.assert_text_on_screen("Find...", timeout=2.0)
+        runner.send_keys(KEY_ESC)
+        time.sleep(0.1)
+        runner.assert_in_log("Menu activated: Search")
+        
+        # Test Help menu
+        runner.send_keys(KEY_ESC + 'h')
+        runner.assert_text_on_screen("Help Index", timeout=2.0)
+        runner.send_keys(KEY_ESC)
+        time.sleep(0.1)
+        runner.assert_in_log("Menu activated: Help")
     except Exception as e:
         print(f"FAILED. Log: {runner.get_log()}")
         print(f"Screen:\n{chr(10).join(runner.screen.display)}")
         raise e
     finally:
         runner.cleanup()
-
-def test_menu_file(): check_menu('f', 'File')
-def test_menu_edit(): check_menu('e', 'Edit')
-def test_menu_search(): check_menu('s', 'Search')
-def test_menu_help(): check_menu('h', 'Help')
 
 def test_file_exit():
     runner = TurbostarRunner()
@@ -54,13 +71,13 @@ def test_run_menu_shading():
 
         # Since it's disabled, pressing 'd' should do nothing, menu stays open
         runner.send_keys('d')
-        time.sleep(0.5)
+        time.sleep(0.1)
         # Verify menu is still open by asserting "Run Settings..." is visible
         runner.assert_text_on_screen("Run Settings...", timeout=1.0)
 
         # Press ESC to close menu
         runner.send_keys(KEY_ESC)
-        time.sleep(0.5)
+        time.sleep(0.1)
         # Verify menu closed
         runner.assert_text_not_on_screen("Run Settings...", timeout=1.0)
     finally:
@@ -97,9 +114,6 @@ def test_run_menu_shading():
         shutil.rmtree(temp_home, ignore_errors=True)
 
 if __name__ == "__main__":
-    test_menu_file()
-    test_menu_edit()
-    test_menu_search()
-    test_menu_help()
+    test_menus_open_close()
     test_file_exit()
     test_run_menu_shading()
