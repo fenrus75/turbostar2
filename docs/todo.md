@@ -122,6 +122,9 @@
 # done items (move items here on completion)
 
 ## 07-06-2026
+- refactored all remaining git unit tests to use the `temp_git_repo` helper, creating isolated temporary git repositories via the `TURBOSTAR_PROJECT_ROOT` environment override.
+- enabled parallel execution for all 15 git unit tests in `meson.build`.
+- optimized the `test_disk_change.py` E2E test by setting `TURBOSTAR_MTIME_CHECK_INTERVAL=1` to allow disk check ticks to trigger every 1s, reducing its execution time from ~40s to under 3s.
 - implemented automatic startup page-in of history up to a 30% target in load_active_state().
 - resolved a recursive mutex self-deadlock in load_active_state() by releasing conversation_mutex_ before calling page_in_history_auto().
 - updated drift warning prefix from 'Warning' to 'Mandatory' in fs_replace_lines tool output and updated corresponding unit test assertions.
