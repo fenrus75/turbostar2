@@ -39,6 +39,10 @@ class project_manager
 	void set_exiting(bool exiting)
 	{
 		is_exiting_ = exiting;
+		if (exiting) {
+			inventory_thread_.request_stop();
+			software_map_thread_.request_stop();
+		}
 	}
 
 	/**

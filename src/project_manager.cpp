@@ -1011,11 +1011,11 @@ void project_manager::software_map_loop(std::stop_token stop)
 void project_manager::shutdown()
 {
 	is_exiting_ = true;
+	inventory_thread_.request_stop();
+	software_map_thread_.request_stop();
 	if (lsp_manager_) {
 		lsp_manager_->stop();
 	}
-	inventory_thread_.request_stop();
-	software_map_thread_.request_stop();
 }
 
 std::vector<std::string> project_manager::detect_executable_candidates()

@@ -84,6 +84,37 @@ void worker_loop() {
 
 ---
 
+### Pattern A.1: Timed Polling Loops (Max Sleep Rule)
+
+If a background thread runs a timed loop (e.g. periodically checking file timestamps or refreshing state every few seconds), it must never block the thread using a long `std::this_thread::sleep_for()` call. 
+
+If a thread is sleeping for 1 second, it will take up to 1 second to respond to a shutdown signal, directly causing a 1-second hang during exit.
+
+> [!IMPORTANT]
+> **Recommended Approach**:
+> 1. **Option 1: Short Sleeps ($\le$ 50ms)**: Keep loop sleep intervals to at most **50ms** per iteration if using direct sleeps (e.g., `sleep_for(milliseconds(30))`). For longer periods (e.g., 5 seconds), use a loop counter:
+>    ```cpp
+>    int check_counter = 0;
+>    while (!is_exiting_) {
+>        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+>        if (++check_counter >= 166) { // ~5 seconds (5000ms / 30ms)
+>            check_counter = 0;
+>            perform_periodic_check();
+>        }
+>    }
+>    ```
+> 2. **Option 2: Interruptible Waits via Condition Variables (Preferred)**: Instead of `sleep_for`, use `cv.wait_for()` to perform interruptible sleeps that wake up instantly upon a shutdown notification:
+>    ```cpp
+>    while (!is_exiting_) {
+>        std::unique_lock<std::mutex> lock(mutex_);
+>        cv_.wait_for(lock, std::chrono::seconds(5), [this] { return is_exiting_; });
+>        if (is_exiting_) break;
+>        perform_periodic_check();
+>    }
+>    ```
+
+---
+
 ### Pattern B: Subprocess I/O Reader Thread
 
 For threads that run in a loop blocking on synchronous I/O read operations (e.g., pipes or sockets connected to a subprocess like LSP or MCP).

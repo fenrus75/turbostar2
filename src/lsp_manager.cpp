@@ -114,34 +114,48 @@ void lsp_manager::start(event_queue &queue)
 void lsp_manager::stop()
 {
 	std::lock_guard<std::mutex> lock(servers_mutex_);
+
+	// Terminate all active language server processes in parallel.
+	// This prevents slow individual language servers from sequentially blocking the main thread,
+	// reducing overall exit latency to the maximum teardown duration of a single server.
+	std::vector<std::thread> stop_threads;
 	for (auto &server : servers_) {
 		if (!server->is_running)
 			continue;
 
-		try {
-			(void)server->message_handler->sendRequest<lsp::requests::Shutdown>();
-		} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
-
-		try {
-			server->message_handler->sendNotification<lsp::notifications::Exit>();
-		} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
-
-		try {
-			if (server->process) {
-				server->process->terminate();
+		stop_threads.push_back(std::thread([server]() {
+			try {
+				(void)server->message_handler->sendRequest<lsp::requests::Shutdown>();
+			} catch (...) {
+				event_logger::get_instance().log("LSP: Caught unknown exception during shutdown request");
 			}
-		} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
 
-		server->is_running.store(false);
+			try {
+				server->message_handler->sendNotification<lsp::notifications::Exit>();
+			} catch (...) {
+				event_logger::get_instance().log("LSP: Caught unknown exception during exit notification");
+			}
 
-		if (server->message_thread.joinable()) {
-			server->message_thread.join();
+			try {
+				if (server->process) {
+					server->process->terminate();
+				}
+			} catch (...) {
+				event_logger::get_instance().log("LSP: Caught unknown exception during process termination");
+			}
+
+			server->is_running.store(false);
+
+			if (server->message_thread.joinable()) {
+				server->message_thread.join();
+			}
+		}));
+	}
+
+	// Join all server termination helper threads before clearing the registry.
+	for (auto &t : stop_threads) {
+		if (t.joinable()) {
+			t.join();
 		}
 	}
 	servers_.clear();
