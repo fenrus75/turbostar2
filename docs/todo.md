@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- performance: migrate context DNN model weights from JSON to a compact binary format (e.g. raw float array dump) to avoid heavy JSON parsing and memory allocation overhead under ASan/runtime.
-
 - since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
@@ -124,6 +122,7 @@
 # done items (move items here on completion)
 
 ## 07-06-2026
+- migrated context DNN model weights from JSON to a compact binary format (`weights.bin`) loaded via memory-mapping (`mmap`), reducing startup parsing time from 4.5 seconds to milliseconds and resolving memory overhead under AddressSanitizer.
 - refactored all remaining git unit tests to use the `temp_git_repo` helper, creating isolated temporary git repositories via the `TURBOSTAR_PROJECT_ROOT` environment override.
 - enabled parallel execution for all 15 git unit tests in `meson.build`.
 - optimized the `test_disk_change.py` E2E test by setting `TURBOSTAR_MTIME_CHECK_INTERVAL=1` to allow disk check ticks to trigger every 1s, reducing its execution time from ~40s to under 3s.
