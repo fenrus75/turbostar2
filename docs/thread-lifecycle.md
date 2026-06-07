@@ -223,6 +223,22 @@ When coordinating the shutdown of multiple services, threads, or subprocesses, s
 > 
 > This pipelines the teardown phase so all background services perform cleanup and terminate *concurrently in parallel*, reducing total exit latency to the maximum teardown duration of a single service (instead of the sum of all durations).
 
+---
+
+## 3.2 Deadlock Prevention: Mutex Scope & Blocking I/O
+
+> [!CAUTION]
+> **Do Not Hold Mutexes Across Blocking I/O**:
+> Never call blocking network requests, file reads, or process handshake commands (such as `send_request` or `initialize`) while holding a state mutex (e.g. `state_mutex_` protecting a service's lifecycle).
+> 
+> Doing so blocks other threads (including the main UI thread during shutdown) from checking or modifying the service's state, and leads to self-deadlocks if the error handler of the blocking call tries to clean up the service (which invokes `stop()` and tries to acquire the same mutex).
+> 
+> **Correct Pattern**:
+> 1. Acquire the state mutex, verify pre-conditions, spawn the process, and update primitive states.
+> 2. **Release/unlock the mutex**.
+> 3. Perform the blocking handshake/query requests.
+> 4. Re-acquire the mutex to update the final initialization status or tools lists.
+
 ### Example: Concurrent LSP Shutdown
 Instead of sequentially stopping each language server on the main thread, Turbostar starts a pool of short-lived helper threads to shut down each server concurrently, and then joins the helper threads:
 
