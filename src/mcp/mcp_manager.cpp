@@ -442,7 +442,13 @@ void mcp_manager::prompt_worker_loop()
 
 			auto default_model = ai_model_registry::get_instance().get_default_model();
 			if (!default_model) {
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				// Sleep in small increments checking for exit to avoid blocking shutdown
+				for (int i = 0; i < 66 && !project_manager::get_instance().is_exiting(); ++i) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(30));
+				}
+				if (project_manager::get_instance().is_exiting()) {
+					break;
+				}
 				{
 					std::lock_guard<std::mutex> lock(prompt_mutex_);
 					prompt_generation_queue_.push_back(task);
