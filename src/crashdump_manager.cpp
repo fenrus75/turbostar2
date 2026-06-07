@@ -37,7 +37,7 @@ static bool check_eu_addr2line_installed()
 	static bool checked = false;
 	static bool installed = false;
 	if (!checked) {
-		installed = (std::system("which eu-addr2line > /dev/null 2>&1") == 0);
+		installed = fs::exists("/usr/bin/eu-addr2line");
 		checked = true;
 	}
 	return installed;

@@ -1,5 +1,6 @@
 #include "ui/dialog_factories.h"
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <ncurses.h>
 #include "agentlib/ai_model.h"
@@ -317,7 +318,8 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 					lines.push_back(current_line);
 					current_line = word;
 				} else {
-					if (!current_line.empty()) current_line += " ";
+					if (!current_line.empty())
+						current_line += " ";
 					current_line += word;
 				}
 				word.clear();
@@ -335,11 +337,13 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 			lines.push_back(current_line);
 			current_line = word;
 		} else {
-			if (!current_line.empty()) current_line += " ";
+			if (!current_line.empty())
+				current_line += " ";
 			current_line += word;
 		}
 	}
-	if (!current_line.empty()) lines.push_back(current_line);
+	if (!current_line.empty())
+		lines.push_back(current_line);
 
 	size_t max_line_len = 0;
 	for (const auto &l : lines) {
@@ -1091,8 +1095,8 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 
 	std::vector<std::string> missing_packages;
 	for (auto &t : tools) {
-		std::string check_cmd = "which " + t.command + " > /dev/null 2>&1";
-		t.installed = (std::system(check_cmd.c_str()) == 0);
+		std::string path = "/usr/bin/" + t.command;
+		t.installed = std::filesystem::exists(path);
 		if (!t.installed) {
 			missing_packages.push_back(t.package);
 		}

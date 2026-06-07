@@ -27,7 +27,16 @@ std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Failed to open file for reading.";
 	}
 
-	std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	file.seekg(0, std::ios::end);
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> bytes(size);
+	if (size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), size)) {
+		file.close();
+		set_failure(ctx, "Failed to read file.");
+		return "Error: Failed to read file.";
+	}
 	file.close();
 
 	if (bytes.empty()) {
@@ -57,8 +66,7 @@ std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
 		end = bytes.size();
 	}
 
-	std::string result = std::format("### Binary Structure Inspection: {} [0x{:X} - 0x{:X}]\n\n",
-					 args_.requested_path, start, end);
+	std::string result = std::format("### Binary Structure Inspection: {} [0x{:X} - 0x{:X}]\n\n", args_.requested_path, start, end);
 
 	size_t offset = start;
 	while (offset < end) {
@@ -78,8 +86,8 @@ std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
 				}
 				hex_val += std::format("{:02x}", bytes[offset + i]);
 			}
-			result += std::format("* **[0x{:X} - 0x{:X}]**: `{}` | {}\n",
-					      offset, offset + length - 1, hex_val, info.description);
+			result +=
+			    std::format("* **[0x{:X} - 0x{:X}]**: `{}` | {}\n", offset, offset + length - 1, hex_val, info.description);
 		}
 
 		offset += length;

@@ -26,7 +26,16 @@ std::string elf_list_sections_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Failed to open file for reading.";
 	}
 
-	std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	file.seekg(0, std::ios::end);
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> bytes(size);
+	if (size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), size)) {
+		file.close();
+		set_failure(ctx, "Failed to read file.");
+		return "Error: Failed to read file.";
+	}
 	file.close();
 
 	elf_hex_highlighter parser;
@@ -53,8 +62,7 @@ std::string elf_list_sections_tool::execute(agentlib::tool_context &ctx)
 		} else if (sec.semantic == hex_semantic_type::data_section) {
 			sem_desc = "Data";
 		}
-		result += std::format("| {} | {} | 0x{:X} | 0x{:X} | {} |\n",
-				      sec.index, sec.name, sec.offset, sec.size, sem_desc);
+		result += std::format("| {} | {} | 0x{:X} | 0x{:X} | {} |\n", sec.index, sec.name, sec.offset, sec.size, sem_desc);
 	}
 
 	set_success(ctx, "Listed " + std::to_string(sections.size()) + " sections.");

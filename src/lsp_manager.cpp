@@ -28,6 +28,13 @@ lsp_manager::~lsp_manager()
 
 void lsp_manager::start_server(const std::string &name, const std::vector<std::string> &args, const std::string &language_id)
 {
+	// Check if the server executable exists directly in /usr/bin before starting
+	std::string server_path = "/usr/bin/" + name;
+	if (!fs::exists(server_path)) {
+		event_logger::get_instance().log("LSP server executable '{}' not found. Skipping start.", server_path);
+		return;
+	}
+
 	auto server = std::make_shared<server_instance>();
 	server->language_id = language_id;
 	try {
@@ -37,7 +44,7 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 		for (const auto &arg : args) {
 			nice_args.push_back(arg);
 		}
-		
+
 		server->process = std::make_unique<lsp::Process>("nice", nice_args);
 		server->connection = std::make_unique<lsp::Connection>(server->process->stdIO());
 		server->message_handler = std::make_unique<lsp::MessageHandler>(*(server->connection));
@@ -189,7 +196,8 @@ std::shared_ptr<lsp_manager::server_instance> lsp_manager::get_server_for_file(c
 	// Try to start the server on demand
 	if (lang_id == "cpp") {
 		std::string build_dir = config_manager::get_instance().get_build_directory();
-		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir, "-j=4", "--malloc-trim", "--background-index"}, "cpp");
+		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir, "-j=4", "--malloc-trim", "--background-index"},
+			     "cpp");
 	} else if (lang_id == "python") {
 		start_server("pylsp", {}, "python");
 	}
@@ -247,8 +255,8 @@ std::vector<text_range> lsp_manager::query_selection_ranges(const std::string &f
 			return future.get();
 		}
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 
 	return {};
 }
@@ -310,8 +318,8 @@ std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std:
 			return future.get();
 		}
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 
 	return {};
 }
@@ -353,8 +361,8 @@ std::vector<lsp_manager::location_info> lsp_manager::query_references(const std:
 			return future.get();
 		}
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 
 	return {};
 }
@@ -373,8 +381,8 @@ void lsp_manager::open_document(const std::string &filepath, const std::string &
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidOpen>(
 		    {.textDocument = {.uri = std::move(uri), .languageId = server->language_id, .version = 1, .text = text}});
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 }
 
 void lsp_manager::update_document(const std::string &filepath, const std::string &text)
@@ -398,8 +406,8 @@ void lsp_manager::update_document(const std::string &filepath, const std::string
 
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 }
 
 void lsp_manager::request_hover(const std::string &filepath, int line, int character)
@@ -430,12 +438,10 @@ void lsp_manager::request_hover(const std::string &filepath, int line, int chara
 				    }
 			    }
 		    },
-		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log("LSP hover error: {}", error.message());
-		    });
+		    [](const lsp::ResponseError &error) { event_logger::get_instance().log("LSP hover error: {}", error.message()); });
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 }
 
 void lsp_manager::request_document_highlight(const std::string &filepath, int line, int character)
@@ -471,12 +477,10 @@ void lsp_manager::request_document_highlight(const std::string &filepath, int li
 				    }
 			    }
 		    },
-		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log("LSP highlight error: {}", error.message());
-		    });
+		    [](const lsp::ResponseError &error) { event_logger::get_instance().log("LSP highlight error: {}", error.message()); });
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 }
 
 void lsp_manager::request_selection_range(const std::string &filepath, int line, int character)
@@ -515,8 +519,8 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 			    event_logger::get_instance().log("LSP selection range error: {}", error.message());
 		    });
 	} catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
 }
 
 std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const std::string &query)
@@ -552,7 +556,7 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 			    std::vector<symbol_info> out;
 			    try {
 				    if (!res.isNull()) {
-					    const auto& variant_val = res.value();
+					    const auto &variant_val = res.value();
 					    if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(variant_val)) {
 						    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(variant_val);
 						    for (const auto &sym : arr) {
@@ -575,9 +579,9 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 							    if (std::holds_alternative<lsp::Location>(sym.location)) {
 								    const auto &loc = std::get<lsp::Location>(sym.location);
 								    info.location.path = loc.uri.path();
-								    info.location.range = {static_cast<int>(loc.range.start.line), 
+								    info.location.range = {static_cast<int>(loc.range.start.line),
 											   static_cast<int>(loc.range.start.character),
-											   static_cast<int>(loc.range.end.line), 
+											   static_cast<int>(loc.range.end.line),
 											   static_cast<int>(loc.range.end.character)};
 								    out.push_back(info);
 							    }
@@ -586,17 +590,21 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 				    }
 				    promise->set_value(out);
 			    } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    },
 		    [promise](const lsp::ResponseError &err) {
 			    (void)err;
-			    try { promise->set_value({}); } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+			    try {
+				    promise->set_value({});
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    });
 	} catch (...) {
-		try { promise->set_value({}); } catch (...) {
+		try {
+			promise->set_value({});
+		} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
 		}
 	}
@@ -633,17 +641,21 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 					    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
 				    }
 			    } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    },
 		    [promise_prep](const lsp::ResponseError &err) {
 			    (void)err;
-			    try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{}); } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+			    try {
+				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    });
 	} catch (...) {
-		try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{}); } catch (...) {
+		try {
+			promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+		} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
 		}
 	}
@@ -676,30 +688,34 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 						    if (call.to.detail)
 							    item.detail = *call.to.detail;
 						    item.uri = call.to.uri.path();
-						    item.range = {static_cast<int>(call.to.range.start.line), 
-										  static_cast<int>(call.to.range.start.character),
-								  		  static_cast<int>(call.to.range.end.line), 
-										  static_cast<int>(call.to.range.end.character)};
+						    item.range = {static_cast<int>(call.to.range.start.line),
+								  static_cast<int>(call.to.range.start.character),
+								  static_cast<int>(call.to.range.end.line),
+								  static_cast<int>(call.to.range.end.character)};
 						    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
-									    		static_cast<int>(call.to.selectionRange.start.character),
-									    		static_cast<int>(call.to.selectionRange.end.line),
-									    		static_cast<int>(call.to.selectionRange.end.character)};
+									    static_cast<int>(call.to.selectionRange.start.character),
+									    static_cast<int>(call.to.selectionRange.end.line),
+									    static_cast<int>(call.to.selectionRange.end.character)};
 						    out.push_back(item);
 					    }
 				    }
 				    promise_out->set_value(out);
 			    } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    },
 		    [promise_out](const lsp::ResponseError &err) {
 			    (void)err;
-			    try { promise_out->set_value({}); } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+			    try {
+				    promise_out->set_value({});
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    });
 	} catch (...) {
-		try { promise_out->set_value({}); } catch (...) {
+		try {
+			promise_out->set_value({});
+		} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
 		}
 	}
@@ -710,7 +726,8 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 	return {};
 }
 
-std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line,
+											   int character)
 {
 	auto server = get_server_for_file(filepath);
 	if (!server)
@@ -735,17 +752,21 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 					    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
 				    }
 			    } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    },
 		    [promise_prep](const lsp::ResponseError &err) {
 			    (void)err;
-			    try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{}); } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+			    try {
+				    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    });
 	} catch (...) {
-		try { promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{}); } catch (...) {
+		try {
+			promise_prep->set_value(lsp::Opt<lsp::Array<lsp::TypeHierarchyItem>>{});
+		} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
 		}
 	}
@@ -778,30 +799,34 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 						    if (call.detail)
 							    item.detail = *call.detail;
 						    item.uri = call.uri.path();
-						    item.range = {static_cast<int>(call.range.start.line), 
-										  static_cast<int>(call.range.start.character),
-								  		  static_cast<int>(call.range.end.line), 
-										  static_cast<int>(call.range.end.character)};
+						    item.range = {static_cast<int>(call.range.start.line),
+								  static_cast<int>(call.range.start.character),
+								  static_cast<int>(call.range.end.line),
+								  static_cast<int>(call.range.end.character)};
 						    item.selection_range = {static_cast<int>(call.selectionRange.start.line),
-									    		static_cast<int>(call.selectionRange.start.character),
-									    		static_cast<int>(call.selectionRange.end.line),
-									    		static_cast<int>(call.selectionRange.end.character)};
+									    static_cast<int>(call.selectionRange.start.character),
+									    static_cast<int>(call.selectionRange.end.line),
+									    static_cast<int>(call.selectionRange.end.character)};
 						    out.push_back(item);
 					    }
 				    }
 				    promise_sup->set_value(out);
 			    } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    },
 		    [promise_sup](const lsp::ResponseError &err) {
 			    (void)err;
-			    try { promise_sup->set_value({}); } catch (...) {
-			event_logger::get_instance().log("LSP: Caught unknown exception");
-		}
+			    try {
+				    promise_sup->set_value({});
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception");
+			    }
 		    });
 	} catch (...) {
-		try { promise_sup->set_value({}); } catch (...) {
+		try {
+			promise_sup->set_value({});
+		} catch (...) {
 			event_logger::get_instance().log("LSP: Caught unknown exception");
 		}
 	}
