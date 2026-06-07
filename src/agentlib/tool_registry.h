@@ -54,10 +54,11 @@ class tool_registry
 	 * Locking Rules:
 	 * - Held briefly during tool registration, unregistration, tool list querying,
 	 *   and tool preparation lookup.
-	 * - MUST NOT be held while executing tools or performing blocking operations to
-	 *   prevent blocking other threads.
+	 * - Declared as recursive_mutex because some validator descriptions (such as
+	 *   activate_tool_family_validator::get_description) query the registry back
+	 *   recursively during tools serialization.
 	 */
-	mutable std::mutex mutex_;
+	mutable std::recursive_mutex mutex_;
 };
 
 // Helper macro for static self-registration
