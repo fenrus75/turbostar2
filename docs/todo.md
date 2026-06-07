@@ -122,6 +122,8 @@
 # done items (move items here on completion)
 
 ## 06-06-2026
+- fixed a deadlock in `mcp_server::start()` where the state mutex was held during blocking initialization and handshake requests. Unlocking the mutex during I/O handshakes allows concurrent shutdown requests (e.g., from `stop_all_servers()`) to proceed immediately, reducing exit latency under the quick exit reproducer from 67s to less than 0.28s.
+- fixed a corrupt control character `\x15` in `dnn_training/weights.json` causing `unit_context_dnn` to fail, allowing the full test suite to pass cleanly.
 - analyzed source code threads, established core thread life cycle design patterns (Mutex/CV workers, Subprocess I/O readers, and Detached dynamic tasks), and created the comprehensive `docs/thread-lifecycle.md` architecture blueprint, registering it in both `GEMINI.md` and `docs/design.md`.
 - implemented interactive event latency measurement tracking right after get_wch() returns a valid event, calculating elapsed processing time through std::chrono::steady_clock at the end of each loop iteration. Added average, maximum, minimum, and distribution percentage metrics (> 1ms, > 5ms, > 10ms) printed to standard output upon ncurses exit, and integrated corresponding assertions and print validation tests in `test_vim_emulation.cpp`.
 - fixed save prompt loop on exit: when exiting, the editor now activates the window of the dirty document before prompting, and clears the document's modified flag on discard, preventing redundant prompts for clean or duplicate windows.
