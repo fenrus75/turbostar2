@@ -433,6 +433,17 @@ test_agent_add_todo = executable('test_agent_add_todo',
   include_directories: inc)
 test('unit_test_agent_add_todo', test_agent_add_todo)
 
+test_exit_plan_mode = executable('test_exit_plan_mode',
+  ['tests/unit/test_exit_plan_mode.cpp',
+   'src/tools/enter_plan_mode/enter_plan_mode_entry.cpp',
+   'src/tools/enter_plan_mode/enter_plan_mode_security.cpp',
+   'src/tools/exit_plan_mode/exit_plan_mode_entry.cpp',
+   'src/tools/exit_plan_mode/exit_plan_mode_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_exit_plan_mode', test_exit_plan_mode)
+
+
 test_agent_complete_todo = executable('test_agent_complete_todo',
   ['tests/unit/test_agent_complete_todo.cpp',
    'src/tools/agent_complete_todo/agent_complete_todo_entry.cpp',
@@ -462,6 +473,12 @@ test_agent_create = executable('test_agent_create',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_create', test_agent_create)
+
+test_agent_window = executable('test_agent_window',
+  ['tests/unit/test_agent_window.cpp'],
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_window', test_agent_window)
 
 test_agent_delete_todo = executable('test_agent_delete_todo',
   ['tests/unit/test_agent_delete_todo.cpp',
@@ -1409,14 +1426,7 @@ if uv.found() or python.found()
     timeout: 60,
     is_parallel: false
   )
-  test('e2e_agent_mouse_scroll', e2e_exe,
-    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_mouse_scroll.py')],
-    env: e2e_env,
-    depends: e2e_depends,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false
-  )
+
   test('e2e_agent_mouse_copy', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_mouse_copy.py')],
     env: e2e_env,

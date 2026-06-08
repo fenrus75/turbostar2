@@ -1,5 +1,6 @@
 #include "exit_plan_mode.h"
 #include "../../agentlib/ai_agent.h"
+#include <format>
 
 namespace tools
 {
@@ -38,7 +39,7 @@ std::string exit_plan_mode_tool::execute(agentlib::tool_context& ctx)
     editor_event ev;
     ev.type = event_type::approve_plan;
     // Combine title and summary
-    ev.payload = args_.plan_title + "\n\n" + args_.plan_summary;
+    ev.payload = std::format("{}\n\n{}", args_.plan_title, args_.plan_summary);
     ev.prompt_promise = promise;
 
     ctx.queue->push(ev);
@@ -48,20 +49,31 @@ std::string exit_plan_mode_tool::execute(agentlib::tool_context& ctx)
     try {
         response = future.get();
     } catch (const std::exception &e) {
-        return std::string("Error: Failed to get user response - ") + e.what();
+        return std::format("Error: Failed to get user response - {}", e.what());
     }
 
     if (response == "Approved") {
+        std::string plan_file = ctx.active_agent->get_plan_file();
         size_t start_idx = ctx.active_agent->get_planning_start_index();
         ctx.active_agent->set_planning(false);
+
+        std::string message;
+        if (!plan_file.empty()) {
+            message = std::format("Plan Mode exited.{} Modifying tools unlocked. Please execute the plan as described in {}.",
+                                  args_.page_out_history ? " Exploratory history paged out." : "", plan_file);
+        } else {
+            message = std::format("Plan Mode exited.{} Modifying tools unlocked. Please execute the plan.",
+                                  args_.page_out_history ? " Exploratory history paged out." : "");
+        }
+
         if (args_.page_out_history) {
             ctx.active_agent->page_out_context(start_idx, ctx.active_agent->get_conversation().size(), args_.plan_title, args_.plan_summary, {"plan", "exploration"});
-            return "Plan Mode exited. Exploratory history paged out. Modifying tools unlocked. Please execute the plan.";
         }
-        return "Plan Mode exited. Modifying tools unlocked. Please execute the plan.";
+        return message;
     } else {
-        return "Plan Rejected. User feedback:\n" + response + "\n\nPlease revise your plan and call exit_plan_mode again.";
+        return std::format("Plan Rejected. User feedback:\n{}\n\nPlease revise your plan and call exit_plan_mode again.", response);
     }
 }
 
 } // namespace tools
+
