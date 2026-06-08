@@ -6,7 +6,8 @@ def test_agent_mouse_scroll():
     runner = TurbostarRunner()
     
     # Pre-generate paths for /save with unique, non-overlapping names
-    paths = [f"/tmp/ts_m{c}" for c in "abcdefghij"]
+    import string
+    paths = [f"/tmp/ts_m{c}" for c in string.ascii_lowercase]
     
     try:
         runner.start()
@@ -31,7 +32,7 @@ def test_agent_mouse_scroll():
             time.sleep(0.15)
             
         # Verify the last marker is visible
-        runner.assert_text_on_screen("ts_mj", timeout=2.0)
+        runner.assert_text_on_screen("ts_mz", timeout=2.0)
         
         # Verify the first marker is scrolled off-screen
         runner.assert_text_not_on_screen("ts_ma", timeout=2.0)
@@ -53,21 +54,21 @@ def test_agent_mouse_scroll():
             raise AssertionError("ts_ma did not become visible after scrolling up")
             
         # Verify that the last marker is now scrolled out of view
-        runner.assert_text_not_on_screen("ts_mj", timeout=2.0)
+        runner.assert_text_not_on_screen("ts_mz", timeout=2.0)
         
-        # 4. Scroll down again incrementally until ts_mj becomes visible
+        # 4. Scroll down again incrementally until ts_mz becomes visible
         # SGR mouse wheel down button = 65
         found_mj = False
         for _ in range(20):
             runner.send_raw_keys(b"\x1b[<65;21;6M")
             time.sleep(0.1)
             runner.assert_text_on_screen("Agent Chat", timeout=0.5)
-            if any("ts_mj" in line for line in runner.screen.display):
+            if any("ts_mz" in line for line in runner.screen.display):
                 found_mj = True
                 break
                 
         if not found_mj:
-            raise AssertionError("ts_mj did not become visible after scrolling down")
+            raise AssertionError("ts_mz did not become visible after scrolling down")
             
         # Verify that the first marker is back out of view
         runner.assert_text_not_on_screen("ts_ma", timeout=2.0)

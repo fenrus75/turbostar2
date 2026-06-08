@@ -104,6 +104,7 @@ void editor::new_diff_window()
 
 void editor::update_window_layout()
 {
+	needs_full_redraw_ = true;
 	int main_w = COLS;
 
 	window *run_win = nullptr;
@@ -728,6 +729,7 @@ void editor::set_focus(focus_target target, const std::string &source)
 
 	event_logger::get_instance().log("Focus change: {} -> {}", source, target_name);
 	current_focus_ = target;
+	needs_full_redraw_ = true;
 
 	if (target == focus_target::menu_bar) {
 		update_window_menu();
@@ -936,9 +938,10 @@ bool editor::handle_k_block_key(int key)
 void editor::render(bool cursor_only)
 {
 	window *active_win = get_active_window();
+	bool vp_changed = false;
 
 	if (!cursor_only) {
-		redrawwin(stdscr);
+		touchwin(stdscr);
 		curs_set(0); // Default to hidden
 
 		// Paint desktop background with dithered pattern
@@ -989,14 +992,18 @@ void editor::render(bool cursor_only)
 		// Draw backwards (lowest priority first, so highest priority is on top)
 		for (auto it = sorted_windows.rbegin(); it != sorted_windows.rend(); ++it) {
 			if ((*it)->is_visible()) {
-				(*it)->draw(false);
+				if ((*it)->draw(false)) {
+					vp_changed = true;
+				}
 			}
 		}
 
 		top_menu_.draw();
 	} else {
 		if (active_win && active_win->is_visible()) {
-			active_win->draw(true);
+			if (active_win->draw(true)) {
+				vp_changed = true;
+			}
 		}
 	}
 
@@ -1126,6 +1133,13 @@ void editor::render(bool cursor_only)
 
 	if (active_popup_) {
 		active_popup_->draw();
+	}
+
+	if (needs_full_redraw_) {
+		redrawwin(stdscr);
+		needs_full_redraw_ = false;
+	} else if (vp_changed) {
+		touchwin(stdscr);
 	}
 
 	curs_set(0);
