@@ -33,8 +33,17 @@ std::string exit_plan_mode_tool::execute(agentlib::tool_context& ctx)
         return "Error: No event queue available to prompt the user.";
     }
 
+    std::string plan_file = ctx.active_agent->get_plan_file();
+
     auto promise = std::make_shared<std::promise<std::string>>();
     auto future = promise->get_future();
+
+    if (!plan_file.empty()) {
+        editor_event open_ev;
+        open_ev.type = event_type::open_file;
+        open_ev.payload = plan_file;
+        ctx.queue->push(open_ev);
+    }
 
     editor_event ev;
     ev.type = event_type::approve_plan;
@@ -53,7 +62,6 @@ std::string exit_plan_mode_tool::execute(agentlib::tool_context& ctx)
     }
 
     if (response == "Approved") {
-        std::string plan_file = ctx.active_agent->get_plan_file();
         size_t start_idx = ctx.active_agent->get_planning_start_index();
         ctx.active_agent->set_planning(false);
 

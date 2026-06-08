@@ -35,10 +35,15 @@ int main()
 
 		// 2. Exit plan mode with user approval
 		std::thread worker([&q]() {
+			bool open_file_received = false;
 			while (true) {
 				auto ev = q.pop();
 				if (ev) {
-					if (ev->type == event_type::approve_plan) {
+					if (ev->type == event_type::open_file) {
+						assert(ev->payload == "test_plan_doc.md");
+						open_file_received = true;
+					} else if (ev->type == event_type::approve_plan) {
+						assert(open_file_received == true);
 						ev->prompt_promise->set_value("Approved");
 						break;
 					}
