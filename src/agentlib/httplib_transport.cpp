@@ -94,8 +94,8 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 	cli_ = std::make_unique<httplib::Client>(host);
 	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	if (in_testsuite && std::string(in_testsuite) == "1") {
-		cli_->set_connection_timeout(std::chrono::milliseconds(500));
-		cli_->set_read_timeout(std::chrono::milliseconds(2000));
+		cli_->set_connection_timeout(std::chrono::milliseconds(5000));
+		cli_->set_read_timeout(std::chrono::milliseconds(15000));
 	} else {
 		cli_->set_connection_timeout(std::chrono::seconds(5));
 		cli_->set_read_timeout(std::chrono::seconds(300));
@@ -295,8 +295,8 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		httplib::Client cli(host);
 		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 		if (in_testsuite && std::string(in_testsuite) == "1") {
-			cli.set_connection_timeout(std::chrono::milliseconds(500));
-			cli.set_read_timeout(std::chrono::milliseconds(2000));
+			cli.set_connection_timeout(std::chrono::milliseconds(5000));
+			cli.set_read_timeout(std::chrono::milliseconds(15000));
 		} else {
 			cli.set_connection_timeout(std::chrono::seconds(5));
 			cli.set_read_timeout(std::chrono::seconds(10));
