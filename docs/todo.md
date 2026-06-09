@@ -6,10 +6,8 @@
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
 
-
 - Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
-
 
 - feature: github copilot oauth authentication
 	- need to read up on this more first how this is supposed to work
@@ -57,9 +55,6 @@
     - at the end of a compile and there are errors or warnings, we need a system notification to the agent that there is new info
     - low priority
 
-- when a background agent is processing, the cursor flickers badly -- are we redrawing a lot or turning the cursor on/off a lot?
-	- not seen recently
-
 - gdbserver notes on how to debug an application nicely
 	terminal 1:	gdbserver :1234 ./my_program
 	terminal 2:	gdb ./my_program
@@ -81,10 +76,8 @@
 
 	
 	
-
 # long term items
 - tool classes
-	- x86 asm
 	- image edit/convert/select/resize/zoom/rotate
 	- PDF ?
 

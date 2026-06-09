@@ -124,6 +124,9 @@ bool editor::handle_p_block_key(int key)
 
 void editor::dispatch(const editor_event &ev)
 {
+	if (ev.type == event_type::redraw) {
+		needs_full_redraw_ = true;
+	}
 	switch (ev.type) {
 		case event_type::mouse_click:
 		case event_type::mouse_scroll_up:

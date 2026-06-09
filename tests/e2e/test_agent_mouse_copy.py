@@ -23,25 +23,29 @@ def test_agent_mouse_copy():
         runner.send_keys('\n')
         time.sleep(0.5)
         
-        # Prompt sent, it might scroll off screen immediately due to fast LLM response        
-        # Wait for the agent's response or error to start and shift the layout
+        # Prompt sent, wait for the agent's response and ensure the agent is no longer thinking
+        # before we attempt to scroll. Otherwise, ongoing thinking updates will keep resetting
+        # the scroll offset back to 0.
         start_time = time.time()
         found = False
         while time.time() - start_time < 30.0:
             runner._read_output()
-            if any("Hello!" in line or "Error:" in line for line in runner.screen.display):
+            display_str = "\n".join(runner.screen.display)
+            if "Error:" in display_str:
+                import sys
+                print("LLM returned an error (likely no local LLM running). Skipping test.")
+                sys.exit(77)
+            
+            # Check if Hello! is on screen and Agent is not thinking anymore
+            has_hello = any("Hello!" in line for line in runner.screen.display)
+            is_thinking = any("Thinking..." in line for line in runner.screen.display)
+            if has_hello and not is_thinking:
                 found = True
                 break
             time.sleep(0.1)
         if not found:
             import sys
             print("LLM did not respond in 30.0s (slow or no local LLM). Skipping test.")
-            sys.exit(77)
-            
-        display_str = "\n".join(runner.screen.display)
-        if "Error:" in display_str:
-            import sys
-            print("LLM returned an error (likely no local LLM running). Skipping test.")
             sys.exit(77)
         
         # Find which line on the screen contains the prompt

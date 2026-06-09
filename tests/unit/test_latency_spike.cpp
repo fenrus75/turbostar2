@@ -35,7 +35,7 @@ int main()
 	opts.exit_immediately = 0.0;
 	editor ed(opts);
 
-	assert(ed.latency_spikes_.empty());
+	assert(ed.get_latency_spikes_for_testing().empty());
 
 	// Now let's manually push a spike into the vector to test printout
 	editor::latency_spike spike;
@@ -44,11 +44,11 @@ int main()
 	spike.key_desc = "Char 'x'";
 	spike.trace = {"[000100ms] Doing heavy task", "[000105ms] Done heavy task"};
 
-	ed.latency_spikes_.push_back(spike);
-	assert(ed.latency_spikes_.size() == 1);
-	assert(ed.latency_spikes_[0].duration_ms == 22.5);
-	assert(ed.latency_spikes_[0].key_desc == "Char 'x'");
-	assert(ed.latency_spikes_[0].trace.size() == 2);
+	ed.add_latency_spike_for_testing(spike);
+	assert(ed.get_latency_spikes_for_testing().size() == 1);
+	assert(ed.get_latency_spikes_for_testing()[0].duration_ms == 22.5);
+	assert(ed.get_latency_spikes_for_testing()[0].key_desc == "Char 'x'");
+	assert(ed.get_latency_spikes_for_testing()[0].trace.size() == 2);
 
 	std::cout << "--- Simulating printing latency report with spikes ---" << std::endl;
 	ed.print_latency_report();

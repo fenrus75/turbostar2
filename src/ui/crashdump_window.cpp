@@ -314,3 +314,10 @@ std::string crashdump_window::get_displayed_title() const
 	}
 	return "Crashdumps: " + dump_dir;
 }
+
+bool crashdump_window::update_viewport() const
+{
+	bool changed = (detail_scroll_offset_ != last_detail_scroll_offset_);
+	last_detail_scroll_offset_ = detail_scroll_offset_;
+	return changed;
+}

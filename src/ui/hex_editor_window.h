@@ -18,6 +18,9 @@ class hex_editor_window : public window
 
 	std::string get_status_help() const override;
 
+      protected:
+	bool update_viewport() const override;
+
       private:
 	size_t get_bytes_per_line() const;
 	void update_highlighter() const;
@@ -27,6 +30,7 @@ class hex_editor_window : public window
 	size_t cursor_offset_{0};
 	int nibble_focus_{0}; // 0 = high, 1 = low
 	mutable size_t scroll_line_{0};
+	mutable size_t last_scroll_line_{0};
 
 	mutable std::shared_ptr<hex_highlighter> highlighter_{nullptr};
 	mutable size_t last_highlighter_revision_{static_cast<size_t>(-1)};

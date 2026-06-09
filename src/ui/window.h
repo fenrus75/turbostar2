@@ -8,13 +8,25 @@
 #include "document.h"
 #include "event_queue.h"
 
+/*
+
+# subclasses of window
+
+| subclass          | filename                                 |
+| ----------------- | ---------------------------------------- |
+| agent_window      | src/ui/agent_window.h                    |
+| crashdump_window  | src/ui/crashdump_window.h                |
+| diff_window       | src/ui/diff_window.h                     |
+| hex_editor_window | src/ui/hex_editor_window.h               |
+
+*/
 class window
 {
       public:
 	window(int id, int x, int y, int width, int height, const std::string &title);
 	virtual ~window();
 
-	void draw(bool cursor_only = false) const;
+	bool draw(bool cursor_only = false) const;
 	void set_active(bool active);
 	bool is_active() const;
 
@@ -174,9 +186,9 @@ class window
 	virtual void on_move(int /*x*/, int /*y*/)
 	{
 	}
+	virtual bool update_viewport() const;
 
       private:
-	bool update_viewport() const;
 
 	std::string title_;
 	bool is_active_{false};

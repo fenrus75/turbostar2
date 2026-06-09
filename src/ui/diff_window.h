@@ -21,6 +21,7 @@ class diff_window : public window
 
       protected:
 	void on_resize(int width, int height) override;
+	bool update_viewport() const override;
 
       private:
 	void update_diff();
@@ -32,6 +33,7 @@ class diff_window : public window
 	size_t max_undo_steps_{0};
 	std::vector<std::string> diff_lines_;
 	int scroll_y_{0};
+	mutable int last_scroll_y_{0};
 
 	std::unique_ptr<ui_button> prev_button_;
 	std::unique_ptr<ui_button> next_button_;

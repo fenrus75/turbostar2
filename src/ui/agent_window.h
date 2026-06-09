@@ -35,10 +35,16 @@ class agent_window : public window
 
 	std::string get_mouse_selected_text() const override;
 
+	int get_scroll_offset() const { return scroll_offset_; }
+
+      protected:
+	bool update_viewport() const override;
+
       private:
 	enum class sidebar_focus { input, todos, subagents };
 
 	mutable int scroll_offset_{0};
+	mutable int last_scroll_offset_{-1};
 	mutable int max_scroll_offset_{0};
 	mutable bool sidebar_expanded_{true};
 	mutable sidebar_focus sidebar_focus_{sidebar_focus::input};

@@ -456,3 +456,22 @@ int hex_editor_window::get_color_pair_for_byte(size_t offset, uint8_t val, const
 	}
 	return pair;
 }
+
+bool hex_editor_window::update_viewport() const
+{
+	size_t bytes_per_line = get_bytes_per_line();
+	int lines_fit = height_ - 2;
+	if (lines_fit <= 0)
+		lines_fit = 1;
+	size_t cursor_line = cursor_offset_ / bytes_per_line;
+
+	if (cursor_line < scroll_line_) {
+		scroll_line_ = cursor_line;
+	} else if (cursor_line >= scroll_line_ + lines_fit) {
+		scroll_line_ = cursor_line - lines_fit + 1;
+	}
+
+	bool changed = (scroll_line_ != last_scroll_line_);
+	last_scroll_line_ = scroll_line_;
+	return changed;
+}

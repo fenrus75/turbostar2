@@ -1485,3 +1485,10 @@ void agent_window::set_cursor_position() const
 		}
 	}
 }
+
+bool agent_window::update_viewport() const
+{
+	bool changed = (scroll_offset_ != last_scroll_offset_);
+	last_scroll_offset_ = scroll_offset_;
+	return changed;
+}

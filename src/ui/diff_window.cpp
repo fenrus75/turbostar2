@@ -250,3 +250,10 @@ void diff_window::on_resize(int /*width*/, int height)
 	}
 	update_diff();
 }
+
+bool diff_window::update_viewport() const
+{
+	bool changed = (scroll_y_ != last_scroll_y_);
+	last_scroll_y_ = scroll_y_;
+	return changed;
+}

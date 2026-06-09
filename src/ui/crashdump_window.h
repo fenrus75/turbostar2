@@ -17,6 +17,9 @@ class crashdump_window : public window
 	void set_cursor_position() const override;
 	std::string get_displayed_title() const override;
 
+      protected:
+	bool update_viewport() const override;
+
       private:
 	void populate_listbox();
 	void go_to_source();
@@ -26,5 +29,6 @@ class crashdump_window : public window
 	std::unique_ptr<ui_listbox> listbox_;
 	std::vector<crashdump_info> current_dumps_;
 	int detail_scroll_offset_{0};
+	mutable int last_detail_scroll_offset_{0};
 	int last_selected_index_{-1};
 };

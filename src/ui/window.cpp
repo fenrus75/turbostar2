@@ -309,7 +309,7 @@ int window::get_cursor_y() const
 	return result;
 }
 
-void window::draw(bool cursor_only) const
+bool window::draw(bool cursor_only) const
 {
 	bool viewport_changed = update_viewport();
 	if (viewport_changed) {
@@ -319,6 +319,7 @@ void window::draw(bool cursor_only) const
 	if (!cursor_only) {
 		draw_border();
 	}
+	return viewport_changed;
 }
 
 bool window::update_viewport() const

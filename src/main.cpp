@@ -247,3 +247,4 @@ int main(int argc, char **argv)
 	logger.log("Application exiting main().");
 	return 0;
 }
+
