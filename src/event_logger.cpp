@@ -38,6 +38,7 @@ void event_logger::log(const std::string &message)
 	std::string formatted_message = ss.str();
 
 	events.push_back(formatted_message);
+	total_events_logged_++;
 	if (events.size() > 5000) {
 		events.erase(events.begin());
 	}
@@ -67,4 +68,35 @@ std::optional<std::string> event_logger::get_latest_matching_message(const std::
 		}
 	}
 	return std::nullopt;
+}
+
+uint64_t event_logger::get_total_event_count() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	return total_events_logged_;
+}
+
+std::vector<std::string> event_logger::get_event_slice(uint64_t start_seq, uint64_t end_seq) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::vector<std::string> slice;
+	if (start_seq >= end_seq || events.empty()) {
+		return slice;
+	}
+
+	uint64_t base_seq = 0;
+	if (total_events_logged_ > events.size()) {
+		base_seq = total_events_logged_ - events.size();
+	}
+
+	for (uint64_t seq = start_seq; seq < end_seq; ++seq) {
+		if (seq < base_seq) {
+			continue;
+		}
+		uint64_t idx = seq - base_seq;
+		if (idx < events.size()) {
+			slice.push_back(events[idx]);
+		}
+	}
+	return slice;
 }

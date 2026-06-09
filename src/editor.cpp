@@ -450,8 +450,10 @@ void editor::run()
 		// to measure interactive response latency.
 		bool processed_event = false;
 		std::chrono::steady_clock::time_point event_start;
+		uint64_t start_log_seq = 0;
 		if (res != ERR) {
 			event_start = std::chrono::steady_clock::now();
+			start_log_seq = event_logger::get_instance().get_total_event_count();
 			processed_event = true;
 		}
 
@@ -679,6 +681,36 @@ void editor::run()
 			}
 			if (duration_us > 1000) {
 				slow_events_count_1ms_++;
+			}
+
+			if (duration_us > 15000) {
+				uint64_t end_log_seq = event_logger::get_instance().get_total_event_count();
+				std::vector<std::string> slice = event_logger::get_instance().get_event_slice(start_log_seq, end_log_seq);
+
+				std::string key_desc;
+				if (res == KEY_CODE_YES) {
+					key_desc = std::format("Special Key (code: {})", static_cast<int>(wch));
+				} else {
+					if (wch >= 32 && wch < 127) {
+						key_desc = std::format("Char '{}'", static_cast<char>(wch));
+					} else {
+						key_desc = std::format("Char code {}", static_cast<int>(wch));
+					}
+				}
+
+				latency_spike spike;
+				spike.duration_ms = static_cast<double>(duration_us) / 1000.0;
+				spike.key_code = (res == KEY_CODE_YES) ? static_cast<int>(wch) : static_cast<int>(wch);
+				spike.key_desc = key_desc;
+				spike.trace = slice;
+
+				latency_spikes_.push_back(spike);
+
+				// Also log details to the event logger itself so it goes to the log file
+				event_logger::get_instance().log(
+					"LATENCY SPIKE: event '{}' took {:.3f} ms. Captured {} trace log lines.",
+					key_desc, spike.duration_ms, slice.size()
+				);
 			}
 		}
 	}
@@ -1366,4 +1398,25 @@ void editor::print_latency_report() const
 		  << std::format("  Events taking >  5 ms:      {} ({:.2f}%)\n", slow_events_count_5ms_, pct_5ms)
 		  << std::format("  Events taking > 10 ms:      {} ({:.2f}%)\n", slow_events_count_10ms_, pct_10ms)
 		  << "--------------------------------------------------\n";
+
+	if (!latency_spikes_.empty()) {
+		std::cout << "Captured Latency Spikes (> 15 ms):\n";
+		size_t print_count = std::min(latency_spikes_.size(), size_t(5));
+		for (size_t i = 0; i < print_count; ++i) {
+			const auto &spike = latency_spikes_[i];
+			std::cout << std::format("  Spike #{} - Key: '{}', Latency: {:.3f} ms\n", i + 1, spike.key_desc, spike.duration_ms);
+			std::cout << "    Trace logs during this event:\n";
+			if (spike.trace.empty()) {
+				std::cout << "      (No logs recorded)\n";
+			} else {
+				for (const auto &line : spike.trace) {
+					std::cout << "      " << line << "\n";
+				}
+			}
+		}
+		if (latency_spikes_.size() > 5) {
+			std::cout << std::format("  ... and {} more spikes > 15 ms (logged to event log).\n", latency_spikes_.size() - 5);
+		}
+		std::cout << "--------------------------------------------------\n";
+	}
 }

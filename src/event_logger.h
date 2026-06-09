@@ -22,6 +22,8 @@ class event_logger
 		log(std::vformat(fmt, std::make_format_args(args...)));
 	}
 	std::optional<std::string> get_latest_matching_message(const std::string &substring) const;
+	uint64_t get_total_event_count() const;
+	std::vector<std::string> get_event_slice(uint64_t start_seq, uint64_t end_seq) const;
 
       private:
 	event_logger();
@@ -30,12 +32,13 @@ class event_logger
 	event_logger &operator=(const event_logger &) = delete;
 
 	std::vector<std::string> events;
+	uint64_t total_events_logged_{0};
 	/*
-	 * mutex_ protects the events history log vector, the log_stream_ file handle,
-	 * and stdout_logging_ settings.
+	 * mutex_ protects the events history log vector, the total_events_logged_ counter,
+	 * the log_stream_ file handle, and stdout_logging_ settings.
 	 * Locking Rules:
 	 * - Held briefly when adding new log events, changing the log file destination,
-	 *   or searching for matching log strings.
+	 *   or searching for matching log strings / slicing.
 	 */
 	mutable std::mutex mutex_;
 	std::ofstream log_stream_;

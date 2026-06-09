@@ -48,10 +48,18 @@ struct editor_options {
 class editor : public agentlib::document_provider
 {
       public:
+	struct latency_spike {
+		double duration_ms;
+		int key_code;
+		std::string key_desc;
+		std::vector<std::string> trace;
+	};
+
 	explicit editor(editor_options opts);
 	~editor();
 
 	friend void test_vim_emulation();
+	friend int main();
 
 	/**
 	 * @brief Main execution loop.
@@ -205,6 +213,7 @@ class editor : public agentlib::document_provider
 	std::string debug_string_;
 	std::string initial_agent_prompt_;
 	bool fresh_agent_{false};
+	bool needs_full_redraw_{true};
 
 	bool is_pasting_{false};
 	std::string paste_buffer_;
@@ -236,4 +245,5 @@ class editor : public agentlib::document_provider
 	uint64_t slow_events_count_1ms_{0};
 	uint64_t slow_events_count_5ms_{0};
 	uint64_t slow_events_count_10ms_{0};
+	std::vector<latency_spike> latency_spikes_;
 };

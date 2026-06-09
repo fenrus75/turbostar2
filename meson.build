@@ -443,6 +443,13 @@ test_exit_plan_mode = executable('test_exit_plan_mode',
   include_directories: inc)
 test('unit_test_exit_plan_mode', test_exit_plan_mode)
 
+test_latency_spike = executable('test_latency_spike',
+  'tests/unit/test_latency_spike.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_latency_spike', test_latency_spike)
+
+
 
 test_agent_complete_todo = executable('test_agent_complete_todo',
   ['tests/unit/test_agent_complete_todo.cpp',
