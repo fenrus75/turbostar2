@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
+
 - since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
@@ -39,6 +41,8 @@
 		- after any UV deps are installed that is
 	- asking the MCP what tools it supports should be read only sandbox
 	- github integration! (check if there is a newer upstream etc)
+
+- Feature: Implement Input Coalescing and Refresh Throttling in the main editor loop (described in docs/refresh-throttling-proposal.md) to reduce terminal redraw overhead and input latency under fast repeat keys or paste streams.
 
 
 # mid term items
