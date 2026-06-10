@@ -9,11 +9,6 @@
 - Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
 
-- feature: github copilot oauth authentication
-	- need to read up on this more first how this is supposed to work
-	- two parts:
-		- part 1: using existing oath key
-		- part 2: getting oauth set up
 
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
 	- alternative: a convert_file_format() tool call
@@ -117,6 +112,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 09-06-2026
+- implemented GitHub Copilot OAuth Device Flow authentication and token management infrastructure. Created `copilot_connect` dialog flow allowing user to authenticate via device codes, configuring credentials using `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment variables.
 
 ## 07-06-2026
 - migrated context DNN model weights from JSON to a compact binary format (`weights.bin`) loaded via memory-mapping (`mmap`), reducing startup parsing time from 4.5 seconds to milliseconds and resolving memory overhead under AddressSanitizer.
