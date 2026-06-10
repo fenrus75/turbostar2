@@ -328,6 +328,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::copilot_connect) {
+		logger.log("Dispatching copilot_connect event.");
+		active_dialog_ = create_copilot_connect_dialog();
+		active_dialog_mode_ = dialog_mode::copilot_connect;
+		set_focus(focus_target::dialog, "copilot_connect");
+		return;
+	}
+
 	if (ev.type == event_type::agent_switch_model) {
 		int target_id = ev.key_code;
 		if (target_id == 0) {

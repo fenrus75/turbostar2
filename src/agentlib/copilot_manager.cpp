@@ -46,8 +46,11 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 	cli.set_read_timeout(10);
 	cli.set_follow_location(true);
 
+	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
+	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "12345";
+
 	httplib::Params params;
-	params.emplace("client_id", "12345");
+	params.emplace("client_id", client_id);
 	params.emplace("scope", "read:user");
 
 	httplib::Headers headers = {
@@ -97,10 +100,18 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 	cli.set_read_timeout(10);
 	cli.set_follow_location(true);
 
+	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
+	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "12345";
+
 	httplib::Params params;
-	params.emplace("client_id", "12345");
+	params.emplace("client_id", client_id);
 	params.emplace("device_code", dev_code);
 	params.emplace("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+
+	const char *env_client_secret = std::getenv("GITHUB_CLIENT_SECRET");
+	if (env_client_secret && *env_client_secret) {
+		params.emplace("client_secret", env_client_secret);
+	}
 
 	httplib::Headers headers = {
 		{"Accept", "application/json"}

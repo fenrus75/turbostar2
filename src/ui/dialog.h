@@ -12,6 +12,18 @@ enum class dialog_result {
         cancelled
 };
 
+/*
+
+# subclasses of dialog
+
+| subclass                    | filename                     |
+| --------------------------- | ---------------------------- |
+| welcome_dialog_impl         | src/ui/dialog_factories.cpp  |
+| force_quit_dialog_impl      | src/ui/dialog_factories.cpp  |
+| file_dialog_impl            | src/ui/dialog_factories.cpp  |
+| copilot_connect_dialog_impl | src/ui/dialog_factories.cpp  |
+
+*/
 class dialog : public ui_container{
       public:
 	dialog(const std::string &title, int width, int height);

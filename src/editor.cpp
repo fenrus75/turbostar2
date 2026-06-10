@@ -421,6 +421,8 @@ void editor::run()
 	auto start_time = std::chrono::steady_clock::now();
 
 	while (is_running_) {
+		bool needs_render = false;
+		bool needs_cursor_render = false;
 		auto loop_now = std::chrono::steady_clock::now();
 		int check_interval = 10;
 		const char *env_interval = std::getenv("TURBOSTAR_MTIME_CHECK_INTERVAL");
@@ -458,15 +460,19 @@ void editor::run()
 		}
 
 		// Handle dialog tick (auto-countdown)
-		if (active_dialog_mode_ == dialog_mode::force_quit_prompt && active_dialog_) {
+		if (active_dialog_) {
 			if (active_dialog_->tick()) {
-				// Countdown expired, force quit
-				editor_event quit_ev;
-				quit_ev.type = event_type::force_quit;
-				global_queue_.push(quit_ev);
-			} else {
-				// Re-render to show updated countdown
-				render();
+				if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
+					// Countdown expired, force quit
+					editor_event quit_ev;
+					quit_ev.type = event_type::force_quit;
+					global_queue_.push(quit_ev);
+				} else {
+					resolve_dialog(active_dialog_->get_action());
+				}
+				needs_render = true;
+			} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt || active_dialog_mode_ == dialog_mode::copilot_connect) {
+				needs_render = true;
 			}
 		}
 
@@ -604,8 +610,6 @@ void editor::run()
 			}
 		}
 
-		bool needs_render = false;
-		bool needs_cursor_render = false;
 		while (auto ev = global_queue_.pop()) {
 			dispatch(*ev);
 			needs_render = true;

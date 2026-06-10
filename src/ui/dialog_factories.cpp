@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <format>
 #include <ncurses.h>
+#include <chrono>
+#include "agentlib/copilot_manager.h"
 #include "agentlib/ai_model.h"
 #include "config_manager.h"
 #include "fs_utils.h"
@@ -1341,4 +1343,106 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 
 	dlg->set_focus_by_name("mcp_tool_list");
 	return dlg;
+}
+
+class copilot_connect_dialog_impl : public dialog
+{
+public:
+	copilot_connect_dialog_impl() : dialog("Copilot Connect", 60, 13)
+	{
+		std::string user_code, verification_uri;
+		bool success = agentlib::copilot_manager::get_instance().start_device_flow(user_code, verification_uri);
+
+		if (success) {
+			user_code_ = user_code;
+			verification_uri_ = verification_uri;
+			status_ = "Waiting for GitHub authentication...";
+			initialized_ = true;
+		} else {
+			status_ = "Failed to start Device Flow. Check connection.";
+			initialized_ = false;
+		}
+
+		int by = height_ - 3;
+		add_child(std::make_unique<ui_button>(
+			"btn_cancel", (width_ - 12) / 2, by, " Cancel ", 'C',
+			[this]() {
+				set_action(dialog_result::cancelled);
+				set_result("cancel");
+			},
+			true));
+
+		set_focus_by_name("btn_cancel");
+		last_poll_time_ = std::chrono::steady_clock::now();
+	}
+
+	void draw(int abs_x, int abs_y) const override
+	{
+		dialog::draw(abs_x, abs_y);
+
+		int dy = y_ + 2;
+		if (initialized_) {
+			std::string msg1 = "To connect GitHub Copilot, please visit:";
+			mvaddstr(dy++, x_ + (width_ - static_cast<int>(msg1.length())) / 2, msg1.c_str());
+
+			attron(COLOR_PAIR(2) | A_BOLD);
+			mvaddstr(dy++, x_ + (width_ - static_cast<int>(verification_uri_.length())) / 2, verification_uri_.c_str());
+			attroff(COLOR_PAIR(2) | A_BOLD);
+
+			dy++;
+			std::string msg2 = "And enter the following code:";
+			mvaddstr(dy++, x_ + (width_ - static_cast<int>(msg2.length())) / 2, msg2.c_str());
+
+			attron(COLOR_PAIR(16) | A_BOLD);
+			mvaddstr(dy++, x_ + (width_ - static_cast<int>(user_code_.length())) / 2, user_code_.c_str());
+			attroff(COLOR_PAIR(16) | A_BOLD);
+
+			dy++;
+		} else {
+			dy += 4;
+		}
+
+		attron(COLOR_PAIR(1));
+		mvaddstr(dy++, x_ + (width_ - static_cast<int>(status_.length())) / 2, status_.c_str());
+		attroff(COLOR_PAIR(1));
+	}
+
+	bool tick() override
+	{
+		if (!initialized_) {
+			return false;
+		}
+
+		auto now = std::chrono::steady_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
+
+		if (elapsed >= 5) {
+			last_poll_time_ = now;
+			status_ = "Polling GitHub for authorization...";
+			
+			bool authenticated = agentlib::copilot_manager::get_instance().poll_device_authorization(5);
+			if (authenticated) {
+				status_ = "Successfully connected to Copilot!";
+				set_action(dialog_result::confirmed);
+				set_result("success");
+				return true;
+			} else {
+				status_ = "Waiting for GitHub authentication...";
+			}
+		}
+
+		return false;
+	}
+
+private:
+	bool initialized_{false};
+	std::string user_code_;
+	std::string verification_uri_;
+	std::string status_;
+	std::chrono::time_point<std::chrono::steady_clock> last_poll_time_;
+};
+
+std::unique_ptr<dialog> create_copilot_connect_dialog()
+{
+	return std::make_unique<copilot_connect_dialog_impl>();
 }

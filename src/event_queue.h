@@ -78,6 +78,7 @@ enum class event_type {
 	tool_status,		    ///< Request to show the Tool status dialog
 	notify_undo_changed,	    ///< Notification that the undo stack has changed
 	mcp_config,		    ///< Request to show MCP configuration dialog
+	copilot_connect,	    ///< Request to show Copilot connection dialog
 	terminate_run,		    ///< Request to terminate a run
 	agent_start_app		    ///< Request to start app from agent
 };

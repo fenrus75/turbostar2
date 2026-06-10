@@ -363,6 +363,17 @@ void editor::resolve_dialog(dialog_result res)
 				}
 			}
 			return;
+		} else if (active_dialog_mode_ == dialog_mode::copilot_connect) {
+			std::string res_str = active_dialog_->get_result();
+			active_dialog_.reset();
+			active_dialog_mode_ = dialog_mode::none;
+			if (res_str == "success") {
+				active_dialog_ = create_message_dialog("Copilot Connected", {"GitHub Copilot has been successfully", "connected and authenticated!"});
+				set_focus(focus_target::dialog, "btn_ok");
+				return;
+			}
+			set_focus(focus_target::window, "dialog_close");
+			return;
 		}
 
 		active_dialog_.reset();
