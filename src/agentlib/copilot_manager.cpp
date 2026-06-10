@@ -134,6 +134,12 @@ bool copilot_manager::is_authenticated() const
 	return !github_access_token_.empty();
 }
 
+int copilot_manager::get_polling_interval() const
+{
+	std::lock_guard<std::mutex> lock(token_mutex_);
+	return polling_interval_;
+}
+
 bool copilot_manager::start_device_flow(std::string& user_code, std::string& verification_uri)
 {
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
@@ -161,7 +167,8 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 		device_code_ = j.value("device_code", "");
 		user_code = j.value("user_code", "");
 		verification_uri = j.value("verification_uri", "");
-		event_logger::get_instance().log("GitHub Device Flow parsed. device_code: {}, user_code: {}, verification_uri: {}", device_code_, user_code, verification_uri);
+		polling_interval_ = j.value("interval", 5);
+		event_logger::get_instance().log("GitHub Device Flow parsed. device_code: {}, user_code: {}, verification_uri: {}, interval: {}s", device_code_, user_code, verification_uri, polling_interval_);
 		return !device_code_.empty() && !user_code.empty();
 	} catch (const std::exception& e) {
 		event_logger::get_instance().log("Failed to parse GitHub Device Flow response: {}", e.what());
@@ -174,6 +181,13 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 	std::string dev_code;
 	{
 		std::lock_guard<std::mutex> lock(token_mutex_);
+		auto now = std::chrono::steady_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
+		if (elapsed < 2) {
+			event_logger::get_instance().log("GitHub Access Token Poll throttled (elapsed={}s < 2s)", elapsed);
+			return false;
+		}
+		last_poll_time_ = now;
 		dev_code = device_code_;
 	}
 
@@ -242,7 +256,15 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 			return true;
 		} else if (j.contains("error")) {
 			std::string err = j["error"];
-			if (err != "authorization_pending") {
+			if (err == "slow_down") {
+				std::lock_guard<std::mutex> lock(token_mutex_);
+				if (j.contains("interval") && j["interval"].is_number()) {
+					polling_interval_ = j["interval"].get<int>();
+				} else {
+					polling_interval_ += 5;
+				}
+				event_logger::get_instance().log("GitHub Device Flow slow_down: increasing polling interval to {}s", polling_interval_);
+			} else if (err != "authorization_pending") {
 				event_logger::get_instance().log("GitHub Device Flow error: {}", err);
 			}
 		}

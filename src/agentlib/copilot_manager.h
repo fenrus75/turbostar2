@@ -23,6 +23,9 @@ public:
     // Check if Copilot authentication is configured
     bool is_authenticated() const;
 
+    // Get current polling interval
+    int get_polling_interval() const;
+
     // Transform raw catalog JSON into Turbostar's JSON representation
     static std::string format_github_models_json(const std::string& catalog_json);
 
@@ -35,6 +38,8 @@ private:
     std::string cached_copilot_token_;
     std::chrono::system_clock::time_point expires_at_{std::chrono::system_clock::time_point::min()};
     std::string device_code_;
+    int polling_interval_{5};
+    std::chrono::steady_clock::time_point last_poll_time_{std::chrono::steady_clock::time_point::min()};
     
     /*
      * token_mutex_ protects the shared token lifecycle data:

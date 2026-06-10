@@ -1394,9 +1394,9 @@ public:
 			std::string msg2 = "And enter the following code:";
 			mvaddstr(dy++, x_ + (width_ - static_cast<int>(msg2.length())) / 2, msg2.c_str());
 
-			attron(COLOR_PAIR(16) | A_BOLD);
+			attron(COLOR_PAIR(1) | A_BOLD);
 			mvaddstr(dy++, x_ + (width_ - static_cast<int>(user_code_.length())) / 2, user_code_.c_str());
-			attroff(COLOR_PAIR(16) | A_BOLD);
+			attroff(COLOR_PAIR(1) | A_BOLD);
 
 			dy++;
 		} else {
@@ -1417,12 +1417,14 @@ public:
 		auto now = std::chrono::steady_clock::now();
 		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
 
-		if (elapsed >= 5) {
+		int interval = agentlib::copilot_manager::get_instance().get_polling_interval();
+		// Add a 1-second safety buffer to avoid clock skew slow_downs
+		if (elapsed >= interval + 1) {
 			last_poll_time_ = now;
 			status_ = "Polling GitHub for authorization...";
-			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub...");
+			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub (interval={}s, buffer=1s)...", interval);
 			
-			bool authenticated = agentlib::copilot_manager::get_instance().poll_device_authorization(5);
+			bool authenticated = agentlib::copilot_manager::get_instance().poll_device_authorization(interval);
 			event_logger::get_instance().log("Copilot Connect Dialog tick: Poll result authenticated = {}", authenticated);
 			if (authenticated) {
 				status_ = "Successfully connected to Copilot!";
