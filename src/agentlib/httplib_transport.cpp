@@ -102,6 +102,7 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 		cli_->set_read_timeout(std::chrono::seconds(300));
 	}
 	cli_->set_follow_location(true);
+	cli_->enable_server_certificate_verification(false);
 
 	// Optional proxy support via environment variables
 	const char *env_proxy = std::getenv("https_proxy");
@@ -313,6 +314,7 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 			cli.set_read_timeout(std::chrono::seconds(10));
 		}
 		cli.set_follow_location(true);
+		cli.enable_server_certificate_verification(false);
 
 		// Proxy support identical to httplib_transport constructor
 		const char *env_proxy = std::getenv("https_proxy");
