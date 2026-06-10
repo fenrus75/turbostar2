@@ -1,12 +1,105 @@
 #include "copilot_manager.h"
-#include <httplib.h>
+#include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <cstdlib>
+#include <vector>
+#include <format>
 #include "config_manager.h"
 #include "event_logger.h"
 
 using json = nlohmann::json;
 
 namespace agentlib {
+
+static size_t curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t total_size = size * nmemb;
+	std::string *str = static_cast<std::string *>(userp);
+	str->append(static_cast<char *>(contents), total_size);
+	return total_size;
+}
+
+struct http_response {
+	int status_code = -1;
+	std::string body;
+};
+
+static http_response perform_curl_request(
+	const std::string &url,
+	const std::string &method,
+	const std::vector<std::string> &headers,
+	const std::string &post_fields = ""
+) {
+	http_response resp;
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		return resp;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	
+	// Timeout settings
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 500L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 2000L);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+	}
+
+	// Response buffer
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp.body);
+
+	// Setup method
+	if (method == "POST") {
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		if (!post_fields.empty()) {
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields.c_str());
+		}
+	}
+
+	// Setup headers
+	struct curl_slist *header_list = nullptr;
+	for (const auto &h : headers) {
+		header_list = curl_slist_append(header_list, h.c_str());
+	}
+	if (header_list) {
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+	}
+
+	CURLcode res = curl_easy_perform(curl);
+	if (res == CURLE_OK) {
+		long http_code = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+		resp.status_code = static_cast<int>(http_code);
+	} else {
+		event_logger::get_instance().log("curl error for URL {}: {}", url, curl_easy_strerror(res));
+	}
+
+	if (header_list) {
+		curl_slist_free_all(header_list);
+	}
+	curl_easy_cleanup(curl);
+
+	return resp;
+}
+
+static std::string escape_value(const std::string &val)
+{
+	CURL *curl = curl_easy_init();
+	if (!curl) return val;
+	char *escaped = curl_easy_escape(curl, val.c_str(), static_cast<int>(val.length()));
+	std::string res = val;
+	if (escaped) {
+		res = escaped;
+		curl_free(escaped);
+	}
+	curl_easy_cleanup(curl);
+	return res;
+}
 
 copilot_manager::copilot_manager()
 {
@@ -41,37 +134,26 @@ bool copilot_manager::is_authenticated() const
 
 bool copilot_manager::start_device_flow(std::string& user_code, std::string& verification_uri)
 {
-	httplib::Client cli("https://github.com");
-	cli.set_connection_timeout(5);
-	cli.set_read_timeout(10);
-	cli.set_follow_location(true);
-
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
 	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "12345";
 
-	httplib::Params params;
-	params.emplace("client_id", client_id);
-	params.emplace("scope", "read:user");
-
-	httplib::Headers headers = {
-		{"Accept", "application/json"}
-	};
-
 	event_logger::get_instance().log("Initiating GitHub OAuth Device Flow");
 
-	auto res = cli.Post("/login/device/code", headers, params);
-	if (!res) {
-		event_logger::get_instance().log("GitHub Device Flow connection failed");
-		return false;
-	}
+	std::string escaped_client_id = escape_value(client_id);
+	std::string post_fields = std::format("client_id={}&scope=read%3Auser", escaped_client_id);
 
-	if (res->status != 200) {
-		event_logger::get_instance().log("GitHub Device Flow returned status {}", res->status);
+	std::vector<std::string> headers = {
+		"Accept: application/json"
+	};
+
+	auto res = perform_curl_request("https://github.com/login/device/code", "POST", headers, post_fields);
+	if (res.status_code != 200) {
+		event_logger::get_instance().log("GitHub Device Flow connection failed (status code: {})", res.status_code);
 		return false;
 	}
 
 	try {
-		auto j = json::parse(res->body);
+		auto j = json::parse(res.body);
 		std::lock_guard<std::mutex> lock(token_mutex_);
 		device_code_ = j.value("device_code", "");
 		user_code = j.value("user_code", "");
@@ -95,35 +177,31 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 		return false;
 	}
 
-	httplib::Client cli("https://github.com");
-	cli.set_connection_timeout(5);
-	cli.set_read_timeout(10);
-	cli.set_follow_location(true);
-
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
 	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "12345";
 
-	httplib::Params params;
-	params.emplace("client_id", client_id);
-	params.emplace("device_code", dev_code);
-	params.emplace("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+	std::string post_fields = std::format(
+		"client_id={}&device_code={}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+		escape_value(client_id),
+		escape_value(dev_code)
+	);
 
 	const char *env_client_secret = std::getenv("GITHUB_CLIENT_SECRET");
 	if (env_client_secret && *env_client_secret) {
-		params.emplace("client_secret", env_client_secret);
+		post_fields += std::format("&client_secret={}", escape_value(env_client_secret));
 	}
 
-	httplib::Headers headers = {
-		{"Accept", "application/json"}
+	std::vector<std::string> headers = {
+		"Accept: application/json"
 	};
 
-	auto res = cli.Post("/login/oauth/access_token", headers, params);
-	if (!res || res->status != 200) {
+	auto res = perform_curl_request("https://github.com/login/oauth/access_token", "POST", headers, post_fields);
+	if (res.status_code != 200) {
 		return false;
 	}
 
 	try {
-		auto j = json::parse(res->body);
+		auto j = json::parse(res.body);
 		if (j.contains("access_token")) {
 			std::string token = j["access_token"];
 			set_github_access_token(token);
@@ -166,33 +244,22 @@ std::string copilot_manager::get_copilot_token()
 		return cached_token;
 	}
 
-	// Request new Copilot token from GitHub api
-	httplib::Client cli("https://api.github.com");
-	cli.set_connection_timeout(5);
-	cli.set_read_timeout(10);
-	cli.set_follow_location(true);
-
-	httplib::Headers headers = {
-		{"Authorization", "token " + access_token},
-		{"User-Agent", "GithubCopilot/1.250.0"},
-		{"Accept", "application/json"}
-	};
-
 	event_logger::get_instance().log("Requesting new short-lived Copilot token from GitHub API");
 
-	auto res = cli.Get("/copilot_internal/v2/token", headers);
-	if (!res) {
-		event_logger::get_instance().log("Connection to api.github.com failed during Copilot token fetch");
-		return "";
-	}
+	std::vector<std::string> headers = {
+		"Authorization: token " + access_token,
+		"User-Agent: GithubCopilot/1.250.0",
+		"Accept: application/json"
+	};
 
-	if (res->status != 200) {
-		event_logger::get_instance().log("GitHub Copilot token API returned status {}", res->status);
+	auto res = perform_curl_request("https://api.github.com/copilot_internal/v2/token", "GET", headers);
+	if (res.status_code != 200) {
+		event_logger::get_instance().log("GitHub Copilot token API returned status {}", res.status_code);
 		return "";
 	}
 
 	try {
-		auto j = json::parse(res->body);
+		auto j = json::parse(res.body);
 		std::string new_token = j.value("token", "");
 		long long expires_epoch = j.value("expires_at", 0LL);
 		
