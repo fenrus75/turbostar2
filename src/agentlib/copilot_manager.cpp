@@ -139,7 +139,7 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
 	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "12345";
 
-	event_logger::get_instance().log("Initiating GitHub OAuth Device Flow");
+	event_logger::get_instance().log("Initiating GitHub OAuth Device Flow with client_id: {}", client_id);
 
 	std::string escaped_client_id = escape_value(client_id);
 	std::string post_fields = std::format("client_id={}&scope=read%3Auser", escaped_client_id);
@@ -149,6 +149,7 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 	};
 
 	auto res = perform_curl_request("https://github.com/login/device/code", "POST", headers, post_fields);
+	event_logger::get_instance().log("GitHub Device Flow code response. Status: {}, Body: {}", res.status_code, res.body);
 	if (res.status_code != 200) {
 		event_logger::get_instance().log("GitHub Device Flow connection failed (status code: {})", res.status_code);
 		return false;
@@ -160,6 +161,7 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 		device_code_ = j.value("device_code", "");
 		user_code = j.value("user_code", "");
 		verification_uri = j.value("verification_uri", "");
+		event_logger::get_instance().log("GitHub Device Flow parsed. device_code: {}, user_code: {}, verification_uri: {}", device_code_, user_code, verification_uri);
 		return !device_code_.empty() && !user_code.empty();
 	} catch (const std::exception& e) {
 		event_logger::get_instance().log("Failed to parse GitHub Device Flow response: {}", e.what());
@@ -198,6 +200,31 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 	};
 
 	auto res = perform_curl_request("https://github.com/login/oauth/access_token", "POST", headers, post_fields);
+	
+	std::string logged_body = res.body;
+	size_t tok_pos = logged_body.find("access_token");
+	if (tok_pos != std::string::npos) {
+		size_t val_start = logged_body.find('"', tok_pos + 12);
+		if (val_start != std::string::npos) {
+			size_t val_end = logged_body.find('"', val_start + 1);
+			if (val_end != std::string::npos && val_end > val_start) {
+				logged_body.replace(val_start + 1, val_end - val_start - 1, "********");
+			}
+		} else {
+			size_t eq_start = logged_body.find('=', tok_pos);
+			if (eq_start != std::string::npos) {
+				size_t amp_end = logged_body.find('&', eq_start);
+				if (amp_end != std::string::npos && amp_end > eq_start) {
+					logged_body.replace(eq_start + 1, amp_end - eq_start - 1, "********");
+				} else {
+					logged_body.replace(eq_start + 1, logged_body.length() - eq_start - 1, "********");
+				}
+			}
+		}
+	}
+	
+	event_logger::get_instance().log("GitHub Access Token Poll result: status_code={}, body={}", res.status_code, logged_body);
+	
 	if (res.status_code != 200) {
 		return false;
 	}
@@ -207,7 +234,7 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 		if (j.contains("access_token")) {
 			std::string token = j["access_token"];
 			set_github_access_token(token);
-			event_logger::get_instance().log("GitHub OAuth authorization successful");
+			event_logger::get_instance().log("GitHub OAuth authorization successful. Token length: {}", token.length());
 			
 			// Retrieve and format GitHub Models list
 			query_and_write_github_models(token);
@@ -337,7 +364,7 @@ std::string copilot_manager::format_github_models_json(const std::string& catalo
 
 void copilot_manager::query_and_write_github_models(const std::string &token)
 {
-	event_logger::get_instance().log("Querying GitHub models catalog...");
+	event_logger::get_instance().log("query_and_write_github_models started.");
 
 	std::vector<std::string> headers = {
 		"Accept: application/vnd.github+json",
@@ -346,8 +373,10 @@ void copilot_manager::query_and_write_github_models(const std::string &token)
 	};
 
 	auto res = perform_curl_request("https://models.github.ai/catalog/models", "GET", headers);
+	event_logger::get_instance().log("GitHub models catalog fetch response. Status code: {}, Body size: {}", res.status_code, res.body.size());
+
 	if (res.status_code != 200) {
-		event_logger::get_instance().log("Failed to fetch GitHub models catalog (status code: {})", res.status_code);
+		event_logger::get_instance().log("Failed to fetch GitHub models catalog. Status code: {}, response body: {}", res.status_code, res.body);
 		return;
 	}
 
@@ -359,6 +388,7 @@ void copilot_manager::query_and_write_github_models(const std::string &token)
 
 	std::string cache_dir = fs_utils::get_global_cache_dir();
 	std::string path = cache_dir + "/models.json.github";
+	event_logger::get_instance().log("Writing GitHub models to path: {}", path);
 	std::ofstream file(path);
 	if (!file.is_open()) {
 		event_logger::get_instance().log("Failed to open {} for writing GitHub models.", path);

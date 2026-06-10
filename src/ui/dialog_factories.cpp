@@ -7,6 +7,7 @@
 #include "agentlib/copilot_manager.h"
 #include "agentlib/ai_model.h"
 #include "config_manager.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
 #include "mcp/mcp_manager.h"
@@ -1419,8 +1420,10 @@ public:
 		if (elapsed >= 5) {
 			last_poll_time_ = now;
 			status_ = "Polling GitHub for authorization...";
+			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub...");
 			
 			bool authenticated = agentlib::copilot_manager::get_instance().poll_device_authorization(5);
+			event_logger::get_instance().log("Copilot Connect Dialog tick: Poll result authenticated = {}", authenticated);
 			if (authenticated) {
 				status_ = "Successfully connected to Copilot!";
 				set_action(dialog_result::confirmed);
