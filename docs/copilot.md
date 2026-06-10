@@ -47,7 +47,7 @@ sequenceDiagram
 * **Headers:** 
   * `Accept: application/json`
 * **Form Parameters:**
-  * `client_id`: `Iv1.b507a08cbb0cc2c4` (Standard GitHub Copilot Client ID, or a custom OAuth App ID)
+  * `client_id`: `Iv1.b507a08cbb0cc2c4` (Standard GitHub Copilot Client ID. This is required because GitHub restricts copilot-scoped tokens to official Client IDs.)
   * `scope`: `read:user`
 * **Response Payload (JSON):**
   ```json
@@ -153,7 +153,7 @@ private:
 Implement a visual dialog factory method `show_copilot_auth_dialog` that:
 1. Triggers `start_device_flow()`.
 2. Spawns a background worker thread calling `poll_device_authorization()`.
-3. Renders a popup box in the terminal displaying the code (`user_code`) and the authorization link.
+3. Renders a popup box in the terminal displaying the 8-character verification code (`user_code`) and the login URL (`https://github.com/login/device`). The user can copy the URL or type it in their browser manually. No automatic browser opening is performed.
 4. Cleans up and closes automatically on success or failure.
 
 ---
