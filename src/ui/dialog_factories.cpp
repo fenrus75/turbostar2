@@ -186,9 +186,9 @@ class force_quit_dialog_impl : public dialog
 		set_focus_by_name("btn_save_all");
 	}
 
-	void draw(int abs_x, int abs_y) const override
+	void draw() const override
 	{
-		dialog::draw(abs_x, abs_y);
+		dialog::draw();
 		if (countdown_active_) {
 			std::string count_msg = "(Auto-closing in " + std::to_string(remaining_seconds_) + "s)";
 			int count_x = x_ + (width_ - static_cast<int>(count_msg.length())) / 2;
@@ -1376,9 +1376,9 @@ public:
 		last_poll_time_ = std::chrono::steady_clock::now();
 	}
 
-	void draw(int abs_x, int abs_y) const override
+	void draw() const override
 	{
-		dialog::draw(abs_x, abs_y);
+		dialog::draw();
 
 		int dy = y_ + 2;
 		if (initialized_) {
