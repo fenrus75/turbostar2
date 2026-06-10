@@ -158,12 +158,11 @@ Implement a visual dialog factory method `show_copilot_auth_dialog` that:
 
 ---
 
-## 4. Implementation Steps
+## 4. Implementation Status
+All core infrastructure and TUI integration steps are completed:
 
-| Step | Action | Files Modified |
-| :--- | :--- | :--- |
-| **1** | Define `copilot` API type and config attributes. | [ai_model.h](file:///home/arjan/git/turbostar2/src/agentlib/ai_model.h), [ai_model.cpp](file:///home/arjan/git/turbostar2/src/agentlib/ai_model.cpp) |
-| **2** | Implement `copilot_manager` REST handlers. | `src/agentlib/copilot_manager.h`, `src/agentlib/copilot_manager.cpp` |
-| **3** | Update transport layer to inject Copilot Bearer token. | [httplib_transport.cpp](file:///home/arjan/git/turbostar2/src/agentlib/httplib_transport.cpp) |
-| **4** | Build the Device Auth Dialog. | [dialog_factories.h](file:///home/arjan/git/turbostar2/src/ui/dialog_factories.h), [dialog_factories.cpp](file:///home/arjan/git/turbostar2/src/ui/dialog_factories.cpp) |
-| **5** | Add GTest unit testing covering OAuth mocked states. | `tests/unit/test_copilot_auth.cpp` |
+- [x] **Step 1**: Defined `copilot` API type and configuration loading/saving fields.
+- [x] **Step 2**: Implemented `copilot_manager` to support GitHub's OAuth Device Flow and short-lived Copilot token management.
+- [x] **Step 3**: Updated `httplib_transport` with a token provider callback to authorize request headers without direct dependencies.
+- [x] **Step 4**: Added the "Copilot connect..." TUI dialog and integrated it into the editor's options menu and main tick/idle polling loop.
+- [x] **Step 5**: Configured client credentials using `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment variables, falling back to a default Client ID.
