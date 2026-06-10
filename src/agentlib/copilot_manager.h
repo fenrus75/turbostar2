@@ -23,8 +23,13 @@ public:
     // Check if Copilot authentication is configured
     bool is_authenticated() const;
 
+    // Transform raw catalog JSON into Turbostar's JSON representation
+    static std::string format_github_models_json(const std::string& catalog_json);
+
 private:
     copilot_manager();
+    
+    void query_and_write_github_models(const std::string &token);
     
     std::string github_access_token_;
     std::string cached_copilot_token_;

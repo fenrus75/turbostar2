@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <vector>
 #include <format>
+#include <fstream>
+#include "../fs_utils.h"
 #include "config_manager.h"
 #include "event_logger.h"
 
@@ -206,6 +208,10 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 			std::string token = j["access_token"];
 			set_github_access_token(token);
 			event_logger::get_instance().log("GitHub OAuth authorization successful");
+			
+			// Retrieve and format GitHub Models list
+			query_and_write_github_models(token);
+			
 			return true;
 		} else if (j.contains("error")) {
 			std::string err = j["error"];
@@ -274,6 +280,93 @@ std::string copilot_manager::get_copilot_token()
 	}
 
 	return "";
+}
+
+std::string copilot_manager::format_github_models_json(const std::string& catalog_json)
+{
+	try {
+		auto catalog = json::parse(catalog_json);
+		if (!catalog.is_array()) {
+			return "[]";
+		}
+
+		json output_models = json::array();
+		for (const auto &item : catalog) {
+			if (!item.is_object()) {
+				continue;
+			}
+			std::string id = item.value("id", "");
+			if (id.empty()) {
+				continue;
+			}
+
+			std::string name = item.value("name", id);
+			std::string publisher = item.value("publisher", "");
+			std::string summary = item.value("summary", "");
+			std::string purpose;
+			if (!publisher.empty()) {
+				purpose = std::format("Publisher: {}. {}", publisher, summary);
+			} else {
+				purpose = summary;
+			}
+
+			int max_context_tokens = 131072;
+			if (item.contains("limits") && item["limits"].is_object()) {
+				max_context_tokens = item["limits"].value("max_input_tokens", 131072);
+			}
+
+			json model_entry;
+			model_entry["id"] = id;
+			model_entry["name"] = name;
+			model_entry["url"] = "https://models.inference.ai.azure.com";
+			model_entry["purpose"] = purpose;
+			model_entry["cost_tx"] = 0.0;
+			model_entry["cost_rx"] = 0.0;
+			model_entry["api_key"] = "";
+			model_entry["api_type"] = "copilot";
+			model_entry["max_context_tokens"] = max_context_tokens;
+			model_entry["cost_type"] = "free_local";
+
+			output_models.push_back(model_entry);
+		}
+		return output_models.dump(4);
+	} catch (...) {
+		return "[]";
+	}
+}
+
+void copilot_manager::query_and_write_github_models(const std::string &token)
+{
+	event_logger::get_instance().log("Querying GitHub models catalog...");
+
+	std::vector<std::string> headers = {
+		"Accept: application/vnd.github+json",
+		"Authorization: Bearer " + token,
+		"X-GitHub-Api-Version: 2026-03-10"
+	};
+
+	auto res = perform_curl_request("https://models.github.ai/catalog/models", "GET", headers);
+	if (res.status_code != 200) {
+		event_logger::get_instance().log("Failed to fetch GitHub models catalog (status code: {})", res.status_code);
+		return;
+	}
+
+	std::string formatted = format_github_models_json(res.body);
+	if (formatted == "[]") {
+		event_logger::get_instance().log("GitHub models catalog response could not be parsed or is empty.");
+		return;
+	}
+
+	std::string cache_dir = fs_utils::get_global_cache_dir();
+	std::string path = cache_dir + "/models.json.github";
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		event_logger::get_instance().log("Failed to open {} for writing GitHub models.", path);
+		return;
+	}
+
+	file << formatted;
+	event_logger::get_instance().log("Saved GitHub models to {}", path);
 }
 
 } // namespace agentlib
