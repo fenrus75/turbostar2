@@ -39,7 +39,7 @@ private:
     std::chrono::system_clock::time_point expires_at_{std::chrono::system_clock::time_point::min()};
     std::string device_code_;
     int polling_interval_{5};
-    std::chrono::steady_clock::time_point last_poll_time_{std::chrono::steady_clock::time_point::min()};
+    std::chrono::steady_clock::time_point last_poll_time_{};
     
     /*
      * token_mutex_ protects the shared token lifecycle data:
@@ -47,6 +47,8 @@ private:
      * - cached_copilot_token_
      * - expires_at_
      * - device_code_
+     * - polling_interval_
+     * - last_poll_time_
      * 
      * Lock ordering guidelines:
      * - Acquired to read/write tokens or authorization state.

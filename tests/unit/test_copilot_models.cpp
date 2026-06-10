@@ -2,6 +2,7 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/copilot_manager.h"
+#include "../../src/event_logger.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -67,6 +68,20 @@ int main()
 	assert(model2["url"] == "https://models.inference.ai.azure.com");
 	assert(model2["purpose"] == "Publisher: Anthropic. High performance text model.");
 	assert(model2["max_context_tokens"] == 200000);
+
+	// Test the polling throttling logic and ensure no initial throttle due to min() time_point underflow
+	std::cout << "Testing polling throttle initial state..." << std::endl;
+	bool res_poll1 = copilot_manager::get_instance().poll_device_authorization(5);
+	(void)res_poll1;
+
+	auto match_initial = event_logger::get_instance().get_latest_matching_message("GitHub Access Token Poll throttled");
+	assert(!match_initial.has_value() && "First poll should not be throttled due to underflow/overflow");
+
+	// A second poll immediately after should be throttled
+	bool res_poll2 = copilot_manager::get_instance().poll_device_authorization(5);
+	(void)res_poll2;
+	auto match_immediate = event_logger::get_instance().get_latest_matching_message("GitHub Access Token Poll throttled");
+	assert(match_immediate.has_value() && "Immediate second poll must be throttled");
 
 	std::cout << "test_copilot_models passed successfully!" << std::endl;
 	return 0;

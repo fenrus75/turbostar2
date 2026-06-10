@@ -168,6 +168,7 @@ bool copilot_manager::start_device_flow(std::string& user_code, std::string& ver
 		user_code = j.value("user_code", "");
 		verification_uri = j.value("verification_uri", "");
 		polling_interval_ = j.value("interval", 5);
+		last_poll_time_ = std::chrono::steady_clock::time_point{};
 		event_logger::get_instance().log("GitHub Device Flow parsed. device_code: {}, user_code: {}, verification_uri: {}, interval: {}s", device_code_, user_code, verification_uri, polling_interval_);
 		return !device_code_.empty() && !user_code.empty();
 	} catch (const std::exception& e) {
@@ -182,10 +183,12 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 	{
 		std::lock_guard<std::mutex> lock(token_mutex_);
 		auto now = std::chrono::steady_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
-		if (elapsed < 2) {
-			event_logger::get_instance().log("GitHub Access Token Poll throttled (elapsed={}s < 2s)", elapsed);
-			return false;
+		if (last_poll_time_ != std::chrono::steady_clock::time_point{}) {
+			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
+			if (elapsed < 2) {
+				event_logger::get_instance().log("GitHub Access Token Poll throttled (elapsed={}s < 2s)", elapsed);
+				return false;
+			}
 		}
 		last_poll_time_ = now;
 		dev_code = device_code_;
