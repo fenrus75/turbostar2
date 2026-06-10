@@ -825,6 +825,12 @@ test_listbox = executable('test_listbox',
   include_directories: inc)
 test('unit_listbox', test_listbox)
 
+test_multiline_edit = executable('test_multiline_edit',
+  'tests/unit/test_multiline_edit.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_multiline_edit', test_multiline_edit)
+
 test_github_vfs = executable('test_github_vfs',
   ['tests/unit/test_github_vfs.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],

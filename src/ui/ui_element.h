@@ -11,6 +11,25 @@
 
 class ui_container;
 
+/*
+
+# subclasses of ui_element
+
+| subclass          | filename                                                |
+| ----------------- | ------------------------------------------------------- |
+| ui_button         | src/ui/components/ui_button.h                           |
+| ui_checkbox       | src/ui/components/ui_checkbox.h                         |
+| ui_dropdown       | src/ui/components/ui_dropdown.h                         |
+| ui_fileselector   | src/ui/components/ui_fileselector.h                     |
+| ui_group_box      | src/ui/components/ui_group_box.h                         |
+| ui_listbox        | src/ui/components/ui_listbox.h                           |
+| ui_multiline_edit | src/ui/components/ui_multiline_edit.h                   |
+| ui_radio          | src/ui/components/ui_radio.h                            |
+| ui_text_label     | src/ui/components/ui_text_label.h                        |
+| ui_textbox        | src/ui/components/ui_textbox.h                           |
+| ui_container      | src/ui/ui_element.h                                     |
+
+*/
 class ui_element
 {
       public:
