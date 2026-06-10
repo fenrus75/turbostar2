@@ -166,3 +166,4 @@ All core infrastructure and TUI integration steps are completed:
 - [x] **Step 3**: Updated `httplib_transport` with a token provider callback to authorize request headers without direct dependencies.
 - [x] **Step 4**: Added the "Copilot connect..." TUI dialog and integrated it into the editor's options menu and main tick/idle polling loop.
 - [x] **Step 5**: Configured client credentials using `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment variables, falling back to a default Client ID.
+- [x] **Step 6**: Added query of GitHub models catalog (`https://models.github.ai/catalog/models`) at signup to write a formatted `models.json.github` into `~/.cache/turbostar/`.
