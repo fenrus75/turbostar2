@@ -1,4 +1,5 @@
 #include "httplib_transport.h"
+
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -155,7 +156,12 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 			return {-1, "Client destroyed"};
 
 		httplib::Headers headers;
-		if (!api_key_.empty()) {
+		if (token_provider_) {
+			std::string copilot_token = token_provider_();
+			if (!copilot_token.empty()) {
+				headers.emplace("Authorization", "Bearer " + copilot_token);
+			}
+		} else if (!api_key_.empty()) {
 			if (base_url_.find("googleapis.com") != std::string::npos) {
 				headers.emplace("x-goog-api-key", api_key_);
 			} else {
@@ -216,7 +222,12 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 
 		req.body = json_body;
 		req.set_header("Content-Type", "application/json");
-		if (!api_key_.empty()) {
+		if (token_provider_) {
+			std::string copilot_token = token_provider_();
+			if (!copilot_token.empty()) {
+				req.set_header("Authorization", "Bearer " + copilot_token);
+			}
+		} else if (!api_key_.empty()) {
 			if (base_url_.find("googleapis.com") != std::string::npos) {
 				req.set_header("x-goog-api-key", api_key_);
 			} else {

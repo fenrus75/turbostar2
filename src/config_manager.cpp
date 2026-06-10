@@ -78,6 +78,8 @@ void config_manager::load_from_file(const std::string &path)
 			shell_display_access_ = (value == "true" || value == "1");
 		} else if (key == "main_executable") {
 			main_executable_ = value;
+		} else if (key == "github_access_token") {
+			github_access_token_ = value;
 		} else if (key == "run_arguments") {
 			run_arguments_ = value;
 		} else if (key == "run_target_mode") {
@@ -168,6 +170,7 @@ void config_manager::save_project(const std::string &target_path)
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
 	file << "shell_display_access=" << (shell_display_access_ ? "true" : "false") << "\n";
 	file << "main_executable=" << main_executable_ << "\n";
+	file << "github_access_token=" << github_access_token_ << "\n";
 	file << "run_arguments=" << run_arguments_ << "\n";
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";

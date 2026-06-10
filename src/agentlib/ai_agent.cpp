@@ -16,6 +16,7 @@
 #include "../project_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
+#include "copilot_manager.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
 
@@ -472,6 +473,11 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
 {
 	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
+	if (model_->get_api_type() == api_type::copilot) {
+		http_transport->set_token_provider([]() {
+			return copilot_manager::get_instance().get_copilot_token();
+		});
+	}
 	client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 
 	summary_thread_ = std::thread(&ai_agent::summary_worker_loop, this);
@@ -1105,6 +1111,11 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		std::lock_guard lock(state_mutex_);
 		model_ = std::move(model);
 		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
+		if (model_->get_api_type() == api_type::copilot) {
+			http_transport->set_token_provider([]() {
+				return copilot_manager::get_instance().get_copilot_token();
+			});
+		}
 		client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
 
@@ -2637,6 +2648,11 @@ void ai_agent::summary_worker_loop()
 
 				auto transport =
 				    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
+				if (default_model->get_api_type() == api_type::copilot) {
+					transport->set_token_provider([]() {
+						return copilot_manager::get_instance().get_copilot_token();
+					});
+				}
 				llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
 
 				bool should_break = false;

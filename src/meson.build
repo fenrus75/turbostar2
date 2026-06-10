@@ -58,6 +58,7 @@ agentlib_sources = files(
   'agentlib/skill_manager.cpp',
   'agentlib/compaction_engine.cpp',
   'agentlib/context_dnn.cpp',
+  'agentlib/copilot_manager.cpp',
   'mcp/mcp_server.cpp',
   'mcp/mcp_manager.cpp'
 )

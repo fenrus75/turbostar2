@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <functional>
 
 namespace httplib {
     class Client;
@@ -21,6 +22,9 @@ public:
     bool post_stream(const std::string& path, const std::string& json_body, 
                      std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) override;
     void cancel() override;
+    void set_token_provider(std::function<std::string()> provider) {
+        token_provider_ = std::move(provider);
+    }
     std::string get_base_url() const override { return base_url_; }
     std::string get_last_error() const override { return last_error_; }
 
@@ -38,6 +42,7 @@ private:
      *   and is called concurrently to interrupt blocking network calls.
      */
     std::mutex mutex_;
+    std::function<std::string()> token_provider_;
 };
 
 std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out);

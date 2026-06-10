@@ -123,6 +123,15 @@ class config_manager
 		main_executable_ = exe;
 	}
 
+	std::string get_github_access_token() const
+	{
+		return github_access_token_;
+	}
+	void set_github_access_token(const std::string &token)
+	{
+		github_access_token_ = token;
+	}
+
 	std::string get_run_arguments() const
 	{
 		return run_arguments_;
@@ -180,6 +189,7 @@ class config_manager
 	bool shell_display_access_{false};
 
 	std::string main_executable_{""};
+	std::string github_access_token_{""};
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
 	bool gdb_auto_continue_{true};

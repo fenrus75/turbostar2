@@ -12,6 +12,7 @@
 #include "../agentlib/ai_model.h"
 #include "../agentlib/llm_client.h"
 #include "../agentlib/httplib_transport.h"
+#include "../agentlib/copilot_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -478,6 +479,11 @@ void mcp_manager::prompt_worker_loop()
 
 			auto transport =
 			    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
+			if (default_model->get_api_type() == api_type::copilot) {
+				transport->set_token_provider([]() {
+					return copilot_manager::get_instance().get_copilot_token();
+				});
+			}
 			llm_client client(transport, default_model->get_id(), default_model->get_api_type());
 
 			if (project_manager::get_instance().is_exiting()) {

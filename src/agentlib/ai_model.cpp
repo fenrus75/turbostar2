@@ -133,6 +133,8 @@ void ai_model_registry::load_models()
 				api_type type = api_type::openai;
 				if (type_str == "gemini") {
 					type = api_type::gemini;
+				} else if (type_str == "copilot") {
+					type = api_type::copilot;
 				}
 				int max_tokens = item.value("max_context_tokens", 250000);
 				std::string cost_type_str = item.value("cost_type", "paid_per_token");
@@ -174,7 +176,10 @@ void ai_model_registry::save_models() const
 		item["api_key"] = model->get_api_key();
 		item["cost_tx"] = model->get_cost_per_1m_tx();
 		item["cost_rx"] = model->get_cost_per_1m_rx();
-		item["api_type"] = (model->get_api_type() == api_type::gemini) ? "gemini" : "openai";
+		std::string api_type_str = "openai";
+		if (model->get_api_type() == api_type::gemini) api_type_str = "gemini";
+		else if (model->get_api_type() == api_type::copilot) api_type_str = "copilot";
+		item["api_type"] = api_type_str;
 		item["max_context_tokens"] = model->get_max_context_tokens();
 
 		std::string cost_type_str = "paid_per_token";
