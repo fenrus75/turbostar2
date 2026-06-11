@@ -144,7 +144,7 @@ int copilot_manager::get_polling_interval() const
 bool copilot_manager::start_device_flow(std::string& user_code, std::string& verification_uri)
 {
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
-	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "Ov23liad8MyaRSwsMRdB";
+	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "Iv23linJKAlzinEjhhOQ";
 
 	event_logger::get_instance().log("Initiating GitHub OAuth Device Flow with client_id: {}", client_id);
 
@@ -200,7 +200,7 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 	}
 
 	const char *env_client_id = std::getenv("GITHUB_CLIENT_ID");
-	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "Ov23liad8MyaRSwsMRdB";
+	std::string client_id = (env_client_id && *env_client_id) ? env_client_id : "Iv23linJKAlzinEjhhOQ";
 
 	std::string post_fields = std::format(
 		"client_id={}&device_code={}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
