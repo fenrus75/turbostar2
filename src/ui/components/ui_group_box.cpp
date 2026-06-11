@@ -43,14 +43,12 @@ void ui_group_box::draw(int abs_x, int abs_y) const
  */
 bool ui_group_box::flow()
 {
-	// First, let any children that need to stretch get their widths updated based on our width
+	// Position children inside the group box borders (offset x = 1)
 	for (const auto &child : children_) {
-		if (child->want_horizontal_stretch()) {
-			int target_width = width_ - 2;
-			if (child->width() != target_width || child->x() != 2) {
-				child->set_width(target_width);
-				child->set_position(2, child->y());
-			}
+		int target_width = child->want_horizontal_stretch() ? (width_ - 2) : child->width();
+		if (child->x() != 1 || child->width() != target_width) {
+			child->set_width(target_width);
+			child->set_position(1, child->y());
 		}
 	}
 

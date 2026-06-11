@@ -16,7 +16,7 @@ class ui_checkbox_group : public ui_container
 	bool flow() override;
 	bool want_horizontal_stretch() const override
 	{
-		return want_stretch_;
+		return false;
 	}
 	int natural_width() const override;
 

@@ -22,11 +22,11 @@ bool ui_checkbox_group::flow()
 		child->flow();
 	}
 
-	int target_width = width() > 4 ? width() - 4 : 0;
+	int target_width = width();
 
 	int running_y = 1;
 	for (const auto &child : children_) {
-		int target_x = 2;
+		int target_x = 0;
 		int target_y = running_y;
 		if (child->x() != target_x || child->y() != target_y || (target_width > 0 && child->width() != target_width)) {
 			if (target_width > 0) {
@@ -52,5 +52,5 @@ int ui_checkbox_group::natural_width() const
 	for (const auto &child : children_) {
 		max_child = std::max(max_child, child->natural_width());
 	}
-	return max_child + 2; // account for x = 2 alignment
+	return max_child;
 }
