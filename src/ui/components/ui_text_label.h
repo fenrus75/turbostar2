@@ -17,6 +17,11 @@ class ui_text_label : public ui_element
 		text_ = text;
 		set_width(text_.length());
 	}
+	bool want_horizontal_stretch() const override
+	{
+		return centered_;
+	}
+	int natural_width() const override;
 
       private:
 	std::string text_;

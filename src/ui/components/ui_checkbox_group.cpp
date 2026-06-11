@@ -22,11 +22,16 @@ bool ui_checkbox_group::flow()
 		child->flow();
 	}
 
+	int target_width = width() > 4 ? width() - 4 : 0;
+
 	int running_y = 1;
 	for (const auto &child : children_) {
 		int target_x = 2;
 		int target_y = running_y;
-		if (child->x() != target_x || child->y() != target_y) {
+		if (child->x() != target_x || child->y() != target_y || (target_width > 0 && child->width() != target_width)) {
+			if (target_width > 0) {
+				child->set_width(target_width);
+			}
 			child->set_position(target_x, target_y);
 		}
 		running_y += child->height();

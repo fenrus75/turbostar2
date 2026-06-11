@@ -15,6 +15,7 @@ class ui_radio_choice : public ui_element
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+	int natural_width() const override;
 
 	void set_selected(bool s)
 	{

@@ -21,3 +21,8 @@ void ui_text_label::draw(int abs_x, int abs_y) const
 	mvaddstr(abs_y, draw_x, text_.c_str());
 	attroff(COLOR_PAIR(1));
 }
+
+int ui_text_label::natural_width() const
+{
+	return static_cast<int>(text_.length());
+}

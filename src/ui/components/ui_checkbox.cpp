@@ -29,7 +29,18 @@ void ui_checkbox::draw(int abs_x, int abs_y) const
 	addch(']');
 
 	addch(' ');
-	addstr(text_.c_str());
+
+	// Draw text and pad to width_
+	std::string draw_text = text_;
+	int remaining = width_ - 4; // 3 for '[ ]' + 1 for space
+	if (remaining > 0) {
+		if (static_cast<int>(draw_text.length()) < remaining) {
+			draw_text += std::string(remaining - draw_text.length(), ' ');
+		} else if (static_cast<int>(draw_text.length()) > remaining) {
+			draw_text = draw_text.substr(0, remaining);
+		}
+	}
+	addstr(draw_text.c_str());
 
 	if (hotkey_ != '\0') {
 		size_t hk_pos = text_.find(hotkey_);
@@ -38,7 +49,7 @@ void ui_checkbox::draw(int abs_x, int abs_y) const
 		if (hk_pos == std::string::npos)
 			hk_pos = text_.find(toupper(hotkey_));
 
-		if (hk_pos != std::string::npos) {
+		if (hk_pos != std::string::npos && hk_pos < static_cast<size_t>(remaining)) {
 			attron(COLOR_PAIR(18));
 			mvaddch(abs_y, abs_x + 4 + hk_pos, text_[hk_pos]);
 		}
@@ -101,4 +112,9 @@ std::optional<std::string> ui_checkbox::get_value(const std::string &target_name
 	if (name_ == target_name)
 		return checked_ ? "true" : "false";
 	return std::nullopt;
+}
+
+int ui_checkbox::natural_width() const
+{
+	return static_cast<int>(text_.length()) + 4; // 3 for '[ ]' + 1 for space
 }

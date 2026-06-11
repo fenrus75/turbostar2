@@ -1,11 +1,11 @@
 #pragma once
-#include "ui/ui_element.h"
-#include <functional>
-#include <string>
-#include <optional>
-#include <vector>
-#include <filesystem>
 #include <chrono>
+#include <filesystem>
+#include <functional>
+#include <optional>
+#include <string>
+#include <vector>
+#include "ui/ui_element.h"
 
 class ui_checkbox : public ui_element
 {
@@ -15,6 +15,7 @@ class ui_checkbox : public ui_element
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+	int natural_width() const override;
 
       private:
 	std::string text_;
