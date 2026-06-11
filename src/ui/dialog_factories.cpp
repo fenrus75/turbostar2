@@ -1025,8 +1025,11 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
 	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
 	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
-	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', !is_gemini));
+	bool is_copilot = model && model->get_api_type() == agentlib::api_type::copilot;
+	bool is_openai = !is_gemini && !is_copilot;
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', is_openai));
 	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("copilot", " Copilot ", 'C', is_copilot));
 	type_row->add_child(std::move(type_radio));
 	flow->add_child(std::move(type_row));
 
@@ -1093,8 +1096,12 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	}
 
 	agentlib::api_type type = agentlib::api_type::openai;
-	if (api_type_opt && *api_type_opt == "gemini") {
-		type = agentlib::api_type::gemini;
+	if (api_type_opt) {
+		if (*api_type_opt == "gemini") {
+			type = agentlib::api_type::gemini;
+		} else if (*api_type_opt == "copilot") {
+			type = agentlib::api_type::copilot;
+		}
 	}
 
 	agentlib::model_cost_type cost_type = agentlib::model_cost_type::paid_per_token;
@@ -1122,18 +1129,24 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 {
 	auto dlg = std::make_unique<dialog>("Run Settings", 60, 15);
 
+	auto flow = std::make_unique<ui_vertical_flow>("run_settings_flow", 2, 1);
+
 	// Main Executable Input
-	dlg->add_child(std::make_unique<ui_text_label>(4, 2, "Main Executable:"));
+	auto exe_row = std::make_unique<ui_horizontal_flow>("exe_row", 0, 0);
+	exe_row->add_child(std::make_unique<ui_text_label>("Main Executable:"));
 	auto candidates = project_manager::get_instance().detect_executable_candidates();
-	dlg->add_child(
-	    std::make_unique<ui_dropdown>("main_executable", 21, 2, 35, config_manager::get_instance().get_main_executable(), candidates));
+	exe_row->add_child(
+	    std::make_unique<ui_dropdown>("main_executable", 0, 0, 35, config_manager::get_instance().get_main_executable(), candidates));
+	flow->add_child(std::move(exe_row));
 
 	// Arguments Input
-	dlg->add_child(std::make_unique<ui_text_label>(4, 4, "Arguments:"));
-	dlg->add_child(std::make_unique<ui_textbox>("run_arguments", 21, 4, 35, config_manager::get_instance().get_run_arguments()));
+	auto args_row = std::make_unique<ui_horizontal_flow>("args_row", 0, 0);
+	args_row->add_child(std::make_unique<ui_text_label>("Arguments:      "));
+	args_row->add_child(std::make_unique<ui_textbox>("run_arguments", 35, config_manager::get_instance().get_run_arguments()));
+	flow->add_child(std::move(args_row));
 
 	// Run Target Mode group
-	auto mode_group = std::make_unique<ui_group_box>("mode_group", 4, 6, 52, 5, " Run Target Mode ");
+	auto mode_group = std::make_unique<ui_group_box>("mode_group", 52, " Run Target Mode ");
 	auto mode_radio = std::make_unique<ui_radiobutton_group>("run_target_mode");
 
 	struct mode_opt_t {
@@ -1155,16 +1168,17 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 		    std::make_unique<ui_radio_choice>(mode_options[i].value, mode_options[i].label, mode_options[i].hotkey, selected));
 	}
 	mode_group->add_child(std::move(mode_radio));
-	dlg->add_child(std::move(mode_group));
+	flow->add_child(std::move(mode_group));
 
 	// Auto-start debugger checkbox
 	bool auto_start = config_manager::get_instance().get_gdb_auto_continue();
-	auto auto_start_group = std::make_unique<ui_checkbox_group>("auto_start_group", 2, 11, 52, 1);
+	auto auto_start_group = std::make_unique<ui_checkbox_group>("auto_start_group");
 	auto_start_group->add_child(
 	    std::make_unique<ui_checkbox>("gdb_auto_continue", "Auto-start the application on debugger startup", 'a', auto_start));
-	dlg->add_child(std::move(auto_start_group));
+	flow->add_child(std::move(auto_start_group));
 
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 13, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save)", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -1176,9 +1190,14 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 		    d->set_result("cancel");
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((60 - btns->width()) / 2, 13);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("main_executable");
 	return dlg;

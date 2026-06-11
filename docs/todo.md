@@ -118,6 +118,8 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- modernized the `Run Settings` dialog to use coordinate-free layout flows.
+- added `"copilot"` API Format choice to the model edit dialog box and verified it under the unit test suite.
 - fixed coordinate double-addition in `ui_listbox` and `ui_multiline_edit` components which was causing listbox borders to clobber dialog borders and removing the vertical spacing between the listbox and action buttons in flow layouts.
 - aligned checkboxes and radio buttons to use left alignment (only right-side padding) instead of full horizontal stretch across the dialog. Adjusted `ui_checkbox_group` and `ui_radiobutton_group` to return `false` for `want_horizontal_stretch()`, set their choices layout offset to `target_x = 0`, and updated `ui_group_box::flow()` to position all children at `x = 1` inside its borders to achieve a clean 1-space indentation.
 - fixed an infinite layout loop hang when displaying the Preferences dialog. Added static, text-based `natural_width()` overrides for the leaf elements `ui_checkbox` and `ui_radio_choice`, and updated `ui_text_label`'s `want_horizontal_stretch()` and `natural_width()` behavior. This prevents dynamic layout widths from feeding back into the flow's width calculation.

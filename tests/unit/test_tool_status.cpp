@@ -50,6 +50,19 @@ int main()
 	// We expect at least one header label, plus status labels, plus either install message or success message
 	assert(label_count >= 6);
 
+	// Test create_model_edit_dialog with copilot format
+	{
+		std::cout << "Testing create_model_edit_dialog with copilot..." << std::endl;
+		auto model = std::make_shared<agentlib::ai_model>("copilot-model", "Copilot model", "https://api.githubcopilot.com", "purpose", 0.0, 0.0, "", agentlib::api_type::copilot);
+		auto edit_dlg = create_model_edit_dialog(model);
+		assert(edit_dlg != nullptr);
+
+		auto api_type_val = edit_dlg->get_value("api_type");
+		assert(api_type_val.has_value());
+		assert(*api_type_val == "copilot");
+		std::cout << "Model edit dialog copilot test passed!" << std::endl;
+	}
+
 	std::cout << "Tool status dialog unit test passed successfully!" << std::endl;
 	return 0;
 }
