@@ -45,14 +45,14 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 
 	auto dlg = std::make_unique<dialog>("Unsaved Changes", desired_width, 8);
 
-	auto flow = std::make_unique<ui_vertical_flow>("save_prompt_flow", 0, 0, 2, 2);
+	auto flow = std::make_unique<ui_vertical_flow>("save_prompt_flow", 2, 2);
 
 	std::string msg = std::format("Save changes to {}?", display_name);
 	auto label = std::make_unique<ui_text_label>(msg, true);
 	label->set_width(desired_width - 4);
 	flow->add_child(std::move(label));
 
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 'S', [d = dlg.get()]() {
 		d->set_result("save");
@@ -76,6 +76,7 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 	dlg->add_child(std::move(flow));
 
 	dlg->flow();
+	dlg->set_width(flow_ptr->width());
 	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_save");
