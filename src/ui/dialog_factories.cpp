@@ -91,24 +91,31 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 			width = static_cast<int>(line.length()) + 6;
 		}
 	}
-	int height = lines.size() + 6;
-	auto dlg = std::make_unique<dialog>(title, width, height);
+	auto dlg = std::make_unique<dialog>(title, width, 10);
 
-	for (size_t i = 0; i < lines.size(); ++i) {
-		int text_x = (width - static_cast<int>(lines[i].length())) / 2;
-		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
+	auto flow = std::make_unique<ui_vertical_flow>("message_flow", 0, 0, 3, 2);
+
+	for (const auto &line : lines) {
+		auto label = std::make_unique<ui_text_label>(line, true);
+		label->set_width(width - 6);
+		flow->add_child(std::move(label));
 	}
 
 	std::string ok_text = "OK";
-	int btn_y = height - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	btns->flow();
-	btns->set_position((width - btns->width()) / 2, btn_y);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(std::max(width, flow_ptr->width()));
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_ok");
 	return dlg;
@@ -1238,50 +1245,54 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		cmd_lines.push_back(current_line);
 	}
 
-	int width = 56;
-	int height =
-	    4 + static_cast<int>(tools.size()) + 1 + (missing_packages.empty() ? 2 : (3 + static_cast<int>(cmd_lines.size()))) + 1 + 2;
+	auto dlg = std::make_unique<dialog>("Tool Status", 56, 20);
 
-	auto dlg = std::make_unique<dialog>("Tool Status", width, height);
+	auto flow = std::make_unique<ui_vertical_flow>("tool_status_flow", 0, 0, 2, 2);
 
 	// Title label
-	dlg->add_child(std::make_unique<ui_text_label>(4, 2, "Diagnostic Tool Status:"));
+	flow->add_child(std::make_unique<ui_text_label>("Diagnostic Tool Status:"));
 
-	int current_y = 4;
+	// Subflow for tool items with 0 vertical spacing to maintain dense display list format
+	auto status_flow = std::make_unique<ui_vertical_flow>("status_flow", 0, 0, 0, 0, 0);
 	for (const auto &t : tools) {
 		std::string status_str = t.installed ? "☑ Installed" : "☐ Missing";
 		std::string name_col = t.name + ":";
 		if (name_col.length() < 15) {
 			name_col.append(15 - name_col.length(), ' ');
 		}
-		dlg->add_child(std::make_unique<ui_text_label>(6, current_y, name_col + status_str));
-		current_y++;
+		status_flow->add_child(std::make_unique<ui_text_label>("  " + name_col + status_str));
 	}
-
-	current_y++; // blank line
+	flow->add_child(std::move(status_flow));
 
 	if (!missing_packages.empty()) {
-		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "Some dependencies are missing."));
-		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "To install them, run:"));
+		// Subflow for missing packages warnings and commands with 0 vertical spacing
+		auto dep_flow = std::make_unique<ui_vertical_flow>("dep_flow", 0, 0, 0, 0, 0);
+		dep_flow->add_child(std::make_unique<ui_text_label>("Some dependencies are missing."));
+		dep_flow->add_child(std::make_unique<ui_text_label>("To install them, run:"));
 
 		for (const auto &line : cmd_lines) {
-			dlg->add_child(std::make_unique<ui_text_label>(6, current_y++, line));
+			dep_flow->add_child(std::make_unique<ui_text_label>("  " + line));
 		}
-		current_y++;
+		flow->add_child(std::move(dep_flow));
 	} else {
-		dlg->add_child(std::make_unique<ui_text_label>(4, current_y++, "All dependencies are installed!"));
-		current_y++;
+		flow->add_child(std::make_unique<ui_text_label>("All dependencies are installed!"));
 	}
 
 	std::string ok_text = "OK";
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, current_y, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	btns->flow();
-	btns->set_position((width - btns->width()) / 2, current_y);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_ok");
 	return dlg;
@@ -1307,12 +1318,15 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 
 	auto dlg = std::make_unique<dialog>("File Changed", desired_width, 8);
 
-	std::string msg = "File " + display_name + " has changed on disk. Reload?";
-	int text_x = (desired_width - static_cast<int>(msg.length())) / 2;
-	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+	auto flow = std::make_unique<ui_vertical_flow>("reload_flow", 0, 0, 2, 2);
 
-	int by = 8 - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	std::string msg = "File " + display_name + " has changed on disk. Reload?";
+	auto label = std::make_unique<ui_text_label>(msg, true);
+	label->set_width(desired_width - 4);
+	flow->add_child(std::move(label));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_yes", "Yes", 'Y', [d = dlg.get()]() {
 		d->set_result("yes");
 		d->set_action(dialog_result::confirmed);
@@ -1328,9 +1342,14 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 		d->set_result("never");
 		d->set_action(dialog_result::confirmed);
 	}));
-	btns->flow();
-	btns->set_position((desired_width - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(std::max(desired_width, flow_ptr->width()));
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_yes");
 
@@ -1356,7 +1375,12 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 		}
 	}
 
-	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 2, 2, 60, 12, nullptr, nullptr);
+	// Dynamic layout flow using vertical stacking
+	auto flow = std::make_unique<ui_vertical_flow>("mcp_config_flow", 0, 0, 2, 1);
+
+	// The listbox width adapts responsively to terminal size, ensuring descriptions fit well
+	int lb_width = std::max(60, std::min(100, COLS - 8));
+	auto lb = std::make_unique<ui_listbox>("mcp_server_list", lb_width, 12, nullptr, nullptr);
 	lb->set_items(item_labels);
 	lb->set_selected_index(initial_selection);
 	auto lb_ptr = lb.get();
@@ -1373,10 +1397,11 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 		}
 	});
 
-	dlg->add_child(std::move(lb));
+	flow->add_child(std::move(lb));
 
-	int by = 17;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	// Centered horizontal buttons action row
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_toggle", "Toggle", 't', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
@@ -1403,9 +1428,15 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
-	btns->flow();
-	btns->set_position((64 - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	// Recalculate layout dimensions based on flowed children
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("mcp_server_list");
 	return dlg;
@@ -1416,11 +1447,17 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 	auto dlg = std::make_unique<dialog>(std::format("Tools - {}", server_name), 64, 20);
 	auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
 	if (!server) {
-		dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Error: Server not found."));
-		dlg->add_child(std::make_unique<ui_button>("btn_close", 26, 17, " Close ", 'c', [d = dlg.get()]() {
+		auto flow = std::make_unique<ui_vertical_flow>("error_flow", 0, 0, 2, 1);
+		flow->add_child(std::make_unique<ui_text_label>("Error: Server not found."));
+		flow->add_child(std::make_unique<ui_button>("btn_close", " Close ", 'c', [d = dlg.get()]() {
 			d->set_action(dialog_result::cancelled);
 			d->set_result("cancel");
 		}));
+		auto flow_ptr = flow.get();
+		dlg->add_child(std::move(flow));
+		dlg->flow();
+		dlg->set_width(flow_ptr->width());
+		dlg->set_height(flow_ptr->height());
 		return dlg;
 	}
 
@@ -1431,7 +1468,12 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 		item_labels.push_back(std::format("{} {} - {}", state_box, tool.name, tool.description));
 	}
 
-	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", 2, 2, 60, 12, nullptr, nullptr);
+	// Dynamic layout flow using vertical stacking
+	auto flow = std::make_unique<ui_vertical_flow>("mcp_tools_flow", 0, 0, 2, 1);
+
+	// The listbox width adapts responsively to terminal size, ensuring descriptions fit well
+	int lb_width = std::max(60, std::min(100, COLS - 8));
+	auto lb = std::make_unique<ui_listbox>("mcp_tool_list", lb_width, 12, nullptr, nullptr);
 	lb->set_items(item_labels);
 	lb->set_selected_index(initial_selection);
 	auto lb_ptr = lb.get();
@@ -1450,10 +1492,11 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 		}
 	});
 
-	dlg->add_child(std::move(lb));
+	flow->add_child(std::move(lb));
 
-	int by = 17;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	// Centered horizontal buttons action row
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_toggle", "Toggle", 't', [d = dlg.get(), lb_ptr, server_name]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
@@ -1471,9 +1514,15 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 		d->set_action(dialog_result::confirmed);
 		d->set_result("back");
 	}));
-	btns->flow();
-	btns->set_position((64 - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	// Recalculate layout dimensions based on flowed children
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("mcp_tool_list");
 	return dlg;

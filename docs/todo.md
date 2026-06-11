@@ -118,6 +118,9 @@
 - fixed an infinite layout loop hang when displaying the Preferences dialog. Added static, text-based `natural_width()` overrides for the leaf elements `ui_checkbox` and `ui_radio_choice`, and updated `ui_text_label`'s `want_horizontal_stretch()` and `natural_width()` behavior. This prevents dynamic layout widths from feeding back into the flow's width calculation.
 - implemented startup time measurement of each MCP server during handshake/tool discovery, reporting the measured duration (in milliseconds) inside the MCP Servers configuration dialog for running servers.
 - optimized the Preferences dialog layout by positioning textboxes on a single row and splitting checkboxes into two side-by-side columns. This reduced the dialog height from 26 to 21 rows, preventing off-screen positioning on 24-row terminals and resolving E2E test failures.
+- modernized the MCP Servers and MCP Tools dialogs to use coordinate-free vertical flows, dynamically resizing the listboxes responsively based on terminal columns (`COLS - 8`, clamped between 60 and 100) to prevent text clipping.
+- implemented configurable vertical spacer support in `ui_vertical_flow` (defaulting to 1).
+- modernized the alert message, file changed reload, and dependency tool status dialogs to use coordinate-free flows, nesting 0-spacer sub-flows in the Tool Status dialog to maintain dense text layouts.
 
 ## 09-06-2026
 - implemented GitHub Copilot OAuth Device Flow authentication and token management infrastructure. Created `copilot_connect` dialog flow allowing user to authenticate via device codes, configuring credentials using `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment variables.

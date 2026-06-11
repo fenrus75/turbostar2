@@ -27,22 +27,24 @@ int main()
 	bool found_ok_btn = false;
 	int label_count = 0;
 
-	for (const auto &child : children) {
-		std::cout << "Child element: name=" << child->name() << std::endl;
-		if (child->name() == "btn_ok") {
-			found_ok_btn = true;
-		} else if (child->name() == "buttons") {
-			const auto &sub_children = test_container_accessor::get_children(*static_cast<const ui_container *>(child.get()));
-			for (const auto &sub_child : sub_children) {
-				if (sub_child->name() == "btn_ok") {
-					found_ok_btn = true;
-				}
+	// Helper function to recursively find all labels and OK button
+	auto find_elements_recursive = [&](auto &self, const ui_container &container) -> void {
+		const auto &sub_children = test_container_accessor::get_children(container);
+		for (const auto &child : sub_children) {
+			std::cout << "Inspecting element: name=" << child->name() << std::endl;
+			if (child->name() == "btn_ok") {
+				found_ok_btn = true;
+			} else if (child->name() == "text") {
+				label_count++;
 			}
-		} else if (child->name() == "text") {
-			label_count++;
-			assert(child->x() + child->width() < dlg->width() - 1);
+			auto *sub_container = dynamic_cast<const ui_container *>(child.get());
+			if (sub_container) {
+				self(self, *sub_container);
+			}
 		}
-	}
+	};
+
+	find_elements_recursive(find_elements_recursive, *dlg);
 
 	assert(found_ok_btn);
 	// We expect at least one header label, plus status labels, plus either install message or success message

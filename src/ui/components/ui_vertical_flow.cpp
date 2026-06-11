@@ -1,13 +1,13 @@
 #include "ui/components/ui_vertical_flow.h"
 #include <algorithm>
 
-ui_vertical_flow::ui_vertical_flow(std::string name, int x, int y, int x_offset, int y_offset)
-    : ui_container(std::move(name), x, y, 0, 0), x_offset_(x_offset), y_offset_(y_offset)
+ui_vertical_flow::ui_vertical_flow(std::string name, int x, int y, int x_offset, int y_offset, int spacer)
+    : ui_container(std::move(name), x, y, 0, 0), x_offset_(x_offset), y_offset_(y_offset), spacer_(spacer)
 {
 }
 
-ui_vertical_flow::ui_vertical_flow(std::string name, int x_offset, int y_offset)
-    : ui_container(std::move(name), 0, 0, 0, 0), x_offset_(x_offset), y_offset_(y_offset)
+ui_vertical_flow::ui_vertical_flow(std::string name, int x_offset, int y_offset, int spacer)
+    : ui_container(std::move(name), 0, 0, 0, 0), x_offset_(x_offset), y_offset_(y_offset), spacer_(spacer)
 {
 }
 
@@ -38,10 +38,10 @@ bool ui_vertical_flow::flow()
 			child->set_position(target_x, target_y);
 		}
 
-		running_y += child->height() + 1;
+		running_y += child->height() + spacer_;
 	}
 
-	int total_height = children_.empty() ? 0 : (running_y - 1 + y_offset_);
+	int total_height = children_.empty() ? 0 : (running_y - spacer_ + y_offset_);
 
 	bool dimensions_changed = (this->width() != total_width || this->height() != total_height);
 	if (dimensions_changed) {
