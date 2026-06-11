@@ -200,7 +200,7 @@ class force_quit_dialog_impl : public dialog
 	{
 		start_time_ = std::chrono::steady_clock::now();
 
-		auto flow = std::make_unique<ui_vertical_flow>("force_quit_flow", 0, 0, 2, 2);
+		auto flow = std::make_unique<ui_vertical_flow>("force_quit_flow", 2, 2);
 
 		std::string msg = "Unsaved changes! Quit anyway?";
 		auto msg_label = std::make_unique<ui_text_label>(msg, true);
@@ -212,7 +212,7 @@ class force_quit_dialog_impl : public dialog
 		countdown_label_ = count_label.get();
 		flow->add_child(std::move(count_label));
 
-		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+		auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 		btns->set_centered(true);
 		btns->add_child(std::make_unique<ui_button>("btn_exit", "Exit", 'E', [this]() {
 			set_action(dialog_result::confirmed);
@@ -236,6 +236,7 @@ class force_quit_dialog_impl : public dialog
 		add_child(std::move(flow));
 
 		this->flow();
+		set_width(flow_ptr->width());
 		set_height(flow_ptr->height());
 
 		set_focus_by_name("btn_save_all");
