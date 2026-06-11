@@ -114,6 +114,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- fixed an infinite layout loop hang when displaying the Preferences dialog. Added static, text-based `natural_width()` overrides for the leaf elements `ui_checkbox` and `ui_radio_choice`, and updated `ui_text_label`'s `want_horizontal_stretch()` and `natural_width()` behavior. This prevents dynamic layout widths from feeding back into the flow's width calculation.
 - implemented startup time measurement of each MCP server during handshake/tool discovery, reporting the measured duration (in milliseconds) inside the MCP Servers configuration dialog for running servers.
 
 ## 09-06-2026
