@@ -13,6 +13,7 @@
 #include "mcp/mcp_manager.h"
 #include "project_manager.h"
 #include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_dropdown.h"
@@ -480,13 +481,15 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	// Options Group
 	int opt_h = is_replace ? 5 : 4;
 	auto opt_group = std::make_unique<ui_group_box>("opt_group", 0, 0, 30, opt_h, "Options");
-	opt_group->add_child(std::make_unique<ui_checkbox>("ignore_case", 2, 1, "Case sensitive", 'c', !initial_params.ignore_case));
-	opt_group->add_child(std::make_unique<ui_checkbox>("whole_words", 2, 2, "Whole words only", 'w', initial_params.whole_words));
-	opt_group->add_child(std::make_unique<ui_checkbox>("regex", 2, 3, "Regular expression", 'r', initial_params.regex));
+	auto opt_checkboxes = std::make_unique<ui_checkbox_group>("opt_checkboxes", 0, 0, 30, opt_h);
+	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("ignore_case", "Case sensitive", 'c', !initial_params.ignore_case));
+	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("whole_words", "Whole words only", 'w', initial_params.whole_words));
+	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("regex", "Regular expression", 'r', initial_params.regex));
 	if (is_replace) {
-		opt_group->add_child(
-		    std::make_unique<ui_checkbox>("prompt_on_replace", 2, 4, "Prompt on replace", 'p', initial_params.prompt_on_replace));
+		opt_checkboxes->add_child(
+		    std::make_unique<ui_checkbox>("prompt_on_replace", "Prompt on replace", 'p', initial_params.prompt_on_replace));
 	}
+	opt_group->add_child(std::move(opt_checkboxes));
 
 	// Direction Group
 	auto dir_group = std::make_unique<ui_group_box>("dir_group", 0, 0, 28, 3, "Direction");
@@ -606,18 +609,20 @@ std::unique_ptr<dialog> create_settings_dialog()
 	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 4, 14, 52, config_manager::get_instance().get_default_model_id(), nullptr, "Model ID:"));
 
 	// Toggles
-	dlg->add_child(std::make_unique<ui_checkbox>("lsp_enabled", 4, 16, "Enable LSP (clangd)", 'E',
+	auto toggles_group = std::make_unique<ui_checkbox_group>("toggles", 2, 16, 52, 6);
+	toggles_group->add_child(std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E',
 						     config_manager::get_instance().is_lsp_enabled()));
-	dlg->add_child(std::make_unique<ui_checkbox>("auto_open_error", 4, 17, "Auto-open files for build errors", 'u',
+	toggles_group->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open files for build errors", 'u',
 						     config_manager::get_instance().is_auto_open_error_files()));
-	dlg->add_child(std::make_unique<ui_checkbox>("compile_on_save", 4, 18, "Compile f[i]le on save", 'i',
+	toggles_group->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile f[i]le on save", 'i',
 						     config_manager::get_instance().is_compile_on_save()));
-	dlg->add_child(std::make_unique<ui_checkbox>("log_all_tools", 4, 19, "Log all agent tool calls (debug)", 'g',
+	toggles_group->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log all agent tool calls (debug)", 'g',
 						     config_manager::get_instance().is_log_all_tool_calls()));
-	dlg->add_child(std::make_unique<ui_checkbox>("software_map", 4, 20, "Auto Software Map (Background LSP)", 'M',
+	toggles_group->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map (Background LSP)", 'M',
 						     config_manager::get_instance().is_software_map_enabled()));
-	dlg->add_child(std::make_unique<ui_checkbox>("shell_display_access", 4, 21, "Give shell tool [d]isplay access", 'd',
+	toggles_group->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Give shell tool [d]isplay access", 'd',
 						     config_manager::get_instance().is_shell_display_access()));
+	dlg->add_child(std::move(toggles_group));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 23, 0, 0);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
@@ -1070,8 +1075,10 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 
 	// Auto-start debugger checkbox
 	bool auto_start = config_manager::get_instance().get_gdb_auto_continue();
-	dlg->add_child(
-	    std::make_unique<ui_checkbox>("gdb_auto_continue", 4, 11, "Auto-start the application on debugger startup", 'a', auto_start));
+	auto auto_start_group = std::make_unique<ui_checkbox_group>("auto_start_group", 2, 11, 52, 1);
+	auto_start_group->add_child(
+	    std::make_unique<ui_checkbox>("gdb_auto_continue", "Auto-start the application on debugger startup", 'a', auto_start));
+	dlg->add_child(std::move(auto_start_group));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 13, 0, 0);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save)", 'O', [d = dlg.get()]() {

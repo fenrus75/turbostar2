@@ -202,6 +202,7 @@ class ui_element
 | ui_horizontal_flow    | src/ui/components/ui_horizontal_flow.h                     |
 | ui_vertical_flow      | src/ui/components/ui_vertical_flow.h                       |
 | ui_radiobutton_group  | src/ui/components/ui_radio.h                                |
+| ui_checkbox_group     | src/ui/components/ui_checkbox_group.h                       |
 
 */
 class ui_container : public ui_element
@@ -251,6 +252,7 @@ namespace ui_utils {
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_group_box.h"
 #include "ui/components/ui_radio.h"

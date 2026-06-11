@@ -7,8 +7,8 @@
 
 // --- ui_checkbox ---
 
-ui_checkbox::ui_checkbox(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state)
-    : ui_element(std::move(name), x, y, text.length() + 4, 1), text_(text), hotkey_(hotkey), checked_(initial_state)
+ui_checkbox::ui_checkbox(std::string name, const std::string &text, char hotkey, bool initial_state)
+    : ui_element(std::move(name), 0, 0, text.length() + 4, 1), text_(text), hotkey_(hotkey), checked_(initial_state)
 {
 }
 

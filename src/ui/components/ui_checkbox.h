@@ -10,7 +10,7 @@
 class ui_checkbox : public ui_element
 {
       public:
-	ui_checkbox(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state = false);
+	ui_checkbox(std::string name, const std::string &text, char hotkey, bool initial_state = false);
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
