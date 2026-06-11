@@ -370,7 +370,7 @@ std::string copilot_manager::format_github_models_json(const std::string& catalo
 			json model_entry;
 			model_entry["id"] = id;
 			model_entry["name"] = name;
-			model_entry["url"] = "https://models.inference.ai.azure.com";
+			model_entry["url"] = "https://api.githubcopilot.com";
 			model_entry["purpose"] = purpose;
 			model_entry["cost_tx"] = 0.0;
 			model_entry["cost_rx"] = 0.0;

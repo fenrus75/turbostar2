@@ -52,7 +52,7 @@ int main()
 	auto model1 = formatted[0];
 	assert(model1["id"] == "gpt-4o");
 	assert(model1["name"] == "GPT-4o Model");
-	assert(model1["url"] == "https://models.inference.ai.azure.com");
+	assert(model1["url"] == "https://api.githubcopilot.com");
 	assert(model1["purpose"] == "Publisher: OpenAI. State-of-the-art multimodal model.");
 	assert(model1["cost_tx"] == 0.0);
 	assert(model1["cost_rx"] == 0.0);
@@ -65,7 +65,7 @@ int main()
 	auto model2 = formatted[1];
 	assert(model2["id"] == "claude-3-5-sonnet");
 	assert(model2["name"] == "Claude 3.5 Sonnet");
-	assert(model2["url"] == "https://models.inference.ai.azure.com");
+	assert(model2["url"] == "https://api.githubcopilot.com");
 	assert(model2["purpose"] == "Publisher: Anthropic. High performance text model.");
 	assert(model2["max_context_tokens"] == 200000);
 

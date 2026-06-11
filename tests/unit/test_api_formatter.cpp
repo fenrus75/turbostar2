@@ -44,6 +44,16 @@ int main()
 	assert(combined_text.find("First system instruction.") != std::string::npos);
 	assert(combined_text.find("Second system instruction.") != std::string::npos);
 
+	// Test OpenAI formatter endpoint path
+	auto open_fmt = api_formatter::create(api_type::openai);
+	assert(open_fmt != nullptr);
+	assert(open_fmt->get_endpoint_path("gpt-4", false) == "/v1/chat/completions");
+
+	// Test Copilot formatter endpoint path
+	auto cop_fmt = api_formatter::create(api_type::copilot);
+	assert(cop_fmt != nullptr);
+	assert(cop_fmt->get_endpoint_path("gpt-4", false) == "/chat/completions");
+
 	std::cout << "test_api_formatter passed successfully!" << std::endl;
 	return 0;
 }

@@ -11,6 +11,9 @@ std::unique_ptr<api_formatter> api_formatter::create(api_type type)
 	if (type == api_type::gemini) {
 		return std::make_unique<gemini_formatter>();
 	}
+	if (type == api_type::copilot) {
+		return std::make_unique<copilot_formatter>();
+	}
 	return std::make_unique<openai_formatter>();
 }
 
@@ -362,6 +365,11 @@ llm_chat_response gemini_formatter::parse_sync_response(const std::string &json_
 		chat_response.msg.content = "Error parsing response JSON: " + std::string(e.what());
 	}
 	return chat_response;
+}
+
+std::string copilot_formatter::get_endpoint_path(const std::string & /*model_id*/, bool /*stream*/) const
+{
+	return "/chat/completions";
 }
 
 } // namespace agentlib

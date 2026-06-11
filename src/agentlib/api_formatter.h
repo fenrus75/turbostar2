@@ -9,6 +9,17 @@
 namespace agentlib
 {
 
+/*
+
+# subclasses of api_formatter
+
+| subclass          | filename                            |
+| ----------------- | ----------------------------------- |
+| openai_formatter  | src/agentlib/api_formatter.h        |
+| gemini_formatter  | src/agentlib/api_formatter.h        |
+| copilot_formatter | src/agentlib/api_formatter.h        |
+
+*/
 class api_formatter
 {
       public:
@@ -45,6 +56,12 @@ class gemini_formatter : public api_formatter
 				       bool stream, const std::vector<std::string> &active_families = {}) const override;
 	chat_delta parse_stream_chunk(const std::string &json_chunk) const override;
 	llm_chat_response parse_sync_response(const std::string &json_body) const override;
+};
+
+class copilot_formatter : public openai_formatter
+{
+      public:
+	std::string get_endpoint_path(const std::string &model_id, bool stream) const override;
 };
 
 } // namespace agentlib
