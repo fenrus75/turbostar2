@@ -38,18 +38,18 @@ void ui_group_box::draw(int abs_x, int abs_y) const
  */
 bool ui_group_box::flow()
 {
-	bool children_changed = ui_container::flow();
+	ui_container::flow();
 
 	int max_height = 0;
 	for (const auto &child : children_) {
 		max_height = std::max(max_height, child->y() + child->height());
 	}
 
-	bool layout_changed = false;
+	bool dimensions_changed = false;
 	if (height_ != max_height && max_height > 0) {
 		height_ = max_height;
-		layout_changed = true;
+		dimensions_changed = true;
 	}
 
-	return children_changed || layout_changed;
+	return dimensions_changed;
 }

@@ -9,42 +9,42 @@ ui_vertical_flow::ui_vertical_flow(std::string name, int x, int y, int x_offset,
 bool ui_vertical_flow::flow()
 {
 	// Call flow on all children first, collect if any child's flow changed
-	bool children_changed = false;
 	for (const auto &child : children_) {
-		if (child->flow()) {
-			children_changed = true;
+		child->flow();
+	}
+
+	// Find the maximum width of all children that do not want horizontal stretch
+	int max_child_width = 0;
+	for (const auto &child : children_) {
+		if (!child->want_horizontal_stretch()) {
+			max_child_width = std::max(max_child_width, child->width());
 		}
 	}
 
-	// Find the maximum width of all children
-	int max_child_width = 0;
-	for (const auto &child : children_) {
-		max_child_width = std::max(max_child_width, child->width());
-	}
+	int total_width = children_.empty() ? 0 : (2 * x_offset_ + max_child_width);
 
-	// Set position of all children in a loop
-	bool layout_changed = false;
+	// Set position and width of all children in a loop
 	int running_y = y_offset_;
 	for (const auto &child : children_) {
-		int target_x = x_offset_;
+		int target_x = child->want_horizontal_stretch() ? 0 : x_offset_;
 		int target_y = running_y;
+		int target_width = child->want_horizontal_stretch() ? total_width : child->width();
 
-		if (child->x() != target_x || child->y() != target_y) {
-			layout_changed = true;
+		if (child->x() != target_x || child->y() != target_y || child->width() != target_width) {
+			child->set_width(target_width);
 			child->set_position(target_x, target_y);
 		}
 
 		running_y += child->height() + 1;
 	}
 
-	int total_width = children_.empty() ? 0 : (2 * x_offset_ + max_child_width);
 	int total_height = children_.empty() ? 0 : (running_y - 1 + y_offset_);
 
-	if (this->width() != total_width || this->height() != total_height) {
-		layout_changed = true;
+	bool dimensions_changed = (this->width() != total_width || this->height() != total_height);
+	if (dimensions_changed) {
 		this->set_width(total_width);
 		this->set_height(total_height);
 	}
 
-	return children_changed || layout_changed;
+	return dimensions_changed;
 }

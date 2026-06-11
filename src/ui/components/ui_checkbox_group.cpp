@@ -14,30 +14,25 @@ ui_checkbox_group::ui_checkbox_group(std::string name, int x, int y, int width, 
  */
 bool ui_checkbox_group::flow()
 {
-	bool children_changed = false;
 	for (const auto &child : children_) {
-		if (child->flow()) {
-			children_changed = true;
-		}
+		child->flow();
 	}
 
-	bool layout_changed = false;
 	int running_y = 1;
 	for (const auto &child : children_) {
 		int target_x = 2;
 		int target_y = running_y;
 		if (child->x() != target_x || child->y() != target_y) {
-			layout_changed = true;
 			child->set_position(target_x, target_y);
 		}
 		running_y += child->height();
 	}
 
 	int target_height = running_y;
-	if (height() != target_height) {
-		layout_changed = true;
+	bool dimensions_changed = (height() != target_height);
+	if (dimensions_changed) {
 		set_height(target_height);
 	}
 
-	return children_changed || layout_changed;
+	return dimensions_changed;
 }

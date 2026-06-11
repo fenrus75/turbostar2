@@ -91,6 +91,10 @@ class ui_element
 	{
 		return false;
 	}
+	virtual bool want_horizontal_stretch() const
+	{
+		return false;
+	}
 	std::string name() const
 	{
 		return name_;

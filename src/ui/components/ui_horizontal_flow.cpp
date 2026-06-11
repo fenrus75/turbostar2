@@ -9,11 +9,8 @@ ui_horizontal_flow::ui_horizontal_flow(std::string name, int x, int y, int x_off
 bool ui_horizontal_flow::flow()
 {
 	// Call flow on all children first, collect if any child's flow changed
-	bool children_changed = false;
 	for (const auto &child : children_) {
-		if (child->flow()) {
-			children_changed = true;
-		}
+		child->flow();
 	}
 
 	// Find the maximum height of all children
@@ -23,14 +20,12 @@ bool ui_horizontal_flow::flow()
 	}
 
 	// Set position of all children in a loop
-	bool layout_changed = false;
 	int running_x = x_offset_;
 	for (const auto &child : children_) {
 		int target_x = running_x;
 		int target_y = y_offset_;
 
 		if (child->x() != target_x || child->y() != target_y) {
-			layout_changed = true;
 			child->set_position(target_x, target_y);
 		}
 
@@ -40,11 +35,11 @@ bool ui_horizontal_flow::flow()
 	int total_width = children_.empty() ? 0 : (running_x - 2 + x_offset_);
 	int total_height = children_.empty() ? 0 : (2 * y_offset_ + max_child_height);
 
-	if (this->width() != total_width || this->height() != total_height) {
-		layout_changed = true;
+	bool dimensions_changed = (this->width() != total_width || this->height() != total_height);
+	if (dimensions_changed) {
 		this->set_width(total_width);
 		this->set_height(total_height);
 	}
 
-	return children_changed || layout_changed;
+	return dimensions_changed;
 }

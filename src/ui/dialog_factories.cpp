@@ -528,7 +528,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	auto flow_ptr = flow.get();
 	dlg->add_child(std::move(flow));
 
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 60, 2);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
 	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'k', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
