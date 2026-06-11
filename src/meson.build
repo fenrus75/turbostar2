@@ -91,6 +91,7 @@ ui_sources = files(
   'ui/components/ui_button.cpp',
   'ui/components/ui_buttons_horizontal.cpp',
   'ui/components/ui_buttons_vertical.cpp',
+  'ui/components/ui_horizontal_flow.cpp',
   'ui/components/ui_vertical_flow.cpp',
   'ui/components/ui_checkbox.cpp',
   'ui/components/ui_radio.cpp',
