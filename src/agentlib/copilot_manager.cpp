@@ -8,6 +8,7 @@
 #include "../fs_utils.h"
 #include "config_manager.h"
 #include "event_logger.h"
+#include "ai_model.h"
 
 using json = nlohmann::json;
 
@@ -387,14 +388,14 @@ std::string copilot_manager::format_github_models_json(const std::string& catalo
 	}
 }
 
-void copilot_manager::query_and_write_github_models(const std::string &/*token*/)
+bool copilot_manager::fetch_and_register_github_models(std::string &error_msg)
 {
-	event_logger::get_instance().log("query_and_write_github_models started.");
+	event_logger::get_instance().log("fetch_and_register_github_models started.");
 
 	std::string copilot_token = get_copilot_token();
 	if (copilot_token.empty()) {
-		event_logger::get_instance().log("Cannot fetch GitHub models catalog: Copilot token is empty");
-		return;
+		error_msg = "Copilot token is empty. Please authenticate.";
+		return false;
 	}
 
 	std::vector<std::string> headers = {
@@ -403,30 +404,60 @@ void copilot_manager::query_and_write_github_models(const std::string &/*token*/
 	};
 
 	auto res = perform_curl_request("https://api.githubcopilot.com/models", "GET", headers);
-	event_logger::get_instance().log("GitHub models catalog fetch response. Status code: {}, Body size: {}", res.status_code, res.body.size());
-
 	if (res.status_code != 200) {
-		event_logger::get_instance().log("Failed to fetch GitHub models catalog. Status code: {}, response body: {}", res.status_code, res.body);
-		return;
+		error_msg = std::format("Status code: {}, Response: {}", res.status_code, res.body);
+		return false;
 	}
 
 	std::string formatted = format_github_models_json(res.body);
 	if (formatted == "[]") {
-		event_logger::get_instance().log("GitHub models catalog response could not be parsed or is empty.");
-		return;
+		error_msg = "Failed to parse GitHub models catalog or it was empty.";
+		return false;
 	}
 
+	// Write to cache
 	std::string cache_dir = fs_utils::get_global_cache_dir();
 	std::string path = cache_dir + "/models.json.github";
-	event_logger::get_instance().log("Writing GitHub models to path: {}", path);
 	std::ofstream file(path);
-	if (!file.is_open()) {
-		event_logger::get_instance().log("Failed to open {} for writing GitHub models.", path);
-		return;
+	if (file.is_open()) {
+		file << formatted;
 	}
 
-	file << formatted;
-	event_logger::get_instance().log("Saved GitHub models to {}", path);
+	// Load and register
+	try {
+		auto parsed_models = json::parse(formatted);
+		if (parsed_models.is_array()) {
+			auto &registry = ai_model_registry::get_instance();
+			for (const auto &item : parsed_models) {
+				std::string id = item.value("id", "");
+				std::string name = item.value("name", "");
+				std::string url = item.value("url", "");
+				std::string purpose = item.value("purpose", "");
+				std::string api_key = item.value("api_key", "");
+				double tx_cost = item.value("cost_tx", 0.0);
+				double rx_cost = item.value("cost_rx", 0.0);
+				int max_tokens = item.value("max_context_tokens", 250000);
+				
+				if (!id.empty()) {
+					registry.register_model(std::make_shared<ai_model>(
+						id, name, url, purpose, tx_cost, rx_cost, api_key,
+						api_type::copilot, max_tokens, model_cost_type::paid_per_token
+					));
+				}
+			}
+			registry.save_models();
+			return true;
+		}
+	} catch (const std::exception& e) {
+		error_msg = e.what();
+	}
+	return false;
+}
+
+void copilot_manager::query_and_write_github_models(const std::string &/*token*/)
+{
+	std::string err;
+	fetch_and_register_github_models(err);
 }
 
 } // namespace agentlib

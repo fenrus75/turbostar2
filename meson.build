@@ -928,7 +928,7 @@ test_httplib_transport = executable('test_httplib_transport',
 test('unit_httplib_transport', test_httplib_transport)
 
 test_copilot_models = executable('test_copilot_models',
-  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_copilot_models', test_copilot_models)

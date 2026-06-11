@@ -27,6 +27,7 @@
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 #include "ui/terminal_window.h"
+#include "agentlib/copilot_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -330,6 +331,18 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::copilot_connect) {
 		logger.log("Dispatching copilot_connect event.");
+		if (agentlib::copilot_manager::get_instance().is_authenticated()) {
+			std::string error_msg;
+			bool success = agentlib::copilot_manager::get_instance().fetch_and_register_github_models(error_msg);
+			if (success) {
+				active_dialog_ = create_message_dialog("Copilot Connected", {"GitHub Copilot is already connected!", "AI models list has been updated successfully."});
+			} else {
+				active_dialog_ = create_message_dialog("Copilot Error", {"GitHub Copilot is connected, but failed", "to fetch models catalog:", error_msg});
+			}
+			active_dialog_mode_ = dialog_mode::none;
+			set_focus(focus_target::dialog, "btn_ok");
+			return;
+		}
 		active_dialog_ = create_copilot_connect_dialog();
 		active_dialog_mode_ = dialog_mode::copilot_connect;
 		set_focus(focus_target::dialog, "copilot_connect");

@@ -26,6 +26,9 @@ public:
     // Get current polling interval
     int get_polling_interval() const;
 
+    // Fetch models catalog, register them into the ai_model_registry, and write cache
+    bool fetch_and_register_github_models(std::string &error_msg);
+
     // Transform raw catalog JSON into Turbostar's JSON representation
     static std::string format_github_models_json(const std::string& catalog_json);
 
