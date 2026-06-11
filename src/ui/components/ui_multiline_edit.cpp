@@ -9,6 +9,12 @@ ui_multiline_edit::ui_multiline_edit(std::string name, int x, int y, int width, 
 {
 }
 
+ui_multiline_edit::ui_multiline_edit(std::string name, int width, int height,
+				     std::function<void(const std::string &)> on_submit)
+    : ui_element(std::move(name), 0, 0, width, height), on_submit_(std::move(on_submit))
+{
+}
+
 void ui_multiline_edit::set_buffer(const std::string &text)
 {
 	buffer_ = text;

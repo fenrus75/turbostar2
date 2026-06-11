@@ -298,21 +298,21 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 
 	auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
 
-	auto flow = std::make_unique<ui_vertical_flow>("plan_flow", 0, 0, 2, 1);
+	auto flow = std::make_unique<ui_vertical_flow>("plan_flow", 2, 1);
 
 	flow->add_child(std::make_unique<ui_text_label>("Proposed Plan:"));
 
 	// Use a multiline edit for the plan text so it is scrollable
-	auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 0, 0, width - 4, plan_height, nullptr);
+	auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", width - 4, plan_height, nullptr);
 	plan_box->set_buffer(plan_text);
 	flow->add_child(std::move(plan_box));
 
 	flow->add_child(std::make_unique<ui_text_label>("Comments / Feedback (optional if approving, required if rejecting):"));
 
-	auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 0, 0, width - 4, feedback_height, nullptr);
+	auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", width - 4, feedback_height, nullptr);
 	flow->add_child(std::move(feedback_box));
 
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_approve", "Approve", 'A', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
@@ -341,6 +341,7 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 	dlg->add_child(std::move(flow));
 
 	dlg->flow();
+	dlg->set_width(flow_ptr->width());
 	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_approve");

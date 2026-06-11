@@ -8,6 +8,8 @@ class ui_multiline_edit : public ui_element
 public:
     ui_multiline_edit(std::string name, int x, int y, int width, int height,
                       std::function<void(const std::string&)> on_submit);
+    ui_multiline_edit(std::string name, int width, int height,
+                      std::function<void(const std::string&)> on_submit);
 
     void draw(int abs_x, int abs_y) const override;
     bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
