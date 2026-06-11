@@ -8,23 +8,38 @@
 // --- ui_textbox ---
 
 ui_textbox::ui_textbox(std::string name, int x, int y, int width, const std::string &initial_text,
-		       std::function<void(const std::string &)> on_submit)
+		       std::function<void(const std::string &)> on_submit, std::string label)
     : ui_element(std::move(name), x, y, width, 1), buffer_(initial_text), cursor_pos_(initial_text.length()),
-      on_submit_(std::move(on_submit))
+      on_submit_(std::move(on_submit)), label_(std::move(label))
 {
 }
 
 void ui_textbox::draw(int abs_x, int abs_y) const
 {
+	int input_x = abs_x;
+	int input_width = width_;
+
+	if (!label_.empty()) {
+		attrset(COLOR_PAIR(1));
+		mvaddstr(abs_y, abs_x, label_.c_str());
+		int offset = static_cast<int>(label_.length()) + 1;
+		input_x += offset;
+		input_width -= offset;
+	}
+
+	if (input_width <= 0) {
+		return;
+	}
+
 	attrset(COLOR_PAIR(5));
-	move(abs_y, abs_x);
-	for (int i = 0; i < width_; ++i)
+	move(abs_y, input_x);
+	for (int i = 0; i < input_width; ++i)
 		addch(' ');
 
 	std::string display_text = buffer_;
 	int display_offset = 0;
-	if (cursor_pos_ >= width_) {
-		display_offset = cursor_pos_ - width_ + 1;
+	if (cursor_pos_ >= input_width) {
+		display_offset = cursor_pos_ - input_width + 1;
 	}
 
 	if (display_offset > 0 && display_offset < static_cast<int>(buffer_.length())) {
@@ -38,21 +53,21 @@ void ui_textbox::draw(int abs_x, int abs_y) const
 
 	std::string full_display = display_text;
 	if (!suggestion.empty() && suggestion.length() > display_text.length()) {
-		full_display = suggestion; // If suggestion is longer, we might draw it
+		full_display = suggestion;
 	}
 
-	if (static_cast<int>(full_display.length()) > width_) {
-		full_display = full_display.substr(0, width_);
+	if (static_cast<int>(full_display.length()) > input_width) {
+		full_display = full_display.substr(0, input_width);
 	}
 
-	mvaddstr(abs_y, abs_x, display_text.c_str());
+	mvaddstr(abs_y, input_x, display_text.c_str());
 	if (!suggestion.empty() && suggestion.length() > buffer_.length()) {
-		attrset(COLOR_PAIR(4)); // Fallback color for autocomplete
-		int sug_x = abs_x + buffer_.length() - display_offset;
-		if (sug_x < abs_x + width_) {
+		attrset(COLOR_PAIR(4));
+		int sug_x = input_x + buffer_.length() - display_offset;
+		if (sug_x < input_x + input_width) {
 			std::string sug_draw = suggestion.substr(buffer_.length());
-			if (sug_x + static_cast<int>(sug_draw.length()) > abs_x + width_) {
-				sug_draw = sug_draw.substr(0, abs_x + width_ - sug_x);
+			if (sug_x + static_cast<int>(sug_draw.length()) > input_x + input_width) {
+				sug_draw = sug_draw.substr(0, input_x + input_width - sug_x);
 			}
 			mvaddstr(abs_y, sug_x, sug_draw.c_str());
 		}
@@ -60,9 +75,9 @@ void ui_textbox::draw(int abs_x, int abs_y) const
 	}
 
 	if (has_focus_) {
-		int cursor_x = abs_x + cursor_pos_ - display_offset;
-		if (cursor_x >= abs_x && cursor_x < abs_x + width_) {
-			attron(COLOR_PAIR(14)); // Black text on green bg for cursor
+		int cursor_x = input_x + cursor_pos_ - display_offset;
+		if (cursor_x >= input_x && cursor_x < input_x + input_width) {
+			attron(COLOR_PAIR(14));
 			char c = ' ';
 			if (cursor_pos_ < static_cast<int>(buffer_.length())) {
 				c = buffer_[cursor_pos_];
@@ -174,14 +189,27 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 	if (ev.type == event_type::mouse_click) {
 		if (contains_coordinate(ev.mouse_x, ev.mouse_y, abs_x, abs_y)) {
-			int click_offset = ev.mouse_x - abs_x;
-
-			int display_offset = 0;
-			if (cursor_pos_ >= width_) {
-				display_offset = cursor_pos_ - width_ + 1;
+			int input_x = abs_x;
+			int input_width = width_;
+			if (!label_.empty()) {
+				int offset = static_cast<int>(label_.length()) + 1;
+				input_x += offset;
+				input_width -= offset;
 			}
 
-			cursor_pos_ = std::min(static_cast<int>(buffer_.length()), click_offset + display_offset);
+			if (input_width > 0) {
+				int click_offset = ev.mouse_x - input_x;
+				if (click_offset < 0) {
+					click_offset = 0;
+				}
+
+				int display_offset = 0;
+				if (cursor_pos_ >= input_width) {
+					display_offset = cursor_pos_ - input_width + 1;
+				}
+
+				cursor_pos_ = std::min(static_cast<int>(buffer_.length()), click_offset + display_offset);
+			}
 			return true;
 		}
 	}

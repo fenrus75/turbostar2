@@ -462,20 +462,18 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	int y_off = is_replace ? 2 : 0;
 
 	// Query
-	dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Text to find"));
-	dlg->add_child(std::make_unique<ui_textbox>("query", 16, 2, 40, initial_params.query, [d = dlg.get()](const std::string &) {
+	dlg->add_child(std::make_unique<ui_textbox>("query", 2, 2, 54, initial_params.query, [d = dlg.get()](const std::string &) {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
-	}));
+	}, "Text to find"));
 
 	// Replace
 	if (is_replace) {
-		dlg->add_child(std::make_unique<ui_text_label>(2, 4, "Replace with"));
-		dlg->add_child(std::make_unique<ui_textbox>("replacement", 16, 4, 40, initial_params.replacement,
+		dlg->add_child(std::make_unique<ui_textbox>("replacement", 2, 4, 54, initial_params.replacement,
 							    [d = dlg.get()](const std::string &) {
 								    d->set_action(dialog_result::confirmed);
 								    d->set_result("ok");
-							    }));
+							    }, "Replace with"));
 	}
 
 	// Options Group
@@ -597,12 +595,10 @@ std::unique_ptr<dialog> create_settings_dialog()
 	dlg->add_child(std::move(row1));
 
 	// Build Directory Input
-	dlg->add_child(std::make_unique<ui_text_label>(4, 13, "Build Directory:"));
-	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 21, 13, 35, config_manager::get_instance().get_build_directory()));
+	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 4, 13, 52, config_manager::get_instance().get_build_directory(), nullptr, "Build Directory:"));
 
 	// Default Model ID Input
-	dlg->add_child(std::make_unique<ui_text_label>(4, 14, "Model ID:"));
-	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 14, 14, 42, config_manager::get_instance().get_default_model_id()));
+	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 4, 14, 52, config_manager::get_instance().get_default_model_id(), nullptr, "Model ID:"));
 
 	// Toggles
 	dlg->add_child(std::make_unique<ui_checkbox>("lsp_enabled", 4, 16, "Enable LSP (clangd)", 'E',
@@ -931,26 +927,13 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	int lx = 4;
 	int tx = 16;
 
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 2, "ID:"));
-	dlg->add_child(std::make_unique<ui_textbox>("id", tx, 2, 44, model ? model->get_id() : ""));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 3, "Name:"));
-	dlg->add_child(std::make_unique<ui_textbox>("name", tx, 3, 44, model ? model->get_name() : ""));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 4, "URL:"));
-	dlg->add_child(std::make_unique<ui_textbox>("url", tx, 4, 44, model ? model->get_url() : ""));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 5, "API Key:"));
-	dlg->add_child(std::make_unique<ui_textbox>("api_key", tx, 5, 44, model ? model->get_api_key() : ""));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 6, "Purpose:"));
-	dlg->add_child(std::make_unique<ui_textbox>("purpose", tx, 6, 44, model ? model->get_purpose() : ""));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 7, "Tx Cost:"));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", tx, 7, 10, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0"));
-
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 8, "Rx Cost:"));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", tx, 8, 10, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0"));
+	dlg->add_child(std::make_unique<ui_textbox>("id", lx, 2, 56, model ? model->get_id() : "", nullptr, "ID:        "));
+	dlg->add_child(std::make_unique<ui_textbox>("name", lx, 3, 56, model ? model->get_name() : "", nullptr, "Name:      "));
+	dlg->add_child(std::make_unique<ui_textbox>("url", lx, 4, 56, model ? model->get_url() : "", nullptr, "URL:       "));
+	dlg->add_child(std::make_unique<ui_textbox>("api_key", lx, 5, 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
+	dlg->add_child(std::make_unique<ui_textbox>("purpose", lx, 6, 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", lx, 7, 22, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0", nullptr, "Tx Cost:   "));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", lx, 8, 22, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0", nullptr, "Rx Cost:   "));
 
 	dlg->add_child(std::make_unique<ui_text_label>(lx, 10, "API Format:"));
 	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1);
