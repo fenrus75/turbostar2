@@ -145,7 +145,8 @@ class welcome_dialog_impl : public dialog
 
 std::unique_ptr<dialog> create_welcome_dialog()
 {
-	std::vector<std::string> lines = {"TurboStar", "", "Version " TURBOSTAR_VERSION, "", "Copyright (c) 2026 by", "Arjan van de Ven"};
+	std::vector<std::string> lines = {"TurboStar", std::format("Version {}", TURBOSTAR_VERSION), "Copyright (c) 2026 by",
+					  "Arjan van de Ven"};
 
 	int width = 36;
 	for (const auto &line : lines) {
@@ -153,24 +154,31 @@ std::unique_ptr<dialog> create_welcome_dialog()
 			width = static_cast<int>(line.length()) + 6;
 		}
 	}
-	int height = lines.size() + 6;
-	auto dlg = std::make_unique<welcome_dialog_impl>("About", width, height);
 
-	for (size_t i = 0; i < lines.size(); ++i) {
-		int text_x = (width - static_cast<int>(lines[i].length())) / 2;
-		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
+	auto dlg = std::make_unique<welcome_dialog_impl>("About", width, 12);
+
+	auto flow = std::make_unique<ui_vertical_flow>("welcome_flow", 0, 0, 3, 2);
+
+	for (const auto &line : lines) {
+		auto label = std::make_unique<ui_text_label>(line, true);
+		label->set_width(width - 6);
+		flow->add_child(std::move(label));
 	}
 
-	std::string ok_text = "OK";
-	int btn_y = height - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("ok");
 	}));
-	btns->flow();
-	btns->set_position((width - btns->width()) / 2, btn_y);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_ok");
 	return dlg;
