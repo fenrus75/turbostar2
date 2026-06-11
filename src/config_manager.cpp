@@ -79,7 +79,10 @@ void config_manager::load_from_file(const std::string &path)
 		} else if (key == "main_executable") {
 			main_executable_ = value;
 		} else if (key == "github_access_token") {
-			github_access_token_ = value;
+			bool is_project = (path.find(".turbostar") == std::string::npos);
+			if (!is_project || !value.empty()) {
+				github_access_token_ = value;
+			}
 		} else if (key == "run_arguments") {
 			run_arguments_ = value;
 		} else if (key == "run_target_mode") {
@@ -157,6 +160,8 @@ void config_manager::save_project(const std::string &target_path)
 		return;
 	}
 
+	bool is_project = (target_path.find(".turbostar") == std::string::npos);
+
 	file << "# Turbostar Configuration File\n";
 	file << "clang_format_style=" << clang_format_style_ << "\n";
 	file << "build_system=" << build_system_ << "\n";
@@ -170,12 +175,12 @@ void config_manager::save_project(const std::string &target_path)
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
 	file << "shell_display_access=" << (shell_display_access_ ? "true" : "false") << "\n";
 	file << "main_executable=" << main_executable_ << "\n";
-	file << "github_access_token=" << github_access_token_ << "\n";
+	if (!is_project) {
+		file << "github_access_token=" << github_access_token_ << "\n";
+	}
 	file << "run_arguments=" << run_arguments_ << "\n";
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
-
-	bool is_project = (target_path.find(".turbostar") == std::string::npos);
 
 	if (is_project) {
 		for (const auto &[server, enabled] : project_mcp_servers_enabled_) {

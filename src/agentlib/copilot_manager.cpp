@@ -126,13 +126,15 @@ void copilot_manager::set_github_access_token(const std::string& token)
 std::string copilot_manager::get_github_access_token() const
 {
 	std::lock_guard<std::mutex> lock(token_mutex_);
+	if (github_access_token_.empty()) {
+		github_access_token_ = config_manager::get_instance().get_github_access_token();
+	}
 	return github_access_token_;
 }
 
 bool copilot_manager::is_authenticated() const
 {
-	std::lock_guard<std::mutex> lock(token_mutex_);
-	return !github_access_token_.empty();
+	return !get_github_access_token().empty();
 }
 
 int copilot_manager::get_polling_interval() const
@@ -287,6 +289,9 @@ std::string copilot_manager::get_copilot_token()
 
 	{
 		std::lock_guard<std::mutex> lock(token_mutex_);
+		if (github_access_token_.empty()) {
+			github_access_token_ = config_manager::get_instance().get_github_access_token();
+		}
 		access_token = github_access_token_;
 		cached_token = cached_copilot_token_;
 		exp = expires_at_;
@@ -304,18 +309,24 @@ std::string copilot_manager::get_copilot_token()
 	}
 
 	std::string token_prefix = access_token.length() >= 8 ? access_token.substr(0, 8) : access_token;
+	std::string url = "https://api.github.com/copilot_internal/v2/token";
 	event_logger::get_instance().log(
-		"Requesting new short-lived Copilot token. Token prefix: {}, Length: {}",
-		token_prefix, access_token.length()
+		"GET request to URL: {} with headers: [Accept: application/json, User-Agent: GithubCopilot/1.250.0, "
+		"Copilot-Integration-Id: vscode-chat, Editor-Version: vscode/1.90.0, Editor-Plugin-Version: copilot-chat/0.17.0, "
+		"Authorization: token {}**** (len={})]",
+		url, token_prefix, access_token.length()
 	);
 
 	std::vector<std::string> headers = {
 		std::format("Authorization: token {}", access_token),
 		"User-Agent: GithubCopilot/1.250.0",
-		"Accept: application/json"
+		"Accept: application/json",
+		"Copilot-Integration-Id: vscode-chat",
+		"Editor-Version: vscode/1.90.0",
+		"Editor-Plugin-Version: copilot-chat/0.17.0"
 	};
 
-	auto res = perform_curl_request("https://api.github.com/copilot_internal/v2/token", "GET", headers);
+	auto res = perform_curl_request(url, "GET", headers);
 	event_logger::get_instance().log(
 		"GitHub Copilot token API returned status code: {}, response body: {}",
 		res.status_code, res.body
@@ -407,7 +418,11 @@ bool copilot_manager::fetch_and_register_github_models(std::string &error_msg)
 
 	std::vector<std::string> headers = {
 		"Accept: application/json",
-		std::format("Authorization: Bearer {}", copilot_token)
+		std::format("Authorization: Bearer {}", copilot_token),
+		"Copilot-Integration-Id: vscode-chat",
+		"Editor-Version: vscode/1.90.0",
+		"Editor-Plugin-Version: copilot-chat/0.17.0",
+		"User-Agent: GithubCopilot/1.250.0"
 	};
 
 	auto res = perform_curl_request("https://api.githubcopilot.com/models", "GET", headers);

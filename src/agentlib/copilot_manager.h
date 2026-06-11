@@ -37,7 +37,7 @@ private:
     
     void query_and_write_github_models(const std::string &token);
     
-    std::string github_access_token_;
+    mutable std::string github_access_token_;
     std::string cached_copilot_token_;
     std::chrono::system_clock::time_point expires_at_{std::chrono::system_clock::time_point::min()};
     std::string device_code_;
