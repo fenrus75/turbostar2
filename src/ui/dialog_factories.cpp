@@ -17,6 +17,7 @@
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_dropdown.h"
 #include "ui/components/ui_group_box.h"
+#include "ui/components/ui_horizontal_flow.h"
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_multiline_edit.h"
 #include "ui/components/ui_radio.h"
@@ -479,7 +480,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 	// Options Group
 	int opt_h = is_replace ? 5 : 4;
-	auto opt_group = std::make_unique<ui_group_box>("opt_group", 2, 5 + y_off, 30, opt_h, "Options");
+	auto opt_group = std::make_unique<ui_group_box>("opt_group", 0, 0, 30, opt_h, "Options");
 	opt_group->add_child(std::make_unique<ui_checkbox>("ignore_case", 2, 1, "Case sensitive", 'c', !initial_params.ignore_case));
 	opt_group->add_child(std::make_unique<ui_checkbox>("whole_words", 2, 2, "Whole words only", 'w', initial_params.whole_words));
 	opt_group->add_child(std::make_unique<ui_checkbox>("regex", 2, 3, "Regular expression", 'r', initial_params.regex));
@@ -487,32 +488,40 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 		opt_group->add_child(
 		    std::make_unique<ui_checkbox>("prompt_on_replace", 2, 4, "Prompt on replace", 'p', initial_params.prompt_on_replace));
 	}
-	dlg->add_child(std::move(opt_group));
 
 	// Direction Group
-	auto dir_group = std::make_unique<ui_group_box>("dir_group", 33, 5 + y_off, 28, 3, "Direction");
+	auto dir_group = std::make_unique<ui_group_box>("dir_group", 0, 0, 28, 3, "Direction");
 	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction", 0, 0, 28, 3);
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", 2, 1, "Forward", 'f', !initial_params.backward));
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", 2, 2, "Backward", 'b', initial_params.backward));
 	dir_group->add_child(std::move(dir_radio));
-	dlg->add_child(std::move(dir_group));
+
+	// Row 1 (Options & Direction)
+	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 5 + y_off, 2, 0);
+	row1->add_child(std::move(opt_group));
+	row1->add_child(std::move(dir_group));
+	dlg->add_child(std::move(row1));
 
 	// Scope Group
-	auto scope_group = std::make_unique<ui_group_box>("scope_group", 2, 10 + y_off, 30, 3, "Scope");
+	auto scope_group = std::make_unique<ui_group_box>("scope_group", 0, 0, 30, 3, "Scope");
 	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope", 0, 0, 30, 3);
 	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", 2, 1, "Global", 'g', !initial_params.selected_text_only));
 	scope_radio->add_child(
 	    std::make_unique<ui_radio_choice>("scope_selected", 2, 2, "Selected text", 's', initial_params.selected_text_only));
 	scope_group->add_child(std::move(scope_radio));
-	dlg->add_child(std::move(scope_group));
 
 	// Origin Group
-	auto orig_group = std::make_unique<ui_group_box>("orig_group", 33, 10 + y_off, 28, 3, "Origin");
+	auto orig_group = std::make_unique<ui_group_box>("orig_group", 0, 0, 28, 3, "Origin");
 	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin", 0, 0, 28, 3);
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", 2, 1, "From cursor", 'o', initial_params.from_cursor));
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", 2, 2, "Entire scope", 'e', !initial_params.from_cursor));
 	orig_group->add_child(std::move(orig_radio));
-	dlg->add_child(std::move(orig_group));
+
+	// Row 2 (Scope & Origin)
+	auto row2 = std::make_unique<ui_horizontal_flow>("row2", 0, 10 + y_off, 2, 0);
+	row2->add_child(std::move(scope_group));
+	row2->add_child(std::move(orig_group));
+	dlg->add_child(std::move(row2));
 
 	int btn_y = 14 + y_off;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
