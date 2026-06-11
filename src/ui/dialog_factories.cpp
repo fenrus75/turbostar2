@@ -289,22 +289,22 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 
 	auto dlg = std::make_unique<dialog>("Approve Plan", width, height);
 
-	dlg->add_child(std::make_unique<ui_text_label>(2, 1, "Proposed Plan:"));
+	auto flow = std::make_unique<ui_vertical_flow>("plan_flow", 0, 0, 2, 1);
+
+	flow->add_child(std::make_unique<ui_text_label>("Proposed Plan:"));
 
 	// Use a multiline edit for the plan text so it is scrollable
-	auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 2, 2, width - 4, plan_height, nullptr);
+	auto plan_box = std::make_unique<ui_multiline_edit>("plan_text", 0, 0, width - 4, plan_height, nullptr);
 	plan_box->set_buffer(plan_text);
-	dlg->add_child(std::move(plan_box));
+	flow->add_child(std::move(plan_box));
 
-	int feedback_y = plan_height + 3;
-	dlg->add_child(
-	    std::make_unique<ui_text_label>(2, feedback_y, "Comments / Feedback (optional if approving, required if rejecting):"));
+	flow->add_child(std::make_unique<ui_text_label>("Comments / Feedback (optional if approving, required if rejecting):"));
 
-	auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 2, feedback_y + 1, width - 4, feedback_height, nullptr);
-	dlg->add_child(std::move(feedback_box));
+	auto feedback_box = std::make_unique<ui_multiline_edit>("feedback", 0, 0, width - 4, feedback_height, nullptr);
+	flow->add_child(std::move(feedback_box));
 
-	int btn_y = height - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_approve", "Approve", 'A', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("Approved");
@@ -321,13 +321,18 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 	btns->add_child(std::make_unique<ui_button>(
 	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
-		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
+		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((width - btns->width()) / 2, btn_y);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_approve");
 	return dlg;
