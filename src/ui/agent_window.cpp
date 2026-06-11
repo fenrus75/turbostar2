@@ -1317,7 +1317,9 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 
 		input_box_->set_bounds(start_x, input_box_y, max_width, 3);
 		input_box_->set_focus(is_active() && (!show_sidebar || sidebar_focus_ == sidebar_focus::input));
-		input_box_->draw(0, 0);
+		// Components must always be drawn using their computed absolute screen coordinates
+		// to prevent clobbering other parts of the interface (e.g. the top menu or borders).
+		input_box_->draw(input_box_->x(), input_box_->y());
 	}
 
 	// 3. Draw sidebar if active
@@ -1355,7 +1357,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 			todos_list_->set_bounds(abs_divider_x + 1, y_ + 1, width_ - 2 - divider_x, todos_h);
 			todos_list_->set_items(todo_strings);
 			todos_list_->set_focus(is_active() && sidebar_focus_ == sidebar_focus::todos);
-			todos_list_->draw(0, 0);
+			todos_list_->draw(todos_list_->x(), todos_list_->y());
 		}
 
 		// Draw Subagents listbox
@@ -1373,7 +1375,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 			subagents_list_->set_bounds(abs_divider_x + 1, sub_y, width_ - 2 - divider_x, sub_h);
 			subagents_list_->set_items(subagent_strings);
 			subagents_list_->set_focus(is_active() && sidebar_focus_ == sidebar_focus::subagents);
-			subagents_list_->draw(0, 0);
+			subagents_list_->draw(subagents_list_->x(), subagents_list_->y());
 		}
 	}
 }
@@ -1476,11 +1478,14 @@ void agent_window::set_cursor_position() const
 		bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
 
 		if (show_sidebar && sidebar_focus_ == sidebar_focus::todos && todos_list_) {
-			todos_list_->set_cursor_position(0, 0);
+			// Align the virtual cursor coordinates with the component's absolute bounds.
+			todos_list_->set_cursor_position(todos_list_->x(), todos_list_->y());
 		} else if (show_sidebar && sidebar_focus_ == sidebar_focus::subagents && subagents_list_) {
-			subagents_list_->set_cursor_position(0, 0);
+			// Align the virtual cursor coordinates with the component's absolute bounds.
+			subagents_list_->set_cursor_position(subagents_list_->x(), subagents_list_->y());
 		} else if (input_box_) {
-			input_box_->draw(0, 0);
+			// Draw input box at its absolute location, which also sets the cursor position.
+			input_box_->draw(input_box_->x(), input_box_->y());
 		}
 	}
 }

@@ -63,7 +63,8 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 	if (listbox_) {
 		listbox_->set_bounds(start_x, current_y, max_width, list_height);
 		listbox_->set_focus(is_active());
-		listbox_->draw(0, 0);
+		// Draw the listbox at its absolute screen coordinates.
+		listbox_->draw(listbox_->x(), listbox_->y());
 	}
 
 	current_y += list_height;
@@ -180,8 +181,9 @@ bool crashdump_window::process_events()
 void crashdump_window::set_cursor_position() const
 {
 	if (is_active() && listbox_) {
-		// Let listbox set cursor if it wants, though it's a read-only list
-		listbox_->draw(0, 0);
+		// Let listbox set cursor if it wants, though it's a read-only list.
+		// Align the virtual cursor coordinates with the listbox's absolute bounds.
+		listbox_->set_cursor_position(listbox_->x(), listbox_->y());
 	}
 }
 
