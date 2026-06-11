@@ -22,10 +22,12 @@ ui_button::ui_button(std::string name, const std::string &text, char hotkey, std
 
 void ui_button::draw(int abs_x, int abs_y) const
 {
+	int body_width = std::max<int>(text_.length(), width_ - 1);
+
 	attron(COLOR_PAIR(1));
-	mvaddstr(abs_y, abs_x + text_.length(), "▄");
+	mvaddstr(abs_y, abs_x + body_width, "▄");
 	std::string shadow_str;
-	for (size_t j = 0; j < text_.length(); ++j)
+	for (int j = 0; j < body_width; ++j)
 		shadow_str += "▀";
 	mvaddstr(abs_y + 1, abs_x + 1, shadow_str.c_str());
 
@@ -34,13 +36,22 @@ void ui_button::draw(int abs_x, int abs_y) const
 	else
 		attrset(COLOR_PAIR(10));
 
-	mvaddstr(abs_y, abs_x, text_.c_str());
+	int total_padding = body_width - static_cast<int>(text_.length());
+	std::string padded_text = text_;
+	int left_padding = 0;
+	if (total_padding > 0) {
+		left_padding = total_padding / 2;
+		int right_padding = total_padding - left_padding;
+		padded_text = std::string(left_padding, ' ') + text_ + std::string(right_padding, ' ');
+	}
+
+	mvaddstr(abs_y, abs_x, padded_text.c_str());
 
 	if (hotkey_ != '\0') {
 		size_t hk_pos = text_.find(hotkey_);
 		if (hk_pos != std::string::npos) {
 			attron(COLOR_PAIR(40));
-			mvaddch(abs_y, abs_x + hk_pos, text_[hk_pos]);
+			mvaddch(abs_y, abs_x + left_padding + hk_pos, text_[hk_pos]);
 		}
 	}
 	attrset(COLOR_PAIR(1));
