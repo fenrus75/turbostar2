@@ -22,6 +22,7 @@
 #include "ui/components/ui_multiline_edit.h"
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_textbox.h"
+#include "ui/components/ui_vertical_flow.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
@@ -459,17 +460,17 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	int height = is_replace ? 18 : 16;
 	auto dlg = std::make_unique<dialog>(title, 64, height);
 
-	int y_off = is_replace ? 2 : 0;
+	auto flow = std::make_unique<ui_vertical_flow>("search_flow", 0, 0, 2, 2);
 
 	// Query
-	dlg->add_child(std::make_unique<ui_textbox>("query", 2, 2, 54, initial_params.query, [d = dlg.get()](const std::string &) {
+	flow->add_child(std::make_unique<ui_textbox>("query", 0, 0, 54, initial_params.query, [d = dlg.get()](const std::string &) {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}, "Text to find"));
 
 	// Replace
 	if (is_replace) {
-		dlg->add_child(std::make_unique<ui_textbox>("replacement", 2, 4, 54, initial_params.replacement,
+		flow->add_child(std::make_unique<ui_textbox>("replacement", 0, 0, 54, initial_params.replacement,
 							    [d = dlg.get()](const std::string &) {
 								    d->set_action(dialog_result::confirmed);
 								    d->set_result("ok");
@@ -495,10 +496,10 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	dir_group->add_child(std::move(dir_radio));
 
 	// Row 1 (Options & Direction)
-	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 5 + y_off, 2, 0);
+	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 0, 0, 0);
 	row1->add_child(std::move(opt_group));
 	row1->add_child(std::move(dir_group));
-	dlg->add_child(std::move(row1));
+	flow->add_child(std::move(row1));
 
 	// Scope Group
 	auto scope_group = std::make_unique<ui_group_box>("scope_group", 0, 0, 30, 3, "Scope");
@@ -516,12 +517,14 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	orig_group->add_child(std::move(orig_radio));
 
 	// Row 2 (Scope & Origin)
-	auto row2 = std::make_unique<ui_horizontal_flow>("row2", 0, 10 + y_off, 2, 0);
+	auto row2 = std::make_unique<ui_horizontal_flow>("row2", 0, 0, 0, 0);
 	row2->add_child(std::move(scope_group));
 	row2->add_child(std::move(orig_group));
-	dlg->add_child(std::move(row2));
+	flow->add_child(std::move(row2));
 
-	int btn_y = 14 + y_off;
+	dlg->add_child(std::move(flow));
+
+	int btn_y = height - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'k', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
