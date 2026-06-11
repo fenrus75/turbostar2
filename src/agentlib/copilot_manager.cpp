@@ -303,17 +303,24 @@ std::string copilot_manager::get_copilot_token()
 		return cached_token;
 	}
 
-	event_logger::get_instance().log("Requesting new short-lived Copilot token from GitHub API");
+	std::string token_prefix = access_token.length() >= 8 ? access_token.substr(0, 8) : access_token;
+	event_logger::get_instance().log(
+		"Requesting new short-lived Copilot token. Token prefix: {}, Length: {}",
+		token_prefix, access_token.length()
+	);
 
 	std::vector<std::string> headers = {
-		"Authorization: token " + access_token,
+		std::format("Authorization: token {}", access_token),
 		"User-Agent: GithubCopilot/1.250.0",
 		"Accept: application/json"
 	};
 
 	auto res = perform_curl_request("https://api.github.com/copilot_internal/v2/token", "GET", headers);
+	event_logger::get_instance().log(
+		"GitHub Copilot token API returned status code: {}, response body: {}",
+		res.status_code, res.body
+	);
 	if (res.status_code != 200) {
-		event_logger::get_instance().log("GitHub Copilot token API returned status {}", res.status_code);
 		return "";
 	}
 
@@ -400,10 +407,14 @@ bool copilot_manager::fetch_and_register_github_models(std::string &error_msg)
 
 	std::vector<std::string> headers = {
 		"Accept: application/json",
-		"Authorization: Bearer " + copilot_token
+		std::format("Authorization: Bearer {}", copilot_token)
 	};
 
 	auto res = perform_curl_request("https://api.githubcopilot.com/models", "GET", headers);
+	event_logger::get_instance().log(
+		"fetch_and_register_github_models result status: {}, response body: {}",
+		res.status_code, res.body
+	);
 	if (res.status_code != 200) {
 		error_msg = std::format("Status code: {}, Response: {}", res.status_code, res.body);
 		return false;
@@ -417,7 +428,7 @@ bool copilot_manager::fetch_and_register_github_models(std::string &error_msg)
 
 	// Write to cache
 	std::string cache_dir = fs_utils::get_global_cache_dir();
-	std::string path = cache_dir + "/models.json.github";
+	std::string path = std::format("{}/models.json.github", cache_dir);
 	std::ofstream file(path);
 	if (file.is_open()) {
 		file << formatted;
