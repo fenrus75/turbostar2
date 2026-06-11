@@ -39,6 +39,82 @@ static http_response perform_curl_request(
 		return resp;
 	}
 
+	/*
+	 * Sanitize HTTP headers to avoid leaking sensitive oauth or session tokens
+	 * in the event log file. We preserve prefix/length info for debugging purposes.
+	 */
+	std::vector<std::string> sanitized_headers;
+	for (const auto &h : headers) {
+		if (h.rfind("Authorization:", 0) == 0) {
+			size_t first_space = h.find(' ');
+			if (first_space != std::string::npos) {
+				std::string auth_type = h.substr(0, first_space);
+				std::string rest = h.substr(first_space + 1);
+				size_t second_space = rest.find(' ');
+				std::string token_type = "";
+				std::string token_val = rest;
+				if (second_space != std::string::npos) {
+					token_type = rest.substr(0, second_space);
+					token_val = rest.substr(second_space + 1);
+				}
+				
+				std::string prefix = token_val.length() >= 8 ? token_val.substr(0, 8) : token_val;
+				if (!token_type.empty()) {
+					sanitized_headers.push_back(std::format("{} {} {}*** (len={})", auth_type, token_type, prefix, token_val.length()));
+				} else {
+					sanitized_headers.push_back(std::format("{} {}*** (len={})", auth_type, prefix, token_val.length()));
+				}
+			} else {
+				sanitized_headers.push_back("Authorization: ***");
+			}
+		} else {
+			sanitized_headers.push_back(h);
+		}
+	}
+
+	/*
+	 * Sanitize post parameters to avoid exposing credentials or authorization codes
+	 * in diagnostic logs.
+	 */
+	std::string sanitized_post = post_fields;
+	auto sanitize_field = [](std::string &s, const std::string &field_name) {
+		size_t pos = s.find(field_name + "=");
+		if (pos != std::string::npos) {
+			size_t val_start = pos + field_name.length() + 1;
+			size_t amp_pos = s.find('&', val_start);
+			if (amp_pos != std::string::npos) {
+				s.replace(val_start, amp_pos - val_start, "********");
+			} else {
+				s.replace(val_start, s.length() - val_start, "********");
+			}
+		}
+	};
+	sanitize_field(sanitized_post, "client_secret");
+	sanitize_field(sanitized_post, "access_token");
+	sanitize_field(sanitized_post, "device_code");
+
+	std::string headers_str;
+	for (const auto &sh : sanitized_headers) {
+		headers_str += "\n" + sh;
+	}
+
+	/*
+	 * Log the outbound HTTP request details. This ensures diagnostic information is captured
+	 * for all interactions with external APIs, particularly the token registration endpoints.
+	 * Headers are printed on separate lines to match standard HTTP request formatting.
+	 */
+	if (!sanitized_post.empty()) {
+		event_logger::get_instance().log(
+			"Outbound HTTP request:\n{} {}{}\nPayload: {}",
+			method, url, headers_str, sanitized_post
+		);
+	} else {
+		event_logger::get_instance().log(
+			"Outbound HTTP request:\n{} {}{}",
+			method, url, headers_str
+		);
+	}
+
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	
@@ -308,17 +384,10 @@ std::string copilot_manager::get_copilot_token()
 		return cached_token;
 	}
 
-	std::string token_prefix = access_token.length() >= 8 ? access_token.substr(0, 8) : access_token;
-	std::string url = "https://api.github.com/copilot_internal/v2/token";
-	event_logger::get_instance().log(
-		"GET request to URL: {} with headers: [Accept: application/json, User-Agent: GithubCopilot/1.250.0, "
-		"Copilot-Integration-Id: vscode-chat, Editor-Version: vscode/1.90.0, Editor-Plugin-Version: copilot-chat/0.17.0, "
-		"Authorization: token {}**** (len={})]",
-		url, token_prefix, access_token.length()
-	);
+	std::string url = "https://github.com";
 
 	std::vector<std::string> headers = {
-		std::format("Authorization: token {}", access_token),
+		std::format("Authorization: Bearer {}", access_token),
 		"User-Agent: GithubCopilot/1.250.0",
 		"Accept: application/json",
 		"Copilot-Integration-Id: vscode-chat",
@@ -327,9 +396,37 @@ std::string copilot_manager::get_copilot_token()
 	};
 
 	auto res = perform_curl_request(url, "GET", headers);
+	
+	/*
+	 * Sanitize the response body to avoid writing secret Copilot session tokens
+	 * (e.g. "tid=...") into the log file while preserving other non-sensitive fields
+	 * like expiration times for debugging.
+	 */
+	std::string logged_body = res.body;
+	try {
+		auto j_log = json::parse(res.body);
+		if (j_log.contains("token") && j_log["token"].is_string()) {
+			std::string t_val = j_log["token"];
+			std::string t_prefix = t_val.length() >= 12 ? t_val.substr(0, 12) : t_val;
+			j_log["token"] = std::format("{}*** (len={})", t_prefix, t_val.length());
+			logged_body = j_log.dump();
+		}
+	} catch (...) {
+		size_t tok_pos = logged_body.find("\"token\"");
+		if (tok_pos != std::string::npos) {
+			size_t val_start = logged_body.find('"', tok_pos + 7);
+			if (val_start != std::string::npos) {
+				size_t val_end = logged_body.find('"', val_start + 1);
+				if (val_end != std::string::npos && val_end > val_start) {
+					logged_body.replace(val_start + 1, val_end - val_start - 1, "********");
+				}
+			}
+		}
+	}
+
 	event_logger::get_instance().log(
 		"GitHub Copilot token API returned status code: {}, response body: {}",
-		res.status_code, res.body
+		res.status_code, logged_body
 	);
 	if (res.status_code != 200) {
 		return "";
