@@ -377,7 +377,7 @@ std::string copilot_manager::format_github_models_json(const std::string& catalo
 			model_entry["api_key"] = "";
 			model_entry["api_type"] = "copilot";
 			model_entry["max_context_tokens"] = max_context_tokens;
-			model_entry["cost_type"] = "free_local";
+			model_entry["cost_type"] = "paid_per_token";
 
 			output_models.push_back(model_entry);
 		}

@@ -59,7 +59,7 @@ int main()
 	assert(model1["api_key"] == "");
 	assert(model1["api_type"] == "copilot");
 	assert(model1["max_context_tokens"] == 128000);
-	assert(model1["cost_type"] == "free_local");
+	assert(model1["cost_type"] == "paid_per_token");
 
 	// Test second model
 	auto model2 = formatted[1];
