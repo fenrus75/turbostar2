@@ -1,7 +1,7 @@
 #pragma once
-#include "ui/ui_element.h"
-#include <string>
 #include <optional>
+#include <string>
+#include "ui/ui_element.h"
 
 /*
  * ui_checkbox_group is a layout container for multiple independent checkboxes.
@@ -14,7 +14,11 @@ class ui_checkbox_group : public ui_container
 	ui_checkbox_group(std::string name);
 
 	bool flow() override;
-	bool want_horizontal_stretch() const override { return want_stretch_; }
+	bool want_horizontal_stretch() const override
+	{
+		return want_stretch_;
+	}
+	int natural_width() const override;
 
       private:
 	bool want_stretch_{false};

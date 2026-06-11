@@ -13,12 +13,10 @@ bool ui_vertical_flow::flow()
 		child->flow();
 	}
 
-	// Find the maximum width of all children that do not want horizontal stretch
+	// Find the maximum natural width of all children
 	int max_child_width = 0;
 	for (const auto &child : children_) {
-		if (!child->want_horizontal_stretch()) {
-			max_child_width = std::max(max_child_width, child->width());
-		}
+		max_child_width = std::max(max_child_width, child->natural_width());
 	}
 
 	int total_width = children_.empty() ? 0 : (2 * x_offset_ + max_child_width);

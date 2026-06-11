@@ -19,7 +19,8 @@ bool ui_buttons_horizontal::flow()
 		max_natural_width = std::max(max_natural_width, child->natural_width());
 	}
 
-	int total_buttons_width = children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural_width + (static_cast<int>(children_.size()) - 1) * 2;
+	int total_buttons_width =
+	    children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural_width + (static_cast<int>(children_.size()) - 1) * 2;
 	int start_x = 0;
 	if (centered_ && this->width() > 0) {
 		start_x = (this->width() - total_buttons_width) / 2;
@@ -55,4 +56,13 @@ bool ui_buttons_horizontal::flow()
 bool ui_buttons_horizontal::want_horizontal_stretch() const
 {
 	return centered_;
+}
+
+int ui_buttons_horizontal::natural_width() const
+{
+	int max_natural = 0;
+	for (const auto &child : children_) {
+		max_natural = std::max(max_natural, child->natural_width());
+	}
+	return children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural + (static_cast<int>(children_.size()) - 1) * 2;
 }

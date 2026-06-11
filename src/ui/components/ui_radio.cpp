@@ -204,3 +204,20 @@ std::optional<std::string> ui_radiobutton_group::get_value(const std::string &ta
 	}
 	return std::nullopt;
 }
+
+int ui_radiobutton_group::natural_width() const
+{
+	if (horizontal_) {
+		int total = 0;
+		for (const auto &child : children_) {
+			total += child->natural_width();
+		}
+		return total;
+	} else {
+		int max_child = 0;
+		for (const auto &child : children_) {
+			max_child = std::max(max_child, child->natural_width());
+		}
+		return max_child + 2; // account for x = 2 alignment
+	}
+}

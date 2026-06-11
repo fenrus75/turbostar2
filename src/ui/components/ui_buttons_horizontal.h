@@ -1,6 +1,6 @@
 #pragma once
-#include "ui/ui_element.h"
 #include <string>
+#include "ui/ui_element.h"
 
 class ui_buttons_horizontal : public ui_container
 {
@@ -9,9 +9,16 @@ class ui_buttons_horizontal : public ui_container
 
 	bool flow() override;
 	bool want_horizontal_stretch() const override;
+	int natural_width() const override;
 
-	bool centered() const { return centered_; }
-	void set_centered(bool centered) { centered_ = centered; }
+	bool centered() const
+	{
+		return centered_;
+	}
+	void set_centered(bool centered)
+	{
+		centered_ = centered;
+	}
 
       private:
 	bool centered_{false};

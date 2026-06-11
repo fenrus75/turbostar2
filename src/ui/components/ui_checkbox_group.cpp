@@ -6,8 +6,7 @@ ui_checkbox_group::ui_checkbox_group(std::string name, int x, int y, int width, 
 {
 }
 
-ui_checkbox_group::ui_checkbox_group(std::string name)
-    : ui_container(std::move(name), 0, 0, 0, 0), want_stretch_(true)
+ui_checkbox_group::ui_checkbox_group(std::string name) : ui_container(std::move(name), 0, 0, 0, 0), want_stretch_(true)
 {
 }
 
@@ -40,4 +39,13 @@ bool ui_checkbox_group::flow()
 	}
 
 	return dimensions_changed;
+}
+
+int ui_checkbox_group::natural_width() const
+{
+	int max_child = 0;
+	for (const auto &child : children_) {
+		max_child = std::max(max_child, child->natural_width());
+	}
+	return max_child + 2; // account for x = 2 alignment
 }
