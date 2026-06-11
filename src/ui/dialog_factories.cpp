@@ -191,12 +191,20 @@ class force_quit_dialog_impl : public dialog
 	{
 		start_time_ = std::chrono::steady_clock::now();
 
-		std::string msg = "Unsaved changes! Quit anyway?";
-		int text_x = (width_ - static_cast<int>(msg.length())) / 2;
-		add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+		auto flow = std::make_unique<ui_vertical_flow>("force_quit_flow", 0, 0, 2, 2);
 
-		int by = height_ - 3;
-		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+		std::string msg = "Unsaved changes! Quit anyway?";
+		auto msg_label = std::make_unique<ui_text_label>(msg, true);
+		msg_label->set_width(width_ - 4);
+		flow->add_child(std::move(msg_label));
+
+		auto count_label = std::make_unique<ui_text_label>("(Auto-closing in 5s)", true);
+		count_label->set_width(width_ - 4);
+		countdown_label_ = count_label.get();
+		flow->add_child(std::move(count_label));
+
+		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+		btns->set_centered(true);
 		btns->add_child(std::make_unique<ui_button>("btn_exit", "Exit", 'E', [this]() {
 			set_action(dialog_result::confirmed);
 			set_result("exit");
@@ -212,29 +220,25 @@ class force_quit_dialog_impl : public dialog
 			    set_result("cancel");
 		    },
 		    true));
-		btns->flow();
-		btns->set_position((width_ - btns->width()) / 2, by);
-		add_child(std::move(btns));
+
+		flow->add_child(std::move(btns));
+
+		auto flow_ptr = flow.get();
+		add_child(std::move(flow));
+
+		this->flow();
+		set_height(flow_ptr->height());
 
 		set_focus_by_name("btn_save_all");
-	}
-
-	void draw() const override
-	{
-		dialog::draw();
-		if (countdown_active_) {
-			std::string count_msg = "(Auto-closing in " + std::to_string(remaining_seconds_) + "s)";
-			int count_x = x_ + (width_ - static_cast<int>(count_msg.length())) / 2;
-			attron(COLOR_PAIR(1));
-			mvaddstr(y_ + 4, count_x, count_msg.c_str());
-			attroff(COLOR_PAIR(1));
-		}
 	}
 
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override
 	{
 		if (ev.type == event_type::key_press || ev.type == event_type::mouse_click) {
-			countdown_active_ = false; // Any interaction cancels countdown
+			if (countdown_active_) {
+				countdown_active_ = false; // Any interaction cancels countdown
+				countdown_label_->set_text("");
+			}
 		}
 		if (ev.type == event_type::key_press && ev.key_code == 27) { // ESC instantly exits per user request
 			set_action(dialog_result::confirmed);
@@ -255,7 +259,10 @@ class force_quit_dialog_impl : public dialog
 				set_result("exit");
 				return true;
 			}
-			remaining_seconds_ = new_remaining;
+			if (new_remaining != remaining_seconds_) {
+				remaining_seconds_ = new_remaining;
+				countdown_label_->set_text(std::format("(Auto-closing in {}s)", remaining_seconds_));
+			}
 		}
 		return false;
 	}
@@ -264,6 +271,7 @@ class force_quit_dialog_impl : public dialog
 	bool countdown_active_{true};
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	int remaining_seconds_{5};
+	ui_text_label *countdown_label_{nullptr};
 };
 
 std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text)

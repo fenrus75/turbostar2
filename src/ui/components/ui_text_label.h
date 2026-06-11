@@ -12,6 +12,11 @@ class ui_text_label : public ui_element
 	{
 		return false;
 	}
+	void set_text(const std::string &text)
+	{
+		text_ = text;
+		set_width(text_.length());
+	}
 
       private:
 	std::string text_;
