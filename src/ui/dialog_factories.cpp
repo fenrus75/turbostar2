@@ -902,7 +902,7 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	flow->add_child(std::move(lb));
 
 	// Server URL and Import controls
-	auto import_row = std::make_unique<ui_horizontal_flow>("import_row", 0, 0);
+	auto import_row = std::make_unique<ui_horizontal_flow>("import_row");
 	import_row->add_child(std::make_unique<ui_text_label>("Server URL:"));
 	import_row->add_child(std::make_unique<ui_textbox>("server_url", 28, "http://localhost:11434/v1"));
 	import_row->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [d = dlg.get()]() {
