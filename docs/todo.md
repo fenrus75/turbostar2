@@ -116,6 +116,14 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- modernized the `Search / Replace` dialog to use coordinate-free layout flows.
+- modernized the `Model List` dialog to use coordinate-free layout flows.
+- modernized the `Model Edit` dialog to use coordinate-free layout flows.
+- modernized the `Save Changes` dialog to use coordinate-free layout flows.
+- modernized the `Message` dialog to use coordinate-free layout flows.
+- modernized the `About` dialog to use coordinate-free layout flows.
+- modernized the `Plan Approval` dialog to use coordinate-free layout flows.
+- modernized the `Force Quit` dialog to use coordinate-free layout flows.
 - modernized the `Copilot Connect` dialog to use coordinate-free layout flows.
 - modernized the `Ask User` dialog to use coordinate-free layout flows and added unit test coverage in `test_tool_status.cpp`.
 - modernized the `Run Settings` dialog to use coordinate-free layout flows.
