@@ -29,12 +29,15 @@ class ui_radiobutton_group : public ui_container
 {
       public:
 	ui_radiobutton_group(std::string name, int x, int y, int width, int height, bool horizontal = false);
+	ui_radiobutton_group(std::string name, bool horizontal = false);
 
 	bool flow() override;
+	bool want_horizontal_stretch() const override { return want_stretch_; }
 
 	void child_got_selected(ui_element *child) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 
       private:
 	bool horizontal_;
+	bool want_stretch_{false};
 };

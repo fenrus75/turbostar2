@@ -6,6 +6,11 @@ ui_checkbox_group::ui_checkbox_group(std::string name, int x, int y, int width, 
 {
 }
 
+ui_checkbox_group::ui_checkbox_group(std::string name)
+    : ui_container(std::move(name), 0, 0, 0, 0), want_stretch_(true)
+{
+}
+
 /*
  * Computes the vertical layout flow for child checkboxes within the group.
  * Positions checkboxes consecutively starting from x = 2 and y = 1

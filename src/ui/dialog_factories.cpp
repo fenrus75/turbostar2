@@ -481,7 +481,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	// Options Group
 	int opt_h = is_replace ? 5 : 4;
 	auto opt_group = std::make_unique<ui_group_box>("opt_group", 0, 0, 30, opt_h, "Options");
-	auto opt_checkboxes = std::make_unique<ui_checkbox_group>("opt_checkboxes", 0, 0, 30, opt_h);
+	auto opt_checkboxes = std::make_unique<ui_checkbox_group>("opt_checkboxes");
 	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("ignore_case", "Case sensitive", 'c', !initial_params.ignore_case));
 	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("whole_words", "Whole words only", 'w', initial_params.whole_words));
 	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("regex", "Regular expression", 'r', initial_params.regex));
@@ -493,7 +493,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 	// Direction Group
 	auto dir_group = std::make_unique<ui_group_box>("dir_group", 0, 0, 28, 3, "Direction");
-	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction", 0, 0, 28, 3);
+	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction");
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", "Forward", 'f', !initial_params.backward));
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", "Backward", 'b', initial_params.backward));
 	dir_group->add_child(std::move(dir_radio));
@@ -506,7 +506,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 	// Scope Group
 	auto scope_group = std::make_unique<ui_group_box>("scope_group", 0, 0, 30, 3, "Scope");
-	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope", 0, 0, 30, 3);
+	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope");
 	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", "Global", 'g', !initial_params.selected_text_only));
 	scope_radio->add_child(
 	    std::make_unique<ui_radio_choice>("scope_selected", "Selected text", 's', initial_params.selected_text_only));
@@ -514,7 +514,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 	// Origin Group
 	auto orig_group = std::make_unique<ui_group_box>("orig_group", 0, 0, 28, 3, "Origin");
-	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin", 0, 0, 28, 3);
+	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin");
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", "From cursor", 'o', initial_params.from_cursor));
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", "Entire scope", 'e', !initial_params.from_cursor));
 	orig_group->add_child(std::move(orig_radio));
@@ -568,7 +568,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 
 	// Clang Format Style group
 	auto style_group = std::make_unique<ui_group_box>("style_group", 0, 0, 30, 9, " Clang Format Style ");
-	auto style_radio = std::make_unique<ui_radiobutton_group>("style", 0, 0, 30, 9);
+	auto style_radio = std::make_unique<ui_radiobutton_group>("style");
 
 	std::vector<std::pair<std::string, char>> style_labels = {
 	    {"LLVM", 'L'},   {"Google", 'G'},	 {"Chromium", 'C'}, {"Mozilla", 'M'},
@@ -584,7 +584,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 
 	// Build System group
 	auto build_group = std::make_unique<ui_group_box>("build_group", 0, 0, 20, 5, " Build System ");
-	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system", 0, 0, 20, 5);
+	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system");
 
 	std::vector<std::pair<std::string, char>> system_labels = {{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}};
 
@@ -1050,7 +1050,7 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 
 	// Run Target Mode group
 	auto mode_group = std::make_unique<ui_group_box>("mode_group", 4, 6, 52, 5, " Run Target Mode ");
-	auto mode_radio = std::make_unique<ui_radiobutton_group>("run_target_mode", 0, 0, 52, 5);
+	auto mode_radio = std::make_unique<ui_radiobutton_group>("run_target_mode");
 
 	struct mode_opt_t {
 		std::string value;

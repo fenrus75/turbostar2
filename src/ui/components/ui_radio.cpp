@@ -116,6 +116,11 @@ ui_radiobutton_group::ui_radiobutton_group(std::string name, int x, int y, int w
 {
 }
 
+ui_radiobutton_group::ui_radiobutton_group(std::string name, bool horizontal)
+    : ui_container(std::move(name), 0, 0, 0, 0), horizontal_(horizontal), want_stretch_(true)
+{
+}
+
 /*
  * Computes the layout flow for children within the radio button group.
  * If configured horizontally, radio choice elements are placed side-by-side
