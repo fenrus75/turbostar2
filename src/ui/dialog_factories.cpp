@@ -599,6 +599,8 @@ std::unique_ptr<dialog> create_settings_dialog()
 {
 	auto dlg = std::make_unique<dialog>("Preferences", 60, 25);
 
+	auto flow = std::make_unique<ui_vertical_flow>("settings_flow", 0, 0, 2, 1);
+
 	// Clang Format Style group
 	auto style_group = std::make_unique<ui_group_box>("style_group", 30, " Clang Format Style ");
 	auto style_radio = std::make_unique<ui_radiobutton_group>("style");
@@ -616,7 +618,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	style_group->add_child(std::move(style_radio));
 
 	// Build System group
-	auto build_group = std::make_unique<ui_group_box>("build_group", 20, " Build System ");
+	auto build_group = std::make_unique<ui_group_box>("build_group", 24, " Build System ");
 	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system");
 
 	std::vector<std::pair<std::string, char>> system_labels = {{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}};
@@ -630,21 +632,21 @@ std::unique_ptr<dialog> create_settings_dialog()
 	build_group->add_child(std::move(build_radio));
 
 	// Row 1 (Style & Build Groups)
-	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 2, 4, 0);
+	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 0, 0, 0);
 	row1->add_child(std::move(style_group));
 	row1->add_child(std::move(build_group));
-	dlg->add_child(std::move(row1));
+	flow->add_child(std::move(row1));
 
 	// Build Directory Input
-	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 4, 13, 52, config_manager::get_instance().get_build_directory(), nullptr,
-						    "Build Directory:"));
+	flow->add_child(std::make_unique<ui_textbox>("build_dir", 0, 0, 56, config_manager::get_instance().get_build_directory(), nullptr,
+						     "Build Directory:"));
 
 	// Default Model ID Input
-	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 4, 14, 52, config_manager::get_instance().get_default_model_id(),
-						    nullptr, "Model ID:"));
+	flow->add_child(std::make_unique<ui_textbox>("default_model_id", 0, 0, 56, config_manager::get_instance().get_default_model_id(),
+						     nullptr, "Model ID:       "));
 
 	// Toggles
-	auto toggles_group = std::make_unique<ui_checkbox_group>("toggles", 2, 16, 52, 6);
+	auto toggles_group = std::make_unique<ui_checkbox_group>("toggles");
 	toggles_group->add_child(
 	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open files for build errors", 'u',
@@ -657,9 +659,10 @@ std::unique_ptr<dialog> create_settings_dialog()
 							       config_manager::get_instance().is_software_map_enabled()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Give shell tool [d]isplay access", 'd',
 							       config_manager::get_instance().is_shell_display_access()));
-	dlg->add_child(std::move(toggles_group));
+	flow->add_child(std::move(toggles_group));
 
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 23, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -675,9 +678,16 @@ std::unique_ptr<dialog> create_settings_dialog()
 		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((60 - btns->width()) / 2, 23);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
 	dlg->set_focus_by_name("style_group");
 
 	return dlg;
