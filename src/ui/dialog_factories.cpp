@@ -412,22 +412,22 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 	}
 
 	auto opt_group = std::make_unique<tools::ui_ask_user_group>("options", 0, 0, width - 4, options);
-	int options_height = opt_group->height();
 
-	// height calculation: 1 (top) + lines.size() + 1 (gap) + options_height + 3 (gap+buttons) + 2 (bottom/shadow)
-	int height = 7 + lines.size() + options_height;
-	auto dlg = std::make_unique<dialog>("Question", width, height);
+	auto dlg = std::make_unique<dialog>("Question", width, 20);
+
+	auto flow = std::make_unique<ui_vertical_flow>("ask_user_flow", 2, 1);
 
 	for (size_t i = 0; i < lines.size(); ++i) {
-		dlg->add_child(std::make_unique<ui_text_label>((width - lines[i].length()) / 2, 1 + i, lines[i]));
+		auto label = std::make_unique<ui_text_label>(lines[i], true);
+		label->set_width(width - 4);
+		flow->add_child(std::move(label));
 	}
 
-	int start_y = 2 + lines.size();
-	opt_group->set_bounds(2, start_y, width - 4, options_height);
-	dlg->add_child(std::move(opt_group));
+	opt_group->set_width(width - 4);
+	flow->add_child(std::move(opt_group));
 
-	int btn_y = height - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'O', [d = dlg.get()]() {
 		auto opt = d->get_value("options");
 		if (opt)
@@ -441,9 +441,14 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 		    d->set_result("cancel");
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((width - btns->width()) / 2, btn_y);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("options");
 	return dlg;

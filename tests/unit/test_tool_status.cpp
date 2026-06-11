@@ -63,6 +63,15 @@ int main()
 		std::cout << "Model edit dialog copilot test passed!" << std::endl;
 	}
 
+	// Test create_ask_user_dialog
+	{
+		std::cout << "Testing create_ask_user_dialog..." << std::endl;
+		auto ask_dlg = create_ask_user_dialog("Confirm status?", {"Yes", "No"});
+		assert(ask_dlg != nullptr);
+		assert(ask_dlg->width() >= 70);
+		std::cout << "Ask user dialog test passed!" << std::endl;
+	}
+
 	std::cout << "Tool status dialog unit test passed successfully!" << std::endl;
 	return 0;
 }

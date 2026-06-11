@@ -2,8 +2,6 @@
 
 - copilot connect window should exit if an existing token exists for copilot -- BUT it maybe should fetch the model list instead!
 
-- the models dialog box does not have a radio button for copilot type
-
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
 - since we have github:// and skills://
@@ -118,6 +116,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- modernized the `Ask User` dialog to use coordinate-free layout flows and added unit test coverage in `test_tool_status.cpp`.
 - modernized the `Run Settings` dialog to use coordinate-free layout flows.
 - added `"copilot"` API Format choice to the model edit dialog box and verified it under the unit test suite.
 - fixed coordinate double-addition in `ui_listbox` and `ui_multiline_edit` components which was causing listbox borders to clobber dialog borders and removing the vertical spacing between the listbox and action buttons in flow layouts.
