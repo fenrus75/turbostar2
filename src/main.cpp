@@ -88,6 +88,9 @@ int main(int argc, char **argv)
 	auto &logger = event_logger::get_instance();
 	if (!log_file.empty()) {
 		logger.set_log_file(log_file);
+	} else {
+		std::string default_log = fs_utils::get_project_cache_root() + "/session.log";
+		logger.set_log_file(default_log);
 	}
 	logger.log("Application started.");
 
