@@ -18,6 +18,8 @@ class ui_container;
 | subclass          | filename                                                |
 | ----------------- | ------------------------------------------------------- |
 | ui_button         | src/ui/components/ui_button.h                           |
+| ui_buttons_horizontal | src/ui/components/ui_buttons_horizontal.h               |
+| ui_buttons_vertical   | src/ui/components/ui_buttons_vertical.h                 |
 | ui_checkbox       | src/ui/components/ui_checkbox.h                         |
 | ui_dropdown       | src/ui/components/ui_dropdown.h                         |
 | ui_fileselector   | src/ui/components/ui_fileselector.h                     |
@@ -55,12 +57,37 @@ class ui_element
 	{
 		return height_;
 	}
+	virtual int natural_width() const
+	{
+		return width_;
+	}
+	virtual int natural_height() const
+	{
+		return height_;
+	}
 	void set_bounds(int x, int y, int width, int height)
 	{
 		x_ = x;
 		y_ = y;
 		width_ = width;
 		height_ = height;
+	}
+	void set_position(int x, int y)
+	{
+		x_ = x;
+		y_ = y;
+	}
+	virtual void set_width(int width)
+	{
+		width_ = width;
+	}
+	virtual void set_height(int height)
+	{
+		height_ = height;
+	}
+	virtual bool flow()
+	{
+		return false;
 	}
 	std::string name() const
 	{
@@ -162,6 +189,16 @@ class ui_element
 	ui_container *parent_{nullptr};
 };
 
+/*
+
+# subclasses of ui_container
+
+| subclass              | filename                                                    |
+| --------------------- | ----------------------------------------------------------- |
+| ui_buttons_horizontal | src/ui/components/ui_buttons_horizontal.h                   |
+| ui_buttons_vertical   | src/ui/components/ui_buttons_vertical.h                     |
+
+*/
 class ui_container : public ui_element
 {
       public:
@@ -185,6 +222,7 @@ class ui_container : public ui_element
 	bool focus_first() override;
 	bool focus_previous() override;
 	bool focus_last() override;
+	bool flow() override;
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
 
@@ -205,6 +243,8 @@ namespace ui_utils {
 // Represents a single-line text input field.
 
 #include "ui/components/ui_button.h"
+#include "ui/components/ui_buttons_horizontal.h"
+#include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_group_box.h"

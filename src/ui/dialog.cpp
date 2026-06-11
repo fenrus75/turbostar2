@@ -97,6 +97,9 @@ std::optional<dialog_result> dialog::handle_mouse(int mouse_x, int mouse_y)
 
 void dialog::draw() const
 {
+	do {
+	} while (const_cast<dialog *>(this)->flow());
+
 	// Draw shadow
 	attron(COLOR_PAIR(6));
 	for (int i = 0; i < height_; ++i) {

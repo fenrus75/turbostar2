@@ -44,4 +44,14 @@ bool next_character(std::string_view s, size_t &byte_offset, std::string &out_ch
  */
 std::string sanitize(std::string_view s);
 
+/**
+ * @brief Returns a trimmed copy of the string (removing leading and trailing whitespace).
+ */
+std::string trim(std::string_view s);
+
+/**
+ * @brief Removes trailing whitespace (spaces, tabs, newlines, carriage returns) from a string in-place.
+ */
+void trim_trailing_whitespace(std::string& s);
+
 } // namespace utf8

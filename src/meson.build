@@ -89,6 +89,8 @@ ui_sources = files(
   'ui/components/ui_multiline_edit.cpp',
   'ui/components/ui_listbox.cpp',
   'ui/components/ui_button.cpp',
+  'ui/components/ui_buttons_horizontal.cpp',
+  'ui/components/ui_buttons_vertical.cpp',
   'ui/components/ui_checkbox.cpp',
   'ui/components/ui_radio.cpp',
   'ui/components/ui_ask_user_group.cpp',

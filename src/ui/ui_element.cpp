@@ -304,6 +304,17 @@ void ui_container::set_focus_by_name(const std::string &child_name)
 	}
 }
 
+bool ui_container::flow()
+{
+	bool changed = false;
+	for (const auto &child : children_) {
+		if (child->flow()) {
+			changed = true;
+		}
+	}
+	return changed;
+}
+
 void ui_utils::draw_border(int x, int y, int width, int height, border_style style, int color_pair)
 {
 	const char *ls = "│";

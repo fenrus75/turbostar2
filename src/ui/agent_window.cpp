@@ -12,7 +12,6 @@
 #include "config_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
-#include "markdown_utils.h"
 #include "project_manager.h"
 #include "utf8.h"
 
@@ -143,7 +142,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string filepath;
 			if (trimmed_text.length() > 6) {
 				filepath = trimmed_text.substr(6);
-				markdown_utils::trim_trailing_whitespace(filepath);
+				utf8::trim_trailing_whitespace(filepath);
 			}
 
 			if (filepath.empty()) {
@@ -426,7 +425,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			std::string filepath;
 			if (trimmed_text.length() > 6) {
 				filepath = trimmed_text.substr(6);
-				markdown_utils::trim_trailing_whitespace(filepath);
+				utf8::trim_trailing_whitespace(filepath);
 			}
 
 			if (filepath.empty()) {
@@ -870,10 +869,10 @@ bool agent_window::process_events()
 				sidebar_focus_ = sidebar_focus::input;
 				int prefix_w = visible_lines_[click_row].prefix.empty()
 						   ? 0
-						   : markdown_utils::display_width(visible_lines_[click_row].prefix);
+						   : utf8::display_width(visible_lines_[click_row].prefix);
 				int col = ev->mouse_x - (x_ + 1 + prefix_w);
 				int click_char =
-				    std::clamp(col, 0, static_cast<int>(markdown_utils::display_width(visible_lines_[click_row].text)));
+				    std::clamp(col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
 
 				is_mouse_selecting_ = true;
 				mouse_sel_start_char_ = click_char;
@@ -901,10 +900,10 @@ bool agent_window::process_events()
 				if (click_row >= 0 && click_row < static_cast<int>(visible_lines_.size())) {
 					int prefix_w = visible_lines_[click_row].prefix.empty()
 							   ? 0
-							   : markdown_utils::display_width(visible_lines_[click_row].prefix);
+							   : utf8::display_width(visible_lines_[click_row].prefix);
 					int col = ev->mouse_x - (x_ + 1 + prefix_w);
 					int click_char = std::clamp(
-					    col, 0, static_cast<int>(markdown_utils::display_width(visible_lines_[click_row].text)));
+					    col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
 
 					mouse_sel_end_char_ = click_char;
 					mouse_sel_end_line_ = click_row;
@@ -1088,7 +1087,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 					sep_line.text = sep_left;
 					if (item->needs_subpanel_header()) {
 						std::string label = " " + item->get_subpanel_label() + " ";
-						int label_len = markdown_utils::display_width(label);
+						int label_len = utf8::display_width(label);
 						int line_len = inner_width + 2;
 						int left_pad = (line_len - label_len) / 2;
 						int right_pad = line_len - label_len - left_pad;
@@ -1114,7 +1113,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				l.prefix = vert + " ";
 				l.prefix_color_pair = box_cp;
 
-				int content_len = markdown_utils::display_width(line.text);
+				int content_len = utf8::display_width(line.text);
 				int pad_len = inner_width - content_len;
 				if (pad_len < 0)
 					pad_len = 0;
@@ -1153,7 +1152,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				attron(COLOR_PAIR(line_it->prefix_color_pair));
 				mvprintw(current_y, current_x, "%s", line_it->prefix.c_str());
 				attroff(COLOR_PAIR(line_it->prefix_color_pair));
-				current_x += markdown_utils::display_width(line_it->prefix);
+				current_x += utf8::display_width(line_it->prefix);
 			}
 
 			// Draw text with potential selection highlight
@@ -1169,7 +1168,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				}
 			}
 
-			int text_len = markdown_utils::display_width(line_it->text);
+			int text_len = utf8::display_width(line_it->text);
 			size_t byte_off = 0;
 			std::string utf8_char;
 			utf8_char.reserve(4);
@@ -1409,7 +1408,7 @@ std::string agent_window::get_mouse_selected_text() const
 		if (l < 0 || l >= static_cast<int>(visible_lines_.size()))
 			continue;
 		const auto &line = visible_lines_[l];
-		int len = markdown_utils::display_width(line.text);
+		int len = utf8::display_width(line.text);
 
 		int from_c = (l == start_l) ? start_c : 0;
 		int to_c = (l == end_l) ? end_c : len;

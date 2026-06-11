@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include "../../agentlib/interactions/base.h"
-#include "../../markdown_utils.h"
+#include "../../utf8.h"
 #include "fs_replace_lines.h"
 
 namespace tools
@@ -109,7 +109,7 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 		}
 
 		for (auto &line : lines) {
-			int len = markdown_utils::display_width(line.text);
+			int len = utf8::display_width(line.text);
 			if (len < width) {
 				line.text += std::string(width - len, ' ');
 			}
@@ -210,8 +210,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ct
 			for (size_t i = 0; i < expected_lines.size(); ++i) {
 				std::string actual = lines[test_idx + i];
 				std::string expected = expected_lines[i];
-				std::string actual_trimmed = markdown_utils::trim(actual);
-				std::string expected_trimmed = markdown_utils::trim(expected);
+				std::string actual_trimmed = utf8::trim(actual);
+				std::string expected_trimmed = utf8::trim(expected);
 
 				if (expected_trimmed.empty()) {
 					if (!actual_trimmed.empty()) {

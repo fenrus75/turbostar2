@@ -53,15 +53,5 @@ size_t display_width(const std::string& s);
  */
 std::string align_all_tables(const std::string& text, bool framed = false);
 
-/**
- * @brief Removes trailing whitespace (spaces, tabs, newlines, carriage returns) from a string in-place.
- */
-void trim_trailing_whitespace(std::string& s);
-
-/**
- * @brief Returns a trimmed copy of the string (removing leading and trailing whitespace).
- */
-std::string trim(std::string_view s);
-
 } // namespace markdown_utils
 

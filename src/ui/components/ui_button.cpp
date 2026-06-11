@@ -4,6 +4,7 @@
 #include <ncurses.h>
 #include <sys/stat.h>
 #include "fs_utils.h"
+#include "utf8.h"
 
 // --- ui_button ---
 
@@ -91,4 +92,12 @@ bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 	}
 
 	return false;
+}
+
+int ui_button::natural_width() const
+{
+	// Natural width of the button is the length of the trimmed text plus
+	// 3 (one space on each side of the text, plus one for the dropshadow).
+	std::string trimmed = utf8::trim(text_);
+	return static_cast<int>(utf8::length(trimmed)) + 3;
 }

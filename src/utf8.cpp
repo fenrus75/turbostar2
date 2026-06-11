@@ -157,4 +157,23 @@ std::string sanitize(std::string_view s)
 	return res;
 }
 
+std::string trim(std::string_view s)
+{
+	auto first = s.find_first_not_of(" \t\r\n");
+	if (std::string_view::npos == first)
+		return "";
+	auto last = s.find_last_not_of(" \t\r\n");
+	return std::string(s.substr(first, (last - first + 1)));
+}
+
+void trim_trailing_whitespace(std::string &s)
+{
+	auto last = s.find_last_not_of(" \t\r\n");
+	if (std::string::npos == last) {
+		s.clear();
+	} else {
+		s.erase(last + 1);
+	}
+}
+
 } // namespace utf8

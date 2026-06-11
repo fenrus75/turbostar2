@@ -4,7 +4,7 @@
 #include <iostream>
 #include <format>
 #include "event_logger.h"
-#include "markdown_utils.h"
+#include "utf8.h"
 
 namespace agentlib
 {
@@ -51,20 +51,20 @@ void skill_manager::initialize()
 				}
 
 				std::string line;
-				if (std::getline(file, line) && markdown_utils::trim(line) == "---") {
+				if (std::getline(file, line) && utf8::trim(line) == "---") {
 					std::string name;
 					std::string description;
 					bool in_desc = false;
 					while (std::getline(file, line)) {
-						std::string trimmed = markdown_utils::trim(line);
+						std::string trimmed = utf8::trim(line);
 						if (trimmed == "---") {
 							break;
 						}
 						if (trimmed.starts_with("name:")) {
-							name = markdown_utils::trim(trimmed.substr(5));
+							name = utf8::trim(trimmed.substr(5));
 							in_desc = false;
 						} else if (trimmed.starts_with("description:")) {
-							description = markdown_utils::trim(trimmed.substr(12));
+							description = utf8::trim(trimmed.substr(12));
 							in_desc = true;
 						} else if (in_desc) {
 							if (description.length() < kMaxDescriptionLength) {

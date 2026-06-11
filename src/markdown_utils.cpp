@@ -89,16 +89,7 @@ std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 
 std::string table_aligner::trim(const std::string &s)
 {
-	return markdown_utils::trim(s);
-}
-
-std::string trim(std::string_view s)
-{
-	auto first = s.find_first_not_of(" \t\r\n");
-	if (std::string_view::npos == first)
-		return "";
-	auto last = s.find_last_not_of(" \t\r\n");
-	return std::string(s.substr(first, (last - first + 1)));
+	return utf8::trim(s);
 }
 
 size_t display_width(const std::string &s)
@@ -256,16 +247,6 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 	}
 
 	return result;
-}
-
-void trim_trailing_whitespace(std::string &s)
-{
-	size_t last = s.find_last_not_of(" \t\r\n");
-	if (last == std::string::npos) {
-		s.clear();
-	} else {
-		s.erase(last + 1);
-	}
 }
 
 } // namespace markdown_utils
