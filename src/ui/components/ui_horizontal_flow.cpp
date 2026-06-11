@@ -34,10 +34,10 @@ bool ui_horizontal_flow::flow()
 			child->set_position(target_x, target_y);
 		}
 
-		running_x += child->width() + 1;
+		running_x += child->width() + 2;
 	}
 
-	int total_width = children_.empty() ? 0 : (running_x - 1 + x_offset_);
+	int total_width = children_.empty() ? 0 : (running_x - 2 + x_offset_);
 	int total_height = children_.empty() ? 0 : (2 * y_offset_ + max_child_height);
 
 	if (this->width() != total_width || this->height() != total_height) {
