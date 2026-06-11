@@ -1358,7 +1358,7 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 
 	auto dlg = std::make_unique<dialog>("File Changed", desired_width, 8);
 
-	auto flow = std::make_unique<ui_vertical_flow>("reload_flow", 0, 0, 2, 2);
+	auto flow = std::make_unique<ui_vertical_flow>("reload_flow", 2, 2);
 
 	std::string msg = "File " + display_name + " has changed on disk. Reload?";
 	auto label = std::make_unique<ui_text_label>(msg, true);
