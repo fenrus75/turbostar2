@@ -817,12 +817,14 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	dlg->add_child(std::move(lb));
 
 	// Server URL and Import controls at y = 13
-	dlg->add_child(std::make_unique<ui_text_label>(2, 13, "Server URL:"));
-	dlg->add_child(std::make_unique<ui_textbox>("server_url", 14, 13, 28, "http://localhost:11434/v1"));
-	dlg->add_child(std::make_unique<ui_button>("btn_import", 44, 13, "Import", 'i', [d = dlg.get()]() {
+	auto import_row = std::make_unique<ui_horizontal_flow>("import_row", 0, 13, 2, 0);
+	import_row->add_child(std::make_unique<ui_text_label>(0, 0, "Server URL:"));
+	import_row->add_child(std::make_unique<ui_textbox>("server_url", 0, 0, 28, "http://localhost:11434/v1"));
+	import_row->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("import");
 	}));
+	dlg->add_child(std::move(import_row));
 
 	int by = 16;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
