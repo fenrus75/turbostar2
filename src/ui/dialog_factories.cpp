@@ -1039,7 +1039,7 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	flow->add_child(std::make_unique<ui_textbox>("cost_rx", 56, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0",
 						    nullptr, "Rx Cost:   "));
 
-	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row", 0, 0);
+	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row");
 	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
 	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
 	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
@@ -1051,7 +1051,7 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	type_row->add_child(std::move(type_radio));
 	flow->add_child(std::move(type_row));
 
-	auto cost_row = std::make_unique<ui_horizontal_flow>("cost_row", 0, 0);
+	auto cost_row = std::make_unique<ui_horizontal_flow>("cost_row");
 	cost_row->add_child(std::make_unique<ui_text_label>("Cost Model:"));
 	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", true);
 	bool is_free = model && model->get_cost_type() == agentlib::model_cost_type::free_local;
