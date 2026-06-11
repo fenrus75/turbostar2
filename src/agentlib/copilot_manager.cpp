@@ -387,17 +387,22 @@ std::string copilot_manager::format_github_models_json(const std::string& catalo
 	}
 }
 
-void copilot_manager::query_and_write_github_models(const std::string &token)
+void copilot_manager::query_and_write_github_models(const std::string &/*token*/)
 {
 	event_logger::get_instance().log("query_and_write_github_models started.");
 
+	std::string copilot_token = get_copilot_token();
+	if (copilot_token.empty()) {
+		event_logger::get_instance().log("Cannot fetch GitHub models catalog: Copilot token is empty");
+		return;
+	}
+
 	std::vector<std::string> headers = {
-		"Accept: application/vnd.github+json",
-		"Authorization: Bearer " + token,
-		"X-GitHub-Api-Version: 2026-03-10"
+		"Accept: application/json",
+		"Authorization: Bearer " + copilot_token
 	};
 
-	auto res = perform_curl_request("https://models.github.ai/catalog/models", "GET", headers);
+	auto res = perform_curl_request("https://api.githubcopilot.com/models", "GET", headers);
 	event_logger::get_instance().log("GitHub models catalog fetch response. Status code: {}, Body size: {}", res.status_code, res.body.size());
 
 	if (res.status_code != 200) {
