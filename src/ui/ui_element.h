@@ -29,6 +29,7 @@ class ui_container;
 | ui_radio          | src/ui/components/ui_radio.h                            |
 | ui_text_label     | src/ui/components/ui_text_label.h                        |
 | ui_textbox        | src/ui/components/ui_textbox.h                           |
+| ui_vertical_flow   | src/ui/components/ui_vertical_flow.h                     |
 | ui_container      | src/ui/ui_element.h                                     |
 
 */
@@ -197,6 +198,7 @@ class ui_element
 | --------------------- | ----------------------------------------------------------- |
 | ui_buttons_horizontal | src/ui/components/ui_buttons_horizontal.h                   |
 | ui_buttons_vertical   | src/ui/components/ui_buttons_vertical.h                     |
+| ui_vertical_flow      | src/ui/components/ui_vertical_flow.h                       |
 
 */
 class ui_container : public ui_element
@@ -251,3 +253,4 @@ namespace ui_utils {
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_text_label.h"
 #include "ui/components/ui_textbox.h"
+#include "ui/components/ui_vertical_flow.h"

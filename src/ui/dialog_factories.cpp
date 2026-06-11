@@ -48,16 +48,16 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 
 	int by = 8 - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_save", 0, 0, "  Save  ", 'S', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 'S', [d = dlg.get()]() {
 		d->set_result("save");
 		d->set_action(dialog_result::confirmed);
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_discard", 0, 0, " Discard ", 'D', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_discard", "Discard", 'D', [d = dlg.get()]() {
 		d->set_result("discard");
 		d->set_action(dialog_result::confirmed);
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'C',
+	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
 		    d->set_result("cancel");
 		    d->set_action(dialog_result::cancelled);
@@ -88,10 +88,10 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
 	}
 
-	std::string ok_text = "  OK  ";
+	std::string ok_text = "OK";
 	int btn_y = height - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, ok_text, 'o', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
@@ -150,10 +150,10 @@ std::unique_ptr<dialog> create_welcome_dialog()
 		dlg->add_child(std::make_unique<ui_text_label>(text_x, 2 + i, lines[i]));
 	}
 
-	std::string ok_text = "  OK  ";
+	std::string ok_text = "OK";
 	int btn_y = height - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, ok_text, 'o', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("ok");
 	}));
@@ -178,16 +178,16 @@ class force_quit_dialog_impl : public dialog
 
 		int by = height_ - 3;
 		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-		btns->add_child(std::make_unique<ui_button>("btn_exit", 0, 0, "  Exit  ", 'E', [this]() {
+		btns->add_child(std::make_unique<ui_button>("btn_exit", "Exit", 'E', [this]() {
 			set_action(dialog_result::confirmed);
 			set_result("exit");
 		}));
-		btns->add_child(std::make_unique<ui_button>("btn_save_all", 0, 0, " Save All ", 'S', [this]() {
+		btns->add_child(std::make_unique<ui_button>("btn_save_all", "Save All", 'S', [this]() {
 			set_action(dialog_result::confirmed);
 			set_result("save_all");
 		}));
 		btns->add_child(std::make_unique<ui_button>(
-		    "btn_cancel", 0, 0, " Cancel ", 'C',
+		    "btn_cancel", "Cancel", 'C',
 		    [this]() {
 			    set_action(dialog_result::cancelled);
 			    set_result("cancel");
@@ -278,11 +278,11 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 
 	int btn_y = height - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_approve", 0, 0, " Approve ", 'A', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_approve", "Approve", 'A', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("Approved");
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_reject", 0, 0, " Reject ", 'R', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_reject", "Reject", 'R', [d = dlg.get()]() {
 		auto fb = d->get_value("feedback");
 		if (fb && !fb->empty()) {
 			d->set_action(dialog_result::confirmed); // Confirming the dialog closes it
@@ -292,7 +292,7 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 		}
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'C',
+	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -389,14 +389,14 @@ std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, cons
 
 	int btn_y = height - 3;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, "   OK   ", 'O', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'O', [d = dlg.get()]() {
 		auto opt = d->get_value("options");
 		if (opt)
 			d->set_result(*opt);
 		d->set_action(dialog_result::confirmed);
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'C',
+	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -516,20 +516,20 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 
 	int btn_y = 14 + y_off;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, "  OK  ", 'k', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'k', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
 
 	if (is_replace) {
-		btns->add_child(std::make_unique<ui_button>("btn_change_all", 0, 0, " Change all ", 'a', [d = dlg.get()]() {
+		btns->add_child(std::make_unique<ui_button>("btn_change_all", "Change all", 'a', [d = dlg.get()]() {
 			d->set_action(dialog_result::confirmed);
 			d->set_result("change_all");
 		}));
 	}
 
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'l',
+	    "btn_cancel", "Cancel", 'l',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -606,19 +606,19 @@ std::unique_ptr<dialog> create_settings_dialog()
 						     config_manager::get_instance().is_shell_display_access()));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 23, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, " OK (Save Project) ", 'O', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_global", 0, 0, " Save Global ", 'v', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_global", "Save Global", 'v', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("save_global");
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'C',
+	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
-		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
+		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
 	btns->flow();
@@ -724,7 +724,7 @@ class file_dialog_impl : public dialog
 		add_child(std::make_unique<ui_file_info_panel>(1, 14, 66, fs_view_ptr));
 
 		auto btns = std::make_unique<ui_buttons_vertical>("buttons", 53, 2, 0, 0);
-		btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, "   Ok   ", 'o', [this]() {
+		btns->add_child(std::make_unique<ui_button>("btn_ok", "Ok", 'o', [this]() {
 			std::string val = *get_value("filename");
 			if (!val.empty()) {
 				fs::path entered_path = get_fs_view()->get_current_path() / val;
@@ -739,7 +739,7 @@ class file_dialog_impl : public dialog
 			}
 		}));
 		btns->add_child(std::make_unique<ui_button>(
-		    "btn_cancel", 0, 0, " Cancel ", 'c',
+		    "btn_cancel", "Cancel", 'c',
 		    [this]() {
 			    set_action(dialog_result::cancelled);
 			    set_result("cancel");
@@ -806,18 +806,18 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	// Server URL and Import controls at y = 13
 	dlg->add_child(std::make_unique<ui_text_label>(2, 13, "Server URL:"));
 	dlg->add_child(std::make_unique<ui_textbox>("server_url", 14, 13, 28, "http://localhost:11434/v1"));
-	dlg->add_child(std::make_unique<ui_button>("btn_import", 44, 13, " Import ", 'i', [d = dlg.get()]() {
+	dlg->add_child(std::make_unique<ui_button>("btn_import", 44, 13, "Import", 'i', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("import");
 	}));
 
 	int by = 16;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_add", 0, 0, "  Add  ", 'a', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_add", "Add", 'a', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("add");
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_edit", 0, 0, "  Edit  ", 'e', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_edit", "Edit", 'e', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
@@ -827,7 +827,7 @@ std::unique_ptr<dialog> create_model_list_dialog()
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_delete", 0, 0, " Delete ", 'd', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_delete", "Delete", 'd', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
@@ -837,7 +837,7 @@ std::unique_ptr<dialog> create_model_list_dialog()
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_default", 0, 0, " Set Default ", 's', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_default", "Set Default", 's', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
@@ -847,7 +847,7 @@ std::unique_ptr<dialog> create_model_list_dialog()
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_close", 0, 0, " Close ", 'c', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
@@ -884,7 +884,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 
 	int by = 14;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_select", 0, 0, "  Select  ", 's', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_select", "Select", 's', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto models = agentlib::ai_model_registry::get_instance().get_all_models();
@@ -895,7 +895,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 		}
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, "  Cancel  ", 'c',
+	    "btn_cancel", "Cancel", 'c',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -956,12 +956,12 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 
 	int by = 16;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, "   OK   ", 'o', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'c',
+	    "btn_cancel", "Cancel", 'c',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -1071,12 +1071,12 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 	    std::make_unique<ui_checkbox>("gdb_auto_continue", 4, 11, "Auto-start the application on debugger startup", 'a', auto_start));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 13, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, " OK (Save) ", 'O', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save)", 'O', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-	    "btn_cancel", 0, 0, " Cancel ", 'C',
+	    "btn_cancel", "Cancel", 'C',
 	    [d = dlg.get()]() {
 		    d->set_action(dialog_result::cancelled);
 		    d->set_result("cancel");
@@ -1186,9 +1186,9 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		current_y++;
 	}
 
-	std::string ok_text = "  OK  ";
+	std::string ok_text = "OK";
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, current_y, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_ok", 0, 0, ok_text, 'o', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_ok", ok_text, 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
 	}));
@@ -1225,24 +1225,25 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
 
 	int by = 8 - 3;
-	int total_btn_width = 7 + 2 + 6 + 2 + 9; // 26 chars total ("  Yes  ", "  No  ", " Never ")
-	int btn_start_x = (desired_width - total_btn_width) / 2;
-
-	dlg->add_child(std::make_unique<ui_button>("btn_yes", btn_start_x, by, "  Yes  ", 'Y', [d = dlg.get()]() {
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	btns->add_child(std::make_unique<ui_button>("btn_yes", "Yes", 'Y', [d = dlg.get()]() {
 		d->set_result("yes");
 		d->set_action(dialog_result::confirmed);
 	}));
-	dlg->add_child(std::make_unique<ui_button>(
-	    "btn_no", btn_start_x + 9, by, "  No  ", 'N',
+	btns->add_child(std::make_unique<ui_button>(
+	    "btn_no", "No", 'N',
 	    [d = dlg.get()]() {
 		    d->set_result("no");
 		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
-	dlg->add_child(std::make_unique<ui_button>("btn_never", btn_start_x + 17, by, " Never ", 'v', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_never", "Never", 'v', [d = dlg.get()]() {
 		d->set_result("never");
 		d->set_action(dialog_result::confirmed);
 	}));
+	btns->flow();
+	btns->set_position((desired_width - btns->width()) / 2, by);
+	dlg->add_child(std::move(btns));
 
 	dlg->set_focus_by_name("btn_yes");
 
@@ -1288,7 +1289,7 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 
 	int by = 17;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_toggle", 0, 0, " Toggle ", 't', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_toggle", "Toggle", 't', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto &manager = agentlib::mcp_manager::get_instance();
@@ -1299,7 +1300,7 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_tools", 0, 0, " Tools... ", 'o', [d = dlg.get(), lb_ptr]() {
+	btns->add_child(std::make_unique<ui_button>("btn_tools", "Tools...", 'o', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto &manager = agentlib::mcp_manager::get_instance();
@@ -1310,7 +1311,7 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_close", 0, 0, " Close ", 'c', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
@@ -1365,7 +1366,7 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 
 	int by = 17;
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
-	btns->add_child(std::make_unique<ui_button>("btn_toggle", 0, 0, " Toggle ", 't', [d = dlg.get(), lb_ptr, server_name]() {
+	btns->add_child(std::make_unique<ui_button>("btn_toggle", "Toggle", 't', [d = dlg.get(), lb_ptr, server_name]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
 			auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
@@ -1378,7 +1379,7 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 			}
 		}
 	}));
-	btns->add_child(std::make_unique<ui_button>("btn_back", 0, 0, " Back ", 'b', [d = dlg.get()]() {
+	btns->add_child(std::make_unique<ui_button>("btn_back", "Back", 'b', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("back");
 	}));
@@ -1411,7 +1412,7 @@ public:
 		int by = height_ - 3;
 		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
 		btns->add_child(std::make_unique<ui_button>(
-			"btn_cancel", 0, 0, " Cancel ", 'C',
+			"btn_cancel", "Cancel", 'C',
 			[this]() {
 				set_action(dialog_result::cancelled);
 				set_result("cancel");

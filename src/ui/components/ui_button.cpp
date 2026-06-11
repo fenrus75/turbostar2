@@ -14,6 +14,12 @@ ui_button::ui_button(std::string name, int x, int y, const std::string &text, ch
 	press_on_esc_ = press_on_esc;
 }
 
+ui_button::ui_button(std::string name, const std::string &text, char hotkey, std::function<void()> on_click, bool press_on_esc)
+    : ui_element(std::move(name), 0, 0, text.length(), 1), text_(text), hotkey_(hotkey), on_click_(std::move(on_click))
+{
+	press_on_esc_ = press_on_esc;
+}
+
 void ui_button::draw(int abs_x, int abs_y) const
 {
 	attron(COLOR_PAIR(1));
