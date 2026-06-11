@@ -116,6 +116,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- modernized the `Copilot Connect` dialog to use coordinate-free layout flows.
 - modernized the `Ask User` dialog to use coordinate-free layout flows and added unit test coverage in `test_tool_status.cpp`.
 - modernized the `Run Settings` dialog to use coordinate-free layout flows.
 - added `"copilot"` API Format choice to the model edit dialog box and verified it under the unit test suite.

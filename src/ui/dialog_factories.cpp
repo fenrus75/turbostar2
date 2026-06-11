@@ -1570,8 +1570,26 @@ class copilot_connect_dialog_impl : public dialog
 			initialized_ = false;
 		}
 
-		int by = height_ - 3;
-		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+		auto flow = std::make_unique<ui_vertical_flow>("copilot_flow", 2, 1);
+
+		if (initialized_) {
+			flow->add_child(std::make_unique<ui_text_label>("To connect GitHub Copilot, please visit:", true));
+			flow->add_child(std::make_unique<ui_text_label>(verification_uri_, true));
+			flow->add_child(std::make_unique<ui_text_label>("And enter the following code:", true));
+			flow->add_child(std::make_unique<ui_text_label>(user_code_, true));
+		} else {
+			flow->add_child(std::make_unique<ui_text_label>("", true));
+			flow->add_child(std::make_unique<ui_text_label>("", true));
+			flow->add_child(std::make_unique<ui_text_label>("", true));
+			flow->add_child(std::make_unique<ui_text_label>("", true));
+		}
+
+		auto status_label = std::make_unique<ui_text_label>(status_, true);
+		status_label_ = status_label.get();
+		flow->add_child(std::move(status_label));
+
+		auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+		btns->set_centered(true);
 		btns->add_child(std::make_unique<ui_button>(
 		    "btn_cancel", "Cancel", 'C',
 		    [this]() {
@@ -1579,43 +1597,17 @@ class copilot_connect_dialog_impl : public dialog
 			    set_result("cancel");
 		    },
 		    true));
-		btns->flow();
-		btns->set_position((width_ - btns->width()) / 2, by);
-		add_child(std::move(btns));
+		flow->add_child(std::move(btns));
+
+		auto flow_ptr = flow.get();
+		add_child(std::move(flow));
+
+		this->flow();
+		set_width(flow_ptr->width());
+		set_height(flow_ptr->height());
 
 		set_focus_by_name("btn_cancel");
 		last_poll_time_ = std::chrono::steady_clock::now();
-	}
-
-	void draw() const override
-	{
-		dialog::draw();
-
-		int dy = y_ + 2;
-		if (initialized_) {
-			std::string msg1 = "To connect GitHub Copilot, please visit:";
-			mvaddstr(dy++, x_ + (width_ - static_cast<int>(msg1.length())) / 2, msg1.c_str());
-
-			attron(COLOR_PAIR(2) | A_BOLD);
-			mvaddstr(dy++, x_ + (width_ - static_cast<int>(verification_uri_.length())) / 2, verification_uri_.c_str());
-			attroff(COLOR_PAIR(2) | A_BOLD);
-
-			dy++;
-			std::string msg2 = "And enter the following code:";
-			mvaddstr(dy++, x_ + (width_ - static_cast<int>(msg2.length())) / 2, msg2.c_str());
-
-			attron(COLOR_PAIR(1) | A_BOLD);
-			mvaddstr(dy++, x_ + (width_ - static_cast<int>(user_code_.length())) / 2, user_code_.c_str());
-			attroff(COLOR_PAIR(1) | A_BOLD);
-
-			dy++;
-		} else {
-			dy += 4;
-		}
-
-		attron(COLOR_PAIR(1));
-		mvaddstr(dy++, x_ + (width_ - static_cast<int>(status_.length())) / 2, status_.c_str());
-		attroff(COLOR_PAIR(1));
 	}
 
 	bool tick() override
@@ -1628,10 +1620,10 @@ class copilot_connect_dialog_impl : public dialog
 		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_poll_time_).count();
 
 		int interval = agentlib::copilot_manager::get_instance().get_polling_interval();
-		// Add a 1-second safety buffer to avoid clock skew slow_downs
 		if (elapsed >= interval + 1) {
 			last_poll_time_ = now;
 			status_ = "Polling GitHub for authorization...";
+			status_label_->set_text(status_);
 			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub (interval={}s, buffer=1s)...",
 							 interval);
 
@@ -1639,11 +1631,13 @@ class copilot_connect_dialog_impl : public dialog
 			event_logger::get_instance().log("Copilot Connect Dialog tick: Poll result authenticated = {}", authenticated);
 			if (authenticated) {
 				status_ = "Successfully connected to Copilot!";
+				status_label_->set_text(status_);
 				set_action(dialog_result::confirmed);
 				set_result("success");
 				return true;
 			} else {
 				status_ = "Waiting for GitHub authentication...";
+				status_label_->set_text(status_);
 			}
 		}
 
@@ -1656,6 +1650,7 @@ class copilot_connect_dialog_impl : public dialog
 	std::string verification_uri_;
 	std::string status_;
 	std::chrono::time_point<std::chrono::steady_clock> last_poll_time_;
+	ui_text_label *status_label_{nullptr};
 };
 
 std::unique_ptr<dialog> create_copilot_connect_dialog()
