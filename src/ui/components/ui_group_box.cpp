@@ -31,6 +31,25 @@ void ui_group_box::draw(int abs_x, int abs_y) const
 	ui_container::draw(abs_x, abs_y);
 }
 
-#include <algorithm>
-#include <sys/stat.h>
-#include "fs_utils.h"
+/*
+ * Computes the layout flow for children within the group box container.
+ * Finds the maximum bottom coordinate (y + height) across all child elements,
+ * and dynamically resizes the group box's height to encapsulate them fully.
+ */
+bool ui_group_box::flow()
+{
+	bool children_changed = ui_container::flow();
+
+	int max_height = 0;
+	for (const auto &child : children_) {
+		max_height = std::max(max_height, child->y() + child->height());
+	}
+
+	bool layout_changed = false;
+	if (height_ != max_height && max_height > 0) {
+		height_ = max_height;
+		layout_changed = true;
+	}
+
+	return children_changed || layout_changed;
+}

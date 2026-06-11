@@ -13,6 +13,7 @@ class ui_group_box : public ui_container
 	ui_group_box(std::string name, int x, int y, int width, int height, const std::string &title);
 
 	void draw(int abs_x, int abs_y) const override;
+	bool flow() override;
 	// handle_event is inherited from ui_container, so it just dispatches to children
 
       private:

@@ -491,8 +491,8 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	// Direction Group
 	auto dir_group = std::make_unique<ui_group_box>("dir_group", 0, 0, 28, 3, "Direction");
 	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction", 0, 0, 28, 3);
-	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", 2, 1, "Forward", 'f', !initial_params.backward));
-	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", 2, 2, "Backward", 'b', initial_params.backward));
+	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", "Forward", 'f', !initial_params.backward));
+	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", "Backward", 'b', initial_params.backward));
 	dir_group->add_child(std::move(dir_radio));
 
 	// Row 1 (Options & Direction)
@@ -504,16 +504,16 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	// Scope Group
 	auto scope_group = std::make_unique<ui_group_box>("scope_group", 0, 0, 30, 3, "Scope");
 	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope", 0, 0, 30, 3);
-	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", 2, 1, "Global", 'g', !initial_params.selected_text_only));
+	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", "Global", 'g', !initial_params.selected_text_only));
 	scope_radio->add_child(
-	    std::make_unique<ui_radio_choice>("scope_selected", 2, 2, "Selected text", 's', initial_params.selected_text_only));
+	    std::make_unique<ui_radio_choice>("scope_selected", "Selected text", 's', initial_params.selected_text_only));
 	scope_group->add_child(std::move(scope_radio));
 
 	// Origin Group
 	auto orig_group = std::make_unique<ui_group_box>("orig_group", 0, 0, 28, 3, "Origin");
 	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin", 0, 0, 28, 3);
-	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", 2, 1, "From cursor", 'o', initial_params.from_cursor));
-	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", 2, 2, "Entire scope", 'e', !initial_params.from_cursor));
+	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", "From cursor", 'o', initial_params.from_cursor));
+	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", "Entire scope", 'e', !initial_params.from_cursor));
 	orig_group->add_child(std::move(orig_radio));
 
 	// Row 2 (Scope & Origin)
@@ -574,7 +574,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
 	for (size_t i = 0; i < style_labels.size(); ++i) {
 		bool selected = (current_style == style_labels[i].first);
-		style_radio->add_child(std::make_unique<ui_radio_choice>(style_labels[i].first, 2, 1 + i, style_labels[i].first,
+		style_radio->add_child(std::make_unique<ui_radio_choice>(style_labels[i].first, style_labels[i].first,
 									 style_labels[i].second, selected));
 	}
 	style_group->add_child(std::move(style_radio));
@@ -588,7 +588,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	std::string current_system = config_manager::get_instance().get_build_system();
 	for (size_t i = 0; i < system_labels.size(); ++i) {
 		bool selected = (current_system == system_labels[i].first);
-		build_radio->add_child(std::make_unique<ui_radio_choice>(system_labels[i].first, 2, 1 + i, system_labels[i].first,
+		build_radio->add_child(std::make_unique<ui_radio_choice>(system_labels[i].first, system_labels[i].first,
 									 system_labels[i].second, selected));
 	}
 	build_group->add_child(std::move(build_radio));
@@ -941,20 +941,20 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", lx, 8, 22, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0", nullptr, "Rx Cost:   "));
 
 	dlg->add_child(std::make_unique<ui_text_label>(lx, 10, "API Format:"));
-	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1);
+	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1, true);
 	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
-	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", 0, 0, " OpenAI ", 'O', !is_gemini));
-	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", 12, 0, " Gemini ", 'G', is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'O', !is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
 	dlg->add_child(std::move(type_radio));
 
 	dlg->add_child(std::make_unique<ui_text_label>(lx, 12, "Cost Model:"));
-	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", tx, 12, 45, 1);
+	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", tx, 12, 45, 1, true);
 	bool is_free = model && model->get_cost_type() == agentlib::model_cost_type::free_local;
 	bool is_req = model && model->get_cost_type() == agentlib::model_cost_type::paid_per_request;
 	bool is_tok = !is_free && !is_req;
-	cost_radio->add_child(std::make_unique<ui_radio_choice>("free_local", 0, 0, " Free ", 'F', is_free));
-	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_token", 10, 0, " /Token ", 'T', is_tok));
-	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_request", 22, 0, " /Request ", 'R', is_req));
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("free_local", " Free ", 'F', is_free));
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_token", " /Token ", 'T', is_tok));
+	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_request", " /Request ", 'R', is_req));
 	dlg->add_child(std::move(cost_radio));
 
 	int by = 16;
@@ -1062,7 +1062,7 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 
 	for (size_t i = 0; i < mode_options.size(); ++i) {
 		bool selected = (current_mode == mode_options[i].value);
-		mode_radio->add_child(std::make_unique<ui_radio_choice>(mode_options[i].value, 2, 1 + i, mode_options[i].label,
+		mode_radio->add_child(std::make_unique<ui_radio_choice>(mode_options[i].value, mode_options[i].label,
 									mode_options[i].hotkey, selected));
 	}
 	mode_group->add_child(std::move(mode_radio));

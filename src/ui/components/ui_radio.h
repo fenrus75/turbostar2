@@ -10,7 +10,7 @@
 class ui_radio_choice : public ui_element
 {
       public:
-	ui_radio_choice(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state = false);
+	ui_radio_choice(std::string name, const std::string &text, char hotkey, bool initial_state = false);
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
@@ -28,8 +28,13 @@ class ui_radio_choice : public ui_element
 class ui_radiobutton_group : public ui_container
 {
       public:
-	ui_radiobutton_group(std::string name, int x, int y, int width, int height);
+	ui_radiobutton_group(std::string name, int x, int y, int width, int height, bool horizontal = false);
+
+	bool flow() override;
 
 	void child_got_selected(ui_element *child) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+
+      private:
+	bool horizontal_;
 };

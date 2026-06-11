@@ -201,6 +201,7 @@ class ui_element
 | ui_buttons_vertical   | src/ui/components/ui_buttons_vertical.h                     |
 | ui_horizontal_flow    | src/ui/components/ui_horizontal_flow.h                     |
 | ui_vertical_flow      | src/ui/components/ui_vertical_flow.h                       |
+| ui_radiobutton_group  | src/ui/components/ui_radio.h                                |
 
 */
 class ui_container : public ui_element

@@ -7,8 +7,8 @@
 
 // --- ui_radio_choice ---
 
-ui_radio_choice::ui_radio_choice(std::string name, int x, int y, const std::string &text, char hotkey, bool initial_state)
-    : ui_element(std::move(name), x, y, text.length() + 4, 1), text_(text), hotkey_(hotkey), selected_(initial_state)
+ui_radio_choice::ui_radio_choice(std::string name, const std::string &text, char hotkey, bool initial_state)
+    : ui_element(std::move(name), 0, 0, text.length() + 4, 1), text_(text), hotkey_(hotkey), selected_(initial_state)
 {
 }
 
@@ -111,9 +111,63 @@ std::optional<std::string> ui_radio_choice::get_value(const std::string &target_
 
 // --- ui_radiobutton_group ---
 
-ui_radiobutton_group::ui_radiobutton_group(std::string name, int x, int y, int width, int height)
-    : ui_container(std::move(name), x, y, width, height)
+ui_radiobutton_group::ui_radiobutton_group(std::string name, int x, int y, int width, int height, bool horizontal)
+    : ui_container(std::move(name), x, y, width, height), horizontal_(horizontal)
 {
+}
+
+/*
+ * Computes the layout flow for children within the radio button group.
+ * If configured horizontally, radio choice elements are placed side-by-side
+ * starting from coordinate (0, 0) and the total container height is set to 1.
+ * If configured vertically, radio choices are placed on consecutive lines
+ * starting from x = 2 and y = 1 (to align with typical group box margins),
+ * and the container height is set to the total height needed to hold all choices.
+ */
+bool ui_radiobutton_group::flow()
+{
+	bool children_changed = false;
+	for (const auto &child : children_) {
+		if (child->flow()) {
+			children_changed = true;
+		}
+	}
+
+	bool layout_changed = false;
+	int target_height = height();
+
+	if (horizontal_) {
+		int running_x = 0;
+		for (const auto &child : children_) {
+			int target_x = running_x;
+			int target_y = 0;
+			if (child->x() != target_x || child->y() != target_y) {
+				layout_changed = true;
+				child->set_position(target_x, target_y);
+			}
+			running_x += child->width();
+		}
+		target_height = 1;
+	} else {
+		int running_y = 1;
+		for (const auto &child : children_) {
+			int target_x = 2;
+			int target_y = running_y;
+			if (child->x() != target_x || child->y() != target_y) {
+				layout_changed = true;
+				child->set_position(target_x, target_y);
+			}
+			running_y += child->height();
+		}
+		target_height = running_y;
+	}
+
+	if (height() != target_height) {
+		layout_changed = true;
+		set_height(target_height);
+	}
+
+	return children_changed || layout_changed;
 }
 
 void ui_radiobutton_group::child_got_selected(ui_element *selected_child)
