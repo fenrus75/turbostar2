@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- copilot connect window should exit if an existing token exists for copilot -- BUT it maybe should fetch the model list instead!
-
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
 - since we have github:// and skills://
@@ -116,6 +114,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- short-circuited the `Copilot Connect` flow if already authenticated, automatically fetching/updating the Copilot models catalog.
 - modernized the `Search / Replace` dialog to use coordinate-free layout flows.
 - modernized the `Model List` dialog to use coordinate-free layout flows.
 - modernized the `Model Edit` dialog to use coordinate-free layout flows.
