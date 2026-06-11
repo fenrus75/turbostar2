@@ -22,9 +22,15 @@ bool ui_buttons_horizontal::flow()
 		max_natural_width = std::max(max_natural_width, child->natural_width());
 	}
 
+	int total_buttons_width = children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural_width + (static_cast<int>(children_.size()) - 1) * 2;
+	int start_x = 0;
+	if (centered_ && this->width() > 0) {
+		start_x = (this->width() - total_buttons_width) / 2;
+	}
+
 	// Set width and position of all children in a loop
 	bool layout_changed = false;
-	int running_x = 0;
+	int running_x = start_x;
 	for (const auto &child : children_) {
 		int target_width = max_natural_width;
 		int target_x = running_x;
@@ -39,12 +45,12 @@ bool ui_buttons_horizontal::flow()
 		running_x += target_width + 2;
 	}
 
-	int total_width = children_.empty() ? 0 : running_x - 2;
+	int target_width = (centered_ && this->width() > 0) ? this->width() : total_buttons_width;
 	int target_height = 2;
 
-	if (this->width() != total_width || this->height() != target_height) {
+	if (this->width() != target_width || this->height() != target_height) {
 		layout_changed = true;
-		this->set_width(total_width);
+		this->set_width(target_width);
 		this->set_height(target_height);
 	}
 

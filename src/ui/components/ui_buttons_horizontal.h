@@ -8,4 +8,10 @@ class ui_buttons_horizontal : public ui_container
 	ui_buttons_horizontal(std::string name, int x, int y, int width, int height);
 
 	bool flow() override;
+
+	bool centered() const { return centered_; }
+	void set_centered(bool centered) { centered_ = centered; }
+
+      private:
+	bool centered_{false};
 };

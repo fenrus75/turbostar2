@@ -522,10 +522,11 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	row2->add_child(std::move(orig_group));
 	flow->add_child(std::move(row2));
 
+	auto flow_ptr = flow.get();
 	dlg->add_child(std::move(flow));
 
-	int btn_y = height - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, btn_y, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 60, 2);
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'k', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -546,9 +547,10 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	    },
 	    true));
 
-	btns->flow();
-	btns->set_position((64 - btns->width()) / 2, btn_y);
-	dlg->add_child(std::move(btns));
+	flow_ptr->add_child(std::move(btns));
+
+	dlg->flow();
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("query");
 
