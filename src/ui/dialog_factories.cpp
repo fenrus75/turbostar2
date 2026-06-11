@@ -561,7 +561,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	auto dlg = std::make_unique<dialog>("Preferences", 60, 25);
 
 	// Clang Format Style group
-	auto style_group = std::make_unique<ui_group_box>("style_group", 4, 2, 30, 9, " Clang Format Style ");
+	auto style_group = std::make_unique<ui_group_box>("style_group", 0, 0, 30, 9, " Clang Format Style ");
 	auto style_radio = std::make_unique<ui_radiobutton_group>("style", 0, 0, 30, 9);
 
 	std::vector<std::pair<std::string, char>> style_labels = {
@@ -575,10 +575,9 @@ std::unique_ptr<dialog> create_settings_dialog()
 									 style_labels[i].second, selected));
 	}
 	style_group->add_child(std::move(style_radio));
-	dlg->add_child(std::move(style_group));
 
 	// Build System group
-	auto build_group = std::make_unique<ui_group_box>("build_group", 36, 2, 20, 5, " Build System ");
+	auto build_group = std::make_unique<ui_group_box>("build_group", 0, 0, 20, 5, " Build System ");
 	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system", 0, 0, 20, 5);
 
 	std::vector<std::pair<std::string, char>> system_labels = {{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}};
@@ -590,7 +589,12 @@ std::unique_ptr<dialog> create_settings_dialog()
 									 system_labels[i].second, selected));
 	}
 	build_group->add_child(std::move(build_radio));
-	dlg->add_child(std::move(build_group));
+
+	// Row 1 (Style & Build Groups)
+	auto row1 = std::make_unique<ui_horizontal_flow>("row1", 0, 2, 4, 0);
+	row1->add_child(std::move(style_group));
+	row1->add_child(std::move(build_group));
+	dlg->add_child(std::move(row1));
 
 	// Build Directory Input
 	dlg->add_child(std::make_unique<ui_text_label>(4, 13, "Build Directory:"));
