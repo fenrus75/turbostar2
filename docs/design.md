@@ -155,6 +155,7 @@ Based on the Turbo Pascal interface, Turbostar implements the following core UI 
   - **Border**: Double-line box drawing characters over a light gray background.
   - **Shadow**: A black block-character shadow offset to the right and bottom to simulate depth.
   - **Controls**: Interactive buttons with distinct background colors (e.g., Green for OK) and text labels.
+  - **Focus Management (Flattened Global Focus List / Option A)**: The dialog dynamically flattens its control hierarchy into a list of focusable leaf elements. Tab and Shift-Tab traversal and programmatic focus updates (e.g., `set_focus_by_name`) are resolved globally by the dialog, which syncs the active focus state and parent-child focus links upwards to prevent event loss.
 - **Status Message Priority System**:
   - To prevent multiple active status bar messages (LSP hover help, compiler/build errors, agent statuses, transient dialog notifications) from competing for screen space, the editor implements a priority-based status message manager.
   - Message sources are mapped to distinct, defined priorities in `status_priorities`:

@@ -6,6 +6,7 @@ class ui_buttons_horizontal : public ui_container
 {
       public:
 	ui_buttons_horizontal(std::string name, int x, int y, int width, int height);
+	ui_buttons_horizontal(std::string name);
 
 	bool flow() override;
 	bool want_horizontal_stretch() const override;

@@ -637,29 +637,36 @@ std::unique_ptr<dialog> create_settings_dialog()
 	row1->add_child(std::move(build_group));
 	flow->add_child(std::move(row1));
 
-	// Build Directory Input
-	flow->add_child(std::make_unique<ui_textbox>("build_dir", 0, 0, 56, config_manager::get_instance().get_build_directory(), nullptr,
-						     "Build Directory:"));
+	// Build Directory and Model ID Inputs placed side-by-side to save vertical space.
+	auto textboxes_row = std::make_unique<ui_horizontal_flow>("textboxes_row", 0, 0, 0, 0);
+	textboxes_row->add_child(std::make_unique<ui_textbox>("build_dir", 26, config_manager::get_instance().get_build_directory(),
+							     nullptr, "Build Dir: "));
+	textboxes_row->add_child(std::make_unique<ui_textbox>("default_model_id", 28, config_manager::get_instance().get_default_model_id(),
+							     nullptr, "Model ID:  "));
+	flow->add_child(std::move(textboxes_row));
 
-	// Default Model ID Input
-	flow->add_child(std::make_unique<ui_textbox>("default_model_id", 0, 0, 56, config_manager::get_instance().get_default_model_id(),
-						     nullptr, "Model ID:       "));
+	// Toggles split into two columns (side-by-side checkbox groups) to optimize layout height.
+	auto toggles_row = std::make_unique<ui_horizontal_flow>("toggles_row", 0, 0, 0, 0);
 
-	// Toggles
-	auto toggles_group = std::make_unique<ui_checkbox_group>("toggles");
-	toggles_group->add_child(
+	auto col1 = std::make_unique<ui_checkbox_group>("col1", 0, 0, 26, 0);
+	col1->add_child(
 	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
-	toggles_group->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open files for build errors", 'u',
+	col1->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u',
 							       config_manager::get_instance().is_auto_open_error_files()));
-	toggles_group->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile f[i]le on save", 'i',
+	col1->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile f[i]le on save", 'i',
 							       config_manager::get_instance().is_compile_on_save()));
-	toggles_group->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log all agent tool calls (debug)", 'g',
+
+	auto col2 = std::make_unique<ui_checkbox_group>("col2", 0, 0, 25, 0);
+	col2->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g',
 							       config_manager::get_instance().is_log_all_tool_calls()));
-	toggles_group->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map (Background LSP)", 'M',
+	col2->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M',
 							       config_manager::get_instance().is_software_map_enabled()));
-	toggles_group->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Give shell tool [d]isplay access", 'd',
+	col2->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell [d]isplay access", 'd',
 							       config_manager::get_instance().is_shell_display_access()));
-	flow->add_child(std::move(toggles_group));
+
+	toggles_row->add_child(std::move(col1));
+	toggles_row->add_child(std::move(col2));
+	flow->add_child(std::move(toggles_row));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
 	btns->set_centered(true);
@@ -688,7 +695,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	dlg->set_width(flow_ptr->width());
 	dlg->set_height(flow_ptr->height());
 
-	dlg->set_focus_by_name("style_group");
+	dlg->set_focus_by_name(current_style.empty() ? "LLVM" : current_style);
 
 	return dlg;
 }
@@ -862,23 +869,25 @@ std::unique_ptr<dialog> create_model_list_dialog()
 		}
 	};
 
-	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, on_submit);
+	auto flow = std::make_unique<ui_vertical_flow>("models_flow", 2, 1);
+
+	auto lb = std::make_unique<ui_listbox>("model_list", 56, 10, nullptr, on_submit);
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
-	dlg->add_child(std::move(lb));
+	flow->add_child(std::move(lb));
 
-	// Server URL and Import controls at y = 13
-	auto import_row = std::make_unique<ui_horizontal_flow>("import_row", 0, 13, 2, 0);
-	import_row->add_child(std::make_unique<ui_text_label>(0, 0, "Server URL:"));
-	import_row->add_child(std::make_unique<ui_textbox>("server_url", 0, 0, 28, "http://localhost:11434/v1"));
+	// Server URL and Import controls
+	auto import_row = std::make_unique<ui_horizontal_flow>("import_row", 0, 0);
+	import_row->add_child(std::make_unique<ui_text_label>("Server URL:"));
+	import_row->add_child(std::make_unique<ui_textbox>("server_url", 28, "http://localhost:11434/v1"));
 	import_row->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("import");
 	}));
-	dlg->add_child(std::move(import_row));
+	flow->add_child(std::move(import_row));
 
-	int by = 16;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_add", "Add", 'a', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("add");
@@ -917,9 +926,15 @@ std::unique_ptr<dialog> create_model_list_dialog()
 		d->set_action(dialog_result::cancelled);
 		d->set_result("cancel");
 	}));
-	btns->flow();
-	btns->set_position((60 - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("model_list");
 	return dlg;
@@ -943,13 +958,15 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 		}
 	};
 
-	auto lb = std::make_unique<ui_listbox>("model_list", 2, 2, 56, 10, nullptr, on_submit);
+	auto flow = std::make_unique<ui_vertical_flow>("models_flow", 2, 1);
+
+	auto lb = std::make_unique<ui_listbox>("model_list", 56, 10, nullptr, on_submit);
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
-	dlg->add_child(std::move(lb));
+	flow->add_child(std::move(lb));
 
-	int by = 14;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_select", "Select", 's', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
@@ -967,9 +984,15 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 		    d->set_result("cancel");
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((60 - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("model_list");
 	return dlg;
@@ -979,38 +1002,41 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 {
 	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 20);
 
-	int lx = 4;
-	int tx = 16;
+	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1);
 
-	dlg->add_child(std::make_unique<ui_textbox>("id", lx, 2, 56, model ? model->get_id() : "", nullptr, "ID:        "));
-	dlg->add_child(std::make_unique<ui_textbox>("name", lx, 3, 56, model ? model->get_name() : "", nullptr, "Name:      "));
-	dlg->add_child(std::make_unique<ui_textbox>("url", lx, 4, 56, model ? model->get_url() : "", nullptr, "URL:       "));
-	dlg->add_child(std::make_unique<ui_textbox>("api_key", lx, 5, 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
-	dlg->add_child(std::make_unique<ui_textbox>("purpose", lx, 6, 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", lx, 7, 22, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0",
+	flow->add_child(std::make_unique<ui_textbox>("id", 56, model ? model->get_id() : "", nullptr, "ID:        "));
+	flow->add_child(std::make_unique<ui_textbox>("name", 56, model ? model->get_name() : "", nullptr, "Name:      "));
+	flow->add_child(std::make_unique<ui_textbox>("url", 56, model ? model->get_url() : "", nullptr, "URL:       "));
+	flow->add_child(std::make_unique<ui_textbox>("api_key", 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
+	flow->add_child(std::make_unique<ui_textbox>("purpose", 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
+	flow->add_child(std::make_unique<ui_textbox>("cost_tx", 56, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0",
 						    nullptr, "Tx Cost:   "));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", lx, 8, 22, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0",
+	flow->add_child(std::make_unique<ui_textbox>("cost_rx", 56, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0",
 						    nullptr, "Rx Cost:   "));
 
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 10, "API Format:"));
-	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1, true);
+	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row", 0, 0);
+	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
+	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
 	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
-	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'O', !is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', !is_gemini));
 	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
-	dlg->add_child(std::move(type_radio));
+	type_row->add_child(std::move(type_radio));
+	flow->add_child(std::move(type_row));
 
-	dlg->add_child(std::make_unique<ui_text_label>(lx, 12, "Cost Model:"));
-	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", tx, 12, 45, 1, true);
+	auto cost_row = std::make_unique<ui_horizontal_flow>("cost_row", 0, 0);
+	cost_row->add_child(std::make_unique<ui_text_label>("Cost Model:"));
+	auto cost_radio = std::make_unique<ui_radiobutton_group>("cost_type", true);
 	bool is_free = model && model->get_cost_type() == agentlib::model_cost_type::free_local;
 	bool is_req = model && model->get_cost_type() == agentlib::model_cost_type::paid_per_request;
 	bool is_tok = !is_free && !is_req;
 	cost_radio->add_child(std::make_unique<ui_radio_choice>("free_local", " Free ", 'F', is_free));
 	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_token", " /Token ", 'T', is_tok));
 	cost_radio->add_child(std::make_unique<ui_radio_choice>("paid_per_request", " /Request ", 'R', is_req));
-	dlg->add_child(std::move(cost_radio));
+	cost_row->add_child(std::move(cost_radio));
+	flow->add_child(std::move(cost_row));
 
-	int by = 16;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("ok");
@@ -1022,9 +1048,14 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 		    d->set_result("cancel");
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((60 - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("id");
 	return dlg;
@@ -1041,7 +1072,6 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	auto rx_cost_opt = dlg.get_value("cost_rx");
 	auto api_type_opt = dlg.get_value("api_type");
 	auto cost_type_opt = dlg.get_value("cost_type");
-
 	if (!id_opt || id_opt->empty())
 		return;
 

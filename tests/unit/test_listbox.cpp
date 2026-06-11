@@ -125,7 +125,7 @@ int main()
 	assert(container.flow());
 
 	// Test ui_buttons_horizontal layout
-	ui_buttons_horizontal btns_container("btns_h", 0, 0, 30, 1);
+	ui_buttons_horizontal btns_container("btns_h", 0, 0, 35, 1);
 	auto b1 = std::make_unique<ui_button>("b1", 0, 0, "A", 'a', nullptr);
 	auto b2 = std::make_unique<ui_button>("b2", 0, 0, "Longer", 'l', nullptr);
 	auto b3 = std::make_unique<ui_button>("b3", 0, 0, "Yes", 'y', nullptr);

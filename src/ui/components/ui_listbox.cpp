@@ -8,6 +8,13 @@ ui_listbox::ui_listbox(std::string name, int x, int y, int width, int height, st
 {
 }
 
+ui_listbox::ui_listbox(std::string name, int width, int height, std::function<void(int)> on_selection_changed,
+		       std::function<void(int)> on_submit)
+    : ui_element(std::move(name), 0, 0, width, height), on_selection_changed_(std::move(on_selection_changed)),
+      on_submit_(std::move(on_submit))
+{
+}
+
 void ui_listbox::set_items(const std::vector<std::string> &items)
 {
 	items_ = items;

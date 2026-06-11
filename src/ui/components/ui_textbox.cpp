@@ -14,6 +14,13 @@ ui_textbox::ui_textbox(std::string name, int x, int y, int width, const std::str
 {
 }
 
+ui_textbox::ui_textbox(std::string name, int width, const std::string &initial_text,
+		       std::function<void(const std::string &)> on_submit, std::string label)
+    : ui_element(std::move(name), 0, 0, width, 1), buffer_(initial_text), cursor_pos_(initial_text.length()),
+      on_submit_(std::move(on_submit)), label_(std::move(label))
+{
+}
+
 void ui_textbox::draw(int abs_x, int abs_y) const
 {
 	int input_x = abs_x;

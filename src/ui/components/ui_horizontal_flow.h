@@ -5,7 +5,8 @@
 class ui_horizontal_flow : public ui_container
 {
       public:
-	ui_horizontal_flow(std::string name, int x, int y, int x_offset = 0, int y_offset = 0);
+	ui_horizontal_flow(std::string name, int x, int y, int x_offset, int y_offset);
+	ui_horizontal_flow(std::string name, int x_offset = 0, int y_offset = 0);
 
 	bool flow() override;
 

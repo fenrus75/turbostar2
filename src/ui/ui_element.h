@@ -130,6 +130,17 @@ class ui_element
 	{
 		has_focus_ = focus;
 	}
+	virtual bool is_focusable() const
+	{
+		return false;
+	}
+	virtual std::vector<ui_element*> get_focusable_elements()
+	{
+		if (is_focusable()) {
+			return {this};
+		}
+		return {};
+	}
 	virtual bool focus_next()
 	{
 		return false;
@@ -236,6 +247,8 @@ class ui_container : public ui_element
 	bool flow() override;
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
+	void set_focused_child(ui_element *child) { focused_child_ = child; }
+	std::vector<ui_element*> get_focusable_elements() override;
 
       protected:
 	std::vector<std::unique_ptr<ui_element>> children_;

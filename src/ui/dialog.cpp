@@ -34,6 +34,31 @@ bool dialog::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 dialog_result dialog::handle_key(int key)
 {
+	if (key == '\t' || key == KEY_BTAB) {
+		rebuild_focus_list();
+		if (!focus_elements_.empty()) {
+			int current_idx = -1;
+			for (size_t i = 0; i < focus_elements_.size(); ++i) {
+				if (focus_elements_[i]->has_focus()) {
+					current_idx = static_cast<int>(i);
+					break;
+				}
+			}
+
+			int next_idx = 0;
+			if (current_idx != -1) {
+				if (key == '\t') {
+					next_idx = (current_idx + 1) % static_cast<int>(focus_elements_.size());
+				} else {
+					next_idx = (current_idx - 1 + static_cast<int>(focus_elements_.size())) % static_cast<int>(focus_elements_.size());
+				}
+			}
+			set_focused_element(focus_elements_[next_idx]);
+			focus_index_ = next_idx;
+		}
+		return action_;
+	}
+
 	editor_event ev;
 	ev.type = event_type::key_press;
 	ev.key_code = key;
@@ -100,6 +125,10 @@ void dialog::draw() const
 	do {
 	} while (const_cast<dialog *>(this)->flow());
 
+	if (const_cast<dialog *>(this)->focus_elements_.empty()) {
+		const_cast<dialog *>(this)->rebuild_focus_list();
+	}
+
 	// Draw shadow
 	attron(COLOR_PAIR(6));
 	for (int i = 0; i < height_; ++i) {
@@ -138,4 +167,80 @@ void dialog::draw() const
 	attroff(COLOR_PAIR(1));
 
 	ui_container::draw(x_, y_);
+}
+
+void dialog::set_width(int width)
+{
+	ui_container::set_width(width);
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	(void)max_y;
+	x_ = (max_x - width_) / 2;
+}
+
+void dialog::set_height(int height)
+{
+	ui_container::set_height(height);
+	int max_y, max_x;
+	getmaxyx(stdscr, max_y, max_x);
+	(void)max_x;
+	y_ = (max_y - height_) / 2;
+}
+
+void dialog::rebuild_focus_list()
+{
+	focus_elements_ = get_focusable_elements();
+	if (focus_elements_.empty()) {
+		focus_index_ = -1;
+		return;
+	}
+
+	int focused_idx = -1;
+	for (size_t i = 0; i < focus_elements_.size(); ++i) {
+		if (focus_elements_[i]->has_focus()) {
+			focused_idx = static_cast<int>(i);
+			break;
+		}
+	}
+
+	if (focused_idx != -1) {
+		focus_index_ = focused_idx;
+	} else {
+		set_focused_element(focus_elements_[0]);
+		focus_index_ = 0;
+	}
+}
+
+void dialog::set_focused_element(ui_element *target)
+{
+	for (auto *elem : focus_elements_) {
+		elem->set_focus(false);
+	}
+
+	if (target) {
+		target->set_focus(true);
+
+		ui_element *curr = target;
+		ui_element *p = curr->parent();
+		while (p) {
+			auto *container = dynamic_cast<ui_container*>(p);
+			if (container) {
+				container->set_focused_child(curr);
+			}
+			curr = p;
+			p = p->parent();
+		}
+	}
+}
+
+void dialog::set_focus_by_name(const std::string &child_name)
+{
+	rebuild_focus_list();
+	for (size_t i = 0; i < focus_elements_.size(); ++i) {
+		if (focus_elements_[i]->name() == child_name) {
+			set_focused_element(focus_elements_[i]);
+			focus_index_ = static_cast<int>(i);
+			return;
+		}
+	}
 }

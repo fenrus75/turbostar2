@@ -16,6 +16,7 @@ class ui_button : public ui_element
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	int natural_width() const override;
+	bool is_focusable() const override { return true; }
 
       private:
 	std::string text_;

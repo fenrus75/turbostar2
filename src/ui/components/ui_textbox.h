@@ -11,10 +11,12 @@ class ui_textbox : public ui_element
 {
       public:
 	ui_textbox(std::string name, int x, int y, int width, const std::string &initial_text, std::function<void(const std::string&)> on_submit = nullptr, std::string label = "");
+	ui_textbox(std::string name, int width, const std::string &initial_text, std::function<void(const std::string&)> on_submit = nullptr, std::string label = "");
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
+	bool is_focusable() const override { return true; }
 	
 	void set_buffer(const std::string& buf) { buffer_ = buf; cursor_pos_ = buffer_.length(); }
 	void set_autocomplete_provider(std::function<std::string(const std::string&)> provider) { autocomplete_provider_ = std::move(provider); }

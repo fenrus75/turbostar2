@@ -6,6 +6,11 @@ ui_buttons_horizontal::ui_buttons_horizontal(std::string name, int x, int y, int
 {
 }
 
+ui_buttons_horizontal::ui_buttons_horizontal(std::string name)
+    : ui_container(std::move(name), 0, 0, 0, 0)
+{
+}
+
 bool ui_buttons_horizontal::flow()
 {
 	// Call flow on all children first, collect if any child's flow changed
@@ -19,8 +24,18 @@ bool ui_buttons_horizontal::flow()
 		max_natural_width = std::max(max_natural_width, child->natural_width());
 	}
 
+	bool use_uniform_width = true;
 	int total_buttons_width =
 	    children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural_width + (static_cast<int>(children_.size()) - 1) * 2;
+	if (this->width() > 0 && total_buttons_width > this->width()) {
+		use_uniform_width = false;
+		int sum_natural = 0;
+		for (const auto &child : children_) {
+			sum_natural += child->natural_width();
+		}
+		total_buttons_width = sum_natural + (static_cast<int>(children_.size()) - 1) * 2;
+	}
+
 	int start_x = 0;
 	if (centered_ && this->width() > 0) {
 		start_x = (this->width() - total_buttons_width) / 2;
@@ -29,7 +44,7 @@ bool ui_buttons_horizontal::flow()
 	// Set width and position of all children in a loop
 	int running_x = start_x;
 	for (const auto &child : children_) {
-		int target_width = max_natural_width;
+		int target_width = use_uniform_width ? max_natural_width : child->natural_width();
 		int target_x = running_x;
 		int target_y = 0;
 
@@ -60,9 +75,9 @@ bool ui_buttons_horizontal::want_horizontal_stretch() const
 
 int ui_buttons_horizontal::natural_width() const
 {
-	int max_natural = 0;
+	int total = 0;
 	for (const auto &child : children_) {
-		max_natural = std::max(max_natural, child->natural_width());
+		total += child->natural_width();
 	}
-	return children_.empty() ? 0 : static_cast<int>(children_.size()) * max_natural + (static_cast<int>(children_.size()) - 1) * 2;
+	return children_.empty() ? 0 : total + (static_cast<int>(children_.size()) - 1) * 2;
 }

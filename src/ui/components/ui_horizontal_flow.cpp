@@ -6,6 +6,11 @@ ui_horizontal_flow::ui_horizontal_flow(std::string name, int x, int y, int x_off
 {
 }
 
+ui_horizontal_flow::ui_horizontal_flow(std::string name, int x_offset, int y_offset)
+    : ui_container(std::move(name), 0, 0, 0, 0), x_offset_(x_offset), y_offset_(y_offset)
+{
+}
+
 bool ui_horizontal_flow::flow()
 {
 	// Call flow on all children first, collect if any child's flow changed

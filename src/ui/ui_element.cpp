@@ -304,6 +304,16 @@ void ui_container::set_focus_by_name(const std::string &child_name)
 	}
 }
 
+std::vector<ui_element*> ui_container::get_focusable_elements()
+{
+	std::vector<ui_element*> result;
+	for (const auto &child : children_) {
+		auto sub = child->get_focusable_elements();
+		result.insert(result.end(), sub.begin(), sub.end());
+	}
+	return result;
+}
+
 bool ui_container::flow()
 {
 	bool changed = false;

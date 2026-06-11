@@ -16,7 +16,7 @@ def test_model_config():
 
         # Verify list dialog is open
         runner.assert_text_on_screen("AI Models", timeout=1.5)
-        runner.assert_text_on_screen("local-default")
+        runner.assert_text_on_screen("nvidia/MiniMax-M2.7-NVFP4")
         
         # 2. Add a new model (hotkey 'A')
         runner.send_keys(KEY_ESC + 'a')

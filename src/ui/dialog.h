@@ -42,9 +42,19 @@ class dialog : public ui_container{
 	void set_action(dialog_result action) { action_ = action; }
 	dialog_result get_action() const { return action_; }
 
+	void set_width(int width) override;
+	void set_height(int height) override;
+
+	void set_focus_by_name(const std::string &child_name) override;
+	void rebuild_focus_list();
+	void set_focused_element(ui_element *target);
+
       protected:
 	std::string title_;
 	std::string result_string_;
 	dialog_result action_{dialog_result::pending};
+
+	std::vector<ui_element*> focus_elements_;
+	int focus_index_{-1};
 };
 
