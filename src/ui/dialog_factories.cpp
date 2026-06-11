@@ -1251,7 +1251,7 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 
 	dlg->add_child(std::move(lb));
 
-	int by = 16;
+	int by = 17;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
@@ -1291,7 +1291,7 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 	auto server = agentlib::mcp_manager::get_instance().find_server(server_name);
 	if (!server) {
 		dlg->add_child(std::make_unique<ui_text_label>(2, 2, "Error: Server not found."));
-		dlg->add_child(std::make_unique<ui_button>("btn_close", 26, 16, " Close ", 'c', [d = dlg.get()]() {
+		dlg->add_child(std::make_unique<ui_button>("btn_close", 26, 17, " Close ", 'c', [d = dlg.get()]() {
 			d->set_action(dialog_result::cancelled);
 			d->set_result("cancel");
 		}));
@@ -1326,7 +1326,7 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 
 	dlg->add_child(std::move(lb));
 
-	int by = 16;
+	int by = 17;
 	dlg->add_child(std::make_unique<ui_button>("btn_toggle", 4, by, " Toggle ", 't', [d = dlg.get(), lb_ptr, server_name]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
