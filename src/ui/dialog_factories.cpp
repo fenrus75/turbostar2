@@ -94,7 +94,7 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 	}
 	auto dlg = std::make_unique<dialog>(title, width, 10);
 
-	auto flow = std::make_unique<ui_vertical_flow>("message_flow", 0, 0, 3, 2);
+	auto flow = std::make_unique<ui_vertical_flow>("message_flow", 3, 2);
 
 	for (const auto &line : lines) {
 		auto label = std::make_unique<ui_text_label>(line, true);
