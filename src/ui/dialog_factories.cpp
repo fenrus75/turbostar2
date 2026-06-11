@@ -765,9 +765,6 @@ class file_dialog_impl : public dialog
       public:
 	file_dialog_impl(const std::string &title, const std::string &initial_path) : dialog(title, 68, 17), initial_path_(initial_path)
 	{
-		// Name Label
-		add_child(std::make_unique<ui_text_label>(2, 2, "Name"));
-
 		auto on_tb_submit = [this](const std::string &val) {
 			std::string final_val = val;
 			std::string suggestion = get_fs_view()->get_autocomplete_suggestion(val);
@@ -787,26 +784,35 @@ class file_dialog_impl : public dialog
 			}
 		};
 
-		// Entry Box (with autocomplete provider attached!)
-		auto tb = std::make_unique<ui_textbox>("filename", 8, 2, 40, "", on_tb_submit);
-		tb->set_autocomplete_provider([this](const std::string &buf) { return get_fs_view()->get_autocomplete_suggestion(buf); });
-		add_child(std::move(tb));
-
-		// Files Label
-		add_child(std::make_unique<ui_text_label>(2, 4, "Files"));
-
-		// Filesystem View
 		auto on_fs_change = [this](const std::string &name) { get_textbox()->set_buffer(name); };
 		auto on_fs_submit = [this](const std::string &name) {
 			set_action(dialog_result::confirmed);
 			set_result((get_fs_view()->get_current_path() / name).string());
 		};
 
-		add_child(std::make_unique<ui_fileselector>("fileselector", 2, 5, 46, 8, initial_path, on_fs_change, on_fs_submit));
-		auto fs_view_ptr = static_cast<ui_fileselector *>(children_.back().get());
-		add_child(std::make_unique<ui_file_info_panel>(1, 14, 66, fs_view_ptr));
+		auto flow = std::make_unique<ui_vertical_flow>("file_dialog_flow", 2, 1);
 
-		auto btns = std::make_unique<ui_buttons_vertical>("buttons", 53, 2, 0, 0);
+		auto top_section = std::make_unique<ui_horizontal_flow>("top_section", 0, 0);
+
+		auto left_col = std::make_unique<ui_vertical_flow>("left_col", 0, 0);
+
+		auto name_row = std::make_unique<ui_horizontal_flow>("name_row", 0, 0);
+		name_row->add_child(std::make_unique<ui_text_label>("Name"));
+		auto tb = std::make_unique<ui_textbox>("filename", 0, 0, 40, "", on_tb_submit);
+		tb->set_autocomplete_provider([this](const std::string &buf) { return get_fs_view()->get_autocomplete_suggestion(buf); });
+		tb_ = tb.get();
+		name_row->add_child(std::move(tb));
+		left_col->add_child(std::move(name_row));
+
+		left_col->add_child(std::make_unique<ui_text_label>("Files"));
+
+		auto fs = std::make_unique<ui_fileselector>("fileselector", 0, 0, 46, 8, initial_path, on_fs_change, on_fs_submit);
+		fs_view_ = fs.get();
+		left_col->add_child(std::move(fs));
+
+		top_section->add_child(std::move(left_col));
+
+		auto btns = std::make_unique<ui_buttons_vertical>("buttons", 0, 0, 12, 8);
 		btns->add_child(std::make_unique<ui_button>("btn_ok", "Ok", 'o', [this]() {
 			std::string val = *get_value("filename");
 			if (!val.empty()) {
@@ -829,7 +835,19 @@ class file_dialog_impl : public dialog
 		    },
 		    true));
 		btns->flow();
-		add_child(std::move(btns));
+		top_section->add_child(std::move(btns));
+
+		flow->add_child(std::move(top_section));
+
+		auto info_panel = std::make_unique<ui_file_info_panel>(0, 0, 66, fs_view_);
+		flow->add_child(std::move(info_panel));
+
+		auto flow_ptr = flow.get();
+		add_child(std::move(flow));
+
+		this->flow();
+		set_width(flow_ptr->width());
+		set_height(flow_ptr->height());
 
 		set_focus_by_name("filename");
 		get_textbox()->set_buffer("");
@@ -838,22 +856,16 @@ class file_dialog_impl : public dialog
       private:
 	ui_fileselector *get_fs_view() const
 	{
-		for (auto &c : children_) {
-			if (c->name() == "fileselector")
-				return static_cast<ui_fileselector *>(c.get());
-		}
-		return nullptr;
+		return fs_view_;
 	}
 	ui_textbox *get_textbox() const
 	{
-		for (auto &c : children_) {
-			if (c->name() == "filename")
-				return static_cast<ui_textbox *>(c.get());
-		}
-		return nullptr;
+		return tb_;
 	}
 
 	std::string initial_path_;
+	ui_fileselector *fs_view_{nullptr};
+	ui_textbox *tb_{nullptr};
 };
 
 std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path)
