@@ -1,21 +1,20 @@
 #include "ui/dialog_factories.h"
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <ncurses.h>
-#include <chrono>
-#include "agentlib/copilot_manager.h"
 #include "agentlib/ai_model.h"
+#include "agentlib/copilot_manager.h"
 #include "config_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
-#include "utf8.h"
 #include "mcp/mcp_manager.h"
 #include "project_manager.h"
-#include "ui/components/ui_checkbox.h"
-#include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
+#include "ui/components/ui_checkbox.h"
+#include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_dropdown.h"
 #include "ui/components/ui_group_box.h"
 #include "ui/components/ui_horizontal_flow.h"
@@ -24,6 +23,7 @@
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
+#include "utf8.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
@@ -464,23 +464,27 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	auto flow = std::make_unique<ui_vertical_flow>("search_flow", 0, 0, 2, 2);
 
 	// Query
-	flow->add_child(std::make_unique<ui_textbox>("query", 0, 0, 54, initial_params.query, [d = dlg.get()](const std::string &) {
-		d->set_action(dialog_result::confirmed);
-		d->set_result("ok");
-	}, "Text to find"));
+	flow->add_child(std::make_unique<ui_textbox>(
+	    "query", 0, 0, 54, initial_params.query,
+	    [d = dlg.get()](const std::string &) {
+		    d->set_action(dialog_result::confirmed);
+		    d->set_result("ok");
+	    },
+	    "Text to find"));
 
 	// Replace
 	if (is_replace) {
-		flow->add_child(std::make_unique<ui_textbox>("replacement", 0, 0, 54, initial_params.replacement,
-							    [d = dlg.get()](const std::string &) {
-								    d->set_action(dialog_result::confirmed);
-								    d->set_result("ok");
-							    }, "Replace with"));
+		flow->add_child(std::make_unique<ui_textbox>(
+		    "replacement", 0, 0, 54, initial_params.replacement,
+		    [d = dlg.get()](const std::string &) {
+			    d->set_action(dialog_result::confirmed);
+			    d->set_result("ok");
+		    },
+		    "Replace with"));
 	}
 
 	// Options Group
-	int opt_h = is_replace ? 5 : 4;
-	auto opt_group = std::make_unique<ui_group_box>("opt_group", 0, 0, 30, opt_h, "Options");
+	auto opt_group = std::make_unique<ui_group_box>("opt_group", 30, "Options");
 	auto opt_checkboxes = std::make_unique<ui_checkbox_group>("opt_checkboxes");
 	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("ignore_case", "Case sensitive", 'c', !initial_params.ignore_case));
 	opt_checkboxes->add_child(std::make_unique<ui_checkbox>("whole_words", "Whole words only", 'w', initial_params.whole_words));
@@ -492,7 +496,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	opt_group->add_child(std::move(opt_checkboxes));
 
 	// Direction Group
-	auto dir_group = std::make_unique<ui_group_box>("dir_group", 0, 0, 28, 3, "Direction");
+	auto dir_group = std::make_unique<ui_group_box>("dir_group", 28, "Direction");
 	auto dir_radio = std::make_unique<ui_radiobutton_group>("direction");
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_forward", "Forward", 'f', !initial_params.backward));
 	dir_radio->add_child(std::make_unique<ui_radio_choice>("dir_backward", "Backward", 'b', initial_params.backward));
@@ -505,7 +509,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	flow->add_child(std::move(row1));
 
 	// Scope Group
-	auto scope_group = std::make_unique<ui_group_box>("scope_group", 0, 0, 30, 3, "Scope");
+	auto scope_group = std::make_unique<ui_group_box>("scope_group", 30, "Scope");
 	auto scope_radio = std::make_unique<ui_radiobutton_group>("scope");
 	scope_radio->add_child(std::make_unique<ui_radio_choice>("scope_global", "Global", 'g', !initial_params.selected_text_only));
 	scope_radio->add_child(
@@ -513,7 +517,7 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	scope_group->add_child(std::move(scope_radio));
 
 	// Origin Group
-	auto orig_group = std::make_unique<ui_group_box>("orig_group", 0, 0, 28, 3, "Origin");
+	auto orig_group = std::make_unique<ui_group_box>("orig_group", 28, "Origin");
 	auto orig_radio = std::make_unique<ui_radiobutton_group>("origin");
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_cursor", "From cursor", 'o', initial_params.from_cursor));
 	orig_radio->add_child(std::make_unique<ui_radio_choice>("origin_entire", "Entire scope", 'e', !initial_params.from_cursor));
@@ -567,7 +571,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	auto dlg = std::make_unique<dialog>("Preferences", 60, 25);
 
 	// Clang Format Style group
-	auto style_group = std::make_unique<ui_group_box>("style_group", 0, 0, 30, 9, " Clang Format Style ");
+	auto style_group = std::make_unique<ui_group_box>("style_group", 30, " Clang Format Style ");
 	auto style_radio = std::make_unique<ui_radiobutton_group>("style");
 
 	std::vector<std::pair<std::string, char>> style_labels = {
@@ -577,13 +581,13 @@ std::unique_ptr<dialog> create_settings_dialog()
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
 	for (size_t i = 0; i < style_labels.size(); ++i) {
 		bool selected = (current_style == style_labels[i].first);
-		style_radio->add_child(std::make_unique<ui_radio_choice>(style_labels[i].first, style_labels[i].first,
-									 style_labels[i].second, selected));
+		style_radio->add_child(
+		    std::make_unique<ui_radio_choice>(style_labels[i].first, style_labels[i].first, style_labels[i].second, selected));
 	}
 	style_group->add_child(std::move(style_radio));
 
 	// Build System group
-	auto build_group = std::make_unique<ui_group_box>("build_group", 0, 0, 20, 5, " Build System ");
+	auto build_group = std::make_unique<ui_group_box>("build_group", 20, " Build System ");
 	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system");
 
 	std::vector<std::pair<std::string, char>> system_labels = {{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}};
@@ -591,8 +595,8 @@ std::unique_ptr<dialog> create_settings_dialog()
 	std::string current_system = config_manager::get_instance().get_build_system();
 	for (size_t i = 0; i < system_labels.size(); ++i) {
 		bool selected = (current_system == system_labels[i].first);
-		build_radio->add_child(std::make_unique<ui_radio_choice>(system_labels[i].first, system_labels[i].first,
-									 system_labels[i].second, selected));
+		build_radio->add_child(
+		    std::make_unique<ui_radio_choice>(system_labels[i].first, system_labels[i].first, system_labels[i].second, selected));
 	}
 	build_group->add_child(std::move(build_radio));
 
@@ -603,25 +607,27 @@ std::unique_ptr<dialog> create_settings_dialog()
 	dlg->add_child(std::move(row1));
 
 	// Build Directory Input
-	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 4, 13, 52, config_manager::get_instance().get_build_directory(), nullptr, "Build Directory:"));
+	dlg->add_child(std::make_unique<ui_textbox>("build_dir", 4, 13, 52, config_manager::get_instance().get_build_directory(), nullptr,
+						    "Build Directory:"));
 
 	// Default Model ID Input
-	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 4, 14, 52, config_manager::get_instance().get_default_model_id(), nullptr, "Model ID:"));
+	dlg->add_child(std::make_unique<ui_textbox>("default_model_id", 4, 14, 52, config_manager::get_instance().get_default_model_id(),
+						    nullptr, "Model ID:"));
 
 	// Toggles
 	auto toggles_group = std::make_unique<ui_checkbox_group>("toggles", 2, 16, 52, 6);
-	toggles_group->add_child(std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E',
-						     config_manager::get_instance().is_lsp_enabled()));
+	toggles_group->add_child(
+	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open files for build errors", 'u',
-						     config_manager::get_instance().is_auto_open_error_files()));
+							       config_manager::get_instance().is_auto_open_error_files()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile f[i]le on save", 'i',
-						     config_manager::get_instance().is_compile_on_save()));
+							       config_manager::get_instance().is_compile_on_save()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log all agent tool calls (debug)", 'g',
-						     config_manager::get_instance().is_log_all_tool_calls()));
+							       config_manager::get_instance().is_log_all_tool_calls()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map (Background LSP)", 'M',
-						     config_manager::get_instance().is_software_map_enabled()));
+							       config_manager::get_instance().is_software_map_enabled()));
 	toggles_group->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Give shell tool [d]isplay access", 'd',
-						     config_manager::get_instance().is_shell_display_access()));
+							       config_manager::get_instance().is_shell_display_access()));
 	dlg->add_child(std::move(toggles_group));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 23, 0, 0);
@@ -942,8 +948,10 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	dlg->add_child(std::make_unique<ui_textbox>("url", lx, 4, 56, model ? model->get_url() : "", nullptr, "URL:       "));
 	dlg->add_child(std::make_unique<ui_textbox>("api_key", lx, 5, 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
 	dlg->add_child(std::make_unique<ui_textbox>("purpose", lx, 6, 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", lx, 7, 22, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0", nullptr, "Tx Cost:   "));
-	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", lx, 8, 22, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0", nullptr, "Rx Cost:   "));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_tx", lx, 7, 22, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0",
+						    nullptr, "Tx Cost:   "));
+	dlg->add_child(std::make_unique<ui_textbox>("cost_rx", lx, 8, 22, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0",
+						    nullptr, "Rx Cost:   "));
 
 	dlg->add_child(std::make_unique<ui_text_label>(lx, 10, "API Format:"));
 	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", tx, 10, 40, 1, true);
@@ -1067,8 +1075,8 @@ std::unique_ptr<dialog> create_run_settings_dialog()
 
 	for (size_t i = 0; i < mode_options.size(); ++i) {
 		bool selected = (current_mode == mode_options[i].value);
-		mode_radio->add_child(std::make_unique<ui_radio_choice>(mode_options[i].value, mode_options[i].label,
-									mode_options[i].hotkey, selected));
+		mode_radio->add_child(
+		    std::make_unique<ui_radio_choice>(mode_options[i].value, mode_options[i].label, mode_options[i].hotkey, selected));
 	}
 	mode_group->add_child(std::move(mode_radio));
 	dlg->add_child(std::move(mode_group));
@@ -1272,7 +1280,8 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 		std::string type_str = server->is_system() ? "System" : "Project";
 		std::string status_str = server->is_running() ? "Running" : "Stopped";
 		if (server->is_running() && server->get_startup_time_ms() >= 0) {
-			item_labels.push_back(std::format("{} {} ({}, {}, {}ms)", state_box, server->get_name(), type_str, status_str, server->get_startup_time_ms()));
+			item_labels.push_back(std::format("{} {} ({}, {}, {}ms)", state_box, server->get_name(), type_str, status_str,
+							  server->get_startup_time_ms()));
 		} else {
 			item_labels.push_back(std::format("{} {} ({}, {})", state_box, server->get_name(), type_str, status_str));
 		}
@@ -1403,7 +1412,7 @@ std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, 
 
 class copilot_connect_dialog_impl : public dialog
 {
-public:
+      public:
 	copilot_connect_dialog_impl() : dialog("Copilot Connect", 60, 13)
 	{
 		std::string user_code, verification_uri;
@@ -1422,12 +1431,12 @@ public:
 		int by = height_ - 3;
 		auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
 		btns->add_child(std::make_unique<ui_button>(
-			"btn_cancel", "Cancel", 'C',
-			[this]() {
-				set_action(dialog_result::cancelled);
-				set_result("cancel");
-			},
-			true));
+		    "btn_cancel", "Cancel", 'C',
+		    [this]() {
+			    set_action(dialog_result::cancelled);
+			    set_result("cancel");
+		    },
+		    true));
 		btns->flow();
 		btns->set_position((width_ - btns->width()) / 2, by);
 		add_child(std::move(btns));
@@ -1481,8 +1490,9 @@ public:
 		if (elapsed >= interval + 1) {
 			last_poll_time_ = now;
 			status_ = "Polling GitHub for authorization...";
-			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub (interval={}s, buffer=1s)...", interval);
-			
+			event_logger::get_instance().log("Copilot Connect Dialog tick: Polling GitHub (interval={}s, buffer=1s)...",
+							 interval);
+
 			bool authenticated = agentlib::copilot_manager::get_instance().poll_device_authorization(interval);
 			event_logger::get_instance().log("Copilot Connect Dialog tick: Poll result authenticated = {}", authenticated);
 			if (authenticated) {
@@ -1498,7 +1508,7 @@ public:
 		return false;
 	}
 
-private:
+      private:
 	bool initialized_{false};
 	std::string user_code_;
 	std::string verification_uri_;

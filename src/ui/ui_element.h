@@ -207,6 +207,7 @@ class ui_element
 | ui_vertical_flow      | src/ui/components/ui_vertical_flow.h                       |
 | ui_radiobutton_group  | src/ui/components/ui_radio.h                                |
 | ui_checkbox_group     | src/ui/components/ui_checkbox_group.h                       |
+| ui_group_box          | src/ui/components/ui_group_box.h                           |
 
 */
 class ui_container : public ui_element
@@ -241,14 +242,12 @@ class ui_container : public ui_element
 	ui_element *focused_child_{nullptr};
 };
 
-namespace ui_utils {
-	enum class border_style {
-		single,
-		double_line
-	};
+namespace ui_utils
+{
+enum class border_style { single, double_line };
 
-	void draw_border(int x, int y, int width, int height, border_style style, int color_pair = -1);
-}
+void draw_border(int x, int y, int width, int height, border_style style, int color_pair = -1);
+} // namespace ui_utils
 
 // Represents a single-line text input field.
 
@@ -259,8 +258,8 @@ namespace ui_utils {
 #include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_group_box.h"
-#include "ui/components/ui_radio.h"
 #include "ui/components/ui_horizontal_flow.h"
+#include "ui/components/ui_radio.h"
 #include "ui/components/ui_text_label.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"

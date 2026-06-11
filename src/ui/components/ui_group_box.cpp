@@ -8,7 +8,12 @@
 // --- ui_group_box ---
 
 ui_group_box::ui_group_box(std::string name, int x, int y, int width, int height, const std::string &title)
-    : ui_container(std::move(name), x, y, width, height), title_(title)
+    : ui_container(std::move(name), x, y, width, height), title_(title), auto_height_(false)
+{
+}
+
+ui_group_box::ui_group_box(std::string name, int width, const std::string &title)
+    : ui_container(std::move(name), 0, 0, width, 0), title_(title), auto_height_(true)
 {
 }
 
@@ -51,15 +56,17 @@ bool ui_group_box::flow()
 
 	ui_container::flow();
 
-	int max_height = 0;
-	for (const auto &child : children_) {
-		max_height = std::max(max_height, child->y() + child->height());
-	}
-
 	bool dimensions_changed = false;
-	if (height_ != max_height && max_height > 0) {
-		height_ = max_height;
-		dimensions_changed = true;
+	if (auto_height_) {
+		int max_height = 0;
+		for (const auto &child : children_) {
+			max_height = std::max(max_height, child->y() + child->height());
+		}
+
+		if (height_ != max_height && max_height > 0) {
+			height_ = max_height;
+			dimensions_changed = true;
+		}
 	}
 
 	return dimensions_changed;
