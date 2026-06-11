@@ -45,12 +45,15 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 
 	auto dlg = std::make_unique<dialog>("Unsaved Changes", desired_width, 8);
 
-	std::string msg = "Save changes to " + display_name + "?";
-	int text_x = (desired_width - static_cast<int>(msg.length())) / 2;
-	dlg->add_child(std::make_unique<ui_text_label>(text_x, 2, msg));
+	auto flow = std::make_unique<ui_vertical_flow>("save_prompt_flow", 0, 0, 2, 2);
 
-	int by = 8 - 3;
-	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, by, 0, 0);
+	std::string msg = std::format("Save changes to {}?", display_name);
+	auto label = std::make_unique<ui_text_label>(msg, true);
+	label->set_width(desired_width - 4);
+	flow->add_child(std::move(label));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
 	btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 'S', [d = dlg.get()]() {
 		d->set_result("save");
 		d->set_action(dialog_result::confirmed);
@@ -66,9 +69,14 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 		    d->set_action(dialog_result::cancelled);
 	    },
 	    true));
-	btns->flow();
-	btns->set_position((desired_width - btns->width()) / 2, by);
-	dlg->add_child(std::move(btns));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_save");
 
