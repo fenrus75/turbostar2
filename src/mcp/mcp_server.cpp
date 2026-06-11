@@ -238,6 +238,7 @@ void mcp_server::statically_analyze_tools()
 
 bool mcp_server::start()
 {
+	auto start_time = std::chrono::steady_clock::now();
 	std::unique_lock<std::mutex> lock(state_mutex_);
 	if (is_running()) {
 		return true;
@@ -396,6 +397,10 @@ bool mcp_server::start()
 
 	// Verify the server is still running before claiming successful start
 	std::lock_guard<std::mutex> lock_state(state_mutex_);
+	if (pid_ > 0) {
+		auto end_time = std::chrono::steady_clock::now();
+		startup_time_ms_ = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count());
+	}
 	return pid_ > 0;
 }
 
@@ -435,6 +440,7 @@ void mcp_server::stop()
 	}
 
 	pid_ = 0;
+	startup_time_ms_ = -1;
 
 	if (stdout_fd_ >= 0) {
 		close(stdout_fd_);

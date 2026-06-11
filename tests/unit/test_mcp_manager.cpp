@@ -244,6 +244,7 @@ if __name__ == "__main__":
 	assert(s_mock->is_running() == true);
 	assert(s_mock->get_tools().size() == 1);
 	assert(s_mock->get_tools()[0].name == "mock_tool");
+	assert(s_mock->get_startup_time_ms() >= 0);
 
 	// Schema serialization check (get_tools_json should map colons to __)
 	nlohmann::json tools_json = tool_registry::get_instance().get_tools_json();

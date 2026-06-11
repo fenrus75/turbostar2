@@ -1225,7 +1225,11 @@ std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection)
 		std::string state_box = server->is_enabled() ? "[X]" : "[ ]";
 		std::string type_str = server->is_system() ? "System" : "Project";
 		std::string status_str = server->is_running() ? "Running" : "Stopped";
-		item_labels.push_back(std::format("{} {} ({}, {})", state_box, server->get_name(), type_str, status_str));
+		if (server->is_running() && server->get_startup_time_ms() >= 0) {
+			item_labels.push_back(std::format("{} {} ({}, {}, {}ms)", state_box, server->get_name(), type_str, status_str, server->get_startup_time_ms()));
+		} else {
+			item_labels.push_back(std::format("{} {} ({}, {})", state_box, server->get_name(), type_str, status_str));
+		}
 	}
 
 	auto lb = std::make_unique<ui_listbox>("mcp_server_list", 2, 2, 60, 12, nullptr, nullptr);

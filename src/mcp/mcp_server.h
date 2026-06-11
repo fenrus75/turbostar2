@@ -117,6 +117,10 @@ class mcp_server
 	{
 		return pid_ > 0;
 	}
+	int get_startup_time_ms() const
+	{
+		return startup_time_ms_;
+	}
 
 	// Communication
 	nlohmann::json send_request(const std::string &method, const nlohmann::json &params);
@@ -131,6 +135,7 @@ class mcp_server
 	bool enabled_{true};
 	std::string mcp_type_{"other"};
 	std::vector<mcp_tool> tools_;
+	int startup_time_ms_{-1};
 
 	// Subprocess details
 	pid_t pid_{0};
