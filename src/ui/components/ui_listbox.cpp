@@ -45,8 +45,8 @@ void ui_listbox::set_selected_index(int index)
 
 void ui_listbox::draw(int abs_x, int abs_y) const
 {
-	int start_y = abs_y + y_;
-	int start_x = abs_x + x_;
+	int start_y = abs_y;
+	int start_x = abs_x;
 
 	for (int i = 0; i < height_; ++i) {
 		int item_idx = scroll_top_ + i;
@@ -109,8 +109,8 @@ bool ui_listbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			return true;
 		}
 	} else if (ev.type == event_type::mouse_click) {
-		int rx = ev.mouse_x - (abs_x + x_);
-		int ry = ev.mouse_y - (abs_y + y_);
+		int rx = ev.mouse_x - abs_x;
+		int ry = ev.mouse_y - abs_y;
 		if (rx >= 0 && rx < width_ && ry >= 0 && ry < height_) {
 			int item_idx = scroll_top_ + ry;
 			if (item_idx >= 0 && item_idx < (int)items_.size()) {
@@ -130,7 +130,7 @@ bool ui_listbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 void ui_listbox::set_cursor_position(int abs_x, int abs_y) const
 {
-	move(abs_y + y_ + (selected_index_ - scroll_top_), abs_x + x_);
+	move(abs_y + (selected_index_ - scroll_top_), abs_x);
 }
 
 std::optional<std::string> ui_listbox::get_value(const std::string &target_name) const

@@ -199,8 +199,8 @@ void ui_multiline_edit::update_scroll()
 
 void ui_multiline_edit::draw(int abs_x, int abs_y) const
 {
-	int start_y = abs_y + y_;
-	int start_x = abs_x + x_;
+	int start_y = abs_y;
+	int start_x = abs_x;
 
 	// Clear area
 	attrset(COLOR_PAIR(1));

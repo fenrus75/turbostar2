@@ -193,6 +193,23 @@ int main()
 	// Subsequent flow calls should return false
 	assert(!btns_v_container.flow());
 
+	// Test mouse click coordinate correctness when x_ and y_ are non-zero
+	{
+		ui_listbox lb_coords("coords_listbox", 2, 3, 10, 5, nullptr, nullptr);
+		lb_coords.set_items({"item0", "item1", "item2"});
+		lb_coords.set_selected_index(0);
+
+		editor_event ev_mouse;
+		ev_mouse.type = event_type::mouse_click;
+		// Absolute position is (2, 3). Clicking at (2, 4) should select item 1 (index 1).
+		ev_mouse.mouse_x = 2;
+		ev_mouse.mouse_y = 4;
+
+		bool handled_mouse = lb_coords.handle_event(ev_mouse, 2, 3);
+		assert(handled_mouse);
+		assert(lb_coords.get_selected_index() == 1);
+	}
+
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";
 	return 0;
 }

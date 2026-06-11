@@ -1,5 +1,9 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- copilot connect window should exit if an existing token exists for copilot -- BUT it maybe should fetch the model list instead!
+
+- the models dialog box does not have a radio button for copilot type
+
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
 - since we have github:// and skills://
@@ -114,6 +118,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- fixed coordinate double-addition in `ui_listbox` and `ui_multiline_edit` components which was causing listbox borders to clobber dialog borders and removing the vertical spacing between the listbox and action buttons in flow layouts.
 - aligned checkboxes and radio buttons to use left alignment (only right-side padding) instead of full horizontal stretch across the dialog. Adjusted `ui_checkbox_group` and `ui_radiobutton_group` to return `false` for `want_horizontal_stretch()`, set their choices layout offset to `target_x = 0`, and updated `ui_group_box::flow()` to position all children at `x = 1` inside its borders to achieve a clean 1-space indentation.
 - fixed an infinite layout loop hang when displaying the Preferences dialog. Added static, text-based `natural_width()` overrides for the leaf elements `ui_checkbox` and `ui_radio_choice`, and updated `ui_text_label`'s `want_horizontal_stretch()` and `natural_width()` behavior. This prevents dynamic layout widths from feeding back into the flow's width calculation.
 - implemented startup time measurement of each MCP server during handshake/tool discovery, reporting the measured duration (in milliseconds) inside the MCP Servers configuration dialog for running servers.
