@@ -113,6 +113,12 @@
 
 # done items (move items here on completion)
 
+## 12-06-2026
+- implemented stateful turns in OpenAI Responses API backend (api_type::openai_response) by tracking server-returned response IDs and using previous_response_id to chain requests.
+- implemented client-side conversation slicing to send only new messages/outputs since the last assistant turn when chaining is active, and automatically clear the response ID on history mutation or reloading.
+- updated replay_transport to dynamically detect backend API type from logs.
+- documented stateful turn chaining mechanism in design.md.
+
 ## 11-06-2026
 - fixed the paste bug when typing in status bar prompts (e.g., ^KF search, going to line, inline agent, and vim command line) so that pasted text is correctly appended to the prompt buffer instead of pasting into the document underneath.
 - short-circuited the `Copilot Connect` flow if already authenticated, automatically fetching/updating the Copilot models catalog.
