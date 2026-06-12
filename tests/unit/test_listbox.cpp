@@ -218,6 +218,12 @@ int main()
 		assert(fs.is_focusable());
 	}
 
+	// Test ui_checkbox natural width
+	{
+		ui_checkbox cb("my_checkbox", "Enable LSP", 'E');
+		assert(cb.natural_width() == 15); // "Enable LSP" (10) + 5 = 15
+	}
+
 	// Test ui_dropdown focusability
 	{
 		ui_dropdown dd("my_dropdown", 0, 0, 20, "init", {"cand1", "cand2"});
