@@ -59,6 +59,7 @@ class editor : public agentlib::document_provider
 	~editor();
 
 	friend void test_vim_emulation();
+	friend void test_status_bar_paste();
 
 	const std::vector<latency_spike>& get_latency_spikes_for_testing() const { return latency_spikes_; }
 	void add_latency_spike_for_testing(const latency_spike &spike) { latency_spikes_.push_back(spike); }

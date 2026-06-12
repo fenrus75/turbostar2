@@ -114,6 +114,7 @@
 # done items (move items here on completion)
 
 ## 11-06-2026
+- fixed the paste bug when typing in status bar prompts (e.g., ^KF search, going to line, inline agent, and vim command line) so that pasted text is correctly appended to the prompt buffer instead of pasting into the document underneath.
 - short-circuited the `Copilot Connect` flow if already authenticated, automatically fetching/updating the Copilot models catalog.
 - modernized the `Search / Replace` dialog to use coordinate-free layout flows.
 - modernized the `Model List` dialog to use coordinate-free layout flows.

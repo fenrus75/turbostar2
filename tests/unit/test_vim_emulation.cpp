@@ -185,9 +185,61 @@ void test_status_priorities()
 	std::cout << "All status_priorities unit tests passed!\n";
 }
 
+void test_status_bar_paste()
+{
+	editor_options opts;
+	opts.filenames = {};
+	opts.no_lsp = true;
+	opts.no_welcome = true;
+
+	editor ed(opts);
+
+	// Test 1: Paste while in searching mode
+	ed.active_mode_ = editor::input_mode::searching;
+	ed.search_input_buffer_ = "";
+	editor_event paste_ev1;
+	paste_ev1.type = event_type::paste;
+	paste_ev1.payload = "hello search";
+	ed.dispatch(paste_ev1);
+	assert(ed.search_input_buffer_ == "hello search");
+	std::cout << "Test status_bar_paste (searching) passed!\n";
+
+	// Test 2: Paste while in going_to_line mode
+	ed.active_mode_ = editor::input_mode::going_to_line;
+	ed.line_input_buffer_ = "";
+	editor_event paste_ev2;
+	paste_ev2.type = event_type::paste;
+	paste_ev2.payload = "12a34";
+	ed.dispatch(paste_ev2);
+	assert(ed.line_input_buffer_ == "1234");
+	std::cout << "Test status_bar_paste (going_to_line) passed!\n";
+
+	// Test 3: Paste while in inline_agent mode
+	ed.active_mode_ = editor::input_mode::inline_agent;
+	ed.inline_agent_input_buffer_ = "";
+	editor_event paste_ev3;
+	paste_ev3.type = event_type::paste;
+	paste_ev3.payload = "some instruction";
+	ed.dispatch(paste_ev3);
+	assert(ed.inline_agent_input_buffer_ == "some instruction");
+	std::cout << "Test status_bar_paste (inline_agent) passed!\n";
+
+	// Test 4: Paste while in vim mode
+	ed.active_mode_ = editor::input_mode::vim;
+	ed.vim_input_buffer_ = "";
+	editor_event paste_ev4;
+	paste_ev4.type = event_type::paste;
+	paste_ev4.payload = "w!";
+	ed.dispatch(paste_ev4);
+	assert(ed.vim_input_buffer_ == "w!");
+	std::cout << "Test status_bar_paste (vim) passed!\n";
+}
+
 int main()
 {
 	test_vim_emulation();
 	test_status_priorities();
+	test_status_bar_paste();
 	return 0;
 }
+

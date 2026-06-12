@@ -209,6 +209,35 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::paste: {
 			if (active_dialog_mode_ != dialog_mode::none && active_dialog_) {
 				active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
+			} else if (active_mode_ == input_mode::searching) {
+				search_input_buffer_ += ev.payload;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			} else if (active_mode_ == input_mode::search_options) {
+				search_options_buffer_ += ev.payload;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			} else if (active_mode_ == input_mode::going_to_line) {
+				for (char c : ev.payload) {
+					if (c >= '0' && c <= '9') {
+						line_input_buffer_ += c;
+					}
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			} else if (active_mode_ == input_mode::inline_agent) {
+				inline_agent_input_buffer_ += ev.payload;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			} else if (active_mode_ == input_mode::vim) {
+				vim_input_buffer_ += ev.payload;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			} else {
 				window *active_win = get_active_window();
 				if (active_win) {
