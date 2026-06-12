@@ -624,7 +624,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 
 	std::vector<std::pair<std::string, char>> style_labels = {
 	    {"LLVM", 'L'},   {"Google", 'G'},	 {"Chromium", 'C'}, {"Mozilla", 'M'},
-	    {"WebKit", 'W'}, {"Microsoft", 's'}, {"GNU", 'N'},	    {".clang-format file", 'f'}};
+	    {"WebKit", 'W'}, {"Microsoft", 's'}, {"GNU", 'N'},	    {"Linux Kernel", 'K'}, {".clang-format file", 'f'}};
 
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
 	for (size_t i = 0; i < style_labels.size(); ++i) {
