@@ -12,6 +12,7 @@ class ui_dropdown : public ui_element
 		    std::function<void(const std::string &)> on_change = nullptr);
 
 	void draw(int abs_x, int abs_y) const override;
+	bool is_focusable() const override { return true; }
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 	bool contains_coordinate(int target_x, int target_y, int my_abs_x, int my_abs_y) const override;

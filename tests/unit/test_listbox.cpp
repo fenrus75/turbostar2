@@ -5,6 +5,7 @@
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_fileselector.h"
+#include "ui/components/ui_dropdown.h"
 
 int main()
 {
@@ -215,6 +216,12 @@ int main()
 	{
 		ui_fileselector fs("my_fileselector", 0, 0, 40, 10, ".", nullptr, nullptr);
 		assert(fs.is_focusable());
+	}
+
+	// Test ui_dropdown focusability
+	{
+		ui_dropdown dd("my_dropdown", 0, 0, 20, "init", {"cand1", "cand2"});
+		assert(dd.is_focusable());
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";
