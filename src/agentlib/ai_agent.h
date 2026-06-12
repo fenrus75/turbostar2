@@ -233,6 +233,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void compact_ephemeral_errors(std::vector<message> &convo);
 	void evaluate_auto_episode(std::vector<message> &convo);
 	void evaluate_compaction();
+	void force_compaction();
 
 	std::vector<message> get_conversation() const
 	{

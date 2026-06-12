@@ -114,6 +114,8 @@
 # done items (move items here on completion)
 
 ## 12-06-2026
+- implemented the `/compact` slash command in the agent TUI window's input boxes, allowing users to manually force stateful response compaction on the server via `ai_agent::force_compaction()`.
+- aligned the available command sets (adding `/mcp`, `/skills`, and `/compact`) and help output between both constructors of `agent_window`.
 - implemented stateful turns in OpenAI Responses API backend (api_type::openai_response) by tracking server-returned response IDs and using previous_response_id to chain requests.
 - implemented client-side conversation slicing to send only new messages/outputs since the last assistant turn when chaining is active, and automatically clear the response ID on history mutation or reloading.
 - updated replay_transport to dynamically detect backend API type from logs.

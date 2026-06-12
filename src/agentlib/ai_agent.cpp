@@ -2604,6 +2604,53 @@ void ai_agent::evaluate_compaction()
 	}
 }
 
+void ai_agent::force_compaction()
+{
+	if (!model_)
+		return;
+
+	if (!is_mutation_possible()) {
+		std::string prev_id;
+		{
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			prev_id = last_response_id_;
+		}
+		if (!prev_id.empty()) {
+			event_logger::get_instance().log("Forcing Responses API compaction on server.");
+			std::string compacted_id = client_->compact_response(prev_id);
+			if (!compacted_id.empty()) {
+				std::lock_guard<std::mutex> lock(conversation_mutex_);
+				last_response_id_ = compacted_id;
+
+				// Mark all messages up to the last assistant message as compacted
+				auto last_assistant_it = conversation_.end();
+				for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
+					if (it->role == "assistant") {
+						last_assistant_it = (it.base() - 1);
+						break;
+					}
+				}
+				if (last_assistant_it != conversation_.end()) {
+					for (auto it = conversation_.begin(); it <= last_assistant_it; ++it) {
+						it->episode_id = "compacted";
+						it->episode_level = 99;
+					}
+				}
+				add_interaction(std::make_shared<interaction_system_message>(
+				    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id)));
+			} else {
+				add_interaction(std::make_shared<interaction_system_message>("Responses API compaction failed."));
+			}
+		} else {
+			add_interaction(std::make_shared<interaction_system_message>("No active response session to compact."));
+		}
+	} else {
+		add_interaction(std::make_shared<interaction_system_message>(
+		    "Manual compaction (/compact) is only supported/needed in stateful response mode. "
+		    "For stateless models, use /pageout to archive/compress history."));
+	}
+}
+
 void ai_agent::update_episode_hint(const std::string &episode_id, const std::string &hint)
 {
 	// Update the index memory

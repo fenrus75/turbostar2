@@ -137,6 +137,15 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		// Trigger manual stateful response compaction if the backend is in OpenAI stateful mode.
+		if (trimmed_text == "/compact") {
+			input_box_->set_buffer(""); // Clear the box
+			agent_->force_compaction();
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/save")) {
 			input_box_->set_buffer(""); // Clear the box
 			std::string filepath;
@@ -191,7 +200,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
 					       "  /model            - Switch the AI model for this agent\n"
 					       "  /mcp              - Open the MCP Servers dialog\n"
-					       "  /skills           - List all available agent skills";
+					       "  /skills           - List all available agent skills\n"
+					       "  /compact          - Force stateful response compaction manually";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
 			invalidate();
@@ -267,7 +277,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
 				if (paged_in.empty()) {
 					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-						"No episodes paged in (either 50% limit reached or all episodes already active)."));
+					    "No episodes paged in (either 50% limit reached or all episodes already active)."));
 				} else {
 					std::string msg = "Successfully paged in episodes: ";
 					for (size_t i = 0; i < paged_in.size(); ++i) {
@@ -293,10 +303,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 				if (agent_->set_episode_state(episode_id, level)) {
 					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-						"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+					    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 				} else {
 					agent_->add_interaction(
-						std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+					    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
 				}
 			}
 			scroll_offset_ = 0;
@@ -324,7 +334,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (text.starts_with("/")) {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills";
+			status_ev.payload =
+			    "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
@@ -355,15 +366,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
 	}
 
-	todos_list_ = std::make_unique<ui_listbox>(
-	    "todos", 0, 0, 1, 1,
-	    [this](int) { invalidate(); },
-	    [](int) {}
-	);
+	todos_list_ = std::make_unique<ui_listbox>("todos", 0, 0, 1, 1, [this](int) { invalidate(); }, [](int) {});
 
 	subagents_list_ = std::make_unique<ui_listbox>(
-	    "subagents", 0, 0, 1, 1,
-	    [this](int) { invalidate(); },
+	    "subagents", 0, 0, 1, 1, [this](int) { invalidate(); },
 	    [this](int index) {
 		    auto subagents = agent_->get_subagents();
 		    if (index >= 0 && index < (int)subagents.size()) {
@@ -420,6 +426,44 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text == "/mcp") {
+			input_box_->set_buffer(""); // Clear the box
+			editor_event ev;
+			ev.type = event_type::mcp_config;
+			if (agent_->get_global_queue()) {
+				agent_->get_global_queue()->push(ev);
+			} else {
+				get_queue().push(ev);
+			}
+			return;
+		}
+
+		if (trimmed_text == "/skills") {
+			input_box_->set_buffer(""); // Clear the box
+			auto &skills = skill_manager::get_instance().get_skills();
+			std::string skills_text = "Available Skills:\n";
+			if (skills.empty()) {
+				skills_text += "  (No skills available)";
+			} else {
+				for (const auto &s : skills) {
+					skills_text += std::format("- {} ({})\n", s.name, s.description);
+				}
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
+		// Trigger manual stateful response compaction if the backend is in OpenAI stateful mode.
+		if (trimmed_text == "/compact") {
+			input_box_->set_buffer(""); // Clear the box
+			agent_->force_compaction();
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/save")) {
 			input_box_->set_buffer(""); // Clear the box
 			std::string filepath;
@@ -472,7 +516,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
 					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
 					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-					       "  /model            - Switch the AI model for this agent";
+					       "  /model            - Switch the AI model for this agent\n"
+					       "  /mcp              - Open the MCP Servers dialog\n"
+					       "  /skills           - List all available agent skills\n"
+					       "  /compact          - Force stateful response compaction manually";
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
 			scroll_offset_ = 0;
 			invalidate();
@@ -548,7 +595,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
 				if (paged_in.empty()) {
 					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-						"No episodes paged in (either 50% limit reached or all episodes already active)."));
+					    "No episodes paged in (either 50% limit reached or all episodes already active)."));
 				} else {
 					std::string msg = "Successfully paged in episodes: ";
 					for (size_t i = 0; i < paged_in.size(); ++i) {
@@ -574,10 +621,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 				if (agent_->set_episode_state(episode_id, level)) {
 					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-						"Successfully paged in " + episode_id + " at level " + std::to_string(level)));
+					    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
 				} else {
 					agent_->add_interaction(
-						std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
+					    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
 				}
 			}
 			scroll_offset_ = 0;
@@ -605,7 +652,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		if (text.starts_with("/")) {
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model";
+			status_ev.payload =
+			    "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
@@ -626,15 +674,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		}
 	});
 
-	todos_list_ = std::make_unique<ui_listbox>(
-	    "todos", 0, 0, 1, 1,
-	    [this](int) { invalidate(); },
-	    [](int) {}
-	);
+	todos_list_ = std::make_unique<ui_listbox>("todos", 0, 0, 1, 1, [this](int) { invalidate(); }, [](int) {});
 
 	subagents_list_ = std::make_unique<ui_listbox>(
-	    "subagents", 0, 0, 1, 1,
-	    [this](int) { invalidate(); },
+	    "subagents", 0, 0, 1, 1, [this](int) { invalidate(); },
 	    [this](int index) {
 		    auto subagents = agent_->get_subagents();
 		    if (index >= 0 && index < (int)subagents.size()) {
@@ -776,8 +819,8 @@ bool agent_window::process_events()
 				if (has_todos) {
 					int todos_y_start = y_ + 1;
 					int todos_y_end = has_subagents ? y_ + divider_y - 1 : y_ + height_ - 2;
-					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
-					    ev->mouse_y >= todos_y_start && ev->mouse_y <= todos_y_end) {
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 && ev->mouse_y >= todos_y_start &&
+					    ev->mouse_y <= todos_y_end) {
 						editor_event sim_ev;
 						sim_ev.type = event_type::key_press;
 						sim_ev.key_code = (ev->type == event_type::mouse_scroll_up) ? KEY_UP : KEY_DOWN;
@@ -791,8 +834,8 @@ bool agent_window::process_events()
 				if (has_subagents) {
 					int sub_y_start = has_todos ? y_ + divider_y + 1 : y_ + 1;
 					int sub_y_end = y_ + height_ - 2;
-					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
-					    ev->mouse_y >= sub_y_start && ev->mouse_y <= sub_y_end) {
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 && ev->mouse_y >= sub_y_start &&
+					    ev->mouse_y <= sub_y_end) {
 						editor_event sim_ev;
 						sim_ev.type = event_type::key_press;
 						sim_ev.key_code = (ev->type == event_type::mouse_scroll_up) ? KEY_UP : KEY_DOWN;
@@ -827,8 +870,8 @@ bool agent_window::process_events()
 				if (has_todos) {
 					int todos_y_start = y_ + 1;
 					int todos_y_end = has_subagents ? y_ + divider_y - 1 : y_ + height_ - 2;
-					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
-					    ev->mouse_y >= todos_y_start && ev->mouse_y <= todos_y_end) {
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 && ev->mouse_y >= todos_y_start &&
+					    ev->mouse_y <= todos_y_end) {
 						sidebar_focus_ = sidebar_focus::todos;
 						todos_list_->handle_event(*ev, 0, 0);
 						invalidate();
@@ -841,8 +884,8 @@ bool agent_window::process_events()
 				if (has_subagents) {
 					int sub_y_start = has_todos ? y_ + divider_y + 1 : y_ + 1;
 					int sub_y_end = y_ + height_ - 2;
-					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 &&
-					    ev->mouse_y >= sub_y_start && ev->mouse_y <= sub_y_end) {
+					if (ev->mouse_x > x_ + divider_x && ev->mouse_x < x_ + width_ - 1 && ev->mouse_y >= sub_y_start &&
+					    ev->mouse_y <= sub_y_end) {
 						sidebar_focus_ = sidebar_focus::subagents;
 						subagents_list_->handle_event(*ev, 0, 0);
 						invalidate();
@@ -867,12 +910,10 @@ bool agent_window::process_events()
 			if (click_row >= 0 && click_row < available_height && click_row < static_cast<int>(visible_lines_.size()) &&
 			    ev->mouse_x >= x_ + 1 && ev->mouse_x <= chat_max_x) {
 				sidebar_focus_ = sidebar_focus::input;
-				int prefix_w = visible_lines_[click_row].prefix.empty()
-						   ? 0
-						   : utf8::display_width(visible_lines_[click_row].prefix);
+				int prefix_w =
+				    visible_lines_[click_row].prefix.empty() ? 0 : utf8::display_width(visible_lines_[click_row].prefix);
 				int col = ev->mouse_x - (x_ + 1 + prefix_w);
-				int click_char =
-				    std::clamp(col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
+				int click_char = std::clamp(col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
 
 				is_mouse_selecting_ = true;
 				mouse_sel_start_char_ = click_char;
@@ -902,8 +943,8 @@ bool agent_window::process_events()
 							   ? 0
 							   : utf8::display_width(visible_lines_[click_row].prefix);
 					int col = ev->mouse_x - (x_ + 1 + prefix_w);
-					int click_char = std::clamp(
-					    col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
+					int click_char =
+					    std::clamp(col, 0, static_cast<int>(utf8::display_width(visible_lines_[click_row].text)));
 
 					mouse_sel_end_char_ = click_char;
 					mouse_sel_end_line_ = click_row;
