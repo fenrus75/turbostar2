@@ -39,6 +39,7 @@ class ui_fileselector : public ui_element
                                         std::function<void(const std::string&)> on_submit);
 
         void draw(int abs_x, int abs_y) const override;
+        bool is_focusable() const override { return true; }
         bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 
         void populate_files();

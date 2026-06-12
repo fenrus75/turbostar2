@@ -4,6 +4,7 @@
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
+#include "ui/components/ui_fileselector.h"
 
 int main()
 {
@@ -208,6 +209,12 @@ int main()
 		bool handled_mouse = lb_coords.handle_event(ev_mouse, 2, 3);
 		assert(handled_mouse);
 		assert(lb_coords.get_selected_index() == 1);
+	}
+
+	// Test ui_fileselector focusability
+	{
+		ui_fileselector fs("my_fileselector", 0, 0, 40, 10, ".", nullptr, nullptr);
+		assert(fs.is_focusable());
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";
