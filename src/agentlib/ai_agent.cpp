@@ -2479,8 +2479,57 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 void ai_agent::evaluate_compaction()
 {
-	if (!model_ || !is_mutation_possible())
+	if (!model_)
 		return;
+
+	if (!is_mutation_possible()) {
+		// Calculate target bounds based on model's max_context_tokens
+		int max_tokens = model_->get_max_context_tokens();
+		double upper_pct = 0.8;
+		int upper_bound = static_cast<int>(max_tokens * upper_pct);
+
+		int current_active_tokens = calculate_current_tokens();
+		active_tokens_.store(current_active_tokens);
+
+		if (current_active_tokens > upper_bound) {
+			std::string prev_id;
+			{
+				std::lock_guard<std::mutex> lock(conversation_mutex_);
+				prev_id = last_response_id_;
+			}
+			if (!prev_id.empty()) {
+				event_logger::get_instance().log(
+				    std::format("Active history tokens ({}) exceed upper bound ({}) in stateful mode. "
+						"Triggering Responses API compaction on server.",
+						current_active_tokens, upper_bound));
+				std::string compacted_id = client_->compact_response(prev_id);
+				if (!compacted_id.empty()) {
+					std::lock_guard<std::mutex> lock(conversation_mutex_);
+					last_response_id_ = compacted_id;
+
+					// Mark all messages up to the last assistant message as compacted
+					auto last_assistant_it = conversation_.end();
+					for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
+						if (it->role == "assistant") {
+							last_assistant_it = (it.base() - 1);
+							break;
+						}
+					}
+					if (last_assistant_it != conversation_.end()) {
+						for (auto it = conversation_.begin(); it <= last_assistant_it; ++it) {
+							it->episode_id = "compacted";
+							it->episode_level = 99;
+						}
+					}
+					event_logger::get_instance().log(
+					    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id));
+				} else {
+					event_logger::get_instance().log("Responses API compaction failed.");
+				}
+			}
+		}
+		return;
+	}
 
 	// Calculate target bounds based on model's max_context_tokens
 	int max_tokens = model_->get_max_context_tokens();

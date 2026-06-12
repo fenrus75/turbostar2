@@ -127,4 +127,25 @@ void llm_client::cancel()
 	}
 }
 
+std::string llm_client::compact_response(const std::string &previous_response_id)
+{
+	if (previous_response_id.empty()) {
+		return "";
+	}
+	nlohmann::json body = {{"model", model_id_}, {"previous_response_id", previous_response_id}};
+	std::string endpoint = "/v1/responses/compact";
+	auto res = transport_->post(endpoint, body.dump());
+	if (res.status_code == 200) {
+		try {
+			auto json_res = nlohmann::json::parse(res.body);
+			if (json_res.contains("id") && json_res["id"].is_string()) {
+				return json_res["id"].get<std::string>();
+			}
+		} catch (...) {
+			// ignore
+		}
+	}
+	return "";
+}
+
 } // namespace agentlib
