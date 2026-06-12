@@ -56,7 +56,14 @@ class mock_normal_validator : public tool_validator
 	}
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {};
+		return {
+			{"type", "object"},
+			{"properties", {
+				{"path", {{"type", "string"}}},
+				{"async", {{"type", "boolean"}}}
+			}},
+			{"required", {"path", "async"}}
+		};
 	}
 	bool is_pure() const override
 	{
@@ -149,6 +156,26 @@ int main()
 		}
 	}
 	assert(!has_compress_resp);
+
+	bool found_normal_tool = false;
+	for (const auto &t : resp_tools) {
+		if (t["function"]["name"] == "mock_normal_tool") {
+			found_normal_tool = true;
+			auto params = t["function"]["parameters"];
+			assert(params.contains("properties"));
+			assert(params["properties"].contains("path"));
+			assert(!params["properties"].contains("async"));
+			assert(params.contains("required"));
+			bool has_async_in_req = false;
+			for (const auto &req : params["required"]) {
+				if (req == "async") {
+					has_async_in_req = true;
+				}
+			}
+			assert(!has_async_in_req);
+		}
+	}
+	assert(found_normal_tool);
 
 	std::cout << "test_api_formatter passed successfully!" << std::endl;
 	return 0;

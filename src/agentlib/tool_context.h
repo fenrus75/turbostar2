@@ -26,6 +26,7 @@ class tool_context
 	document_provider *doc_provider = nullptr;
 	event_queue *queue = nullptr;
 	ai_agent *active_agent = nullptr;
+	bool mutation_possible = true;
 	std::string tool_call_id;
 
 	// Callback to trigger a UI redraw during long-running tool executions

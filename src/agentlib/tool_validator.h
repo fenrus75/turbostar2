@@ -49,6 +49,22 @@ public:
         
         // Centralized Automated Schema Validation
         nlohmann::json schema = get_parameters_schema();
+        if (!ctx.mutation_possible) {
+            if (schema.contains("properties") && schema["properties"].is_object()) {
+                schema["properties"].erase("async");
+                schema["properties"].erase("is_async");
+            }
+            if (schema.contains("required") && schema["required"].is_array()) {
+                nlohmann::json new_req = nlohmann::json::array();
+                for (const auto &item : schema["required"]) {
+                    if (item.is_string() && (item.get<std::string>() == "async" || item.get<std::string>() == "is_async")) {
+                        continue;
+                    }
+                    new_req.push_back(item);
+                }
+                schema["required"] = new_req;
+            }
+        }
         if (schema.contains("required") && schema["required"].is_array()) {
             for (const auto& req : schema["required"]) {
                 if (!req.is_string()) continue;

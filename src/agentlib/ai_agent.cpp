@@ -1191,6 +1191,7 @@ void ai_agent::start_processing()
 		ctx.doc_provider = self->doc_provider_;
 		ctx.queue = self->global_queue_;
 		ctx.active_agent = self.get();
+		ctx.mutation_possible = self->is_mutation_possible();
 		ctx.is_family_active = [self](const std::string &family) { return self->is_tool_family_active(family); };
 
 		std::string final_response;

@@ -81,9 +81,27 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 			tool_name = serialize_mcp_name(tool_name);
 		}
 
+		nlohmann::json params = validator->get_parameters_schema();
+		if (!mutation_possible) {
+			if (params.contains("properties") && params["properties"].is_object()) {
+				params["properties"].erase("async");
+				params["properties"].erase("is_async");
+			}
+			if (params.contains("required") && params["required"].is_array()) {
+				nlohmann::json new_req = nlohmann::json::array();
+				for (const auto &item : params["required"]) {
+					if (item.is_string() && (item.get<std::string>() == "async" || item.get<std::string>() == "is_async")) {
+						continue;
+					}
+					new_req.push_back(item);
+				}
+				params["required"] = new_req;
+			}
+		}
+
 		nlohmann::json tool_schema = {
 		    {"type", "function"},
-		    {"function", {{"name", tool_name}, {"description", desc}, {"parameters", validator->get_parameters_schema()}}}};
+		    {"function", {{"name", tool_name}, {"description", desc}, {"parameters", params}}}};
 		tools_array.push_back(tool_schema);
 	}
 	return tools_array;
@@ -128,7 +146,25 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 			tool_name = serialize_mcp_name(tool_name);
 		}
 
-		nlohmann::json func_decl = {{"name", tool_name}, {"description", desc}, {"parameters", validator->get_parameters_schema()}};
+		nlohmann::json params = validator->get_parameters_schema();
+		if (!mutation_possible) {
+			if (params.contains("properties") && params["properties"].is_object()) {
+				params["properties"].erase("async");
+				params["properties"].erase("is_async");
+			}
+			if (params.contains("required") && params["required"].is_array()) {
+				nlohmann::json new_req = nlohmann::json::array();
+				for (const auto &item : params["required"]) {
+					if (item.is_string() && (item.get<std::string>() == "async" || item.get<std::string>() == "is_async")) {
+						continue;
+					}
+					new_req.push_back(item);
+				}
+				params["required"] = new_req;
+			}
+		}
+
+		nlohmann::json func_decl = {{"name", tool_name}, {"description", desc}, {"parameters", params}};
 		tools_array.push_back(func_decl);
 	}
 	return nlohmann::json::array({{{"functionDeclarations", tools_array}}});
