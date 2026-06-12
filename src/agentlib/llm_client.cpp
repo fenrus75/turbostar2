@@ -127,9 +127,15 @@ void llm_client::cancel()
 	}
 }
 
-std::string llm_client::compact_response(const std::string &previous_response_id)
+std::string llm_client::compact_response(const std::string &previous_response_id, std::string *error_msg)
 {
+	if (error_msg) {
+		error_msg->clear();
+	}
 	if (previous_response_id.empty()) {
+		if (error_msg) {
+			*error_msg = "Previous response ID is empty.";
+		}
 		return "";
 	}
 	nlohmann::json body = {{"model", model_id_}, {"previous_response_id", previous_response_id}};
@@ -142,7 +148,22 @@ std::string llm_client::compact_response(const std::string &previous_response_id
 				return json_res["id"].get<std::string>();
 			}
 		} catch (...) {
-			// ignore
+			if (error_msg) {
+				*error_msg = "Failed to parse compaction response.";
+			}
+		}
+	} else {
+		if (error_msg) {
+			try {
+				auto json_res = nlohmann::json::parse(res.body);
+				if (json_res.contains("error") && json_res["error"].contains("message")) {
+					*error_msg = json_res["error"]["message"].get<std::string>();
+				} else {
+					*error_msg = std::format("Server returned HTTP {} status.", res.status_code);
+				}
+			} catch (...) {
+				*error_msg = std::format("Server returned HTTP {} status.", res.status_code);
+			}
 		}
 	}
 	return "";

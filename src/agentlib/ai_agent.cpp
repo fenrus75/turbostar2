@@ -2502,7 +2502,8 @@ void ai_agent::evaluate_compaction()
 				    std::format("Active history tokens ({}) exceed upper bound ({}) in stateful mode. "
 						"Triggering Responses API compaction on server.",
 						current_active_tokens, upper_bound));
-				std::string compacted_id = client_->compact_response(prev_id);
+				std::string error_msg;
+				std::string compacted_id = client_->compact_response(prev_id, &error_msg);
 				if (!compacted_id.empty()) {
 					std::lock_guard<std::mutex> lock(conversation_mutex_);
 					last_response_id_ = compacted_id;
@@ -2524,7 +2525,8 @@ void ai_agent::evaluate_compaction()
 					event_logger::get_instance().log(
 					    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id));
 				} else {
-					event_logger::get_instance().log("Responses API compaction failed.");
+					event_logger::get_instance().log(
+					    std::format("Responses API automatic compaction failed: {}", error_msg));
 				}
 			}
 		}
@@ -2617,7 +2619,8 @@ void ai_agent::force_compaction()
 		}
 		if (!prev_id.empty()) {
 			event_logger::get_instance().log("Forcing Responses API compaction on server.");
-			std::string compacted_id = client_->compact_response(prev_id);
+			std::string error_msg;
+			std::string compacted_id = client_->compact_response(prev_id, &error_msg);
 			if (!compacted_id.empty()) {
 				std::lock_guard<std::mutex> lock(conversation_mutex_);
 				last_response_id_ = compacted_id;
@@ -2639,7 +2642,8 @@ void ai_agent::force_compaction()
 				add_interaction(std::make_shared<interaction_system_message>(
 				    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id)));
 			} else {
-				add_interaction(std::make_shared<interaction_system_message>("Responses API compaction failed."));
+				add_interaction(std::make_shared<interaction_system_message>(
+				    std::format("Responses API compaction failed: {}", error_msg)));
 			}
 		} else {
 			add_interaction(std::make_shared<interaction_system_message>("No active response session to compact."));

@@ -24,7 +24,7 @@ class llm_client
 			      const std::string &previous_response_id = "");
 
 	void cancel();
-	std::string compact_response(const std::string &previous_response_id);
+	std::string compact_response(const std::string &previous_response_id, std::string *error_msg = nullptr);
 
       private:
 	std::shared_ptr<llm_transport> transport_;
