@@ -152,6 +152,7 @@ bool ui_radiobutton_group::flow()
 	}
 
 	int target_height = height();
+	bool width_changed = false;
 
 	if (horizontal_) {
 		int running_x = 0;
@@ -164,8 +165,18 @@ bool ui_radiobutton_group::flow()
 			running_x += child->width();
 		}
 		target_height = 1;
+		int target_width = running_x;
+		if (width() != target_width) {
+			set_width(target_width);
+			width_changed = true;
+		}
 	} else {
 		int target_width = width();
+		if (target_width == 0) {
+			target_width = natural_width();
+			set_width(target_width);
+			width_changed = true;
+		}
 		int running_y = 1;
 		for (const auto &child : children_) {
 			int target_x = 0;
@@ -181,8 +192,8 @@ bool ui_radiobutton_group::flow()
 		target_height = running_y;
 	}
 
-	bool dimensions_changed = (height() != target_height);
-	if (dimensions_changed) {
+	bool dimensions_changed = (height() != target_height) || width_changed;
+	if (height() != target_height) {
 		set_height(target_height);
 	}
 

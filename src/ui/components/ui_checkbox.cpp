@@ -8,7 +8,7 @@
 // --- ui_checkbox ---
 
 ui_checkbox::ui_checkbox(std::string name, const std::string &text, char hotkey, bool initial_state)
-    : ui_element(std::move(name), 0, 0, text.length() + 5, 1), text_(text), hotkey_(hotkey), checked_(initial_state)
+    : ui_element(std::move(name), 0, 0, text.length() + 6, 1), text_(text), hotkey_(hotkey), checked_(initial_state)
 {
 }
 
@@ -117,5 +117,5 @@ std::optional<std::string> ui_checkbox::get_value(const std::string &target_name
 
 int ui_checkbox::natural_width() const
 {
-	return static_cast<int>(text_.length()) + 5; // 1 for leading space + 3 for '[ ]' + 1 for space
+	return static_cast<int>(text_.length()) + 6; // 1 for leading space + 3 for '[ ]' + 1 for space + 1 for trailing space
 }

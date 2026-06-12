@@ -27,14 +27,16 @@ bool ui_horizontal_flow::flow()
 	// Set position of all children in a loop
 	int running_x = x_offset_;
 	for (const auto &child : children_) {
+		int target_width = child->natural_width();
 		int target_x = running_x;
 		int target_y = y_offset_;
 
-		if (child->x() != target_x || child->y() != target_y) {
+		if (child->width() != target_width || child->x() != target_x || child->y() != target_y) {
+			child->set_width(target_width);
 			child->set_position(target_x, target_y);
 		}
 
-		running_x += child->width() + 2;
+		running_x += target_width + 2;
 	}
 
 	int total_width = children_.empty() ? 0 : (running_x - 2 + x_offset_);

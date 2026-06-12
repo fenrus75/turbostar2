@@ -23,6 +23,12 @@ bool ui_checkbox_group::flow()
 	}
 
 	int target_width = width();
+	bool width_changed = false;
+	if (target_width == 0) {
+		target_width = natural_width();
+		set_width(target_width);
+		width_changed = true;
+	}
 
 	int running_y = 1;
 	for (const auto &child : children_) {
@@ -38,8 +44,8 @@ bool ui_checkbox_group::flow()
 	}
 
 	int target_height = running_y;
-	bool dimensions_changed = (height() != target_height);
-	if (dimensions_changed) {
+	bool dimensions_changed = (height() != target_height) || width_changed;
+	if (height() != target_height) {
 		set_height(target_height);
 	}
 

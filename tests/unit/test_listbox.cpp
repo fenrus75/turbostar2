@@ -221,7 +221,7 @@ int main()
 	// Test ui_checkbox natural width
 	{
 		ui_checkbox cb("my_checkbox", "Enable LSP", 'E');
-		assert(cb.natural_width() == 15); // "Enable LSP" (10) + 5 = 15
+		assert(cb.natural_width() == 16); // "Enable LSP" (10) + 6 = 16
 	}
 
 	// Test ui_dropdown focusability

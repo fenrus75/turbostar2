@@ -665,7 +665,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	// Toggles split into two columns (side-by-side checkbox groups) to optimize layout height.
 	auto toggles_row = std::make_unique<ui_horizontal_flow>("toggles_row", 0, 0, 0, 0);
 
-	auto col1 = std::make_unique<ui_checkbox_group>("col1", 0, 0, 27, 0);
+	auto col1 = std::make_unique<ui_checkbox_group>("col1");
 	col1->add_child(
 	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	col1->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u',
@@ -673,7 +673,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	col1->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile file on save", 'i',
 							       config_manager::get_instance().is_compile_on_save()));
 
-	auto col2 = std::make_unique<ui_checkbox_group>("col2", 0, 0, 26, 0);
+	auto col2 = std::make_unique<ui_checkbox_group>("col2");
 	col2->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g',
 							       config_manager::get_instance().is_log_all_tool_calls()));
 	col2->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M',
