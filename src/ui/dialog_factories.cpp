@@ -670,7 +670,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	col1->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u',
 							       config_manager::get_instance().is_auto_open_error_files()));
-	col1->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile f[i]le on save", 'i',
+	col1->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile file on save", 'i',
 							       config_manager::get_instance().is_compile_on_save()));
 
 	auto col2 = std::make_unique<ui_checkbox_group>("col2", 0, 0, 26, 0);
@@ -678,7 +678,7 @@ std::unique_ptr<dialog> create_settings_dialog()
 							       config_manager::get_instance().is_log_all_tool_calls()));
 	col2->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M',
 							       config_manager::get_instance().is_software_map_enabled()));
-	col2->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell [d]isplay access", 'd',
+	col2->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd',
 							       config_manager::get_instance().is_shell_display_access()));
 
 	toggles_row->add_child(std::move(col1));
