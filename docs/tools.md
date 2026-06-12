@@ -9,9 +9,10 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ## 1. File System Reading & Inspection
 
 ### `fs_list_dir`
-*   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions).
+*   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optionally rich metadata).
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the directory, relative to the project root.
+    *   `rich_metadata` *(boolean, optional)*: If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, ELF architectures).
 
 ### `fs_read_lines`
 *   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.

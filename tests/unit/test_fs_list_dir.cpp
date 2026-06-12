@@ -57,6 +57,15 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
+		// 5. Success case with rich_metadata enabled
+		{
+			std::string args = "{\"path\": \"" + project_root + "/src\", \"rich_metadata\": true}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+			std::cout << "Directory list with rich_metadata: " << res << std::endl;
+			assert(res.find("| Details |") != std::string::npos);
+			assert(res.find("C++") != std::string::npos || res.find("text") != std::string::npos);
+		}
+
 		std::cout << "fs_list_dir tool verified successfully!" << std::endl;
 	}
 

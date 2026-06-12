@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <magic.h>
 #include <sstream>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -13,8 +14,8 @@
 namespace tools
 {
 
-fs_list_dir_tool::fs_list_dir_tool(std::string safe_path)
-    : llm_tool_action("Listing directory " + safe_path), safe_path_(std::move(safe_path))
+fs_list_dir_tool::fs_list_dir_tool(std::string safe_path, bool rich_metadata)
+    : llm_tool_action("Listing directory " + safe_path), safe_path_(std::move(safe_path)), rich_metadata_(rich_metadata)
 {
 }
 
@@ -57,8 +58,13 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 
 		std::stringstream ss;
 		ss << "# Virtual Directory " << prefix << "\n\n";
-		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
-		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
+		if (rich_metadata_) {
+			ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
+			ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
+		} else {
+			ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
+			ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
+		}
 
 		auto entries = vfs->list_directory(prefix);
 		size_t count = 0;
@@ -91,8 +97,11 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 
-			ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str
-			   << " | R-- |\n";
+			if (rich_metadata_) {
+				ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str << " | R-- |  |\n";
+			} else {
+				ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str << " | R-- |\n";
+			}
 			count++;
 		}
 		set_success(ctx, "Found " + std::to_string(count) + " virtual items");
@@ -107,8 +116,25 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 
 	std::stringstream ss;
 	ss << "# Directory " << rel_str << "\n\n";
-	ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
-	ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
+	if (rich_metadata_) {
+		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
+		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
+	} else {
+		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
+		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
+	}
+
+	// Initialize libmagic if rich metadata is requested
+	magic_t magic = nullptr;
+	if (rich_metadata_) {
+		magic = magic_open(MAGIC_NONE);
+		if (magic) {
+			if (magic_load(magic, nullptr) != 0) {
+				magic_close(magic);
+				magic = nullptr;
+			}
+		}
+	}
 
 	try {
 		std::vector<std::filesystem::directory_entry> entries;
@@ -162,10 +188,33 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 
 			perms += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 
-			ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms << " |\n";
+			std::string details = "";
+			if (magic && entry.is_regular_file()) {
+				const char *desc = magic_file(magic, resolved_path.c_str());
+				if (desc) {
+					details = desc;
+					// Escape '|' to prevent Markdown table breakage
+					std::replace(details.begin(), details.end(), '|', ',');
+				}
+			}
+
+			if (rich_metadata_) {
+				ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms
+				   << " | " << details << " |\n";
+			} else {
+				ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms
+				   << " |\n";
+			}
 		}
 	} catch (const std::exception &e) {
+		if (magic) {
+			magic_close(magic);
+		}
 		return "Error reading directory: " + std::string(e.what());
+	}
+
+	if (magic) {
+		magic_close(magic);
 	}
 
 	return ss.str();

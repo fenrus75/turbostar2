@@ -33,6 +33,7 @@ thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 zlib_dep = dependency('zlib', required : true)
+magic_dep = cc.find_library('magic', required : true)
 
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
@@ -697,7 +698,7 @@ test_fs_list_dir = executable('test_fs_list_dir',
   ['tests/unit/test_fs_list_dir.cpp',
    'src/tools/fs_list_dir/fs_list_dir_entry.cpp',
    'src/tools/fs_list_dir/fs_list_dir_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
 test('unit_test_fs_list_dir', test_fs_list_dir)
 
