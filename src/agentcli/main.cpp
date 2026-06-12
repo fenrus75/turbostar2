@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 #if defined(LLM_TRANSPORT_REPLAY)
 	std::cout << "[Using Replay Transport]" << std::endl;
 	auto player = std::make_shared<replay_transport>(replay_file);
+	default_type = player->detect_api_type();
 	llm_client client(player, default_model_id, default_type);
 
 #elif defined(LLM_TRANSPORT_RECORD)

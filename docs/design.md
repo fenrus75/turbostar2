@@ -200,6 +200,7 @@ To support model providers that do not allow mutating server-side assistant hist
 - **is_mutation_possible() Check**: The `ai_agent` exposes a boolean `is_mutation_possible()` method which returns `false` if the model's format is `openai_response` (and `true` for standard stateless completion/Gemini APIs).
 - **Compaction & Paging Disallowed**: History compaction (automatic and tools like `agent_compress_history`, `agent_restore_context`) is disabled. The corresponding tools are not advertised/injected into the payload and their runtime validations fail.
 - **Synchronous Execution Fallback**: Asynchronous tool executions that rely on history mutation to rewrite previous tool call slots (such as `fs_compile_file`, `fs_compile_project`, and `run_shell_command`) are automatically overridden to run synchronously in this mode.
+- **Stateful Turn Chaining (previous_response_id)**: In this mode, Turbostar tracks the server-returned `response_id` from both streaming chunk updates and sync JSON bodies, saving it as `last_response_id_` on the `ai_agent`. For subsequent turns, instead of sending the full conversation history, the formatter slices the conversation to only include messages/outputs created after the last assistant turn, and links them back to the server state by passing the `previous_response_id` parameter. Any history mutations or reloads automatically clear the tracked response ID to force a full history resend.
 
 ## Tool Families
 

@@ -57,10 +57,10 @@ static std::vector<message> normalize_conversation_history(const std::vector<mes
 }
 
 llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry *registry,
-					const std::vector<std::string> &active_families)
+					const std::vector<std::string> &active_families, const std::string &previous_response_id)
 {
 	std::vector<message> normalized = normalize_conversation_history(conversation);
-	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, false, active_families);
+	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, false, active_families, previous_response_id);
 	std::string endpoint = formatter_->get_endpoint_path(model_id_, false);
 
 	auto res = transport_->post(endpoint, body);
@@ -78,10 +78,11 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 }
 
 void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-				  const tool_registry *registry, const std::vector<std::string> &active_families)
+				  const tool_registry *registry, const std::vector<std::string> &active_families,
+				  const std::string &previous_response_id)
 {
 	std::vector<message> normalized = normalize_conversation_history(conversation);
-	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, true, active_families);
+	std::string body = formatter_->build_chat_payload(model_id_, normalized, registry, true, active_families, previous_response_id);
 	std::string endpoint = formatter_->get_endpoint_path(model_id_, true);
 	std::string line_buffer;
 
@@ -97,7 +98,7 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 				std::string json_str = line.substr(6);
 				chat_delta delta = formatter_->parse_stream_chunk(json_str);
 				if (!delta.content.empty() || !delta.reasoning_content.empty() || delta.tool_calls || delta.is_final ||
-				    delta.usage.total_tokens > 0) {
+				    delta.usage.total_tokens > 0 || !delta.response_id.empty()) {
 					callback(delta);
 				}
 				if (delta.is_final)

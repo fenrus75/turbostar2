@@ -319,13 +319,14 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	/*
 	 * conversation_mutex_ protects conversation_ history, episode_index_ maps,
-	 * and the client_ object.
+	 * the client_ object, and the last_response_id_ stateful tracking ID.
 	 * Locking Rules:
 	 * - Held during conversation serialization, prompt submission, compaction evaluation,
 	 *   and memory/episode loading or paging operations.
 	 */
 	mutable std::mutex conversation_mutex_;
 	std::vector<message> conversation_;
+	std::string last_response_id_;
 	std::map<std::string, episode_index_entry> episode_index_;
 	std::unique_ptr<llm_client> client_;
 	std::shared_ptr<llm_transport> background_transport_;

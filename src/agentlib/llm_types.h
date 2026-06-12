@@ -114,6 +114,7 @@ struct llm_chat_response {
 	message msg;
 	llm_usage usage;
 	std::string model;
+	std::string response_id;
 };
 
 struct chat_delta {
@@ -123,6 +124,7 @@ struct chat_delta {
 	std::optional<std::vector<tool_call>> tool_calls;
 	bool is_final{false};
 	llm_usage usage;
+	std::string response_id;
 };
 
 inline void normalize_tool_call(tool_call &call)
@@ -276,10 +278,14 @@ inline void normalize_tool_call(tool_call &call)
 				}
 			}
 			nlohmann::json new_args = nlohmann::json::object();
-			if (!path_val.empty()) new_args["path"] = path_val;
-			if (!target_val.empty()) new_args["target_content"] = target_val;
-			if (!replace_val.empty()) new_args["replacement_content"] = replace_val;
-			if (args.contains("line_hint")) new_args["line_hint"] = args["line_hint"];
+			if (!path_val.empty())
+				new_args["path"] = path_val;
+			if (!target_val.empty())
+				new_args["target_content"] = target_val;
+			if (!replace_val.empty())
+				new_args["replacement_content"] = replace_val;
+			if (args.contains("line_hint"))
+				new_args["line_hint"] = args["line_hint"];
 			args = new_args;
 		} else if (official_name == "fs_man") {
 			std::string name_val;

@@ -363,6 +363,7 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 	}
 
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	last_response_id_.clear();
 
 	// Look for existing active turns matching episode_id in memory
 	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
@@ -590,6 +591,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			{
 				std::lock_guard<std::mutex> lock(conversation_mutex_);
 				conversation_.clear();
+				last_response_id_.clear();
 				for (const auto &item : root["conversation"]) {
 					message msg;
 					from_json(item, msg);
@@ -1215,6 +1217,7 @@ void ai_agent::start_processing()
 			self->evaluate_auto_episode(convo);
 
 			// Reload/Sync with shared conversation history in case compaction modified it
+			std::string previous_response_id;
 			{
 				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
 				convo.clear();
@@ -1222,6 +1225,7 @@ void ai_agent::start_processing()
 					convo.push_back(msg);
 				}
 				last_synced_index = self->conversation_.size();
+				previous_response_id = self->last_response_id_;
 			}
 
 			self->set_status(agent_status::thinking);
@@ -1241,6 +1245,11 @@ void ai_agent::start_processing()
 			    [&](const chat_delta &delta) {
 				    if (self->is_closed_)
 					    return;
+
+				    if (!delta.response_id.empty()) {
+					    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					    self->last_response_id_ = delta.response_id;
+				    }
 
 				    if (!delta.reasoning_content.empty()) {
 					    if (!current_reasoning) {
@@ -1312,7 +1321,7 @@ void ai_agent::start_processing()
 					    }
 				    }
 			    },
-			    &registry, self->get_active_tool_families());
+			    &registry, self->get_active_tool_families(), previous_response_id);
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -1726,6 +1735,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 				const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	last_response_id_.clear();
 
 	// Identify all tool call groups in conversation_
 	// A group is a pair of {g_start, g_end} (inclusive)
@@ -2125,6 +2135,7 @@ void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
 	if (compacted) {
 		// Sync the exact same mutations to the global conversation array
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		last_response_id_.clear();
 		while (conversation_.size() >= 4) {
 			auto it_n0 = conversation_.end() - 1;
 			auto it_n1 = conversation_.end() - 2;
@@ -2173,6 +2184,7 @@ void ai_agent::replace_tool_result(const std::string &tool_call_id, const std::s
 	for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
 		if (it->role == "tool" && it->tool_call_id == tool_call_id) {
 			it->content = new_content;
+			last_response_id_.clear();
 
 			// Also notify the UI that context changed silently
 			if (global_queue_) {
