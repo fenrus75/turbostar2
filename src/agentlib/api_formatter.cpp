@@ -66,12 +66,17 @@ std::string openai_formatter::build_chat_payload(const std::string &model_id, co
 			}
 
 			if (msg.role == "user") {
-				json m_json = {{"type", "message"}, {"role", "user"}, {"content", msg.content}};
+				json m_json = {{"type", "message"},
+					       {"role", "user"},
+					       {"content", json::array({{{"type", "input_text"}, {"text", msg.content}}})}};
 				input_json.push_back(m_json);
 			} else if (msg.role == "assistant") {
 				if (msg.tool_calls && !msg.tool_calls->empty()) {
 					if (!msg.content.empty()) {
-						json m_json = {{"type", "message"}, {"role", "assistant"}, {"content", msg.content}};
+						json m_json = {
+						    {"type", "message"},
+						    {"role", "assistant"},
+						    {"content", json::array({{{"type", "output_text"}, {"text", msg.content}}})}};
 						input_json.push_back(m_json);
 					}
 					for (const auto &tc : *msg.tool_calls) {
@@ -83,13 +88,15 @@ std::string openai_formatter::build_chat_payload(const std::string &model_id, co
 						input_json.push_back(tc_json);
 					}
 				} else {
-					json m_json = {{"type", "message"}, {"role", "assistant"}, {"content", msg.content}};
+					json m_json = {{"type", "message"},
+						       {"role", "assistant"},
+						       {"content", json::array({{{"type", "output_text"}, {"text", msg.content}}})}};
 					input_json.push_back(m_json);
 				}
 			} else if (msg.role == "tool") {
 				json m_json = {{"type", "function_call_output"},
 					       {"call_id", msg.tool_call_id ? *msg.tool_call_id : ""},
-					       {"output", msg.content},
+					       {"output", json::array({{{"type", "input_text"}, {"text", msg.content}}})},
 					       {"status", "completed"}};
 				input_json.push_back(m_json);
 			}

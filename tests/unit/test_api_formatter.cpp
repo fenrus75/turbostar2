@@ -56,14 +56,9 @@ class mock_normal_validator : public tool_validator
 	}
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {
-			{"type", "object"},
-			{"properties", {
-				{"path", {{"type", "string"}}},
-				{"async", {{"type", "boolean"}}}
-			}},
-			{"required", {"path", "async"}}
-		};
+		return {{"type", "object"},
+			{"properties", {{"path", {{"type", "string"}}}, {"async", {{"type", "boolean"}}}}},
+			{"required", {"path", "async"}}};
 	}
 	bool is_pure() const override
 	{
@@ -187,7 +182,10 @@ int main()
 	assert(payload_resp["input"].size() == 1);
 	assert(payload_resp["input"][0]["type"] == "message");
 	assert(payload_resp["input"][0]["role"] == "user");
-	assert(payload_resp["input"][0]["content"] == "Hello");
+	assert(payload_resp["input"][0]["content"].is_array());
+	assert(payload_resp["input"][0]["content"].size() == 1);
+	assert(payload_resp["input"][0]["content"][0]["type"] == "input_text");
+	assert(payload_resp["input"][0]["content"][0]["text"] == "Hello");
 
 	// Test flat tools structure in openai_response payload
 	assert(payload_resp.contains("tools"));
@@ -281,7 +279,8 @@ int main()
 	assert((*d4.tool_calls)[0].id == "");
 	assert((*d4.tool_calls)[0].function.arguments == "{\"");
 
-	chat_delta d5 = resp_fmt->parse_stream_chunk(R"({"type": "response.completed", "response": {"usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30}}})");
+	chat_delta d5 = resp_fmt->parse_stream_chunk(
+	    R"({"type": "response.completed", "response": {"usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30}}})");
 	assert(d5.is_final);
 	assert(d5.usage.prompt_tokens == 10);
 	assert(d5.usage.completion_tokens == 20);
