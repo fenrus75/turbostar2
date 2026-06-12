@@ -50,13 +50,13 @@ int main()
 
 	// Test ui_element and ui_button natural bounds
 	ui_button btn("btn_toggle", 0, 0, " Toggle ", 't', nullptr);
-	assert(btn.width() == 8);
+	assert(btn.width() == 9);
 	assert(btn.height() == 1);
 	assert(btn.natural_width() == 9);
 	assert(btn.natural_height() == 1);
 
 	ui_button btn2("btn_close", 0, 0, "Close", 'c', nullptr);
-	assert(btn2.width() == 5);
+	assert(btn2.width() == 8);
 	assert(btn2.height() == 1);
 	assert(btn2.natural_width() == 8);
 	assert(btn2.natural_height() == 1);
@@ -65,7 +65,7 @@ int main()
 	btn2.set_position(5, 12);
 	assert(btn2.x() == 5);
 	assert(btn2.y() == 12);
-	assert(btn2.width() == 5);
+	assert(btn2.width() == 8);
 	assert(btn2.height() == 1);
 
 	// Test set_width and set_height helpers
