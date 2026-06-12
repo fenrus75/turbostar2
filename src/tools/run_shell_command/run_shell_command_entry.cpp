@@ -96,7 +96,12 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 	runner->set_project_dir(ctx.fs_security.get_working_directory().string());
 	runner->set_timeout(args_.timeout);
 
-	if (args_.is_async) {
+	bool async_enabled = args_.is_async;
+	if (ctx.active_agent && !ctx.active_agent->is_mutation_possible()) {
+		async_enabled = false;
+	}
+
+	if (async_enabled) {
 		std::weak_ptr<agentlib::ai_agent> weak_agent;
 		if (ctx.active_agent) {
 			// Need to convert raw ptr to shared_ptr if possible. Oh wait, ai_agent inherits from enable_shared_from_this.
@@ -106,23 +111,26 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 
 		std::thread([runner, cmd = args_.command, weak_agent, captured_tool_call_id]() {
 			runner->execute(cmd);
-			
+
 			if (auto agent = weak_agent.lock()) {
 				std::string output = runner->get_final_output();
 				if (output.empty()) {
 					output = "Command finished successfully with no output.";
 				}
-				
+
 				if (output.length() > 20000) {
 					output = output.substr(output.length() - 20000);
 					output = "\n...[output truncated due to length]...\n" + output;
 				}
-				
+
 				std::string formatted_injection = "\n\n--- ASYNC COMMAND COMPLETED ---\n```\n" + output + "\n```";
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
-				
+
 				// Wake up the LLM
-				agent->inject_context("system", "The background task 'run_shell_command' (" + cmd + ") has completed. I updated your previous tool result with the output.", true);
+				agent->inject_context("system",
+						      "The background task 'run_shell_command' (" + cmd +
+							  ") has completed. I updated your previous tool result with the output.",
+						      true);
 			}
 		}).detach();
 		return "Command started in background. The output will be injected here when it completes.";

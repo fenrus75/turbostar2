@@ -1,17 +1,17 @@
+#include <format>
+#include <thread>
+#include "../../agentlib/ai_agent.h"
 #include "../../config_manager.h"
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
 #include "../terminal_command_runner.h"
 #include "fs_compile_file.h"
-#include "../../agentlib/ai_agent.h"
-#include <thread>
-#include <format>
 
 namespace tools
 {
 
 fs_compile_file_tool::fs_compile_file_tool(fs_compile_file_args args, std::string safe_path)
-	: args_(std::move(args)), safe_path_(std::move(safe_path))
+    : args_(std::move(args)), safe_path_(std::move(safe_path))
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Compile File", "Compiling " + safe_path_ + "...");
 }
@@ -41,14 +41,21 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 
 	cmd = "export LC_ALL=C.UTF-8 LANG=C.UTF-8 && " + cmd;
 
-	if (args_.async) {
+	bool async_enabled = args_.async;
+	if (ctx.active_agent && !ctx.active_agent->is_mutation_possible()) {
+		async_enabled = false;
+	}
+
+	if (async_enabled) {
 		std::weak_ptr<agentlib::ai_agent> weak_agent;
 		if (ctx.active_agent) {
 			weak_agent = ctx.active_agent->shared_from_this();
 		}
 		std::string captured_tool_call_id = ctx.tool_call_id;
 
-		std::thread([safe_path = safe_path_, runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent, captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
+		std::thread([safe_path = safe_path_,
+			     runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
+			     captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
 			runner->set_enable_crash_catcher(true);
 			runner->set_project_dir(workspace_dir);
 
@@ -61,7 +68,8 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 
 			if (crashes_after > crashes_before) {
 				output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
-					  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to "
+					  " new crash(es) occurred during execution. Please use the 'crashdump_list' and "
+					  "'crashdump_get_info' tools to "
 					  "investigate.";
 			}
 
@@ -76,9 +84,9 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 			if (auto agent = weak_agent.lock()) {
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
 				std::string status = (exit_code == 0) ? "successfully" : "with errors";
-				std::string system_msg = std::format(
-					"The background task 'fs_compile_file' ({}) has completed {}. I updated your previous tool result with the output.",
-					safe_path, status);
+				std::string system_msg = std::format("The background task 'fs_compile_file' ({}) has completed {}. I "
+								     "updated your previous tool result with the output.",
+								     safe_path, status);
 				agent->inject_context("system", system_msg, true);
 			}
 		}).detach();

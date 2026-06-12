@@ -1,11 +1,11 @@
 #include "ai_model.h"
+#include <algorithm>
+#include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <algorithm>
-#include "../fs_utils.h"
-#include "../event_logger.h"
 #include "../config_manager.h"
-#include <format>
+#include "../event_logger.h"
+#include "../fs_utils.h"
 
 using json = nlohmann::json;
 
@@ -39,18 +39,17 @@ ai_model_registry::ai_model_registry()
 	load_models();
 	if (models_.empty()) {
 		// Standard baseline models
-		register_model(
-		    std::make_shared<ai_model>("nvidia/MiniMax-M2.7-NVFP4", "Host", "http://192.168.1.55:8080", "Default local LLM", 0.0, 0.0, "", api_type::openai));
+		register_model(std::make_shared<ai_model>("nvidia/MiniMax-M2.7-NVFP4", "Host", "http://192.168.1.55:8080",
+							  "Default local LLM", 0.0, 0.0, "", api_type::openai));
 
-		register_model(
-		    std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1", "Complex coding and architecture", 5.00, 15.00, "", api_type::openai));
+		register_model(std::make_shared<ai_model>("gpt-4o", "GPT-4o", "https://api.openai.com/v1",
+							  "Complex coding and architecture", 5.00, 15.00, "", api_type::openai));
 
 		register_model(std::make_shared<ai_model>("claude-3-5-sonnet", "Claude 3.5 Sonnet", "https://api.anthropic.com/v1",
 							  "Fast and cheap coding", 3.00, 15.00, "", api_type::openai));
 
-		register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro",
-							  "https://generativelanguage.googleapis.com", "Huge context windows", 3.50,
-							  10.50, "", api_type::gemini));
+		register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro", "https://generativelanguage.googleapis.com",
+							  "Huge context windows", 3.50, 10.50, "", api_type::gemini));
 		save_models();
 	}
 }
@@ -135,6 +134,8 @@ void ai_model_registry::load_models()
 					type = api_type::gemini;
 				} else if (type_str == "copilot") {
 					type = api_type::copilot;
+				} else if (type_str == "openai_response") {
+					type = api_type::openai_response;
 				}
 				int max_tokens = item.value("max_context_tokens", 250000);
 				std::string cost_type_str = item.value("cost_type", "paid_per_token");
@@ -146,7 +147,8 @@ void ai_model_registry::load_models()
 				}
 
 				if (!id.empty()) {
-					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type, max_tokens, cost_type));
+					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
+										  max_tokens, cost_type));
 				}
 			}
 		}
@@ -177,14 +179,20 @@ void ai_model_registry::save_models() const
 		item["cost_tx"] = model->get_cost_per_1m_tx();
 		item["cost_rx"] = model->get_cost_per_1m_rx();
 		std::string api_type_str = "openai";
-		if (model->get_api_type() == api_type::gemini) api_type_str = "gemini";
-		else if (model->get_api_type() == api_type::copilot) api_type_str = "copilot";
+		if (model->get_api_type() == api_type::gemini)
+			api_type_str = "gemini";
+		else if (model->get_api_type() == api_type::copilot)
+			api_type_str = "copilot";
+		else if (model->get_api_type() == api_type::openai_response)
+			api_type_str = "openai_response";
 		item["api_type"] = api_type_str;
 		item["max_context_tokens"] = model->get_max_context_tokens();
 
 		std::string cost_type_str = "paid_per_token";
-		if (model->get_cost_type() == model_cost_type::free_local) cost_type_str = "free_local";
-		else if (model->get_cost_type() == model_cost_type::paid_per_request) cost_type_str = "paid_per_request";
+		if (model->get_cost_type() == model_cost_type::free_local)
+			cost_type_str = "free_local";
+		else if (model->get_cost_type() == model_cost_type::paid_per_request)
+			cost_type_str = "paid_per_request";
 		item["cost_type"] = cost_type_str;
 
 		data.push_back(item);

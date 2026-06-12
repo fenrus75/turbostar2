@@ -23,6 +23,9 @@ namespace agentlib
 class api_formatter
 {
       public:
+	explicit api_formatter(bool mutation_possible = true) : mutation_possible_(mutation_possible)
+	{
+	}
 	virtual ~api_formatter() = default;
 
 	virtual std::string get_endpoint_path(const std::string &model_id, bool stream) const = 0;
@@ -36,11 +39,17 @@ class api_formatter
 	virtual llm_chat_response parse_sync_response(const std::string &json_body) const = 0;
 
 	static std::unique_ptr<api_formatter> create(api_type type);
+
+      protected:
+	bool mutation_possible_{true};
 };
 
 class openai_formatter : public api_formatter
 {
       public:
+	explicit openai_formatter(bool mutation_possible = true) : api_formatter(mutation_possible)
+	{
+	}
 	std::string get_endpoint_path(const std::string &model_id, bool stream) const override;
 	std::string build_chat_payload(const std::string &model_id, const std::vector<message> &convo, const tool_registry *registry,
 				       bool stream, const std::vector<std::string> &active_families = {}) const override;

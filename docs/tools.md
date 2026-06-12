@@ -264,7 +264,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `summary` *(string, required)*: A concise summary of the work that was just completed and the goal of the new phase.
 
 ### `agent_compress_history`
-*   **Description:** Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed.
+*   **Description:** Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed. *Note: Only available if the active model supports history mutation.*
 *   **Arguments:**
     *   `title` *(string, required)*: A short title for the milestone you are archiving.
     *   `summary` *(string, required)*: A concise summary of the history being paged out.
@@ -273,7 +273,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `include_all_prior` *(boolean, optional)*: If true, ignores the lower boundary and compresses everything from the target back to the system prompt.
 
 ### `agent_restore_context`
-*   **Description:** Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history.
+*   **Description:** Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history. *Note: Only available if the active model supports history mutation.*
 *   **Arguments:**
     *   `episode_id` *(string, required)*: The exact ID of the episode to restore.
     *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Think-Free reasoning stripping (default). `2` = Terminal truncation / active level 2. Defaults to `1`.

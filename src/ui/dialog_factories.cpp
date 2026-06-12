@@ -622,9 +622,9 @@ std::unique_ptr<dialog> create_settings_dialog()
 	auto style_group = std::make_unique<ui_group_box>("style_group", 30, " Clang Format Style ");
 	auto style_radio = std::make_unique<ui_radiobutton_group>("style");
 
-	std::vector<std::pair<std::string, char>> style_labels = {
-	    {"LLVM", 'L'},   {"Google", 'G'},	 {"Chromium", 'C'}, {"Mozilla", 'M'},
-	    {"WebKit", 'W'}, {"Microsoft", 's'}, {"GNU", 'N'},	    {"Linux Kernel", 'K'}, {".clang-format file", 'f'}};
+	std::vector<std::pair<std::string, char>> style_labels = {{"LLVM", 'L'},    {"Google", 'G'},	   {"Chromium", 'C'},
+								  {"Mozilla", 'M'}, {"WebKit", 'W'},	   {"Microsoft", 's'},
+								  {"GNU", 'N'},	    {"Linux Kernel", 'K'}, {".clang-format file", 'f'}};
 
 	std::string current_style = config_manager::get_instance().get_clang_format_style();
 	for (size_t i = 0; i < style_labels.size(); ++i) {
@@ -656,10 +656,10 @@ std::unique_ptr<dialog> create_settings_dialog()
 
 	// Build Directory and Model ID Inputs placed side-by-side to save vertical space.
 	auto textboxes_row = std::make_unique<ui_horizontal_flow>("textboxes_row", 0, 0, 0, 0);
-	textboxes_row->add_child(std::make_unique<ui_textbox>("build_dir", 26, config_manager::get_instance().get_build_directory(),
-							     nullptr, "Build Dir: "));
+	textboxes_row->add_child(
+	    std::make_unique<ui_textbox>("build_dir", 26, config_manager::get_instance().get_build_directory(), nullptr, "Build Dir: "));
 	textboxes_row->add_child(std::make_unique<ui_textbox>("default_model_id", 28, config_manager::get_instance().get_default_model_id(),
-							     nullptr, "Model ID:  "));
+							      nullptr, "Model ID:  "));
 	flow->add_child(std::move(textboxes_row));
 
 	// Toggles split into two columns (side-by-side checkbox groups) to optimize layout height.
@@ -669,17 +669,17 @@ std::unique_ptr<dialog> create_settings_dialog()
 	col1->add_child(
 	    std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	col1->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u',
-							       config_manager::get_instance().is_auto_open_error_files()));
+						      config_manager::get_instance().is_auto_open_error_files()));
 	col1->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile file on save", 'i',
-							       config_manager::get_instance().is_compile_on_save()));
+						      config_manager::get_instance().is_compile_on_save()));
 
 	auto col2 = std::make_unique<ui_checkbox_group>("col2");
 	col2->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g',
-							       config_manager::get_instance().is_log_all_tool_calls()));
+						      config_manager::get_instance().is_log_all_tool_calls()));
 	col2->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M',
-							       config_manager::get_instance().is_software_map_enabled()));
+						      config_manager::get_instance().is_software_map_enabled()));
 	col2->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd',
-							       config_manager::get_instance().is_shell_display_access()));
+						      config_manager::get_instance().is_shell_display_access()));
 
 	toggles_row->add_child(std::move(col1));
 	toggles_row->add_child(std::move(col2));
@@ -1038,18 +1038,20 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	flow->add_child(std::make_unique<ui_textbox>("url", 56, model ? model->get_url() : "", nullptr, "URL:       "));
 	flow->add_child(std::make_unique<ui_textbox>("api_key", 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
 	flow->add_child(std::make_unique<ui_textbox>("purpose", 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
-	flow->add_child(std::make_unique<ui_textbox>("cost_tx", 56, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0",
-						    nullptr, "Tx Cost:   "));
-	flow->add_child(std::make_unique<ui_textbox>("cost_rx", 56, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0",
-						    nullptr, "Rx Cost:   "));
+	flow->add_child(std::make_unique<ui_textbox>("cost_tx", 56, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0", nullptr,
+						     "Tx Cost:   "));
+	flow->add_child(std::make_unique<ui_textbox>("cost_rx", 56, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0", nullptr,
+						     "Rx Cost:   "));
 
 	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row");
 	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
 	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
 	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
 	bool is_copilot = model && model->get_api_type() == agentlib::api_type::copilot;
-	bool is_openai = !is_gemini && !is_copilot;
+	bool is_openai_response = model && model->get_api_type() == agentlib::api_type::openai_response;
+	bool is_openai = !is_gemini && !is_copilot && !is_openai_response;
 	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', is_openai));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai_response", " Response ", 'E', is_openai_response));
 	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
 	type_radio->add_child(std::make_unique<ui_radio_choice>("copilot", " Copilot ", 'C', is_copilot));
 	type_row->add_child(std::move(type_radio));
@@ -1123,6 +1125,8 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 			type = agentlib::api_type::gemini;
 		} else if (*api_type_opt == "copilot") {
 			type = agentlib::api_type::copilot;
+		} else if (*api_type_opt == "openai_response") {
+			type = agentlib::api_type::openai_response;
 		}
 	}
 

@@ -42,13 +42,18 @@ static std::string serialize_mcp_name(const std::string &name)
 	return res;
 }
 
-nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families) const
+nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (!validator) {
+			continue;
+		}
+
+		std::string tool_name = validator->get_name();
+		if (!mutation_possible && (tool_name == "agent_compress_history" || tool_name == "agent_restore_context")) {
 			continue;
 		}
 
@@ -71,7 +76,7 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}
 
-		std::string tool_name = validator->get_name();
+		tool_name = validator->get_name();
 		if (tool_name.starts_with("mcp:")) {
 			tool_name = serialize_mcp_name(tool_name);
 		}
@@ -84,13 +89,18 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 	return tools_array;
 }
 
-nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families) const
+nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (!validator) {
+			continue;
+		}
+
+		std::string tool_name = validator->get_name();
+		if (!mutation_possible && (tool_name == "agent_compress_history" || tool_name == "agent_restore_context")) {
 			continue;
 		}
 
@@ -113,7 +123,7 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}
 
-		std::string tool_name = validator->get_name();
+		tool_name = validator->get_name();
 		if (tool_name.starts_with("mcp:")) {
 			tool_name = serialize_mcp_name(tool_name);
 		}
@@ -194,8 +204,9 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 
 	if (ctx.active_agent && ctx.active_agent->is_planning() && name != "exit_plan_mode") {
 		if (!validator->is_allowed_in_plan_mode(args, ctx)) {
-			res.error_message = "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
-					    "'. You must call exit_plan_mode first, or only edit the designated plan file.";
+			res.error_message =
+			    "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
+			    "'. You must call exit_plan_mode first, or only edit the designated plan file.";
 			return res;
 		}
 	}

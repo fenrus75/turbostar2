@@ -162,6 +162,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		read_only_ = ro;
 	}
 
+	bool is_mutation_possible() const;
+
 	bool is_planning() const
 	{
 		return is_planning_.load();

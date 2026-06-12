@@ -195,6 +195,12 @@ All tools exposed to the LLM agent must strictly adhere to the following archite
 - **Hard Rule:** Raw LLM-provided JSON payloads must NEVER be passed directly to execution logic or external processes without first passing the centralized schema and type validations.
 - **Sandboxed Execution:** External command tools (like compile scripts or arbitrary python scripts) must use the `command_runner` profiles which inherently map to isolated `systemd-run` environments.
 
+## Non-mutating History Mode (openai_response)
+To support model providers that do not allow mutating server-side assistant history or rewrites (such as certain AWS Bedrock models), Turbostar supports the `openai_response` API format.
+- **is_mutation_possible() Check**: The `ai_agent` exposes a boolean `is_mutation_possible()` method which returns `false` if the model's format is `openai_response` (and `true` for standard stateless completion/Gemini APIs).
+- **Compaction & Paging Disallowed**: History compaction (automatic and tools like `agent_compress_history`, `agent_restore_context`) is disabled. The corresponding tools are not advertised/injected into the payload and their runtime validations fail.
+- **Synchronous Execution Fallback**: Asynchronous tool executions that rely on history mutation to rewrite previous tool call slots (such as `fs_compile_file`, `fs_compile_project`, and `run_shell_command`) are automatically overridden to run synchronously in this mode.
+
 ## Tool Families
 
 To support modular and context-efficient tool management, tools are organized into namespaces called **Tool Families**.

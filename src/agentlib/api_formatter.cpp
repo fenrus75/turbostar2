@@ -14,7 +14,10 @@ std::unique_ptr<api_formatter> api_formatter::create(api_type type)
 	if (type == api_type::copilot) {
 		return std::make_unique<copilot_formatter>();
 	}
-	return std::make_unique<openai_formatter>();
+	if (type == api_type::openai_response) {
+		return std::make_unique<openai_formatter>(false);
+	}
+	return std::make_unique<openai_formatter>(true);
 }
 
 // --- openai_formatter ---
@@ -44,7 +47,7 @@ std::string openai_formatter::build_chat_payload(const std::string &model_id, co
 	}
 
 	if (registry) {
-		json tools_json = registry->get_tools_json(active_families);
+		json tools_json = registry->get_tools_json(active_families, mutation_possible_);
 		if (!tools_json.empty()) {
 			payload["tools"] = tools_json;
 			payload["tool_choice"] = "auto";
@@ -227,7 +230,7 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 	json tools_array = json::array();
 
 	if (registry) {
-		json local_tools = registry->get_gemini_tools_json(active_families);
+		json local_tools = registry->get_gemini_tools_json(active_families, mutation_possible_);
 		if (!local_tools.empty()) {
 			// local_tools is already an array of tool objects (e.g. [{"functionDeclarations": [...]}])
 			for (const auto &item : local_tools) {

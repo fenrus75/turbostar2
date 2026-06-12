@@ -68,6 +68,13 @@ std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std:
 	return agent;
 }
 
+bool ai_agent::is_mutation_possible() const
+{
+	if (!model_)
+		return true;
+	return model_->get_api_type() != api_type::openai_response;
+}
+
 void ai_agent::coalesce_tool_calls(std::vector<tool_call> &tool_calls, std::unordered_map<std::string, std::string> &merged_to_parent,
 				   std::unordered_map<std::string, std::pair<int, int>> &parent_ranges)
 {
@@ -191,6 +198,9 @@ int ai_agent::calculate_current_tokens() const
 
 std::vector<std::string> ai_agent::page_in_history_auto(int default_level, double target_fraction)
 {
+	if (!is_mutation_possible())
+		return {};
+
 	std::set<std::string> active_episodes;
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -474,9 +484,7 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 {
 	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 	if (model_->get_api_type() == api_type::copilot) {
-		http_transport->set_token_provider([]() {
-			return copilot_manager::get_instance().get_copilot_token();
-		});
+		http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
 	}
 	client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 
@@ -674,11 +682,13 @@ bool ai_agent::load_active_state(bool fresh_agent)
 void ai_agent::close()
 {
 	if (!is_closed_) {
-		// Implicit Episode: Page out all uncompressed history when the editor closes
-		// so the agent boots up "fresh" (but with pointers) next session.
-		page_out_prior_context("", true, "End of Session",
-				       "The user closed the editor or agent window. This session was automatically paged out.",
-				       {"session-end"});
+		if (is_mutation_possible()) {
+			// Implicit Episode: Page out all uncompressed history when the editor closes
+			// so the agent boots up "fresh" (but with pointers) next session.
+			page_out_prior_context("", true, "End of Session",
+					       "The user closed the editor or agent window. This session was automatically paged out.",
+					       {"session-end"});
+		}
 
 		save_active_state();
 	}
@@ -1112,9 +1122,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		model_ = std::move(model);
 		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 		if (model_->get_api_type() == api_type::copilot) {
-			http_transport->set_token_provider([]() {
-				return copilot_manager::get_instance().get_copilot_token();
-			});
+			http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
 		}
 		client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
@@ -2458,7 +2466,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 void ai_agent::evaluate_compaction()
 {
-	if (!model_)
+	if (!model_ || !is_mutation_possible())
 		return;
 
 	// Calculate target bounds based on model's max_context_tokens
@@ -2649,9 +2657,7 @@ void ai_agent::summary_worker_loop()
 				auto transport =
 				    std::make_shared<httplib_transport>(default_model->get_url(), default_model->get_api_key());
 				if (default_model->get_api_type() == api_type::copilot) {
-					transport->set_token_provider([]() {
-						return copilot_manager::get_instance().get_copilot_token();
-					});
+					transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
 				}
 				llm_client local_client(transport, default_model->get_id(), default_model->get_api_type());
 
