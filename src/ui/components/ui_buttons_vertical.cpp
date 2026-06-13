@@ -45,3 +45,17 @@ bool ui_buttons_vertical::flow()
 
 	return dimensions_changed;
 }
+
+int ui_buttons_vertical::natural_width() const
+{
+	int max_natural_width = 0;
+	for (const auto &child : children_) {
+		max_natural_width = std::max(max_natural_width, child->natural_width());
+	}
+	return max_natural_width;
+}
+
+int ui_buttons_vertical::natural_height() const
+{
+	return static_cast<int>(children_.size()) * 2;
+}
