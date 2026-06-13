@@ -501,6 +501,20 @@ bool document::is_space_at_unlocked(int y, int x) const
 	return false;
 }
 
+bool document::is_terminator_at_unlocked(int y, int x) const
+{
+	if (y < 0 || y >= line_count_unlocked())
+		return false;
+	std::string text = lines_[y]->get_text();
+	size_t offset = lines_[y]->char_to_byte_offset(x);
+	if (offset < text.length()) {
+		char ch = text[offset];
+		return ch == '"' || ch == ';' || ch == ',';
+	}
+	return false;
+}
+
+
 void document::apply_external_edits_json(const std::string &json_str)
 {
 	if (is_read_only())

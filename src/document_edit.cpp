@@ -176,9 +176,19 @@ void document::delete_word_forward()
 		return;
 	}
 
+	// Determine the forward word boundary to delete.
+	// If starting exactly on a terminator (e.g. quote, semicolon, or comma),
+	// delete only that single terminator character.
+	// Otherwise, delete consecutive characters up to the next space or terminator boundary,
+	// and clean up any trailing whitespace.
 	int i = cursor_x_;
-	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
+	if (i < line_char_len && is_terminator_at_unlocked(cursor_y_, i)) {
 		i++;
+	} else {
+		while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i) && !is_terminator_at_unlocked(cursor_y_, i)) {
+			i++;
+		}
+	}
 	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
 		i++;
 

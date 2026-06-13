@@ -118,6 +118,7 @@
 - documented the layout contract in `ui_element.h` class definition.
 - added comprehensive layout natural dimension unit test assertions in `test_listbox.cpp`.
 - implemented agent window chat history scroll usability improvements: strict bottom follow-mode lock, viewport content-locking on live streaming, a floating `[▼ Follow]` overlay button to jump to the bottom, auto-snapping on typing/pasting, and comprehensive test coverage in `test_agent_window.cpp`.
+- updated `delete_word_forward` (Ctrl-W) in the editor to stop at double quotes (`"`), semicolons (`;`), and commas (`,`) as word terminators in addition to spaces, and added comprehensive unit test coverage.
 
 ## 12-06-2026
 - implemented the `/compact` slash command in the agent TUI window's input boxes, allowing users to manually force stateful response compaction on the server via `ai_agent::force_compaction()`.

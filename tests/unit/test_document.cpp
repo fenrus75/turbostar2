@@ -410,6 +410,40 @@ int main()
 		std::filesystem::remove(temp_file);
 	}
 
+	// Test 11: delete_word_forward respects terminators (quote, semicolon, comma)
+	{
+		document doc(queue);
+		doc.insert_text("   \"foo_bar_baz\",");
+
+		// Move cursor to "b" of "bar_baz" (index: 3 spaces + 1 quote + 4 "foo_" = 8)
+		doc.move_cursor(8 - doc.get_cursor_x(), 0);
+		assert(doc.get_cursor_x() == 8);
+
+		// Delete word forward
+		doc.delete_word_forward();
+
+		// It should delete "bar_baz" and stop at the double quote terminator.
+		assert(doc.get_line(0)->get_text() == "   \"foo_\",");
+
+		// Now cursor should be at index 8 (which is the double quote character `"`).
+		assert(doc.get_cursor_x() == 8);
+
+		// Delete word forward again (starts on quote terminator)
+		doc.delete_word_forward();
+
+		// It should delete just the quote and stop before comma.
+		assert(doc.get_line(0)->get_text() == "   \"foo_,");
+
+		// Now cursor should be at index 8 (which is the comma `,` character).
+		assert(doc.get_cursor_x() == 8);
+
+		// Delete word forward again (starts on comma terminator)
+		doc.delete_word_forward();
+
+		// It should delete the comma and any trailing spaces.
+		assert(doc.get_line(0)->get_text() == "   \"foo_");
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
