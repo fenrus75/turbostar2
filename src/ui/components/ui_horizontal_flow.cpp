@@ -50,3 +50,27 @@ bool ui_horizontal_flow::flow()
 
 	return dimensions_changed;
 }
+
+int ui_horizontal_flow::natural_width() const
+{
+	if (children_.empty()) {
+		return 0;
+	}
+	int running_x = x_offset_;
+	for (const auto &child : children_) {
+		running_x += child->natural_width() + 2;
+	}
+	return running_x - 2 + x_offset_;
+}
+
+int ui_horizontal_flow::natural_height() const
+{
+	if (children_.empty()) {
+		return 0;
+	}
+	int max_child_height = 0;
+	for (const auto &child : children_) {
+		max_child_height = std::max(max_child_height, child->natural_height());
+	}
+	return 2 * y_offset_ + max_child_height;
+}

@@ -1,11 +1,16 @@
 #include <cassert>
 #include <iostream>
 #include <ncurses.h>
-#include "ui/components/ui_listbox.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
-#include "ui/components/ui_fileselector.h"
+#include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_dropdown.h"
+#include "ui/components/ui_fileselector.h"
+#include "ui/components/ui_group_box.h"
+#include "ui/components/ui_horizontal_flow.h"
+#include "ui/components/ui_listbox.h"
+#include "ui/components/ui_radio.h"
+#include "ui/components/ui_vertical_flow.h"
 
 int main()
 {
@@ -228,6 +233,55 @@ int main()
 	{
 		ui_dropdown dd("my_dropdown", 0, 0, 20, "init", {"cand1", "cand2"});
 		assert(dd.is_focusable());
+	}
+	// Test natural dimensions of layout containers
+	{
+		// 1. ui_buttons_horizontal natural height
+		assert(btns_container.natural_height() == 2);
+
+		// 2. ui_checkbox_group
+		ui_checkbox_group cbg("cbg");
+		auto cb1 = std::make_unique<ui_checkbox>("cb1", "Opt 1", '1');
+		auto cb2 = std::make_unique<ui_checkbox>("cb2", "Option Two", '2');
+		cbg.add_child(std::move(cb1));
+		cbg.add_child(std::move(cb2));
+		assert(cbg.natural_width() == 16);
+		assert(cbg.natural_height() == 3); // 1 + 1 + 1
+
+		// 3. ui_group_box
+		ui_group_box gb("gb", 30, "My Group");
+		auto g_child = std::make_unique<ui_checkbox>("g_child", "Hello", 'H'); // nw = 11, nh = 1
+		g_child->set_bounds(1, 2, 11, 1);
+		gb.add_child(std::move(g_child));
+		assert(gb.natural_width() == 13); // max(8, 11+2)
+		assert(gb.natural_height() == 3); // 2 + 1 = 3
+
+		// 4. ui_horizontal_flow
+		ui_horizontal_flow hflow("hflow", 1, 2); // x_offset = 1, y_offset = 2
+		auto h1 = std::make_unique<ui_button>("h1", 0, 0, "A", 'a', nullptr); // nw = 4, nh = 1
+		auto h2 = std::make_unique<ui_button>("h2", 0, 0, "B", 'b', nullptr); // nw = 4, nh = 1
+		hflow.add_child(std::move(h1));
+		hflow.add_child(std::move(h2));
+		assert(hflow.natural_width() == 12);
+		assert(hflow.natural_height() == 5);
+
+		// 5. ui_radiobutton_group
+		ui_radiobutton_group rbg("rbg", false); // vertical
+		auto r1 = std::make_unique<ui_radio_choice>("r1", "Yes", 'y'); // nw = 7, nh = 1
+		auto r2 = std::make_unique<ui_radio_choice>("r2", "Maybe", 'm'); // nw = 9, nh = 1
+		rbg.add_child(std::move(r1));
+		rbg.add_child(std::move(r2));
+		assert(rbg.natural_width() == 9);
+		assert(rbg.natural_height() == 3); // 1 + 1 + 1 = 3
+
+		// 6. ui_vertical_flow
+		ui_vertical_flow vflow("vflow", 1, 2, 3); // x_offset = 1, y_offset = 2, spacer = 3
+		auto v1 = std::make_unique<ui_button>("v1", 0, 0, "A", 'a', nullptr); // nw = 4, nh = 1
+		auto v2 = std::make_unique<ui_button>("v2", 0, 0, "B", 'b', nullptr); // nw = 4, nh = 1
+		vflow.add_child(std::move(v1));
+		vflow.add_child(std::move(v2));
+		assert(vflow.natural_width() == 6);
+		assert(vflow.natural_height() == 9);
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";

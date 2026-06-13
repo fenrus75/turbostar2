@@ -69,3 +69,21 @@ bool ui_group_box::flow()
 
 	return dimensions_changed;
 }
+
+int ui_group_box::natural_width() const
+{
+	int max_child = static_cast<int>(title_.length());
+	for (const auto &child : children_) {
+		max_child = std::max(max_child, child->natural_width() + 2);
+	}
+	return max_child;
+}
+
+int ui_group_box::natural_height() const
+{
+	int max_height = 0;
+	for (const auto &child : children_) {
+		max_height = std::max(max_height, child->y() + child->natural_height());
+	}
+	return max_height;
+}

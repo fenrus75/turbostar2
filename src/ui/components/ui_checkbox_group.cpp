@@ -60,3 +60,12 @@ int ui_checkbox_group::natural_width() const
 	}
 	return max_child;
 }
+
+int ui_checkbox_group::natural_height() const
+{
+	int height_sum = 1;
+	for (const auto &child : children_) {
+		height_sum += child->natural_height();
+	}
+	return height_sum;
+}

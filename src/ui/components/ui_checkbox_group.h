@@ -19,6 +19,7 @@ class ui_checkbox_group : public ui_container
 		return false;
 	}
 	int natural_width() const override;
+	int natural_height() const override;
 
       private:
 	bool want_stretch_{false};

@@ -16,7 +16,10 @@ class ui_radio_choice : public ui_element
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 	int natural_width() const override;
-	bool is_focusable() const override { return true; }
+	bool is_focusable() const override
+	{
+		return true;
+	}
 
 	void set_selected(bool s)
 	{
@@ -45,6 +48,7 @@ class ui_radiobutton_group : public ui_container
 		return false;
 	}
 	int natural_width() const override;
+	int natural_height() const override;
 
 	void child_got_selected(ui_element *child) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;

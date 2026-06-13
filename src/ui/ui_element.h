@@ -87,6 +87,10 @@ class ui_element
 	{
 		height_ = height;
 	}
+	// Computes internal layouts and returns true if child sizes or positions changed.
+	// RULE: Any subclass that overrides flow() to layout its children dynamically
+	// MUST also override natural_width() and natural_height() to correctly report
+	// its desired dimensions before actual layout allocation occurs.
 	virtual bool flow()
 	{
 		return false;
@@ -134,7 +138,7 @@ class ui_element
 	{
 		return false;
 	}
-	virtual std::vector<ui_element*> get_focusable_elements()
+	virtual std::vector<ui_element *> get_focusable_elements()
 	{
 		if (is_focusable()) {
 			return {this};
@@ -247,8 +251,11 @@ class ui_container : public ui_element
 	bool flow() override;
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
-	void set_focused_child(ui_element *child) { focused_child_ = child; }
-	std::vector<ui_element*> get_focusable_elements() override;
+	void set_focused_child(ui_element *child)
+	{
+		focused_child_ = child;
+	}
+	std::vector<ui_element *> get_focusable_elements() override;
 
       protected:
 	std::vector<std::unique_ptr<ui_element>> children_;

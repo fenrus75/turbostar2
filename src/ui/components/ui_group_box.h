@@ -15,6 +15,8 @@ class ui_group_box : public ui_container
 
 	void draw(int abs_x, int abs_y) const override;
 	bool flow() override;
+	int natural_width() const override;
+	int natural_height() const override;
 	// handle_event is inherited from ui_container, so it just dispatches to children
 
       private:

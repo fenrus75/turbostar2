@@ -11,6 +11,7 @@ class ui_buttons_horizontal : public ui_container
 	bool flow() override;
 	bool want_horizontal_stretch() const override;
 	int natural_width() const override;
+	int natural_height() const override;
 
 	bool centered() const
 	{

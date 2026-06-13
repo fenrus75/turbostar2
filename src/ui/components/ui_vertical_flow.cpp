@@ -51,3 +51,27 @@ bool ui_vertical_flow::flow()
 
 	return dimensions_changed;
 }
+
+int ui_vertical_flow::natural_width() const
+{
+	if (children_.empty()) {
+		return 0;
+	}
+	int max_child_width = 0;
+	for (const auto &child : children_) {
+		max_child_width = std::max(max_child_width, child->natural_width());
+	}
+	return 2 * x_offset_ + max_child_width;
+}
+
+int ui_vertical_flow::natural_height() const
+{
+	if (children_.empty()) {
+		return 0;
+	}
+	int running_y = y_offset_;
+	for (const auto &child : children_) {
+		running_y += child->natural_height() + spacer_;
+	}
+	return running_y - spacer_ + y_offset_;
+}

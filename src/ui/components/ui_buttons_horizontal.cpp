@@ -82,3 +82,8 @@ int ui_buttons_horizontal::natural_width() const
 	}
 	return static_cast<int>(children_.size()) * max_natural + (static_cast<int>(children_.size()) - 1) * 2;
 }
+
+int ui_buttons_horizontal::natural_height() const
+{
+	return 2;
+}

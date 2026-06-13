@@ -252,3 +252,16 @@ int ui_radiobutton_group::natural_width() const
 		return max_child;
 	}
 }
+
+int ui_radiobutton_group::natural_height() const
+{
+	if (horizontal_) {
+		return 1;
+	} else {
+		int total = 1;
+		for (const auto &child : children_) {
+			total += child->natural_height();
+		}
+		return total;
+	}
+}
