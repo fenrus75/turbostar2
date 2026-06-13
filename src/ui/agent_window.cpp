@@ -785,6 +785,7 @@ bool agent_window::process_events()
 
 			// Default: Route to input box
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
+				scroll_offset_ = 0;
 				needs_render = true;
 				continue;
 			}
@@ -812,6 +813,7 @@ bool agent_window::process_events()
 			}
 		} else if (ev->type == event_type::paste) {
 			if (is_active() && input_box_ && input_box_->handle_event(*ev, 0, 0)) {
+				scroll_offset_ = 0;
 				needs_render = true;
 			}
 		} else if (ev->type == event_type::mouse_scroll_up || ev->type == event_type::mouse_scroll_down) {
@@ -857,6 +859,19 @@ bool agent_window::process_events()
 			}
 			needs_render = true;
 		} else if (ev->type == event_type::mouse_click) {
+			// Clicked on scroll to bottom/follow indicator?
+			int max_width = show_sidebar ? (divider_x - 1) : (width_ - 2);
+			if (scroll_offset_ > 0) {
+				int overlay_y = y_ + height_ - 6;
+				int overlay_x = x_ + max_width - 12;
+				if (ev->mouse_y == overlay_y && ev->mouse_x >= overlay_x && ev->mouse_x <= overlay_x + 9) {
+					scroll_offset_ = 0;
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+			}
+
 			if (show_sidebar) {
 				// 1. Clicked on collapse button on vertical divider?
 				if (ev->mouse_x == x_ + divider_x && ev->mouse_y == y_ + 2) {
@@ -972,7 +987,10 @@ bool agent_window::process_events()
 
 void agent_window::on_agent_update()
 {
-	scroll_offset_ = 0; // Snap to bottom
+	// Only snap to bottom if we were already at the bottom (follow mode active)
+	if (scroll_offset_ == 0) {
+		scroll_offset_ = 0;
+	}
 	invalidate();
 }
 
@@ -1077,6 +1095,17 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 		}
 		total_turns_height += turn.height;
 	}
+
+	if (last_width_ > 0 && width_ != last_width_) {
+		// Skip adjustment during resize
+	} else if (last_total_turns_height_ > 0 && total_turns_height > last_total_turns_height_) {
+		int delta = total_turns_height - last_total_turns_height_;
+		if (scroll_offset_ > 0) {
+			scroll_offset_ += delta;
+		}
+	}
+	last_total_turns_height_ = total_turns_height;
+	last_width_ = width_;
 
 	max_scroll_offset_ = (total_turns_height > available_height) ? (total_turns_height - available_height) : 0;
 	scroll_offset_ = std::clamp(scroll_offset_, 0, max_scroll_offset_);
@@ -1251,6 +1280,14 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 	}
 
 	attroff(COLOR_PAIR(get_background_color_pair()));
+
+	if (scroll_offset_ > 0) {
+		int overlay_y = y_ + height_ - 6;
+		int overlay_x = x_ + max_width - 12;
+		attron(COLOR_PAIR(10));
+		mvprintw(overlay_y, overlay_x, " \xE2\x96\xBC Follow ");
+		attroff(COLOR_PAIR(10));
+	}
 
 	// 2. Draw the input box at the bottom
 	if (input_box_) {

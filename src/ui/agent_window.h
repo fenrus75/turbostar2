@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
 #include "agentlib/ai_agent.h"
-#include "ui/components/ui_multiline_edit.h"
 #include "ui/components/ui_listbox.h"
+#include "ui/components/ui_multiline_edit.h"
 #include "ui/window.h"
 
 class agent_window : public window
@@ -25,8 +25,15 @@ class agent_window : public window
 	void draw_border() const override;
 	int get_history_viewport_height() const;
 
-	void set_sidebar_expanded(bool expanded) { sidebar_expanded_ = expanded; invalidate(); }
-	bool is_sidebar_expanded() const { return sidebar_expanded_; }
+	void set_sidebar_expanded(bool expanded)
+	{
+		sidebar_expanded_ = expanded;
+		invalidate();
+	}
+	bool is_sidebar_expanded() const
+	{
+		return sidebar_expanded_;
+	}
 
 	std::shared_ptr<agentlib::ai_agent> get_agent() const
 	{
@@ -35,7 +42,10 @@ class agent_window : public window
 
 	std::string get_mouse_selected_text() const override;
 
-	int get_scroll_offset() const { return scroll_offset_; }
+	int get_scroll_offset() const
+	{
+		return scroll_offset_;
+	}
 
       protected:
 	bool update_viewport() const override;
@@ -48,6 +58,8 @@ class agent_window : public window
 	mutable int max_scroll_offset_{0};
 	mutable bool sidebar_expanded_{true};
 	mutable sidebar_focus sidebar_focus_{sidebar_focus::input};
+	mutable int last_width_{0};
+	mutable int last_total_turns_height_{0};
 
 	std::unique_ptr<ui_multiline_edit> input_box_;
 	std::shared_ptr<agentlib::ai_agent> agent_;
