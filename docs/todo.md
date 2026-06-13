@@ -113,6 +113,11 @@
 
 # done items (move items here on completion)
 
+## 13-06-2026
+- implemented `natural_width()` and `natural_height()` virtual overrides for all custom layout containers (`ui_buttons_horizontal`, `ui_checkbox_group`, `ui_group_box`, `ui_horizontal_flow`, `ui_radiobutton_group`, and `ui_vertical_flow`) to enforce the layout contract, preventing sizing under-allocations in parent flows.
+- documented the layout contract in `ui_element.h` class definition.
+- added comprehensive layout natural dimension unit test assertions in `test_listbox.cpp`.
+
 ## 12-06-2026
 - implemented the `/compact` slash command in the agent TUI window's input boxes, allowing users to manually force stateful response compaction on the server via `ai_agent::force_compaction()`.
 - aligned the available command sets (adding `/mcp`, `/skills`, and `/compact`) and help output between both constructors of `agent_window`.
