@@ -6,8 +6,7 @@ ui_buttons_horizontal::ui_buttons_horizontal(std::string name, int x, int y, int
 {
 }
 
-ui_buttons_horizontal::ui_buttons_horizontal(std::string name)
-    : ui_container(std::move(name), 0, 0, 0, 0)
+ui_buttons_horizontal::ui_buttons_horizontal(std::string name) : ui_container(std::move(name), 0, 0, 0, 0)
 {
 }
 
@@ -75,9 +74,11 @@ bool ui_buttons_horizontal::want_horizontal_stretch() const
 
 int ui_buttons_horizontal::natural_width() const
 {
-	int total = 0;
+	if (children_.empty())
+		return 0;
+	int max_natural = 0;
 	for (const auto &child : children_) {
-		total += child->natural_width();
+		max_natural = std::max(max_natural, child->natural_width());
 	}
-	return children_.empty() ? 0 : total + (static_cast<int>(children_.size()) - 1) * 2;
+	return static_cast<int>(children_.size()) * max_natural + (static_cast<int>(children_.size()) - 1) * 2;
 }
