@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- implemented file list splitting in perform_code_review_tool, partitioning file lists into groups of at most 10 files or 1500 cumulative lines (without intra-file splitting), spawning concurrent reviewer subagents for each group, and aggregating their results synchronously or asynchronously, verified by a comprehensive unit test suite.
 - implemented a priority-based status bar click dispatcher in editor, allowing active status messages to bind dynamic click callbacks (e.g., clicking a code review item warning opens the viewer centered on that item).
 - integrated project-level code reviews initialization and database loading on application startup within project_manager, updating meson unit test targets to include codereview_manager.
 - implemented a clean, decoupled document_listener abstract callback interface, notified synchronously on line insertions/deletions, and integrated it with codereview_manager for dynamic line tracking, stale line detection, and save/load content matching, verified by a comprehensive unit test suite.
