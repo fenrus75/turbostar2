@@ -109,6 +109,7 @@ Execution & Context:
   - The user can manually edit items, add comments, and change states (e.g. resolve them, move `disputed` or `stale` items to `invalid`, or override verification).
 - **Active Agents Integration**: Background code review runs are displayed in the active agents list until they complete.
 - **Persistence**: Managed by a dedicated C++ `codereview_manager` singleton class that maintains the in-memory state of active review items, processes thread-safe reads and writes to `review.json` under `fs_utils::get_project_cache_root()`, and coordinates UI refreshes on update.
+- **Model Configuration (Task-to-Model Mapping)**: The model used by Agent 1 and Agent 2 will be configured via a new "Task-to-Model Mapping" configuration dialog (accessible from Options/Preferences). This mapping defines default models for "Code Reviewer" (Agent 1) and "Code Review Verifier" (Agent 2) tasks.
 
 # normal system prompt
 ```
