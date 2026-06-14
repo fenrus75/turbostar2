@@ -99,22 +99,6 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 			}
 		}
 
-		std::vector<std::string> lines;
-		lines.push_back(std::format("ID:       #{}", item.id));
-		lines.push_back(std::format("Severity: {}", item.severity));
-		lines.push_back(std::format("State:    {}", item.state));
-		lines.push_back(std::format("File:     {}:{}", item.filename, item.line_number));
-		lines.push_back(std::format("Line text: {}", item.line_content));
-		lines.push_back(std::format("Date:     {}", date_str));
-		lines.push_back(std::format("Commit:   {}", item.git_hash));
-		if (!item.resolved_in_commit.empty()) {
-			lines.push_back(std::format("Resolved in Commit: {}", item.resolved_in_commit));
-		}
-		lines.push_back("------------------------------------------------------------------");
-		lines.push_back("Summary: " + item.summary);
-		lines.push_back("------------------------------------------------------------------");
-		lines.push_back("Description:");
-
 		auto wrap_text = [](const std::string &text, int max_w) -> std::vector<std::string> {
 			std::vector<std::string> res;
 			std::stringstream ss(text);
@@ -142,6 +126,32 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 			}
 			return res;
 		};
+
+		std::vector<std::string> lines;
+		lines.push_back(std::format("ID:       #{}", item.id));
+		lines.push_back(std::format("Severity: {}", item.severity));
+		lines.push_back(std::format("State:    {}", item.state));
+		lines.push_back(std::format("File:     {}:{}", item.filename, item.line_number));
+		// Ensure the line content doesn't contain raw newlines or carriage returns,
+		// as they would interfere with ncurses cursor positioning and corrupt the layout.
+		// All newlines and carriage returns are replaced with single spaces.
+		std::string clean_line_content = item.line_content;
+		std::replace(clean_line_content.begin(), clean_line_content.end(), '\n', ' ');
+		std::replace(clean_line_content.begin(), clean_line_content.end(), '\r', ' ');
+		
+		// Wrap the line content display to fit the pane width
+		auto line_text_wrapped = wrap_text(std::format("Line text: {}", clean_line_content), right_width - 2);
+		lines.insert(lines.end(), line_text_wrapped.begin(), line_text_wrapped.end());
+
+		lines.push_back(std::format("Date:     {}", date_str));
+		lines.push_back(std::format("Commit:   {}", item.git_hash));
+		if (!item.resolved_in_commit.empty()) {
+			lines.push_back(std::format("Resolved in Commit: {}", item.resolved_in_commit));
+		}
+		lines.push_back("------------------------------------------------------------------");
+		lines.push_back("Summary: " + item.summary);
+		lines.push_back("------------------------------------------------------------------");
+		lines.push_back("Description:");
 
 		auto desc_wrapped = wrap_text(item.description, right_width - 2);
 		lines.insert(lines.end(), desc_wrapped.begin(), desc_wrapped.end());

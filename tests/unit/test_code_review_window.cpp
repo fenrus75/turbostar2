@@ -256,6 +256,17 @@ void test_code_review_window_behavior()
 		assert(glob_ev->payload == "reprocess");
 	}
 
+	// Test 14: Sanitize newlines/carriage returns in line_content display
+	{
+		int id3 = manager.create_code_review_item("Newline issue", "src/newline.cpp", 5, "line1\nline2\rline3", "medium",
+							  "Has newlines", "Fix newlines");
+		win.refresh();
+		win.focus_item(id3);
+		// Call draw_content to verify that the code review window handles and formats the sanitization
+		// of line content containing newlines and carriage returns without any issues.
+		win.draw_content(false);
+	}
+
 	// Clean up
 	fs_utils::set_override_project_dir("");
 	std::filesystem::remove_all(temp_proj);
