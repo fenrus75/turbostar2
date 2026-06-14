@@ -1122,6 +1122,7 @@ void editor::render(bool cursor_only)
 	}
 
 	std::string diag_text = "";
+	std::function<void()> diag_click_handler = nullptr;
 	if (active_win && active_win->get_document()) {
 		auto doc = active_win->get_document();
 		for (const auto &diag : doc->get_lsp_diagnostics()) {
@@ -1171,6 +1172,12 @@ void editor::render(bool cursor_only)
 				    (item.state == "new" || item.state == "confirmed" || item.state == "disputed") &&
 				    file_matches(doc->get_safe_filename(), item.filename)) {
 					diag_text = std::format("[Code Review #{}] ({}) {}", item.id, item.severity, item.summary);
+					diag_click_handler = [this, item_id = item.id]() {
+						editor_event open_ev;
+						open_ev.type = event_type::open_codereview_viewer;
+						open_ev.key_code = item_id;
+						this->global_queue_.push(open_ev);
+					};
 					break;
 				}
 			}
@@ -1178,7 +1185,7 @@ void editor::render(bool cursor_only)
 	}
 
 	if (!diag_text.empty()) {
-		set_status_message(diag_text, status_priorities::WARNING);
+		set_status_message(diag_text, status_priorities::WARNING, std::chrono::milliseconds::max(), diag_click_handler);
 	} else {
 		clear_status_message(status_priorities::WARNING);
 	}
@@ -1389,7 +1396,7 @@ std::string editor::get_k_block_status_help() const
 	return result;
 }
 
-void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration)
+void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration, std::function<void()> click_handler)
 {
 	status_message msg;
 	msg.text = message;
@@ -1398,6 +1405,7 @@ void editor::set_status_message(const std::string &message, int priority, std::c
 	} else {
 		msg.expiry = std::chrono::steady_clock::now() + duration;
 	}
+	msg.click_handler = click_handler;
 	active_status_messages_[priority] = msg;
 }
 
@@ -1406,15 +1414,36 @@ void editor::clear_status_message(int priority)
 	active_status_messages_.erase(priority);
 }
 
-std::string editor::get_active_status_message() const
+const editor::status_message* editor::get_active_status_message_obj() const
 {
 	auto now = std::chrono::steady_clock::now();
 	for (auto it = active_status_messages_.rbegin(); it != active_status_messages_.rend(); ++it) {
 		if (now < it->second.expiry && !it->second.text.empty()) {
-			return it->second.text;
+			return &it->second;
 		}
 	}
-	return "";
+	return nullptr;
+}
+
+std::string editor::get_active_status_message() const
+{
+	auto obj = get_active_status_message_obj();
+	return obj ? obj->text : "";
+}
+
+void editor::handle_status_bar_click(int mouse_x)
+{
+	(void)mouse_x;
+	auto active_msg_obj = get_active_status_message_obj();
+	if (active_msg_obj && active_msg_obj->click_handler) {
+		active_msg_obj->click_handler();
+	} else {
+		// Fallback: Open general code review viewer
+		editor_event open_ev;
+		open_ev.type = event_type::open_codereview_viewer;
+		open_ev.key_code = -1;
+		global_queue_.push(open_ev);
+	}
 }
 
 /**

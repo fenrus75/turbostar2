@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <chrono>
 #include <limits>
 #include <map>
@@ -95,9 +96,11 @@ class editor : public agentlib::document_provider
 	void save_all_documents() override;
 
 	void set_status_message(const std::string &message, int priority = 0,
-				std::chrono::milliseconds duration = std::chrono::milliseconds::max());
+				std::chrono::milliseconds duration = std::chrono::milliseconds::max(),
+				std::function<void()> click_handler = nullptr);
 	void clear_status_message(int priority);
 	std::string get_active_status_message() const;
+	void handle_status_bar_click(int mouse_x);
 
       private:
 	void new_window(const std::string &filename);
@@ -212,8 +215,10 @@ class editor : public agentlib::document_provider
 	struct status_message {
 		std::string text;
 		std::chrono::steady_clock::time_point expiry;
+		std::function<void()> click_handler;
 	};
 	std::map<int, status_message> active_status_messages_;
+	const status_message* get_active_status_message_obj() const;
 
 	std::string editing_model_id_;
 	int switching_agent_id_{-1};

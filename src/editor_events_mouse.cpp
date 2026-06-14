@@ -103,41 +103,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 
 		if (ev.mouse_y == LINES - 1) {
 			logger.log("Mouse clicked status bar.");
-			window *w = get_active_window();
-			if (w && w->get_document()) {
-				auto doc = w->get_document();
-				std::string filename = doc->get_safe_filename();
-				int cur_y = doc->get_cursor_y();
-				std::string proj_root = project_manager::get_instance().get_project_root();
-				auto file_matches = [&proj_root](const std::string &doc_filename, const std::string &item_filename) -> bool {
-					if (doc_filename.empty() || item_filename.empty())
-						return false;
-					if (doc_filename == item_filename)
-						return true;
-					std::filesystem::path doc_path(doc_filename);
-					std::filesystem::path item_path(item_filename);
-					std::filesystem::path abs_doc = doc_path.is_absolute() ? doc_path : std::filesystem::path(proj_root) / doc_path;
-					std::filesystem::path abs_item = item_path.is_absolute() ? item_path : std::filesystem::path(proj_root) / item_path;
-					return abs_doc.lexically_normal() == abs_item.lexically_normal();
-				};
-
-				auto all_reviews = codereview_manager::get_instance().list_code_review_items();
-				for (const auto &item : all_reviews) {
-					if (item.line_number == cur_y + 1 &&
-					    (item.state == "new" || item.state == "confirmed" || item.state == "disputed") &&
-					    file_matches(filename, item.filename)) {
-						editor_event open_ev;
-						open_ev.type = event_type::open_codereview_viewer;
-						open_ev.key_code = item.id;
-						global_queue_.push(open_ev);
-						return;
-					}
-				}
-			}
-			editor_event open_ev;
-			open_ev.type = event_type::open_codereview_viewer;
-			open_ev.key_code = -1;
-			global_queue_.push(open_ev);
+			handle_status_bar_click(ev.mouse_x);
 			return;
 		}
 
