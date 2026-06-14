@@ -179,5 +179,7 @@ tools_sources = files(
   'update_code_review_item/update_code_review_item_entry.cpp',
   'update_code_review_item/update_code_review_item_security.cpp',
   'confirm_code_review_item/confirm_code_review_item_entry.cpp',
-  'confirm_code_review_item/confirm_code_review_item_security.cpp'
+  'confirm_code_review_item/confirm_code_review_item_security.cpp',
+  'resolve_code_review_item/resolve_code_review_item_entry.cpp',
+  'resolve_code_review_item/resolve_code_review_item_security.cpp'
 )

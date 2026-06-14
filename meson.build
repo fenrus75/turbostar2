@@ -993,6 +993,15 @@ test_confirm_code_review_item = executable('test_confirm_code_review_item',
   include_directories: inc)
 test('unit_confirm_code_review_item', test_confirm_code_review_item)
 
+test_resolve_code_review_item = executable('test_resolve_code_review_item',
+  ['tests/unit/test_resolve_code_review_item.cpp',
+   'src/tools/resolve_code_review_item/resolve_code_review_item_entry.cpp',
+   'src/tools/resolve_code_review_item/resolve_code_review_item_security.cpp'],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_resolve_code_review_item', test_resolve_code_review_item)
+
+
 
 # E2E tests (run via python)
 uv = find_program('uv', required: false)
