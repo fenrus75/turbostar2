@@ -189,8 +189,10 @@ bool codereview_manager::confirm_code_review_item(int id)
 				item.state = "confirmed";
 			} else if (item.state == "resolved") {
 				item.state = "verified-fixed";
+			} else if (item.state == "confirmed" || item.state == "verified-fixed") {
+				return true;
 			} else {
-				item.state = "confirmed";
+				return false;
 			}
 			save_project_unlocked();
 			return true;
