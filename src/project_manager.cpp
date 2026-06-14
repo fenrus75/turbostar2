@@ -369,14 +369,16 @@ std::string project_manager::get_project_knowledge_prompt() const
 		}
 	}
 
-	std::vector<std::string> dep_urls = get_github_vfs_urls();
-	if (!dep_urls.empty()) {
+	std::vector<std::pair<std::string, std::string>> mapped_deps = get_mapped_dependencies();
+	if (!mapped_deps.empty()) {
 		prompt += "\n\nRecognized Project Dependencies (VFS Paths):\n"
 			  "The current project has dependencies configured that are available via the Virtual Filesystem (VFS).\n"
 			  "You can use the `fs_read_lines`, `fs_list_dir`, and other `fs_*` tool calls to inspect the source code, "
-			  "headers, and any documentation for these dependencies using the following VFS paths:\n";
-		for (const auto &url : dep_urls) {
-			prompt += std::format("- {}\n", url);
+			  "headers, and any documentation for these dependencies using the following VFS paths:\n\n"
+			  "| dependency | VFS path |\n"
+			  "| --- | --- |\n";
+		for (const auto &pair : mapped_deps) {
+			prompt += std::format("| {} | {} |\n", pair.first, pair.second);
 		}
 	}
 
@@ -1112,10 +1114,17 @@ std::vector<std::string> project_manager::get_github_vfs_urls() const
 	return github_vfs_urls_;
 }
 
+std::vector<std::pair<std::string, std::string>> project_manager::get_mapped_dependencies() const
+{
+	std::lock_guard<std::mutex> lock(dependencies_mutex_);
+	return mapped_dependencies_;
+}
+
 void project_manager::scan_dependencies()
 {
 	std::vector<std::string> deps;
 	std::vector<std::string> urls;
+	std::vector<std::pair<std::string, std::string>> mapped_deps;
 
 	std::string proj_root = project_root_;
 	std::filesystem::path meson_path = std::filesystem::path(proj_root) / "meson.build";
@@ -1169,6 +1178,7 @@ void project_manager::scan_dependencies()
 			if (std::find(urls.begin(), urls.end(), it->second) == urls.end()) {
 				urls.push_back(it->second);
 			}
+			mapped_deps.push_back({dep_name, it->second});
 		}
 	}
 
@@ -1176,5 +1186,6 @@ void project_manager::scan_dependencies()
 		std::lock_guard<std::mutex> lock(dependencies_mutex_);
 		detected_dependencies_ = std::move(deps);
 		github_vfs_urls_ = std::move(urls);
+		mapped_dependencies_ = std::move(mapped_deps);
 	}
 }

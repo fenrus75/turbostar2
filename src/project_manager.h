@@ -6,6 +6,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "lsp_manager.h"
 
@@ -80,6 +81,11 @@ class project_manager
 	 * @brief Returns the list of recognized dependency github:// VFS URLs.
 	 */
 	std::vector<std::string> get_github_vfs_urls() const;
+
+	/**
+	 * @brief Returns the mapping of recognized dependencies to their VFS paths.
+	 */
+	std::vector<std::pair<std::string, std::string>> get_mapped_dependencies() const;
 
 	// LSP delegation methods
 
@@ -194,7 +200,7 @@ class project_manager
 	std::string software_map_markdown_cache_;
 
 	/*
-	 * dependencies_mutex_ protects detected_dependencies_ and github_vfs_urls_.
+	 * dependencies_mutex_ protects detected_dependencies_, github_vfs_urls_, and mapped_dependencies_.
 	 * Locking Rules:
 	 * - Held briefly when scanning meson.build during initialization or when querying dependencies or GitHub VFS URLs.
 	 * - Read and write access is synchronized using std::lock_guard.
@@ -202,6 +208,7 @@ class project_manager
 	mutable std::mutex dependencies_mutex_;
 	std::vector<std::string> detected_dependencies_;
 	std::vector<std::string> github_vfs_urls_;
+	std::vector<std::pair<std::string, std::string>> mapped_dependencies_;
 
 	std::atomic<bool> is_exiting_{false};
 };

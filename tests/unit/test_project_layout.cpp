@@ -62,8 +62,20 @@ int main()
 	}
 	assert(found_ncurses_url && "Expected github://mirror/ncurses URL to be resolved");
 
+	// Check mapped dependencies pairs
+	auto mapped = pm.get_mapped_dependencies();
+	bool found_ncurses_mapped = false;
+	for (const auto &pair : mapped) {
+		if (pair.first == "ncursesw" && pair.second == "github://mirror/ncurses") {
+			found_ncurses_mapped = true;
+			break;
+		}
+	}
+	assert(found_ncurses_mapped && "Expected mapped ncursesw pair to be stored");
+
 	assert(knowledge_prompt.find("Recognized Project Dependencies (VFS Paths):") != std::string::npos);
-	assert(knowledge_prompt.find("github://mirror/ncurses") != std::string::npos);
+	assert(knowledge_prompt.find("| dependency | VFS path |") != std::string::npos);
+	assert(knowledge_prompt.find("| ncursesw | github://mirror/ncurses |") != std::string::npos);
 
 	std::cout << "Project layout and dependency tests passed!" << std::endl;
 	return 0;
