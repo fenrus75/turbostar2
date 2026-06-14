@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/codereview_manager.h"
@@ -255,18 +256,23 @@ void test_perform_code_review_splitting()
 		assert(subagents[1]->get_name() == "Code Reviewer (Group 2)");
 
 		// Check grouping: Group 1 has 10 files, Group 2 has 2 files
-		int f_group1 = 0, f_group2 = 0;
+		std::set<std::string> unique_files_g1;
+		std::set<std::string> unique_files_g2;
 		for (int i = 1; i <= 12; ++i) {
 			std::string fname = std::format("split_{:02d}.cpp", i);
 			for (const auto &msg : subagents[0]->get_conversation()) {
-				if (msg.content.find(fname) != std::string::npos) f_group1++;
+				if (msg.content.find(fname) != std::string::npos) {
+					unique_files_g1.insert(fname);
+				}
 			}
 			for (const auto &msg : subagents[1]->get_conversation()) {
-				if (msg.content.find(fname) != std::string::npos) f_group2++;
+				if (msg.content.find(fname) != std::string::npos) {
+					unique_files_g2.insert(fname);
+				}
 			}
 		}
-		assert(f_group1 == 10);
-		assert(f_group2 == 2);
+		assert(unique_files_g1.size() == 10);
+		assert(unique_files_g2.size() == 2);
 	}
 
 	// Cleanup
