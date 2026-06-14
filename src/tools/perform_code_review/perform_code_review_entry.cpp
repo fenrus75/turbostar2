@@ -268,7 +268,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 
 		reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 		reviewer_agent->inject_context("system", system_prompt);
-		std::string task_prompt = "Perform a code review on the following files:\n" + files_list_str;
+		std::string task_prompt = "Please review these files:\n" + files_list_str;
 		if (!args_.instructions.empty()) {
 			task_prompt += "\nInstructions:\n" + args_.instructions;
 		}
