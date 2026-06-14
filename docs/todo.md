@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- fixed code review reprocessing visibility in viewer by immediately opening/focusing the spawned subagent's window on 'P' keypress or click, providing real-time feedback, and verified via additional unit test cases.
 - fixed newline display corruption in code review viewer by sanitizing newlines/carriage returns into spaces and linewrapping the 'Line text' field in code_review_window, verified by unit test assertions.
 - removed file content injection/optimization from the code reviewer subagent's system prompt in perform_code_review_tool, ensuring subagents load targets via standard file-reading tools and saving context token usage, verified by updated unit test assertions.
 - implemented file list splitting in perform_code_review_tool, partitioning file lists into groups of at most 10 files or 1500 cumulative lines (without intra-file splitting), spawning concurrent reviewer subagents for each group, and aggregating their results synchronously or asynchronously, verified by a comprehensive unit test suite.
