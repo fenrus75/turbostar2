@@ -103,6 +103,7 @@ Execution & Context:
 - When the cursor is on a line with a code review item, its summary is shown in the status bar. The status bar diagnostic message is interactive/clickable: clicking it directly opens the Code Review Window focused on the corresponding item details.
 - when loading from disk and at various times (compile/save), line-shift tracking (via git diff/patch mapping) is used to update line numbers dynamically when surrounding code shifts. If the actual target line content is changed or deleted, the item is marked as `stale`.
 - **Code Review Window**: A dedicated editor screen (`code_review_window`, similar to the crashdump window) will list all code review items. 
+  - Uses a split-screen panel layout: the left side displays a scrollable list of items (ID, severity, state, short summary), and the right side displays the detailed view (description, proposed fix, comments, and options/hotkeys to perform state transitions).
   - The user can view full details of any item.
   - The user can manually edit items, add comments, and change states (e.g. resolve them, move `disputed` or `stale` items to `invalid`, or override verification).
 - **Active Agents Integration**: Background code review runs are displayed in the active agents list until they complete.
