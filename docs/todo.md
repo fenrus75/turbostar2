@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- implemented a priority-based status bar click dispatcher in editor, allowing active status messages to bind dynamic click callbacks (e.g., clicking a code review item warning opens the viewer centered on that item).
 - integrated project-level code reviews initialization and database loading on application startup within project_manager, updating meson unit test targets to include codereview_manager.
 - implemented a clean, decoupled document_listener abstract callback interface, notified synchronously on line insertions/deletions, and integrated it with codereview_manager for dynamic line tracking, stale line detection, and save/load content matching, verified by a comprehensive unit test suite.
 - implemented the Code Review Viewer TUI window featuring a vertical split pane, word-wrapped details, direct keybinding hotkeys, and mouse actions.
