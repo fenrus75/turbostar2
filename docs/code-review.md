@@ -113,8 +113,15 @@ Execution & Context:
 
 # normal system prompt
 ```
-Prefer to use the perform_code_review() tool for code reviews; this tool will spawn a dedicated code review agent. You can pass overall instructions as well as a detailed todo list to this agent.
-Consider limiting the number of files per code review agent to limit context size while keeping related files together.
+*** CRITICAL DIRECTIVE: CODE REVIEWS ***
+When asked to perform a code review on files, do NOT manually read/analyze the files in your own context.
+Instead, you MUST use the `perform_code_review` tool. This tool automatically runs a read-only specialized Code Review Agent
+to analyze the code and generate a Markdown summary.
+- **File Slicing**: Do not review more than 10 files or 1,500 lines of code in a single subagent call. Group larger lists logically
+  and invoke `perform_code_review` separately for each group.
+- **Instructions & Tasks**: Provide overall context in `instructions` and supply a checklist of specific review items in the `tasks` vector.
+- **Post-Review**: Call `list_code_review_items` to get a concise summary table of active findings, and `get_code_review_item` to retrieve details.
+- **Resolution**: Use `resolve_code_review_item` when issues are addressed or ruled out.
 ```
 
 ## Hybrid File Splitting Heuristics
