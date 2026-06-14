@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include "tool_context.h"
 #include "llm_tool.h"
+#include "agent_role.h"
 
 namespace agentlib {
 
@@ -41,6 +42,15 @@ public:
     // By default, pure tools are allowed.
     virtual bool is_allowed_in_plan_mode(const nlohmann::json& /*args*/, const tool_context& /*ctx*/) const {
         return is_pure();
+    }
+
+    // Indicates if the tool can be executed by the given agent role.
+    // By default, summarizers are allowed no tools, while other roles can run any tool.
+    virtual bool is_allowed_for_role(agent_role role) const {
+        if (role == agent_role::summarizer) {
+            return false;
+        }
+        return true;
     }
 
     // Non-Virtual Interface (NVI): Enforces state and execution order.

@@ -214,6 +214,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::task_models_config) {
+		logger.log("Dispatching task_models_config event.");
+		active_dialog_ = create_task_models_dialog();
+		active_dialog_mode_ = dialog_mode::task_models;
+		set_focus(focus_target::dialog, "task_models");
+		return;
+	}
+
 	if (ev.type == event_type::run_settings) {
 		logger.log("Dispatching run_settings event.");
 		active_dialog_ = create_run_settings_dialog();

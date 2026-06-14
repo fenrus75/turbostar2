@@ -7,6 +7,7 @@
 #include "llm_transport.h"
 #include "llm_types.h"
 #include "tool_registry.h"
+#include "agent_role.h"
 
 namespace agentlib
 {
@@ -17,11 +18,12 @@ class llm_client
 	explicit llm_client(std::shared_ptr<llm_transport> transport, std::string model_id, api_type type = api_type::openai);
 
 	llm_chat_response send_chat(const std::vector<message> &conversation, const tool_registry *registry = nullptr,
-				    const std::vector<std::string> &active_families = {}, const std::string &previous_response_id = "");
+				    const std::vector<std::string> &active_families = {}, const std::string &previous_response_id = "",
+				    agent_role role = agent_role::developer);
 
 	void send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
 			      const tool_registry *registry = nullptr, const std::vector<std::string> &active_families = {},
-			      const std::string &previous_response_id = "");
+			      const std::string &previous_response_id = "", agent_role role = agent_role::developer);
 
 	void cancel();
 	std::string compact_response(const std::string &previous_response_id, std::string *error_msg = nullptr);

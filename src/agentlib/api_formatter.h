@@ -5,6 +5,7 @@
 #include "ai_model.h"
 #include "llm_types.h"
 #include "tool_registry.h"
+#include "agent_role.h"
 
 namespace agentlib
 {
@@ -33,7 +34,8 @@ class api_formatter
 	virtual std::string build_chat_payload(const std::string &model_id, const std::vector<message> &convo,
 					       const tool_registry *registry, bool stream,
 					       const std::vector<std::string> &active_families = {},
-					       const std::string &previous_response_id = "") const = 0;
+					       const std::string &previous_response_id = "",
+					       agent_role role = agent_role::developer) const = 0;
 
 	virtual chat_delta parse_stream_chunk(const std::string &json_chunk) const = 0;
 
@@ -54,7 +56,8 @@ class openai_formatter : public api_formatter
 	std::string get_endpoint_path(const std::string &model_id, bool stream) const override;
 	std::string build_chat_payload(const std::string &model_id, const std::vector<message> &convo, const tool_registry *registry,
 				       bool stream, const std::vector<std::string> &active_families = {},
-				       const std::string &previous_response_id = "") const override;
+				       const std::string &previous_response_id = "",
+				       agent_role role = agent_role::developer) const override;
 	chat_delta parse_stream_chunk(const std::string &json_chunk) const override;
 	llm_chat_response parse_sync_response(const std::string &json_body) const override;
 };
@@ -65,7 +68,8 @@ class gemini_formatter : public api_formatter
 	std::string get_endpoint_path(const std::string &model_id, bool stream) const override;
 	std::string build_chat_payload(const std::string &model_id, const std::vector<message> &convo, const tool_registry *registry,
 				       bool stream, const std::vector<std::string> &active_families = {},
-				       const std::string &previous_response_id = "") const override;
+				       const std::string &previous_response_id = "",
+				       agent_role role = agent_role::developer) const override;
 	chat_delta parse_stream_chunk(const std::string &json_chunk) const override;
 	llm_chat_response parse_sync_response(const std::string &json_body) const override;
 };

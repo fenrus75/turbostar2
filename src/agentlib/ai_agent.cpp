@@ -1321,7 +1321,7 @@ void ai_agent::start_processing()
 					    }
 				    }
 			    },
-			    &registry, self->get_active_tool_families(), previous_response_id);
+			    &registry, self->get_active_tool_families(), previous_response_id, self->get_role());
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -2739,7 +2739,11 @@ void ai_agent::summary_worker_loop()
 				    "EPISODE JSON:\n" +
 				    context_dump;
 
-				auto default_model = ai_model_registry::get_instance().get_default_model();
+				std::string summary_model_id = config_manager::get_instance().get_task_model_id("episode_summarizer");
+				auto default_model = ai_model_registry::get_instance().get_model(summary_model_id);
+				if (!default_model) {
+					default_model = ai_model_registry::get_instance().get_default_model();
+				}
 				if (!default_model) {
 					default_model = model_;
 				}

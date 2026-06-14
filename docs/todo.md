@@ -76,10 +76,6 @@
 	- image edit/convert/select/resize/zoom/rotate
 	- PDF ?
 
-- a set of settings (separate dialog!) for a set of tasks, and which model to use for each
-	- task 1: summarizing context history
-	- task 2: deriving coding style
-	- ... more to come over time so we need to make this extensible
 
 - should we use turbo vision?
 	- pro: automatic the full look
@@ -112,6 +108,10 @@
     - ...
 
 # done items (move items here on completion)
+
+## 14-06-2026
+- implemented a Task-to-Model Mapping TUI configuration screen in Options -> Task Models..., allowing users to assign specific default models to individual roles (Interactive Chat, Episode Summarizer, Code Reviewer, Code Verifier).
+- defined C++ class-level `agent_role` enums, allowing programmatic role-based filtering, tool registry mapping, and security verification.
 
 ## 13-06-2026
 - implemented `natural_width()` and `natural_height()` virtual overrides for all custom layout containers (`ui_buttons_horizontal`, `ui_checkbox_group`, `ui_group_box`, `ui_horizontal_flow`, `ui_radiobutton_group`, and `ui_vertical_flow`) to enforce the layout contract, preventing sizing under-allocations in parent flows.

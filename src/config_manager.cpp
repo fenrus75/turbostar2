@@ -133,6 +133,16 @@ void config_manager::load_from_file(const std::string &path)
 					}
 				}
 			}
+		} else if (key.starts_with("task.")) {
+			size_t dot1 = 5; // length of "task."
+			size_t dot2 = key.find('.', dot1);
+			if (dot2 != std::string::npos) {
+				std::string task_id = key.substr(dot1, dot2 - dot1);
+				std::string subkey = key.substr(dot2 + 1);
+				if (subkey == "model") {
+					task_models_[task_id] = value;
+				}
+			}
 		}
 	}
 	event_logger::get_instance().log("Configuration loaded from {}", path);
@@ -181,6 +191,12 @@ void config_manager::save_project(const std::string &target_path)
 	file << "run_arguments=" << run_arguments_ << "\n";
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
+
+	for (const auto &[task_id, model_id] : task_models_) {
+		if (!model_id.empty()) {
+			file << "task." << task_id << ".model=" << model_id << "\n";
+		}
+	}
 
 	if (is_project) {
 		for (const auto &[server, enabled] : project_mcp_servers_enabled_) {
@@ -334,4 +350,18 @@ void config_manager::set_mcp_server_when_to_activate(const std::string &server_n
 	} else {
 		project_mcp_servers_when_to_activate_[server_name] = text;
 	}
+}
+
+std::string config_manager::get_task_model_id(const std::string &task_id) const
+{
+	auto it = task_models_.find(task_id);
+	if (it != task_models_.end() && !it->second.empty()) {
+		return it->second;
+	}
+	return default_model_id_;
+}
+
+void config_manager::set_task_model_id(const std::string &task_id, const std::string &model_id)
+{
+	task_models_[task_id] = model_id;
 }

@@ -42,13 +42,17 @@ static std::string serialize_mcp_name(const std::string &name)
 	return res;
 }
 
-nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible) const
+nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, agent_role role) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (!validator) {
+			continue;
+		}
+
+		if (!validator->is_allowed_for_role(role)) {
 			continue;
 		}
 
@@ -107,13 +111,17 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 	return tools_array;
 }
 
-nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible) const
+nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, agent_role role) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (!validator) {
+			continue;
+		}
+
+		if (!validator->is_allowed_for_role(role)) {
 			continue;
 		}
 
@@ -221,6 +229,12 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 				    "' is not active. "
 				    "You must call activate_tool_family(\"" +
 				    family + "\") first to use this tool.";
+		return res;
+	}
+
+	if (ctx.active_agent && !validator->is_allowed_for_role(ctx.active_agent->get_role())) {
+		res.error_message =
+		    "Security Violation: Agent role does not permit executing tool '" + name + "'.";
 		return res;
 	}
 

@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include "ai_model.h"
+#include "agent_role.h"
 #include "document_provider.h"
 #include "interactions/interactions.h"
 #include "llm_client.h"
@@ -160,6 +161,15 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_read_only(bool ro)
 	{
 		read_only_ = ro;
+	}
+
+	agent_role get_role() const
+	{
+		return role_;
+	}
+	void set_role(agent_role r)
+	{
+		role_ = r;
 	}
 
 	bool is_mutation_possible() const;
@@ -355,6 +365,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<long long> next_lru_seq_{1};
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};
+	agent_role role_{agent_role::developer};
 };
 
 } // namespace agentlib

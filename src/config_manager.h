@@ -87,6 +87,9 @@ class config_manager
 		default_model_id_ = id;
 	}
 
+	std::string get_task_model_id(const std::string &task_id) const;
+	void set_task_model_id(const std::string &task_id, const std::string &model_id);
+
 	bool is_paranoid_mode() const
 	{
 		return paranoid_mode_;
@@ -180,6 +183,7 @@ class config_manager
 	std::string build_system_{"meson"};
 	std::string build_directory_{"build"};
 	std::string default_model_id_{"nvidia/MiniMax-M2.7-NVFP4"};
+	std::map<std::string, std::string> task_models_;
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};

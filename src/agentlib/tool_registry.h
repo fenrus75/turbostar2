@@ -7,6 +7,7 @@
 #include <string>
 #include "tool_context.h"
 #include "tool_validator.h"
+#include "agent_role.h"
 
 namespace agentlib
 {
@@ -23,10 +24,10 @@ class tool_registry
 	void unregister_validator(const std::string &name);
 
 	// Returns the JSON array of tools to inject into the OpenAI payload
-	nlohmann::json get_tools_json(const std::vector<std::string> &active_families = {}, bool mutation_possible = true) const;
+	nlohmann::json get_tools_json(const std::vector<std::string> &active_families = {}, bool mutation_possible = true, agent_role role = agent_role::developer) const;
 
 	// Returns the JSON array of tools to inject into the Gemini payload
-	nlohmann::json get_gemini_tools_json(const std::vector<std::string> &active_families = {}, bool mutation_possible = true) const;
+	nlohmann::json get_gemini_tools_json(const std::vector<std::string> &active_families = {}, bool mutation_possible = true, agent_role role = agent_role::developer) const;
 
 	std::vector<std::string> get_all_registered_families() const;
 

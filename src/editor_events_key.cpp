@@ -111,6 +111,22 @@ void editor::resolve_dialog(dialog_result res)
 					}
 				}
 			}
+		} else if (active_dialog_mode_ == dialog_mode::task_models) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "ok" || res_str == "save_global") {
+				apply_task_models_from_dialog(*active_dialog_);
+
+				if (res_str == "save_global") {
+					config_manager::get_instance().save_global();
+				} else {
+					std::string cache_root = fs_utils::get_project_cache_root();
+					if (!cache_root.empty()) {
+						config_manager::get_instance().save_project(cache_root);
+					} else {
+						config_manager::get_instance().save_global();
+					}
+				}
+			}
 		} else if (active_dialog_mode_ == dialog_mode::run_settings) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "ok") {

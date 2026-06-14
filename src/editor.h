@@ -176,7 +176,8 @@ class editor : public agentlib::document_provider
 		mcp_config,
 		mcp_tools,
 		write_block,
-		copilot_connect
+		copilot_connect,
+		task_models
 	};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;

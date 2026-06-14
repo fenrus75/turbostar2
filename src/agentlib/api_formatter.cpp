@@ -34,7 +34,8 @@ std::string openai_formatter::get_endpoint_path(const std::string & /*model_id*/
 std::string openai_formatter::build_chat_payload(const std::string &model_id, const std::vector<message> &convo,
 						 const tool_registry *registry, bool stream,
 						 const std::vector<std::string> &active_families,
-						 const std::string &previous_response_id) const
+						 const std::string &previous_response_id,
+						 agent_role role) const
 {
 	if (!mutation_possible_) {
 		json input_json = json::array();
@@ -117,7 +118,7 @@ std::string openai_formatter::build_chat_payload(const std::string &model_id, co
 		}
 
 		if (registry) {
-			json tools_json = registry->get_tools_json(active_families, mutation_possible_);
+			json tools_json = registry->get_tools_json(active_families, mutation_possible_, role);
 			if (!tools_json.empty()) {
 				// Flatten the nested function objects for Responses API
 				json flat_tools = json::array();
@@ -155,7 +156,7 @@ std::string openai_formatter::build_chat_payload(const std::string &model_id, co
 	}
 
 	if (registry) {
-		json tools_json = registry->get_tools_json(active_families, mutation_possible_);
+		json tools_json = registry->get_tools_json(active_families, mutation_possible_, role);
 		if (!tools_json.empty()) {
 			payload["tools"] = tools_json;
 			payload["tool_choice"] = "auto";
@@ -411,7 +412,8 @@ std::string gemini_formatter::get_endpoint_path(const std::string &model_id, boo
 std::string gemini_formatter::build_chat_payload(const std::string &model_id, const std::vector<message> &convo,
 						 const tool_registry *registry, bool stream,
 						 const std::vector<std::string> &active_families,
-						 const std::string & /*previous_response_id*/) const
+						 const std::string & /*previous_response_id*/,
+						 agent_role role) const
 {
 	(void)model_id; // Gemini expects model in the URL path, not payload
 	(void)stream;
@@ -492,7 +494,7 @@ std::string gemini_formatter::build_chat_payload(const std::string &model_id, co
 	json tools_array = json::array();
 
 	if (registry) {
-		json local_tools = registry->get_gemini_tools_json(active_families, mutation_possible_);
+		json local_tools = registry->get_gemini_tools_json(active_families, mutation_possible_, role);
 		if (!local_tools.empty()) {
 			// local_tools is already an array of tool objects (e.g. [{"functionDeclarations": [...]}])
 			for (const auto &item : local_tools) {

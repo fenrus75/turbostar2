@@ -16,6 +16,8 @@ std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text
 std::unique_ptr<dialog> create_force_quit_dialog();
 std::unique_ptr<dialog> create_settings_dialog();
 void apply_settings_from_dialog(const dialog &dlg);
+std::unique_ptr<dialog> create_task_models_dialog();
+void apply_task_models_from_dialog(const dialog &dlg);
 std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path);
 
 std::unique_ptr<dialog> create_model_list_dialog();

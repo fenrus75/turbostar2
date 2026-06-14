@@ -80,7 +80,8 @@ enum class event_type {
 	mcp_config,		    ///< Request to show MCP configuration dialog
 	copilot_connect,	    ///< Request to show Copilot connection dialog
 	terminate_run,		    ///< Request to terminate a run
-	agent_start_app		    ///< Request to start app from agent
+	agent_start_app,	    ///< Request to start app from agent
+	task_models_config	    ///< Request to show task-to-model mapping configuration dialog
 };
 
 namespace status_priorities

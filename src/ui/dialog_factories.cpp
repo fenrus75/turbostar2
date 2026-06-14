@@ -1678,3 +1678,79 @@ std::unique_ptr<dialog> create_copilot_connect_dialog()
 {
 	return std::make_unique<copilot_connect_dialog_impl>();
 }
+
+std::unique_ptr<dialog> create_task_models_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Task-to-Model Mapping", 64, 18);
+
+	auto flow = std::make_unique<ui_vertical_flow>("task_models_flow", 0, 0, 2, 1);
+
+	// Get all configured models
+	std::vector<std::string> candidates;
+	candidates.push_back(""); // Empty/Default fallback
+	for (const auto &model : agentlib::ai_model_registry::get_instance().get_all_models()) {
+		candidates.push_back(model->get_id());
+	}
+
+	struct task_row_info {
+		std::string id;
+		std::string label;
+	};
+
+	std::vector<task_row_info> tasks = {
+		{"interactive_agent",   "Interactive Chat:  "},
+		{"episode_summarizer",  "Episode Summarizer: "},
+		{"code_reviewer",       "Code Reviewer:      "},
+		{"code_verifier",       "Code Verifier:      "}
+	};
+
+	for (const auto &t : tasks) {
+		auto row = std::make_unique<ui_horizontal_flow>("row_" + t.id, 0, 0, 0, 0);
+		row->add_child(std::make_unique<ui_text_label>(t.label));
+		std::string current_model = config_manager::get_instance().get_task_model_id(t.id);
+		row->add_child(std::make_unique<ui_dropdown>(t.id + "_model", 0, 0, 36, current_model, candidates));
+		flow->add_child(std::move(row));
+	}
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_global", "Save Global", 'v', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("save_global");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'C', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+	}));
+	flow->add_child(std::move(btns));
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("interactive_agent_model");
+
+	return dlg;
+}
+
+void apply_task_models_from_dialog(const dialog &dlg)
+{
+	auto &cfg = config_manager::get_instance();
+	std::vector<std::string> task_ids = {
+		"interactive_agent",
+		"episode_summarizer",
+		"code_reviewer",
+		"code_verifier"
+	};
+	for (const auto &id : task_ids) {
+		auto model_val = dlg.get_value(id + "_model");
+		if (model_val) {
+			cfg.set_task_model_id(id, *model_val);
+		}
+	}
+}
