@@ -204,31 +204,6 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 			reviews_section = "No previous code review items exist for these files.\n";
 		}
 
-		// File-load optimization for single files in this group
-		std::string file_content_section;
-		if (group_files.size() == 1) {
-			std::filesystem::path full_path = workspace_root / group_files[0];
-			if (std::filesystem::is_regular_file(full_path)) {
-				std::ifstream ifs(full_path);
-				if (ifs.is_open()) {
-					std::stringstream ss;
-					ss << ifs.rdbuf();
-					std::string content = ss.str();
-					bool is_bin = false;
-					for (char c : content) {
-						if (c == '\0') {
-							is_bin = true;
-							break;
-						}
-					}
-					if (!is_bin && content.length() < 50000) {
-						file_content_section =
-						    std::format("\nFile Content of {}:\n```\n{}\n```\n", group_files[0], content);
-					}
-				}
-			}
-		}
-
 		// Build todo list instructions
 		std::string todos_section;
 		if (!args_.todos.empty()) {
@@ -255,7 +230,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 				"Use the `create_code_review_item` tool to report each issue you find, including a clear description and a "
 				"proposed solution.\n\n"
 				"### Files under review:\n{}"
-				"{}\n"
+				"\n"
 				"### Previous Code Reviews:\n{}"
 				"\n"
 				"### assigned Tasks:\n"
@@ -264,7 +239,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 				"When you have finished reviewing the files and creating/updating the code review items:\n"
 				"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
 				"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
-				files_list_str, file_content_section, reviews_section, todos_section, args_.result_file);
+				files_list_str, reviews_section, todos_section, args_.result_file);
 
 		reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 		reviewer_agent->inject_context("system", system_prompt);

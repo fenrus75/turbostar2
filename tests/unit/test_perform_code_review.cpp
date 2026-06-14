@@ -83,24 +83,14 @@ void test_perform_code_review_execution()
 	assert(!sub_convo.empty());
 
 	bool found_old_null_pointer = false;
-	bool found_file_content = false;
-	bool found_p_42 = false;
 
 	for (const auto &msg : sub_convo) {
 		if (msg.content.find("Old Null Pointer") != std::string::npos) {
 			found_old_null_pointer = true;
 		}
-		if (msg.content.find("File Content of src_to_review.cpp:") != std::string::npos) {
-			found_file_content = true;
-		}
-		if (msg.content.find("*p = 42;") != std::string::npos) {
-			found_p_42 = true;
-		}
 	}
 
 	assert(found_old_null_pointer);
-	assert(found_file_content);
-	assert(found_p_42);
 
 	// Test 3: Sandbox write-access constraints on the reviewer agent
 	// Prepare tool context for the reviewer subagent
