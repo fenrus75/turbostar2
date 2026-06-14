@@ -16,6 +16,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "git_manager.h"
+#include "codereview_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -61,6 +62,9 @@ void project_manager::initialize()
 
 	// Clean up previous runs' crash dumps on startup
 	crashdump_manager::get_instance().clear_all();
+
+	// Load code reviews for the active project
+	codereview_manager::get_instance().load_project(project_root_);
 
 	lsp_manager_ = std::make_unique<lsp_manager>();
 

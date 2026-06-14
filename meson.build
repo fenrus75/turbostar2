@@ -128,13 +128,13 @@ test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
 test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator)
 
 test_history_manager = executable('test_history_manager',
-  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp'],
+  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_history_manager', test_history_manager)
 
 test_command_runner = executable('test_command_runner',
-  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp'],
+  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner)
@@ -306,7 +306,7 @@ test_git_branch_list = executable('test_git_branch_list',
 test('unit_test_git_branch_list', test_git_branch_list)
 
 test_git_manager = executable('test_git_manager',
-  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp'],
+  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_manager', test_git_manager)
@@ -905,19 +905,19 @@ test('unit_hex_highlighter', test_hex_highlighter)
 
 
 test_sqlite_validation = executable('test_sqlite_validation',
-  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation)
 
 test_crashdump_clear = executable('test_crashdump_clear',
-  ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear)
 
 test_pop_todo = executable('test_pop_todo',
-  ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/api_formatter.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp'],
+  ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/api_formatter.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_pop_todo', test_pop_todo)
@@ -929,7 +929,7 @@ test_httplib_transport = executable('test_httplib_transport',
 test('unit_httplib_transport', test_httplib_transport)
 
 test_copilot_models = executable('test_copilot_models',
-  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_copilot_models', test_copilot_models)
@@ -941,7 +941,7 @@ test_fs_grep_files = executable('test_fs_grep_files',
 test('unit_fs_grep_files', test_fs_grep_files)
 
 test_project_layout = executable('test_project_layout',
-  ['tests/unit/test_project_layout.cpp', 'src/project_manager.cpp', 'src/git_manager.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/fs_utils.cpp'],
+  ['tests/unit/test_project_layout.cpp', 'src/project_manager.cpp', 'src/git_manager.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/fs_utils.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_project_layout', test_project_layout)
