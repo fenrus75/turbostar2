@@ -33,6 +33,7 @@ class code_review_window : public window
 	void verify_item();
 	void edit_item();
 	void add_comment();
+	void reprocess_item();
 
 	event_queue &global_queue_;
 	std::unique_ptr<ui_listbox> listbox_;

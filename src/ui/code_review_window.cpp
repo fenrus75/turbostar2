@@ -182,6 +182,7 @@ void code_review_window::draw_border() const
 	addstr("  [V] Verify");
 	addstr("  [E] Edit");
 	addstr("  [A] Comment");
+	addstr("  [P] Re-process");
 }
 
 bool code_review_window::process_events()
@@ -223,6 +224,9 @@ bool code_review_window::process_events()
 				needs_render = true;
 			} else if (key == 'a' || key == 'A') {
 				add_comment();
+				needs_render = true;
+			} else if (key == 'p' || key == 'P') {
+				reprocess_item();
 				needs_render = true;
 			} else if (key == 's' || key == 'S') {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
@@ -277,6 +281,9 @@ bool code_review_window::process_events()
 						needs_render = true;
 					} else if (click_x >= 94 && click_x < 105) {
 						add_comment();
+						needs_render = true;
+					} else if (click_x >= 107 && click_x < 123) {
+						reprocess_item();
 						needs_render = true;
 					}
 				}
@@ -456,5 +463,18 @@ void code_review_window::focus_item(int item_id)
 			invalidate();
 			break;
 		}
+	}
+}
+
+void code_review_window::reprocess_item()
+{
+	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
+	if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
+		int id = current_items_[selected_idx].id;
+		editor_event action_ev;
+		action_ev.type = event_type::codereview_action;
+		action_ev.key_code = id;
+		action_ev.payload = "reprocess";
+		global_queue_.push(action_ev);
 	}
 }

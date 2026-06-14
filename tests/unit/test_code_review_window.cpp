@@ -225,6 +225,37 @@ void test_code_review_window_behavior()
 	auto item2 = manager.get_code_review_item(id2);
 	assert(item2->state == "resolved");
 
+	// Test 12: Re-process (Press 'p')
+	{
+		editor_event ev;
+		ev.type = event_type::key_press;
+		ev.key_code = 'p';
+		win.get_window_queue().push(ev);
+		win.process_events();
+
+		auto glob_ev = global_queue.pop();
+		assert(glob_ev.has_value());
+		assert(glob_ev->type == event_type::codereview_action);
+		assert(glob_ev->key_code == id2);
+		assert(glob_ev->payload == "reprocess");
+	}
+
+	// Test 13: Mouse Click on Re-process
+	{
+		editor_event ev;
+		ev.type = event_type::mouse_click;
+		ev.mouse_x = 110; // Within "Re-process" area (107-122)
+		ev.mouse_y = 23; // Bottom border row
+		win.get_window_queue().push(ev);
+		win.process_events();
+
+		auto glob_ev = global_queue.pop();
+		assert(glob_ev.has_value());
+		assert(glob_ev->type == event_type::codereview_action);
+		assert(glob_ev->key_code == id2);
+		assert(glob_ev->payload == "reprocess");
+	}
+
 	// Clean up
 	fs_utils::set_override_project_dir("");
 	std::filesystem::remove_all(temp_proj);
