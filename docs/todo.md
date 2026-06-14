@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- fixed newline display corruption in code review viewer by sanitizing newlines/carriage returns into spaces and linewrapping the 'Line text' field in code_review_window, verified by unit test assertions.
 - removed file content injection/optimization from the code reviewer subagent's system prompt in perform_code_review_tool, ensuring subagents load targets via standard file-reading tools and saving context token usage, verified by updated unit test assertions.
 - implemented file list splitting in perform_code_review_tool, partitioning file lists into groups of at most 10 files or 1500 cumulative lines (without intra-file splitting), spawning concurrent reviewer subagents for each group, and aggregating their results synchronously or asynchronously, verified by a comprehensive unit test suite.
 - implemented a priority-based status bar click dispatcher in editor, allowing active status messages to bind dynamic click callbacks (e.g., clicking a code review item warning opens the viewer centered on that item).
