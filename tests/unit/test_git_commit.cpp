@@ -111,6 +111,39 @@ int main()
 		manager.clear_all();
 	}
 
+	// 6. Outstanding code reviews limit (max 10) in commit response
+	{
+		std::string test_dir = repo.get_path();
+		codereview_manager &manager = codereview_manager::get_instance();
+		manager.load_project(test_dir);
+		manager.clear_all();
+		
+		for (int i = 1; i <= 12; ++i) {
+			int item_id = manager.create_code_review_item(std::format("Fix issue {}", i), "dummy_commit_test.txt", i, "dummy line", "high",
+								      "issue description", "check issue");
+			assert(item_id >= 0);
+		}
+		
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "dummy_commit_test.txt";
+		write_file(dummy_file, "dummy content modified for limit test");
+		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", test_dir);
+
+		nlohmann::json args = {{"message", "test: fix outstanding issues limit"}};
+		std::string result = registry.execute_tool("git_commit", args.dump(), ctx);
+		std::cout << "Result commit with 12 outstanding items:\n" << result << std::endl;
+		
+		assert(result.find("Successfully created commit") != std::string::npos);
+		assert(result.find("Outstanding Code Review Items Reminder") != std::string::npos);
+		assert(result.find("Fix issue 1") != std::string::npos);
+		assert(result.find("Fix issue 10") != std::string::npos);
+		assert(result.find("... and 2 more outstanding items.") != std::string::npos);
+		assert(result.find("Fix issue 11") == std::string::npos);
+		assert(result.find("Fix issue 12") == std::string::npos);
+		
+		// Clean up codereview database
+		manager.clear_all();
+	}
+
 	std::cout << "git_commit tests passed successfully.\n";
 	return 0;
 }

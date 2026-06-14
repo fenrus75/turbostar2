@@ -108,8 +108,13 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 				       "There are outstanding code review items remaining in the project. If any of these items were addressed/fixed "
 				       "in this commit (hash: {}), please call the `resolve_code_review_item` tool to transition their state to \"resolved\".\n"
 				       "Active items:\n", commit_hash);
-		for (const auto &item : outstanding) {
+		size_t reported_count = std::min(outstanding.size(), size_t(10));
+		for (size_t i = 0; i < reported_count; ++i) {
+			const auto &item = outstanding[i];
 			ret_msg += std::format("- #{} ({}): {} [File: {}:{}]\n", item.id, item.state, item.summary, item.filename, item.line_number);
+		}
+		if (outstanding.size() > 10) {
+			ret_msg += std::format("... and {} more outstanding items.\n", outstanding.size() - 10);
 		}
 	}
 
