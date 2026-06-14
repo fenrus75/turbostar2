@@ -96,12 +96,14 @@ Always runs async, and can use a lower cost model (say claude haiku)
 
 # Editor interaction
 
-- code review items will be treated like compiler warnings in the highlighter.
+- code review items will be treated like compiler warnings in the highlighter. Severities nit/low will be highlighted as warnings (pair 28, black-on-yellow), while medium/high/critical will be highlighted as errors (pair 27, white-on-red).
+- When the cursor is on a line with a code review item, its summary is shown in the status bar. The status bar diagnostic message is interactive/clickable: clicking it directly opens the Code Review Window focused on the corresponding item details.
 - when loading from disk and at various times (compile/save), line-shift tracking (via git diff/patch mapping) is used to update line numbers dynamically when surrounding code shifts. If the actual target line content is changed or deleted, the item is marked as `stale`.
 - **Code Review Window**: A dedicated editor screen (`code_review_window`, similar to the crashdump window) will list all code review items. 
   - The user can view full details of any item.
   - The user can manually edit items, add comments, and change states (e.g. resolve them, move `disputed` or `stale` items to `invalid`, or override verification).
 - **Active Agents Integration**: Background code review runs are displayed in the active agents list until they complete.
+- **Persistence**: Managed by a dedicated C++ `codereview_manager` singleton class that maintains the in-memory state of active review items, processes thread-safe reads and writes to `review.json` under `fs_utils::get_project_cache_root()`, and coordinates UI refreshes on update.
 
 # normal system prompt
 ```
