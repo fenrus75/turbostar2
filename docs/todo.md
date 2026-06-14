@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- clarified code review system prompts: updated main agent system prompt to strongly direct perform_code_review usage and resolved tasks/todos schema naming mismatch; updated code reviewer subagent system prompt with a critical directive to use create_code_review_item tool calls to file findings before final summary reporting.
 - fixed code review reprocessing visibility in viewer by immediately opening/focusing the spawned subagent's window on 'P' keypress or click, providing real-time feedback, and verified via additional unit test cases.
 - fixed newline display corruption in code review viewer by sanitizing newlines/carriage returns into spaces and linewrapping the 'Line text' field in code_review_window, verified by unit test assertions.
 - removed file content injection/optimization from the code reviewer subagent's system prompt in perform_code_review_tool, ensuring subagents load targets via standard file-reading tools and saving context token usage, verified by updated unit test assertions.
