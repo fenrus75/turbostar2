@@ -133,9 +133,154 @@ void test_perform_code_review_execution()
 	std::cout << "perform_code_review tool and sandbox constraints verified successfully!" << std::endl;
 }
 
+void test_perform_code_review_splitting()
+{
+	std::cout << "Testing perform_code_review file splitting..." << std::endl;
+
+	std::filesystem::path orig_path = std::filesystem::current_path();
+	std::filesystem::path temp_proj = orig_path / "test_temp_review_split_proj";
+	std::filesystem::remove_all(temp_proj);
+	std::filesystem::create_directories(temp_proj);
+
+	// Scenario A: Split by lines (> 1500 lines)
+	// file1.cpp: 10 lines
+	// file2.cpp: 1600 lines
+	// file3.cpp: 50 lines
+	// file4.cpp: 10 lines
+	{
+		std::ofstream ofs(temp_proj / "file1.cpp");
+		for (int i = 0; i < 10; ++i) ofs << "line\n";
+	}
+	{
+		std::ofstream ofs(temp_proj / "file2.cpp");
+		for (int i = 0; i < 1600; ++i) ofs << "line\n";
+	}
+	{
+		std::ofstream ofs(temp_proj / "file3.cpp");
+		for (int i = 0; i < 50; ++i) ofs << "line\n";
+	}
+	{
+		std::ofstream ofs(temp_proj / "file4.cpp");
+		for (int i = 0; i < 10; ++i) ofs << "line\n";
+	}
+
+	// Scenario B: Split by count (> 10 files)
+	// 12 small files: split_01.cpp to split_12.cpp (each 1 line)
+	for (int i = 1; i <= 12; ++i) {
+		std::ofstream ofs(temp_proj / std::format("split_{:02d}.cpp", i));
+		ofs << "line\n";
+	}
+
+	fs_utils::set_override_project_dir(temp_proj.string());
+	setenv("TURBOSTAR_PROJECT_ROOT", temp_proj.string().c_str(), 1);
+	project_manager::get_instance().initialize();
+	codereview_manager::get_instance().load_project(temp_proj.string());
+	codereview_manager::get_instance().clear_all();
+
+	tool_registry &registry = tool_registry::get_instance();
+	tool_context ctx;
+	event_queue q;
+
+	ctx.fs_security.set_working_directory(temp_proj.string());
+	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
+	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::write);
+	ctx.queue = &q;
+
+	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+
+	// Test Scenario A: Split by lines (expecting 3 subagents)
+	{
+		auto agent = ai_agent::create(100, "DeveloperAgentA", model, &q, nullptr);
+		agent->set_role(agent_role::developer);
+		tool_context ctx_a = ctx;
+		ctx_a.active_agent = agent.get();
+
+		std::string args_json = "{\"files\": [\"file1.cpp\", \"file2.cpp\", \"file3.cpp\", \"file4.cpp\"], \"async\": true}";
+		auto prep = registry.prepare_tool("perform_code_review", args_json, ctx_a);
+		assert(prep.tool != nullptr);
+
+		std::string res_str = registry.execute_tool("perform_code_review", args_json, ctx_a);
+		std::cout << "Scenario A Result: " << res_str << std::endl;
+
+		auto subagents = agent->get_subagents();
+		assert(subagents.size() == 3);
+		assert(subagents[0]->get_name() == "Code Reviewer (Group 1)");
+		assert(subagents[1]->get_name() == "Code Reviewer (Group 2)");
+		assert(subagents[2]->get_name() == "Code Reviewer (Group 3)");
+
+		// Check file grouping in prompts
+		// Group 1 should contain file1.cpp
+		// Group 2 should contain file2.cpp
+		// Group 3 should contain file3.cpp and file4.cpp
+		bool found_f1 = false, found_f2 = false, found_f3 = false, found_f4 = false;
+		for (const auto &msg : subagents[0]->get_conversation()) {
+			if (msg.content.find("file1.cpp") != std::string::npos) found_f1 = true;
+		}
+		for (const auto &msg : subagents[1]->get_conversation()) {
+			if (msg.content.find("file2.cpp") != std::string::npos) found_f2 = true;
+		}
+		for (const auto &msg : subagents[2]->get_conversation()) {
+			if (msg.content.find("file3.cpp") != std::string::npos) found_f3 = true;
+			if (msg.content.find("file4.cpp") != std::string::npos) found_f4 = true;
+		}
+		assert(found_f1);
+		assert(found_f2);
+		assert(found_f3);
+		assert(found_f4);
+	}
+
+	// Test Scenario B: Split by count (expecting 2 subagents)
+	{
+		auto agent = ai_agent::create(200, "DeveloperAgentB", model, &q, nullptr);
+		agent->set_role(agent_role::developer);
+		tool_context ctx_b = ctx;
+		ctx_b.active_agent = agent.get();
+
+		std::vector<std::string> files_list;
+		for (int i = 1; i <= 12; ++i) {
+			files_list.push_back(std::format("split_{:02d}.cpp", i));
+		}
+		nlohmann::json raw_args = {{"files", files_list}, {"async", true}};
+		std::string args_json = raw_args.dump();
+
+		auto prep = registry.prepare_tool("perform_code_review", args_json, ctx_b);
+		assert(prep.tool != nullptr);
+
+		std::string res_str = registry.execute_tool("perform_code_review", args_json, ctx_b);
+		std::cout << "Scenario B Result: " << res_str << std::endl;
+
+		auto subagents = agent->get_subagents();
+		assert(subagents.size() == 2);
+		assert(subagents[0]->get_name() == "Code Reviewer (Group 1)");
+		assert(subagents[1]->get_name() == "Code Reviewer (Group 2)");
+
+		// Check grouping: Group 1 has 10 files, Group 2 has 2 files
+		int f_group1 = 0, f_group2 = 0;
+		for (int i = 1; i <= 12; ++i) {
+			std::string fname = std::format("split_{:02d}.cpp", i);
+			for (const auto &msg : subagents[0]->get_conversation()) {
+				if (msg.content.find(fname) != std::string::npos) f_group1++;
+			}
+			for (const auto &msg : subagents[1]->get_conversation()) {
+				if (msg.content.find(fname) != std::string::npos) f_group2++;
+			}
+		}
+		assert(f_group1 == 10);
+		assert(f_group2 == 2);
+	}
+
+	// Cleanup
+	fs_utils::set_override_project_dir("");
+	unsetenv("TURBOSTAR_PROJECT_ROOT");
+	project_manager::get_instance().initialize();
+	std::filesystem::remove_all(temp_proj);
+	std::cout << "perform_code_review file splitting verified successfully!" << std::endl;
+}
+
 int main()
 {
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();
+	test_perform_code_review_splitting();
 	return 0;
 }

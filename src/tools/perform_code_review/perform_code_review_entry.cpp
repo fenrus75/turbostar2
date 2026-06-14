@@ -3,25 +3,38 @@
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include "../../agentlib/ai_agent.h"
 #include "../../agentlib/interactions/llm_response.h"
 #include "../../codereview_manager.h"
 #include "../../config_manager.h"
 #include "../../event_logger.h"
+#include "../../fs_utils.h"
 #include "../../project_manager.h"
 #include "perform_code_review.h"
 
 namespace tools
 {
 
-static void run_verifier_async_thread(std::shared_ptr<agentlib::ai_agent> reviewer_agent, std::shared_ptr<agentlib::ai_agent> parent,
+static void run_verifier_async_thread(std::vector<std::shared_ptr<agentlib::ai_agent>> reviewer_agents, std::shared_ptr<agentlib::ai_agent> parent,
 				      perform_code_review_args args)
 {
-	// Wait for Agent 1 to finish
-	reviewer_agent->wait_until_idle();
+	// Wait for all reviewer agents to finish
+	for (auto &agent : reviewer_agents) {
+		agent->wait_until_idle();
+	}
 
-	if (reviewer_agent->get_status() == agentlib::agent_status::error) {
-		event_logger::get_instance().log("Reviewer agent failed, skipping verifier agent.");
+	bool all_failed = true;
+	for (const auto &agent : reviewer_agents) {
+		if (agent->get_status() != agentlib::agent_status::error) {
+			all_failed = false;
+		} else {
+			event_logger::get_instance().log(std::format("Reviewer agent '{}' failed.", agent->get_name()));
+		}
+	}
+
+	if (all_failed && !reviewer_agents.empty()) {
+		event_logger::get_instance().log("All reviewer agents failed, skipping verifier agent.");
 		return;
 	}
 
@@ -97,155 +110,253 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		reviewer_model = parent->get_model();
 	}
 
-	// 2. Spawn Reviewer Agent (Agent 1)
-	auto reviewer_agent = parent->spawn_subagent("Code Reviewer");
-	if (!reviewer_agent) {
-		return "Error: Failed to create code reviewer agent.";
-	}
-	reviewer_agent->set_role(agentlib::agent_role::reviewer);
-	reviewer_agent->set_model(reviewer_model);
+	// Group the files: groups of at most 10 files OR cumulative line count of 1500 lines.
+	// Scope Constraint: Do NOT split within a file (no intra-file splitting).
+	// If a single file itself has >1500 lines, it goes into its own group as-is.
+	std::vector<std::vector<std::string>> file_groups;
+	std::vector<std::string> current_group;
+	int current_file_count = 0;
+	int current_line_count = 0;
 
-	if (!args_.result_file.empty()) {
-		reviewer_agent->set_allowed_write_file(args_.result_file);
-	}
+	std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
 
-	// 3. Compile previous code reviews for the target files
-	auto all_items = codereview_manager::get_instance().list_code_review_items("", "", true);
-	std::vector<review_item> relevant_items;
-	for (const auto &item : all_items) {
-		for (const auto &f : args_.files) {
-			if (item.filename.starts_with(f)) {
-				relevant_items.push_back(item);
-				break;
+	for (const auto &f : args_.files) {
+		std::filesystem::path full_path = workspace_root / f;
+		int line_count = 0;
+		std::string line_count_str = fs_utils::count_lines_in_file(full_path.string());
+		if (!line_count_str.empty()) {
+			try {
+				line_count = std::stoi(line_count_str);
+			} catch (...) {
+				line_count = 0;
+			}
+		}
+
+		if (current_group.empty()) {
+			current_group.push_back(f);
+			current_file_count = 1;
+			current_line_count = line_count;
+		} else {
+			if (current_file_count + 1 > 10 || current_line_count + line_count > 1500) {
+				file_groups.push_back(current_group);
+				current_group.clear();
+				current_group.push_back(f);
+				current_file_count = 1;
+				current_line_count = line_count;
+			} else {
+				current_group.push_back(f);
+				current_file_count += 1;
+				current_line_count += line_count;
 			}
 		}
 	}
-
-	std::string reviews_section;
-	if (!relevant_items.empty()) {
-		reviews_section =
-		    "There are existing code review items for the files under review. Part of your task is to verify their correctness and "
-		    "relevance:\n"
-		    "- Use `update_code_review_item` to adjust details, or to set state to \"invalid\" if the issue no longer applies.\n"
-		    "- Use `get_code_review_item` to fetch full descriptions and proposed fixes for any of the following items:\n\n"
-		    "| ID | State | File:Line | Summary |\n|---|---|---|---|\n";
-		for (const auto &ri : relevant_items) {
-			std::string loc = ri.filename;
-			if (ri.line_number > 0) {
-				loc += std::format(":{}", ri.line_number);
-			}
-			std::string clean_summary = ri.summary;
-			std::replace(clean_summary.begin(), clean_summary.end(), '|', ' ');
-			reviews_section += std::format("| {} | {} | {} | {} |\n", ri.id, ri.state, loc, clean_summary);
-		}
-	} else {
-		reviews_section = "No previous code review items exist for these files.\n";
+	if (!current_group.empty()) {
+		file_groups.push_back(current_group);
 	}
 
-	// 4. File-load optimization for single files
-	std::string file_content_section;
-	if (args_.files.size() == 1) {
-		std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
-		std::filesystem::path full_path = workspace_root / args_.files[0];
-		if (std::filesystem::is_regular_file(full_path)) {
-			std::ifstream ifs(full_path);
-			if (ifs.is_open()) {
-				std::stringstream ss;
-				ss << ifs.rdbuf();
-				std::string content = ss.str();
-				bool is_bin = false;
-				for (char c : content) {
-					if (c == '\0') {
-						is_bin = true;
-						break;
+	std::vector<std::shared_ptr<agentlib::ai_agent>> reviewer_agents;
+
+	for (size_t i = 0; i < file_groups.size(); ++i) {
+		const auto &group_files = file_groups[i];
+
+		std::string agent_name = file_groups.size() > 1 ? std::format("Code Reviewer (Group {})", i + 1) : "Code Reviewer";
+		auto reviewer_agent = parent->spawn_subagent(agent_name);
+		if (!reviewer_agent) {
+			return "Error: Failed to create code reviewer agent.";
+		}
+		reviewer_agent->set_role(agentlib::agent_role::reviewer);
+		reviewer_agent->set_model(reviewer_model);
+
+		if (!args_.result_file.empty()) {
+			reviewer_agent->set_allowed_write_file(args_.result_file);
+		}
+
+		// Compile previous code reviews for the target files in this group
+		auto all_items = codereview_manager::get_instance().list_code_review_items("", "", true);
+		std::vector<review_item> relevant_items;
+		for (const auto &item : all_items) {
+			for (const auto &f : group_files) {
+				if (item.filename.starts_with(f)) {
+					relevant_items.push_back(item);
+					break;
+				}
+			}
+		}
+
+		std::string reviews_section;
+		if (!relevant_items.empty()) {
+			reviews_section =
+			    "There are existing code review items for the files under review. Part of your task is to verify their correctness and "
+			    "relevance:\n"
+			    "- Use `update_code_review_item` to adjust details, or to set state to \"invalid\" if the issue no longer applies.\n"
+			    "- Use `get_code_review_item` to fetch full descriptions and proposed fixes for any of the following items:\n\n"
+			    "| ID | State | File:Line | Summary |\n|---|---|---|---|\n";
+			for (const auto &ri : relevant_items) {
+				std::string loc = ri.filename;
+				if (ri.line_number > 0) {
+					loc += std::format(":{}", ri.line_number);
+				}
+				std::string clean_summary = ri.summary;
+				std::replace(clean_summary.begin(), clean_summary.end(), '|', ' ');
+				reviews_section += std::format("| {} | {} | {} | {} |\n", ri.id, ri.state, loc, clean_summary);
+			}
+		} else {
+			reviews_section = "No previous code review items exist for these files.\n";
+		}
+
+		// File-load optimization for single files in this group
+		std::string file_content_section;
+		if (group_files.size() == 1) {
+			std::filesystem::path full_path = workspace_root / group_files[0];
+			if (std::filesystem::is_regular_file(full_path)) {
+				std::ifstream ifs(full_path);
+				if (ifs.is_open()) {
+					std::stringstream ss;
+					ss << ifs.rdbuf();
+					std::string content = ss.str();
+					bool is_bin = false;
+					for (char c : content) {
+						if (c == '\0') {
+							is_bin = true;
+							break;
+						}
+					}
+					if (!is_bin && content.length() < 50000) {
+						file_content_section =
+						    std::format("\nFile Content of {}:\n```\n{}\n```\n", group_files[0], content);
 					}
 				}
-				if (!is_bin && content.length() < 50000) {
-					file_content_section =
-					    std::format("\nFile Content of {}:\n```\n{}\n```\n", args_.files[0], content);
-				}
 			}
 		}
-	}
 
-	// 5. Build todo list instructions
-	std::string todos_section;
-	if (!args_.todos.empty()) {
-		todos_section = "You are explicitly asked to address the following todo items and mark them complete using the "
-				"`agent_complete_todo` tool once completed:\n"
-				"| Todo Item |\n|---|\n";
-		for (const auto &t : args_.todos) {
-			todos_section += std::format("| {} |\n", t);
-			reviewer_agent->add_todo(t);
+		// Build todo list instructions
+		std::string todos_section;
+		if (!args_.todos.empty()) {
+			todos_section = "You are explicitly asked to address the following todo items and mark them complete using the "
+					"`agent_complete_todo` tool once completed:\n"
+					"| Todo Item |\n|---|\n";
+			for (const auto &t : args_.todos) {
+				todos_section += std::format("| {} |\n", t);
+				reviewer_agent->add_todo(t);
+			}
+		} else {
+			todos_section = "No specific todo items assigned.";
 		}
-	} else {
-		todos_section = "No specific todo items assigned.";
+
+		std::string files_list_str;
+		for (const auto &f : group_files) {
+			files_list_str += "- " + f + "\n";
+		}
+
+		// Build and inject system prompt
+		std::string system_prompt =
+		    std::format("You are a code review agent. Your task is to perform a detailed code review based on the user request. Do not "
+				"attempt to modify any source files to apply fixes; your execution context is read-only.\n"
+				"Use the `create_code_review_item` tool to report each issue you find, including a clear description and a "
+				"proposed solution.\n\n"
+				"### Files under review:\n{}"
+				"{}\n"
+				"### Previous Code Reviews:\n{}"
+				"\n"
+				"### assigned Tasks:\n"
+				"{}\n\n"
+				"### Final Output Guidelines:\n"
+				"When you have finished reviewing the files and creating/updating the code review items:\n"
+				"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
+				"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
+				files_list_str, file_content_section, reviews_section, todos_section, args_.result_file);
+
+		reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
+		reviewer_agent->inject_context("system", system_prompt);
+
+		std::string task_prompt = args_.instructions.empty() ? "Perform a code review on the specified files." : args_.instructions;
+		reviewer_agent->submit_prompt(task_prompt);
+
+		reviewer_agents.push_back(reviewer_agent);
 	}
-
-	std::string files_list_str;
-	for (const auto &f : args_.files) {
-		files_list_str += "- " + f + "\n";
-	}
-
-	// 6. Build and inject system prompt
-	std::string system_prompt =
-	    std::format("You are a code review agent. Your task is to perform a detailed code review based on the user request. Do not "
-			"attempt to modify any source files to apply fixes; your execution context is read-only.\n"
-			"Use the `create_code_review_item` tool to report each issue you find, including a clear description and a "
-			"proposed solution.\n\n"
-			"### Files under review:\n{}"
-			"{}\n"
-			"### Previous Code Reviews:\n{}"
-			"\n"
-			"### assigned Tasks:\n"
-			"{}\n\n"
-			"### Final Output Guidelines:\n"
-			"When you have finished reviewing the files and creating/updating the code review items:\n"
-			"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
-			"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
-			files_list_str, file_content_section, reviews_section, todos_section, args_.result_file);
-
-	reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
-	reviewer_agent->inject_context("system", system_prompt);
-
-	std::string task_prompt = args_.instructions.empty() ? "Perform a code review on the specified files." : args_.instructions;
-	reviewer_agent->submit_prompt(task_prompt);
 
 	if (args_.async) {
-		// Asynchronous: spawn Agent 1 and Agent 2 in background and return immediately
-		std::thread(run_verifier_async_thread, reviewer_agent, parent, args_).detach();
+		// Asynchronous: spawn all reviewers and the verifier in the background and return immediately
+		std::thread(run_verifier_async_thread, reviewer_agents, parent, args_).detach();
 		set_success(ctx);
-		return std::format("Code review started asynchronously. Reviewer Agent ID: {}.", reviewer_agent->get_id());
+
+		std::string id_list;
+		for (size_t i = 0; i < reviewer_agents.size(); ++i) {
+			if (i > 0) {
+				id_list += ", ";
+			}
+			id_list += std::to_string(reviewer_agents[i]->get_id());
+		}
+		if (reviewer_agents.size() == 1) {
+			return std::format("Code review started asynchronously. Reviewer Agent ID: {}.", id_list);
+		}
+		return std::format("Code review started asynchronously. Reviewer Agent IDs: {}.", id_list);
 	}
 
-	// Synchronous: Wait for Agent 1 (Reviewer) to finish
+	// Synchronous: Wait for all reviewer agents to finish
 	auto old_status = parent->get_status();
-	parent->set_status(agentlib::agent_status::waiting, reviewer_agent->get_id());
-	reviewer_agent->wait_until_idle();
+	for (auto &reviewer_agent : reviewer_agents) {
+		parent->set_status(agentlib::agent_status::waiting, reviewer_agent->get_id());
+		reviewer_agent->wait_until_idle();
+	}
 	parent->set_status(old_status);
 
 	// Spawn Agent 2 (Verifier) asynchronously in the background as a sanity check
-	std::thread(run_verifier_async_thread, reviewer_agent, parent, args_).detach();
+	std::thread(run_verifier_async_thread, reviewer_agents, parent, args_).detach();
 
 	set_success(ctx);
 
-	if (reviewer_agent->get_status() == agentlib::agent_status::error) {
-		return std::format("Code Reviewer Agent '{}' encountered an error during execution.", reviewer_agent->get_name());
+	if (reviewer_agents.size() == 1) {
+		auto reviewer_agent = reviewer_agents[0];
+		if (reviewer_agent->get_status() == agentlib::agent_status::error) {
+			return std::format("Code Reviewer Agent '{}' encountered an error during execution.", reviewer_agent->get_name());
+		}
+
+		if (reviewer_agent->has_final_result()) {
+			return reviewer_agent->get_final_result();
+		}
+
+		const auto &interactions = reviewer_agent->get_interactions();
+		for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
+			auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
+			if (res) {
+				return res->get_text();
+			}
+		}
+
+		return std::format("Code Reviewer Agent '{}' completed successfully, but no final response was found.", reviewer_agent->get_name());
 	}
 
-	if (reviewer_agent->has_final_result()) {
-		return reviewer_agent->get_final_result();
-	}
-
-	const auto &interactions = reviewer_agent->get_interactions();
-	for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
-		auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
-		if (res) {
-			return res->get_text();
+	std::string combined_result;
+	for (const auto &reviewer_agent : reviewer_agents) {
+		if (!combined_result.empty()) {
+			combined_result += "\n\n---\n\n";
+		}
+		combined_result += std::format("### Reviewer Agent '{}' Result:\n", reviewer_agent->get_name());
+		if (reviewer_agent->get_status() == agentlib::agent_status::error) {
+			combined_result += "Encountered an error during execution.";
+			continue;
+		}
+		if (reviewer_agent->has_final_result()) {
+			combined_result += reviewer_agent->get_final_result();
+			continue;
+		}
+		bool found_resp = false;
+		const auto &interactions = reviewer_agent->get_interactions();
+		for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
+			auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
+			if (res) {
+				combined_result += res->get_text();
+				found_resp = true;
+				break;
+			}
+		}
+		if (!found_resp) {
+			combined_result += "Completed successfully, but no final response was found.";
 		}
 	}
 
-	return std::format("Code Reviewer Agent '{}' completed successfully, but no final response was found.", reviewer_agent->get_name());
+	return combined_result;
 }
 
 } // namespace tools
