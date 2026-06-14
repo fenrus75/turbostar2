@@ -62,7 +62,7 @@ int main()
 	}
 	assert(found_ncurses_url && "Expected github://mirror/ncurses URL to be resolved");
 
-	assert(knowledge_prompt.find("Recognized Project Dependencies (VFS URLs):") != std::string::npos);
+	assert(knowledge_prompt.find("Recognized Project Dependencies (VFS Paths):") != std::string::npos);
 	assert(knowledge_prompt.find("github://mirror/ncurses") != std::string::npos);
 
 	std::cout << "Project layout and dependency tests passed!" << std::endl;

@@ -371,10 +371,10 @@ std::string project_manager::get_project_knowledge_prompt() const
 
 	std::vector<std::string> dep_urls = get_github_vfs_urls();
 	if (!dep_urls.empty()) {
-		prompt += "\n\nRecognized Project Dependencies (VFS URLs):\n"
+		prompt += "\n\nRecognized Project Dependencies (VFS Paths):\n"
 			  "The current project has dependencies configured that are available via the Virtual Filesystem (VFS).\n"
 			  "You can use the `fs_read_lines`, `fs_list_dir`, and other `fs_*` tool calls to inspect the source code, "
-			  "headers, and any documentation for these dependencies at the following URLs:\n";
+			  "headers, and any documentation for these dependencies using the following VFS paths:\n";
 		for (const auto &url : dep_urls) {
 			prompt += std::format("- {}\n", url);
 		}
