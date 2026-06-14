@@ -1155,7 +1155,8 @@ void project_manager::scan_dependencies()
 		{"re2",           "github://google/re2"},
 		{"sqlite3",       "github://sqlite/sqlite"},
 		{"nlohmann_json", "github://nlohmann/json"},
-		{"zydis",         "github://zyantific/zydis"}
+		{"zydis",         "github://zyantific/zydis"},
+		{"sdl2",          "github://libsdl-org/SDL@SDL2/"}
 	};
 
 	for (const auto &dep_name : deps) {
