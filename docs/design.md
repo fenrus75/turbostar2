@@ -24,6 +24,8 @@ sections updated as enhancements are made to the project.
 | `docs/design-gdb-io.md` | GDB IO architecture        |
 | `docs/mcp.md`           | Model Context Protocol (MCP) design |
 | `docs/thread-lifecycle.md` | Thread lifecycle and teardown blueprint |
+| `docs/code-review.md`  | Code review system and agent tools |
+
 
 
 # Git policy
