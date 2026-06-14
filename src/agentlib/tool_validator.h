@@ -17,6 +17,10 @@ namespace agentlib {
 | fs_man_validator             | src/tools/fs_man/fs_man.h                                   |
 | fs_replace_content_validator | src/tools/fs_replace_content/fs_replace_content.h           |
 | fs_list_dir_validator        | src/tools/fs_list_dir/fs_list_dir.h                          |
+| confirm_code_review_item_validator | src/tools/confirm_code_review_item/confirm_code_review_item.h |
+| resolve_code_review_item_validator | src/tools/resolve_code_review_item/resolve_code_review_item.h |
+| list_code_review_items_validator   | src/tools/list_code_review_items/list_code_review_items.h   |
+| get_code_review_item_validator     | src/tools/get_code_review_item/get_code_review_item.h       |
 
 */
 class tool_validator {
