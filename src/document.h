@@ -13,6 +13,21 @@
 #include "event_queue.h"
 #include "line.h"
 #include "syntax_highlighter.h"
+/*
+
+# subclasses of document_listener
+
+| subclass           | filename                     |
+| ------------------ | ---------------------------- |
+| codereview_manager | src/codereview_manager.h    |
+
+*/
+class document_listener {
+public:
+	virtual ~document_listener() = default;
+	virtual void on_line_inserted(const std::string &filename, int y) = 0;
+	virtual void on_line_deleted(const std::string &filename, int y) = 0;
+};
 
 enum class undo_group_type {
 	none,	     // Never merge (e.g., paste, load, formatting, agent edits, word deletes)
@@ -66,6 +81,9 @@ class document
 	document(event_queue &global_queue);
 	document(event_queue &global_queue, const std::string &filename);
 	virtual ~document();
+
+	void add_listener(document_listener *l);
+	void remove_listener(document_listener *l);
 
 	virtual bool load_from_file(const std::string &filename);
 	bool insert_file(const std::string &filename);
@@ -280,4 +298,5 @@ class document
 	mutable std::vector<text_range> lsp_highlights_;
 	mutable std::vector<diagnostic_info> lsp_diagnostics_;
 	mutable std::optional<text_range> enclosing_scope_;
+	std::vector<document_listener*> listeners_;
 };

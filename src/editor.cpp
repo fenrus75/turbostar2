@@ -84,6 +84,7 @@ void editor::new_window(const std::string &filename)
 		win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename, bin_doc);
 	} else {
 		doc = std::make_shared<document>(global_queue_, filename);
+		doc->add_listener(&codereview_manager::get_instance());
 		win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
 		win->attach_document(doc);
 	}

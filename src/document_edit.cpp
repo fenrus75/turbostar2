@@ -61,6 +61,9 @@ void document::backspace()
 
 		lines_[prev_line_idx]->merge(*lines_[cursor_y_]);
 		mark_line_dirty(lines_[prev_line_idx]);
+		for (auto *l : listeners_) {
+			l->on_line_deleted(filename_, cursor_y_);
+		}
 		lines_.erase(lines_.begin() + cursor_y_);
 
 		cursor_y_ = prev_line_idx;
@@ -96,6 +99,9 @@ void document::delete_char()
 		adjust_selection_for_join(next_line_idx, 0);
 		lines_[cursor_y_]->merge(*lines_[next_line_idx]);
 		mark_line_dirty(lines_[cursor_y_]);
+		for (auto *l : listeners_) {
+			l->on_line_deleted(filename_, next_line_idx);
+		}
 		lines_.erase(lines_.begin() + next_line_idx);
 		set_modified();
 		end_edit_group();
@@ -166,6 +172,9 @@ void document::delete_word_forward()
 			adjust_selection_for_join(next_line_idx, 0);
 			lines_[cursor_y_]->merge(*lines_[next_line_idx]);
 			mark_line_dirty(lines_[cursor_y_]);
+			for (auto *l : listeners_) {
+				l->on_line_deleted(filename_, next_line_idx);
+			}
 			lines_.erase(lines_.begin() + next_line_idx);
 			set_modified();
 			end_edit_group();
@@ -259,6 +268,9 @@ void document::split_line()
 		mark_line_dirty(lines_[cursor_y_]);
 		mark_line_dirty(new_l);
 		lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
+		for (auto *l : listeners_) {
+			l->on_line_inserted(filename_, cursor_y_ + 1);
+		}
 
 		record_action(edit_action::action_type::insert_line, cursor_y_ + 1, nullptr);
 
@@ -282,7 +294,11 @@ void document::append_line(const std::string &text)
 		mark_line_dirty(lines_[0]);
 	} else {
 		auto l = std::make_shared<line>(text);
+		int new_idx = static_cast<int>(lines_.size());
 		lines_.push_back(l);
+		for (auto *listener : listeners_) {
+			listener->on_line_inserted(filename_, new_idx);
+		}
 		mark_line_dirty(l);
 	}
 
@@ -303,6 +319,11 @@ void document::trim_top_lines(int max_lines)
 	}
 
 	int lines_to_remove = static_cast<int>(lines_.size()) - max_lines;
+	for (int i = 0; i < lines_to_remove; ++i) {
+		for (auto *l : listeners_) {
+			l->on_line_deleted(filename_, 0);
+		}
+	}
 	lines_.erase(lines_.begin(), lines_.begin() + lines_to_remove);
 
 	if (cursor_y_ >= lines_to_remove) {
@@ -354,6 +375,9 @@ void document::delete_line()
 	begin_edit_group("", undo_group_type::delete_line);
 	record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
 	adjust_selection_for_line_delete(cursor_y_);
+	for (auto *l : listeners_) {
+		l->on_line_deleted(filename_, cursor_y_);
+	}
 	lines_.erase(lines_.begin() + cursor_y_);
 	if (cursor_y_ >= line_count_unlocked()) {
 		cursor_y_ = line_count_unlocked() - 1;
@@ -386,6 +410,9 @@ void document::insert_text(const std::string &text)
 				mark_line_dirty(lines_[cursor_y_]);
 				mark_line_dirty(new_l);
 				lines_.insert(lines_.begin() + cursor_y_ + 1, new_l);
+				for (auto *l : listeners_) {
+					l->on_line_inserted(filename_, cursor_y_ + 1);
+				}
 				record_action(edit_action::action_type::insert_line, cursor_y_ + 1, nullptr);
 				cursor_y_++;
 				cursor_x_ = 0;

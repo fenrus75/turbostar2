@@ -1,5 +1,5 @@
 #pragma once
-
+#include "document.h"
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <shared_mutex>
@@ -25,10 +25,17 @@ struct review_item {
 void to_json(nlohmann::json &j, const review_item &item);
 void from_json(const nlohmann::json &j, review_item &item);
 
-class codereview_manager
+class codereview_manager : public document_listener
 {
       public:
 	static codereview_manager &get_instance();
+
+	// document_listener overrides
+	void on_line_inserted(const std::string &filename, int y) override;
+	void on_line_deleted(const std::string &filename, int y) override;
+
+	// Verify and mark items stale if line content differs significantly
+	void verify_line_contents(const std::string &filename, const std::vector<std::string> &lines);
 
 	// Load code reviews from review.json in the project cache directory
 	void load_project(const std::string &project_root_path);

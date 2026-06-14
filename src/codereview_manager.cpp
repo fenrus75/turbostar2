@@ -257,3 +257,82 @@ void codereview_manager::clear_all()
 	next_id_ = 1;
 	save_project_unlocked();
 }
+
+static bool file_matches(const std::string &proj_root, const std::string &filename1, const std::string &filename2)
+{
+	if (filename1.empty() || filename2.empty())
+		return false;
+	if (filename1 == filename2)
+		return true;
+	std::filesystem::path p1(filename1);
+	std::filesystem::path p2(filename2);
+	std::filesystem::path abs1 = p1.is_absolute() ? p1 : std::filesystem::path(proj_root) / p1;
+	std::filesystem::path abs2 = p2.is_absolute() ? p2 : std::filesystem::path(proj_root) / p2;
+	return abs1.lexically_normal() == abs2.lexically_normal();
+}
+
+void codereview_manager::on_line_inserted(const std::string &filename, int y_zero_based)
+{
+	std::unique_lock lock(mutex_);
+	int y_one_based = y_zero_based + 1;
+	for (auto &item : items_) {
+		if (file_matches(project_root_path_, item.filename, filename) && item.line_number >= y_one_based && item.state != "stale") {
+			item.line_number++;
+		}
+	}
+}
+
+void codereview_manager::on_line_deleted(const std::string &filename, int y_zero_based)
+{
+	std::unique_lock lock(mutex_);
+	int y_one_based = y_zero_based + 1;
+	for (auto &item : items_) {
+		if (file_matches(project_root_path_, item.filename, filename) && item.state != "stale") {
+			if (item.line_number == y_one_based) {
+				item.state = "stale";
+			} else if (item.line_number > y_one_based) {
+				item.line_number--;
+			}
+		}
+	}
+}
+
+static bool contents_match(const std::string &orig, const std::string &curr)
+{
+	auto trim = [](const std::string &s) {
+		size_t first = s.find_first_not_of(" \t\r\n");
+		if (first == std::string::npos) return std::string("");
+		size_t last = s.find_last_not_of(" \t\r\n");
+		return s.substr(first, last - first + 1);
+	};
+	std::string o = trim(orig);
+	std::string c = trim(curr);
+	if (o.empty() || c.empty()) return false;
+	if (o == c) return true;
+	if (o.length() >= 5 && c.find(o) != std::string::npos) return true;
+	if (c.length() >= 5 && o.find(c) != std::string::npos) return true;
+	return false;
+}
+
+void codereview_manager::verify_line_contents(const std::string &filename, const std::vector<std::string> &lines)
+{
+	std::unique_lock lock(mutex_);
+	bool changed = false;
+	for (auto &item : items_) {
+		if (file_matches(project_root_path_, item.filename, filename) && item.state != "stale" && item.line_number > 0) {
+			int idx = item.line_number - 1;
+			if (idx >= 0 && idx < (int)lines.size()) {
+				if (!contents_match(item.line_content, lines[idx])) {
+					item.state = "stale";
+					changed = true;
+				}
+			} else {
+				item.state = "stale";
+				changed = true;
+			}
+		}
+	}
+	if (changed) {
+		save_project_unlocked();
+	}
+}

@@ -15,6 +15,7 @@
  */
 
 #include "document.h"
+#include "codereview_manager.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -125,6 +126,13 @@ bool document::load_from_file(const std::string &filename)
 		update_target_cursor_x_unlocked();
 	}
 
+	std::vector<std::string> load_lines;
+	load_lines.reserve(lines_.size());
+	for (const auto &l : lines_) {
+		load_lines.push_back(l->get_text());
+	}
+	codereview_manager::get_instance().verify_line_contents(filename_, load_lines);
+
 	lock.unlock();
 	git_manager::get_instance().request_status(filename);
 	project_manager::get_instance().lsp_open_document(filename, get_text_all());
@@ -228,6 +236,13 @@ bool document::save_to_file(const std::string &filename)
 	refresh_highlighter();
 	modified_ = false;
 	event_logger::get_instance().log("Document saved to: {}", filename);
+	std::vector<std::string> save_lines;
+	save_lines.reserve(lines_.size());
+	for (const auto &l : lines_) {
+		save_lines.push_back(l->get_text());
+	}
+	codereview_manager::get_instance().verify_line_contents(filename_, save_lines);
+
 	lock.unlock();
 
 	git_manager::get_instance().request_status(filename);
@@ -575,6 +590,9 @@ void document::apply_external_edits_json(const std::string &json_str)
 
 			if (type == "remove") {
 				for (int i = 0; i < lines_to_remove; ++i) {
+					for (auto *l : listeners_) {
+						l->on_line_deleted(filename_, idx);
+					}
 					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 					lines_.erase(lines_.begin() + idx);
 				}
@@ -596,12 +614,18 @@ void document::apply_external_edits_json(const std::string &json_str)
 
 				for (size_t i = 0; i < new_lines.size(); ++i) {
 					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
+					for (auto *l : listeners_) {
+						l->on_line_inserted(filename_, idx + i);
+					}
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
 				adjust_all(idx, static_cast<int>(new_lines.size()), 0);
 			} else if (type == "replace" && edit.contains("replace_with")) {
 				for (int i = 0; i < lines_to_remove; ++i) {
+					for (auto *l : listeners_) {
+						l->on_line_deleted(filename_, idx);
+					}
 					record_action(edit_action::action_type::delete_line, idx, lines_[idx]);
 					lines_.erase(lines_.begin() + idx);
 				}
@@ -622,6 +646,9 @@ void document::apply_external_edits_json(const std::string &json_str)
 
 				for (size_t i = 0; i < new_lines.size(); ++i) {
 					lines_.insert(lines_.begin() + idx + i, new_lines[i]);
+					for (auto *l : listeners_) {
+						l->on_line_inserted(filename_, idx + i);
+					}
 					record_action(edit_action::action_type::insert_line, idx + i, nullptr);
 					mark_line_dirty(new_lines[i]);
 				}
@@ -715,4 +742,18 @@ void document::update_target_cursor_x_unlocked()
 	} else {
 		target_cursor_x_ = cursor_x_;
 	}
+}
+
+void document::add_listener(document_listener *l)
+{
+	std::unique_lock lock(mutex_);
+	if (std::find(listeners_.begin(), listeners_.end(), l) == listeners_.end()) {
+		listeners_.push_back(l);
+	}
+}
+
+void document::remove_listener(document_listener *l)
+{
+	std::unique_lock lock(mutex_);
+	listeners_.erase(std::remove(listeners_.begin(), listeners_.end(), l), listeners_.end());
 }
