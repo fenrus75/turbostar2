@@ -544,3 +544,50 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the ELF file relative to project root.
     *   `pattern` *(string, optional)*: Optional substring or regex pattern to filter symbol names.
+
+---
+
+## 11. Code Review Tools
+
+### `create_code_review_item`
+*   **Description:** Creates a new code review item in the database.
+*   **Arguments:**
+    *   `summary` *(string, required)*: Brief one-line summary of the issue.
+    *   `filename` *(string, required)*: Relative path to the file containing the issue.
+    *   `line_number` *(integer, optional)*: 1-based line number target. Defaults to 0 if omitted.
+    *   `line_content` *(string, optional)*: Exact content of the line. If omitted but line_number is given, it will be auto-resolved from the file.
+    *   `severity` *(string, required)*: Severity of the issue (`'nit'`, `'low'`, `'medium'`, `'high'`, `'critical'`).
+    *   `description` *(string, required)*: Detailed description of the bug or code quality issue.
+    *   `proposed_fix` *(string, required)*: Clear step-by-step description of the proposed solution.
+
+### `update_code_review_item`
+*   **Description:** Updates fields (state, severity, description, proposed_fix) of an existing code review item.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The unique ID of the code review item.
+    *   `state` *(string, optional)*: The new state (`'invalid'`, `'new'`, `'confirmed'`, `'disputed'`, `'stale'`, `'resolved'`, `'verified-fixed'`).
+    *   `severity` *(string, optional)*: The new severity.
+    *   `description` *(string, optional)*: Updated description.
+    *   `proposed_fix` *(string, optional)*: Updated proposed fix.
+
+### `confirm_code_review_item`
+*   **Description:** Confirms the correctness of a code review item (new -> confirmed) or verifies its resolution (resolved -> verified-fixed). Only accessible by the verifier role.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The unique ID of the code review item to confirm/verify.
+
+### `resolve_code_review_item`
+*   **Description:** Resolves a code review item by marking its state as 'resolved' and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The unique ID of the code review item to resolve.
+    *   `commit_hash` *(string, required)*: The git commit hash containing the resolution/fix.
+
+### `list_code_review_items`
+*   **Description:** Lists all code review items as a compact Markdown table. Normal agents only see unresolved items; verifiers can also see resolved items by setting `include_resolved` to true.
+*   **Arguments:**
+    *   `filename` *(string, optional)*: Optional filename prefix to filter items.
+    *   `severity` *(string, optional)*: Optional severity to filter items.
+    *   `include_resolved` *(boolean, optional)*: If true, lists resolved/verified items (restricted to verifiers).
+
+### `get_code_review_item`
+*   **Description:** Retrieves the full JSON details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.
+*   **Arguments:**
+    *   `id` *(integer, required)*: The unique ID of the code review item.
