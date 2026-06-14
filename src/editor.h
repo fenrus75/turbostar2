@@ -104,6 +104,7 @@ class editor : public agentlib::document_provider
 	std::string get_k_block_status_help() const;
 	void new_agent_window();
 	void new_crashdump_window();
+	void new_codereview_window(int focus_item_id = -1);
 	void new_diff_window();
 	void open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent);
 	void update_window_layout();
@@ -177,8 +178,15 @@ class editor : public agentlib::document_provider
 		mcp_tools,
 		write_block,
 		copilot_connect,
-		task_models
+		task_models,
+		codereview_select_field,
+		codereview_edit_field,
+		codereview_add_comment,
+		codereview_select_state,
+		codereview_select_severity
 	};
+	int codereview_edit_item_id_{-1};
+	std::string codereview_edit_field_name_;
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;

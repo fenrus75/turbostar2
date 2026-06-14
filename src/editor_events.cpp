@@ -164,6 +164,8 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::terminate_run:
 		case event_type::agent_start_app:
 		case event_type::task_models_config:
+		case event_type::open_codereview_viewer:
+		case event_type::codereview_action:
 		case event_type::codereview_updated:
 			dispatch_event_ui(ev);
 			break;

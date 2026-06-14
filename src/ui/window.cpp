@@ -3,8 +3,11 @@
 #include <format>
 #include <ncurses.h>
 #include <string>
+#include <filesystem>
 #include "ansi.h"
 #include "build_error_manager.h"
+#include "codereview_manager.h"
+#include "project_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
 #include "ui/ui_element.h"
@@ -393,6 +396,32 @@ void window::draw_content(bool cursor_only) const
 	if (doc_) {
 		filename = doc_->get_safe_filename();
 	}
+
+	std::vector<review_item> active_reviews;
+	if (doc_ && !filename.empty()) {
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		auto file_matches = [&proj_root](const std::string &doc_filename, const std::string &item_filename) -> bool {
+			if (doc_filename.empty() || item_filename.empty())
+				return false;
+			if (doc_filename == item_filename)
+				return true;
+			std::filesystem::path doc_path(doc_filename);
+			std::filesystem::path item_path(item_filename);
+			std::filesystem::path abs_doc = doc_path.is_absolute() ? doc_path : std::filesystem::path(proj_root) / doc_path;
+			std::filesystem::path abs_item = item_path.is_absolute() ? item_path : std::filesystem::path(proj_root) / item_path;
+			return abs_doc.lexically_normal() == abs_item.lexically_normal();
+		};
+
+		auto all_reviews = codereview_manager::get_instance().list_code_review_items();
+		for (const auto &item : all_reviews) {
+			if (item.line_number > 0 &&
+			    (item.state == "new" || item.state == "confirmed" || item.state == "disputed") &&
+			    file_matches(filename, item.filename)) {
+				active_reviews.push_back(item);
+			}
+		}
+	}
+
 	for (int i = 1; i < height_ - 1; ++i) {
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
@@ -404,6 +433,34 @@ void window::draw_content(bool cursor_only) const
 			if (build_err && build_err->end_column == 0) {
 				has_build_err = true;
 				line_bg_pair = build_err->is_warning ? 28 : 27;
+			}
+		}
+
+		bool has_code_review = false;
+		review_item line_review;
+		if (doc_ && !has_build_err) {
+			for (const auto &item : active_reviews) {
+				if (item.line_number == doc_line_idx + 1) {
+					if (!has_code_review) {
+						has_code_review = true;
+						line_review = item;
+					} else {
+						auto sev_val = [](const std::string &sev) {
+							if (sev == "critical") return 5;
+							if (sev == "high") return 4;
+							if (sev == "medium") return 3;
+							if (sev == "low") return 2;
+							return 1;
+						};
+						if (sev_val(item.severity) > sev_val(line_review.severity)) {
+							line_review = item;
+						}
+					}
+				}
+			}
+			if (has_code_review) {
+				bool is_warn = (line_review.severity == "nit" || line_review.severity == "low");
+				line_bg_pair = is_warn ? 28 : 27;
 			}
 		}
 
@@ -568,6 +625,9 @@ void window::draw_content(bool cursor_only) const
 									pair = build_err->is_warning ? 28 : 27;
 								}
 							}
+						} else if (doc_ && has_code_review) {
+							bool is_warn = (line_review.severity == "nit" || line_review.severity == "low");
+							pair = is_warn ? 28 : 27;
 						}
 					}
 

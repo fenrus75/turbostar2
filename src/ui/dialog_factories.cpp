@@ -84,6 +84,48 @@ std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 	return dlg;
 }
 
+std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value)
+{
+	auto dlg = std::make_unique<dialog>(title, 60, 10);
+
+	auto flow = std::make_unique<ui_vertical_flow>("input_flow", 2, 1);
+
+	auto label = std::make_unique<ui_text_label>(prompt);
+	label->set_width(56);
+	flow->add_child(std::move(label));
+
+	auto tb = std::make_unique<ui_textbox>("input_textbox", 56, initial_value);
+	flow->add_child(std::move(tb));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
+		auto val = d->get_value("input_textbox");
+		d->set_result(val ? *val : "");
+		d->set_action(dialog_result::confirmed);
+	}));
+	btns->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", "Cancel", 'c',
+	    [d = dlg.get()]() {
+		    d->set_result("");
+		    d->set_action(dialog_result::cancelled);
+	    },
+	    true));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("input_textbox");
+	return dlg;
+}
+
+
 std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines)
 {
 	int width = 40;

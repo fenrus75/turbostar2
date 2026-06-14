@@ -21,6 +21,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "codereview_manager.h"
+#include "ui/code_review_window.h"
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
@@ -417,6 +418,37 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::open_codereview_viewer) {
+		logger.log("Dispatching open_codereview_viewer event.");
+		new_codereview_window(ev.key_code);
+		return;
+	}
+
+	if (ev.type == event_type::codereview_action) {
+		logger.log("Dispatching codereview_action event for item ID {} action {}", ev.key_code, ev.payload);
+		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
+		if (item_opt) {
+			codereview_edit_item_id_ = ev.key_code;
+			if (ev.payload == "state") {
+				std::vector<std::string> states = {"invalid", "new", "confirmed", "disputed", "stale", "resolved", "verified-fixed"};
+				active_dialog_ = create_ask_user_dialog("Select State", states);
+				active_dialog_mode_ = dialog_mode::codereview_select_state;
+			} else if (ev.payload == "severity") {
+				std::vector<std::string> severities = {"nit", "low", "medium", "high", "critical"};
+				active_dialog_ = create_ask_user_dialog("Select Severity", severities);
+				active_dialog_mode_ = dialog_mode::codereview_select_severity;
+			} else if (ev.payload == "comment") {
+				active_dialog_ = create_input_dialog("Add Comment", "Enter your comment text:", "");
+				active_dialog_mode_ = dialog_mode::codereview_add_comment;
+			} else if (ev.payload == "edit") {
+				std::vector<std::string> fields = {"Summary", "Description", "Proposed Fix"};
+				active_dialog_ = create_ask_user_dialog("Edit Field", fields);
+				active_dialog_mode_ = dialog_mode::codereview_select_field;
+			}
+		}
+		return;
+	}
+
 	if (ev.type == event_type::open_subagent) {
 		logger.log("Dispatching open_subagent event for agent ID: " + std::to_string(ev.key_code));
 
@@ -493,6 +525,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::codereview_updated) {
 		logger.log("Dispatching codereview_updated event for item ID {}", ev.key_code);
+		// Update code review window list if open
+		for (auto &win : windows_) {
+			if (auto cr_win = dynamic_cast<code_review_window *>(win.get())) {
+				cr_win->refresh();
+			}
+		}
+		needs_full_redraw_ = true;
+
 		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
 		if (item_opt) {
 			std::string msg = std::format(

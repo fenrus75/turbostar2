@@ -40,9 +40,9 @@ class codereview_manager
 				    const std::string &line_content, const std::string &severity, const std::string &description,
 				    const std::string &proposed_fix);
 
-	// Update fields of an existing code review item. Returns true if found and updated.
 	bool update_code_review_item(int id, const std::optional<std::string> &state, const std::optional<std::string> &severity,
-				     const std::optional<std::string> &description, const std::optional<std::string> &proposed_fix);
+				     const std::optional<std::string> &description, const std::optional<std::string> &proposed_fix,
+				     const std::optional<std::string> &summary = std::nullopt);
 
 	// Transition state: new -> confirmed, or resolved -> verified-fixed
 	bool confirm_code_review_item(int id);

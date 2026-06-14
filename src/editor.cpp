@@ -21,6 +21,8 @@
 #include "history_manager.h"
 #include "project_manager.h"
 #include "ui/agent_window.h"
+#include "codereview_manager.h"
+#include "ui/code_review_window.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
 #include "ui/diff_window.h"
@@ -194,6 +196,25 @@ void editor::new_crashdump_window()
 {
 	auto dump_win = std::make_unique<crashdump_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_);
 	windows_.push_back(std::move(dump_win));
+	update_window_layout();
+	activate_window(windows_.size() - 1);
+}
+
+void editor::new_codereview_window(int focus_item_id)
+{
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		if (auto cr_win = dynamic_cast<code_review_window *>(windows_[i].get())) {
+			if (focus_item_id > 0) {
+				cr_win->focus_item(focus_item_id);
+			}
+			activate_window(i);
+			return;
+		}
+	}
+
+	auto cr_win = std::make_unique<code_review_window>(
+	    static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, focus_item_id);
+	windows_.push_back(std::move(cr_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
 }
@@ -1125,6 +1146,32 @@ void editor::render(bool cursor_only)
 			auto build_err = build_error_manager::get_instance().find_error_at(doc->get_safe_filename(), cur_y);
 			if (build_err) {
 				diag_text = (build_err->is_warning ? "[Warning] " : "[Error] ") + build_err->message;
+			}
+		}
+
+		// If no LSP diagnostic and no build error, check for code review items
+		if (diag_text.empty()) {
+			std::string proj_root = project_manager::get_instance().get_project_root();
+			auto file_matches = [&proj_root](const std::string &doc_filename, const std::string &item_filename) -> bool {
+				if (doc_filename.empty() || item_filename.empty())
+					return false;
+				if (doc_filename == item_filename)
+					return true;
+				std::filesystem::path doc_path(doc_filename);
+				std::filesystem::path item_path(item_filename);
+				std::filesystem::path abs_doc = doc_path.is_absolute() ? doc_path : std::filesystem::path(proj_root) / doc_path;
+				std::filesystem::path abs_item = item_path.is_absolute() ? item_path : std::filesystem::path(proj_root) / item_path;
+				return abs_doc.lexically_normal() == abs_item.lexically_normal();
+			};
+
+			auto all_reviews = codereview_manager::get_instance().list_code_review_items();
+			for (const auto &item : all_reviews) {
+				if (item.line_number == cur_y + 1 &&
+				    (item.state == "new" || item.state == "confirmed" || item.state == "disputed") &&
+				    file_matches(doc->get_safe_filename(), item.filename)) {
+					diag_text = std::format("[Code Review #{}] ({}) {}", item.id, item.severity, item.summary);
+					break;
+				}
 			}
 		}
 	}

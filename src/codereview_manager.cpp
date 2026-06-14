@@ -160,7 +160,7 @@ int codereview_manager::create_code_review_item(const std::string &summary, cons
 
 bool codereview_manager::update_code_review_item(int id, const std::optional<std::string> &state,
 						 const std::optional<std::string> &severity, const std::optional<std::string> &description,
-						 const std::optional<std::string> &proposed_fix)
+						 const std::optional<std::string> &proposed_fix, const std::optional<std::string> &summary)
 {
 	std::unique_lock lock(mutex_);
 	for (auto &item : items_) {
@@ -173,6 +173,8 @@ bool codereview_manager::update_code_review_item(int id, const std::optional<std
 				item.description = *description;
 			if (proposed_fix)
 				item.proposed_fix = *proposed_fix;
+			if (summary)
+				item.summary = *summary;
 			save_project_unlocked();
 			return true;
 		}

@@ -969,6 +969,12 @@ test_codereview_manager = executable('test_codereview_manager',
   include_directories: inc)
 test('unit_codereview_manager', test_codereview_manager)
 
+test_code_review_window = executable('test_code_review_window',
+  'tests/unit/test_code_review_window.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_code_review_window', test_code_review_window)
+
 test_create_code_review_item = executable('test_create_code_review_item',
   ['tests/unit/test_create_code_review_item.cpp',
    'src/tools/create_code_review_item/create_code_review_item_entry.cpp',

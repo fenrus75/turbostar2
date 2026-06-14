@@ -110,6 +110,10 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- implemented the Code Review Viewer TUI window featuring a vertical split pane, word-wrapped details, direct keybinding hotkeys, and mouse actions.
+- added "View Code Reviews" to the Tools menu and status bar click routing to open the viewer.
+- implemented editor line highlights (warnings/errors) for lines containing active code review items.
+- created a comprehensive unit test suite in `test_code_review_window.cpp` to verify selection, navigation, state transitions, and event queue integration.
 - implemented a Task-to-Model Mapping TUI configuration screen in Options -> Task Models..., allowing users to assign specific default models to individual roles (Interactive Chat, Episode Summarizer, Code Reviewer, Code Verifier).
 - defined C++ class-level `agent_role` enums, allowing programmatic role-based filtering, tool registry mapping, and security verification.
 

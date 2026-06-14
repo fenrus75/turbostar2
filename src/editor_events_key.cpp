@@ -20,6 +20,7 @@
 #include "project_manager.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
+#include "codereview_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -79,6 +80,83 @@ void editor::resolve_dialog(dialog_result res)
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value(active_dialog_->get_result());
 				active_ask_user_promise_.reset();
+			}
+		} else if (active_dialog_mode_ == dialog_mode::codereview_select_state) {
+			std::string val = active_dialog_->get_result();
+			if (!val.empty() && val != "cancel") {
+				int id = codereview_edit_item_id_;
+				if (codereview_manager::get_instance().update_code_review_item(id, val, std::nullopt, std::nullopt, std::nullopt)) {
+					codereview_manager::get_instance().save_project();
+					editor_event update_ev;
+					update_ev.type = event_type::codereview_updated;
+					update_ev.key_code = id;
+					global_queue_.push(update_ev);
+				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::codereview_select_severity) {
+			std::string val = active_dialog_->get_result();
+			if (!val.empty() && val != "cancel") {
+				int id = codereview_edit_item_id_;
+				if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, val, std::nullopt, std::nullopt)) {
+					codereview_manager::get_instance().save_project();
+					editor_event update_ev;
+					update_ev.type = event_type::codereview_updated;
+					update_ev.key_code = id;
+					global_queue_.push(update_ev);
+				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::codereview_add_comment) {
+			std::string val = active_dialog_->get_result();
+			if (!val.empty() && val != "cancel") {
+				int id = codereview_edit_item_id_;
+				auto item_opt = codereview_manager::get_instance().get_code_review_item(id);
+				if (item_opt) {
+					std::string new_desc = item_opt->description + "\n\n-- Comment: " + val;
+					if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, new_desc, std::nullopt)) {
+						codereview_manager::get_instance().save_project();
+						editor_event update_ev;
+						update_ev.type = event_type::codereview_updated;
+						update_ev.key_code = id;
+						global_queue_.push(update_ev);
+					}
+				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::codereview_select_field) {
+			std::string val = active_dialog_->get_result();
+			if (val == "Summary" || val == "Description" || val == "Proposed Fix") {
+				codereview_edit_field_name_ = val;
+				int id = codereview_edit_item_id_;
+				auto item_opt = codereview_manager::get_instance().get_code_review_item(id);
+				if (item_opt) {
+					std::string initial_val = "";
+					if (val == "Summary") initial_val = item_opt->summary;
+					else if (val == "Description") initial_val = item_opt->description;
+					else if (val == "Proposed Fix") initial_val = item_opt->proposed_fix;
+
+					active_dialog_ = create_input_dialog("Edit " + val, "Enter new text:", initial_val);
+					active_dialog_mode_ = dialog_mode::codereview_edit_field;
+					needs_full_redraw_ = true;
+					return;
+				}
+			}
+		} else if (active_dialog_mode_ == dialog_mode::codereview_edit_field) {
+			std::string val = active_dialog_->get_result();
+			int id = codereview_edit_item_id_;
+			std::string field = codereview_edit_field_name_;
+			bool success = false;
+			if (field == "Summary") {
+				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, std::nullopt, std::nullopt, val);
+			} else if (field == "Description") {
+				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, val, std::nullopt);
+			} else if (field == "Proposed Fix") {
+				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, std::nullopt, val);
+			}
+			if (success) {
+				codereview_manager::get_instance().save_project();
+				editor_event update_ev;
+				update_ev.type = event_type::codereview_updated;
+				update_ev.key_code = id;
+				global_queue_.push(update_ev);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
 			std::string res_str = active_dialog_->get_result();

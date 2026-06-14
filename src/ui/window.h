@@ -12,12 +12,13 @@
 
 # subclasses of window
 
-| subclass          | filename                                 |
-| ----------------- | ---------------------------------------- |
-| agent_window      | src/ui/agent_window.h                    |
-| crashdump_window  | src/ui/crashdump_window.h                |
-| diff_window       | src/ui/diff_window.h                     |
-| hex_editor_window | src/ui/hex_editor_window.h               |
+| subclass           | filename                                  |
+| ------------------ | ----------------------------------------- |
+| agent_window       | src/ui/agent_window.h                    |
+| code_review_window | src/ui/code_review_window.h              |
+| crashdump_window   | src/ui/crashdump_window.h                |
+| diff_window        | src/ui/diff_window.h                     |
+| hex_editor_window  | src/ui/hex_editor_window.h               |
 
 */
 class window
