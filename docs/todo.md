@@ -110,6 +110,7 @@
 # done items (move items here on completion)
 
 ## 14-06-2026
+- implemented a clean, decoupled document_listener abstract callback interface, notified synchronously on line insertions/deletions, and integrated it with codereview_manager for dynamic line tracking, stale line detection, and save/load content matching, verified by a comprehensive unit test suite.
 - implemented the Code Review Viewer TUI window featuring a vertical split pane, word-wrapped details, direct keybinding hotkeys, and mouse actions.
 - added "View Code Reviews" to the Tools menu and status bar click routing to open the viewer.
 - implemented editor line highlights (warnings/errors) for lines containing active code review items.
