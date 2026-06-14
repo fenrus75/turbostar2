@@ -495,7 +495,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					    "Please read the file, review the code, and determine if the issue is valid. Transition its state using the appropriate tool.",
 					    item.id, item.filename, item.line_number, item.summary, item.description, item.proposed_fix, item.state);
 
+					// Submit the verification request to start the agent processing.
 					verifier_agent->submit_prompt(task_prompt);
+					// Immediately launch the subagent window to give the user real-time visibility
+					// into the verification steps and tool invocations.
+					open_subagent_window(verifier_agent);
 					set_status_message(std::format("Verification agent started in background for item #{}...", item.id), status_priorities::INFO);
 				} else {
 					set_status_message("Error: Failed to create verification agent.", status_priorities::WARNING);

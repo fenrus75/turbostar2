@@ -240,6 +240,21 @@ void test_code_review_window_behavior()
 		assert(glob_ev->payload == "reprocess");
 	}
 
+	// Test 12b: Re-process (Press 'P')
+	{
+		editor_event ev;
+		ev.type = event_type::key_press;
+		ev.key_code = 'P';
+		win.get_window_queue().push(ev);
+		win.process_events();
+
+		auto glob_ev = global_queue.pop();
+		assert(glob_ev.has_value());
+		assert(glob_ev->type == event_type::codereview_action);
+		assert(glob_ev->key_code == id2);
+		assert(glob_ev->payload == "reprocess");
+	}
+
 	// Test 13: Mouse Click on Re-process
 	{
 		editor_event ev;
