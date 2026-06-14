@@ -57,12 +57,12 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "call the `agent_mark_episode` tool BEFORE starting the new work. This allows the system to compress old history.\n"
 	    "Do NOT wait to be asked. Proactively call it whenever a logical chapter of work concludes.\n\n"
 	    "*** CRITICAL DIRECTIVE: CODE REVIEWS ***\n"
-	    "When asked to perform a code review on files, do NOT manually read/analyze the files in your own context.\n"
+	    "When asked to perform a code review on files, or to review, inspect, or analyze any file(s) for bugs, issues, code quality, or feedback, do NOT manually read/analyze the files in your own context.\n"
 	    "Instead, you MUST use the `perform_code_review` tool. This tool automatically runs a read-only specialized Code Review Agent\n"
 	    "to analyze the code and generate a Markdown summary.\n"
 	    "- **File Slicing**: Do not review more than 10 files or 1,500 lines of code in a single subagent call. Group larger lists logically\n"
 	    "  and invoke `perform_code_review` separately for each group.\n"
-	    "- **Instructions & Tasks**: Provide overall context in `instructions` and supply a checklist of specific review items in the `tasks` vector.\n"
+	    "- **Instructions & Todos**: Provide overall context in `instructions` and supply a checklist of specific review items in the `todos` vector.\n"
 	    "- **Post-Review**: Call `list_code_review_items` to get a concise summary table of active findings, and `get_code_review_item` to retrieve details.\n"
 	    "- **Resolution**: Use `resolve_code_review_item` when issues are addressed or ruled out.";
 
