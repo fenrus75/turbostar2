@@ -1,6 +1,8 @@
 #include <filesystem>
 #include <fstream>
+#include <format>
 #include <system_error>
+#include "../../codereview_manager.h"
 #include "../../fs_utils.h"
 #include "git_commit.h"
 
@@ -77,7 +79,41 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx, "Commit created");
-	return "Successfully created commit:\n```\n" + output + "\n```";
+	std::string ret_msg = std::format("Successfully created commit:\n```\n{}\n```", output);
+
+	// Check if there are outstanding (new or confirmed) code review items
+	auto all_items = codereview_manager::get_instance().list_code_review_items("", "", false);
+	std::vector<review_item> outstanding;
+	for (const auto &item : all_items) {
+		if (item.state == "new" || item.state == "confirmed") {
+			outstanding.push_back(item);
+		}
+	}
+
+	if (!outstanding.empty()) {
+		std::string commit_hash = "unknown";
+		std::string hash_output = fs_utils::execute_command_sync("git rev-parse HEAD");
+		std::stringstream hash_ss(hash_output);
+		std::string first_line;
+		if (std::getline(hash_ss, first_line)) {
+			while (!first_line.empty() && (first_line.back() == '\r' || first_line.back() == '\n' || std::isspace(first_line.back()))) {
+				first_line.pop_back();
+			}
+			if (!first_line.empty() && !first_line.starts_with("Process exited with code")) {
+				commit_hash = first_line;
+			}
+		}
+
+		ret_msg += std::format("\n\n### Outstanding Code Review Items Reminder:\n"
+				       "There are outstanding code review items remaining in the project. If any of these items were addressed/fixed "
+				       "in this commit (hash: {}), please call the `resolve_code_review_item` tool to transition their state to \"resolved\".\n"
+				       "Active items:\n", commit_hash);
+		for (const auto &item : outstanding) {
+			ret_msg += std::format("- #{} ({}): {} [File: {}:{}]\n", item.id, item.state, item.summary, item.filename, item.line_number);
+		}
+	}
+
+	return ret_msg;
 }
 
 } // namespace tools

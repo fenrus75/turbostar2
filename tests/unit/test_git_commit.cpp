@@ -7,6 +7,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
+#include "../../src/codereview_manager.h"
 #include "git_test_helper.h"
 
 using namespace agentlib;
@@ -69,6 +70,45 @@ int main()
 		auto prep = registry.prepare_tool("git_commit", args.dump(), ctx);
 		assert(prep.tool == nullptr);
 		assert(!prep.error_message.empty());
+	}
+
+	// 5. Outstanding code reviews reminder in commit response
+	{
+		std::string test_dir = repo.get_path();
+		codereview_manager &manager = codereview_manager::get_instance();
+		manager.load_project(test_dir);
+		manager.clear_all();
+		
+		int item_id = manager.create_code_review_item("Fix null deref", "dummy_commit_test.txt", 10, "int* p = nullptr;", "high",
+							      "Null pointer dereference", "Check null");
+		assert(item_id >= 0);
+		
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "dummy_commit_test.txt";
+		write_file(dummy_file, "dummy content modified again");
+		fs_utils::execute_command_sync("git -C {} add dummy_commit_test.txt", test_dir);
+
+		nlohmann::json args = {{"message", "test: fix outstanding issue"}};
+		std::string result = registry.execute_tool("git_commit", args.dump(), ctx);
+		std::cout << "Result commit with outstanding items:\n" << result << std::endl;
+		
+		assert(result.find("Successfully created commit") != std::string::npos);
+		assert(result.find("Outstanding Code Review Items Reminder") != std::string::npos);
+		assert(result.find("Fix null deref") != std::string::npos);
+
+		// Get the actual commit hash in test repo to verify it is matched in the message
+		std::string expected_hash = fs_utils::execute_command_sync("git -C {} rev-parse HEAD", test_dir);
+		std::stringstream hash_ss(expected_hash);
+		std::string first_line;
+		if (std::getline(hash_ss, first_line)) {
+			while (!first_line.empty() && (first_line.back() == '\r' || first_line.back() == '\n' || std::isspace(first_line.back()))) {
+				first_line.pop_back();
+			}
+		}
+		assert(!first_line.empty());
+		assert(result.find(std::format("(hash: {})", first_line)) != std::string::npos);
+		
+		// Clean up codereview database
+		manager.clear_all();
 	}
 
 	std::cout << "git_commit tests passed successfully.\n";
