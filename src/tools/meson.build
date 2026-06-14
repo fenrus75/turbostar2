@@ -173,5 +173,7 @@ tools_sources = files(
   'elf_list_symbols/elf_list_symbols_security.cpp',
   'troff2md.cpp',
   'fs_man/fs_man_entry.cpp',
-  'fs_man/fs_man_security.cpp'
+  'fs_man/fs_man_security.cpp',
+  'create_code_review_item/create_code_review_item_entry.cpp',
+  'create_code_review_item/create_code_review_item_security.cpp'
 )

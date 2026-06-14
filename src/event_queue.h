@@ -81,7 +81,8 @@ enum class event_type {
 	copilot_connect,	    ///< Request to show Copilot connection dialog
 	terminate_run,		    ///< Request to terminate a run
 	agent_start_app,	    ///< Request to start app from agent
-	task_models_config	    ///< Request to show task-to-model mapping configuration dialog
+	task_models_config,	    ///< Request to show task-to-model mapping configuration dialog
+	codereview_updated	    ///< Notification that a code review item has been created or updated
 };
 
 namespace status_priorities

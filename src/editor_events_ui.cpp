@@ -20,6 +20,7 @@
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "codereview_manager.h"
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
@@ -484,6 +485,32 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
 				if (agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
+				}
+			}
+		}
+		return;
+	}
+
+	if (ev.type == event_type::codereview_updated) {
+		logger.log("Dispatching codereview_updated event for item ID {}", ev.key_code);
+		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
+		if (item_opt) {
+			std::string msg = std::format(
+			    "Notification: Code review item created/updated (ID: {}):\n"
+			    "- File: {}\n"
+			    "- Line: {}\n"
+			    "- Summary: {}\n"
+			    "- Severity: {}\n"
+			    "- Description: {}\n",
+			    item_opt->id, item_opt->filename, item_opt->line_number,
+			    item_opt->summary, item_opt->severity, item_opt->description
+			);
+			for (auto &win : windows_) {
+				if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
+					auto agent = agent_win->get_agent();
+					if (agent) {
+						agent->inject_context("user", msg, false);
+					}
 				}
 			}
 		}
