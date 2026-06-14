@@ -123,9 +123,11 @@ To handle large file lists efficiently:
 - The system enforces a guardrail limit (e.g., max 10 files or 1500 lines of code) per subagent. If the agent-suggested list exceeds this limit, the system automatically partitions the list into smaller runs.
 - Every subagent concurrently writes its findings to the project-level `review.json` database via `create_code_review_item`.
 
-# Other related ideas
+# Role-based Tool Filtering and Validation
+- The `tool_validator` / registry is extended to support role-based validation.
+- When a subagent is defined or spawned, it is assigned a specific role (e.g., `reviewer`, `verifier`, `developer`).
+- The registry automatically filters out tools that do not match the agent's role and programmatically rejects execution if a tool is called by an unauthorized role (e.g., `confirm_code_review_item` can only be invoked by `verifier`).
 
+# Other related ideas
 - scan meson.build for a set of known dependencies and provide specific github:// locations for these
-- read only agents likely should not even get to see tools they cannot use, we need a lot better tool filter capabilties based on roles
-- some tools may behave differently for different roles, example fs_read_lines may provide more extensive diagnostic information to a code review agent 
-  (like code complexity metrics)
+- some tools may behave differently for different roles, example fs_read_lines may provide more extensive diagnostic information to a code review agent (like code complexity metrics)
