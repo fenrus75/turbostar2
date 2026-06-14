@@ -29,6 +29,42 @@ int main()
 
 	assert(ready && "Project inventory failed to complete in time.");
 
-	std::cout << "Project layout test passed!" << std::endl;
+	// Check dependencies scanning
+	auto deps = pm.get_detected_dependencies();
+	auto urls = pm.get_github_vfs_urls();
+	auto knowledge_prompt = pm.get_project_knowledge_prompt();
+
+	std::cout << "Detected dependencies:" << std::endl;
+	for (const auto &dep : deps) {
+		std::cout << " - " << dep << std::endl;
+	}
+
+	std::cout << "GitHub VFS URLs:" << std::endl;
+	for (const auto &url : urls) {
+		std::cout << " - " << url << std::endl;
+	}
+
+	bool found_ncursesw = false;
+	for (const auto &dep : deps) {
+		if (dep == "ncursesw") {
+			found_ncursesw = true;
+			break;
+		}
+	}
+	assert(found_ncursesw && "Expected ncursesw dependency to be detected");
+
+	bool found_ncurses_url = false;
+	for (const auto &url : urls) {
+		if (url == "github://mirror/ncurses") {
+			found_ncurses_url = true;
+			break;
+		}
+	}
+	assert(found_ncurses_url && "Expected github://mirror/ncurses URL to be resolved");
+
+	assert(knowledge_prompt.find("Recognized Project Dependencies (VFS URLs):") != std::string::npos);
+	assert(knowledge_prompt.find("github://mirror/ncurses") != std::string::npos);
+
+	std::cout << "Project layout and dependency tests passed!" << std::endl;
 	return 0;
 }

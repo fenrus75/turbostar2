@@ -71,6 +71,16 @@ class project_manager
 	 */
 	std::string get_project_knowledge_prompt() const;
 
+	/**
+	 * @brief Returns the list of detected dependency names from meson.build.
+	 */
+	std::vector<std::string> get_detected_dependencies() const;
+
+	/**
+	 * @brief Returns the list of recognized dependency github:// VFS URLs.
+	 */
+	std::vector<std::string> get_github_vfs_urls() const;
+
 	// LSP delegation methods
 
 	void lsp_start(event_queue &queue);
@@ -127,6 +137,7 @@ class project_manager
 	~project_manager();
 
 	void load_instructions();
+	void scan_dependencies();
 	void inventory_project(std::stop_token stop);
 	void software_map_loop(std::stop_token stop);
 	void update_software_map_markdown();
@@ -181,6 +192,16 @@ class project_manager
 	 */
 	mutable std::shared_mutex software_map_markdown_mutex_;
 	std::string software_map_markdown_cache_;
+
+	/*
+	 * dependencies_mutex_ protects detected_dependencies_ and github_vfs_urls_.
+	 * Locking Rules:
+	 * - Held briefly when scanning meson.build during initialization or when querying dependencies or GitHub VFS URLs.
+	 * - Read and write access is synchronized using std::lock_guard.
+	 */
+	mutable std::mutex dependencies_mutex_;
+	std::vector<std::string> detected_dependencies_;
+	std::vector<std::string> github_vfs_urls_;
 
 	std::atomic<bool> is_exiting_{false};
 };

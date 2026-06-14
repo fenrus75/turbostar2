@@ -1,5 +1,6 @@
 #include "project_manager.h"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <format>
@@ -69,6 +70,7 @@ void project_manager::initialize()
 	lsp_manager_ = std::make_unique<lsp_manager>();
 
 	load_instructions();
+	scan_dependencies();
 
 	// Start the inventory thread with a 100ms delay
 	inventory_thread_ = std::jthread([this](std::stop_token stop) {
@@ -364,6 +366,17 @@ std::string project_manager::get_project_knowledge_prompt() const
 		std::string software_map = get_software_map_markdown();
 		if (!software_map.empty()) {
 			prompt += "\n" + software_map;
+		}
+	}
+
+	std::vector<std::string> dep_urls = get_github_vfs_urls();
+	if (!dep_urls.empty()) {
+		prompt += "\n\nRecognized Project Dependencies (VFS URLs):\n"
+			  "The current project has dependencies configured that are available via the Virtual Filesystem (VFS).\n"
+			  "You can use the `fs_read_lines`, `fs_list_dir`, and other `fs_*` tool calls to inspect the source code, "
+			  "headers, and any documentation for these dependencies at the following URLs:\n";
+		for (const auto &url : dep_urls) {
+			prompt += std::format("- {}\n", url);
 		}
 	}
 
@@ -1085,4 +1098,82 @@ std::vector<std::string> project_manager::detect_executable_candidates()
 	}
 
 	return candidates;
+}
+
+std::vector<std::string> project_manager::get_detected_dependencies() const
+{
+	std::lock_guard<std::mutex> lock(dependencies_mutex_);
+	return detected_dependencies_;
+}
+
+std::vector<std::string> project_manager::get_github_vfs_urls() const
+{
+	std::lock_guard<std::mutex> lock(dependencies_mutex_);
+	return github_vfs_urls_;
+}
+
+void project_manager::scan_dependencies()
+{
+	std::vector<std::string> deps;
+	std::vector<std::string> urls;
+
+	std::string proj_root = project_root_;
+	std::filesystem::path meson_path = std::filesystem::path(proj_root) / "meson.build";
+	if (std::filesystem::exists(meson_path)) {
+		std::ifstream file(meson_path);
+		if (file.is_open()) {
+			std::string line;
+			std::regex dep_regex(R"(dependency\s*\(\s*['"]([^'"]+)['"])",
+					     std::regex_constants::ECMAScript | std::regex_constants::icase);
+			std::smatch match;
+
+			while (std::getline(file, line)) {
+				// Strip comments
+				std::string trimmed = line;
+				trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+				if (trimmed.empty() || trimmed[0] == '#') {
+					continue;
+				}
+
+				if (std::regex_search(line, match, dep_regex)) {
+					if (match.size() > 1) {
+						std::string dep_name = match[1].str();
+						if (std::find(deps.begin(), deps.end(), dep_name) == deps.end()) {
+							deps.push_back(dep_name);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Lookup known dependencies to get github:// URLs
+	static const std::unordered_map<std::string, std::string> known_deps = {
+		{"ncursesw",      "github://mirror/ncurses"},
+		{"ncurses",       "github://mirror/ncurses"},
+		{"cpp-httplib",   "github://yhirose/cpp-httplib"},
+		{"re2",           "github://google/re2"},
+		{"sqlite3",       "github://sqlite/sqlite"},
+		{"nlohmann_json", "github://nlohmann/json"},
+		{"zydis",         "github://zyantific/zydis"}
+	};
+
+	for (const auto &dep_name : deps) {
+		std::string dep_lower = dep_name;
+		std::transform(dep_lower.begin(), dep_lower.end(), dep_lower.begin(),
+			       [](unsigned char c) { return std::tolower(c); });
+
+		auto it = known_deps.find(dep_lower);
+		if (it != known_deps.end()) {
+			if (std::find(urls.begin(), urls.end(), it->second) == urls.end()) {
+				urls.push_back(it->second);
+			}
+		}
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(dependencies_mutex_);
+		detected_dependencies_ = std::move(deps);
+		github_vfs_urls_ = std::move(urls);
+	}
 }
