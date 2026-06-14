@@ -1188,7 +1188,16 @@ void ai_agent::start_processing()
 
 		ctx.fs_security.set_working_directory(workspace_root);
 		ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
-		ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
+		{
+			std::string allowed_write = self->get_allowed_write_file();
+			if (!allowed_write.empty()) {
+				std::filesystem::path allowed_file = workspace_root / allowed_write;
+				ctx.fs_security.add_allowed_file(allowed_file, access_type::write);
+			}
+			if (self->get_role() == agent_role::developer) {
+				ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
+			}
+		}
 		ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
 		ctx.doc_provider = self->doc_provider_;
 		ctx.queue = self->global_queue_;
@@ -2963,6 +2972,18 @@ bool ai_agent::has_final_result() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
 	return !final_result_.empty();
+}
+
+std::string ai_agent::get_allowed_write_file() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return allowed_write_file_;
+}
+
+void ai_agent::set_allowed_write_file(const std::string &path)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	allowed_write_file_ = path;
 }
 
 } // namespace agentlib

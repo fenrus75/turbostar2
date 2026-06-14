@@ -1017,6 +1017,15 @@ test_get_code_review_item = executable('test_get_code_review_item',
   include_directories: inc)
 test('unit_get_code_review_item', test_get_code_review_item)
 
+test_perform_code_review = executable('test_perform_code_review',
+  ['tests/unit/test_perform_code_review.cpp',
+   'src/tools/perform_code_review/perform_code_review_entry.cpp',
+   'src/tools/perform_code_review/perform_code_review_security.cpp'],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_perform_code_review', test_perform_code_review)
+
+
 
 
 

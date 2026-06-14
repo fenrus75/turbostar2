@@ -8,8 +8,8 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include "ai_model.h"
 #include "agent_role.h"
+#include "ai_model.h"
 #include "document_provider.h"
 #include "interactions/interactions.h"
 #include "llm_client.h"
@@ -171,6 +171,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	{
 		role_ = r;
 	}
+
+	std::string get_allowed_write_file() const;
+	void set_allowed_write_file(const std::string &path);
 
 	bool is_mutation_possible() const;
 
@@ -366,6 +369,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};
 	agent_role role_{agent_role::developer};
+	std::string allowed_write_file_;
 };
 
 } // namespace agentlib
