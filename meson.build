@@ -1009,6 +1009,15 @@ test_list_code_review_items = executable('test_list_code_review_items',
   include_directories: inc)
 test('unit_list_code_review_items', test_list_code_review_items)
 
+test_get_code_review_item = executable('test_get_code_review_item',
+  ['tests/unit/test_get_code_review_item.cpp',
+   'src/tools/get_code_review_item/get_code_review_item_entry.cpp',
+   'src/tools/get_code_review_item/get_code_review_item_security.cpp'],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_get_code_review_item', test_get_code_review_item)
+
+
 
 
 
