@@ -237,7 +237,7 @@ std::vector<review_item> codereview_manager::list_code_review_items(const std::s
 				continue;
 			}
 		}
-		if (!filename_filter.empty() && item.filename != filename_filter) {
+		if (!filename_filter.empty() && !item.filename.starts_with(filename_filter)) {
 			continue;
 		}
 		if (!severity_filter.empty() && item.severity != severity_filter) {

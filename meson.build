@@ -1001,6 +1001,15 @@ test_resolve_code_review_item = executable('test_resolve_code_review_item',
   include_directories: inc)
 test('unit_resolve_code_review_item', test_resolve_code_review_item)
 
+test_list_code_review_items = executable('test_list_code_review_items',
+  ['tests/unit/test_list_code_review_items.cpp',
+   'src/tools/list_code_review_items/list_code_review_items_entry.cpp',
+   'src/tools/list_code_review_items/list_code_review_items_security.cpp'],
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_list_code_review_items', test_list_code_review_items)
+
+
 
 
 # E2E tests (run via python)
