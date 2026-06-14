@@ -227,8 +227,9 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		std::string system_prompt =
 		    std::format("You are a code review agent. Your task is to perform a detailed code review based on the user request. Do not "
 				"attempt to modify any source files to apply fixes; your execution context is read-only.\n"
-				"Use the `create_code_review_item` tool to report each issue you find, including a clear description and a "
-				"proposed solution.\n\n"
+				"CRITICAL REQUIREMENT: For EVERY issue, bug, or improvement you identify, you MUST first call the `create_code_review_item` "
+				"tool to record the finding in the database BEFORE reporting your final summary. Do NOT bypass the "
+				"`create_code_review_item` tool to report findings only in the final text response.\n\n"
 				"### Files under review:\n{}"
 				"\n"
 				"### Previous Code Reviews:\n{}"
@@ -236,7 +237,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 				"### assigned Tasks:\n"
 				"{}\n\n"
 				"### Final Output Guidelines:\n"
-				"When you have finished reviewing the files and creating/updating the code review items:\n"
+				"Once and only once you have created/updated all code review items for all identified issues using the tools:\n"
 				"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
 				"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
 				files_list_str, reviews_section, todos_section, args_.result_file);
