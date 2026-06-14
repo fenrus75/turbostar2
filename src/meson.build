@@ -13,6 +13,7 @@ core_sources = files(
   'document_highlight.cpp',
   'fs_utils.cpp',
   'config_manager.cpp',
+  'codereview_manager.cpp',
   'git_manager.cpp',
   'lsp_manager.cpp',
   'project_manager.cpp',

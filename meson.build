@@ -963,6 +963,12 @@ test_tool_status = executable('test_tool_status',
   include_directories: inc)
 test('unit_tool_status', test_tool_status)
 
+test_codereview_manager = executable('test_codereview_manager',
+  'tests/unit/test_codereview_manager.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_codereview_manager', test_codereview_manager)
+
 
 # E2E tests (run via python)
 uv = find_program('uv', required: false)
