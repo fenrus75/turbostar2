@@ -92,7 +92,10 @@ Goals:
 - verify if reviews created by agent 1 are actually correct (transitioning from `new` to `confirmed` or `disputed`)
 - verify if resolved issues are indeed fixed and mark them as `verified-fixed` (transitioning from `resolved` to `verified-fixed`)
 
-Always runs async, and can use a lower cost model (say claude haiku) 
+Execution & Context:
+- Spawns automatically and asynchronously once Agent 1 completes.
+- Supplied with the reported code review findings, current target file contents, and the workspace git diff (when verifying resolved fixes).
+- Can use a lower cost model (say claude haiku).
 
 # Editor interaction
 
