@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- need to update README.md for libmagic-dev as new dependency
-
 - make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
 
 - we need top rejigger how we have a model list -- we need to separate "servers" from "models" -- API keys are for a server,
@@ -185,6 +183,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 15-06-2026
+- updated README.md for libmagic-dev as new dependency.
 
 ## 14-06-2026
 - clarified code review system prompts: updated main agent system prompt to strongly direct perform_code_review usage and resolved tasks/todos schema naming mismatch; updated code reviewer subagent system prompt with a critical directive to use create_code_review_item tool calls to file findings before final summary reporting.
