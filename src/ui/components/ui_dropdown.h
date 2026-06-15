@@ -10,6 +10,8 @@ class ui_dropdown : public ui_element
       public:
 	ui_dropdown(std::string name, int x, int y, int width, const std::string &initial_text, const std::vector<std::string> &candidates,
 		    std::function<void(const std::string &)> on_change = nullptr);
+	ui_dropdown(std::string name, int width, const std::string &initial_text, const std::vector<std::string> &candidates,
+		    std::function<void(const std::string &)> on_change = nullptr);
 
 	void draw(int abs_x, int abs_y) const override;
 	bool is_focusable() const override { return true; }

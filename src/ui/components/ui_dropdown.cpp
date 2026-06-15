@@ -16,6 +16,19 @@ ui_dropdown::ui_dropdown(std::string name, int x, int y, int width, const std::s
 	}
 }
 
+ui_dropdown::ui_dropdown(std::string name, int width, const std::string &initial_text,
+			 const std::vector<std::string> &candidates, std::function<void(const std::string &)> on_change)
+    : ui_element(std::move(name), 0, 0, width, 1), buffer_(initial_text), cursor_pos_(initial_text.length()), candidates_(candidates),
+      on_change_(std::move(on_change))
+{
+	for (size_t i = 0; i < candidates_.size(); ++i) {
+		if (candidates_[i] == buffer_) {
+			selected_candidate_index_ = static_cast<int>(i);
+			break;
+		}
+	}
+}
+
 void ui_dropdown::set_candidates(const std::vector<std::string> &candidates)
 {
 	candidates_ = candidates;

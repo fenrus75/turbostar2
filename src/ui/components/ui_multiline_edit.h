@@ -13,6 +13,8 @@ public:
 
     void draw(int abs_x, int abs_y) const override;
     bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
+    std::optional<std::string> get_value(const std::string &target_name) const override;
+    bool is_focusable() const override { return true; }
 
     void set_buffer(const std::string& text);
     std::string get_buffer() const { return buffer_; }

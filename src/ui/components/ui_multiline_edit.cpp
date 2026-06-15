@@ -510,3 +510,11 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 	}
 	return handled;
 }
+
+std::optional<std::string> ui_multiline_edit::get_value(const std::string &target_name) const
+{
+	if (name_ == target_name) {
+		return buffer_;
+	}
+	return std::nullopt;
+}
