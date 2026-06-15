@@ -8,6 +8,7 @@
 #include "event_queue.h"
 #include "fs_utils.h"
 #include "ui/code_review_window.h"
+#include "ui/dialog_factories.h"
 
 void test_code_review_window_behavior()
 {
@@ -280,6 +281,34 @@ void test_code_review_window_behavior()
 		// Call draw_content to verify that the code review window handles and formats the sanitization
 		// of line content containing newlines and carriage returns without any issues.
 		win.draw_content(false);
+	}
+
+	// Test 15: Unified Edit Dialog creation and value retrieval
+	{
+		auto item_opt = manager.get_code_review_item(id1);
+		assert(item_opt.has_value());
+		auto edit_dlg = create_code_review_edit_dialog(*item_opt);
+		assert(edit_dlg != nullptr);
+
+		auto summary_val = edit_dlg->get_value("summary");
+		assert(summary_val.has_value());
+		assert(*summary_val == "Fix safety issue");
+
+		auto desc_val = edit_dlg->get_value("description");
+		assert(desc_val.has_value());
+		assert(*desc_val == "Safety concern");
+
+		auto fix_val = edit_dlg->get_value("proposed_fix");
+		assert(fix_val.has_value());
+		assert(*fix_val == "Fix it");
+
+		auto severity_val = edit_dlg->get_value("severity");
+		assert(severity_val.has_value());
+		assert(*severity_val == "high");
+
+		auto state_val = edit_dlg->get_value("state");
+		assert(state_val.has_value());
+		assert(*state_val == "new");
 	}
 
 	// Clean up

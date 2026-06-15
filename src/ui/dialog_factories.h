@@ -34,3 +34,6 @@ std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename)
 std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection = 0);
 std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, int initial_selection = 0);
 std::unique_ptr<dialog> create_copilot_connect_dialog();
+
+struct review_item;
+std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item);

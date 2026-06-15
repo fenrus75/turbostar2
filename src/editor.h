@@ -182,14 +182,12 @@ class editor : public agentlib::document_provider
 		write_block,
 		copilot_connect,
 		task_models,
-		codereview_select_field,
 		codereview_edit_field,
 		codereview_add_comment,
 		codereview_select_state,
 		codereview_select_severity
 	};
 	int codereview_edit_item_id_{-1};
-	std::string codereview_edit_field_name_;
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;

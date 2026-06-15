@@ -442,9 +442,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				active_dialog_ = create_input_dialog("Add Comment", "Enter your comment text:", "");
 				active_dialog_mode_ = dialog_mode::codereview_add_comment;
 			} else if (ev.payload == "edit") {
-				std::vector<std::string> fields = {"Summary", "Description", "Proposed Fix"};
-				active_dialog_ = create_ask_user_dialog("Edit Field", fields);
-				active_dialog_mode_ = dialog_mode::codereview_select_field;
+				active_dialog_ = create_code_review_edit_dialog(*item_opt);
+				active_dialog_mode_ = dialog_mode::codereview_edit_field;
 			} else if (ev.payload == "reprocess") {
 				auto item = *item_opt;
 				std::shared_ptr<agentlib::ai_agent> main_agent = nullptr;

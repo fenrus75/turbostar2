@@ -1,4 +1,5 @@
 #include "ui/dialog_factories.h"
+#include "codereview_manager.h"
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -1795,4 +1796,64 @@ void apply_task_models_from_dialog(const dialog &dlg)
 			cfg.set_task_model_id(id, *model_val);
 		}
 	}
+}
+
+std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item)
+{
+	// Width 68, Height 24 to comfortably fit labels, textboxes, multiline inputs and buttons
+	auto dlg = std::make_unique<dialog>("Edit Code Review Item", 68, 24);
+
+	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1, 2, 1, 1);
+
+	flow->add_child(std::make_unique<ui_text_label>("Summary:"));
+	auto summary_box = std::make_unique<ui_textbox>("summary", 60, item.summary);
+	flow->add_child(std::move(summary_box));
+
+	flow->add_child(std::make_unique<ui_text_label>("Description:"));
+	auto desc_box = std::make_unique<ui_multiline_edit>("description", 60, 4, nullptr);
+	desc_box->set_buffer(item.description);
+	flow->add_child(std::move(desc_box));
+
+	flow->add_child(std::make_unique<ui_text_label>("Proposed Fix:"));
+	auto fix_box = std::make_unique<ui_multiline_edit>("proposed_fix", 60, 4, nullptr);
+	fix_box->set_buffer(item.proposed_fix);
+	flow->add_child(std::move(fix_box));
+
+	// Dropdowns for Severity and State in a single row
+	auto dropdowns_row = std::make_unique<ui_horizontal_flow>("dropdowns_row", 0, 0);
+	dropdowns_row->add_child(std::make_unique<ui_text_label>("Severity: "));
+	std::vector<std::string> severities = {"nit", "low", "medium", "high", "critical"};
+	dropdowns_row->add_child(std::make_unique<ui_dropdown>("severity", 12, item.severity, severities));
+
+	dropdowns_row->add_child(std::make_unique<ui_text_label>("  State: "));
+	std::vector<std::string> states = {"invalid", "new", "confirmed", "disputed", "stale", "resolved", "verified-fixed"};
+	dropdowns_row->add_child(std::make_unique<ui_dropdown>("state", 18, item.state, states));
+	flow->add_child(std::move(dropdowns_row));
+
+	// Action buttons
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>(
+		"btn_cancel", "Cancel", 'C',
+		[d = dlg.get()]() {
+			d->set_action(dialog_result::cancelled);
+			d->set_result("cancel");
+		},
+		true));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("summary");
+
+	return dlg;
 }

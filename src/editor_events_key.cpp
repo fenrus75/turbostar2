@@ -121,36 +121,22 @@ void editor::resolve_dialog(dialog_result res)
 					}
 				}
 			}
-		} else if (active_dialog_mode_ == dialog_mode::codereview_select_field) {
-			std::string val = active_dialog_->get_result();
-			if (val == "Summary" || val == "Description" || val == "Proposed Fix") {
-				codereview_edit_field_name_ = val;
-				int id = codereview_edit_item_id_;
-				auto item_opt = codereview_manager::get_instance().get_code_review_item(id);
-				if (item_opt) {
-					std::string initial_val = "";
-					if (val == "Summary") initial_val = item_opt->summary;
-					else if (val == "Description") initial_val = item_opt->description;
-					else if (val == "Proposed Fix") initial_val = item_opt->proposed_fix;
-
-					active_dialog_ = create_input_dialog("Edit " + val, "Enter new text:", initial_val);
-					active_dialog_mode_ = dialog_mode::codereview_edit_field;
-					needs_full_redraw_ = true;
-					return;
-				}
-			}
 		} else if (active_dialog_mode_ == dialog_mode::codereview_edit_field) {
-			std::string val = active_dialog_->get_result();
 			int id = codereview_edit_item_id_;
-			std::string field = codereview_edit_field_name_;
-			bool success = false;
-			if (field == "Summary") {
-				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, std::nullopt, std::nullopt, val);
-			} else if (field == "Description") {
-				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, val, std::nullopt);
-			} else if (field == "Proposed Fix") {
-				success = codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, std::nullopt, val);
-			}
+			auto summary_opt = active_dialog_->get_value("summary");
+			auto desc_opt = active_dialog_->get_value("description");
+			auto fix_opt = active_dialog_->get_value("proposed_fix");
+			auto severity_opt = active_dialog_->get_value("severity");
+			auto state_opt = active_dialog_->get_value("state");
+
+			bool success = codereview_manager::get_instance().update_code_review_item(
+				id,
+				state_opt,
+				severity_opt,
+				desc_opt,
+				fix_opt,
+				summary_opt
+			);
 			if (success) {
 				codereview_manager::get_instance().save_project();
 				editor_event update_ev;
