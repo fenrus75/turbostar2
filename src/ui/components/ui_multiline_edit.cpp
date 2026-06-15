@@ -209,7 +209,7 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 	int start_x = abs_x;
 
 	// Clear area
-	attrset(COLOR_PAIR(1));
+	attrset(COLOR_PAIR(5));
 	for (int i = 0; i < height_; ++i) {
 		move(start_y + i, start_x);
 		for (int j = 0; j < width_; ++j) {
@@ -230,7 +230,7 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 		const auto &vl = visual_lines_[vl_idx];
 		move(start_y + row, start_x);
 
-		attrset(COLOR_PAIR(1));
+		attrset(COLOR_PAIR(5));
 		if (!vl.is_continuation) {
 			addstr("> ");
 		} else {
@@ -259,7 +259,7 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 			if (is_selected) {
 				attrset(COLOR_PAIR(8)); // White on Cyan
 			} else {
-				attrset(COLOR_PAIR(1));
+				attrset(COLOR_PAIR(5));
 			}
 
 			addch(c);
