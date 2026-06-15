@@ -1,5 +1,77 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- need to update README.md for libmagic-dev as new dependency
+
+- make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
+
+- we need top rejigger how we have a model list -- we need to separate "servers" from "models" -- API keys are for a server,
+  models get served by servers. We can have auto-discovery for models once we have a server and do a lot better in terms
+  of usability -- needs a bit of brainstorm but good impact
+	- servers, not models, have API keys and API types and billing types
+	- models have capabilities (vision, etc)
+	- likely need a <server>:<model> tupple for indentification
+
+	- separate model name database of famous models for default properties
+		should investigate the compile time json-to-struct stuff
+
+
+- agent "command center" view
+	- tiles for agents in fun colors with their name, some art logo for known agent types
+	  their state, progress, context size, tokens used, summary of the task they're doing etc
+
+- have a separate model option for "plan mode" phase.
+
+- fs_read_lines -- we should be better predictive and sometimes give MORE context than asked for if we think the agent will ask
+  for more anyway
+	- we should perhaps report total line count as a help to the agent
+	- potentially a self-training DNN to predict if more will be asked?
+		- semantic relevance? do whole functions? 
+	- we could do everything in blocks of 50 lines and hand out whole blocks of 50
+	- if we're close to the end of the file (< 50 lines) just go to the end
+
+- code review enhancements
+	- we can provide upfront a set of static analysis data to the code review agent
+		- known compile / LCP warnings
+		- cyclic complexity scores?
+		- cpplint or other similar tools
+		- -fanalyzer output ? should maybe add to fs_compile_file when in code review agent
+		- for python we have our security analyzer -- we should run this when reviewing python files
+		- if we had backtraces/crashes that involve this file we should include them in context or at least reference them with the toolcall to get the details
+
+
+- usability: the "edit review item" dialog is seriously terrible - it is buttons to single-line-edit follow on dialogs rather than just having the line be editable right there
+
+- the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
+
+
+- skills that plug into specific subagent types only
+
+
+- meta feature: helper agents
+	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
+		- we started this with code review kind of
+
+	- image processing
+		- file format conversion
+		- cut out parts of image into new image
+		- to grayscale conversion
+		- basic filters? gimplib?
+		- USB camera access
+		
+
+	- file format conversion
+		- PDF to XYZ
+		- OCR
+
+	- english grammer/spelling/clarity
+
+	- markdown toolbox
+
+	- performance
+
+	- homeassistent / home automation 
+
+
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
 - since we have github:// and skills://
@@ -13,6 +85,8 @@
 - feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
 	- alternative: a convert_file_format() tool call
 	- need to do pro/con between these options
+
+- SSH forwarded X11 sessions do not work well in our sandbox
 
 - bug: valgrind does not work in our sandbox
 
@@ -39,6 +113,9 @@
 
 
 # mid term items
+
+- "agent first editor second" mode? Decide what this would be like
+
 
 - find a security scan tool for javascript/nodejs
 

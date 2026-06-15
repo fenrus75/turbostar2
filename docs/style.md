@@ -46,7 +46,8 @@ default:
 ```
 
 ### 1.4 ternary operators
-Do not use ternary operators, use discrete if statements always.
+Do not use ternary operators, use discrete if statements always. Use of std::min or std::max or std::clamp is often a good replacement.
+
 Exception: in C++ style << statements ternary operators are ok as otherwise
 it may get unwieldy
 
@@ -54,6 +55,7 @@ Example of the exception (allowed case):
 ```c++
 cout << (auto_open_error_files_ ? "true" : "false") << "\n";
 ```
+
 
 ## 2. Naming Conventions
 
@@ -118,6 +120,9 @@ cout << (auto_open_error_files_ ? "true" : "false") << "\n";
 *   Order: Standard library headers first, followed by project-specific headers.
 *   Project headers should be included using quotes (e.g., `#include "lib.h"`).
 
+### 4.5 const / constexpr
+*   Use const for method and function arguments and local variables whenever possible
+*   Use constexpr everywhere where it is appropriate (in favor of const)
 
 # C++ STL 
 
