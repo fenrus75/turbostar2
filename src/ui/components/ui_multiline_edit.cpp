@@ -275,13 +275,14 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 	}
 }
 
-bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int /*abs_y*/)
+bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
 	std::string orig_buffer = buffer_;
 	bool handled = false;
 
 	if (ev.type == event_type::key_press) {
-		int key = ev.key_code;
+		if (has_focus_) {
+			int key = ev.key_code;
 
 		if (key == 11) { // Ctrl-K
 			k_block_mode_ = true;
@@ -473,13 +474,22 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 					handled = true;
 				}
 			} else if (key == '\n' || key == '\r' || key == KEY_ENTER) {
-				if (on_submit_ && !buffer_.empty()) {
-					selection_start_ = -1;
-					selection_end_ = -1;
-					selection_is_persistent_ = false;
-					on_submit_(buffer_);
-					buffer_.clear();
-					cursor_pos_ = 0;
+				if (on_submit_) {
+					if (!buffer_.empty()) {
+						selection_start_ = -1;
+						selection_end_ = -1;
+						selection_is_persistent_ = false;
+						on_submit_(buffer_);
+						buffer_.clear();
+						cursor_pos_ = 0;
+						update_scroll();
+					}
+				} else {
+					if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
+						delete_selection();
+					}
+					buffer_.insert(cursor_pos_, 1, '\n');
+					cursor_pos_++;
 					update_scroll();
 				}
 				handled = true;
@@ -493,6 +503,7 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 				handled = true;
 			}
 		}
+		}
 	} else if (ev.type == event_type::paste) {
 		if (has_focus_) {
 			if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
@@ -500,6 +511,18 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int /*abs_x*/, int 
 			}
 			buffer_.insert(cursor_pos_, ev.payload);
 			cursor_pos_ += ev.payload.length();
+			update_scroll();
+			handled = true;
+		}
+	} else if (ev.type == event_type::mouse_click) {
+		if (contains_coordinate(ev.mouse_x, ev.mouse_y, abs_x, abs_y)) {
+			int click_row = ev.mouse_y - abs_y;
+			int click_col = ev.mouse_x - (abs_x + 2);
+			if (click_col < 0) {
+				click_col = 0;
+			}
+			int vl_idx = scroll_offset_ + click_row;
+			cursor_pos_ = coord_to_pos(vl_idx, click_col);
 			update_scroll();
 			handled = true;
 		}

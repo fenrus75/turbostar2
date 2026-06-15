@@ -296,11 +296,11 @@ void test_code_review_window_behavior()
 
 		auto desc_val = edit_dlg->get_value("description");
 		assert(desc_val.has_value());
-		assert(*desc_val == "Safety concern");
+		assert(*desc_val == "Vulnerability in logic");
 
 		auto fix_val = edit_dlg->get_value("proposed_fix");
 		assert(fix_val.has_value());
-		assert(*fix_val == "Fix it");
+		assert(*fix_val == "Add boundary check");
 
 		auto severity_val = edit_dlg->get_value("severity");
 		assert(severity_val.has_value());
