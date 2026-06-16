@@ -15,9 +15,9 @@ namespace agentlib
 {
 
 ai_model::ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx,
-		   std::string api_key, api_type type, int max_context_tokens, model_cost_type cost_type, std::string server_id)
+		   std::string api_key, api_type type, int max_context_tokens, model_cost_type cost_type, std::string server_id, bool from_download)
     : id_(std::move(id)), name_(std::move(name)), purpose_(std::move(purpose)), cost_per_1m_tx_(cost_per_1m_tx),
-      cost_per_1m_rx_(cost_per_1m_rx), max_context_tokens_(max_context_tokens), cost_type_(cost_type)
+      cost_per_1m_rx_(cost_per_1m_rx), max_context_tokens_(max_context_tokens), cost_type_(cost_type), from_download_(from_download)
 {
 	if (server_id.empty()) {
 		if (!url.empty()) {
@@ -228,10 +228,11 @@ void ai_model_registry::load_models()
 				} else if (cost_type_str == "paid_per_request") {
 					cost_type = model_cost_type::paid_per_request;
 				}
+				bool from_download = item.value("from_download", false);
 
 				if (!id.empty()) {
 					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
-										  max_tokens, cost_type, server_id));
+										  max_tokens, cost_type, server_id, from_download));
 				}
 			}
 		}
@@ -268,6 +269,7 @@ void ai_model_registry::save_models() const
 		else if (model->get_cost_type() == model_cost_type::paid_per_request)
 			cost_type_str = "paid_per_request";
 		item["cost_type"] = cost_type_str;
+		item["from_download"] = model->get_from_download();
 
 		data.push_back(item);
 	}

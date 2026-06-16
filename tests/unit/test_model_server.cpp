@@ -64,6 +64,10 @@ int main()
 	assert(test_model->get_url() == "https://api.openai.com/v1");
 	assert(test_model->get_api_key() == "key123");
 	assert(test_model->get_api_type() == api_type::openai);
+	assert(test_model->get_from_download() == false);
+
+	auto test_downloaded_model = std::make_shared<ai_model>("test_downloaded_id", "Downloaded Model", "url", "purpose", 0.0, 0.0, "", api_type::openai, 250000, model_cost_type::paid_per_token, "openai_test", true);
+	assert(test_downloaded_model->get_from_download() == true);
 
 	// Test fallback server auto-generation
 	auto fallback_model = std::make_shared<ai_model>("test_fallback_model", "Fallback Model", "https://fallback.api/v1", "purpose", 0.0, 0.0, "keyfallback", api_type::gemini);
@@ -74,23 +78,33 @@ int main()
 	assert(fallback_server->get_api_key() == "keyfallback");
 	assert(fallback_server->get_api_type() == api_type::gemini);
 	assert(fallback_model->get_url() == "https://fallback.api/v1");
+	assert(fallback_model->get_from_download() == false);
 
 	model_reg.register_model(test_model);
+	model_reg.register_model(test_downloaded_model);
 	model_reg.register_model(fallback_model);
 	model_reg.save_models();
 
 	model_reg.remove_model("test_model_id");
+	model_reg.remove_model("test_downloaded_id");
 	model_reg.remove_model("test_fallback_model");
 	assert(model_reg.get_model("test_model_id") == nullptr);
+	assert(model_reg.get_model("test_downloaded_id") == nullptr);
 
 	model_reg.load_models();
 	auto reloaded_model = model_reg.get_model("test_model_id");
 	assert(reloaded_model != nullptr);
 	assert(reloaded_model->get_server_id() == "openai_test");
 	assert(reloaded_model->get_url() == "https://api.openai.com/v1");
+	assert(reloaded_model->get_from_download() == false);
+
+	auto reloaded_downloaded = model_reg.get_model("test_downloaded_id");
+	assert(reloaded_downloaded != nullptr);
+	assert(reloaded_downloaded->get_from_download() == true);
 
 	// Clean up model
 	model_reg.remove_model("test_model_id");
+	model_reg.remove_model("test_downloaded_id");
 	model_reg.remove_model("test_fallback_model");
 	model_reg.save_models();
 

@@ -408,7 +408,7 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 					int max_tokens = item.value("inputTokenLimit", 1000000);
 
 					result.push_back(std::make_shared<ai_model>(clean_id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::gemini,
-										    max_tokens, model_cost_type::free_local, server_id));
+										    max_tokens, model_cost_type::free_local, server_id, true));
 				}
 			}
 		} else {
@@ -424,7 +424,7 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 					std::string purpose = std::format("Imported from {}", server_url);
 
 					result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
-										    250000, model_cost_type::free_local, server_id));
+										    250000, model_cost_type::free_local, server_id, true));
 				}
 			}
 		}

@@ -18,7 +18,7 @@ class ai_model
       public:
 	ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx,
 		 std::string api_key = "", api_type type = api_type::openai, int max_context_tokens = 250000,
-		 model_cost_type cost_type = model_cost_type::paid_per_token, std::string server_id = "");
+		 model_cost_type cost_type = model_cost_type::paid_per_token, std::string server_id = "", bool from_download = false);
 
 	std::string get_id() const
 	{
@@ -85,6 +85,14 @@ class ai_model
 	{
 		server_id_ = std::move(server_id);
 	}
+	bool get_from_download() const
+	{
+		return from_download_;
+	}
+	void set_from_download(bool from_download)
+	{
+		from_download_ = from_download;
+	}
 
 	int get_global_tokens_tx() const
 	{
@@ -111,6 +119,7 @@ class ai_model
 	int max_context_tokens_;
 	model_cost_type cost_type_;
 	std::string server_id_;
+	bool from_download_;
 
 	std::atomic<int> global_tokens_tx_{0};
 	std::atomic<int> global_tokens_rx_{0};
