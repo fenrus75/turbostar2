@@ -1,13 +1,71 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- fallout from server/model split
+	- we need a default 'none' server (implied) for models that makes them not work but keeps the invariants intact
+		- this is better than auto-injecting fake servers as we do now
+	- models should get an "auto" flag that is set if it comes from auto discovery (vs manual user add)
+	- delete server -> should delete all models that use that server. Q: only "auto" or all? A: initially only auto
+	- "get models" -> if the API call succeeds, should delete all "auto" models before adding back the new ones
+		- we should remember the name of the default model and if it comes back, make that model the default
+
+	- models should get a set of bool properties for supported uses (show, not edit for now - needs to come from some DB or from the response)
+		- vision/image
+		- video
+		- audio
+		- coding
+		- ...
+
+		
+ 
+
+
 - make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
+   class levels needed:
+	- "conversation" 
+		- has a current active "model" as a property
+		- has a vector of episodes and the current episode 
+	- "episode"
+		- mostly a vector of turns and a bunch of metadata
+	- "turn" (agent, user, system, tool call, tool response, ...)
+		this allows us to make smarter collapsing/context compressing options
+	- "transport"    <-- comes from model
+
+    - constraints:
+	- should be able to switch models (and thus transports) in the middle of a conversation, say for plan mode
+
+    - A model takes a "new turn" (user input), uses its transport to send it, and receive responses and injects turns into the episode
+    - We need a "new world view" parameter which the transport will get, and can use to re-seed the world
+	- gets set on rewriting past history, compaction and model changes
+
+
+- we need a ui_grid container type that auto-sizes cells with the aim of uniform sizes
+	- question: is this one type, or a few different subtypes? A: start with a simple basic type
+		- advanced features then can be considered to become a subclass 
+	- but with fallback if it does not fit
+	- needs option to have both horizontal and vertical scroll bars
+	- start all at min size, and grow equally until uniform, starting with the smallest cells
+	- option to keep horiz == vert as goal, vs decoupled -- this could drive subclasses?
+	- option to not know the width or height in cells and try placement options based on available size
+	
+
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
-- agent "command center" view
+
+- separate model provider (server) database for easy population of model servers
+	- need a smart combo box or radio box for "from database" vs "custom"
+
+
+- mega feature: agent "command center" view
 	- tiles for agents in fun colors with their name, some art logo for known agent types
 	  their state, progress, context size, tokens used, summary of the task they're doing etc
 
-- have a separate model option for "plan mode" phase.
+- have a separate model option for "plan mode" phase -- needs agentlib refactor first
+
+- similar to "run with gdb" we should have a "run with perf record" so that the agent can natively do performance analysis/get perf data
+	- need to check the sysfs to see if this is available, if not just hide it entirely
+	- perf stat summary?
+	- hot functions
+	- fs_read_lines option to get per line perf data?
 
 - fs_read_lines -- we should be better predictive and sometimes give MORE context than asked for if we think the agent will ask
   for more anyway
@@ -30,19 +88,26 @@
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
 
-- skills that plug into specific subagent types only
 
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
-
+	- should be plugins (.so files) that we dlopen if we do this right
+		- need to sort a "make install" path that we pass in -- we want that already really for our libturbocatch.so so this is techdebt
+	- should be able to suggest model names/capabilities to be run in -- say a vision model for image processing tasks
+	- should be able to register /slash commands
+	- skills that plug into specific subagent types only
+	- should have prefered color set + logo for the grid view
+	
 	- image processing
 		- file format conversion
-		- cut out parts of image into new image
+		- cut out parts of image into new image (crop)
+		- rescale image
 		- to grayscale conversion
 		- basic filters? gimplib?
 		- USB camera access
+		- opencv segmentation/yolo/etc done local
 		
 
 	- file format conversion
@@ -56,6 +121,12 @@
 	- performance
 
 	- homeassistent / home automation 
+
+	- code review
+
+	- security review
+		- plug in static local scanners
+
 
 
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
