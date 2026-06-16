@@ -1,6 +1,7 @@
 #include "crashdump_window.h"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <filesystem>
 #include <ncurses.h>
 #include "project_manager.h"

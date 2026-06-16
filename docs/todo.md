@@ -3,11 +3,6 @@
 - fallout from server/model split
 	- we need a default 'none' server (implied) for models that makes them not work but keeps the invariants intact
 		- this is better than auto-injecting fake servers as we do now
-	- [x] models should get an "from_download" flag that is set if it comes from auto discovery (vs manual user add)
-	- delete server -> should delete all models that use that server. Q: only "from_download" or all? A: initially only from_download
-	- "get models" -> if the API call succeeds, should delete all "from_download" models before adding back the new ones
-		- we should remember the name of the default model and if it comes back, make that model the default
-
 	- models should get a set of bool properties for supported uses (show, not edit for now - needs to come from some DB or from the network response)
 		- vision/image
 		- video
@@ -245,6 +240,12 @@
     - ...
 
 # done items (move items here on completion)
+
+## 16-06-2026
+- implemented cascading delete of from_download models on model server deletion.
+- implemented model database refresh query clearing of from_download models before registering newly fetched ones, while preserving active default model choice by matching name/ID.
+- implemented server ID rename propagation cascading to mapped models.
+- introduced a persistent "from_download" boolean flag for models to distinguish auto-discovered models from manual user additions.
 
 ## 15-06-2026
 - completed model/server separation: moved API credentials, endpoint URLs, and protocol formats from individual models to parent servers (serialized to `servers.json` and `models.json`).

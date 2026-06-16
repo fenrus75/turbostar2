@@ -1993,6 +1993,14 @@ void apply_model_server_edit_from_dialog(const dialog &dlg, const std::string &o
 
 	if (!original_id.empty() && original_id != *id_opt) {
 		registry.remove_server(original_id);
+		// Update models server_id
+		auto &model_reg = agentlib::ai_model_registry::get_instance();
+		for (auto &model : model_reg.get_all_models()) {
+			if (model->get_server_id() == original_id) {
+				model->set_server_id(*id_opt);
+			}
+		}
+		model_reg.save_models();
 	}
 
 	auto server = std::make_shared<agentlib::model_server>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",

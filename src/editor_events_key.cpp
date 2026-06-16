@@ -280,6 +280,20 @@ void editor::resolve_dialog(dialog_result res)
 				std::string id = res_str.substr(7);
 				agentlib::model_server_registry::get_instance().remove_server(id);
 				agentlib::model_server_registry::get_instance().save_servers();
+
+				// Delete associated from_download models
+				auto &model_reg = agentlib::ai_model_registry::get_instance();
+				std::vector<std::string> to_remove;
+				for (const auto &model : model_reg.get_all_models()) {
+					if (model->get_server_id() == id && model->get_from_download()) {
+						to_remove.push_back(model->get_id());
+					}
+				}
+				for (const auto &mid : to_remove) {
+					model_reg.remove_model(mid);
+				}
+				model_reg.save_models();
+
 				active_dialog_ = create_model_server_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_server_list;
 				set_focus(focus_target::dialog, "server_list");
@@ -292,10 +306,41 @@ void editor::resolve_dialog(dialog_result res)
 					auto imported_models = agentlib::fetch_models_from_server(server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
 					if (!imported_models.empty()) {
 						auto &registry = agentlib::ai_model_registry::get_instance();
+
+						// Remember the default model ID and name
+						std::string old_default_id = config_manager::get_instance().get_default_model_id();
+						std::string old_default_name;
+						auto old_default_model = registry.get_model(old_default_id);
+						if (old_default_model) {
+							old_default_name = old_default_model->get_name();
+						}
+
+						// Delete all from_download models for this server
+						std::vector<std::string> to_remove;
+						for (const auto &model : registry.get_all_models()) {
+							if (model->get_server_id() == id && model->get_from_download()) {
+								to_remove.push_back(model->get_id());
+							}
+						}
+						for (const auto &mid : to_remove) {
+							registry.remove_model(mid);
+						}
+
+						// Register new models and check if we should restore the default model
+						bool restored_default = false;
 						for (const auto &model : imported_models) {
 							registry.register_model(model);
+							if (!old_default_id.empty() && 
+							    (model->get_id() == old_default_id || 
+							     (!old_default_name.empty() && model->get_name() == old_default_name))) {
+								config_manager::get_instance().set_default_model_id(model->get_id());
+								restored_default = true;
+							}
 						}
 						registry.save_models();
+						if (restored_default) {
+							config_manager::get_instance().save_global();
+						}
 
 						active_dialog_ = create_message_dialog("Query Successful", std::vector<std::string>{std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()});
 						active_dialog_mode_ = dialog_mode::model_server_list;
