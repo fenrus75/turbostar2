@@ -73,10 +73,10 @@ int main()
 
 	std::cout << "Streaming request completed. Success: " << std::boolalpha << stream_success << ", Body: " << stream_body << std::endl;
 
-	// Test fetch_openai_models helper
-	std::cout << "Testing fetch_openai_models..." << std::endl;
+	// Test fetch_models_from_server helper
+	std::cout << "Testing fetch_models_from_server..." << std::endl;
 	std::string error_out;
-	auto imported = agentlib::fetch_openai_models(std::format("http://127.0.0.1:{}/v1", port), error_out);
+	auto imported = agentlib::fetch_models_from_server(std::format("http://127.0.0.1:{}/v1", port), error_out);
 	assert(imported.size() == 2);
 	assert(imported[0]->get_id() == "mock-model-1");
 	assert(imported[0]->get_name() == "mock-model-1");
@@ -85,9 +85,9 @@ int main()
 	assert(imported[1]->get_id() == "mock-model-2");
 	assert(error_out.empty());
 
-	// Test fetch_openai_models failure case
+	// Test fetch_models_from_server failure case
 	std::string error_failed;
-	auto failed_imported = agentlib::fetch_openai_models(std::format("http://127.0.0.1:{}/invalid_path", port), error_failed);
+	auto failed_imported = agentlib::fetch_models_from_server(std::format("http://127.0.0.1:{}/invalid_path", port), error_failed);
 	assert(failed_imported.empty());
 	assert(!error_failed.empty());
 

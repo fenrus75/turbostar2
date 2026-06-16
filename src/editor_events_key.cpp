@@ -289,7 +289,7 @@ void editor::resolve_dialog(dialog_result res)
 				auto server = agentlib::model_server_registry::get_instance().get_server(id);
 				if (server) {
 					std::string error_msg;
-					auto imported_models = agentlib::fetch_openai_models(server->get_url(), error_msg, server->get_api_key(), server->get_id());
+					auto imported_models = agentlib::fetch_models_from_server(server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
 					if (!imported_models.empty()) {
 						auto &registry = agentlib::ai_model_registry::get_instance();
 						for (const auto &model : imported_models) {
@@ -297,11 +297,11 @@ void editor::resolve_dialog(dialog_result res)
 						}
 						registry.save_models();
 
-						active_dialog_ = create_message_dialog("Query Successful", {std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()});
+						active_dialog_ = create_message_dialog("Query Successful", std::vector<std::string>{std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()});
 						active_dialog_mode_ = dialog_mode::model_server_list;
 						set_focus(focus_target::dialog, "btn_ok");
 					} else {
-						active_dialog_ = create_message_dialog("Query Error", {"Failed to fetch models from server:", error_msg});
+						active_dialog_ = create_message_dialog("Query Error", std::vector<std::string>{"Failed to fetch models from server:", error_msg});
 						active_dialog_mode_ = dialog_mode::model_server_list;
 						set_focus(focus_target::dialog, "btn_ok");
 					}

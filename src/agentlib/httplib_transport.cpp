@@ -272,7 +272,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 	return true;
 }
 
-std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out, const std::string &api_key, const std::string &server_id)
+std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::string &server_url, std::string &error_out, const std::string &api_key, const std::string &server_id, api_type type)
 {
 	std::vector<std::shared_ptr<ai_model>> result;
 	if (server_url.empty()) {
@@ -284,11 +284,21 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 	if (target_url.back() == '/') {
 		target_url.pop_back();
 	}
-	if (!target_url.ends_with("/models")) {
-		if (target_url.ends_with("/v1")) {
-			target_url += "/models";
-		} else {
-			target_url += "/v1/models";
+	if (type == api_type::gemini) {
+		if (!target_url.ends_with("/models")) {
+			if (target_url.ends_with("/v1beta") || target_url.ends_with("/v1")) {
+				target_url += "/models";
+			} else {
+				target_url += "/v1beta/models";
+			}
+		}
+	} else {
+		if (!target_url.ends_with("/models")) {
+			if (target_url.ends_with("/v1")) {
+				target_url += "/models";
+			} else {
+				target_url += "/v1/models";
+			}
 		}
 	}
 
@@ -301,10 +311,20 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		path_start = host.find('/');
 	}
 
-	std::string path = "/v1/models";
+	std::string path = (type == api_type::gemini) ? "/v1beta/models" : "/v1/models";
 	if (path_start != std::string::npos) {
 		path = host.substr(path_start);
 		host = host.substr(0, path_start);
+	}
+
+	if (type == api_type::gemini && !api_key.empty()) {
+		if (path.find("key=") == std::string::npos) {
+			if (path.find('?') == std::string::npos) {
+				path += "?key=" + api_key;
+			} else {
+				path += "&key=" + api_key;
+			}
+		}
 	}
 
 	try {
@@ -347,7 +367,7 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		}
 
 		httplib::Headers headers;
-		if (!api_key.empty()) {
+		if (type != api_type::gemini && !api_key.empty()) {
 			headers.emplace("Authorization", "Bearer " + api_key);
 		}
 		auto res = cli.Get(path.c_str(), headers);
@@ -362,19 +382,42 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		}
 
 		auto root = nlohmann::json::parse(res->body);
-		if (!root.contains("data") || !root["data"].is_array()) {
-			error_out = "Invalid response format: 'data' array not found";
-			return result;
-		}
+		if (type == api_type::gemini) {
+			if (!root.contains("models") || !root["models"].is_array()) {
+				error_out = "Invalid response format: 'models' array not found";
+				return result;
+			}
 
-		for (const auto &item : root["data"]) {
-			if (item.contains("id") && item["id"].is_string()) {
-				std::string id = item["id"];
-				std::string name = item.value("name", id);
-				std::string purpose = std::format("Imported from {}", server_url);
+			for (const auto &item : root["models"]) {
+				if (item.contains("name") && item["name"].is_string()) {
+					std::string id = item["name"];
+					std::string clean_id = id;
+					if (clean_id.starts_with("models/")) {
+						clean_id = clean_id.substr(7);
+					}
+					std::string name = item.value("displayName", clean_id);
+					std::string purpose = std::format("Imported from {}", server_url);
+					int max_tokens = item.value("inputTokenLimit", 1000000);
 
-				result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
-									    250000, model_cost_type::free_local, server_id));
+					result.push_back(std::make_shared<ai_model>(clean_id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::gemini,
+										    max_tokens, model_cost_type::free_local, server_id));
+				}
+			}
+		} else {
+			if (!root.contains("data") || !root["data"].is_array()) {
+				error_out = "Invalid response format: 'data' array not found";
+				return result;
+			}
+
+			for (const auto &item : root["data"]) {
+				if (item.contains("id") && item["id"].is_string()) {
+					std::string id = item["id"];
+					std::string name = item.value("name", id);
+					std::string purpose = std::format("Imported from {}", server_url);
+
+					result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
+										    250000, model_cost_type::free_local, server_id));
+				}
 			}
 		}
 

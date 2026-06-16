@@ -1,6 +1,7 @@
 #include "ai_model.h"
 #include "model_server.h"
 #include <algorithm>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -113,8 +114,12 @@ ai_model_registry &ai_model_registry::get_instance()
 
 ai_model_registry::ai_model_registry()
 {
+	std::string cache_dir = fs_utils::get_global_cache_dir();
+	std::string path = cache_dir + "/models.json";
+	bool file_exists = std::filesystem::exists(path);
+
 	load_models();
-	if (models_.empty()) {
+	if (!file_exists && models_.empty()) {
 		// Standard baseline models
 		register_model(std::make_shared<ai_model>("nvidia/MiniMax-M2.7-NVFP4", "Host", "http://192.168.1.55:8080",
 							  "Default local LLM", 0.0, 0.0, "", api_type::openai));
