@@ -5,6 +5,8 @@
 - we need top rejigger how we have a model list -- we need to separate "servers" from "models" -- API keys are for a server,
   models get served by servers. We can have auto-discovery for models once we have a server and do a lot better in terms
   of usability -- needs a bit of brainstorm but good impact
+	- [x] Step 1: added Model Server infrastructure, `servers.json` loading/saving, and list/edit TUI dialogs
+	- [ ] Step 2: change models to map to a server and remove duplicate logic/fields (API key, API type, URL) from the models list
 	- servers, not models, have API keys and API types and billing types
 	- models have capabilities (vision, etc)
 	- likely need a <server>:<model> tupple for indentification
