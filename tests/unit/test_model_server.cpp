@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include "agentlib/model_server.h"
+#include "agentlib/ai_model.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 
@@ -50,6 +51,29 @@ int main()
 	assert(reloaded != nullptr);
 	assert(reloaded->get_name() == "Updated Name");
 	assert(reloaded->get_url() == "https://api.openai.com/v1");
+
+	// Verify ai_model server_id mapping
+	auto &model_reg = ai_model_registry::get_instance();
+	auto all_models = model_reg.get_all_models();
+	for (const auto &m : all_models) {
+		model_reg.remove_model(m->get_id());
+	}
+
+	auto test_model = std::make_shared<ai_model>("test_model_id", "Test Model", "url", "purpose", 0.0, 0.0, "", api_type::openai, 250000, model_cost_type::paid_per_token, "openai_test");
+	model_reg.register_model(test_model);
+	model_reg.save_models();
+
+	model_reg.remove_model("test_model_id");
+	assert(model_reg.get_model("test_model_id") == nullptr);
+
+	model_reg.load_models();
+	auto reloaded_model = model_reg.get_model("test_model_id");
+	assert(reloaded_model != nullptr);
+	assert(reloaded_model->get_server_id() == "openai_test");
+
+	// Clean up model
+	model_reg.remove_model("test_model_id");
+	model_reg.save_models();
 
 	// Clean up
 	registry.remove_server("openai_test");

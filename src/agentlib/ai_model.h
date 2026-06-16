@@ -18,10 +18,10 @@ class ai_model
       public:
 	ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx,
 		 std::string api_key = "", api_type type = api_type::openai, int max_context_tokens = 250000,
-		 model_cost_type cost_type = model_cost_type::paid_per_token)
+		 model_cost_type cost_type = model_cost_type::paid_per_token, std::string server_id = "")
 	    : id_(std::move(id)), name_(std::move(name)), url_(std::move(url)), purpose_(std::move(purpose)),
 	      cost_per_1m_tx_(cost_per_1m_tx), cost_per_1m_rx_(cost_per_1m_rx), api_key_(std::move(api_key)), type_(type),
-	      max_context_tokens_(max_context_tokens), cost_type_(cost_type)
+	      max_context_tokens_(max_context_tokens), cost_type_(cost_type), server_id_(std::move(server_id))
 	{
 	}
 
@@ -103,6 +103,14 @@ class ai_model
 	{
 		cost_per_1m_rx_ = cost;
 	}
+	std::string get_server_id() const
+	{
+		return server_id_;
+	}
+	void set_server_id(std::string server_id)
+	{
+		server_id_ = std::move(server_id);
+	}
 
 	int get_global_tokens_tx() const
 	{
@@ -131,6 +139,7 @@ class ai_model
 	api_type type_;
 	int max_context_tokens_;
 	model_cost_type cost_type_;
+	std::string server_id_;
 
 	std::atomic<int> global_tokens_tx_{0};
 	std::atomic<int> global_tokens_rx_{0};

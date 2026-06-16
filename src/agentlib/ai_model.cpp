@@ -129,6 +129,7 @@ void ai_model_registry::load_models()
 				double tx_cost = item.value("cost_tx", 0.0);
 				double rx_cost = item.value("cost_rx", 0.0);
 				std::string type_str = item.value("api_type", "openai");
+				std::string server_id = item.value("server_id", "");
 				api_type type = api_type::openai;
 				if (type_str == "gemini") {
 					type = api_type::gemini;
@@ -148,7 +149,7 @@ void ai_model_registry::load_models()
 
 				if (!id.empty()) {
 					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
-										  max_tokens, cost_type));
+										  max_tokens, cost_type, server_id));
 				}
 			}
 		}
@@ -174,6 +175,7 @@ void ai_model_registry::save_models() const
 		item["id"] = model->get_id();
 		item["name"] = model->get_name();
 		item["url"] = model->get_url();
+		item["server_id"] = model->get_server_id();
 		item["purpose"] = model->get_purpose();
 		item["api_key"] = model->get_api_key();
 		item["cost_tx"] = model->get_cost_per_1m_tx();

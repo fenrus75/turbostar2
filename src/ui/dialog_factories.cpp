@@ -1079,6 +1079,20 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 
 	flow->add_child(std::make_unique<ui_textbox>("id", 56, model ? model->get_id() : "", nullptr, "ID:        "));
 	flow->add_child(std::make_unique<ui_textbox>("name", 56, model ? model->get_name() : "", nullptr, "Name:      "));
+
+	// Query servers list for parent server dropdown
+	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+	std::vector<std::string> server_options;
+	server_options.push_back(""); // Default/None server option
+	for (const auto &s : servers) {
+		server_options.push_back(s->get_id());
+	}
+	std::string current_server = model ? model->get_server_id() : "";
+	auto server_row = std::make_unique<ui_horizontal_flow>("server_row");
+	server_row->add_child(std::make_unique<ui_text_label>("Server:    "));
+	server_row->add_child(std::make_unique<ui_dropdown>("server_id", 36, current_server, server_options));
+	flow->add_child(std::move(server_row));
+
 	flow->add_child(std::make_unique<ui_textbox>("url", 56, model ? model->get_url() : "", nullptr, "URL:       "));
 	flow->add_child(std::make_unique<ui_textbox>("api_key", 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
 	flow->add_child(std::make_unique<ui_textbox>("purpose", 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
@@ -1150,6 +1164,9 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	auto rx_cost_opt = dlg.get_value("cost_rx");
 	auto api_type_opt = dlg.get_value("api_type");
 	auto cost_type_opt = dlg.get_value("cost_type");
+	auto server_id_opt = dlg.get_value("server_id");
+	std::string server_id = server_id_opt ? *server_id_opt : "";
+
 	if (!id_opt || id_opt->empty())
 		return;
 
@@ -1190,7 +1207,7 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 
 	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
 							  purpose_opt ? *purpose_opt : "", tx_cost, rx_cost,
-							  api_key_opt ? *api_key_opt : "", type, 250000, cost_type);
+							  api_key_opt ? *api_key_opt : "", type, 250000, cost_type, server_id);
 	registry.update_model(model);
 	registry.save_models();
 }
