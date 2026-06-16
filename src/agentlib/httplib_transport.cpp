@@ -285,7 +285,11 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		target_url.pop_back();
 	}
 	if (!target_url.ends_with("/models")) {
-		target_url += "/models";
+		if (target_url.ends_with("/v1")) {
+			target_url += "/models";
+		} else {
+			target_url += "/v1/models";
+		}
 	}
 
 	std::string host = target_url;
@@ -297,7 +301,7 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 		path_start = host.find('/');
 	}
 
-	std::string path = "/models";
+	std::string path = "/v1/models";
 	if (path_start != std::string::npos) {
 		path = host.substr(path_start);
 		host = host.substr(0, path_start);
