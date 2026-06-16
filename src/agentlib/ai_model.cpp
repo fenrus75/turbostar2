@@ -1,4 +1,5 @@
 #include "ai_model.h"
+#include "model_server.h"
 #include <algorithm>
 #include <format>
 #include <fstream>
@@ -11,6 +12,82 @@ using json = nlohmann::json;
 
 namespace agentlib
 {
+
+ai_model::ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx,
+		   std::string api_key, api_type type, int max_context_tokens, model_cost_type cost_type, std::string server_id)
+    : id_(std::move(id)), name_(std::move(name)), purpose_(std::move(purpose)), cost_per_1m_tx_(cost_per_1m_tx),
+      cost_per_1m_rx_(cost_per_1m_rx), max_context_tokens_(max_context_tokens), cost_type_(cost_type)
+{
+	if (server_id.empty()) {
+		if (!url.empty()) {
+			auto &reg = model_server_registry::get_instance();
+			std::string derived_id = id_ + "_server";
+			auto existing_srv = reg.get_server(derived_id);
+			if (!existing_srv) {
+				for (const auto &srv : reg.get_all_servers()) {
+					if (srv->get_url() == url && srv->get_api_key() == api_key && srv->get_api_type() == type) {
+						derived_id = srv->get_id();
+						existing_srv = srv;
+						break;
+					}
+				}
+			}
+			if (!existing_srv) {
+				auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", url, api_key, type);
+				reg.register_server(new_srv);
+				reg.save_servers();
+			}
+			server_id_ = derived_id;
+		}
+	} else {
+		server_id_ = std::move(server_id);
+		auto &reg = model_server_registry::get_instance();
+		if (!reg.get_server(server_id_)) {
+			auto new_srv = std::make_shared<model_server>(server_id_, name_ + " Server", url, api_key, type);
+			reg.register_server(new_srv);
+			reg.save_servers();
+		}
+	}
+
+	if (server_id_.empty()) {
+		std::string derived_id = id_ + "_server";
+		auto &reg = model_server_registry::get_instance();
+		auto existing_srv = reg.get_server(derived_id);
+		if (!existing_srv) {
+			auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", "http://localhost", "", api_type::openai);
+			reg.register_server(new_srv);
+			reg.save_servers();
+		}
+		server_id_ = derived_id;
+	}
+}
+
+std::string ai_model::get_url() const
+{
+	auto server = model_server_registry::get_instance().get_server(server_id_);
+	if (server) {
+		return server->get_url();
+	}
+	return "";
+}
+
+std::string ai_model::get_api_key() const
+{
+	auto server = model_server_registry::get_instance().get_server(server_id_);
+	if (server) {
+		return server->get_api_key();
+	}
+	return "";
+}
+
+api_type ai_model::get_api_type() const
+{
+	auto server = model_server_registry::get_instance().get_server(server_id_);
+	if (server) {
+		return server->get_api_type();
+	}
+	return api_type::openai;
+}
 
 double ai_model::calculate_and_record_cost(int tx_tokens, int rx_tokens)
 {
@@ -174,20 +251,10 @@ void ai_model_registry::save_models() const
 		json item;
 		item["id"] = model->get_id();
 		item["name"] = model->get_name();
-		item["url"] = model->get_url();
 		item["server_id"] = model->get_server_id();
 		item["purpose"] = model->get_purpose();
-		item["api_key"] = model->get_api_key();
 		item["cost_tx"] = model->get_cost_per_1m_tx();
 		item["cost_rx"] = model->get_cost_per_1m_rx();
-		std::string api_type_str = "openai";
-		if (model->get_api_type() == api_type::gemini)
-			api_type_str = "gemini";
-		else if (model->get_api_type() == api_type::copilot)
-			api_type_str = "copilot";
-		else if (model->get_api_type() == api_type::openai_response)
-			api_type_str = "openai_response";
-		item["api_type"] = api_type_str;
 		item["max_context_tokens"] = model->get_max_context_tokens();
 
 		std::string cost_type_str = "paid_per_token";

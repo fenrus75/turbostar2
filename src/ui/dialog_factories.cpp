@@ -1073,7 +1073,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 
 std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_model> model)
 {
-	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 20);
+	auto dlg = std::make_unique<dialog>(model ? "Edit Model" : "Add Model", 64, 16);
 
 	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1);
 
@@ -1083,37 +1083,23 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	// Query servers list for parent server dropdown
 	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
 	std::vector<std::string> server_options;
-	server_options.push_back(""); // Default/None server option
 	for (const auto &s : servers) {
 		server_options.push_back(s->get_id());
 	}
-	std::string current_server = model ? model->get_server_id() : "";
+	if (server_options.empty()) {
+		server_options.push_back("default_server");
+	}
+	std::string current_server = model ? model->get_server_id() : server_options.front();
 	auto server_row = std::make_unique<ui_horizontal_flow>("server_row");
 	server_row->add_child(std::make_unique<ui_text_label>("Server:    "));
 	server_row->add_child(std::make_unique<ui_dropdown>("server_id", 36, current_server, server_options));
 	flow->add_child(std::move(server_row));
 
-	flow->add_child(std::make_unique<ui_textbox>("url", 56, model ? model->get_url() : "", nullptr, "URL:       "));
-	flow->add_child(std::make_unique<ui_textbox>("api_key", 56, model ? model->get_api_key() : "", nullptr, "API Key:   "));
 	flow->add_child(std::make_unique<ui_textbox>("purpose", 56, model ? model->get_purpose() : "", nullptr, "Purpose:   "));
 	flow->add_child(std::make_unique<ui_textbox>("cost_tx", 56, model ? std::to_string(model->get_cost_per_1m_tx()) : "0.0", nullptr,
 						     "Tx Cost:   "));
 	flow->add_child(std::make_unique<ui_textbox>("cost_rx", 56, model ? std::to_string(model->get_cost_per_1m_rx()) : "0.0", nullptr,
 						     "Rx Cost:   "));
-
-	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row");
-	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
-	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
-	bool is_gemini = model && model->get_api_type() == agentlib::api_type::gemini;
-	bool is_copilot = model && model->get_api_type() == agentlib::api_type::copilot;
-	bool is_openai_response = model && model->get_api_type() == agentlib::api_type::openai_response;
-	bool is_openai = !is_gemini && !is_copilot && !is_openai_response;
-	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', is_openai));
-	type_radio->add_child(std::make_unique<ui_radio_choice>("openai_response", " Response ", 'E', is_openai_response));
-	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
-	type_radio->add_child(std::make_unique<ui_radio_choice>("copilot", " Copilot ", 'C', is_copilot));
-	type_row->add_child(std::move(type_radio));
-	flow->add_child(std::move(type_row));
 
 	auto cost_row = std::make_unique<ui_horizontal_flow>("cost_row");
 	cost_row->add_child(std::make_unique<ui_text_label>("Cost Model:"));
@@ -1157,12 +1143,9 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 {
 	auto id_opt = dlg.get_value("id");
 	auto name_opt = dlg.get_value("name");
-	auto url_opt = dlg.get_value("url");
-	auto api_key_opt = dlg.get_value("api_key");
 	auto purpose_opt = dlg.get_value("purpose");
 	auto tx_cost_opt = dlg.get_value("cost_tx");
 	auto rx_cost_opt = dlg.get_value("cost_rx");
-	auto api_type_opt = dlg.get_value("api_type");
 	auto cost_type_opt = dlg.get_value("cost_type");
 	auto server_id_opt = dlg.get_value("server_id");
 	std::string server_id = server_id_opt ? *server_id_opt : "";
@@ -1180,17 +1163,6 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 	} catch (...) {
 	}
 
-	agentlib::api_type type = agentlib::api_type::openai;
-	if (api_type_opt) {
-		if (*api_type_opt == "gemini") {
-			type = agentlib::api_type::gemini;
-		} else if (*api_type_opt == "copilot") {
-			type = agentlib::api_type::copilot;
-		} else if (*api_type_opt == "openai_response") {
-			type = agentlib::api_type::openai_response;
-		}
-	}
-
 	agentlib::model_cost_type cost_type = agentlib::model_cost_type::paid_per_token;
 	if (cost_type_opt) {
 		if (*cost_type_opt == "free_local")
@@ -1205,9 +1177,9 @@ void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original
 		registry.remove_model(original_id);
 	}
 
-	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
+	auto model = std::make_shared<agentlib::ai_model>(*id_opt, name_opt ? *name_opt : "", "",
 							  purpose_opt ? *purpose_opt : "", tx_cost, rx_cost,
-							  api_key_opt ? *api_key_opt : "", type, 250000, cost_type, server_id);
+							  "", agentlib::api_type::openai, 250000, cost_type, server_id);
 	registry.update_model(model);
 	registry.save_models();
 }

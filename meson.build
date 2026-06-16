@@ -923,8 +923,8 @@ test_pop_todo = executable('test_pop_todo',
 test('unit_pop_todo', test_pop_todo)
 
 test_httplib_transport = executable('test_httplib_transport',
-  ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep],
+  ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_httplib_transport', test_httplib_transport)
 
