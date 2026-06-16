@@ -190,6 +190,9 @@ void dialog::set_height(int height)
 void dialog::rebuild_focus_list()
 {
 	focus_elements_ = get_focusable_elements();
+	for (auto *elem : focus_elements_) {
+		event_logger::get_instance().log("focus_elements_ item: name={}, focusable={}", elem->name(), elem->is_focusable());
+	}
 	if (focus_elements_.empty()) {
 		focus_index_ = -1;
 		return;

@@ -271,6 +271,15 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 		if (cursor_row >= 0 && cursor_row < height_) {
 			int cursor_col_screen = 2 + (int)cursor_col;
 			move(start_y + cursor_row, start_x + cursor_col_screen);
+
+			// Draw highlighted cursor block
+			attron(COLOR_PAIR(14));
+			char cursor_char = ' ';
+			if (cursor_pos_ < (int)buffer_.length() && buffer_[cursor_pos_] != '\n') {
+				cursor_char = buffer_[cursor_pos_];
+			}
+			addch(cursor_char);
+			attroff(COLOR_PAIR(14));
 		}
 	}
 }
