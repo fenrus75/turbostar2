@@ -8,22 +8,18 @@
 	- "get models" -> if the API call succeeds, should delete all "auto" models before adding back the new ones
 		- we should remember the name of the default model and if it comes back, make that model the default
 
-	- models should get a set of bool properties for supported uses (show, not edit for now - needs to come from some DB or from the response)
+	- models should get a set of bool properties for supported uses (show, not edit for now - needs to come from some DB or from the network response)
 		- vision/image
 		- video
 		- audio
 		- coding
 		- ...
 
-		
- 
-
-
 - make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
    class levels needed:
-	- "conversation" 
+	- "conversation"
 		- has a current active "model" as a property
-		- has a vector of episodes and the current episode 
+		- has a vector of episodes and the current episode
 	- "episode"
 		- mostly a vector of turns and a bunch of metadata
 	- "turn" (agent, user, system, tool call, tool response, ...)
@@ -40,23 +36,24 @@
 
 - we need a ui_grid container type that auto-sizes cells with the aim of uniform sizes
 	- question: is this one type, or a few different subtypes? A: start with a simple basic type
-		- advanced features then can be considered to become a subclass 
+		- advanced features then can be considered to become a subclass
 	- but with fallback if it does not fit
 	- needs option to have both horizontal and vertical scroll bars
 	- start all at min size, and grow equally until uniform, starting with the smallest cells
-	- option to keep horiz == vert as goal, vs decoupled -- this could drive subclasses?
+	- option to keep horiz == vert as goal (square), vs decoupled -- this could drive subclasses?
+		- characters are not exactly square on the screen, we need to code some heuristic ratio to make the outcome look square
 	- option to not know the width or height in cells and try placement options based on available size
-	
+
 
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
 
 - separate model provider (server) database for easy population of model servers
-	- need a smart combo box or radio box for "from database" vs "custom"
+	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
 
 
 - mega feature: agent "command center" view
-	- tiles for agents in fun colors with their name, some art logo for known agent types
+	- square tiles for agents in fun colors with their name, some art logo for known agent types
 	  their state, progress, context size, tokens used, summary of the task they're doing etc
 
 - have a separate model option for "plan mode" phase -- needs agentlib refactor first
@@ -71,7 +68,7 @@
   for more anyway
 	- we should perhaps report total line count as a help to the agent
 	- potentially a self-training DNN to predict if more will be asked?
-		- semantic relevance? do whole functions? 
+		- semantic relevance? do whole functions?
 	- we could do everything in blocks of 50 lines and hand out whole blocks of 50
 	- if we're close to the end of the file (< 50 lines) just go to the end
 
@@ -87,7 +84,13 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
+- "agent first editor second" mode? Decide what this would be like
+	- based on argv[0] - turbostar = editor window first, turboagent = agent window
+	- install turboagent as a symlink
 
+- main editor window: mouse click on the bottom scroll bar moves the text down, rather than go to the position in the document indicated by the click
+
+- main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
 
 
 - meta feature: helper agents
@@ -99,16 +102,17 @@
 	- should be able to register /slash commands
 	- skills that plug into specific subagent types only
 	- should have prefered color set + logo for the grid view
-	
+
+
 	- image processing
 		- file format conversion
 		- cut out parts of image into new image (crop)
-		- rescale image
+		- rescale image / rotate / ..
 		- to grayscale conversion
 		- basic filters? gimplib?
 		- USB camera access
 		- opencv segmentation/yolo/etc done local
-		
+
 
 	- file format conversion
 		- PDF to XYZ
@@ -119,15 +123,20 @@
 	- markdown toolbox
 
 	- performance
+		- linux perf integration
+		- intel performance skill integration
 
-	- homeassistent / home automation 
+	- homeassistent / home automation
 
 	- code review
 
 	- security review
 		- plug in static local scanners
+		- maybe fuzzing helpers?
 
 
+- better integration for code coverage in the main editor
+	- color coding in the left window decoration?
 
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
@@ -155,7 +164,7 @@
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- MCP support									
+- MCP support
 	- each tool will get a prefix to make sure they are unique
 	- each MCP should have its own "uv sandbox"
 	- permission model: need to have permission BEFORE executing anything from the project directory
@@ -171,7 +180,6 @@
 
 # mid term items
 
-- "agent first editor second" mode? Decide what this would be like
 
 
 - find a security scan tool for javascript/nodejs
@@ -203,14 +211,9 @@
 	- create PR
 	- fetch PR info
 
-	
-	
+
+
 # long term items
-- tool classes
-	- image edit/convert/select/resize/zoom/rotate
-	- PDF ?
-
-
 - should we use turbo vision?
 	- pro: automatic the full look
 	- pro: automatic all window/etc interactions working well
