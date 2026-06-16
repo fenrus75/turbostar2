@@ -37,8 +37,6 @@
 		- if we had backtraces/crashes that involve this file we should include them in context or at least reference them with the toolcall to get the details
 
 
-- usability: the "edit review item" dialog is seriously terrible - it is buttons to single-line-edit follow on dialogs rather than just having the line be editable right there
-
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
 
@@ -185,6 +183,7 @@
 # done items (move items here on completion)
 
 ## 15-06-2026
+- implemented a unified, inline code review edit dialog directly editable in place with multiline support, keyboard navigation, and mouse focus.
 - updated README.md for libmagic-dev as new dependency.
 
 ## 14-06-2026
