@@ -1,21 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 - make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
-
-- we need top rejigger how we have a model list -- we need to separate "servers" from "models" -- API keys are for a server,
-  models get served by servers. We can have auto-discovery for models once we have a server and do a lot better in terms
-  of usability -- needs a bit of brainstorm but good impact
-	- [x] Step 1: added Model Server infrastructure, `servers.json` loading/saving, and list/edit TUI dialogs
-	- [x] Step 2: mapped models to a server parent via `server_id` dropdown selection in model edit dialog
-	- [x] Step 3: move credentials/API settings ownership from models to their mapped servers, resolving duplicate properties
-	- servers, not models, have API keys and API types and billing types
-	- models have capabilities (vision, etc)
-	- likely need a <server>:<model> tupple for indentification
-
-	- separate model name database of famous models for default properties
-		should investigate the compile time json-to-struct stuff
-
-
+- separate model name database of famous models for default properties
+  should investigate the compile time json-to-struct stuff
 - agent "command center" view
 	- tiles for agents in fun colors with their name, some art logo for known agent types
 	  their state, progress, context size, tokens used, summary of the task they're doing etc
@@ -186,6 +173,9 @@
 # done items (move items here on completion)
 
 ## 15-06-2026
+- completed model/server separation: moved API credentials, endpoint URLs, and protocol formats from individual models to parent servers (serialized to `servers.json` and `models.json`).
+- implemented model auto-discovery query capability for servers in the TUI, supporting both OpenAI and Google Gemini APIs over HTTPS via libcurl.
+- fixed test suite cache directory resolution to use isolated temporary directories, preventing unit tests from clobbering system config files.
 - implemented a unified, inline code review edit dialog directly editable in place with multiline support, keyboard navigation, and mouse focus.
 - updated README.md for libmagic-dev as new dependency.
 
