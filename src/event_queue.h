@@ -84,7 +84,8 @@ enum class event_type {
 	task_models_config,	    ///< Request to show task-to-model mapping configuration dialog
 	open_codereview_viewer,	    ///< Request to open the code review viewer window
 	codereview_action,	    ///< Request to show a code review edit/comment/state dialog
-	codereview_updated	    ///< Notification that a code review item has been created or updated
+	codereview_updated,	    ///< Notification that a code review item has been created or updated
+	model_servers_config	    ///< Request to show model servers configuration dialog
 };
 
 namespace status_priorities

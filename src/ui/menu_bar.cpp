@@ -47,6 +47,7 @@ menu_bar::menu_bar()
 	     'p',
 	     {{"Preferences...", event_type::settings, 'p', "", false},
 	      {"Models...", event_type::models_config, 'M', "", false},
+	      {"Model Servers...", event_type::model_servers_config, 'S', "", false},
 	      {"Task Models...", event_type::task_models_config, 'T', "", false},
 	      {"MCP Servers...", event_type::mcp_config, 'C', "", false}}},
 	    {"Git", 'g', {{"Git add", event_type::git_add, 'a', "", false}, {"Git refresh", event_type::git_refresh, 'r', "", false}}},

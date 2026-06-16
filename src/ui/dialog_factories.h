@@ -1,5 +1,6 @@
 #pragma once
 #include "agentlib/ai_model.h"
+#include "agentlib/model_server.h"
 #include "document.h"
 #include "ui/dialog.h"
 
@@ -24,6 +25,10 @@ std::unique_ptr<dialog> create_model_list_dialog();
 std::unique_ptr<dialog> create_model_selection_dialog();
 std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_model> model);
 void apply_model_edit_from_dialog(const dialog &dlg, const std::string &original_id);
+
+std::unique_ptr<dialog> create_model_server_list_dialog();
+std::unique_ptr<dialog> create_model_server_edit_dialog(std::shared_ptr<agentlib::model_server> server);
+void apply_model_server_edit_from_dialog(const dialog &dlg, const std::string &original_id);
 
 std::unique_ptr<dialog> create_run_settings_dialog();
 void apply_run_settings_from_dialog(const dialog &dlg);

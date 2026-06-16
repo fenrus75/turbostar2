@@ -175,6 +175,8 @@ class editor : public agentlib::document_provider
 		model_list,
 		model_edit,
 		model_selection,
+		model_server_list,
+		model_server_edit,
 		welcome,
 		run_settings,
 		mcp_config,
@@ -219,6 +221,7 @@ class editor : public agentlib::document_provider
 	const status_message* get_active_status_message_obj() const;
 
 	std::string editing_model_id_;
+	std::string editing_model_server_id_;
 	int switching_agent_id_{-1};
 	std::string get_search_autocomplete() const;
 

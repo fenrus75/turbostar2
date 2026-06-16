@@ -332,6 +332,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::model_servers_config) {
+		logger.log("Dispatching model_servers_config event.");
+		active_dialog_ = create_model_server_list_dialog();
+		active_dialog_mode_ = dialog_mode::model_server_list;
+		set_focus(focus_target::dialog, "server_list");
+		return;
+	}
+
 	if (ev.type == event_type::mcp_config) {
 		logger.log("Dispatching mcp_config event.");
 		active_dialog_ = create_mcp_config_dialog();

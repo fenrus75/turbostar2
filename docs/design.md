@@ -206,6 +206,13 @@ To support model providers that do not allow mutating server-side assistant hist
 - **Stateful Responses Compaction**: When context bounds are approached or exceeded in stateful mode, the system automatically triggers compaction via a POST to `/v1/responses/compact`. This compacts the server-side response chain, returns a new response ID, updates `last_response_id_`, and marks compacted messages as `episode_level = 99` so they don't count towards local token limits.
 - **Manual Compaction Command (/compact)**: Users can manually force stateful response compaction at any time by typing the `/compact` slash command in the agent input box, which invokes `ai_agent::force_compaction()`.
 
+## Model Servers
+To consolidate connection credentials and protocol settings, Turbostar supports defining "Model Servers" (configured via Options -> Model Servers... and serialized to `servers.json`). A model server stores:
+- **ID & Name**: Unique identifier and human-readable label.
+- **URL & API Key**: The endpoint address and auth token for the server.
+- **API Format**: The protocol type (OpenAI, Response, Gemini, Copilot) used to communicate with the server.
+In subsequent phases, models will map directly to these servers to eliminate duplicate configuration properties.
+
 ## Tool Families
 
 To support modular and context-efficient tool management, tools are organized into namespaces called **Tool Families**.

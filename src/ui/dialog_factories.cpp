@@ -6,6 +6,7 @@
 #include <format>
 #include <ncurses.h>
 #include "agentlib/ai_model.h"
+#include "agentlib/model_server.h"
 #include "agentlib/copilot_manager.h"
 #include "config_manager.h"
 #include "event_logger.h"
@@ -1856,4 +1857,157 @@ std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item)
 	dlg->set_focus_by_name("summary");
 
 	return dlg;
+}
+
+std::unique_ptr<dialog> create_model_server_list_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Model Servers", 60, 16);
+	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+
+	std::vector<std::string> item_labels;
+	for (const auto &s : servers) {
+		item_labels.push_back("  " + s->get_id() + " - " + s->get_name());
+	}
+
+	auto on_submit = [d = dlg.get()](int idx) {
+		auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+		if (idx >= 0 && idx < (int)servers.size()) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result("edit:" + servers[idx]->get_id());
+		}
+	};
+
+	auto flow = std::make_unique<ui_vertical_flow>("servers_flow", 2, 1, 1);
+
+	auto lb = std::make_unique<ui_listbox>("server_list", 56, 8, nullptr, on_submit);
+	lb->set_items(item_labels);
+	auto lb_ptr = lb.get();
+	flow->add_child(std::move(lb));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_add", "Add", 'a', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("add");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_edit", "Edit", 'e', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("edit:" + servers[idx]->get_id());
+			}
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_delete", "Delete", 'd', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("delete:" + servers[idx]->get_id());
+			}
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}));
+
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("server_list");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_model_server_edit_dialog(std::shared_ptr<agentlib::model_server> server)
+{
+	auto dlg = std::make_unique<dialog>(server ? "Edit Server" : "Add Server", 64, 16);
+
+	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1, 1);
+
+	flow->add_child(std::make_unique<ui_textbox>("id", 56, server ? server->get_id() : "", nullptr, "ID:        "));
+	flow->add_child(std::make_unique<ui_textbox>("name", 56, server ? server->get_name() : "", nullptr, "Name:      "));
+	flow->add_child(std::make_unique<ui_textbox>("url", 56, server ? server->get_url() : "", nullptr, "URL:       "));
+	flow->add_child(std::make_unique<ui_textbox>("api_key", 56, server ? server->get_api_key() : "", nullptr, "API Key:   "));
+
+	auto type_row = std::make_unique<ui_horizontal_flow>("api_type_row");
+	type_row->add_child(std::make_unique<ui_text_label>("API Format:"));
+	auto type_radio = std::make_unique<ui_radiobutton_group>("api_type", true);
+	bool is_gemini = server && server->get_api_type() == agentlib::api_type::gemini;
+	bool is_copilot = server && server->get_api_type() == agentlib::api_type::copilot;
+	bool is_openai_response = server && server->get_api_type() == agentlib::api_type::openai_response;
+	bool is_openai = !is_gemini && !is_copilot && !is_openai_response;
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai", " OpenAI ", 'P', is_openai));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("openai_response", " Response ", 'E', is_openai_response));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("gemini", " Gemini ", 'G', is_gemini));
+	type_radio->add_child(std::make_unique<ui_radio_choice>("copilot", " Copilot ", 'C', is_copilot));
+	type_row->add_child(std::move(type_radio));
+	flow->add_child(std::move(type_row));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", "Cancel", 'c',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("id");
+	return dlg;
+}
+
+void apply_model_server_edit_from_dialog(const dialog &dlg, const std::string &original_id)
+{
+	auto id_opt = dlg.get_value("id");
+	auto name_opt = dlg.get_value("name");
+	auto url_opt = dlg.get_value("url");
+	auto api_key_opt = dlg.get_value("api_key");
+	auto api_type_opt = dlg.get_value("api_type");
+	if (!id_opt || id_opt->empty())
+		return;
+
+	agentlib::api_type type = agentlib::api_type::openai;
+	if (api_type_opt) {
+		if (*api_type_opt == "gemini") {
+			type = agentlib::api_type::gemini;
+		} else if (*api_type_opt == "copilot") {
+			type = agentlib::api_type::copilot;
+		} else if (*api_type_opt == "openai_response") {
+			type = agentlib::api_type::openai_response;
+		}
+	}
+
+	auto &registry = agentlib::model_server_registry::get_instance();
+
+	if (!original_id.empty() && original_id != *id_opt) {
+		registry.remove_server(original_id);
+	}
+
+	auto server = std::make_shared<agentlib::model_server>(*id_opt, name_opt ? *name_opt : "", url_opt ? *url_opt : "",
+							      api_key_opt ? *api_key_opt : "", type);
+	registry.update_server(server);
+	registry.save_servers();
 }

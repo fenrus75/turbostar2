@@ -7,6 +7,7 @@
 #include <sstream>
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
+#include "agentlib/model_server.h"
 #include "agentlib/httplib_transport.h"
 #include "build_error_manager.h"
 #include "config_manager.h"
@@ -278,6 +279,47 @@ void editor::resolve_dialog(dialog_result res)
 			active_dialog_ = create_model_list_dialog();
 			active_dialog_mode_ = dialog_mode::model_list;
 			set_focus(focus_target::dialog, "model_list");
+			return;
+		} else if (active_dialog_mode_ == dialog_mode::model_server_list) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "cancel") {
+				active_dialog_mode_ = dialog_mode::none;
+				active_dialog_.reset();
+				set_focus(focus_target::window);
+				return;
+			} else if (res_str == "add") {
+				active_dialog_ = create_model_server_edit_dialog(nullptr);
+				active_dialog_mode_ = dialog_mode::model_server_edit;
+				set_focus(focus_target::dialog, "id");
+				return;
+			} else if (res_str.starts_with("edit:")) {
+				std::string id = res_str.substr(5);
+				editing_model_server_id_ = id;
+				active_dialog_ = create_model_server_edit_dialog(agentlib::model_server_registry::get_instance().get_server(id));
+				active_dialog_mode_ = dialog_mode::model_server_edit;
+				set_focus(focus_target::dialog, "id");
+				return;
+			} else if (res_str.starts_with("delete:")) {
+				std::string id = res_str.substr(7);
+				agentlib::model_server_registry::get_instance().remove_server(id);
+				agentlib::model_server_registry::get_instance().save_servers();
+				active_dialog_ = create_model_server_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_server_list;
+				set_focus(focus_target::dialog, "server_list");
+				return;
+			} else if (res_str == "ok") {
+				active_dialog_ = create_model_server_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_server_list;
+				set_focus(focus_target::dialog, "server_list");
+				return;
+			}
+		} else if (active_dialog_mode_ == dialog_mode::model_server_edit) {
+			if (active_dialog_->get_result() == "ok") {
+				apply_model_server_edit_from_dialog(*active_dialog_, editing_model_server_id_);
+			}
+			active_dialog_ = create_model_server_list_dialog();
+			active_dialog_mode_ = dialog_mode::model_server_list;
+			set_focus(focus_target::dialog, "server_list");
 			return;
 		} else if (active_dialog_mode_ == dialog_mode::model_selection) {
 			std::string res_str = active_dialog_->get_result();

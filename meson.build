@@ -934,6 +934,12 @@ test_copilot_models = executable('test_copilot_models',
   include_directories: 'src')
 test('unit_copilot_models', test_copilot_models)
 
+test_model_server = executable('test_model_server',
+  ['tests/unit/test_model_server.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/agentlib/ai_model.cpp'],
+  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
+  include_directories: 'src')
+test('unit_model_server', test_model_server)
+
 test_fs_grep_files = executable('test_fs_grep_files',
   ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

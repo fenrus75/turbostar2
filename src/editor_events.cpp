@@ -142,6 +142,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::about:
 		case event_type::settings:
 		case event_type::models_config:
+		case event_type::model_servers_config:
 		case event_type::mcp_config:
 		case event_type::copilot_connect:
 		case event_type::agent_switch_model:
