@@ -1800,10 +1800,10 @@ void apply_task_models_from_dialog(const dialog &dlg)
 
 std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item)
 {
-	// Width 68, Height 24 to comfortably fit labels, textboxes, multiline inputs and buttons
-	auto dlg = std::make_unique<dialog>("Edit Code Review Item", 68, 24);
+	// Dialog size is auto-set via flow container dimensions below
+	auto dlg = std::make_unique<dialog>("Edit Code Review Item", 60, 20);
 
-	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1, 2, 1, 1);
+	auto flow = std::make_unique<ui_vertical_flow>("edit_flow", 2, 1, 1);
 
 	flow->add_child(std::make_unique<ui_text_label>("Summary:"));
 	auto summary_box = std::make_unique<ui_textbox>("summary", 60, item.summary);
