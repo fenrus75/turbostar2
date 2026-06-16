@@ -53,6 +53,7 @@ int main()
 	// 3. Navigation key events (Up/Down arrow)
 	// Initial cursor is at end of buffer (pos 11, line 1, col 5)
 	assert(edit.get_buffer().length() == 11);
+	edit.set_focus(true);
 	
 	// Move cursor up: line 1, col 5 -> line 0, col 5
 	editor_event ev_up;

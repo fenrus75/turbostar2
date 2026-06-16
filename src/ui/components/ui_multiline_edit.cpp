@@ -280,6 +280,9 @@ void ui_multiline_edit::draw(int abs_x, int abs_y) const
 			}
 			addch(cursor_char);
 			attroff(COLOR_PAIR(14));
+
+			// Move hardware cursor back to the correct position (so it doesn't blink one char to the right)
+			move(start_y + cursor_row, start_x + cursor_col_screen);
 		}
 	}
 }
