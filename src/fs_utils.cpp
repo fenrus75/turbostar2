@@ -242,12 +242,17 @@ std::string execute_command_sync(const std::string &cmd)
 }
 std::string get_global_cache_dir()
 {
-	const char *home = std::getenv("HOME");
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	std::filesystem::path cache_dir;
-	if (home) {
-		cache_dir = std::filesystem::path(home) / ".cache" / "turbostar";
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		cache_dir = std::filesystem::temp_directory_path() / std::format("turbostar_test_cache_{}", getpid());
 	} else {
-		cache_dir = std::filesystem::path(".turbostar");
+		const char *home = std::getenv("HOME");
+		if (home) {
+			cache_dir = std::filesystem::path(home) / ".cache" / "turbostar";
+		} else {
+			cache_dir = std::filesystem::path(".turbostar");
+		}
 	}
 
 	std::error_code ec;

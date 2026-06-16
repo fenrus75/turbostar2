@@ -128,7 +128,7 @@ libagentlib = static_library('agentlib',
   agentlib_sources,
   include_directories : inc,
   cpp_pch : 'pch/pch.h',
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep])
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep, openssl_dep])
 
 libtools = static_library('tools',
   tools_sources,
@@ -144,6 +144,6 @@ libturbostar_ui = static_library('turbostar_ui',
 
 # Expose dependencies for easy linking
 core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep])
-agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep])
+agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep, openssl_dep])
 tools_dep = declare_dependency(link_whole : libtools, dependencies : [zlib_dep, magic_dep])
 ui_dep = declare_dependency(link_whole : libturbostar_ui)

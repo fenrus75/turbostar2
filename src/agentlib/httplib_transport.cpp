@@ -7,9 +7,18 @@
 #include <format>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <curl/curl.h>
 
 namespace agentlib
 {
+
+static size_t curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t total_size = size * nmemb;
+	std::string *str = static_cast<std::string *>(userp);
+	str->append(static_cast<const char *>(contents), total_size);
+	return total_size;
+}
 
 static std::string format_rich_diagnostics(httplib::Error err, int err_num)
 {
@@ -303,85 +312,84 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 	}
 
 	std::string host = target_url;
-	size_t scheme_end = host.find("://");
-	size_t path_start = std::string::npos;
-	if (scheme_end != std::string::npos) {
-		path_start = host.find('/', scheme_end + 3);
-	} else {
-		path_start = host.find('/');
-	}
-
-	std::string path = (type == api_type::gemini) ? "/v1beta/models" : "/v1/models";
-	if (path_start != std::string::npos) {
-		path = host.substr(path_start);
-		host = host.substr(0, path_start);
-	}
-
 	if (type == api_type::gemini && !api_key.empty()) {
-		if (path.find("key=") == std::string::npos) {
-			if (path.find('?') == std::string::npos) {
-				path += "?key=" + api_key;
+		if (target_url.find("key=") == std::string::npos) {
+			if (target_url.find('?') == std::string::npos) {
+				target_url += "?key=" + api_key;
 			} else {
-				path += "&key=" + api_key;
+				target_url += "&key=" + api_key;
 			}
 		}
+	}
+
+	if (target_url.find("://") == std::string::npos) {
+		target_url = "http://" + target_url;
 	}
 
 	try {
-		httplib::Client cli(host);
+		CURL *curl = curl_easy_init();
+		if (!curl) {
+			error_out = "Failed to initialize curl";
+			return result;
+		}
+
+		std::string response_body;
+
+		curl_easy_setopt(curl, CURLOPT_URL, target_url.c_str());
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "Turbostar/1.0");
+
+		// Timeouts
 		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 		if (in_testsuite && std::string(in_testsuite) == "1") {
-			cli.set_connection_timeout(std::chrono::milliseconds(5000));
-			cli.set_read_timeout(std::chrono::milliseconds(15000));
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 15000L);
 		} else {
-			cli.set_connection_timeout(std::chrono::seconds(5));
-			cli.set_read_timeout(std::chrono::seconds(10));
-		}
-		cli.set_follow_location(true);
-		cli.enable_server_certificate_verification(false);
-
-		// Proxy support identical to httplib_transport constructor
-		const char *env_proxy = std::getenv("https_proxy");
-		if (!env_proxy)
-			env_proxy = std::getenv("http_proxy");
-		if (env_proxy) {
-			std::string proxy(env_proxy);
-			size_t scheme_pos = proxy.find("://");
-			if (scheme_pos != std::string::npos) {
-				proxy = proxy.substr(scheme_pos + 3);
-			}
-			size_t port_pos = proxy.find(':');
-			std::string p_host = proxy;
-			int p_port = 80;
-			if (port_pos != std::string::npos) {
-				p_host = proxy.substr(0, port_pos);
-				try {
-					p_port = std::stoi(proxy.substr(port_pos + 1));
-				} catch (...) {
-				}
-			}
-			if (!p_host.empty() && p_host.back() == '/') {
-				p_host.pop_back();
-			}
-			cli.set_proxy(p_host, p_port);
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 		}
 
-		httplib::Headers headers;
+		// SSL verification: Keep it enabled
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
+
+		struct curl_slist *headers = nullptr;
 		if (type != api_type::gemini && !api_key.empty()) {
-			headers.emplace("Authorization", "Bearer " + api_key);
+			std::string auth_header = "Authorization: Bearer " + api_key;
+			headers = curl_slist_append(headers, auth_header.c_str());
 		}
-		auto res = cli.Get(path.c_str(), headers);
-		if (!res) {
-			error_out = std::format("Failed to connect to {}: {}", host, error_to_string(res.error()));
+
+		if (headers) {
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		}
+
+		CURLcode res = curl_easy_perform(curl);
+		long http_code = 0;
+		if (res == CURLE_OK) {
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+		} else {
+			error_out = std::format("Curl error: {}", curl_easy_strerror(res));
+			if (headers) {
+				curl_slist_free_all(headers);
+			}
+			curl_easy_cleanup(curl);
 			return result;
 		}
 
-		if (res->status != 200) {
-			error_out = std::format("HTTP error code {}: {}", res->status, res->body.substr(0, 200));
+		if (headers) {
+			curl_slist_free_all(headers);
+		}
+		curl_easy_cleanup(curl);
+
+		if (http_code != 200) {
+			error_out = std::format("HTTP error code {}: {}", http_code, response_body.substr(0, 200));
 			return result;
 		}
 
-		auto root = nlohmann::json::parse(res->body);
+		auto root = nlohmann::json::parse(response_body);
 		if (type == api_type::gemini) {
 			if (!root.contains("models") || !root["models"].is_array()) {
 				error_out = "Invalid response format: 'models' array not found";

@@ -3,6 +3,7 @@ project('turbostar', ['cpp', 'c'],
   default_options : ['warning_level=3', 'cpp_std=c++23'])
 
 add_project_arguments('-DTURBOSTAR_VERSION="' + meson.project_version() + '"', language : 'cpp')
+add_project_arguments('-DCPPHTTPLIB_OPENSSL_SUPPORT', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
 
@@ -28,6 +29,7 @@ endif
 
 httplib_dep = dependency('cpp-httplib', required : true)
 curl_dep = dependency('libcurl', required : true)
+openssl_dep = dependency('openssl', required : true)
 nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
