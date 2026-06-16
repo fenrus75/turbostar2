@@ -242,30 +242,7 @@ void editor::resolve_dialog(dialog_result res)
 				active_dialog_mode_ = dialog_mode::model_list;
 				set_focus(focus_target::dialog, "model_list");
 				return;
-			} else if (res_str == "import") {
-				auto url_opt = active_dialog_->get_value("server_url");
-				std::string url = url_opt ? *url_opt : "";
 
-				std::string error_msg;
-				auto imported_models = agentlib::fetch_openai_models(url, error_msg);
-
-				if (!imported_models.empty()) {
-					auto &registry = agentlib::ai_model_registry::get_instance();
-					for (const auto &model : imported_models) {
-						registry.register_model(model);
-					}
-					registry.save_models();
-
-					active_dialog_ = create_model_list_dialog();
-					active_dialog_mode_ = dialog_mode::model_list;
-					set_focus(focus_target::dialog, "model_list");
-				} else {
-					active_dialog_ =
-					    create_message_dialog("Import Error", {"Failed to fetch models from server:", error_msg});
-					active_dialog_mode_ = dialog_mode::model_list;
-					set_focus(focus_target::dialog, "btn_ok");
-				}
-				return;
 			} else if (res_str == "ok") {
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
@@ -306,6 +283,33 @@ void editor::resolve_dialog(dialog_result res)
 				active_dialog_ = create_model_server_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_server_list;
 				set_focus(focus_target::dialog, "server_list");
+				return;
+			} else if (res_str.starts_with("query:")) {
+				std::string id = res_str.substr(6);
+				auto server = agentlib::model_server_registry::get_instance().get_server(id);
+				if (server) {
+					std::string error_msg;
+					auto imported_models = agentlib::fetch_openai_models(server->get_url(), error_msg, server->get_api_key(), server->get_id());
+					if (!imported_models.empty()) {
+						auto &registry = agentlib::ai_model_registry::get_instance();
+						for (const auto &model : imported_models) {
+							registry.register_model(model);
+						}
+						registry.save_models();
+
+						active_dialog_ = create_message_dialog("Query Successful", {std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()});
+						active_dialog_mode_ = dialog_mode::model_server_list;
+						set_focus(focus_target::dialog, "btn_ok");
+					} else {
+						active_dialog_ = create_message_dialog("Query Error", {"Failed to fetch models from server:", error_msg});
+						active_dialog_mode_ = dialog_mode::model_server_list;
+						set_focus(focus_target::dialog, "btn_ok");
+					}
+				} else {
+					active_dialog_ = create_model_server_list_dialog();
+					active_dialog_mode_ = dialog_mode::model_server_list;
+					set_focus(focus_target::dialog, "server_list");
+				}
 				return;
 			} else if (res_str == "ok") {
 				active_dialog_ = create_model_server_list_dialog();

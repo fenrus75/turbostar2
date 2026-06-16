@@ -272,7 +272,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 	return true;
 }
 
-std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out)
+std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &server_url, std::string &error_out, const std::string &api_key, const std::string &server_id)
 {
 	std::vector<std::shared_ptr<ai_model>> result;
 	if (server_url.empty()) {
@@ -342,7 +342,11 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 			cli.set_proxy(p_host, p_port);
 		}
 
-		auto res = cli.Get(path.c_str());
+		httplib::Headers headers;
+		if (!api_key.empty()) {
+			headers.emplace("Authorization", "Bearer " + api_key);
+		}
+		auto res = cli.Get(path.c_str(), headers);
 		if (!res) {
 			error_out = std::format("Failed to connect to {}: {}", host, error_to_string(res.error()));
 			return result;
@@ -365,8 +369,8 @@ std::vector<std::shared_ptr<ai_model>> fetch_openai_models(const std::string &se
 				std::string name = item.value("name", id);
 				std::string purpose = std::format("Imported from {}", server_url);
 
-				result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, "", api_type::openai,
-									    250000, model_cost_type::free_local));
+				result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
+									    250000, model_cost_type::free_local, server_id));
 			}
 		}
 

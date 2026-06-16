@@ -924,7 +924,7 @@ std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::
 
 std::unique_ptr<dialog> create_model_list_dialog()
 {
-	auto dlg = std::make_unique<dialog>("AI Models", 60, 20);
+	auto dlg = std::make_unique<dialog>("AI Models", 60, 17);
 	auto models = agentlib::ai_model_registry::get_instance().get_all_models();
 	std::string default_id = config_manager::get_instance().get_default_model_id();
 
@@ -948,16 +948,6 @@ std::unique_ptr<dialog> create_model_list_dialog()
 	lb->set_items(item_labels);
 	auto lb_ptr = lb.get();
 	flow->add_child(std::move(lb));
-
-	// Server URL and Import controls
-	auto import_row = std::make_unique<ui_horizontal_flow>("import_row");
-	import_row->add_child(std::make_unique<ui_text_label>("Server URL:"));
-	import_row->add_child(std::make_unique<ui_textbox>("server_url", 28, "http://localhost:11434/v1"));
-	import_row->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [d = dlg.get()]() {
-		d->set_action(dialog_result::confirmed);
-		d->set_result("import");
-	}));
-	flow->add_child(std::move(import_row));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
@@ -1850,7 +1840,7 @@ std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item)
 
 std::unique_ptr<dialog> create_model_server_list_dialog()
 {
-	auto dlg = std::make_unique<dialog>("Model Servers", 60, 16);
+	auto dlg = std::make_unique<dialog>("Model Servers", 70, 16);
 	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
 
 	std::vector<std::string> item_labels;
@@ -1886,6 +1876,16 @@ std::unique_ptr<dialog> create_model_server_list_dialog()
 			if (idx < (int)servers.size()) {
 				d->set_action(dialog_result::confirmed);
 				d->set_result("edit:" + servers[idx]->get_id());
+			}
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_query", "Query Models", 'q', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+			if (idx < (int)servers.size()) {
+				d->set_action(dialog_result::confirmed);
+				d->set_result("query:" + servers[idx]->get_id());
 			}
 		}
 	}));
