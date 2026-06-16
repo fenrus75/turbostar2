@@ -55,6 +55,7 @@ agentlib_sources = files(
   'agentlib/interactions/tool_interaction.cpp',
   'agentlib/interactions/system_message.cpp',
   'agentlib/ai_model.cpp',
+  'agentlib/model_server.cpp',
   'agentlib/api_formatter.cpp',
   'agentlib/skill_manager.cpp',
   'agentlib/compaction_engine.cpp',
