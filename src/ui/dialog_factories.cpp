@@ -1073,13 +1073,14 @@ std::unique_ptr<dialog> create_model_edit_dialog(std::shared_ptr<agentlib::ai_mo
 	// Query servers list for parent server dropdown
 	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
 	std::vector<std::string> server_options;
+	server_options.push_back("none");
 	for (const auto &s : servers) {
 		server_options.push_back(s->get_id());
 	}
-	if (server_options.empty()) {
-		server_options.push_back("default_server");
+	std::string current_server = model ? model->get_server_id() : "none";
+	if (current_server.empty()) {
+		current_server = "none";
 	}
-	std::string current_server = model ? model->get_server_id() : server_options.front();
 	auto server_row = std::make_unique<ui_horizontal_flow>("server_row");
 	server_row->add_child(std::make_unique<ui_text_label>("Server:    "));
 	server_row->add_child(std::make_unique<ui_dropdown>("server_id", 36, current_server, server_options));

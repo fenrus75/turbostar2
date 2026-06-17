@@ -24,7 +24,7 @@ ai_model::ai_model(std::string id, std::string name, std::string url, std::strin
 			auto &reg = model_server_registry::get_instance();
 			std::string derived_id = id_ + "_server";
 			auto existing_srv = reg.get_server(derived_id);
-			if (!existing_srv) {
+			if (!existing_srv || existing_srv->get_id() == "none") {
 				for (const auto &srv : reg.get_all_servers()) {
 					if (srv->get_url() == url && srv->get_api_key() == api_key && srv->get_api_type() == type) {
 						derived_id = srv->get_id();
@@ -33,7 +33,7 @@ ai_model::ai_model(std::string id, std::string name, std::string url, std::strin
 					}
 				}
 			}
-			if (!existing_srv) {
+			if (!existing_srv || existing_srv->get_id() == "none") {
 				auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", url, api_key, type);
 				reg.register_server(new_srv);
 				reg.save_servers();
@@ -42,24 +42,10 @@ ai_model::ai_model(std::string id, std::string name, std::string url, std::strin
 		}
 	} else {
 		server_id_ = std::move(server_id);
-		auto &reg = model_server_registry::get_instance();
-		if (!reg.get_server(server_id_)) {
-			auto new_srv = std::make_shared<model_server>(server_id_, name_ + " Server", url, api_key, type);
-			reg.register_server(new_srv);
-			reg.save_servers();
-		}
 	}
 
 	if (server_id_.empty()) {
-		std::string derived_id = id_ + "_server";
-		auto &reg = model_server_registry::get_instance();
-		auto existing_srv = reg.get_server(derived_id);
-		if (!existing_srv) {
-			auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", "http://localhost", "", api_type::openai);
-			reg.register_server(new_srv);
-			reg.save_servers();
-		}
-		server_id_ = derived_id;
+		server_id_ = "none";
 	}
 }
 

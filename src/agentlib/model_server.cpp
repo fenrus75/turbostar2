@@ -32,6 +32,10 @@ void model_server_registry::register_server(std::shared_ptr<model_server> server
 
 std::shared_ptr<model_server> model_server_registry::get_server(const std::string &id) const
 {
+	if (id == "none" || id.empty()) {
+		static auto none_srv = std::make_shared<model_server>("none", "None", "", "", api_type::openai);
+		return none_srv;
+	}
 	auto it = servers_.find(id);
 	if (it != servers_.end()) {
 		return it->second;

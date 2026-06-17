@@ -81,9 +81,21 @@ int main()
 	assert(fallback_model->get_url() == "https://fallback.api/v1");
 	assert(fallback_model->get_from_download() == false);
 
+	// Test artificial "none" server resolution
+	auto none_model = std::make_shared<ai_model>("none_model", "None Model", "", "purpose", 0.0, 0.0, "", api_type::openai);
+	assert(none_model->get_server_id() == "none");
+	assert(none_model->get_url() == "");
+	assert(none_model->get_api_key() == "");
+	auto none_server = registry.get_server("none");
+	assert(none_server != nullptr);
+	assert(none_server->get_id() == "none");
+	assert(none_server->get_name() == "None");
+	assert(none_server->get_url() == "");
+
 	model_reg.register_model(test_model);
 	model_reg.register_model(test_downloaded_model);
 	model_reg.register_model(fallback_model);
+	model_reg.register_model(none_model);
 	model_reg.save_models();
 
 	model_reg.remove_model("test_model_id");
@@ -215,6 +227,7 @@ int main()
 	model_reg.remove_model("test_model_id");
 	model_reg.remove_model("test_downloaded_id");
 	model_reg.remove_model("test_fallback_model");
+	model_reg.remove_model("none_model");
 	model_reg.save_models();
 
 	if (fallback_server) {
