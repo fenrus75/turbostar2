@@ -128,11 +128,11 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 					cursor_pos_--;
 				return true;
 			}
-			if (ev.key_code == KEY_HOME) {
+			if (ev.key_code == KEY_HOME || ev.key_code == 1) {
 				cursor_pos_ = 0;
 				return true;
 			}
-			if (ev.key_code == KEY_END) {
+			if (ev.key_code == KEY_END || ev.key_code == 5) {
 				cursor_pos_ = buffer_.length();
 				return true;
 			}

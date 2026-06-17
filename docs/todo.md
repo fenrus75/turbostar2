@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- fallout from server/model split
-
 - make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
    class levels needed:
 	- "conversation"
@@ -34,6 +32,7 @@
 
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
+	- https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/litellm_internal_staging/model_prices_and_context_window.json
 
 - separate model provider (server) database for easy population of model servers
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
@@ -75,9 +74,9 @@
 	- based on argv[0] - turbostar = editor window first, turboagent = agent window
 	- install turboagent as a symlink
 
-- main editor window: mouse click on the bottom scroll bar moves the text down, rather than go to the position in the document indicated by the click
+- usability: main editor window: mouse click on the bottom scroll bar moves the text down, rather than go to the position in the document indicated by the click
 
-- main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
+- usability: main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
 
 
 - meta feature: helper agents
@@ -234,6 +233,7 @@
 # done items (move items here on completion)
 
 ## 16-06-2026
+- implemented Ctrl-A (jump to home) and Ctrl-E (jump to end) key navigation support in TUI input boxes (ui_textbox).
 - implemented a capability properties struct (vision, video, audio, coding) inside the model class with JSON serialization/deserialization support.
 - implemented a default 'none' server object (implied) for models that makes them not work but keeps the invariants intact, avoiding auto-injecting fake servers to disk.
 - implemented cascading delete of from_download models on model server deletion.

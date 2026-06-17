@@ -10,6 +10,7 @@
 #include "ui/components/ui_horizontal_flow.h"
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_radio.h"
+#include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
 
 int main()
@@ -282,6 +283,51 @@ int main()
 		vflow.add_child(std::move(v2));
 		assert(vflow.natural_width() == 6);
 		assert(vflow.natural_height() == 9);
+	}
+
+	// Test ui_textbox key handling for Ctrl-A (code 1) and Ctrl-E (code 5)
+	{
+		ui_textbox tb("my_textbox", 40, "hello world");
+		tb.set_focus(true);
+		
+		// Move cursor to some position in the middle
+		editor_event ev_left;
+		ev_left.type = event_type::key_press;
+		ev_left.key_code = KEY_LEFT;
+		tb.handle_event(ev_left, 0, 0);
+		tb.handle_event(ev_left, 0, 0);
+		auto val = tb.get_value("my_textbox");
+		assert(val.has_value() && *val == "hello world");
+		
+		// Send Ctrl-A
+		editor_event ev_ctrl_a;
+		ev_ctrl_a.type = event_type::key_press;
+		ev_ctrl_a.key_code = 1; // Ctrl-A
+		bool handled_a = tb.handle_event(ev_ctrl_a, 0, 0);
+		assert(handled_a);
+
+		// Character typed should be inserted at index 0 (start of string)
+		editor_event ev_char;
+		ev_char.type = event_type::key_press;
+		ev_char.key_code = 'x';
+		tb.handle_event(ev_char, 0, 0);
+		auto val_after_a = tb.get_value("my_textbox");
+		assert(*val_after_a == "xhello world");
+
+		// Send Ctrl-E
+		editor_event ev_ctrl_e;
+		ev_ctrl_e.type = event_type::key_press;
+		ev_ctrl_e.key_code = 5; // Ctrl-E
+		bool handled_e = tb.handle_event(ev_ctrl_e, 0, 0);
+		assert(handled_e);
+		
+		// Character typed should be inserted at the end of the string
+		editor_event ev_char_y;
+		ev_char_y.type = event_type::key_press;
+		ev_char_y.key_code = 'y';
+		tb.handle_event(ev_char_y, 0, 0);
+		auto val_after_e = tb.get_value("my_textbox");
+		assert(*val_after_e == "xhello worldy");
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";
