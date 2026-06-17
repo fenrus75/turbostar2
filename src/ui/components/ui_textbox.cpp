@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <ncurses.h>
 #include <sys/stat.h>
+#include "ansi.h"
 #include "fs_utils.h"
 
 // --- ui_textbox ---
@@ -14,8 +15,8 @@ ui_textbox::ui_textbox(std::string name, int x, int y, int width, const std::str
 {
 }
 
-ui_textbox::ui_textbox(std::string name, int width, const std::string &initial_text,
-		       std::function<void(const std::string &)> on_submit, std::string label)
+ui_textbox::ui_textbox(std::string name, int width, const std::string &initial_text, std::function<void(const std::string &)> on_submit,
+		       std::string label)
     : ui_element(std::move(name), 0, 0, width, 1), buffer_(initial_text), cursor_pos_(initial_text.length()),
       on_submit_(std::move(on_submit)), label_(std::move(label))
 {
@@ -67,7 +68,26 @@ void ui_textbox::draw(int abs_x, int abs_y) const
 		full_display = full_display.substr(0, input_width);
 	}
 
-	mvaddstr(abs_y, input_x, display_text.c_str());
+	move(abs_y, input_x);
+	for (int i = 0; i < static_cast<int>(display_text.length()); ++i) {
+		int char_offset = display_offset + i;
+		bool is_selected = false;
+		if (selection_start_ != -1 && selection_end_ != -1) {
+			int sel_min = std::min(selection_start_, selection_end_);
+			int sel_max = std::max(selection_start_, selection_end_);
+			if (char_offset >= sel_min && char_offset < sel_max) {
+				is_selected = true;
+			}
+		}
+
+		if (is_selected) {
+			attrset(COLOR_PAIR(8));
+		} else {
+			attrset(COLOR_PAIR(5));
+		}
+		addch(display_text[i]);
+	}
+	attrset(COLOR_PAIR(5));
 	if (!suggestion.empty() && suggestion.length() > buffer_.length()) {
 		attrset(COLOR_PAIR(4));
 		int sug_x = input_x + buffer_.length() - display_offset;
@@ -103,6 +123,10 @@ void ui_textbox::draw(int abs_x, int abs_y) const
 bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
 	if (ev.type == event_type::key_press) {
+		if (has_focus_) {
+			selection_start_ = -1;
+			selection_end_ = -1;
+		}
 		if ((ev.key_code == '\n' || ev.key_code == '\r' || ev.key_code == KEY_ENTER) && has_focus_) {
 			if (on_submit_)
 				on_submit_(buffer_);
@@ -183,11 +207,13 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 	if (ev.type == event_type::paste) {
 		if (has_focus_) {
+			selection_start_ = -1;
+			selection_end_ = -1;
 			std::string sanitized = ev.payload;
 			// Strip newlines for a single-line textbox
 			sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
 			sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
-			
+
 			buffer_.insert(cursor_pos_, sanitized);
 			cursor_pos_ += sanitized.length();
 			return true;
@@ -216,7 +242,49 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				}
 
 				cursor_pos_ = std::min(static_cast<int>(buffer_.length()), click_offset + display_offset);
+				selection_start_ = cursor_pos_;
+				selection_end_ = cursor_pos_;
+				is_mouse_selecting_ = true;
 			}
+			return true;
+		}
+	} else if (ev.type == event_type::mouse_drag) {
+		if (is_mouse_selecting_) {
+			int input_x = abs_x;
+			int input_width = width_;
+			if (!label_.empty()) {
+				int offset = static_cast<int>(label_.length()) + 1;
+				input_x += offset;
+				input_width -= offset;
+			}
+
+			if (input_width > 0) {
+				int drag_offset = ev.mouse_x - input_x;
+				if (drag_offset < 0) {
+					drag_offset = 0;
+				}
+
+				int display_offset = 0;
+				if (cursor_pos_ >= input_width) {
+					display_offset = cursor_pos_ - input_width + 1;
+				}
+
+				selection_end_ = std::min(static_cast<int>(buffer_.length()), drag_offset + display_offset);
+				cursor_pos_ = selection_end_;
+			}
+			return true;
+		}
+	} else if (ev.type == event_type::mouse_release) {
+		if (is_mouse_selecting_) {
+			if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
+				int sel_min = std::min(selection_start_, selection_end_);
+				int sel_max = std::max(selection_start_, selection_end_);
+				std::string selected_text = buffer_.substr(sel_min, sel_max - sel_min);
+				if (!selected_text.empty()) {
+					ansi::copy_to_clipboard(selected_text);
+				}
+			}
+			is_mouse_selecting_ = false;
 			return true;
 		}
 	}
@@ -230,4 +298,14 @@ std::optional<std::string> ui_textbox::get_value(const std::string &target_name)
 		return buffer_;
 	}
 	return std::nullopt;
+}
+
+void ui_textbox::set_focus(bool focus)
+{
+	ui_element::set_focus(focus);
+	if (!focus) {
+		selection_start_ = -1;
+		selection_end_ = -1;
+		is_mouse_selecting_ = false;
+	}
 }

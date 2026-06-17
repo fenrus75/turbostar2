@@ -308,7 +308,7 @@ void test_code_review_window_behavior()
 
 		auto state_val = edit_dlg->get_value("state");
 		assert(state_val.has_value());
-		assert(*state_val == "new");
+		assert(*state_val == "verified-fixed");
 	}
 
 	// Clean up

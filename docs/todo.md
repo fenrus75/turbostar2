@@ -233,6 +233,7 @@
 # done items (move items here on completion)
 
 ## 16-06-2026
+- implemented mouse selection and console copy support (OSC 52) in TUI input boxes (ui_textbox), propagating mouse events correctly through containers.
 - implemented Ctrl-A (jump to home) and Ctrl-E (jump to end) key navigation support in TUI input boxes (ui_textbox).
 - implemented a capability properties struct (vision, video, audio, coding) inside the model class with JSON serialization/deserialization support.
 - implemented a default 'none' server object (implied) for models that makes them not work but keeps the invariants intact, avoiding auto-injecting fake servers to disk.

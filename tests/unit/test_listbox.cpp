@@ -258,7 +258,7 @@ int main()
 		assert(gb.natural_height() == 3); // 2 + 1 = 3
 
 		// 4. ui_horizontal_flow
-		ui_horizontal_flow hflow("hflow", 1, 2); // x_offset = 1, y_offset = 2
+		ui_horizontal_flow hflow("hflow", 1, 2);			      // x_offset = 1, y_offset = 2
 		auto h1 = std::make_unique<ui_button>("h1", 0, 0, "A", 'a', nullptr); // nw = 4, nh = 1
 		auto h2 = std::make_unique<ui_button>("h2", 0, 0, "B", 'b', nullptr); // nw = 4, nh = 1
 		hflow.add_child(std::move(h1));
@@ -267,8 +267,8 @@ int main()
 		assert(hflow.natural_height() == 5);
 
 		// 5. ui_radiobutton_group
-		ui_radiobutton_group rbg("rbg", false); // vertical
-		auto r1 = std::make_unique<ui_radio_choice>("r1", "Yes", 'y'); // nw = 7, nh = 1
+		ui_radiobutton_group rbg("rbg", false);				 // vertical
+		auto r1 = std::make_unique<ui_radio_choice>("r1", "Yes", 'y');	 // nw = 7, nh = 1
 		auto r2 = std::make_unique<ui_radio_choice>("r2", "Maybe", 'm'); // nw = 9, nh = 1
 		rbg.add_child(std::move(r1));
 		rbg.add_child(std::move(r2));
@@ -276,7 +276,7 @@ int main()
 		assert(rbg.natural_height() == 3); // 1 + 1 + 1 = 3
 
 		// 6. ui_vertical_flow
-		ui_vertical_flow vflow("vflow", 1, 2, 3); // x_offset = 1, y_offset = 2, spacer = 3
+		ui_vertical_flow vflow("vflow", 1, 2, 3);			      // x_offset = 1, y_offset = 2, spacer = 3
 		auto v1 = std::make_unique<ui_button>("v1", 0, 0, "A", 'a', nullptr); // nw = 4, nh = 1
 		auto v2 = std::make_unique<ui_button>("v2", 0, 0, "B", 'b', nullptr); // nw = 4, nh = 1
 		vflow.add_child(std::move(v1));
@@ -289,7 +289,7 @@ int main()
 	{
 		ui_textbox tb("my_textbox", 40, "hello world");
 		tb.set_focus(true);
-		
+
 		// Move cursor to some position in the middle
 		editor_event ev_left;
 		ev_left.type = event_type::key_press;
@@ -298,7 +298,7 @@ int main()
 		tb.handle_event(ev_left, 0, 0);
 		auto val = tb.get_value("my_textbox");
 		assert(val.has_value() && *val == "hello world");
-		
+
 		// Send Ctrl-A
 		editor_event ev_ctrl_a;
 		ev_ctrl_a.type = event_type::key_press;
@@ -320,7 +320,7 @@ int main()
 		ev_ctrl_e.key_code = 5; // Ctrl-E
 		bool handled_e = tb.handle_event(ev_ctrl_e, 0, 0);
 		assert(handled_e);
-		
+
 		// Character typed should be inserted at the end of the string
 		editor_event ev_char_y;
 		ev_char_y.type = event_type::key_press;
@@ -328,6 +328,105 @@ int main()
 		tb.handle_event(ev_char_y, 0, 0);
 		auto val_after_e = tb.get_value("my_textbox");
 		assert(*val_after_e == "xhello worldy");
+	}
+
+	// Test ui_textbox mouse selection and copying
+	{
+		ui_textbox tb("my_textbox", 40, "hello world");
+		tb.set_focus(true);
+
+		int start = -1, end = -1;
+		tb.get_selection_range(start, end);
+		assert(start == -1 && end == -1);
+
+		// Click inside textbox to start selection
+		editor_event click_ev;
+		click_ev.type = event_type::mouse_click;
+		click_ev.mouse_x = 2; // click 3rd char ('l')
+		click_ev.mouse_y = 0;
+		bool handled_click = tb.handle_event(click_ev, 0, 0);
+		assert(handled_click);
+
+		tb.get_selection_range(start, end);
+		assert(start == 2 && end == 2);
+
+		// Drag to 6th char (' ')
+		editor_event drag_ev;
+		drag_ev.type = event_type::mouse_drag;
+		drag_ev.mouse_x = 5;
+		drag_ev.mouse_y = 0;
+		bool handled_drag = tb.handle_event(drag_ev, 0, 0);
+		assert(handled_drag);
+
+		tb.get_selection_range(start, end);
+		assert(start == 2 && end == 5);
+
+		// Release mouse to copy
+		editor_event release_ev;
+		release_ev.type = event_type::mouse_release;
+		release_ev.mouse_x = 5;
+		release_ev.mouse_y = 0;
+		bool handled_release = tb.handle_event(release_ev, 0, 0);
+		assert(handled_release);
+
+		// Verify selection is still tracked (for draw highlight) but drag active state is done
+		tb.get_selection_range(start, end);
+		assert(start == 2 && end == 5);
+
+		// Key press should clear the selection
+		editor_event key_ev;
+		key_ev.type = event_type::key_press;
+		key_ev.key_code = 'a';
+		tb.handle_event(key_ev, 0, 0);
+		tb.get_selection_range(start, end);
+		assert(start == -1 && end == -1);
+	}
+
+	// Test ui_container mouse drag and release propagation
+	{
+		ui_container container("my_container", 0, 0, 80, 24);
+		auto tb_ptr = std::make_unique<ui_textbox>("my_textbox", 0, 0, 40, "hello world");
+		ui_textbox *tb = tb_ptr.get();
+		container.add_child(std::move(tb_ptr));
+		container.set_focus(true);
+
+		// Click inside textbox via container
+		editor_event click_ev;
+		click_ev.type = event_type::mouse_click;
+		click_ev.mouse_x = 2;
+		click_ev.mouse_y = 0;
+		bool handled_click = container.handle_event(click_ev, 0, 0);
+		assert(handled_click);
+
+		int start = -1, end = -1;
+		tb->get_selection_range(start, end);
+		assert(start == 2 && end == 2);
+
+		// Drag inside textbox via container
+		editor_event drag_ev;
+		drag_ev.type = event_type::mouse_drag;
+		drag_ev.mouse_x = 5;
+		drag_ev.mouse_y = 0;
+		bool handled_drag = container.handle_event(drag_ev, 0, 0);
+		assert(handled_drag);
+
+		tb->get_selection_range(start, end);
+		assert(start == 2 && end == 5);
+
+		// Release inside textbox via container
+		editor_event release_ev;
+		release_ev.type = event_type::mouse_release;
+		release_ev.mouse_x = 5;
+		release_ev.mouse_y = 0;
+		bool handled_release = container.handle_event(release_ev, 0, 0);
+		assert(handled_release);
+
+		// Test that focus loss clears the selection
+		tb->get_selection_range(start, end);
+		assert(start == 2 && end == 5);
+		container.set_focus(false);
+		tb->get_selection_range(start, end);
+		assert(start == -1 && end == -1);
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";

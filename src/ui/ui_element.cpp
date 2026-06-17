@@ -68,16 +68,18 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 	}
 
 	// 2. Mouse events: check all children based on coordinates
-	if (ev.type == event_type::mouse_click) {
+	if (ev.type == event_type::mouse_click || ev.type == event_type::mouse_drag || ev.type == event_type::mouse_release ||
+	    ev.type == event_type::mouse_scroll_up || ev.type == event_type::mouse_scroll_down) {
 		for (const auto &child : children_) {
 			int child_abs_x = abs_x + child->x();
 			int child_abs_y = abs_y + child->y();
 
 			// Even if the child doesn't contain the coord right now, we pass drag/up events down
 			// because they might be capturing the mouse. Let the child decide.
-			// For down events, we strictly filter by bounding box.
+			// For down/scroll events, we strictly filter by bounding box.
 			bool pass_event = false;
-			if (ev.type == event_type::mouse_click) {
+			if (ev.type == event_type::mouse_click || ev.type == event_type::mouse_scroll_up ||
+			    ev.type == event_type::mouse_scroll_down) {
 				pass_event = child->contains_coordinate(ev.mouse_x, ev.mouse_y, child_abs_x, child_abs_y);
 			} else {
 				// For now, pass all mouse up/drag to all children, let them filter if they don't care
@@ -304,9 +306,9 @@ void ui_container::set_focus_by_name(const std::string &child_name)
 	}
 }
 
-std::vector<ui_element*> ui_container::get_focusable_elements()
+std::vector<ui_element *> ui_container::get_focusable_elements()
 {
-	std::vector<ui_element*> result;
+	std::vector<ui_element *> result;
 	for (const auto &child : children_) {
 		auto sub = child->get_focusable_elements();
 		result.insert(result.end(), sub.begin(), sub.end());
@@ -373,4 +375,3 @@ void ui_utils::draw_border(int x, int y, int width, int height, border_style sty
 		attroff(COLOR_PAIR(color_pair));
 	}
 }
-
