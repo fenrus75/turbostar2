@@ -1,8 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 - fallout from server/model split
-	- we need a default 'none' server (implied) for models that makes them not work but keeps the invariants intact
-		- this is better than auto-injecting fake servers as we do now
 	- models should get a set of bool properties for supported uses (show, not edit for now - needs to come from some DB or from the network response)
 		- vision/image
 		- video
@@ -242,6 +240,7 @@
 # done items (move items here on completion)
 
 ## 16-06-2026
+- implemented a default 'none' server object (implied) for models that makes them not work but keeps the invariants intact, avoiding auto-injecting fake servers to disk.
 - implemented cascading delete of from_download models on model server deletion.
 - implemented model database refresh query clearing of from_download models before registering newly fetched ones, while preserving active default model choice by matching name/ID.
 - implemented server ID rename propagation cascading to mapped models.
