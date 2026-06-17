@@ -91,7 +91,13 @@ int main()
 	assert(none_server->get_id() == "none");
 	assert(none_server->get_name() == "None");
 	assert(none_server->get_url() == "");
-
+ 
+	// Test setting capabilities
+	model_capabilities test_caps;
+	test_caps.vision = true;
+	test_caps.coding = true;
+	test_model->set_capabilities(test_caps);
+ 
 	model_reg.register_model(test_model);
 	model_reg.register_model(test_downloaded_model);
 	model_reg.register_model(fallback_model);
@@ -110,7 +116,18 @@ int main()
 	assert(reloaded_model->get_server_id() == "openai_test");
 	assert(reloaded_model->get_url() == "https://api.openai.com/v1");
 	assert(reloaded_model->get_from_download() == false);
-
+	assert(reloaded_model->get_capabilities().vision == true);
+	assert(reloaded_model->get_capabilities().coding == true);
+	assert(reloaded_model->get_capabilities().audio == false);
+	assert(reloaded_model->get_capabilities().video == false);
+ 
+	auto reloaded_none = model_reg.get_model("none_model");
+	assert(reloaded_none != nullptr);
+	assert(reloaded_none->get_capabilities().vision == false);
+	assert(reloaded_none->get_capabilities().coding == false);
+	assert(reloaded_none->get_capabilities().audio == false);
+	assert(reloaded_none->get_capabilities().video == false);
+ 
 	auto reloaded_downloaded = model_reg.get_model("test_downloaded_id");
 	assert(reloaded_downloaded != nullptr);
 	assert(reloaded_downloaded->get_from_download() == true);

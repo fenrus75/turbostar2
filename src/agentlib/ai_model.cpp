@@ -215,10 +215,21 @@ void ai_model_registry::load_models()
 					cost_type = model_cost_type::paid_per_request;
 				}
 				bool from_download = item.value("from_download", false);
-
+ 
+				model_capabilities caps;
+				if (item.contains("capabilities") && item["capabilities"].is_object()) {
+					auto caps_obj = item["capabilities"];
+					caps.vision = caps_obj.value("vision", false);
+					caps.video = caps_obj.value("video", false);
+					caps.audio = caps_obj.value("audio", false);
+					caps.coding = caps_obj.value("coding", false);
+				}
+ 
 				if (!id.empty()) {
-					register_model(std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
-										  max_tokens, cost_type, server_id, from_download));
+					auto model = std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
+										  max_tokens, cost_type, server_id, from_download);
+					model->set_capabilities(caps);
+					register_model(model);
 				}
 			}
 		}
@@ -256,7 +267,15 @@ void ai_model_registry::save_models() const
 			cost_type_str = "paid_per_request";
 		item["cost_type"] = cost_type_str;
 		item["from_download"] = model->get_from_download();
-
+ 
+		auto caps = model->get_capabilities();
+		json caps_obj;
+		caps_obj["vision"] = caps.vision;
+		caps_obj["video"] = caps.video;
+		caps_obj["audio"] = caps.audio;
+		caps_obj["coding"] = caps.coding;
+		item["capabilities"] = caps_obj;
+ 
 		data.push_back(item);
 	}
 

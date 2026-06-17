@@ -12,7 +12,14 @@ namespace agentlib
 enum class api_type { openai, gemini, copilot, openai_response };
 
 enum class model_cost_type { free_local, paid_per_token, paid_per_request };
-
+ 
+struct model_capabilities {
+	bool vision{false};
+	bool video{false};
+	bool audio{false};
+	bool coding{false};
+};
+ 
 class ai_model
 {
       public:
@@ -93,7 +100,15 @@ class ai_model
 	{
 		from_download_ = from_download;
 	}
-
+	model_capabilities get_capabilities() const
+	{
+		return capabilities_;
+	}
+	void set_capabilities(model_capabilities capabilities)
+	{
+		capabilities_ = capabilities;
+	}
+ 
 	int get_global_tokens_tx() const
 	{
 		return global_tokens_tx_;
@@ -106,10 +121,10 @@ class ai_model
 	{
 		return global_cost_;
 	}
-
+ 
 	// Calculates cost for this specific turn, and accumulates into the global tracker
 	double calculate_and_record_cost(int tx_tokens, int rx_tokens);
-
+ 
       private:
 	std::string id_;
 	std::string name_;
@@ -120,6 +135,7 @@ class ai_model
 	model_cost_type cost_type_;
 	std::string server_id_;
 	bool from_download_;
+	model_capabilities capabilities_;
 
 	std::atomic<int> global_tokens_tx_{0};
 	std::atomic<int> global_tokens_rx_{0};
