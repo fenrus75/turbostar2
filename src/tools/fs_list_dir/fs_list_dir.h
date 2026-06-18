@@ -2,11 +2,34 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 #include "../../agentlib/llm_tool_action.h"
 #include "../../agentlib/tool_validator.h"
 
+namespace agentlib
+{
+class virtual_file_system;
+class document_snapshot;
+} // namespace agentlib
+
 namespace tools
 {
+
+struct dir_entry_metadata {
+	std::string filename;
+	char type = 'U'; // 'F' (File), 'D' (Directory), 'L' (Symlink), 'U' (Unknown)
+	std::string size_bytes;
+	std::string size_lines;
+	std::string permissions; // e.g. "R--", "RWX", "R-X"
+	std::string details;	 // libmagic output (if rich_metadata enabled)
+};
+
+struct list_dir_result {
+	bool success = false;
+	std::string error_message;
+	std::vector<dir_entry_metadata> entries;
+	std::string directory_name;
+};
 
 class fs_list_dir_tool : public agentlib::llm_tool_action
 {
@@ -19,6 +42,10 @@ class fs_list_dir_tool : public agentlib::llm_tool_action
       private:
 	std::string safe_path_;
 	bool rich_metadata_;
+
+	list_dir_result scan_vfs(agentlib::virtual_file_system *vfs, const std::string &path) const;
+	list_dir_result scan_local_disk(const std::string &path, agentlib::tool_context &ctx) const;
+	std::string format_entries_table(const list_dir_result &result) const;
 };
 
 class fs_list_dir_validator : public agentlib::tool_validator

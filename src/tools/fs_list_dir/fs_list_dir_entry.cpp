@@ -2,13 +2,15 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
-#include "../magic_compat.h"
 #include <sstream>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
+#include "../../agentlib/document_provider.h"
+#include "../../agentlib/virtual_file_system.h"
 #include "../../fs_utils.h"
+#include "../magic_compat.h"
 #include "fs_list_dir.h"
 
 namespace tools
@@ -45,86 +47,87 @@ bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::
 
 std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 {
+	list_dir_result result;
+
+	// Route scanning based on VFS URI vs local disk path.
 	if (safe_path_.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (!vfs) {
 			set_failure(ctx, "VFS not available");
 			return "Error: VFS not available.";
 		}
-
-		std::string prefix = safe_path_;
-		if (!prefix.ends_with('/'))
-			prefix += '/';
-
-		std::stringstream ss;
-		ss << "# Virtual Directory " << prefix << "\n\n";
-		if (rich_metadata_) {
-			ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
-			ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
-		} else {
-			ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
-			ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
-		}
-
-		auto entries = vfs->list_directory(prefix);
-		size_t count = 0;
-		for (const auto &entry : entries) {
-			// Extract filename from URI
-			std::string filename = entry.uri.substr(prefix.length());
-
-			// If filename is empty, this entry is the requested directory itself. Skip it.
-			if (filename.empty())
-				continue;
-
-			// Check if this is a direct child or in a deeper subdirectory
-			size_t slash_pos = filename.find('/');
-			if (slash_pos != std::string::npos) {
-				// If there's a slash, it's only a direct child if the slash is the VERY last character
-				// (e.g. "folder/" vs "folder/file.txt")
-				if (slash_pos != filename.length() - 1) {
-					continue;
-				}
-				// Strip the trailing slash for the display table
-				filename = filename.substr(0, slash_pos);
-			}
-
-			std::string size_str = "";
-			std::string lines_str = "";
-			if (entry.type == 'F') {
-				size_str = std::to_string(entry.size);
-				if (entry.size_in_lines > 0 || entry.size == 0) {
-					lines_str = std::to_string(entry.size_in_lines);
-				}
-			}
-
-			if (rich_metadata_) {
-				ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str << " | R-- |  |\n";
-			} else {
-				ss << "| " << filename << " | " << entry.type << " | " << size_str << " | " << lines_str << " | R-- |\n";
-			}
-			count++;
-		}
-		set_success(ctx, "Found " + std::to_string(count) + " virtual items");
-		return ss.str();
+		result = scan_vfs(vfs, safe_path_);
+	} else {
+		result = scan_local_disk(safe_path_, ctx);
 	}
 
-	std::filesystem::path relative_path = std::filesystem::relative(safe_path_, ctx.fs_security.get_working_directory());
+	if (!result.success) {
+		set_failure(ctx, result.error_message);
+		return result.error_message;
+	}
+
+	set_success(ctx, "Found " + std::to_string(result.entries.size()) + " items");
+	return format_entries_table(result);
+}
+
+// Scans and retrieves file metadata for Virtual File System directories.
+list_dir_result fs_list_dir_tool::scan_vfs(agentlib::virtual_file_system *vfs, const std::string &path) const
+{
+	list_dir_result result;
+	result.success = true;
+
+	std::string prefix = path;
+	if (!prefix.ends_with('/')) {
+		prefix += '/';
+	}
+	result.directory_name = prefix;
+
+	auto entries = vfs->list_directory(prefix);
+	for (const auto &entry : entries) {
+		std::string filename = entry.uri.substr(prefix.length());
+
+		// Skip directory path self-references.
+		if (filename.empty()) {
+			continue;
+		}
+
+		// Filter out sub-directory grandchildren (report only direct children).
+		size_t slash_pos = filename.find('/');
+		if (slash_pos != std::string::npos) {
+			if (slash_pos != filename.length() - 1) {
+				continue;
+			}
+			filename = filename.substr(0, slash_pos);
+		}
+
+		dir_entry_metadata meta;
+		meta.filename = filename;
+		meta.type = entry.type;
+		if (entry.type == 'F') {
+			meta.size_bytes = std::to_string(entry.size);
+			if (entry.size_in_lines > 0 || entry.size == 0) {
+				meta.size_lines = std::to_string(entry.size_in_lines);
+			}
+		}
+		meta.permissions = "R--";
+		result.entries.push_back(meta);
+	}
+
+	return result;
+}
+
+// Scans local disk directories, incorporating live size checks for files open in the editor.
+list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agentlib::tool_context &ctx) const
+{
+	list_dir_result result;
+
+	std::filesystem::path relative_path = std::filesystem::relative(path, ctx.fs_security.get_working_directory());
 	std::string rel_str = relative_path.string();
 	if (rel_str.empty() || rel_str == ".") {
 		rel_str = "/ (Project Root)";
 	}
+	result.directory_name = rel_str;
 
-	std::stringstream ss;
-	ss << "# Directory " << rel_str << "\n\n";
-	if (rich_metadata_) {
-		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
-		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
-	} else {
-		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
-		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
-	}
-
-	// Initialize libmagic if rich metadata is requested
 	magic_t magic = nullptr;
 	if (rich_metadata_) {
 		magic = magic_open(MAGIC_NONE);
@@ -137,45 +140,64 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	try {
-		std::vector<std::filesystem::directory_entry> entries;
-		for (const auto &entry : std::filesystem::directory_iterator(safe_path_)) {
-			entries.push_back(entry);
+		std::vector<std::filesystem::directory_entry> fs_entries;
+		for (const auto &entry : std::filesystem::directory_iterator(path)) {
+			fs_entries.push_back(entry);
 		}
 
-		// Sort alphabetically
-		std::sort(entries.begin(), entries.end(),
+		// Alphabetical sort ensures stable, deterministic output arrays.
+		std::sort(fs_entries.begin(), fs_entries.end(),
 			  [](const auto &a, const auto &b) { return a.path().filename().string() < b.path().filename().string(); });
 
-		for (const auto &entry : entries) {
+		for (const auto &entry : fs_entries) {
 			std::string path_str = entry.path().string();
 			std::string resolved_path;
 			std::string error;
 
-			// Strict visibility check: Only list files the LLM is allowed to read
+			// Strict visibility check: Only list files the LLM is allowed to read.
 			if (!ctx.fs_security.validate_access(path_str, agentlib::access_type::read, resolved_path, error)) {
 				continue;
 			}
 
-			std::string filename = entry.path().filename().string();
-			std::string type = "Unknown";
-			std::string size_bytes = "";
-			std::string size_lines = "";
-			std::string perms = "";
+			dir_entry_metadata meta;
+			meta.filename = entry.path().filename().string();
 
 			if (entry.is_symlink()) {
-				type = "L";
+				meta.type = 'L';
 			} else if (entry.is_directory()) {
-				type = "D";
+				meta.type = 'D';
 			} else if (entry.is_regular_file()) {
-				type = "F";
-				size_bytes = std::to_string(entry.file_size());
-				size_lines = fs_utils::count_lines_in_file(resolved_path);
+				meta.type = 'F';
+
+				// Check if the file is currently open in active editor buffers
+				// to report the live line count and byte size including unsaved user modifications.
+				bool read_from_editor = false;
+				if (ctx.doc_provider) {
+					auto doc_snapshot = ctx.doc_provider->get_open_document(resolved_path);
+					if (doc_snapshot) {
+						read_from_editor = true;
+						size_t line_count = doc_snapshot->get_line_count();
+						meta.size_lines = std::to_string(line_count);
+
+						// Sum up characters in each line plus 1 byte for each newline character to get byte size.
+						size_t total_bytes = 0;
+						for (size_t i = 0; i < line_count; ++i) {
+							total_bytes += doc_snapshot->get_line_text(i).length() + 1;
+						}
+						meta.size_bytes = std::to_string(total_bytes);
+					}
+				}
+
+				if (!read_from_editor) {
+					meta.size_bytes = std::to_string(entry.file_size());
+					meta.size_lines = fs_utils::count_lines_in_file(resolved_path);
+				}
 			}
 
 			auto p = entry.status().permissions();
-			perms += (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none ? "R" : "-";
+			meta.permissions += (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none ? "R" : "-";
 
-			// Only report Write if the OS allows it AND the security manager allows it
+			// Only report Write capability if the host OS permission is set AND the sandbox security manager allows it.
 			bool os_can_write = (p & std::filesystem::perms::owner_write) != std::filesystem::perms::none;
 			bool agent_can_write = false;
 			if (os_can_write) {
@@ -184,37 +206,64 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 				agent_can_write =
 				    ctx.fs_security.validate_access(path_str, agentlib::access_type::write, dump_path, dump_err);
 			}
-			perms += agent_can_write ? "W" : "-";
+			meta.permissions += agent_can_write ? "W" : "-";
+			meta.permissions += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 
-			perms += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
-
-			std::string details = "";
+			// Inspect the file format and append libmagic details.
 			if (magic && entry.is_regular_file()) {
 				const char *desc = magic_file(magic, resolved_path.c_str());
 				if (desc) {
-					details = desc;
-					// Escape '|' to prevent Markdown table breakage
-					std::replace(details.begin(), details.end(), '|', ',');
+					meta.details = desc;
+					std::replace(meta.details.begin(), meta.details.end(), '|', ',');
 				}
 			}
 
-			if (rich_metadata_) {
-				ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms
-				   << " | " << details << " |\n";
-			} else {
-				ss << "| " << filename << " | " << type << " | " << size_bytes << " | " << size_lines << " | " << perms
-				   << " |\n";
-			}
+			result.entries.push_back(meta);
 		}
 	} catch (const std::exception &e) {
 		if (magic) {
 			magic_close(magic);
 		}
-		return "Error reading directory: " + std::string(e.what());
+		result.success = false;
+		result.error_message = "Error reading directory: " + std::string(e.what());
+		return result;
 	}
 
 	if (magic) {
 		magic_close(magic);
+	}
+
+	result.success = true;
+	return result;
+}
+
+// Formats directory entry results into a unified Markdown table representation.
+std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result) const
+{
+	std::stringstream ss;
+	if (safe_path_.find("://") != std::string::npos) {
+		ss << "# Virtual Directory " << result.directory_name << "\n\n";
+	} else {
+		ss << "# Directory " << result.directory_name << "\n\n";
+	}
+
+	if (rich_metadata_) {
+		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
+		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
+	} else {
+		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions |\n";
+		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- |\n";
+	}
+
+	for (const auto &meta : result.entries) {
+		std::string type_str(1, meta.type);
+		if (rich_metadata_) {
+			ss << "| " << meta.filename << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
+			   << meta.permissions << " | " << meta.details << " |\n";
+		} else {
+			ss << "| " << meta.filename << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
+			   << meta.permissions << " |\n";
+		}
 	}
 
 	return ss.str();
