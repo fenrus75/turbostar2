@@ -1,4 +1,5 @@
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/compaction_engine.h"
@@ -345,6 +346,81 @@ int main()
 
 		agent->set_read_only(original_ro);
 		std::cout << "agent_add_todo tool verified successfully!" << std::endl;
+	}
+
+	std::cout << "\nTesting fs_read_lines boundary heuristics..." << std::endl;
+	{
+		std::string temp_file = "test_fs_read_lines_heuristics.py";
+		{
+			std::ofstream out(temp_file);
+			out << "line 1\n"
+			    << "line 2\n"
+			    << "line 3\n"
+			    << "line 4\n"
+			    << "line 5\n"
+			    << "line 6\n"
+			    << "\n"
+			    << "def func():\n"
+			    << "    pass\n"
+			    << "line 10\n";
+		}
+
+		ctx.fs_security.add_allowed_root(".", access_type::read);
+
+		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 4}";
+			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+
+			assert(res.find("1: line 1") != std::string::npos);
+			assert(res.find("10: line 10") != std::string::npos);
+		}
+
+		{
+			std::ofstream out(temp_file);
+			for (int i = 1; i <= 100; ++i) {
+				if (i == 45) {
+					out << "\n";
+				} else if (i == 46) {
+					out << "def next_func():\n";
+				} else if (i >= 41 && i <= 44) {
+					out << "    line " << i << "\n";
+				} else {
+					out << "line " << i << "\n";
+				}
+			}
+		}
+
+		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 40}";
+			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+
+			assert(res.find("40: line 40") != std::string::npos);
+			assert(res.find("44:     line 44") != std::string::npos);
+			assert(res.find("45:") == std::string::npos);
+		}
+
+		std::string temp_cpp = "test_fs_read_lines_heuristics.cpp";
+		{
+			std::ofstream out(temp_cpp);
+			for (int i = 1; i <= 100; ++i) {
+				if (i == 45) {
+					out << "}\n";
+				} else {
+					out << "line " << i << "\n";
+				}
+			}
+		}
+
+		{
+			std::string args = "{\"path\": \"" + temp_cpp + "\", \"start_line\": 1, \"end_line\": 40}";
+			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+			assert(res.find("45: }") != std::string::npos);
+			assert(res.find("46:") == std::string::npos);
+		}
+
+		std::filesystem::remove(temp_file);
+		std::filesystem::remove(temp_cpp);
+		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;
 	}
 
 	std::cout << "\nTesting ai_agent::coalesce_tool_calls..." << std::endl;

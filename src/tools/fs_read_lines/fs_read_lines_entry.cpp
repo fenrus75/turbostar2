@@ -5,6 +5,7 @@
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../../fs_utils.h"
@@ -73,6 +74,84 @@ std::string get_language_from_extension(const std::string &path)
 		return "xml";
 	}
 	return "";
+}
+
+int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path)
+{
+	int total_lines_read = static_cast<int>(lines.size());
+	int file_end_line = start + total_lines_read - 1;
+
+	// Case 1: If we reached the end of the file within the extra 25 lines, just return all the way to the end.
+	if (file_end_line < requested_end + 25) {
+		return file_end_line;
+	}
+
+	// Calculate indices inside the `lines` vector.
+	int requested_end_idx = requested_end - start;
+	if (requested_end_idx < 0 || requested_end_idx >= total_lines_read) {
+		return requested_end; // Fallback
+	}
+
+	// Helper to trim leading/trailing whitespace
+	auto trim = [](std::string_view s) -> std::string_view {
+		size_t first = s.find_first_not_of(" \t\r\n");
+		if (first == std::string_view::npos)
+			return "";
+		size_t last = s.find_last_not_of(" \t\r\n");
+		return s.substr(first, last - first + 1);
+	};
+
+	// Helper to check if string starts with prefix
+	auto starts_with = [](std::string_view s, std::string_view prefix) -> bool { return s.substr(0, prefix.size()) == prefix; };
+
+	// Scan from `requested_end_idx + 1` to `requested_end_idx + 25` (which is `total_lines_read - 1`).
+	for (int i = requested_end_idx + 1; i < total_lines_read; ++i) {
+		std::string_view line = lines[i];
+		std::string_view trimmed = trim(line);
+		int current_line_num = start + i;
+
+		// Rule 2: Scope End. If we see a line containing only a closing brace/delimiter, stop after this line.
+		if (trimmed == "}" || trimmed == "};" || trimmed == "]" || trimmed == ")" || trimmed == "end" || trimmed == "fi" ||
+		    trimmed == "done") {
+			return current_line_num;
+		}
+
+		// Rule 3: Next Function/Class Start. If we see a line declaring a new function, struct, class, or def,
+		// stop BEFORE this line.
+		if (starts_with(trimmed, "class ") || starts_with(trimmed, "struct ") || starts_with(trimmed, "def ") ||
+		    starts_with(trimmed, "fn ") || starts_with(trimmed, "namespace ") || starts_with(trimmed, "interface ")) {
+			return current_line_num - 1;
+		}
+
+		// Check C++ function signature start at column 0 (trimmed starting with type and having a '(' later)
+		if (!line.empty() && line[0] != ' ' && line[0] != '\t') {
+			if (starts_with(trimmed, "void ") || starts_with(trimmed, "int ") || starts_with(trimmed, "bool ") ||
+			    starts_with(trimmed, "double ") || starts_with(trimmed, "float ") || starts_with(trimmed, "std::") ||
+			    starts_with(trimmed, "template<") || starts_with(trimmed, "template <")) {
+				if (trimmed.find('(') != std::string_view::npos) {
+					return current_line_num - 1;
+				}
+			}
+		}
+
+		// Rule 3b: For Python files: check indentation drops to 0 on a non-comment line.
+		std::filesystem::path p(path);
+		std::string ext = p.extension().string();
+		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+		if (ext == ".py") {
+			if (!line.empty() && line[0] != ' ' && line[0] != '\t' && line[0] != '#') {
+				return current_line_num - 1;
+			}
+		}
+
+		// Rule 4: Logical Paragraph / Blank Line. Stop at this line (excluding the blank line itself).
+		if (trimmed.empty()) {
+			return current_line_num - 1;
+		}
+	}
+
+	// Fallback: Default to stopping at the requested `end` line
+	return requested_end;
 }
 
 } // namespace
@@ -155,19 +234,14 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	// Fallback bounds checks: clamp indices to valid positive ranges and prevent excessive reads
 	// that could overwhelm the context window of the LLM.
 	int start = std::max(1, args_.start_line);
-	int end = std::max(start, args_.end_line);
+	int requested_end = std::max(start, args_.end_line);
 
-	if (end - start > 50000) {
-		end = start + 50000;
+	if (requested_end - start > 50000) {
+		requested_end = start + 50000;
 	}
 
-	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
-	args_.start_line = start;
-	args_.end_line = end;
-
-	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-		custom_interaction->set_range(start, end);
-	}
+	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics.
+	int fetch_end = requested_end + 25;
 
 	file_read_result read_res;
 
@@ -175,7 +249,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	if (args_.safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
-			read_res = read_from_vfs(vfs, args_.safe_path, start, end);
+			read_res = read_from_vfs(vfs, args_.safe_path, start, fetch_end);
 		} else {
 			read_res.success = false;
 			read_res.error_message = "Error: Virtual file not found or not mounted.";
@@ -184,15 +258,31 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	// Try reading from open document buffers in the editor, ensuring we reflect unsaved user modifications.
 	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
 		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-		read_res = read_from_document(doc_snapshot.get(), start, end);
+		read_res = read_from_document(doc_snapshot.get(), start, fetch_end);
 	}
 	// Fall back to direct file read from local disk.
 	else {
-		read_res = read_from_disk(args_.safe_path, start, end);
+		read_res = read_from_disk(args_.safe_path, start, fetch_end);
 	}
 
-	// Propagate total file lines to the interaction UI for display on status logs.
+	int adjusted_end = requested_end;
+	if (read_res.success && !read_res.lines.empty()) {
+		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, args_.requested_path);
+		int keep_count = adjusted_end - start + 1;
+		if (keep_count < 0) {
+			keep_count = 0;
+		}
+		if (keep_count < static_cast<int>(read_res.lines.size())) {
+			read_res.lines.resize(keep_count);
+		}
+	}
+
+	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
+	args_.start_line = start;
+	args_.end_line = adjusted_end;
+
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+		custom_interaction->set_range(start, adjusted_end);
 		custom_interaction->set_total(read_res.total_file_lines);
 	}
 
@@ -215,10 +305,9 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
 		std::string fence(fence_len, '`');
 		std::string lang = get_language_from_extension(args_.requested_path);
-		int end_line = start + static_cast<int>(read_res.lines.size()) - 1;
 
 		std::stringstream ss;
-		ss << std::format("Code for lines {} - {} of {}:\n{}{}\n", start, end_line, args_.requested_path, fence, lang);
+		ss << std::format("Code for lines {} - {} of {}:\n{}{}\n", start, adjusted_end, args_.requested_path, fence, lang);
 		int current_line = start;
 		for (const auto &line : read_res.lines) {
 			ss << std::format("{}: {}\n", current_line, line);

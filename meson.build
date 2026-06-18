@@ -167,7 +167,9 @@ test_tools = executable('test_tools',
    'src/tools/agent_list_episodes/agent_list_episodes_entry.cpp',
    'src/tools/agent_list_episodes/agent_list_episodes_security.cpp',
    'src/tools/agent_add_todo/agent_add_todo_entry.cpp',
-   'src/tools/agent_add_todo/agent_add_todo_security.cpp'],
+   'src/tools/agent_add_todo/agent_add_todo_security.cpp',
+   'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
+   'src/tools/fs_read_lines/fs_read_lines_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_tools', test_tools)
