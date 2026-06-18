@@ -56,6 +56,13 @@ int main()
 		assert(!res.empty());
 		assert(res.find("Error:") == std::string::npos);
 		assert(res.find("Binary Structure Inspection") != std::string::npos);
+		assert(res.find("| **MIME Type** |") != std::string::npos);
+		assert(res.find("| **Description** |") != std::string::npos);
+#ifdef HAS_LIBMAGIC
+		assert(res.find("application/") != std::string::npos || res.find("octet-stream") != std::string::npos);
+#else
+		assert(res.find("libmagic disabled") != std::string::npos);
+#endif
 		assert(res.find("ELF Magic") != std::string::npos || res.find("e_ident") != std::string::npos);
 	}
 

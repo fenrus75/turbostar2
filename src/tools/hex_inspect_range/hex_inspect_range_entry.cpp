@@ -3,11 +3,74 @@
 #include <format>
 #include <fstream>
 #include <vector>
+#ifdef HAS_LIBMAGIC
+#include <magic.h>
+#else
+typedef void *magic_t;
+#define MAGIC_NONE 0
+#define MAGIC_MIME_TYPE 0x000010
+inline magic_t magic_open(int) { return nullptr; }
+inline int magic_load(magic_t, const char *) { return -1; }
+inline const char *magic_file(magic_t, const char *) { return nullptr; }
+inline void magic_close(magic_t) {}
+#endif
 #include "../../ui/hex_highlighter.h"
 #include "hex_inspect_range.h"
 
 namespace tools
 {
+
+namespace
+{
+// Helper to retrieve the file's MIME type using libmagic if available.
+std::string get_file_mime_type([[maybe_unused]] const std::string &path)
+{
+#ifdef HAS_LIBMAGIC
+	magic_t magic = magic_open(MAGIC_MIME_TYPE);
+	if (!magic) {
+		return "unknown";
+	}
+	if (magic_load(magic, nullptr) != 0) {
+		magic_close(magic);
+		return "unknown";
+	}
+	const char *mime = magic_file(magic, path.c_str());
+	std::string res = mime ? mime : "unknown";
+	magic_close(magic);
+	return res;
+#else
+	return "unknown (libmagic disabled)";
+#endif
+}
+
+// Helper to retrieve the detailed file description using libmagic if available.
+std::string get_file_description([[maybe_unused]] const std::string &path)
+{
+#ifdef HAS_LIBMAGIC
+	magic_t magic = magic_open(MAGIC_NONE);
+	if (!magic) {
+		return "unknown";
+	}
+	if (magic_load(magic, nullptr) != 0) {
+		magic_close(magic);
+		return "unknown";
+	}
+	const char *desc = magic_file(magic, path.c_str());
+	std::string res = desc ? desc : "unknown";
+	magic_close(magic);
+	return res;
+#else
+	return "unknown (libmagic disabled)";
+#endif
+}
+
+// Sanitizes text values for safe inclusion in a Markdown table (escaping pipe characters).
+std::string sanitize_for_table(std::string str)
+{
+	std::replace(str.begin(), str.end(), '|', ',');
+	return str;
+}
+} // namespace
 
 hex_inspect_range_tool::hex_inspect_range_tool(hex_inspect_range_args args)
     : llm_tool_action("Inspecting binary structures in " + args.requested_path), args_(std::move(args))
@@ -66,7 +129,17 @@ std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
 		end = bytes.size();
 	}
 
+	// Retrieve general file details and MIME type via libmagic (or fallbacks)
+	std::string mime_type = get_file_mime_type(args_.safe_path);
+	std::string description = get_file_description(args_.safe_path);
+
+	// Construct header and metadata summary table
 	std::string result = std::format("### Binary Structure Inspection: {} [0x{:X} - 0x{:X}]\n\n", args_.requested_path, start, end);
+	result += "| Property | Value |\n";
+	result += "| --- | --- |\n";
+	result += std::format("| **MIME Type** | {} |\n", sanitize_for_table(mime_type));
+	result += std::format("| **Description** | {} |\n\n", sanitize_for_table(description));
+	result += "### Structure Details\n";
 
 	size_t offset = start;
 	while (offset < end) {

@@ -229,7 +229,7 @@ test_hex_inspect_range = executable('test_hex_inspect_range',
   ['tests/unit/test_hex_inspect_range.cpp',
    'src/tools/hex_inspect_range/hex_inspect_range_entry.cpp',
    'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
 test('unit_test_hex_inspect_range', test_hex_inspect_range)
 
