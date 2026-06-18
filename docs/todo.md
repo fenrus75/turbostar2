@@ -225,6 +225,10 @@
 # done items (move items here on completion)
 
 ## 18-06-2026
+- updated the `fs_read_lines` header formatting to print the total number of lines in the file (e.g. `(total X lines)`).
+- implemented forward-scanning semantic boundary heuristics (blank lines, scope closing delimiters, next definition/class/function, Python indentation drops) in the `fs_read_lines` tool to dynamically adjust returned context range.
+- implemented dynamic markdown code fencing and automatic language extension wrappers in the `fs_read_lines` tool.
+- refactored the `fs_list_dir` tool internals to cleanly separate directory scanning logic from markdown output formatting.
 - made libmagic an optional dependency. Disabling libmagic also dynamically excludes the `rich_metadata` option from the `fs_list_dir` tool schema and validation checks, so it is not advertised to the LLM agent.
 
 ## 16-06-2026
