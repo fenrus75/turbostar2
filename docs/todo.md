@@ -50,14 +50,6 @@
 	- hot functions
 	- fs_read_lines option to get per line perf data?
 
-- fs_read_lines -- we should be better predictive and sometimes give MORE context than asked for if we think the agent will ask
-  for more anyway
-	- we should perhaps report total line count as a help to the agent
-	- potentially a self-training DNN to predict if more will be asked?
-		- semantic relevance? do whole functions?
-	- we could do everything in blocks of 50 lines and hand out whole blocks of 50
-	- if we're close to the end of the file (< 50 lines) just go to the end
-
 - code review enhancements
 	- we can provide upfront a set of static analysis data to the code review agent
 		- known compile / LCP warnings
