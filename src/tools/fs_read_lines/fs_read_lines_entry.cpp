@@ -10,6 +10,8 @@
 #include "../../fs_utils.h"
 
 #include "../../agentlib/interactions/action.h"
+#include "../../agentlib/document_provider.h"
+#include "../../agentlib/virtual_file_system.h"
 
 namespace tools
 {
@@ -86,19 +88,19 @@ bool fs_read_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/
 
 std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 {
-	// Reset the drift tracker for this file since the LLM has read it
+	// Reset the drift tracker for this file since the LLM has read it.
 	ctx.file_drift_tracker.erase(args_.safe_path);
 
-	// 1. Fallback bounds checks (safeguards for LLM hallucinations)
+	// Fallback bounds checks: clamp indices to valid positive ranges and prevent excessive reads
+	// that could overwhelm the context window of the LLM.
 	int start = std::max(1, args_.start_line);
 	int end = std::max(start, args_.end_line);
 
-	// Prevent reading massive blocks that blow out context window
 	if (end - start > 50000) {
 		end = start + 50000;
 	}
 
-	// Write them back to args_ so helper methods use the bounded values
+	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
 	args_.start_line = start;
 	args_.end_line = end;
 
@@ -106,193 +108,214 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		custom_interaction->set_range(start, end);
 	}
 
-	// 2. Intercept VFS paths (general URI schemes with ://)
+	file_read_result read_res;
+
+	// Check if the path belongs to a Virtual File System (e.g. agent:// or github:// schemes).
 	if (args_.safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
-			auto view_opt = vfs->read_file(args_.safe_path);
-			if (view_opt) {
-				std::string_view view = view_opt.value()->view();
-
-				size_t total_lines = std::count(view.begin(), view.end(), '\n');
-				if (!view.empty() && view.back() != '\n') {
-					total_lines++;
-				}
-
-				if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-					custom_interaction->set_total(total_lines);
-					// Defer status update until we know if it succeeded
-				}
-
-				// Very basic line slicing from string_view
-				std::stringstream ss;
-				int current_line = 1;
-				size_t start_pos = 0;
-
-				while (start_pos < view.length()) {
-					size_t end_pos = view.find('\n', start_pos);
-					std::string_view line = (end_pos == std::string_view::npos)
-								    ? view.substr(start_pos)
-								    : view.substr(start_pos, end_pos - start_pos);
-
-					if (current_line >= args_.start_line && current_line <= args_.end_line) {
-						ss << current_line << ": " << line << "\n";
-					} else if (current_line > args_.end_line) {
-						break;
-					}
-
-					start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
-					current_line++;
-				}
-
-				std::string result_text;
-				if (ss.str().empty()) {
-					result_text = std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", total_lines);
-					if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-						custom_interaction->set_status(interaction_fs_read_lines::status::failure);
-					}
-				} else {
-					result_text = ss.str();
-					if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-						custom_interaction->set_status(interaction_fs_read_lines::status::success);
-					}
-				}
-
-				if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-					if (ctx.trigger_ui_update)
-						ctx.trigger_ui_update();
-				}
-				return result_text;
-			}
+			read_res = read_from_vfs(vfs, args_.safe_path, start, end);
+		} else {
+			read_res.success = false;
+			read_res.error_message = "Error: Virtual file not found or not mounted.";
 		}
-
-		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
-			if (ctx.trigger_ui_update)
-				ctx.trigger_ui_update();
-		}
-		return "Error: Virtual file not found or not mounted.";
+	}
+	// Try reading from open document buffers in the editor, ensuring we reflect unsaved user modifications.
+	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
+		read_res = read_from_document(doc_snapshot.get(), start, end);
+	}
+	// Fall back to direct file read from local disk.
+	else {
+		read_res = read_from_disk(args_.safe_path, start, end);
 	}
 
-	// 3. Try reading from active editor document first
-	size_t total_lines = 0;
+	// Propagate total file lines to the interaction UI for display on status logs.
+	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+		custom_interaction->set_total(read_res.total_file_lines);
+	}
+
 	std::string result_text;
 
-	if (ctx.doc_provider) {
-		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-		if (doc_snapshot) {
-			result_text = read_from_document(doc_snapshot.get(), total_lines);
-			if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-				custom_interaction->set_total(total_lines);
-				if (result_text.starts_with("Error:") || result_text.starts_with("Requested line range is empty") ||
-				    result_text.starts_with("Requested start line is past")) {
-					custom_interaction->set_status(interaction_fs_read_lines::status::failure);
-				} else {
-					custom_interaction->set_status(interaction_fs_read_lines::status::success);
-				}
-				if (ctx.trigger_ui_update)
-					ctx.trigger_ui_update();
-			}
-			return result_text;
+	// Handle read failures and empty lines result. Prepend line numbers to line text on success.
+	if (!read_res.success) {
+		result_text = read_res.error_message;
+		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+		}
+	} else if (read_res.lines.empty()) {
+		result_text = std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", read_res.total_file_lines);
+		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
+		}
+	} else {
+		std::stringstream ss;
+		int current_line = start;
+		for (const auto &line : read_res.lines) {
+			ss << current_line << ": " << line << "\n";
+			current_line++;
+		}
+		result_text = ss.str();
+		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
+			custom_interaction->set_status(interaction_fs_read_lines::status::success);
 		}
 	}
 
-	// 4. Fallback to direct disk access
-	result_text = read_from_disk(total_lines);
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
-		custom_interaction->set_total(total_lines);
-		if (result_text.starts_with("Error:") || result_text.starts_with("Requested line range is empty")) {
-			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
-		} else {
-			custom_interaction->set_status(interaction_fs_read_lines::status::success);
-		}
-		if (ctx.trigger_ui_update)
+		if (ctx.trigger_ui_update) {
 			ctx.trigger_ui_update();
+		}
 	}
+
 	return result_text;
 }
 
-std::string fs_read_lines_tool::read_from_document(agentlib::document_snapshot *doc, size_t &out_total_lines) const
+// Retrieves lines from a mounted Virtual File System provider snapshot.
+file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system* vfs, const std::string& path, int start, int end) const
 {
-	std::stringstream ss;
-	out_total_lines = doc->get_line_count();
+	file_read_result result;
+	auto view_opt = vfs->read_file(path);
+	if (!view_opt) {
+		result.success = false;
+		result.error_message = "Error: Virtual file not found or not mounted.";
+		return result;
+	}
 
-	int start_idx = args_.start_line - 1;
-	int end_idx = std::min<int>(args_.end_line - 1, static_cast<int>(out_total_lines) - 1);
+	std::string_view view = view_opt.value()->view();
 
-	if (start_idx >= static_cast<int>(out_total_lines)) {
-		return std::format("Requested start line is past the end of the file. The file is {} lines long.", out_total_lines);
+	// Calculate overall line count including any trailing content without a trailing newline.
+	result.total_file_lines = std::count(view.begin(), view.end(), '\n');
+	if (!view.empty() && view.back() != '\n') {
+		result.total_file_lines++;
+	}
+
+	if (end >= start) {
+		result.lines.reserve(end - start + 1);
+	}
+
+	int current_line = 1;
+	size_t start_pos = 0;
+
+	// Traverse the memory buffer segment by segment to extract lines within target bounds.
+	while (start_pos < view.length()) {
+		size_t end_pos = view.find('\n', start_pos);
+		std::string_view line = (end_pos == std::string_view::npos)
+						? view.substr(start_pos)
+						: view.substr(start_pos, end_pos - start_pos);
+
+		if (current_line >= start && current_line <= end) {
+			result.lines.emplace_back(line);
+		} else if (current_line > end) {
+			break;
+		}
+
+		start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
+		current_line++;
+	}
+
+	result.success = true;
+	return result;
+}
+
+// Retrieves lines from an active editor document's line buffer.
+file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snapshot *doc, int start, int end) const
+{
+	file_read_result result;
+	result.total_file_lines = doc->get_line_count();
+
+	int start_idx = start - 1;
+	int end_idx = std::min<int>(end - 1, static_cast<int>(result.total_file_lines) - 1);
+
+	// Validate start line bounds against document size.
+	if (start_idx >= static_cast<int>(result.total_file_lines)) {
+		result.success = false;
+		result.error_message = std::format("Requested start line is past the end of the file. The file is {} lines long.", result.total_file_lines);
+		return result;
+	}
+
+	if (end_idx >= start_idx) {
+		result.lines.reserve(end_idx - start_idx + 1);
 	}
 
 	for (int i = start_idx; i <= end_idx; ++i) {
-		ss << (i + 1) << ": " << doc->get_line_text(i) << "\n";
+		result.lines.emplace_back(doc->get_line_text(i));
 	}
 
-	return ss.str();
+	result.success = true;
+	return result;
 }
 
-std::string fs_read_lines_tool::read_from_disk(size_t &out_total_lines) const
+// Retrieves lines directly from a file stored on the local disk.
+file_read_result fs_read_lines_tool::read_from_disk(const std::string& path, int start, int end) const
 {
-	out_total_lines = 0;
+	file_read_result result;
 	struct stat sb;
-	if (stat(args_.safe_path.c_str(), &sb) == -1) {
-		return "Error: File does not exist or cannot be accessed: " + args_.safe_path;
+	if (stat(path.c_str(), &sb) == -1) {
+		result.success = false;
+		result.error_message = "Error: File does not exist or cannot be accessed: " + path;
+		return result;
 	}
 
-	// Skip excessively large files to prevent RAM exhaustion
+	// Safety check to avoid loading extremely large files (e.g. logs/databases) that could deplete RAM.
 	if (sb.st_size > 50 * 1024 * 1024) {
-		return "Error: File is too large (>50MB) to read directly.";
+		result.success = false;
+		result.error_message = "Error: File is too large (>50MB) to read directly.";
+		return result;
 	}
 
-	if (fs_utils::is_binary_file(args_.safe_path)) {
-		return "Error: File appears to be binary. Cannot read text lines.";
+	// Verify that the file does not contain binary patterns that are unsafe/unreadable as lines.
+	if (fs_utils::is_binary_file(path)) {
+		result.success = false;
+		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
+		return result;
 	}
 
-	std::ifstream file(args_.safe_path, std::ios::binary);
+	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open()) {
-		return "Error: Could not open file for reading.";
+		result.success = false;
+		result.error_message = "Error: Could not open file for reading.";
+		return result;
 	}
 
-	// Fast count of total lines
-	out_total_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
+	// Fast line counting using standard buffer scan.
+	result.total_file_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
 	if (sb.st_size > 0) {
 		file.clear();
 		file.seekg(-1, std::ios_base::end);
 		char last_char;
 		file.get(last_char);
 		if (last_char != '\n') {
-			out_total_lines++;
+			result.total_file_lines++;
 		}
 	}
 
-	// Reset stream for actual reading
+	// Reset stream state and seek back to the beginning to start content extraction.
 	file.clear();
 	file.seekg(0);
 
-	std::stringstream ss;
 	std::string line;
 	int current_line = 1;
 
-	// Discard lines until we reach start_line
-	while (current_line < args_.start_line && std::getline(file, line)) {
+	// Fast-forward past lines preceding the requested range.
+	while (current_line < start && std::getline(file, line)) {
 		current_line++;
 	}
 
-	// Read and append requested lines
-	while (current_line <= args_.end_line && std::getline(file, line)) {
-		// Strip trailing \r if Windows format
+	if (end >= start) {
+		result.lines.reserve(end - start + 1);
+	}
+
+	// Read lines within requested range, trimming carriage returns for cross-platform robustness.
+	while (current_line <= end && std::getline(file, line)) {
 		if (!line.empty() && line.back() == '\r') {
 			line.pop_back();
 		}
-		ss << current_line << ": " << line << "\n";
+		result.lines.emplace_back(line);
 		current_line++;
 	}
 
-	if (ss.str().empty()) {
-		return std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", out_total_lines);
-	}
-
-	return ss.str();
+	result.success = true;
+	return result;
 }
 
 } // namespace tools

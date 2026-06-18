@@ -1,16 +1,28 @@
 #pragma once
 #include <string>
 #include <optional>
+#include <vector>
 #include "../../agentlib/llm_tool.h"
+
+namespace agentlib {
+class document_snapshot;
+class virtual_file_system;
+}
 
 namespace tools {
 
-// Strongly typed C++ arguments. No JSON here.
 struct fs_read_lines_args {
     std::string requested_path;
     int start_line; // 1-based index
     int end_line;   // 1-based index
     std::string safe_path; // Injected by Stage 1 validation
+};
+
+struct file_read_result {
+    bool success = false;
+    std::string error_message;
+    std::vector<std::string> lines;
+    size_t total_file_lines = 0;
 };
 
 class fs_read_lines_tool : public agentlib::llm_tool {
@@ -25,8 +37,9 @@ private:
     fs_read_lines_args args_;
     std::shared_ptr<agentlib::agent_interaction> interaction_;
 
-    std::string read_from_document(agentlib::document_snapshot* doc, size_t& out_total_lines) const;
-    std::string read_from_disk(size_t& out_total_lines) const;
+    file_read_result read_from_document(agentlib::document_snapshot* doc, int start, int end) const;
+    file_read_result read_from_disk(const std::string& path, int start, int end) const;
+    file_read_result read_from_vfs(agentlib::virtual_file_system* vfs, const std::string& path, int start, int end) const;
 };
 
 } // namespace tools
