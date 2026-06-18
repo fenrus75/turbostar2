@@ -78,6 +78,8 @@
 
 - usability: main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
 
+- make libmagic an optional dependency
+	- make inventory of mandatory deps and see if we can reduce to optional
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
@@ -150,7 +152,7 @@
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- MCP support
+- MCP support enhancements
 	- each tool will get a prefix to make sure they are unique
 	- each MCP should have its own "uv sandbox"
 	- permission model: need to have permission BEFORE executing anything from the project directory
