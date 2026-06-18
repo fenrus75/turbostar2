@@ -307,7 +307,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		std::string lang = get_language_from_extension(args_.requested_path);
 
 		std::stringstream ss;
-		ss << std::format("Code for lines {} - {} of {}:\n{}{}\n", start, adjusted_end, args_.requested_path, fence, lang);
+		ss << std::format("Code for lines {} - {} of {} (total {} lines):\n{}{}\n", start, adjusted_end, args_.requested_path,
+				  read_res.total_file_lines, fence, lang);
 		int current_line = start;
 		for (const auto &line : read_res.lines) {
 			ss << std::format("{}: {}\n", current_line, line);

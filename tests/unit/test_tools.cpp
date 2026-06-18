@@ -371,6 +371,7 @@ int main()
 			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 4}";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
+			assert(res.find("Code for lines 1 - 10 of " + temp_file + " (total 10 lines):") != std::string::npos);
 			assert(res.find("1: line 1") != std::string::npos);
 			assert(res.find("10: line 10") != std::string::npos);
 		}
@@ -394,6 +395,7 @@ int main()
 			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 40}";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
+			assert(res.find("Code for lines 1 - 44 of " + temp_file + " (total 100 lines):") != std::string::npos);
 			assert(res.find("40: line 40") != std::string::npos);
 			assert(res.find("44:     line 44") != std::string::npos);
 			assert(res.find("45:") == std::string::npos);
@@ -414,6 +416,7 @@ int main()
 		{
 			std::string args = "{\"path\": \"" + temp_cpp + "\", \"start_line\": 1, \"end_line\": 40}";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+			assert(res.find("Code for lines 1 - 45 of " + temp_cpp + " (total 100 lines):") != std::string::npos);
 			assert(res.find("45: }") != std::string::npos);
 			assert(res.find("46:") == std::string::npos);
 		}
