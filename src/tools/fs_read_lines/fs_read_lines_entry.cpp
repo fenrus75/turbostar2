@@ -2,19 +2,80 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "fs_read_lines.h"
 #include "../../fs_utils.h"
+#include "fs_read_lines.h"
 
-#include "../../agentlib/interactions/action.h"
 #include "../../agentlib/document_provider.h"
+#include "../../agentlib/interactions/action.h"
 #include "../../agentlib/virtual_file_system.h"
 
 namespace tools
 {
+
+namespace
+{
+
+size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
+{
+	size_t max_count = 0;
+	for (const auto &line : lines) {
+		size_t current_count = 0;
+		for (char c : line) {
+			if (c == '`') {
+				current_count++;
+				max_count = std::max(max_count, current_count);
+			} else {
+				current_count = 0;
+			}
+		}
+	}
+	return max_count;
+}
+
+std::string get_language_from_extension(const std::string &path)
+{
+	std::filesystem::path p(path);
+	std::string ext = p.extension().string();
+	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+	if (ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc") {
+		return "cpp";
+	}
+	if (ext == ".py") {
+		return "python";
+	}
+	if (ext == ".json") {
+		return "json";
+	}
+	if (ext == ".md") {
+		return "markdown";
+	}
+	if (ext == ".sh" || ext == ".bash") {
+		return "bash";
+	}
+	if (ext == ".js" || ext == ".ts" || ext == ".jsx" || ext == ".tsx") {
+		return "javascript";
+	}
+	if (ext == ".html" || ext == ".htm") {
+		return "html";
+	}
+	if (ext == ".css") {
+		return "css";
+	}
+	if (ext == ".yaml" || ext == ".yml") {
+		return "yaml";
+	}
+	if (ext == ".xml") {
+		return "xml";
+	}
+	return "";
+}
+
+} // namespace
 
 class interaction_fs_read_lines : public agentlib::interaction_action
 {
@@ -144,17 +205,26 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
 		}
 	} else if (read_res.lines.empty()) {
-		result_text = std::format("Requested line range is empty or past the end of the file. The file is {} lines long.", read_res.total_file_lines);
+		result_text = std::format("Requested line range is empty or past the end of the file. The file is {} lines long.",
+					  read_res.total_file_lines);
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
 		}
 	} else {
+		size_t max_backticks = count_max_consecutive_backticks(read_res.lines);
+		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
+		std::string fence(fence_len, '`');
+		std::string lang = get_language_from_extension(args_.requested_path);
+		int end_line = start + static_cast<int>(read_res.lines.size()) - 1;
+
 		std::stringstream ss;
+		ss << std::format("Code for lines {} - {} of {}:\n{}{}\n", start, end_line, args_.requested_path, fence, lang);
 		int current_line = start;
 		for (const auto &line : read_res.lines) {
-			ss << current_line << ": " << line << "\n";
+			ss << std::format("{}: {}\n", current_line, line);
 			current_line++;
 		}
+		ss << std::format("{}\n", fence);
 		result_text = ss.str();
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 			custom_interaction->set_status(interaction_fs_read_lines::status::success);
@@ -171,7 +241,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 }
 
 // Retrieves lines from a mounted Virtual File System provider snapshot.
-file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system* vfs, const std::string& path, int start, int end) const
+file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system *vfs, const std::string &path, int start, int end) const
 {
 	file_read_result result;
 	auto view_opt = vfs->read_file(path);
@@ -199,9 +269,8 @@ file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system
 	// Traverse the memory buffer segment by segment to extract lines within target bounds.
 	while (start_pos < view.length()) {
 		size_t end_pos = view.find('\n', start_pos);
-		std::string_view line = (end_pos == std::string_view::npos)
-						? view.substr(start_pos)
-						: view.substr(start_pos, end_pos - start_pos);
+		std::string_view line =
+		    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
 
 		if (current_line >= start && current_line <= end) {
 			result.lines.emplace_back(line);
@@ -229,7 +298,8 @@ file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snaps
 	// Validate start line bounds against document size.
 	if (start_idx >= static_cast<int>(result.total_file_lines)) {
 		result.success = false;
-		result.error_message = std::format("Requested start line is past the end of the file. The file is {} lines long.", result.total_file_lines);
+		result.error_message =
+		    std::format("Requested start line is past the end of the file. The file is {} lines long.", result.total_file_lines);
 		return result;
 	}
 
@@ -246,7 +316,7 @@ file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snaps
 }
 
 // Retrieves lines directly from a file stored on the local disk.
-file_read_result fs_read_lines_tool::read_from_disk(const std::string& path, int start, int end) const
+file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int start, int end) const
 {
 	file_read_result result;
 	struct stat sb;
