@@ -6,6 +6,7 @@ namespace tools
 
 nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 {
+#ifdef HAS_LIBMAGIC
 	return {{"type", "object"},
 		{"properties",
 		 {{"path", {{"type", "string"}, {"description", "The path to the directory, relative to the project root."}}},
@@ -14,6 +15,12 @@ nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 		    {"description", "If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, "
 				    "ELF architectures)."}}}}},
 		{"required", nlohmann::json::array({"path"})}};
+#else
+	return {{"type", "object"},
+		{"properties",
+		 {{"path", {{"type", "string"}, {"description", "The path to the directory, relative to the project root."}}}}},
+		{"required", nlohmann::json::array({"path"})}};
+#endif
 }
 
 bool fs_list_dir_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
@@ -27,9 +34,11 @@ bool fs_list_dir_validator::validate_args_impl(const nlohmann::json &args, const
 		return false;
 	}
 	rich_metadata_ = false;
+#ifdef HAS_LIBMAGIC
 	if (args.contains("rich_metadata") && args["rich_metadata"].is_boolean()) {
 		rich_metadata_ = args["rich_metadata"].get<bool>();
 	}
+#endif
 	return true;
 }
 

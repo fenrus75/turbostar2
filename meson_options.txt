@@ -1,1 +1,3 @@
 option('enable-analyzer', type: 'boolean', value: false, description: 'Enable GCC static analysis (-fanalyzer)')
+option('enable-libmagic', type: 'feature', value: 'auto', description: 'Enable libmagic for rich file type detection')
+

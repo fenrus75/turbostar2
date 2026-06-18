@@ -78,8 +78,6 @@
 
 - usability: main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
 
-- make libmagic an optional dependency
-	- make inventory of mandatory deps and see if we can reduce to optional
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
@@ -233,6 +231,9 @@
     - ...
 
 # done items (move items here on completion)
+
+## 18-06-2026
+- made libmagic an optional dependency. Disabling libmagic also dynamically excludes the `rich_metadata` option from the `fs_list_dir` tool schema and validation checks, so it is not advertised to the LLM agent.
 
 ## 16-06-2026
 - implemented mouse selection and console copy support (OSC 52) in TUI input boxes (ui_textbox), propagating mouse events correctly through containers.

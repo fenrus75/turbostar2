@@ -35,7 +35,16 @@ thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 zlib_dep = dependency('zlib', required : true)
-magic_dep = cc.find_library('magic', required : true)
+enable_libmagic = get_option('enable-libmagic')
+magic_dep = dependency('', required : false)
+if not enable_libmagic.disabled()
+  magic_lib = cc.find_library('magic', required : enable_libmagic.enabled())
+  if magic_lib.found()
+    magic_dep = magic_lib
+    add_project_arguments('-DHAS_LIBMAGIC', language : 'cpp')
+  endif
+endif
+
 
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')

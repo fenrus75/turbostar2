@@ -131,7 +131,7 @@ You will need the following installed to build Turbostar:
 *   `libsqlite3-dev`
 *   `libdtl-dev` (Diff Template Library)
 *   `libunwind-dev` (For stack unwinding)
-*   `libmagic-dev` (For file type detection)
+*   `libmagic-dev` (Optional, for rich file type detection)
 
 On Debian/Ubuntu-based systems, you can install the build dependencies with:
 ```bash

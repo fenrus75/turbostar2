@@ -57,6 +57,7 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
+#ifdef HAS_LIBMAGIC
 		// 5. Success case with rich_metadata enabled
 		{
 			std::string args = "{\"path\": \"" + project_root + "/src\", \"rich_metadata\": true}";
@@ -65,6 +66,7 @@ int main()
 			assert(res.find("| Details |") != std::string::npos);
 			assert(res.find("C++") != std::string::npos || res.find("text") != std::string::npos);
 		}
+#endif
 
 		std::cout << "fs_list_dir tool verified successfully!" << std::endl;
 	}
