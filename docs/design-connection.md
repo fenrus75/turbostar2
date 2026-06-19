@@ -81,7 +81,7 @@ public:
 
 # Tool Declaration & Decoupling
 
-To prevent vendor-specific tool formatting logic from leaking into the `tool_registry` class (which currently has hardcoded methods like `get_tools_json()` and `get_gemini_tools_json()`):
+To prevent vendor-specific tool formatting logic from leaking into the `tool_registry` class (which currently has hardcoded methods like `get_tools_json()`):
 - **Registry Abstraction**: The `tool_registry` exposes a generic getter returning a list of active, allowed `tool_validator` instances:
   ```cpp
   std::vector<std::shared_ptr<tool_validator>> get_active_tools(

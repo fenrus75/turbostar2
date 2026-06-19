@@ -1,23 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-
-- make a "agentic transport" library that is more stand alone and more modular architected now that we have multiple API backends
-   class levels needed:
-	- "conversation"
-		- has a current active "model" as a property
-		- has a vector of episodes and the current episode
-	- "episode"
-		- mostly a vector of turns and a bunch of metadata
-	- "turn" (agent, user, system, tool call, tool response, ...)
-		this allows us to make smarter collapsing/context compressing options
-	- "transport"    <-- comes from model
-
-    - constraints:
-	- should be able to switch models (and thus transports) in the middle of a conversation, say for plan mode
-
-    - A model takes a "new turn" (user input), uses its transport to send it, and receive responses and injects turns into the episode
-    - We need a "new world view" parameter which the transport will get, and can use to re-seed the world
-	- gets set on rewriting past history, compaction and model changes
-
+- we need a /command registery so that plugins can register commands
 
 - we need a ui_grid container type that auto-sizes cells with the aim of uniform sizes
 	- question: is this one type, or a few different subtypes? A: start with a simple basic type
