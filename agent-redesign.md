@@ -19,7 +19,10 @@ Conversation (coordinator of active model, settings, and session status)
 ## Core Architecture & Separation of Concerns
 
 * **Data Layer:** Core classes (`Turn`, `Transaction`, `Episode`, `Conversation`) are completely decoupled from visual rendering details and NCurses/TUI dependencies.
-* **UI Layer:** Visual presentation is driven by standard **Markdown representations** exported by transactions and turns. The rendering views (e.g., subclasses of `agent_interaction`) parse and style these Markdown blocks (handles bordered boxes, color themes, and syntax highlight overrides).
+* **UI Layer:** Visual presentation is driven by standard **Markdown representations** exported by transactions and turns, or dynamically rendered using a bound `agent_interaction` View-Model.
+* **Unidirectional MVVM Binding:** 
+  * The `Turn` object optionally owns a reference to an `agent_interaction` View-Model.
+  * The `agent_interaction` has no back-reference to its `Turn`. Content changes are unilaterally pushed from the `Turn` to the `agent_interaction`.
 * **UI Mapping:** 
   * A `Transaction` maps 1:1 to a single bordered TUI **Turn Box**.
   * A `Turn` maps 1:1 to a TUI **Sub-panel** inside that box (separated by horizontal lines, e.g. `─── Thinking ───`).
@@ -56,13 +59,25 @@ public:
     // UI View-Model Output: Generates a clean Markdown representation of the turn contents.
     virtual std::string to_markdown() const = 0;
 
+    // View-Model binding
+    std::shared_ptr<agent_interaction> get_interaction() const { return interaction_; }
+    void set_interaction(std::shared_ptr<agent_interaction> view) { interaction_ = view; }
+
     // Streaming updates: appends incremental token chunks (for text or reasoning streams).
-    virtual void append_content(const std::string& chunk) = 0;
+    virtual void append_content(const std::string& chunk) {
+        content_ += chunk;
+        if (interaction_) {
+            interaction_->push_incremental_content(chunk);
+        }
+    }
 
     // Serialization for disk storage
     virtual nlohmann::json serialize() const = 0;
 
 protected:
+    std::string content_;
+    std::shared_ptr<agent_interaction> interaction_;
+
     // Lossless Roundtripping: Holds any unmapped JSON keys found during API response/history parsing.
     // Kept out of core C++ data structures to save memory, but merged back during serialization.
     nlohmann::json extra_fields_;
@@ -263,6 +278,104 @@ public:
     
     // Streaming append helper: Resolves active leaf turn and appends token chunk.
     void append_to_current_turn(const std::string& chunk);
+};
+
+} // namespace agentlib
+```
+
+---
+
+### E. Tool-Turn Hybrid & Plugin Registry
+
+#### 1. The `llm_tool` Interface
+To support tool-specific compaction or data schemas (e.g. filtering raw compilation logs to essential lines), the tool class handles instantiation of both its data representation (`Turn`) and optional custom visual view-model (`agent_interaction`).
+
+```cpp
+class llm_tool {
+public:
+    virtual ~llm_tool() = default;
+
+    // Factory method: returns the data Turn object for this tool call.
+    // Overriding this allows specialized tools to return custom Turn subclasses (e.g., compiler_turn).
+    virtual std::shared_ptr<Turn> create_turn(const tool_call& call) const {
+        return std::make_shared<tool_execution_turn>(call.id, call.function.name);
+    }
+
+    // Creates the visual view-model element (like a custom progress bar or split diff pane).
+    // Returns nullptr if the tool uses generic markdown rendering.
+    virtual std::shared_ptr<agent_interaction> get_interaction() const {
+        return nullptr; 
+    }
+};
+```
+
+#### 2. The `TurnRegistry` (Fallback Deserialization)
+To support plugin tools loaded dynamically via `.so` files, the engine registers custom turn deserializers. If a plugin is uninstalled, deserialization automatically falls back to the generic `tool_execution_turn` class, avoiding crashes.
+
+```cpp
+namespace agentlib {
+
+class TurnRegistry {
+public:
+    static TurnRegistry& get_instance();
+
+    // Plugins register custom Turn deserializers here on startup
+    void register_deserializer(const std::string& turn_type_name, 
+                               std::function<std::shared_ptr<Turn>(const nlohmann::json&)> deserializer);
+
+    // Deserializes a turn from JSON, with safety fallback routines
+    std::shared_ptr<Turn> deserialize(const nlohmann::json& j) const {
+        std::string type = j.value("turn_type", "generic");
+        
+        if (deserializers_.contains(type)) {
+            return deserializers_.at(type)(j);
+        }
+        
+        // Safety Fallback: If plugin is missing, read it as a generic tool execution turn
+        if (is_tool_specific_type(type)) {
+            return tool_execution_turn::deserialize(j);
+        }
+        
+        return deserialize_core_type(type, j);
+    }
+
+private:
+    std::map<std::string, std::function<std::shared_ptr<Turn>(const nlohmann::json&)>> deserializers_;
+};
+
+} // namespace agentlib
+```
+
+---
+
+### F. View-Model Content Push APIs (`agentlib::agent_interaction`)
+
+The View-Model receives content pushed unilaterally from its owning `Turn` (e.g. streaming LLM reasoning or tool logs).
+
+```cpp
+namespace agentlib {
+
+class agent_interaction {
+public:
+    virtual ~agent_interaction() = default;
+
+    // Sets full content statically (e.g. on loading historical turns)
+    virtual void push_content(const std::string& full_content) {
+        content_ = full_content;
+        invalidate_cache();
+    }
+
+    // Appends content incrementally (streaming tokens/stdout)
+    virtual void push_incremental_content(const std::string& chunk) {
+        content_ += chunk;
+        invalidate_cache();
+    }
+
+protected:
+    std::string content_;
+    
+    // Invalidates visual line-wrapping and rendering cache, triggering NCurses TUI repaint
+    virtual void invalidate_cache() = 0;
 };
 
 } // namespace agentlib
