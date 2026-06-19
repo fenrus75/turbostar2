@@ -153,13 +153,23 @@ def test_think_free_restore(tmp_path):
     os.makedirs(agent_dir, exist_ok=True)
     
     archive_data = {
-        "episode_id": "episode_999",
+        "id": "episode_999",
         "title": "Old Task",
-        "conversation": [
+        "summary": "Old Summary",
+        "compaction_level": 2,
+        "finalized": True,
+        "sequence_number": 999,
+        "transactions": [
             {
-                "role": "assistant",
-                "content": "I am thinking so hard right now...",
-                "tool_calls": [{"id": "call_old", "type": "function", "function": {"name": "fs_read_lines", "arguments": "{}"}}]
+                "id": "tx_old",
+                "turns": [
+                    {
+                        "turn_type": "model_response",
+                        "id": "turn_old",
+                        "content": "I am thinking so hard right now...",
+                        "tool_calls": [{"id": "call_old", "type": "function", "function": {"name": "fs_read_lines", "arguments": "{}"}}]
+                    }
+                ]
             }
         ]
     }
