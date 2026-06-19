@@ -90,6 +90,8 @@ void model_server_registry::load_servers()
 					type = api_type::copilot;
 				} else if (type_str == "openai_response") {
 					type = api_type::openai_response;
+				} else if (type_str == "claude") {
+					type = api_type::claude;
 				}
 
 				if (!id.empty()) {
@@ -128,6 +130,8 @@ void model_server_registry::save_servers() const
 			api_type_str = "copilot";
 		else if (server->get_api_type() == api_type::openai_response)
 			api_type_str = "openai_response";
+		else if (server->get_api_type() == api_type::claude)
+			api_type_str = "claude";
 		item["api_type"] = api_type_str;
 
 		data.push_back(item);

@@ -77,6 +77,16 @@ void Conversation::set_current_world_view(std::string world_view) {
 	world_view_ = std::move(world_view);
 }
 
+nlohmann::json Conversation::get_connection_state() const {
+	std::lock_guard<std::mutex> lock(mutex_);
+	return connection_state_;
+}
+
+void Conversation::set_connection_state(nlohmann::json state) {
+	std::lock_guard<std::mutex> lock(mutex_);
+	connection_state_ = std::move(state);
+}
+
 int Conversation::estimate_token_count() const {
 	std::lock_guard<std::mutex> lock(mutex_);
 	int sum = 0;
@@ -142,6 +152,9 @@ nlohmann::json Conversation::serialize() const {
 	j["history_invalidated"] = history_invalidated_;
 	j["next_episode_seq"] = next_episode_seq_;
 	j["next_turn_seq"] = next_turn_seq_;
+	if (!connection_state_.is_null()) {
+		j["connection_state"] = connection_state_;
+	}
 	nlohmann::json ep_array = nlohmann::json::array();
 	for (const auto& ep : episodes_) {
 		ep_array.push_back(ep->serialize());
@@ -159,6 +172,9 @@ std::shared_ptr<Conversation> Conversation::deserialize(const nlohmann::json& j)
 	convo->history_invalidated_ = j.value("history_invalidated", false);
 	convo->next_episode_seq_ = j.value("next_episode_seq", 1LL);
 	convo->next_turn_seq_ = j.value("next_turn_seq", 1LL);
+	if (j.contains("connection_state")) {
+		convo->connection_state_ = j["connection_state"];
+	}
 	
 	// Load active model if registered
 	std::string model_id = j.value("model_id", "");

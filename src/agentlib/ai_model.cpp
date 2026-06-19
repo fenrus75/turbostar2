@@ -114,7 +114,7 @@ ai_model_registry::ai_model_registry()
 							  "Complex coding and architecture", 5.00, 15.00, "", api_type::openai));
 
 		register_model(std::make_shared<ai_model>("claude-3-5-sonnet", "Claude 3.5 Sonnet", "https://api.anthropic.com/v1",
-							  "Fast and cheap coding", 3.00, 15.00, "", api_type::openai));
+							  "Fast and cheap coding", 3.00, 15.00, "", api_type::claude));
 
 		register_model(std::make_shared<ai_model>("gemini-1.5-pro", "Gemini 1.5 Pro", "https://generativelanguage.googleapis.com",
 							  "Huge context windows", 3.50, 10.50, "", api_type::gemini));
@@ -205,6 +205,8 @@ void ai_model_registry::load_models()
 					type = api_type::copilot;
 				} else if (type_str == "openai_response") {
 					type = api_type::openai_response;
+				} else if (type_str == "claude") {
+					type = api_type::claude;
 				}
 				int max_tokens = item.value("max_context_tokens", 250000);
 				std::string cost_type_str = item.value("cost_type", "paid_per_token");

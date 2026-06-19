@@ -29,6 +29,18 @@ class tool_registry
 	// Returns the JSON array of tools to inject into the Gemini payload
 	nlohmann::json get_gemini_tools_json(const std::vector<std::string> &active_families = {}, bool mutation_possible = true, agent_role role = agent_role::developer) const;
 
+	std::vector<std::shared_ptr<tool_validator>> get_active_tools(
+		const std::vector<std::string> &active_families = {},
+		bool mutation_possible = true,
+		agent_role role = agent_role::developer
+	) const;
+
+	std::vector<std::shared_ptr<tool_validator>> get_active_tools(
+		const std::vector<std::string> &active_families,
+		bool mutation_possible,
+		const std::string &agent_identity
+	) const;
+
 	std::vector<std::string> get_all_registered_families() const;
 
 	// Checks if the tool should be silent in the UI by default

@@ -9,7 +9,7 @@
 namespace agentlib
 {
 
-enum class api_type { openai, gemini, copilot, openai_response };
+enum class api_type { openai, gemini, copilot, openai_response, claude };
 
 enum class model_cost_type { free_local, paid_per_token, paid_per_request };
  

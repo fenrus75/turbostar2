@@ -178,6 +178,59 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 	return nlohmann::json::array({{{"functionDeclarations", tools_array}}});
 }
 
+std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
+	const std::vector<std::string> &active_families,
+	bool mutation_possible,
+	agent_role role
+) const {
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::vector<std::shared_ptr<tool_validator>> active_validators;
+	for (const auto &[name, factory] : validator_factories_) {
+		auto validator = factory();
+		if (!validator) {
+			continue;
+		}
+
+		if (!validator->is_allowed_for_role(role)) {
+			continue;
+		}
+
+		std::string tool_name = validator->get_name();
+		if (!mutation_possible && (tool_name == "agent_compress_history" || tool_name == "agent_restore_context")) {
+			continue;
+		}
+
+		std::string family = validator->get_family();
+		bool allowed = true;
+		if (!active_families.empty()) {
+			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		}
+
+		if (!allowed) {
+			continue;
+		}
+
+		active_validators.push_back(std::shared_ptr<tool_validator>(std::move(validator)));
+	}
+	return active_validators;
+}
+
+std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
+	const std::vector<std::string> &active_families,
+	bool mutation_possible,
+	const std::string &agent_identity
+) const {
+	agent_role role = agent_role::developer;
+	if (agent_identity == "reviewer") {
+		role = agent_role::reviewer;
+	} else if (agent_identity == "verifier") {
+		role = agent_role::verifier;
+	} else if (agent_identity == "summarizer") {
+		role = agent_role::summarizer;
+	}
+	return get_active_tools(active_families, mutation_possible, role);
+}
+
 std::vector<std::string> tool_registry::get_all_registered_families() const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);

@@ -33,6 +33,9 @@ public:
 	bool is_history_invalidated() const { return history_invalidated_; }
 	void invalidate_history(bool invalid) { history_invalidated_ = invalid; }
 
+	nlohmann::json get_connection_state() const;
+	void set_connection_state(nlohmann::json state);
+
 	long long get_next_episode_seq() const;
 	void set_next_episode_seq(long long seq);
 	long long allocate_next_episode_seq();
@@ -67,6 +70,7 @@ private:
 	std::shared_ptr<ai_model> model_;
 	std::string world_view_;
 	bool history_invalidated_{false};
+	nlohmann::json connection_state_;
 	long long next_episode_seq_{1};
 	long long next_turn_seq_{1};
 };

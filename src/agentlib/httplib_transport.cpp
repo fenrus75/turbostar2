@@ -174,6 +174,9 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 		} else if (!api_key_.empty()) {
 			if (base_url_.find("googleapis.com") != std::string::npos) {
 				headers.emplace("x-goog-api-key", api_key_);
+			} else if (base_url_.find("anthropic.com") != std::string::npos) {
+				headers.emplace("x-api-key", api_key_);
+				headers.emplace("anthropic-version", "2023-06-01");
 			} else {
 				headers.emplace("Authorization", "Bearer " + api_key_);
 			}
@@ -240,6 +243,9 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		} else if (!api_key_.empty()) {
 			if (base_url_.find("googleapis.com") != std::string::npos) {
 				req.set_header("x-goog-api-key", api_key_);
+			} else if (base_url_.find("anthropic.com") != std::string::npos) {
+				req.set_header("x-api-key", api_key_);
+				req.set_header("anthropic-version", "2023-06-01");
 			} else {
 				req.set_header("Authorization", "Bearer " + api_key_);
 			}
