@@ -102,6 +102,13 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 	}
 
 	cli_ = std::make_unique<httplib::Client>(host);
+	// Avoid 5-second AAAA DNS query timeouts on networks without IPv6 by defaulting to IPv4 (AF_INET),
+	// unless the host is explicitly an IPv6 literal.
+	if (host.find('[') != std::string::npos) {
+		cli_->set_address_family(AF_INET6);
+	} else {
+		cli_->set_address_family(AF_INET);
+	}
 	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	if (in_testsuite && std::string(in_testsuite) == "1") {
 		cli_->set_connection_timeout(std::chrono::milliseconds(5000));
