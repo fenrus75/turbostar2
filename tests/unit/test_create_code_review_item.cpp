@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -126,6 +127,7 @@ void test_create_tool_execution()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 	test_create_tool_execution();
 	return 0;

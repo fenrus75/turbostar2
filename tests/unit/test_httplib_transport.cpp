@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <thread>
@@ -8,6 +9,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Set up a simple local HTTP server that is slow to respond (e.g. sleeps for 1 second)
 	httplib::Server svr;
  

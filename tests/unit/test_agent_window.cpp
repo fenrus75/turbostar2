@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -31,6 +32,7 @@ class mock_doc_provider : public agentlib::document_provider
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_queue queue;
 	mock_doc_provider doc_prov;
 

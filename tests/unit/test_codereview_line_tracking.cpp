@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <iostream>
@@ -129,6 +130,7 @@ void test_codereview_line_tracking()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_codereview_line_tracking();
 	std::cout << "All code review line tracking tests passed!" << std::endl;
 	return 0;

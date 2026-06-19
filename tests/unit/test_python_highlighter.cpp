@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -51,6 +52,7 @@ void test_python_strings()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_python_keywords();
 	test_python_comments();
 	test_python_strings();

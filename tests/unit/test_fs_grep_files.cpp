@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -63,6 +64,7 @@ class mock_document_provider : public agentlib::document_provider
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_grep";
 	fs::create_directories(temp_dir);
 

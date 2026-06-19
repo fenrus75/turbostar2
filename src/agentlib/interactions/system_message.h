@@ -11,6 +11,8 @@ public:
     interaction_type get_type() const override { return interaction_type::system_message; }
     interaction_role get_role() const override { return interaction_role::system; }
     std::string get_raw_text() const override { return "System: " + text_; }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 
     bool can_merge_with_previous(const agent_interaction& previous) const override {
         return previous.get_type() == interaction_type::system_message;

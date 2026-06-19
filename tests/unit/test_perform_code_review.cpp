@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -275,6 +276,7 @@ void test_perform_code_review_splitting()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();
 	test_perform_code_review_splitting();

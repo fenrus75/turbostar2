@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -86,6 +87,7 @@ void test_markdown_list_items()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_markdown_supports_file();
 	test_markdown_heading();
 	test_markdown_bold();

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <iostream>
@@ -138,6 +139,7 @@ void test_codereview_manager_lifecycle()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_codereview_manager_lifecycle();
 	std::cout << "All code review manager tests passed!" << std::endl;
 	return 0;

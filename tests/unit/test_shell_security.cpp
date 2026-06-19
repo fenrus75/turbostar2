@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <filesystem>
@@ -9,6 +10,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Initialize project manager and tool registry
 	project_manager::get_instance().initialize();
 	agentlib::tool_registry &registry = agentlib::tool_registry::get_instance();

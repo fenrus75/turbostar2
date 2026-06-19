@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -174,6 +175,7 @@ void test_todo_serialization()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_queue q;
 	auto model = std::make_shared<agentlib::ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = agentlib::ai_agent::create(1, "TestAgent", model, &q, nullptr);

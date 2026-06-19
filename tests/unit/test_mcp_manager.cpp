@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -20,6 +21,7 @@ void write_file(const fs::path &path, const std::string &content)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Testing MCP Manager..." << std::endl;
 
 	// 1. Isolate HOME environment

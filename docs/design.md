@@ -102,6 +102,20 @@ The line class represents a single line of text.
 - **Metadata**: A `std::vector<uint32_t>` or similar to store attribute data (colors, styles) for each character, computed asynchronously.
 - **Methods**: `insert_at(pos, char)`, `split_at(pos)`, `merge(other_line)`.
 
+## Conversation Data Model (agentlib/data/)
+
+The active conversation state is represented as a structured C++ hierarchy to isolate logical data models from visual TUI layouts and support polymorphic turns:
+- **`Turn`**: The base class for all conversation events, subclassed into concrete types:
+  - `system_turn`: For system prompts and instructions.
+  - `user_turn`: For user queries and input.
+  - `model_response_turn`: For LLM output and tool calls.
+  - `tool_execution_turn`: For results of tool executions.
+  - `error_turn`: For transient processing errors.
+- **`Transaction`**: A logical grouping of related turns (e.g., a user prompt and the corresponding assistant response and tool outputs).
+- **`Episode`**: A chronological sequence of transactions representing a distinct session/boundary of the conversation, allowing independent compaction levels and summary generation.
+- **`Conversation`**: The top-level coordinator managing the active episode and paged-out historical episodes.
+  - *Episode Invariant*: All episodes except the "most current" active episode must be in the finalized state. When a new episode is created or added, all previous episodes are set to finalized and their state becomes final (meaning they will never be written to disk again; subsequent page-out transitions only clear their in-memory details to save RAM).
+
 ## Window class
 
 The window class is a "View" that renders a portion of a `Document`.

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -13,6 +14,7 @@ void create_dummy_file(const std::filesystem::path &path)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	file_security_manager fsm;
 	std::string out_path;
 	std::string out_err;

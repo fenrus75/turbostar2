@@ -61,6 +61,16 @@ agentlib_sources = files(
   'agentlib/compaction_engine.cpp',
   'agentlib/context_dnn.cpp',
   'agentlib/copilot_manager.cpp',
+  'agentlib/data/turn.cpp',
+  'agentlib/data/system_turn.cpp',
+  'agentlib/data/user_turn.cpp',
+  'agentlib/data/model_response_turn.cpp',
+  'agentlib/data/tool_execution_turn.cpp',
+  'agentlib/data/error_turn.cpp',
+  'agentlib/data/transaction.cpp',
+  'agentlib/data/episode.cpp',
+  'agentlib/data/conversation.cpp',
+  'agentlib/data/turn_registry.cpp',
   'mcp/mcp_server.cpp',
   'mcp/mcp_manager.cpp'
 )

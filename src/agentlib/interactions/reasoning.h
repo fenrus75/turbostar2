@@ -16,6 +16,8 @@ public:
     
     std::string get_raw_text() const override { return "Thinking: " + text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 
     bool needs_subpanel_header() const override { return true; }
     std::string get_subpanel_label() const override { return "Agent Reasoning"; }

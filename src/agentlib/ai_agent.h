@@ -19,6 +19,7 @@ class event_queue;
 
 namespace agentlib
 {
+class Conversation;
 
 enum class agent_status { idle, thinking, tool_execution, waiting, error };
 
@@ -148,10 +149,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void increment_stat(const std::string &key, int amount = 1);
 	std::map<std::string, int> get_stats() const;
 
-	const std::vector<std::shared_ptr<agent_interaction>> &get_interactions() const
-	{
-		return interactions_;
-	}
+	std::vector<std::shared_ptr<agent_interaction>> get_interactions() const;
 	void add_interaction(std::shared_ptr<agent_interaction> interaction);
 
 	bool is_read_only() const
@@ -248,16 +246,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void evaluate_compaction();
 	void force_compaction();
 
-	std::vector<message> get_conversation() const
-	{
-		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		return conversation_;
-	}
-	void set_conversation(const std::vector<message> &c)
-	{
-		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		conversation_ = c;
-	}
+	std::vector<message> get_conversation() const;
+	void set_conversation(const std::vector<message> &c);
+	std::shared_ptr<Conversation> get_conversation_data() const;
 
       private:
 	ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider);
@@ -309,11 +300,12 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<std::string> active_skills_;
 	std::vector<std::string> active_tool_families_;
 	std::string original_system_prompt_;
-	std::vector<std::shared_ptr<agent_interaction>> interactions_;
 	std::string final_result_;
 
       private:
 	void update_system_prompt_with_families();
+	void set_conversation_unlocked(const std::vector<message> &c);
+	std::vector<message> get_conversation_unlocked() const;
 	void save_todos_internal() const;
 	void save_todos_internal_unlocked() const;
 
@@ -339,7 +331,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	 *   and memory/episode loading or paging operations.
 	 */
 	mutable std::mutex conversation_mutex_;
-	std::vector<message> conversation_;
+	std::shared_ptr<Conversation> conversation_;
 	std::string last_response_id_;
 	std::map<std::string, episode_index_entry> episode_index_;
 	std::unique_ptr<llm_client> client_;
@@ -364,7 +356,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<pending_summary> summary_queue_;
 	std::thread summary_thread_;
 
-	std::atomic<long long> next_episode_seq_{1};
 	std::atomic<long long> next_lru_seq_{1};
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};

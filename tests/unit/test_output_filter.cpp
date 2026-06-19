@@ -1,8 +1,10 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "src/tools/output_filter.h"
 
 int main() {
+	test_watchdog::setup_watchdog(30);
     // 1. Test Compile Filter
     std::string command = "meson compile -C build";
     std::string raw_output = "[1/3] Compiling foo.cpp\n[2/3] Compiling bar.cpp\nWarning: unused variable 'x'\n[3/3] Linking target\n";

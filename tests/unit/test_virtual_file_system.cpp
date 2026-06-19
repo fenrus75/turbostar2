@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -107,6 +108,7 @@ void test_line_count()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_basic_mount_and_read();
 	test_directory_listing();
 	test_line_count();

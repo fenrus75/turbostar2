@@ -11,6 +11,8 @@ public:
     std::string get_raw_text() const override { return "LLM: " + text_; }
     const std::string& get_text() const { return text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 protected:
     std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
 private:

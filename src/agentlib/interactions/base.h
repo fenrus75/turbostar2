@@ -39,6 +39,8 @@ public:
     int get_height(int width) const;
     const std::vector<interaction_line>& render(int width, background_mode bg = background_mode::light_blue) const;
     virtual std::string get_raw_text() const = 0;
+    virtual void push_content(const std::string&) {}
+    virtual void push_incremental_content(const std::string&) {}
 
     void invalidate_cache() { cached_width_ = -1; }
 

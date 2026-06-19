@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -126,6 +127,7 @@ void test_history_manager()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_history_manager();
 	return 0;
 }

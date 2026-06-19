@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -55,6 +56,7 @@ void test_tool_object_creation()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_is_valid_db_name();
 	test_tool_object_creation();
 	std::cout << "SQLite validation unit tests passed successfully!\n";

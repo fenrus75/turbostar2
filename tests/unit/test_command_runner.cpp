@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include "git_manager.h"
 #include <cassert>
 #include <iostream>
@@ -45,6 +46,7 @@ void assert_not_contains(const std::string &str, const std::string &substr)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	config_manager::get_instance().set_paranoid_mode(false);
 
 	// Force crashdump refresh

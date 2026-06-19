@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -15,6 +16,7 @@ namespace fs = std::filesystem;
 
 int main(int argc, char **argv)
 {
+	test_watchdog::setup_watchdog(30);
 #if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
 	std::cout << "Skipping test_assert_fail because it is incompatible with AddressSanitizer (ASan)." << std::endl;
 	return 77;

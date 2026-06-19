@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
 #include <filesystem>
@@ -17,6 +18,7 @@ using namespace agentlib;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_logger::get_instance().enable_stdout_logging(true);
 	project_manager::get_instance().initialize();
 

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -9,6 +10,7 @@ using json = nlohmann::json;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running test_copilot_models..." << std::endl;
 
 	std::string mock_catalog = R"([

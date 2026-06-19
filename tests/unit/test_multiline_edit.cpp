@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <ncurses.h>
@@ -5,6 +6,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// 1. Instantiation and basic properties
 	ui_multiline_edit edit("test_edit", 0, 0, 10, 3, nullptr);
 	edit.set_buffer("hello world");

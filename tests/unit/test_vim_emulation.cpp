@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <limits>
@@ -237,6 +238,7 @@ void test_status_bar_paste()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_vim_emulation();
 	test_status_priorities();
 	test_status_bar_paste();

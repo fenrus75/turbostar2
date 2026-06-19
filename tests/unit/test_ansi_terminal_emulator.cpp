@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "ui/ansi_terminal_emulator.h"
@@ -20,6 +21,7 @@ void assert_equal(const std::string &val, const std::string &expected, const std
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running test_ansi_terminal_emulator...\n";
 
 	// 1. Basic write and coordinates

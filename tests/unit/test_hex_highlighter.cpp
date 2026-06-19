@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -291,6 +292,7 @@ void test_png_highlighter()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_elf_highlighter();
 	test_png_highlighter();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;

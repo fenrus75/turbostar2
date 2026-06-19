@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -30,6 +31,7 @@ std::string read_file(const std::filesystem::path &path)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
 	temp_git_repo repo("restore");

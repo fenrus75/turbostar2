@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -11,6 +12,7 @@ using namespace agentlib;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
 	// Save original build configuration

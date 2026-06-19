@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -20,6 +21,7 @@ void write_file(const std::filesystem::path &path, const std::string &content)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// 1. Create a temporary home directory
 	std::filesystem::path temp_home = std::filesystem::absolute("./test_activate_skill_home");
 	if (std::filesystem::exists(temp_home)) {

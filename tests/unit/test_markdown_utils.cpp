@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -64,6 +65,7 @@ void test_align_table_utf8()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	setlocale(LC_ALL, "");
 	test_is_table_row();
 	test_is_header_separator();

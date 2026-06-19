@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/git_manager.h"
@@ -6,6 +7,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_queue queue;
 	git_manager &manager = git_manager::get_instance();
 

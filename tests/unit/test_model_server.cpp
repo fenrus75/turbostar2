@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "agentlib/model_server.h"
@@ -10,6 +11,7 @@ using namespace agentlib;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running test_model_server..." << std::endl;
 
 	auto &registry = model_server_registry::get_instance();

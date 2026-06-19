@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <ncurses.h>
@@ -15,6 +16,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	bool space_called = false;
 	int space_index = -1;
 

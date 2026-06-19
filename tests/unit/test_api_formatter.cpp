@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -76,6 +77,7 @@ class mock_normal_validator : public tool_validator
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running test_api_formatter..." << std::endl;
 
 	// Register mocks

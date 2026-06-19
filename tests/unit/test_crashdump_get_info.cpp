@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <filesystem>
@@ -13,6 +14,7 @@ namespace fs = std::filesystem;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
 	// Clear previous state and setup mock directories

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -239,6 +240,7 @@ void test_tool_families_config()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_candidate_detection();
 	test_dropdown_widget();
 	test_tool_families_config();

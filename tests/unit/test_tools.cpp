@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -14,6 +15,7 @@ using namespace agentlib;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Initialize managers
 	project_manager::get_instance().initialize();
 

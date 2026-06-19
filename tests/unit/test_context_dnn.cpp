@@ -1,9 +1,11 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/agentlib/context_dnn.h"
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	using namespace turbostar;
 
 	// 1. Test standard CRC32 computations matching Python's binascii.crc32

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -68,6 +69,7 @@ void test_utf8_next_character()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_utf8_char_len();
 	test_utf8_length();
 	test_utf8_char_to_byte_offset();

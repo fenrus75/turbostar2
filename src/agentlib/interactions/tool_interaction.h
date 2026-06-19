@@ -10,6 +10,8 @@ public:
     interaction_role get_role() const override { return interaction_role::thinking; }
     std::string get_raw_text() const override { return "Tool Call: " + text_; }
     std::string get_grouping_key() const override { return tool_name_; }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 
     bool needs_subpanel_header() const override { return true; }
     std::string get_subpanel_label() const override { return "Tool execution"; }
@@ -27,6 +29,8 @@ public:
     interaction_role get_role() const override { return interaction_role::agent; }
     std::string get_raw_text() const override { return "Tool Result: " + text_; }
     std::string get_grouping_key() const override { return tool_name_; }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 protected:
     std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
 private:
@@ -57,6 +61,8 @@ public:
         result_ = result;
         invalidate_cache();
     }
+    void push_content(const std::string& content) override { result_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { result_ += chunk; invalidate_cache(); }
 protected:
     std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
 private:

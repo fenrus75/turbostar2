@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -7,6 +8,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_queue q;
 	auto agent = agentlib::ai_agent::create(1, "TestAgent", "tests/data/todo_traffic.json", &q, nullptr);
 

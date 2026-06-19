@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -68,6 +69,7 @@ void test_robust_skill_parsing()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_robust_skill_parsing();
 	std::cout << "skill_manager tests passed.\n";
 	return 0;

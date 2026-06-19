@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <filesystem>
@@ -11,6 +12,7 @@ namespace fs = std::filesystem;
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// 0. Ensure we start clean
 	crashdump_manager::get_instance().clear_all();
 	assert(crashdump_manager::get_instance().get_crashdumps().empty());

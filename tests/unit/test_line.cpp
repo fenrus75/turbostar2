@@ -1,9 +1,11 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/line.h"
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Japanese 'あ' is 3 bytes: \xe3\x81\x82
 	// Emoji '😊' is 4 bytes: \xf0\x9f\x98\x8a
 	line l("aあ😊b");

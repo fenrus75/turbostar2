@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
 #include <filesystem>
@@ -10,6 +11,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	event_queue queue;
 
 	// Test 1: insert_file sets modified flag

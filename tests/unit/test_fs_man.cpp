@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -26,6 +27,7 @@ static void write_text_file(const fs::path& path, const std::string& content) {
 }
 
 int main() {
+	test_watchdog::setup_watchdog(30);
 	fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_fs_man";
 	fs::remove_all(temp_dir);
 	fs::create_directories(temp_dir / "man1");

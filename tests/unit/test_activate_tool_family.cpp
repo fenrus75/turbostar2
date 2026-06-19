@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -42,6 +43,7 @@ class test_tool_validator : public tool_validator
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Initialize tool registry and context
 	tool_registry &registry = tool_registry::get_instance();
 

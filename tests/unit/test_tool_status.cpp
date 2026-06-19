@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/ui/dialog_factories.h"
@@ -16,6 +17,7 @@ public:
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Testing create_tool_status_dialog..." << std::endl;
 
 	auto dlg = create_tool_status_dialog();

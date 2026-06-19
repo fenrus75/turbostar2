@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/event_logger.h"
@@ -5,6 +6,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Testing event_logger sequence numbers and slices..." << std::endl;
 	event_logger &logger = event_logger::get_instance();
 

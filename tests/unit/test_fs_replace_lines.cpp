@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -17,6 +18,7 @@ void create_dummy_file(const std::string &path)
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::string test_file = "test_poem.txt";
 	create_dummy_file(test_file);
 

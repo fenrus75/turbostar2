@@ -1,4 +1,5 @@
 #include "compaction_engine.h"
+#include "data/episode.h"
 #include <algorithm>
 
 namespace agentlib {
@@ -14,39 +15,40 @@ size_t compaction_engine::estimate_message_tokens(const message& msg)
 			chars += tc.function.arguments.length();
 		}
 	}
-	return chars / 4;
+	return chars / 4; // Simple heuristic: 1 token ≈ 4 characters
 }
 
 std::vector<transition> compaction_engine::plan_compaction(const std::vector<active_episode_info>& active_episodes,
                                                            int current_tokens,
                                                            int target_tokens)
 {
-	std::vector<transition> planned;
 	if (current_tokens <= target_tokens) {
-		return planned;
+		return {};
 	}
+
+	std::vector<transition> planned;
+	int total_tokens = current_tokens;
 
 	// Create a copy of the active episodes so we can simulate transitions
 	std::vector<active_episode_info> candidates = active_episodes;
 
-	// Sort candidates by lru_seq ascending (oldest first)
+	// Sort candidates by LRU (least recently used first)
 	std::sort(candidates.begin(), candidates.end(), [](const active_episode_info& a, const active_episode_info& b) {
 		return a.lru_seq < b.lru_seq;
 	});
 
-	int total_tokens = current_tokens;
 	for (auto& cand : candidates) {
 		if (total_tokens <= target_tokens) {
 			break;
 		}
 
 		// Progressive transition for this candidate
-		if (cand.current_level == 0) {
+		if (cand.current_level == COMPACTION_LEVEL_RAW) {
 			int savings = cand.tokens_level_0 - cand.tokens_level_1;
 			if (savings > 0) {
 				total_tokens -= savings;
-				cand.current_level = 1;
-				planned.push_back({cand.id, 1});
+				cand.current_level = COMPACTION_LEVEL_STRIP_REASONING;
+				planned.push_back({cand.id, COMPACTION_LEVEL_STRIP_REASONING});
 			}
 		}
 
@@ -54,12 +56,12 @@ std::vector<transition> compaction_engine::plan_compaction(const std::vector<act
 			break;
 		}
 
-		if (cand.current_level == 1) {
+		if (cand.current_level == COMPACTION_LEVEL_STRIP_REASONING) {
 			int savings = cand.tokens_level_1 - cand.tokens_level_2;
 			if (savings > 0) {
 				total_tokens -= savings;
-				cand.current_level = 2;
-				planned.push_back({cand.id, 2});
+				cand.current_level = COMPACTION_LEVEL_STRIP_TOOL_CALLS;
+				planned.push_back({cand.id, COMPACTION_LEVEL_STRIP_TOOL_CALLS});
 			}
 		}
 
@@ -67,14 +69,14 @@ std::vector<transition> compaction_engine::plan_compaction(const std::vector<act
 			break;
 		}
 
-		if (cand.current_level == 2) {
+		if (cand.current_level == COMPACTION_LEVEL_STRIP_TOOL_CALLS) {
 			// Estimate paged-out anchor size as ~50 tokens
 			int anchor_size = 50;
 			int savings = cand.tokens_level_2 - anchor_size;
 			if (savings > 0) {
 				total_tokens -= savings;
-				cand.current_level = 99;
-				planned.push_back({cand.id, 99});
+				cand.current_level = COMPACTION_LEVEL_PAGED_OUT;
+				planned.push_back({cand.id, COMPACTION_LEVEL_PAGED_OUT});
 			}
 		}
 	}

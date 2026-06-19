@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <thread>
@@ -27,6 +28,7 @@ public:
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();

@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -7,6 +8,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	// Ensure we are in a clean state if possible, though project_manager is a singleton
 	project_manager &pm = project_manager::get_instance();
 	pm.initialize();

@@ -10,6 +10,8 @@ public:
     void append_text(const std::string& t);
     void set_text(const std::string& t);
     void set_title(const std::string& title) { title_ = title; invalidate_cache(); }
+    void push_content(const std::string& content) override { set_text(content); }
+    void push_incremental_content(const std::string& chunk) override { append_text(chunk); }
     
     std::string get_raw_text() const override;
     interaction_type get_type() const override;

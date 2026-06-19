@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/agentlib/llm_types.h"
@@ -60,6 +61,7 @@ class mock_validator : public single_string_tool_validator
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	mock_validator validator;
 	tool_context ctx;
 	std::string error;

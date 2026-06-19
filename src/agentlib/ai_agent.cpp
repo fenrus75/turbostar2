@@ -1,6 +1,7 @@
 #include "ai_agent.h"
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -19,6 +20,12 @@
 #include "copilot_manager.h"
 #include "httplib_transport.h"
 #include "skill_manager.h"
+#include "data/conversation.h"
+#include "data/system_turn.h"
+#include "data/user_turn.h"
+#include "data/model_response_turn.h"
+#include "data/tool_execution_turn.h"
+#include "data/error_turn.h"
 
 namespace agentlib
 {
@@ -170,30 +177,8 @@ bool ai_agent::page_in_context(const std::string &episode_id, int compression_le
 
 int ai_agent::calculate_current_tokens() const
 {
-	int current_active_tokens = 0;
-	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	std::set<std::string> accounted_episodes;
-
-	for (const auto &msg : conversation_) {
-		if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
-			if (accounted_episodes.find(msg.episode_id) == accounted_episodes.end()) {
-				accounted_episodes.insert(msg.episode_id);
-				auto it = episode_index_.find(msg.episode_id);
-				if (it != episode_index_.end()) {
-					if (msg.episode_level == 0) {
-						current_active_tokens += it->second.tokens_level_0;
-					} else if (msg.episode_level == 1) {
-						current_active_tokens += it->second.tokens_level_1;
-					} else if (msg.episode_level == 2) {
-						current_active_tokens += it->second.tokens_level_2;
-					}
-				}
-			}
-		} else {
-			current_active_tokens += static_cast<int>(compaction_engine::estimate_message_tokens(msg));
-		}
-	}
-	return current_active_tokens;
+	if (!conversation_) return 0;
+	return conversation_->estimate_token_count();
 }
 
 std::vector<std::string> ai_agent::page_in_history_auto(int default_level, double target_fraction)
@@ -201,33 +186,32 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 	if (!is_mutation_possible())
 		return {};
 
-	std::set<std::string> active_episodes;
-	{
-		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		for (const auto &msg : conversation_) {
-			if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
-				active_episodes.insert(msg.episode_id);
-			}
-		}
-	}
-
 	std::vector<const episode_index_entry *> paged_out;
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
 		for (const auto &pair : episode_index_) {
-			if (active_episodes.find(pair.first) == active_episodes.end()) {
+			bool is_paged_out = true;
+			for (const auto &ep : conversation_->get_episodes()) {
+				if (ep->get_id() == pair.first && ep->get_compaction_level() != COMPACTION_LEVEL_PAGED_OUT) {
+					is_paged_out = false;
+					break;
+				}
+			}
+			if (is_paged_out) {
 				paged_out.push_back(&pair.second);
 			}
 		}
 	}
 
-	// Sort descending by episode_seq (newest/most recent first)
 	std::sort(paged_out.begin(), paged_out.end(),
 		  [](const episode_index_entry *a, const episode_index_entry *b) { return a->episode_seq > b->episode_seq; });
 
 	int current_tokens = calculate_current_tokens();
 	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
 	int limit_tokens = static_cast<int>(max_tokens * target_fraction);
+	std::cout << "[debug page_in_history_auto] current_tokens=" << current_tokens 
+	          << ", max_tokens=" << max_tokens << ", limit_tokens=" << limit_tokens 
+	          << ", paged_out count=" << paged_out.size() << std::endl;
 
 	std::vector<std::string> paged_in_ids;
 
@@ -242,43 +226,19 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 		if (ep_tokens <= 0)
 			ep_tokens = entry->tokens_level_0;
 
-		std::stringstream pointer_msg;
-		pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
-		pointer_msg << "Title: " << entry->title << "\n";
-		pointer_msg << "Summary: " << entry->summary << "\n";
-		if (!entry->tags.empty()) {
-			pointer_msg << "Tags: [";
-			for (size_t i = 0; i < entry->tags.size(); ++i) {
-				pointer_msg << entry->tags[i] << (i < entry->tags.size() - 1 ? ", " : "");
-			}
-			pointer_msg << "]\n";
-		}
-		pointer_msg << "Raw history archive: " << entry->id;
+		int old_tokens = static_cast<int>((entry->title.size() + entry->summary.size()) / 4 + 50);
+		int net_change = ep_tokens - old_tokens;
+		if (net_change < 0) net_change = 0;
 
-		message anchor_msg;
-		anchor_msg.role = "system";
-		anchor_msg.content = pointer_msg.str();
-		int anchor_tokens = static_cast<int>(compaction_engine::estimate_message_tokens(anchor_msg));
-
-		bool has_anchor = false;
-		{
-			std::lock_guard<std::mutex> lock(conversation_mutex_);
-			auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
-				return m.role == "system" && m.content.find("Raw history archive: " + entry->id) != std::string::npos;
-			});
-			if (anchor_it != conversation_.end()) {
-				has_anchor = true;
-			}
-		}
-
-		int net_change = ep_tokens - (has_anchor ? anchor_tokens : 0);
+		std::cout << "  [debug page_in_history_auto] entry=" << entry->id << ", ep_tokens=" << ep_tokens 
+		          << ", old_tokens=" << old_tokens << ", net_change=" << net_change 
+		          << ", sum=" << (current_tokens + net_change) << std::endl;
 		if (current_tokens + net_change <= limit_tokens) {
 			if (set_episode_state(entry->id, default_level)) {
 				current_tokens += net_change;
 				paged_in_ids.push_back(entry->id);
 			}
 		} else {
-			// Stop once we hit the 50% limit
 			break;
 		}
 	}
@@ -289,200 +249,121 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 
 bool ai_agent::set_episode_state(const std::string &episode_id, int target_level)
 {
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	
+	// Find in loaded episodes
+	for (const auto &ep : conversation_->get_episodes()) {
+		if (ep->get_id() == episode_id) {
+			/*
+			 * When transitioning a paged-out episode (compaction level 99) to a paged-in state
+			 * (compaction level < 99), load the actual transaction history from its JSON storage.
+			 * When paging out, flush the current transactions to disk and clear the in-memory details
+			 * to minimize active memory usage.
+			 */
+			if (ep->get_compaction_level() == COMPACTION_LEVEL_PAGED_OUT && target_level < COMPACTION_LEVEL_PAGED_OUT) {
+				std::string history_dir = fs_utils::get_project_history_dir(name_);
+				std::string filepath = history_dir + "/" + episode_id + ".json";
+				if (std::filesystem::exists(filepath)) {
+					try {
+						std::ifstream file(filepath);
+						nlohmann::json root;
+						file >> root;
+						auto disk_ep = Episode::deserialize(root);
+						ep->copy_from(*disk_ep);
+					} catch (...) {}
+				}
+			} else if (ep->get_compaction_level() < COMPACTION_LEVEL_PAGED_OUT && target_level == COMPACTION_LEVEL_PAGED_OUT) {
+				if (!ep->is_finalized()) {
+					std::string history_dir = fs_utils::get_project_history_dir(name_);
+					std::string filepath = history_dir + "/" + episode_id + ".json";
+					try {
+						ep->set_finalized(true);
+						nlohmann::json root = ep->serialize();
+						std::ofstream file(filepath);
+						if (file.is_open()) {
+							file << root.dump(4);
+						}
+					} catch (...) {}
+				}
+				ep->clear_transactions();
+			}
+
+			ep->set_compaction_level(target_level);
+			long long l_seq = next_lru_seq_++;
+			if (episode_index_.find(episode_id) != episode_index_.end()) {
+				episode_index_[episode_id].lru_seq = l_seq;
+			}
+			
+			// Update LRU seq in meta file on disk
+			std::string history_dir = fs_utils::get_project_history_dir(name_);
+			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+			try {
+				std::ifstream mfile(meta_filepath);
+				nlohmann::json meta_root;
+				mfile >> meta_root;
+				meta_root["lru_seq"] = l_seq;
+				std::ofstream mfile_out(meta_filepath);
+				mfile_out << meta_root.dump(4);
+			} catch (...) {}
+
+			if (global_queue_) {
+				editor_event ev;
+				ev.type = event_type::agent_tool_update;
+				ev.key_code = id_;
+				global_queue_->push(ev);
+			}
+			return true;
+		}
+	}
+	
+	// If not found in memory but exists in metadata, we load it from disk
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
-	if (!std::filesystem::exists(filepath))
-		return false;
-
-	std::string title = "Archived Episode";
-	std::string summary = "Summary not available.";
-	std::vector<std::string> tags;
-	std::vector<message> loaded_msgs;
-
-	try {
-		std::ifstream file(filepath);
-		nlohmann::json root;
-		file >> root;
-
-		if (root.contains("title"))
-			title = root["title"].get<std::string>();
-		if (root.contains("summary"))
-			summary = root["summary"].get<std::string>();
-		if (root.contains("tags"))
-			tags = root["tags"].get<std::vector<std::string>>();
-
-		if (root.contains("conversation") && root["conversation"].is_array() && target_level != 99) {
-			for (const auto &item : root["conversation"]) {
-				message msg;
-				from_json(item, msg);
-
-				// Assign transient properties
-				msg.episode_id = episode_id;
-				msg.episode_level = target_level;
-
-				// Level 1: Strip explicit reasoning content natively provided by models like DeepSeek.
-				if (target_level >= 1 && msg.role == "assistant") {
-					if (msg.reasoning_content) {
-						msg.reasoning_content.reset();
-						increment_stat("explicit_think_blocks_stripped");
-					}
-
-					// Also strip inline <think>...</think> tags from content.
-					size_t start_pos = 0;
-					while ((start_pos = msg.content.find("<think>")) != std::string::npos) {
-						size_t end_pos = msg.content.find("</think>", start_pos);
-						if (end_pos != std::string::npos) {
-							msg.content.erase(start_pos, (end_pos + 8) - start_pos);
-							increment_stat("explicit_think_blocks_stripped");
-						} else {
-							msg.content.erase(start_pos);
-							increment_stat("explicit_think_blocks_stripped");
-							break;
-						}
-					}
-					// Trim leading newlines/whitespace if any
-					while (!msg.content.empty() && std::isspace(static_cast<unsigned char>(msg.content.front()))) {
-						msg.content.erase(msg.content.begin());
-					}
-				}
-
-				// Level 2: Strip conversational pseudo-reasoning (used by GPT-4o/Gemini) if a tool call was made.
-				if (target_level >= 2 && msg.role == "assistant") {
-					if (msg.tool_calls && !msg.tool_calls->empty() && !msg.content.empty()) {
-						msg.content.clear();
-						increment_stat("pseudo_think_blocks_stripped");
-					}
-				}
-
-				loaded_msgs.push_back(msg);
+	if (std::filesystem::exists(filepath)) {
+		try {
+			std::ifstream file(filepath);
+			nlohmann::json root;
+			file >> root;
+			auto ep = Episode::deserialize(root);
+			ep->set_compaction_level(target_level);
+			conversation_->add_episode(ep);
+			
+			long long l_seq = next_lru_seq_++;
+			if (episode_index_.find(episode_id) != episode_index_.end()) {
+				episode_index_[episode_id].lru_seq = l_seq;
 			}
-		}
-	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Error loading episode {}: {}", episode_id, e.what());
-		return false;
-	}
+			
+			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+			try {
+				std::ifstream mfile(meta_filepath);
+				nlohmann::json meta_root;
+				mfile >> meta_root;
+				meta_root["lru_seq"] = l_seq;
+				std::ofstream mfile_out(meta_filepath);
+				mfile_out << meta_root.dump(4);
+			} catch (...) {}
 
-	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	last_response_id_.clear();
-
-	// Look for existing active turns matching episode_id in memory
-	auto first_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
-		if (m.episode_id == episode_id)
+			if (global_queue_) {
+				editor_event ev;
+				ev.type = event_type::agent_tool_update;
+				ev.key_code = id_;
+				global_queue_->push(ev);
+			}
 			return true;
-		if (m.role == "system" && m.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
-			size_t arch_pos = m.content.find("Raw history archive: ");
-			if (arch_pos != std::string::npos) {
-				std::string parsed_id = m.content.substr(arch_pos + 21);
-				while (!parsed_id.empty() && (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
-							      parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
-					parsed_id.pop_back();
-				}
-				if (parsed_id == episode_id)
-					return true;
-			}
-		}
-		return false;
-	});
-
-	if (first_it != conversation_.end()) {
-		// Locate the end of the range
-		auto last_it = first_it;
-		while (last_it != conversation_.end() && last_it->episode_id == episode_id) {
-			++last_it;
-		}
-
-		if (target_level == 99) {
-			// Page OUT: Replace the range with a single Anchor pointer message
-			std::stringstream pointer_msg;
-			pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
-			pointer_msg << "Title: " << title << "\n";
-			pointer_msg << "Summary: " << summary << "\n";
-			if (!tags.empty()) {
-				pointer_msg << "Tags: [";
-				for (size_t i = 0; i < tags.size(); ++i) {
-					pointer_msg << tags[i] << (i < tags.size() - 1 ? ", " : "");
-				}
-				pointer_msg << "]\n";
-			}
-			pointer_msg << "Raw history archive: " << episode_id;
-
-			message anchor_msg;
-			anchor_msg.role = "system";
-			anchor_msg.content = pointer_msg.str();
-			anchor_msg.episode_id = episode_id;
-			anchor_msg.episode_level = 99;
-
-			auto next_it = conversation_.erase(first_it, last_it);
-			conversation_.insert(next_it, anchor_msg);
-			event_logger::get_instance().log("Agent {} paged OUT context {}", name_, episode_id);
-			increment_stat("context_pages_out");
-		} else {
-			// Transition active level: Replace range with loaded_msgs
-			auto next_it = conversation_.erase(first_it, last_it);
-			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log("Agent {} shifted context level {} to {}", name_, episode_id, target_level);
-			increment_stat("context_pages_compacted");
-		}
-	} else {
-		// Not active in memory. Locate the Anchor message.
-		auto anchor_it = std::find_if(conversation_.begin(), conversation_.end(), [&](const message &m) {
-			return m.role == "system" && m.content.find("Raw history archive: " + episode_id) != std::string::npos;
-		});
-
-		if (anchor_it != conversation_.end()) {
-			if (target_level == 99) {
-				// Already paged out, nothing to do
-				return true;
-			}
-			// Page IN: Replace the anchor with loaded_msgs
-			auto next_it = conversation_.erase(anchor_it);
-			conversation_.insert(next_it, loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log("Agent {} paged IN context {} at level {}", name_, episode_id, target_level);
-			increment_stat("context_pages_in");
-		} else {
-			if (target_level == 99) {
-				// Already not in memory and no anchor exists, nothing to do
-				return true;
-			}
-			// Fallback: Append the loaded messages to the end of the conversation
-			conversation_.insert(conversation_.end(), loaded_msgs.begin(), loaded_msgs.end());
-			event_logger::get_instance().log("Agent {} paged IN context {} at level {} (appended)", name_, episode_id,
-							 target_level);
-			increment_stat("context_pages_in");
-		}
+		} catch (...) {}
 	}
 
-	// Update LRU access sequence
-	long long l_seq = next_lru_seq_++;
-	if (episode_index_.find(episode_id) != episode_index_.end()) {
-		episode_index_[episode_id].lru_seq = l_seq;
-	}
-
-	// Update metadata file
-	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
-	try {
-		std::ifstream mfile(meta_filepath);
-		nlohmann::json meta_root;
-		mfile >> meta_root;
-		meta_root["lru_seq"] = l_seq;
-		std::ofstream mfile_out(meta_filepath);
-		mfile_out << meta_root.dump(4);
-	} catch (...) {
-	}
-
-	// Trigger UI update
-	if (global_queue_) {
-		editor_event ev;
-		ev.type = event_type::agent_tool_update;
-		ev.key_code = id_;
-		global_queue_->push(ev);
-	}
-
-	return true;
+	return false;
 }
+
+
 ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider)
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
 {
+	conversation_ = std::make_shared<Conversation>();
+	if (model_) {
+		conversation_->set_model(model_);
+	}
 	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 	if (model_->get_api_type() == api_type::copilot) {
 		http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
@@ -586,95 +467,30 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			final_result_ = root["final_result"].get<std::string>();
 		}
 
-		if (root.contains("conversation") && root["conversation"].is_array()) {
-			std::vector<message> normalized_convo;
-			{
-				std::lock_guard<std::mutex> lock(conversation_mutex_);
-				conversation_.clear();
-				last_response_id_.clear();
+		if (root.contains("conversation")) {
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			if (root["conversation"].is_object()) {
+				conversation_ = Conversation::deserialize(root["conversation"]);
+			} else if (root["conversation"].is_array()) {
+				std::vector<message> old_convo;
 				for (const auto &item : root["conversation"]) {
 					message msg;
 					from_json(item, msg);
-					if (msg.episode_id.empty() && msg.role == "system" &&
-					    msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
-						size_t arch_pos = msg.content.find("Raw history archive: ");
-						if (arch_pos != std::string::npos) {
-							std::string parsed_id = msg.content.substr(arch_pos + 21);
-							while (!parsed_id.empty() &&
-							       (parsed_id.back() == '\r' || parsed_id.back() == '\n' ||
-								parsed_id.back() == ' ' || parsed_id.back() == '\t')) {
-								parsed_id.pop_back();
-							}
-							msg.episode_id = parsed_id;
-							msg.episode_level = 99;
-						}
-					}
-					conversation_.push_back(msg);
+					old_convo.push_back(msg);
 				}
-
-				// Normalizer: Ensure that every tool response message immediately follows
-				// the assistant message containing its tool_call definition.
-				// This satisfies the strict sequencing required by LLM APIs (OpenAI/Gemini/Jinja templates).
-				std::map<std::string, message> tool_responses;
-
-				// 1. Extract all tool responses
-				for (const auto &msg : conversation_) {
-					if (msg.role == "tool" && msg.tool_call_id) {
-						tool_responses[*msg.tool_call_id] = msg;
-					}
-				}
-
-				// 2. Reconstruct the conversation in the correct order
-				for (const auto &msg : conversation_) {
-					if (msg.role == "tool") {
-						// Skip tool messages; they will be inserted right after their corresponding assistant
-						// messages
-						continue;
-					}
-
-					normalized_convo.push_back(msg);
-
-					if (msg.role == "assistant" && msg.tool_calls) {
-						for (const auto &tc : *msg.tool_calls) {
-							auto it = tool_responses.find(tc.id);
-							if (it != tool_responses.end()) {
-								normalized_convo.push_back(it->second);
-								tool_responses.erase(it);
-							} else {
-								// Pending tool call with no response: Create an abort message
-								message abort_msg;
-								abort_msg.role = "tool";
-								abort_msg.tool_call_id = tc.id;
-								abort_msg.name = tc.function.name;
-								abort_msg.content = "Tool execution aborted: Editor session was restarted "
-										    "before completion.";
-								normalized_convo.push_back(abort_msg);
-
-								event_logger::get_instance().log("Aborted pending tool call: {} ({})",
-												 tc.id, tc.function.name);
-							}
-						}
-					}
-				}
-
-				// 3. Discard any orphan tool responses to prevent API sequencing violations.
-				// These are tool messages that have no matching assistant tool call in the loaded context
-				// (e.g. because the assistant message was paged out / compressed).
-				if (!tool_responses.empty()) {
-					event_logger::get_instance().log("Discarded {} orphaned tool response(s) with no matching "
-									 "assistant tool call in active context.",
-									 tool_responses.size());
-				}
-
-				conversation_ = std::move(normalized_convo);
+				set_conversation_unlocked(old_convo);
 			}
-
-			// Page in recent episodes up to 30% target fraction on startup
-			page_in_history_auto(1, 0.3);
-
-			event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
-			return true;
+			
+			if (model_ && !conversation_->get_model()) {
+				conversation_->set_model(model_);
+			}
 		}
+
+		// Page in recent episodes up to 30% target fraction on startup
+		page_in_history_auto(1, 0.3);
+
+		event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
+		return true;
 	} catch (const std::exception &e) {
 		event_logger::get_instance().log("Failed to restore active state: {}", std::string(e.what()));
 	}
@@ -867,68 +683,91 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 void ai_agent::update_system_prompt_with_families()
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	if (conversation_.empty()) {
+	if (!conversation_) {
 		return;
 	}
 
-	// Find the first system message
-	for (auto &msg : conversation_) {
-		if (msg.role == "system") {
-			// If we haven't stashed the original system prompt, stash it now
-			if (original_system_prompt_.empty()) {
-				original_system_prompt_ = msg.content;
-			}
-
-			// Rebuild the system prompt content
-			std::string families_str;
-			auto families = get_active_tool_families();
-			for (size_t i = 0; i < families.size(); ++i) {
-				if (i > 0) {
-					families_str += ", ";
-				}
-				families_str += std::format("'{}'", families[i]);
-			}
-
-			std::string table_str;
-			auto registered_families = tool_registry::get_instance().get_all_registered_families();
-			std::vector<std::string> inactive_families;
-			for (const auto &fam : registered_families) {
-				if (fam != "base" && !is_tool_family_active(fam)) {
-					inactive_families.push_back(fam);
+	std::shared_ptr<system_turn> first_sys = nullptr;
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		for (const auto &tx : curr_ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
+				if (turn->get_type() == turn_type::system) {
+					first_sys = std::dynamic_pointer_cast<system_turn>(turn);
+					if (first_sys) break;
 				}
 			}
-			std::sort(inactive_families.begin(), inactive_families.end());
-
-			if (!inactive_families.empty()) {
-				table_str = "\n\nIf you need to use tools from another family, you must call the `activate_tool_family` "
-					    "tool. Here are the available tool families and when to activate them:\n\n"
-					    "| Tool Family | When to Activate |\n"
-					    "| --- | --- |\n";
-				for (const auto &fam : inactive_families) {
-					std::string reason;
-					if (fam == "x86") {
-						reason = "Activate when working with x86 assembly";
-					} else {
-						std::string cached =
-						    config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
-						if (cached.empty()) {
-							cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
-						}
-						if (!cached.empty()) {
-							reason = cached;
-						} else {
-							reason = std::format("Activate when needing tools from the {} family", fam);
-						}
-					}
-					table_str += std::format("| {} | {} |\n", fam, reason);
-				}
-			}
-
-			msg.content = std::format("{}\n\n*** ACTIVE TOOL FAMILIES ***\n"
-						  "The following tool families are currently active and available: [{}].{}",
-						  original_system_prompt_, families_str, table_str);
-			break;
+			if (first_sys) break;
 		}
+	}
+	if (!first_sys) {
+		for (const auto &ep : conversation_->get_episodes()) {
+			for (const auto &tx : ep->get_transactions()) {
+				for (const auto &turn : tx->get_turns()) {
+					if (turn->get_type() == turn_type::system) {
+						first_sys = std::dynamic_pointer_cast<system_turn>(turn);
+						if (first_sys) break;
+					}
+				}
+				if (first_sys) break;
+			}
+			if (first_sys) break;
+		}
+	}
+
+	if (first_sys) {
+		if (original_system_prompt_.empty()) {
+			original_system_prompt_ = first_sys->get_content();
+		}
+
+		// Rebuild the system prompt content
+		std::string families_str;
+		auto families = get_active_tool_families();
+		for (size_t i = 0; i < families.size(); ++i) {
+			if (i > 0) {
+				families_str += ", ";
+			}
+			families_str += std::format("'{}'", families[i]);
+		}
+
+		std::string table_str;
+		auto registered_families = tool_registry::get_instance().get_all_registered_families();
+		std::vector<std::string> inactive_families;
+		for (const auto &fam : registered_families) {
+			if (fam != "base" && !is_tool_family_active(fam)) {
+				inactive_families.push_back(fam);
+			}
+		}
+		std::sort(inactive_families.begin(), inactive_families.end());
+
+		if (!inactive_families.empty()) {
+			table_str = "\n\nIf you need to use tools from another family, you must call the `activate_tool_family` "
+				    "tool. Here are the available tool families and when to activate them:\n\n"
+				    "| Tool Family | When to Activate |\n"
+				    "| --- | --- |\n";
+			for (const auto &fam : inactive_families) {
+				std::string reason;
+				if (fam == "x86") {
+					reason = "Activate when working with x86 assembly";
+				} else {
+					std::string cached =
+					    config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
+					if (cached.empty()) {
+						cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
+					}
+					if (!cached.empty()) {
+						reason = cached;
+					} else {
+						reason = std::format("Activate when needing tools from the {} family", fam);
+					}
+				}
+				table_str += std::format("| {} | {} |\n", fam, reason);
+			}
+		}
+
+		std::string new_content = std::format("{}\n\n*** ACTIVE TOOL FAMILIES ***\n"
+					  "The following tool families are currently active and available: [{}].{}",
+					  original_system_prompt_, families_str, table_str);
+		first_sys->set_content(new_content);
 	}
 }
 
@@ -1084,31 +923,120 @@ std::vector<std::shared_ptr<ai_agent>> ai_agent::get_subagents() const
 	return subagents_;
 }
 
+std::vector<std::shared_ptr<agent_interaction>> ai_agent::get_interactions() const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	std::vector<std::shared_ptr<agent_interaction>> res;
+	if (!conversation_)
+		return res;
+	for (const auto &ep : conversation_->get_episodes()) {
+		for (const auto &tx : ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
+				if (auto inter = turn->get_interaction()) {
+					res.push_back(inter);
+				}
+			}
+		}
+	}
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		for (const auto &tx : curr_ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
+				if (auto inter = turn->get_interaction()) {
+					res.push_back(inter);
+				}
+			}
+		}
+	}
+	return res;
+}
+
 void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction)
 {
-	std::lock_guard<std::mutex> lock(state_mutex_);
-	for (auto &existing : interactions_) {
-		existing->set_age(existing->get_age() + 1);
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	if (!conversation_)
+		return;
+
+	// Update ages of all existing interactions in the conversation
+	for (const auto &ep : conversation_->get_episodes()) {
+		for (const auto &tx : ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
+				if (auto inter = turn->get_interaction()) {
+					inter->set_age(inter->get_age() + 1);
+				}
+			}
+		}
+	}
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		for (const auto &tx : curr_ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
+				if (auto inter = turn->get_interaction()) {
+					inter->set_age(inter->get_age() + 1);
+				}
+			}
+		}
 	}
 	interaction->set_age(0);
-	interactions_.push_back(std::move(interaction));
+
+	auto curr_ep = conversation_->get_current_episode();
+	if (!curr_ep) {
+		long long seq = conversation_->allocate_next_episode_seq();
+		curr_ep = conversation_->create_new_episode("episode_" + std::to_string(seq), "Active Session", "");
+		curr_ep->set_sequence_number(seq);
+	}
+
+	std::string tx_id = "tx_ui_notif_" + std::to_string(std::rand()) + "_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+	auto tx = std::make_shared<Transaction>(tx_id, transaction_type::ui_notification);
+
+	std::string turn_id = "turn_ui_notif_" + std::to_string(std::rand());
+	auto turn = std::make_shared<system_turn>(turn_id, interaction->get_raw_text(), "ui_notification");
+	turn->set_interaction(interaction);
+	tx->add_turn(turn);
+
+	curr_ep->add_transaction(tx);
 }
 
 void ai_agent::inject_context(const std::string &role, const std::string &content, bool trigger_processing)
 {
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		message context_msg;
-		context_msg.role = role;
-		context_msg.content = content;
-		conversation_.push_back(context_msg);
+		if (conversation_) {
+			auto ep = conversation_->get_current_episode();
+			if (!ep) {
+				long long seq = conversation_->allocate_next_episode_seq();
+				std::string ep_id = "episode_" + std::to_string(seq);
+				ep = conversation_->create_new_episode(ep_id, "Injected Context", "System injected context");
+				ep->set_sequence_number(seq);
+			}
+			
+			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			transaction_type tx_type = transaction_type::system_injection;
+			if (role == "user" || role == "assistant") {
+				tx_type = transaction_type::user_exchange;
+			}
+			auto tx = std::make_shared<Transaction>(tx_id, tx_type);
+			
+			std::string turn_id = "turn_" + std::to_string(std::rand());
+			std::shared_ptr<Turn> t;
+			std::shared_ptr<agent_interaction> inter;
+			if (role == "system") {
+				t = std::make_shared<system_turn>(turn_id, content, "context_injection");
+				inter = std::make_shared<interaction_system_message>(content);
+			} else if (role == "assistant") {
+				t = std::make_shared<model_response_turn>(turn_id, content, std::nullopt, std::vector<tool_call>{});
+				inter = std::make_shared<interaction_llm_response>(content);
+			} else {
+				t = std::make_shared<user_turn>(turn_id, content);
+				inter = std::make_shared<interaction_user_message>(content);
+			}
+			t->set_interaction(inter);
+			tx->add_turn(t);
+			conversation_->add_transaction(tx);
+		}
 	}
 
 	if (role == "system") {
 		update_system_prompt_with_families();
 	}
-
-	add_interaction(std::make_shared<interaction_system_message>(content));
 
 	if (trigger_processing && status_ == agent_status::idle) {
 		start_processing();
@@ -1122,6 +1050,9 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 	{
 		std::lock_guard lock(state_mutex_);
 		model_ = std::move(model);
+		if (conversation_) {
+			conversation_->set_model(model_);
+		}
 		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
 		if (model_->get_api_type() == api_type::copilot) {
 			http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
@@ -1137,16 +1068,23 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 {
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		message user_msg;
-		user_msg.role = "user";
-		user_msg.content = prompt_text;
-		user_msg.timestamp =
-		    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		conversation_.push_back(user_msg);
-	}
-
-	if (!prompt_text.empty()) {
-		add_interaction(std::make_shared<interaction_user_message>(prompt_text));
+		if (conversation_) {
+			auto ep = conversation_->get_current_episode();
+			if (!ep) {
+				std::string ep_id = "episode_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+				ep = conversation_->create_new_episode(ep_id, "Default Episode", "Active session episode");
+			}
+			
+			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
+			
+			std::string turn_id = "turn_" + std::to_string(std::rand());
+			auto t = std::make_shared<user_turn>(turn_id, prompt_text);
+			auto inter = std::make_shared<interaction_user_message>(prompt_text);
+			t->set_interaction(inter);
+			tx->add_turn(t);
+			conversation_->add_transaction(tx);
+		}
 	}
 
 	if (status_ == agent_status::idle) {
@@ -1213,37 +1151,40 @@ void ai_agent::start_processing()
 				return;
 			}
 
-			// Sync with shared conversation history
-			{
-				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				for (size_t i = last_synced_index; i < self->conversation_.size(); ++i) {
-					convo.push_back(self->conversation_[i]);
-				}
-				last_synced_index = self->conversation_.size();
-			}
-
 			self->evaluate_compaction();
+			std::vector<message> convo = self->get_conversation();
 			self->evaluate_auto_episode(convo);
 
-			// Reload/Sync with shared conversation history in case compaction modified it
 			std::string previous_response_id;
 			{
 				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				convo.clear();
-				for (const auto &msg : self->conversation_) {
-					convo.push_back(msg);
-				}
-				last_synced_index = self->conversation_.size();
 				previous_response_id = self->last_response_id_;
+				convo = self->get_conversation();
 			}
 
 			self->set_status(agent_status::thinking);
 
+			std::shared_ptr<Transaction> active_tx = nullptr;
+			{
+				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				if (self->conversation_->get_current_episode() && 
+					!self->conversation_->get_current_episode()->get_transactions().empty()) {
+					active_tx = self->conversation_->get_current_episode()->get_transactions().back();
+				}
+			}
+			if (!active_tx) {
+				std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+				active_tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
+				self->conversation_->add_transaction(active_tx);
+			}
+
+			std::string turn_id = "turn_" + std::to_string(std::rand());
+			auto response_turn = std::make_shared<model_response_turn>(turn_id, "", std::nullopt, std::vector<tool_call>{});
+			active_tx->add_turn(response_turn);
+
 			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
 			std::shared_ptr<interaction_llm_response> current_response = nullptr;
 			std::vector<tool_call> accumulated_tool_calls;
-			message response_msg;
-			response_msg.role = "assistant";
 
 			auto start_time = std::chrono::steady_clock::now();
 			auto start_timestamp =
@@ -1263,13 +1204,9 @@ void ai_agent::start_processing()
 				    if (!delta.reasoning_content.empty()) {
 					    if (!current_reasoning) {
 						    current_reasoning = std::make_shared<interaction_reasoning>("");
-						    self->add_interaction(current_reasoning);
+						    response_turn->set_reasoning_interaction(current_reasoning);
 					    }
-					    current_reasoning->append_text(delta.reasoning_content);
-					    if (!response_msg.reasoning_content) {
-						    response_msg.reasoning_content = "";
-					    }
-					    *response_msg.reasoning_content += delta.reasoning_content;
+					    response_turn->append_reasoning_content(delta.reasoning_content);
 					    if (self->global_queue_) {
 						    editor_event ev;
 						    ev.type = event_type::agent_tool_update;
@@ -1281,10 +1218,9 @@ void ai_agent::start_processing()
 				    if (!delta.content.empty()) {
 					    if (!current_response) {
 						    current_response = std::make_shared<interaction_llm_response>("");
-						    self->add_interaction(current_response);
+						    response_turn->set_interaction(current_response);
 					    }
-					    current_response->append_text(delta.content);
-					    response_msg.content += delta.content;
+					    response_turn->append_content(delta.content);
 					    if (self->global_queue_) {
 						    editor_event ev;
 						    ev.type = event_type::agent_tool_update;
@@ -1337,24 +1273,20 @@ void ai_agent::start_processing()
 				return;
 			}
 
-			auto end_time = std::chrono::steady_clock::now();
-			response_msg.timestamp = start_timestamp;
-			response_msg.duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-
 			if (!accumulated_tool_calls.empty()) {
 				for (auto &call : accumulated_tool_calls) {
 					normalize_tool_call(call);
 				}
-				response_msg.tool_calls = accumulated_tool_calls;
+				response_turn->set_tool_calls(accumulated_tool_calls);
 			}
 
-			// Commit assistant response to shared history
+			// Complete the response turn's time range
 			{
 				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				self->conversation_.push_back(response_msg);
-				last_synced_index = self->conversation_.size();
+				time_range r = response_turn->get_time_range();
+				r.end_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				response_turn->set_time_range(r);
 			}
-			convo.push_back(response_msg);
 
 			if (!accumulated_tool_calls.empty()) {
 				std::unordered_map<std::string, std::string> merged_to_parent;
@@ -1423,6 +1355,22 @@ void ai_agent::start_processing()
 					long long tool_start_timestamp = 0;
 					long long tool_duration_ms = 0;
 
+					std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
+					{
+						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+						for (const auto &t : active_tx->get_turns()) {
+							if (t->get_type() == turn_type::tool_execution) {
+								tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(t);
+								break;
+							}
+						}
+						if (!tool_turn) {
+							std::string tool_turn_id = "turn_" + std::to_string(std::rand());
+							tool_turn = std::make_shared<tool_execution_turn>(tool_turn_id);
+							active_tx->add_turn(tool_turn);
+						}
+					}
+
 					if (is_merged) {
 						std::string parent_id = merged_to_parent[call.id];
 						int p_start = 1;
@@ -1440,7 +1388,7 @@ void ai_agent::start_processing()
 									  parent_id, p_start, p_end);
 
 						if (!is_silent) {
-							self->add_interaction(std::make_shared<interaction_tool_call>(
+							tool_turn->add_tool_interaction(std::make_shared<interaction_tool_call>(
 							    call.function.name,
 							    std::format("{}(merged into {})", call.function.name, parent_id)));
 							if (self->global_queue_) {
@@ -1464,9 +1412,9 @@ void ai_agent::start_processing()
 
 						if (!is_silent) {
 							if (custom_interaction) {
-								self->add_interaction(custom_interaction);
+								tool_turn->add_tool_interaction(custom_interaction);
 							} else {
-								self->add_interaction(std::make_shared<interaction_tool_call>(
+								tool_turn->add_tool_interaction(std::make_shared<interaction_tool_call>(
 								    call.function.name, call.function.name + "(" + arg_preview + ")"));
 							}
 							if (self->global_queue_) {
@@ -1504,7 +1452,7 @@ void ai_agent::start_processing()
 					}
 
 					if (!is_silent && !custom_interaction) {
-						self->add_interaction(
+						tool_turn->add_tool_interaction(
 						    std::make_shared<interaction_tool_result>(call.function.name, result_preview));
 						if (self->global_queue_) {
 							editor_event result_ev;
@@ -1513,7 +1461,6 @@ void ai_agent::start_processing()
 							self->global_queue_->push(result_ev);
 						}
 					} else if (!is_silent && custom_interaction) {
-						// Force a redraw so the final status of the custom interaction (e.g. checkmark) is visible
 						if (self->global_queue_) {
 							editor_event result_ev;
 							result_ev.type = event_type::agent_tool_update;
@@ -1522,35 +1469,36 @@ void ai_agent::start_processing()
 						}
 					}
 
-					message tool_msg;
-					tool_msg.role = "tool";
-					tool_msg.content = tool_result;
-					tool_msg.name = call.function.name;
-					tool_msg.tool_call_id = call.id;
-					tool_msg.timestamp = tool_start_timestamp;
-					tool_msg.duration_ms = tool_duration_ms;
-
-					// Commit tool result to shared history
+					agentlib::tool_result res;
+					res.call_id = call.id;
+					res.name = call.function.name;
+					res.content = tool_result;
+					res.is_error = tool_result.starts_with("Error:") || tool_result.starts_with("Verification Error:");
+					
 					{
 						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-						self->conversation_.push_back(tool_msg);
-						last_synced_index = self->conversation_.size();
+						tool_turn->add_result(res);
 					}
-					convo.push_back(tool_msg);
 
 					// Attempt to zap transient failure loops now that a tool has completed
-					self->compact_ephemeral_errors(convo);
+					auto temp_convo = self->get_conversation();
+					self->compact_ephemeral_errors(temp_convo);
 				}
 				self->current_tool_.clear();
 				self->set_status(agent_status::thinking);
 			} else {
-				final_response = response_msg.content;
+				auto msgs = response_turn->to_messages(model_capabilities{}, 0);
+				final_response = msgs.empty() ? "" : msgs[0].content;
 
 				bool more_user_input = false;
 				{
 					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-					if (last_synced_index < self->conversation_.size()) {
-						more_user_input = true;
+					if (self->conversation_->get_current_episode() && 
+						!self->conversation_->get_current_episode()->get_transactions().empty()) {
+						auto latest_tx = self->conversation_->get_current_episode()->get_transactions().back();
+						if (latest_tx != active_tx) {
+							more_user_input = true;
+						}
 					}
 				}
 				if (more_user_input) {
@@ -1559,7 +1507,6 @@ void ai_agent::start_processing()
 
 				self->evaluate_compaction();
 				self->evaluate_auto_episode(convo);
-				last_synced_index = self->conversation_.size();
 				break;
 			}
 		}
@@ -1615,7 +1562,7 @@ void ai_agent::start_processing()
 			// Generate full history buffer for the virtual file
 			std::string full_history = "Interaction History for Agent " + agent_id_str + " (" + self->name_ +
 						   ")\n=======================================================\n\n";
-			for (const auto &interaction : self->interactions_) {
+			for (const auto &interaction : self->get_interactions()) {
 				full_history += interaction->get_raw_text() + "\n\n";
 			}
 
@@ -1632,6 +1579,160 @@ void ai_agent::start_processing()
 	}).detach();
 }
 
+std::vector<message> ai_agent::get_conversation_unlocked() const
+{
+	if (!conversation_) {
+		return {};
+	}
+	model_capabilities caps = model_ ? model_->get_capabilities() : model_capabilities{};
+	std::vector<message> messages;
+	for (const auto& ep : conversation_->get_episodes()) {
+		auto ep_msgs = ep->to_messages(caps);
+		messages.insert(messages.end(), ep_msgs.begin(), ep_msgs.end());
+	}
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		auto ep_msgs = curr_ep->to_messages(caps, false);
+		for (auto& m : ep_msgs) {
+			m.episode_id = "";
+			m.episode_level = 0;
+		}
+		messages.insert(messages.end(), ep_msgs.begin(), ep_msgs.end());
+	}
+	return messages;
+}
+
+std::vector<message> ai_agent::get_conversation() const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	return get_conversation_unlocked();
+}
+
+void ai_agent::set_conversation(const std::vector<message> &c)
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	set_conversation_unlocked(c);
+}
+
+void ai_agent::set_conversation_unlocked(const std::vector<message> &c)
+{
+	long long next_seq = 1;
+	if (conversation_) {
+		next_seq = conversation_->get_next_episode_seq();
+	}
+	conversation_ = std::make_shared<Conversation>();
+	conversation_->set_next_episode_seq(next_seq);
+	if (model_) {
+		conversation_->set_model(model_);
+	}
+	
+	std::map<std::string, std::shared_ptr<Episode>> ep_map;
+	std::shared_ptr<Episode> current_ep = nullptr;
+	std::shared_ptr<Transaction> current_tx = nullptr;
+	
+	std::shared_ptr<Episode> last_ep = nullptr;
+	for (const auto &msg : c) {
+		std::shared_ptr<Episode> ep = nullptr;
+		if (!msg.episode_id.empty()) {
+			auto it = ep_map.find(msg.episode_id);
+			if (it != ep_map.end()) {
+				ep = it->second;
+			} else {
+				ep = std::make_shared<Episode>(msg.episode_id, "Episode " + msg.episode_id, "Reconstructed episode");
+				ep->set_compaction_level(msg.episode_level != -1 ? msg.episode_level : 0);
+				auto idx_it = episode_index_.find(msg.episode_id);
+				if (idx_it != episode_index_.end()) {
+					long long seq = idx_it->second.episode_seq;
+					ep->set_sequence_number(seq);
+					if (seq >= conversation_->get_next_episode_seq()) {
+						conversation_->set_next_episode_seq(seq + 1);
+					}
+				}
+				ep_map[msg.episode_id] = ep;
+				conversation_->add_episode(ep);
+			}
+		} else {
+			if (!current_ep) {
+				std::string active_id = "episode_active";
+				current_ep = std::make_shared<Episode>(active_id, "Active Session", "Reconstructed active session");
+				conversation_->set_current_episode(current_ep);
+			}
+			ep = current_ep;
+		}
+
+		if (ep != last_ep) {
+			current_tx = nullptr;
+			last_ep = ep;
+		}
+		
+		transaction_type tx_type = transaction_type::user_exchange;
+		if (msg.role == "system") {
+			tx_type = transaction_type::system_injection;
+		}
+		
+		bool start_new_tx = !current_tx;
+		if (msg.role == "user" || msg.role == "system") {
+			start_new_tx = true;
+		}
+		
+		if (start_new_tx) {
+			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			current_tx = std::make_shared<Transaction>(tx_id, tx_type);
+			ep->add_transaction(current_tx);
+		}
+		
+		std::string turn_id = "turn_" + std::to_string(std::rand());
+		std::shared_ptr<Turn> turn = nullptr;
+		if (msg.role == "system") {
+			turn = std::make_shared<system_turn>(turn_id, msg.content, "reconstructed");
+		} else if (msg.role == "user") {
+			turn = std::make_shared<user_turn>(turn_id, msg.content, msg.name);
+		} else if (msg.role == "assistant") {
+			std::vector<tool_call> calls;
+			if (msg.tool_calls) {
+				calls = *msg.tool_calls;
+			}
+			turn = std::make_shared<model_response_turn>(turn_id, msg.content, msg.reasoning_content, calls);
+		} else if (msg.role == "tool") {
+			std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
+			if (current_tx) {
+				for (const auto &t : current_tx->get_turns()) {
+					if (t->get_type() == turn_type::tool_execution) {
+						tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(t);
+						break;
+					}
+				}
+			}
+			if (!tool_turn) {
+				tool_turn = std::make_shared<tool_execution_turn>(turn_id);
+				if (current_tx) {
+					current_tx->add_turn(tool_turn);
+				}
+			}
+			tool_result res;
+			if (msg.tool_call_id) {
+				res.call_id = *msg.tool_call_id;
+			}
+			if (msg.name) {
+				res.name = *msg.name;
+			}
+			res.content = msg.content;
+			res.is_error = msg.content.starts_with("Error:");
+			tool_turn->add_result(res);
+			continue;
+		}
+		
+		if (turn && current_tx) {
+			current_tx->add_turn(turn);
+		}
+	}
+}
+
+std::shared_ptr<Conversation> ai_agent::get_conversation_data() const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	return conversation_;
+}
+
 void ai_agent::save_conversation(const std::string &filepath) const
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -1642,13 +1743,11 @@ void ai_agent::save_conversation(const std::string &filepath) const
 		std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
 		root["final_result"] = final_result_;
 	}
-	nlohmann::json conv_array = nlohmann::json::array();
-	for (const auto &msg : conversation_) {
-		nlohmann::json m_json;
-		to_json(m_json, msg);
-		conv_array.push_back(m_json);
+	if (conversation_) {
+		root["conversation"] = conversation_->serialize();
+	} else {
+		root["conversation"] = nlohmann::json::object();
 	}
-	root["conversation"] = conv_array;
 
 	std::ofstream file(filepath);
 	if (file.is_open()) {
@@ -1659,49 +1758,33 @@ void ai_agent::save_conversation(const std::string &filepath) const
 void ai_agent::snapshot_episode(const std::string &title, const std::string &summary, const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-
-	if (conversation_.empty())
+	if (!conversation_ || !conversation_->get_current_episode())
 		return;
 
-	nlohmann::json block_array = nlohmann::json::array();
-	int l0_chars = 0;
-	int l1_chars = 0;
-	int l2_chars = 0;
+	auto curr_ep = conversation_->get_current_episode();
 
-	for (const auto &msg : conversation_) {
-		nlohmann::json m_json;
-		to_json(m_json, msg);
-		block_array.push_back(m_json);
+	int l0_tokens = curr_ep->estimate_token_count(0);
+	int l1_tokens = curr_ep->estimate_token_count(1);
+	int l2_tokens = curr_ep->estimate_token_count(2);
 
-		int msg_chars = m_json.dump().length();
-		l0_chars += msg_chars;
-
-		int r_chars = 0;
-		if (msg.reasoning_content) {
-			r_chars = msg.reasoning_content->length();
-		}
-		l1_chars += (msg_chars - r_chars);
-
-		int pseudo_r_chars = 0;
-		if (msg.role == "assistant" && msg.tool_calls && !msg.tool_calls->empty()) {
-			pseudo_r_chars = msg.content.length();
-		}
-		l2_chars += (msg_chars - r_chars - pseudo_r_chars);
+	std::string episode_id = curr_ep->get_id();
+	long long seq = curr_ep->get_sequence_number();
+	if (episode_id == "episode_active") {
+		seq = conversation_->allocate_next_episode_seq();
+		episode_id = "episode_" + std::to_string(seq);
+		curr_ep->set_sequence_number(seq);
 	}
-
-	long long seq = next_episode_seq_++;
-	std::string episode_id = "episode_" + std::to_string(seq);
 
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
 	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
-	nlohmann::json root;
-	root["episode_id"] = episode_id;
-	root["title"] = title;
-	root["summary"] = summary;
+	curr_ep->set_title(title);
+	curr_ep->set_summary(summary);
+	curr_ep->set_finalized(true);
+
+	nlohmann::json root = curr_ep->serialize();
 	root["tags"] = tags;
-	root["conversation"] = block_array;
 
 	std::ofstream file(filepath);
 	if (file.is_open()) {
@@ -1713,14 +1796,14 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 	meta["episode_id"] = episode_id;
 	meta["title"] = title;
 	meta["summary"] = summary;
-	meta["reactivation_hint"] = ""; // Filled asynchronously
+	meta["reactivation_hint"] = curr_ep->get_reactivation_hint();
 	meta["tags"] = tags;
 	meta["episode_seq"] = seq;
 	long long l_seq = next_lru_seq_++;
 	meta["lru_seq"] = l_seq;
-	meta["tokens_level_0"] = l0_chars / 4;
-	meta["tokens_level_1"] = l1_chars / 4;
-	meta["tokens_level_2"] = l2_chars / 4;
+	meta["tokens_level_0"] = l0_tokens;
+	meta["tokens_level_1"] = l1_tokens;
+	meta["tokens_level_2"] = l2_tokens;
 
 	std::ofstream meta_file(meta_filepath);
 	if (meta_file.is_open()) {
@@ -1734,9 +1817,10 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 	mi.tags = tags;
 	mi.episode_seq = seq;
 	mi.lru_seq = l_seq;
-	mi.tokens_level_0 = l0_chars / 4;
-	mi.tokens_level_1 = l1_chars / 4;
-	mi.tokens_level_2 = l2_chars / 4;
+	mi.tokens_level_0 = l0_tokens;
+	mi.tokens_level_1 = l1_tokens;
+	mi.tokens_level_2 = l2_tokens;
+	mi.reactivation_hint = curr_ep->get_reactivation_hint();
 	episode_index_[episode_id] = mi;
 }
 
@@ -1746,33 +1830,32 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	last_response_id_.clear();
 
-	// Identify all tool call groups in conversation_
-	// A group is a pair of {g_start, g_end} (inclusive)
-	// If a tool call in the assistant message is missing a response in the current conversation,
-	// the group is pending and extends to the current end of the conversation (g_end = conversation_.size()).
+	auto flat_convo = get_conversation_unlocked();
+
+	// Identify all tool call groups in flat_convo
 	std::vector<std::pair<size_t, size_t>> tool_groups;
-	for (size_t i = 0; i < conversation_.size(); ++i) {
-		if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
+	for (size_t i = 0; i < flat_convo.size(); ++i) {
+		if (flat_convo[i].role == "assistant" && flat_convo[i].tool_calls && !flat_convo[i].tool_calls->empty()) {
 			size_t g_start = i;
 			size_t g_end = i;
 			bool has_pending = false;
 			std::set<std::string> ids;
-			for (const auto &tc : *conversation_[i].tool_calls) {
+			for (const auto &tc : *flat_convo[i].tool_calls) {
 				ids.insert(tc.id);
 			}
 
-			for (size_t j = i + 1; j < conversation_.size(); ++j) {
-				if (conversation_[j].role == "tool" && conversation_[j].tool_call_id &&
-				    ids.count(*conversation_[j].tool_call_id) > 0) {
+			for (size_t j = i + 1; j < flat_convo.size(); ++j) {
+				if (flat_convo[j].role == "tool" && flat_convo[j].tool_call_id &&
+				    ids.count(*flat_convo[j].tool_call_id) > 0) {
 					g_end = j;
 				}
 			}
 
-			for (const auto &tc : *conversation_[i].tool_calls) {
+			for (const auto &tc : *flat_convo[i].tool_calls) {
 				bool found = false;
-				for (size_t j = i + 1; j < conversation_.size(); ++j) {
-					if (conversation_[j].role == "tool" && conversation_[j].tool_call_id &&
-					    *conversation_[j].tool_call_id == tc.id) {
+				for (size_t j = i + 1; j < flat_convo.size(); ++j) {
+					if (flat_convo[j].role == "tool" && flat_convo[j].tool_call_id &&
+					    *flat_convo[j].tool_call_id == tc.id) {
 						found = true;
 						break;
 					}
@@ -1784,7 +1867,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 			}
 
 			if (has_pending) {
-				g_end = conversation_.size();
+				g_end = flat_convo.size();
 			}
 
 			tool_groups.push_back({g_start, g_end});
@@ -1818,51 +1901,94 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 		}
 	}
 
-	if (start_index >= end_index || end_index > conversation_.size())
+	std::cout << "[page_out_context] start_index=" << start_index << ", end_index=" << end_index << ", flat_convo.size()=" << flat_convo.size() << std::endl;
+	if (start_index >= end_index || end_index > flat_convo.size()) {
+		std::cout << "[page_out_context] Early return triggered!" << std::endl;
 		return;
-
-	// 1. Serialize the block
-	nlohmann::json block_array = nlohmann::json::array();
-	int l0_chars = 0;
-	int l1_chars = 0;
-	int l2_chars = 0;
-
-	for (size_t i = start_index; i < end_index; ++i) {
-		nlohmann::json m_json;
-		to_json(m_json, conversation_[i]);
-		block_array.push_back(m_json);
-
-		int msg_chars = m_json.dump().length();
-		l0_chars += msg_chars;
-
-		int r_chars = 0;
-		if (conversation_[i].reasoning_content) {
-			r_chars = conversation_[i].reasoning_content->length();
-		}
-
-		l1_chars += (msg_chars - r_chars);
-
-		int pseudo_r_chars = 0;
-		if (conversation_[i].role == "assistant" && conversation_[i].tool_calls && !conversation_[i].tool_calls->empty()) {
-			pseudo_r_chars = conversation_[i].content.length();
-		}
-
-		l2_chars += (msg_chars - r_chars - pseudo_r_chars);
 	}
 
-	long long seq = next_episode_seq_++;
+	long long seq = conversation_->allocate_next_episode_seq();
 	std::string episode_id = "episode_" + std::to_string(seq);
+
+	// Construct temp episode to serialize it
+	auto temp_ep = std::make_shared<Episode>(episode_id, title, summary);
+	temp_ep->set_finalized(true);
+	temp_ep->set_sequence_number(seq);
+	std::shared_ptr<Transaction> current_tx = nullptr;
+	for (size_t i = start_index; i < end_index; ++i) {
+		const auto &msg = flat_convo[i];
+		transaction_type tx_type = transaction_type::user_exchange;
+		if (msg.role == "system") {
+			tx_type = transaction_type::system_injection;
+		}
+
+		bool start_new_tx = !current_tx;
+		if (msg.role == "user" || msg.role == "system") {
+			start_new_tx = true;
+		}
+
+		if (start_new_tx) {
+			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			current_tx = std::make_shared<Transaction>(tx_id, tx_type);
+			temp_ep->add_transaction(current_tx);
+		}
+
+		std::string turn_id = "turn_" + std::to_string(std::rand());
+		std::shared_ptr<Turn> turn = nullptr;
+		if (msg.role == "system") {
+			turn = std::make_shared<system_turn>(turn_id, msg.content, "paged_out");
+		} else if (msg.role == "user") {
+			turn = std::make_shared<user_turn>(turn_id, msg.content, msg.name);
+		} else if (msg.role == "assistant") {
+			std::vector<tool_call> calls;
+			if (msg.tool_calls) {
+				calls = *msg.tool_calls;
+			}
+			turn = std::make_shared<model_response_turn>(turn_id, msg.content, msg.reasoning_content, calls);
+		} else if (msg.role == "tool") {
+			std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
+			if (current_tx) {
+				for (const auto &t : current_tx->get_turns()) {
+					if (t->get_type() == turn_type::tool_execution) {
+						tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(t);
+						break;
+					}
+				}
+			}
+			if (!tool_turn) {
+				tool_turn = std::make_shared<tool_execution_turn>(turn_id);
+				if (current_tx) {
+					current_tx->add_turn(tool_turn);
+				}
+			}
+			tool_result res;
+			if (msg.tool_call_id) {
+				res.call_id = *msg.tool_call_id;
+			}
+			if (msg.name) {
+				res.name = *msg.name;
+			}
+			res.content = msg.content;
+			res.is_error = msg.content.starts_with("Error:");
+			tool_turn->add_result(res);
+			continue;
+		}
+
+		if (turn && current_tx) {
+			current_tx->add_turn(turn);
+		}
+	}
+
+	int l0_tokens = temp_ep->estimate_token_count(0);
+	int l1_tokens = temp_ep->estimate_token_count(1);
+	int l2_tokens = temp_ep->estimate_token_count(2);
 
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
 	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
-	nlohmann::json root;
-	root["episode_id"] = episode_id;
-	root["title"] = title;
-	root["summary"] = summary;
+	nlohmann::json root = temp_ep->serialize();
 	root["tags"] = tags;
-	root["conversation"] = block_array;
 
 	std::ofstream file(filepath);
 	if (file.is_open()) {
@@ -1870,21 +1996,21 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 		file.close();
 	} else {
 		event_logger::get_instance().log("Failed to write episode archive to {}", filepath);
-		return; // Don't delete history if we couldn't save it
+		return;
 	}
 
 	nlohmann::json meta;
 	meta["episode_id"] = episode_id;
 	meta["title"] = title;
 	meta["summary"] = summary;
-	meta["reactivation_hint"] = ""; // Filled asynchronously
+	meta["reactivation_hint"] = "";
 	meta["tags"] = tags;
 	meta["episode_seq"] = seq;
 	long long l_seq = next_lru_seq_++;
 	meta["lru_seq"] = l_seq;
-	meta["tokens_level_0"] = l0_chars / 4;
-	meta["tokens_level_1"] = l1_chars / 4;
-	meta["tokens_level_2"] = l2_chars / 4;
+	meta["tokens_level_0"] = l0_tokens;
+	meta["tokens_level_1"] = l1_tokens;
+	meta["tokens_level_2"] = l2_tokens;
 
 	std::ofstream meta_file(meta_filepath);
 	if (meta_file.is_open()) {
@@ -1898,12 +2024,12 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 	mi.tags = tags;
 	mi.episode_seq = seq;
 	mi.lru_seq = l_seq;
-	mi.tokens_level_0 = l0_chars / 4;
-	mi.tokens_level_1 = l1_chars / 4;
-	mi.tokens_level_2 = l2_chars / 4;
+	mi.tokens_level_0 = l0_tokens;
+	mi.tokens_level_1 = l1_tokens;
+	mi.tokens_level_2 = l2_tokens;
 	episode_index_[episode_id] = mi;
 
-	// 2. Replace the block with the summary pointer
+	// Replace the block with the summary pointer
 	std::stringstream pointer_msg;
 	pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
 	pointer_msg << "Title: " << title << "\n";
@@ -1921,10 +2047,13 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 	summary_msg.role = "system";
 	summary_msg.content = pointer_msg.str();
 	summary_msg.episode_id = episode_id;
-	summary_msg.episode_level = 99;
+	summary_msg.episode_level = COMPACTION_LEVEL_PAGED_OUT;
 
-	conversation_.erase(conversation_.begin() + start_index, conversation_.begin() + end_index);
-	conversation_.insert(conversation_.begin() + start_index, summary_msg);
+	flat_convo.erase(flat_convo.begin() + start_index, flat_convo.begin() + end_index);
+	flat_convo.insert(flat_convo.begin() + start_index, summary_msg);
+
+	// Rebuild the hierarchy
+	set_conversation_unlocked(flat_convo);
 
 	event_logger::get_instance().log("Paged out {} turns to {}", end_index - start_index, episode_id);
 	increment_stat("context_pages_out");
@@ -1974,8 +2103,8 @@ void ai_agent::load_episode_index()
 
 				episode_index_[mi.id] = mi;
 
-				if (mi.episode_seq >= next_episode_seq_) {
-					next_episode_seq_ = mi.episode_seq + 1;
+				if (conversation_ && mi.episode_seq >= conversation_->get_next_episode_seq()) {
+					conversation_->set_next_episode_seq(mi.episode_seq + 1);
 				}
 				if (mi.lru_seq >= next_lru_seq_) {
 					next_lru_seq_ = mi.lru_seq + 1;
@@ -2034,17 +2163,23 @@ void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool
 {
 	std::unique_lock<std::mutex> lock(conversation_mutex_);
 
-	if (conversation_.size() < 3)
+	auto flat_convo = get_conversation_unlocked();
+	std::cout << "[page_out_prior_context] called. target_episode_id=" << target_episode_id 
+	          << ", include_all_prior=" << include_all_prior 
+	          << ", flat_convo.size()=" << flat_convo.size() << std::endl;
+	if (flat_convo.size() < 3) {
+		std::cout << "[page_out_prior_context] flat_convo.size() < 3, early return!" << std::endl;
 		return; // Nothing to compress
+	}
 
-	size_t end_index = conversation_.size() - 2; // Default to current
+	size_t end_index = flat_convo.size() - 2; // Default to current
 
 	// 1. Find the upper boundary
 	if (!target_episode_id.empty()) {
 		bool found = false;
 		// Search backwards for the specific episode marker
-		for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-			if (conversation_[i].role == "system" && conversation_[i].content.find(target_episode_id) != std::string::npos) {
+		for (int i = static_cast<int>(flat_convo.size()) - 2; i >= 0; --i) {
+			if (flat_convo[i].role == "system" && flat_convo[i].content.find(target_episode_id) != std::string::npos) {
 				end_index = i; // The boundary is exactly at the target episode
 				found = true;
 				break;
@@ -2056,13 +2191,12 @@ void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool
 		}
 	} else {
 		// If no target provided, scan backwards to find the most recent episode marker
-		// We look for either the tool result from agent_mark_episode OR a previously injected pointer.
-		for (int i = static_cast<int>(conversation_.size()) - 2; i >= 0; --i) {
-			if (conversation_[i].role == "tool" && conversation_[i].name == "agent_mark_episode") {
+		for (int i = static_cast<int>(flat_convo.size()) - 2; i >= 0; --i) {
+			if (flat_convo[i].role == "tool" && flat_convo[i].name == "agent_mark_episode") {
 				end_index = i + 1;
 				break;
 			}
-			if (conversation_[i].role == "system" && conversation_[i].content.find("Episode Archived") != std::string::npos) {
+			if (i > 0 && flat_convo[i].role == "system" && flat_convo[i].content.find("Episode Archived") != std::string::npos) {
 				end_index = i;
 				break;
 			}
@@ -2075,20 +2209,23 @@ void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool
 	if (!include_all_prior && end_index > 0) {
 		// Scan backward from end_index to find the previous episode/system marker
 		for (int i = static_cast<int>(end_index) - 1; i >= 0; --i) {
-			if (conversation_[i].role == "system" || conversation_[i].role == "user") {
+			if (flat_convo[i].role == "system" || flat_convo[i].role == "user") {
 				start_index = i + 1;
 				break;
 			}
 		}
 	}
 
+	std::cout << "[page_out_prior_context] start_index=" << start_index << ", end_index=" << end_index << std::endl;
 	if (start_index >= end_index) {
+		std::cout << "[page_out_prior_context] start_index >= end_index early return!" << std::endl;
 		event_logger::get_instance().log("Context too small to page out naturally.");
 		return;
 	}
 
 	// Unlock and delegate to the core paging function
 	lock.unlock();
+	std::cout << "[page_out_prior_context] Delegating to page_out_context..." << std::endl;
 	page_out_context(start_index, end_index, title, summary, tags);
 }
 
@@ -2145,11 +2282,14 @@ void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
 		// Sync the exact same mutations to the global conversation array
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
 		last_response_id_.clear();
-		while (conversation_.size() >= 4) {
-			auto it_n0 = conversation_.end() - 1;
-			auto it_n1 = conversation_.end() - 2;
-			auto it_n2 = conversation_.end() - 3;
-			auto it_n3 = conversation_.end() - 4;
+		
+		auto flat = get_conversation_unlocked();
+		bool flat_compacted = false;
+		while (flat.size() >= 4) {
+			auto it_n0 = flat.end() - 1;
+			auto it_n1 = flat.end() - 2;
+			auto it_n2 = flat.end() - 3;
+			auto it_n3 = flat.end() - 4;
 
 			if (it_n0->role != "tool")
 				break;
@@ -2181,7 +2321,11 @@ void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
 				break;
 
 			it_n1->content.clear();
-			conversation_.erase(it_n3, it_n1);
+			flat.erase(it_n3, it_n1);
+			flat_compacted = true;
+		}
+		if (flat_compacted) {
+			set_conversation_unlocked(flat);
 		}
 		event_logger::get_instance().log("Agent {} zapped ephemeral errors from context.", name_);
 	}
@@ -2190,19 +2334,49 @@ void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
 void ai_agent::replace_tool_result(const std::string &tool_call_id, const std::string &new_content)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
-		if (it->role == "tool" && it->tool_call_id == tool_call_id) {
-			it->content = new_content;
-			last_response_id_.clear();
+	if (!conversation_)
+		return;
 
-			// Also notify the UI that context changed silently
-			if (global_queue_) {
-				editor_event ev;
-				ev.type = event_type::agent_tool_update;
-				ev.key_code = id_;
-				global_queue_->push(ev);
+	auto search_in_episode = [&](const std::shared_ptr<Episode>& ep) -> bool {
+		if (!ep) return false;
+		for (const auto& tx : ep->get_transactions()) {
+			for (const auto& turn : tx->get_turns()) {
+				if (turn->get_type() == turn_type::tool_execution) {
+					auto tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(turn);
+					if (tool_turn) {
+						for (const auto& res : tool_turn->get_results()) {
+							if (res.call_id == tool_call_id) {
+								tool_turn->update_result_content(tool_call_id, new_content);
+								return true;
+							}
+						}
+					}
+				}
 			}
-			return;
+		}
+		return false;
+	};
+
+	bool found = false;
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		found = search_in_episode(curr_ep);
+	}
+	if (!found) {
+		for (const auto& ep : conversation_->get_episodes()) {
+			if (search_in_episode(ep)) {
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (found) {
+		last_response_id_.clear();
+		if (global_queue_) {
+			editor_event ev;
+			ev.type = event_type::agent_tool_update;
+			ev.key_code = id_;
+			global_queue_->push(ev);
 		}
 	}
 }
@@ -2327,7 +2501,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
 		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode")
 			break;
-		if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos)
+		if (i > 0 && convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos)
 			break;
 
 		recent_chars += convo[i].content.length();
@@ -2472,16 +2646,29 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 		{
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			std::string content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
+			
+			std::string tx_id = "tx_auto_split_" + std::to_string(std::rand());
+			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::system_injection);
+			std::string turn_id = "turn_auto_split_" + std::to_string(std::rand());
+			auto turn = std::make_shared<system_turn>(turn_id, content, "episode_archival");
+			tx->add_turn(turn);
+			
+			conversation_->add_transaction(tx);
+
 			message marker_msg;
 			marker_msg.role = "system";
-			marker_msg.content =
-			    "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
-			conversation_.push_back(marker_msg);
-
+			marker_msg.content = content;
 			convo.push_back(marker_msg);
 		}
 
 		snapshot_episode("Auto-Episode", reason_msg, {"auto-episode"});
+
+		{
+			std::lock_guard<std::mutex> lock(conversation_mutex_);
+			conversation_->archive_current_episode("Auto-Episode", reason_msg);
+			conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Session", "");
+		}
 		add_interaction(std::make_shared<interaction_system_message>("Auto-Episode boundary inserted (" + reason_msg + ")."));
 	}
 }
@@ -2517,19 +2704,9 @@ void ai_agent::evaluate_compaction()
 					std::lock_guard<std::mutex> lock(conversation_mutex_);
 					last_response_id_ = compacted_id;
 
-					// Mark all messages up to the last assistant message as compacted
-					auto last_assistant_it = conversation_.end();
-					for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
-						if (it->role == "assistant") {
-							last_assistant_it = (it.base() - 1);
-							break;
-						}
-					}
-					if (last_assistant_it != conversation_.end()) {
-						for (auto it = conversation_.begin(); it <= last_assistant_it; ++it) {
-							it->episode_id = "compacted";
-							it->episode_level = 99;
-						}
+					if (conversation_) {
+						conversation_->archive_current_episode("Compacted History", "Compacted stateful session");
+						conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
 					}
 					event_logger::get_instance().log(
 					    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id));
@@ -2558,26 +2735,43 @@ void ai_agent::evaluate_compaction()
 
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
-		std::set<std::string> accounted_episodes;
-
-		for (const auto &msg : conversation_) {
-			if (!msg.episode_id.empty() && msg.episode_level != -1 && msg.episode_level != 99) {
-				active_episodes[msg.episode_id] = msg.episode_level;
-				if (accounted_episodes.find(msg.episode_id) == accounted_episodes.end()) {
-					accounted_episodes.insert(msg.episode_id);
-					auto it = episode_index_.find(msg.episode_id);
+		if (conversation_) {
+			for (const auto &ep : conversation_->get_episodes()) {
+				int level = ep->get_compaction_level();
+				if (level != COMPACTION_LEVEL_PAGED_OUT) {
+					active_episodes[ep->get_id()] = level;
+					auto it = episode_index_.find(ep->get_id());
 					if (it != episode_index_.end()) {
-						if (msg.episode_level == 0) {
+						if (level == 0) {
 							current_active_tokens += it->second.tokens_level_0;
-						} else if (msg.episode_level == 1) {
+						} else if (level == 1) {
 							current_active_tokens += it->second.tokens_level_1;
-						} else if (msg.episode_level == 2) {
+						} else if (level == 2) {
 							current_active_tokens += it->second.tokens_level_2;
 						}
+					} else {
+						current_active_tokens += ep->estimate_token_count(level);
 					}
 				}
-			} else {
-				current_active_tokens += compaction_engine::estimate_message_tokens(msg);
+			}
+
+			if (auto curr_ep = conversation_->get_current_episode()) {
+				int level = curr_ep->get_compaction_level();
+				if (level != COMPACTION_LEVEL_PAGED_OUT) {
+					active_episodes[curr_ep->get_id()] = level;
+					auto it = episode_index_.find(curr_ep->get_id());
+					if (it != episode_index_.end()) {
+						if (level == 0) {
+							current_active_tokens += it->second.tokens_level_0;
+						} else if (level == 1) {
+							current_active_tokens += it->second.tokens_level_1;
+						} else if (level == 2) {
+							current_active_tokens += it->second.tokens_level_2;
+						}
+					} else {
+						current_active_tokens += curr_ep->estimate_token_count(level);
+					}
+				}
 			}
 		}
 
@@ -2634,19 +2828,9 @@ void ai_agent::force_compaction()
 				std::lock_guard<std::mutex> lock(conversation_mutex_);
 				last_response_id_ = compacted_id;
 
-				// Mark all messages up to the last assistant message as compacted
-				auto last_assistant_it = conversation_.end();
-				for (auto it = conversation_.rbegin(); it != conversation_.rend(); ++it) {
-					if (it->role == "assistant") {
-						last_assistant_it = (it.base() - 1);
-						break;
-					}
-				}
-				if (last_assistant_it != conversation_.end()) {
-					for (auto it = conversation_.begin(); it <= last_assistant_it; ++it) {
-						it->episode_id = "compacted";
-						it->episode_level = 99;
-					}
+				if (conversation_) {
+					conversation_->archive_current_episode("Compacted History", "Compacted stateful session");
+					conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
 				}
 				add_interaction(std::make_shared<interaction_system_message>(
 				    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id)));
@@ -2673,12 +2857,17 @@ void ai_agent::update_episode_hint(const std::string &episode_id, const std::str
 			episode_index_[episode_id].reactivation_hint = hint;
 		}
 
-		// Mutate the active conversation
-		for (auto &msg : conversation_) {
-			if (msg.role == "system" && msg.content.find(episode_id) != std::string::npos) {
-				// We found the marker, append the hint
-				msg.content += "\nDemand-Load Hint: " + hint;
-				break;
+		if (conversation_) {
+			for (const auto &ep : conversation_->get_episodes()) {
+				if (ep->get_id() == episode_id) {
+					ep->set_reactivation_hint(hint);
+					break;
+				}
+			}
+			if (auto curr_ep = conversation_->get_current_episode()) {
+				if (curr_ep->get_id() == episode_id) {
+					curr_ep->set_reactivation_hint(hint);
+				}
 			}
 		}
 	}
@@ -2729,9 +2918,17 @@ void ai_agent::summary_worker_loop()
 			nlohmann::json root;
 			file >> root;
 
-			if (root.contains("conversation") && root["conversation"].is_array()) {
-				std::string context_dump = root["conversation"].dump(2);
+			bool has_data = false;
+			std::string context_dump;
+			if (root.contains("transactions") && root["transactions"].is_array()) {
+				context_dump = root["transactions"].dump(2);
+				has_data = true;
+			} else if (root.contains("conversation") && root["conversation"].is_array()) {
+				context_dump = root["conversation"].dump(2);
+				has_data = true;
+			}
 
+			if (has_data) {
 				if (context_dump.length() < 1000) {
 					update_episode_hint(task.episode_id, "Trivial or extremely brief episode.");
 					continue;
@@ -2833,75 +3030,33 @@ std::vector<compaction_segment> ai_agent::get_compaction_segments() const
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	std::vector<compaction_segment> segments;
-
-	std::string current_ep_id = "";
-	compaction_segment current_seg;
-	bool in_episode = false;
-
-	for (const auto &msg : conversation_) {
-		std::string ep_id = msg.episode_id;
-		int ep_level = msg.episode_level;
-
-		if (ep_id.empty() && msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
-			size_t arch_pos = msg.content.find("Raw history archive: ");
-			if (arch_pos != std::string::npos) {
-				ep_id = msg.content.substr(arch_pos + 21);
-				while (!ep_id.empty() &&
-				       (ep_id.back() == '\r' || ep_id.back() == '\n' || ep_id.back() == ' ' || ep_id.back() == '\t')) {
-					ep_id.pop_back();
-				}
-				ep_level = 99;
-			}
-		}
-
-		if (!ep_id.empty()) {
-			if (in_episode && ep_id == current_ep_id) {
-				if (ep_level != -1) {
-					current_seg.current_level = ep_level;
-				}
-			} else {
-				if (!current_ep_id.empty() || in_episode) {
-					segments.push_back(current_seg);
-				}
-				current_ep_id = ep_id;
-				in_episode = true;
-				current_seg.label = "";
-				current_seg.uncompacted_tokens = 0;
-				current_seg.current_level = (ep_level != -1) ? ep_level : 0;
-
-				auto it = episode_index_.find(current_ep_id);
-				if (it != episode_index_.end()) {
-					current_seg.label = it->second.title;
-					current_seg.uncompacted_tokens = it->second.tokens_level_0;
-				} else {
-					current_seg.label = current_ep_id;
-					current_seg.uncompacted_tokens = 0;
-				}
-			}
-		} else {
-			int msg_tokens = compaction_engine::estimate_message_tokens(msg);
-			if (!in_episode && !segments.empty() && segments.back().label == "Recent") {
-				segments.back().uncompacted_tokens += msg_tokens;
-			} else {
-				if (in_episode || !current_ep_id.empty()) {
-					segments.push_back(current_seg);
-					in_episode = false;
-					current_ep_id = "";
-				}
-				if (!segments.empty() && segments.back().label == "Recent") {
-					segments.back().uncompacted_tokens += msg_tokens;
-				} else {
-					compaction_segment recent_seg;
-					recent_seg.label = "Recent";
-					recent_seg.uncompacted_tokens = msg_tokens;
-					recent_seg.current_level = 0;
-					segments.push_back(recent_seg);
-				}
-			}
-		}
+	if (!conversation_) {
+		return segments;
 	}
-	if (in_episode || !current_ep_id.empty()) {
-		segments.push_back(current_seg);
+
+	for (const auto &ep : conversation_->get_episodes()) {
+		compaction_segment seg;
+		seg.label = ep->get_title();
+		if (seg.label.empty()) {
+			seg.label = ep->get_id();
+		}
+		seg.current_level = ep->get_compaction_level();
+
+		auto it = episode_index_.find(ep->get_id());
+		if (it != episode_index_.end()) {
+			seg.uncompacted_tokens = it->second.tokens_level_0;
+		} else {
+			seg.uncompacted_tokens = ep->estimate_token_count(0);
+		}
+		segments.push_back(seg);
+	}
+
+	if (auto curr_ep = conversation_->get_current_episode()) {
+		compaction_segment seg;
+		seg.label = "Recent";
+		seg.current_level = curr_ep->get_compaction_level();
+		seg.uncompacted_tokens = curr_ep->estimate_token_count(0);
+		segments.push_back(seg);
 	}
 
 	return segments;
@@ -2944,15 +3099,23 @@ void ai_agent::inject_archived_episodes_summary()
 	       "your active context by calling the `agent_restore_context` tool with the corresponding Episode ID (e.g. "
 	       "`agent_restore_context(\"episode_1\", 1)`).";
 
-	message msg;
-	msg.role = "system";
-	msg.content = oss.str();
+	if (conversation_) {
+		auto curr_ep = conversation_->get_current_episode();
+		if (!curr_ep) {
+			curr_ep = conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Session", "");
+		}
 
-	// Insert this message right after the initial system prompt (which is at index 0)
-	if (conversation_.empty()) {
-		conversation_.push_back(msg);
-	} else {
-		conversation_.insert(conversation_.begin() + 1, msg);
+		std::string tx_id = "tx_archived_summary_" + std::to_string(std::rand());
+		auto tx = std::make_shared<Transaction>(tx_id, transaction_type::system_injection);
+		std::string turn_id = "turn_archived_summary_" + std::to_string(std::rand());
+		auto turn = std::make_shared<system_turn>(turn_id, oss.str(), "reactivation_hint");
+		tx->add_turn(turn);
+
+		if (!curr_ep->get_transactions().empty()) {
+			curr_ep->insert_transaction(1, tx);
+		} else {
+			curr_ep->add_transaction(tx);
+		}
 	}
 }
 

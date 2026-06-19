@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <iostream>
@@ -320,6 +321,7 @@ void test_code_review_window_behavior()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	test_code_review_window_behavior();
 	std::cout << "All code review window unit tests passed!" << std::endl;
 	return 0;

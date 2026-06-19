@@ -10,6 +10,8 @@ public:
     interaction_role get_role() const override { return interaction_role::user; }
     std::string get_raw_text() const override { return "User: " + text_; }
     void append_text(const std::string& t) { text_ += t; invalidate_cache(); }
+    void push_content(const std::string& content) override { text_ = content; invalidate_cache(); }
+    void push_incremental_content(const std::string& chunk) override { text_ += chunk; invalidate_cache(); }
 
     bool can_merge_with_previous(const agent_interaction& previous) const override {
         return previous.get_type() == interaction_type::user_message;

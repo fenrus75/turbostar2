@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -112,6 +113,7 @@ void test_directory_listing_or_graceful_failure()
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running github_vfs tests...\n";
 	test_uri_parsing_and_routing();
 	test_live_network_fetch_or_graceful_failure();

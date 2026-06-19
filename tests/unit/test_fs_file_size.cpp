@@ -1,3 +1,4 @@
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -9,6 +10,7 @@
 namespace fs = std::filesystem;
 
 int main() {
+	test_watchdog::setup_watchdog(30);
 	fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_filesize";
 	fs::create_directories(temp_dir);
 	
