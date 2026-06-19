@@ -23,6 +23,10 @@ Conversation (coordinator of active model, settings, and session status)
 * **Unidirectional MVVM Binding:** 
   * The `Turn` object optionally owns a reference to an `agent_interaction` View-Model.
   * The `agent_interaction` has no back-reference to its `Turn`. Content changes are unilaterally pushed from the `Turn` to the `agent_interaction`.
+* **Active Tool Ownership & Invalidation (Pure Data Conversation):**
+  * Tool registries, active tool families, and execution states are owned and managed exclusively by `ai_agent` (the executor/controller).
+  * `Conversation` remains a pure data container. When the agent changes active tools/families or modifies history, it calls `conversation->invalidate_history(true)`.
+  * The transport layer checks this flag before network requests to determine if it must reset session/thread contexts.
 * **UI Mapping:** 
   * A `Transaction` maps 1:1 to a single bordered TUI **Turn Box**.
   * A `Turn` maps 1:1 to a TUI **Sub-panel** inside that box (separated by horizontal lines, e.g. `─── Thinking ───`).
@@ -359,6 +363,11 @@ public:
     // Re-seeding / World View
     // Returns active editor workspace context (open files, compiler diagnostics) to rebuild system prompt.
     std::string get_current_world_view() const;
+
+    // Invalidation tracking (e.g. set on history changes, compaction, model switches, tool updates)
+    // Transports query this to reset stateful session/thread contexts.
+    bool is_history_invalidated() const;
+    void invalidate_history(bool invalid);
 
     // Sizing telemetry: Sum of episode tokens based on their active compaction level settings
     int estimate_token_count() const {
