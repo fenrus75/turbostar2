@@ -53,6 +53,14 @@ To prevent vendor-specific tool formatting logic from leaking into the `tool_reg
 - **Agent Identity Mapping**: The `Connection` must know the active agent's identity (currently represented as the `agent_role` enum, but soon transitioning to a `std::string`) to query the registry correctly. This identity will be passed from the `ai_agent` as context options during prompt/streaming calls.
 - **Provider-Specific Formatting**: Each `Connection` subclass iterates over this validator list to construct the exact JSON payload expected by the provider (e.g., nesting functions in OpenAI/Copilot format, double-nesting function declarations for Gemini, or mapping schema parameter names like `input_schema` for Anthropic).
 
+# Statistics & Token Usage
+
+To resolve bugs where token counts and billing costs are double-counted or misreported:
+- **Internal Accumulation**: The `Connection` subclass is responsible for parsing provider-specific usage payloads (e.g. standard `usage` keys for OpenAI, or `usageMetadata` with `promptTokenCount`/`candidatesTokenCount` keys for Gemini).
+- **Exactly-Once Emission**: During streaming, the connection stores the parsed usage metadata internally. It does **not** emit usage fields in intermediate stream chunk events.
+- **Completion Event**: Once the stream completes, the connection emits a final `completed` event containing the consolidated, final `llm_usage` statistics.
+- **Agent Integration**: The `ai_agent` intercepts this single `completed` event to update session/turn counters and record model usage costs exactly once, avoiding cumulative `+=` bugs on streaming chunks.
+
 # Open Design Decisions
 
 - **Q1: Protocol vs. Transport Decoupling**
