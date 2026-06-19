@@ -3,21 +3,33 @@
 The current architectural design is documented in `docs/design-agent.md`.
 
 ## Goals
-Refactor `src/agentlib/` to introduce modular, decoupled interfaces. This makes it easier to support multiple API backends/protocols (e.g. stateful OpenAI, streaming Gemini, Copilot) and simplifies context management (compaction and paging).
+Refactor `src/agentlib/` to introduce a clean, modular class hierarchy. This makes it easy to support multiple API backends/protocols (e.g. stateful OpenAI, streaming Gemini, Copilot), simplifies UI rendering separation, and guarantees transactional safety during history compaction and paging.
 
-## Core Architecture
+## Class Hierarchy
 
-### 1. Separation of Data and UI
-To ensure `agentlib` remains fully decoupled from visual rendering details (and NCurses/TUI dependencies):
-* **Data Layer:** Core data classes (`Turn`, `Episode`, `Conversation`) deal exclusively with standard C++ types and structure.
-* **UI Layer:** Visual presentation is driven by standard **Markdown representations** exported by turns (`Turn::to_markdown()`). The rendering views (e.g., subclasses of `agent_interaction`) parse and style these Markdown blocks (handles box outlines, color themes, and code highlight overrides).
+```
+Conversation (coordinator of active model, settings, and session status)
+  └── Episode (logical slice of history, e.g. archived or active page-out blocks)
+        └── Transaction (a single request-response-execution exchange / visual Turn Box)
+              └── Turn (atomic messages/events / visual Sub-panels)
+```
+
+---
+
+## Core Architecture & Separation of Concerns
+
+* **Data Layer:** Core classes (`Turn`, `Transaction`, `Episode`, `Conversation`) are completely decoupled from visual rendering details and NCurses/TUI dependencies.
+* **UI Layer:** Visual presentation is driven by standard **Markdown representations** exported by transactions and turns. The rendering views (e.g., subclasses of `agent_interaction`) parse and style these Markdown blocks (handles bordered boxes, color themes, and syntax highlight overrides).
+* **UI Mapping:** 
+  * A `Transaction` maps 1:1 to a single bordered TUI **Turn Box**.
+  * A `Turn` maps 1:1 to a TUI **Sub-panel** inside that box (separated by horizontal lines, e.g. `─── Thinking ───`).
 
 ---
 
 ## Class Interfaces
 
 ### A. Turn (`agentlib::Turn`)
-Represents a single logical element/transaction in the conversation.
+A leaf event in the conversation.
 
 ```cpp
 namespace agentlib {
@@ -37,7 +49,7 @@ public:
     virtual std::string get_id() const = 0;
     virtual turn_type get_type() const = 0;
 
-    // Generates the raw messages sent to the LLM backend.
+    // Generates raw LLM messages for this specific turn.
     // Respects the active compaction level of the parent episode.
     virtual std::vector<message> to_messages(const model_capabilities& caps, int compaction_level) const = 0;
 
@@ -59,10 +71,10 @@ protected:
 } // namespace agentlib
 ```
 
-#### Concrete Subclasses & Formats
+#### Concrete Turn Subclasses
 
 ##### 1. `system_turn`
-* **Purpose:** Holds system instructions (e.g. active coding guidelines, active tool schemas, or temporary context instructions).
+* **Purpose:** Holds system instructions (active rules, schemas, or context overrides).
 * **Data Fields:**
   * `std::string content`
   * `std::string purpose` (e.g. `"base"`, `"skills"`, `"tool_family"`)
@@ -78,10 +90,10 @@ protected:
   ```
 
 ##### 2. `user_turn`
-* **Purpose:** Represents the developer's inputs.
+* **Purpose:** Represents input from the developer.
 * **Data Fields:**
   * `std::string content`
-  * `std::optional<std::string> name` (optional developer identifier)
+  * `std::optional<std::string> name` (optional developer name)
 * **to_messages:**
   ```json
   [ { "role": "user", "content": "<content>", "name": "<name>" } ]
@@ -116,7 +128,7 @@ protected:
   ```
 
 ##### 4. `tool_execution_turn`
-* **Purpose:** Groups results of the tool calls requested in the preceding assistant turn (representing a transactional boundaries block).
+* **Purpose:** Groups execution results for the tool calls requested in the preceding assistant turn.
 * **Data Fields:**
   * `struct tool_result { std::string call_id; std::string name; std::string content; bool is_error; }`
   * `std::vector<tool_result> results`
@@ -145,8 +157,51 @@ protected:
   > **Execution Error:** <error_message>
   ```
 
-### B. Episode (`agentlib::Episode`)
-A sequential history of turns representing an archived or active slice of the conversation.
+---
+
+### B. Transaction (`agentlib::Transaction`)
+A grouped, atomic exchange (e.g., User Prompt + LLM Output + Tool Results).
+
+```cpp
+namespace agentlib {
+
+enum class transaction_type {
+    user_exchange,      // User prompt + Assistant response + Tool execution
+    system_injection,   // Environment updates or security events
+    subagent_lifecycle  // Subagent spawn or final report events
+};
+
+class Transaction {
+public:
+    Transaction(std::string id, transaction_type type);
+
+    std::string get_id() const;
+    transaction_type get_type() const;
+
+    // Aggregates LLM messages from all turns in this transaction.
+    std::vector<message> to_messages(const model_capabilities& caps, int compaction_level) const;
+
+    // UI View-Model: Generates a unified Markdown string containing all turns,
+    // formatted to fit inside a single visual TUI Turn Box.
+    std::string to_markdown() const;
+
+    // Turn Management
+    void add_turn(std::shared_ptr<Turn> turn);
+    const std::vector<std::shared_ptr<Turn>>& get_turns() const;
+
+    // Serialization
+    nlohmann::json serialize() const;
+    static std::shared_ptr<Transaction> deserialize(const nlohmann::json& j);
+};
+
+} // namespace agentlib
+```
+
+---
+
+### C. Episode (`agentlib::Episode`)
+A sequential history of transactions representing an archived or active slice of the conversation.
+
 ```cpp
 namespace agentlib {
 
@@ -162,13 +217,13 @@ public:
     int get_compaction_level() const;
     void set_compaction_level(int level);
 
-    // Turn collection
-    void add_turn(std::shared_ptr<Turn> turn);
-    const std::vector<std::shared_ptr<Turn>>& get_turns() const;
+    // Transaction collection
+    void add_transaction(std::shared_ptr<Transaction> transaction);
+    const std::vector<std::shared_ptr<Transaction>>& get_transactions() const;
 
     // Aggregates LLM messages for this episode:
     // - If level == 99 (archived): returns a single system message summary.
-    // - Otherwise: loops over turns and delegates to turn->to_messages(caps, compaction_level_).
+    // - Otherwise: loops over transactions and calls transaction->to_messages(caps, compaction_level_).
     std::vector<message> to_messages(const model_capabilities& caps) const;
 
     // Serialization
@@ -179,8 +234,11 @@ public:
 } // namespace agentlib
 ```
 
-### C. Conversation (`agentlib::Conversation`)
+---
+
+### D. Conversation (`agentlib::Conversation`)
 High-level coordinator of active/archived episodes, model settings, and streaming/session updates.
+
 ```cpp
 namespace agentlib {
 
@@ -201,9 +259,9 @@ public:
     std::string get_current_world_view() const;
 
     // Appending inputs
-    void add_turn(std::shared_ptr<Turn> turn);
+    void add_transaction(std::shared_ptr<Transaction> transaction);
     
-    // Streaming append helper: Appends token chunks to the latest active turn.
+    // Streaming append helper: Resolves active leaf turn and appends token chunk.
     void append_to_current_turn(const std::string& chunk);
 };
 
@@ -221,4 +279,4 @@ public:
 
 ### 2. Streaming Response Flow
 1. When the client receives a token chunk from the network stream, it invokes `conversation->append_to_current_turn(chunk)`.
-2. The UI listens to conversation changes (or gets triggered by callbacks) and refreshes the display using the Markdown representations of the active turns.
+2. The UI listens to conversation changes (or gets triggered by callbacks) and refreshes the display using the Markdown representations of the active transactions.
