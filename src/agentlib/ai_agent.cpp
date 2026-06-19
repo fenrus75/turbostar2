@@ -484,6 +484,73 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			if (model_ && !conversation_->get_model()) {
 				conversation_->set_model(model_);
 			}
+
+			// Detect and normalize tool call sequences (reorder tool responses and abort pending tool calls).
+			auto flat_convo = get_conversation_unlocked();
+			std::vector<message> normalized_convo;
+			std::map<std::string, message> tool_responses;
+
+			// 1. Extract all tool responses
+			for (const auto &msg : flat_convo) {
+				if (msg.role == "tool" && msg.tool_call_id) {
+					tool_responses[*msg.tool_call_id] = msg;
+				}
+			}
+
+			// 2. Reconstruct the conversation in the correct order
+			bool needs_update = false;
+			for (const auto &msg : flat_convo) {
+				if (msg.role == "tool") {
+					continue;
+				}
+
+				normalized_convo.push_back(msg);
+
+				if (msg.role == "assistant" && msg.tool_calls) {
+					for (const auto &tc : *msg.tool_calls) {
+						auto it = tool_responses.find(tc.id);
+						if (it != tool_responses.end()) {
+							normalized_convo.push_back(it->second);
+							tool_responses.erase(it);
+						} else {
+							// Pending tool call with no response: Create an abort message
+							message abort_msg;
+							abort_msg.role = "tool";
+							abort_msg.tool_call_id = tc.id;
+							abort_msg.name = tc.function.name;
+							abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
+							normalized_convo.push_back(abort_msg);
+							needs_update = true;
+
+							event_logger::get_instance().log("Aborted pending tool call: " + tc.id + " (" + tc.function.name + ")");
+						}
+					}
+				}
+			}
+
+			// 3. Discard any orphan tool responses
+			if (!tool_responses.empty()) {
+				event_logger::get_instance().log("Discarded " + std::to_string(tool_responses.size()) +
+					" orphaned tool response(s) with no matching assistant tool call in active context.");
+				needs_update = true;
+			}
+
+			if (normalized_convo.size() != flat_convo.size()) {
+				needs_update = true;
+			} else {
+				for (size_t i = 0; i < flat_convo.size(); ++i) {
+					if (flat_convo[i].role != normalized_convo[i].role ||
+					    flat_convo[i].content != normalized_convo[i].content ||
+					    flat_convo[i].tool_call_id != normalized_convo[i].tool_call_id) {
+						needs_update = true;
+						break;
+					}
+				}
+			}
+
+			if (needs_update) {
+				set_conversation_unlocked(normalized_convo);
+			}
 		}
 
 		// Page in recent episodes up to 30% target fraction on startup
