@@ -179,6 +179,28 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/info")) {
+			input_box_->set_buffer("");
+			std::string info_str = "Agent Info:\n";
+			if (agent_->get_model()) {
+				auto m = agent_->get_model();
+				info_str += std::format("  Active Model ID:   {}\n", m->get_id());
+				info_str += std::format("  Active Model Name: {}\n", m->get_name());
+				info_str += std::format("  Endpoint URL:      {}\n", m->get_url());
+				info_str += std::format("  API Type:          {}\n", (m->get_api_type() == api_type::openai ? "openai" :
+											m->get_api_type() == api_type::openai_response ? "openai_response" :
+											m->get_api_type() == api_type::gemini ? "gemini" :
+											m->get_api_type() == api_type::claude ? "claude" :
+											m->get_api_type() == api_type::copilot ? "copilot" : "unknown"));
+			} else {
+				info_str += "  (No active model configured on agent)\n";
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(info_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/stats")) {
 			input_box_->set_buffer(""); // Clear the box
 			auto stats = agent_->get_stats();
@@ -200,6 +222,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			input_box_->set_buffer("");
 			std::string help_str = "Available Commands:\n"
 					       "  /help             - Show this help message\n"
+					       "  /info             - Show current model configuration and info\n"
 					       "  /quit             - Close the agent window\n"
 					       "  /save             - Save the active context to disk manually\n"
 					       "  /stats            - Show compaction and performance statistics\n"
@@ -344,7 +367,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload =
-			    "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
+			    "Commands: /help /info /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
@@ -497,6 +520,28 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			return;
 		}
 
+		if (trimmed_text.starts_with("/info")) {
+			input_box_->set_buffer("");
+			std::string info_str = "Agent Info:\n";
+			if (agent_->get_model()) {
+				auto m = agent_->get_model();
+				info_str += std::format("  Active Model ID:   {}\n", m->get_id());
+				info_str += std::format("  Active Model Name: {}\n", m->get_name());
+				info_str += std::format("  Endpoint URL:      {}\n", m->get_url());
+				info_str += std::format("  API Type:          {}\n", (m->get_api_type() == api_type::openai ? "openai" :
+											m->get_api_type() == api_type::openai_response ? "openai_response" :
+											m->get_api_type() == api_type::gemini ? "gemini" :
+											m->get_api_type() == api_type::claude ? "claude" :
+											m->get_api_type() == api_type::copilot ? "copilot" : "unknown"));
+			} else {
+				info_str += "  (No active model configured on agent)\n";
+			}
+			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(info_str));
+			scroll_offset_ = 0;
+			invalidate();
+			return;
+		}
+
 		if (trimmed_text.starts_with("/stats")) {
 			input_box_->set_buffer(""); // Clear the box
 			auto stats = agent_->get_stats();
@@ -518,6 +563,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			input_box_->set_buffer("");
 			std::string help_str = "Available Commands:\n"
 					       "  /help             - Show this help message\n"
+					       "  /info             - Show current model configuration and info\n"
 					       "  /quit             - Close the agent window\n"
 					       "  /save             - Save the active context to disk manually\n"
 					       "  /stats            - Show compaction and performance statistics\n"
@@ -662,7 +708,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload =
-			    "Commands: /help /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
+			    "Commands: /help /info /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);
