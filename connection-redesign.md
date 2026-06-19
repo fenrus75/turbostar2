@@ -4,16 +4,23 @@ Goal: Get a modular setup where different connection types are neatly separated
 
 # Overall concept
 
-We make a "connection" (mostly abstract) class for which specific connection types 
-inherit. Connection types are based on their protocol (inclusive of transport), e.g. the "OpenAI Completion", "Gemini", "Copilot", "OpenAI Response"
-protocols, and possibly more to come over time.
-We also have the local recording and replay "protocols"
+We define an abstract base class `Connection`. Concrete subclasses inherit from it to implement specific model provider protocols.
+Under the decoupled design (Option A), connections handle high-level formatting, stream parsing, and metadata management, but delegate network sockets and testing mocks (recording and replaying) to an underlying `llm_transport` instance.
 
+Initially, we will implement the following connection subclasses:
+1. `openai_connection`: Implements standard OpenAI chat completion formats. Handles OpenAI, Copilot, and custom OpenAI-compatible server APIs.
+2. `gemini_connection`: Implements Gemini-specific payload shapes and chunked array stream parsing.
 
-# files and locatioms
+No separate recording/replay connection classes are needed, as testing mocks are handled transparently by passing `recording_transport` or `replay_transport` to the connections.
 
-- location: `src/agentlib/protocols/`
-- one .cpp per class, one .h per class
+# files and locations
+
+- Location: `src/agentlib/protocols/`
+- Class structure:
+  - `connection.h` (Base class and stream event definitions)
+  - `openai_connection.h` / `openai_connection.cpp`
+  - `gemini_connection.h` / `gemini_connection.cpp`
+  - `connection_factory.h` / `connection_factory.cpp` (Utility to instantiate connection based on `api_type`)
 
 # Major flow
 
@@ -22,16 +29,45 @@ and persists over time, as long as that model is active for the agent (to allow 
 - **Lifecycle (Q2 Alignment)**: On model change, the agent explicitly closes the current connection and instantiates a new one for the new model.
 - **Sync History (Q3 Alignment)**: Before any prompt submission or turn processing, the agent calls `sync_history(convo)` on the connection. The connection checks if the conversation's history has been invalidated, performs any necessary session reset on the server side, and clears the invalidation flag.
 
-All major methods of the Connection will need to have a "Conversation" class (pointer) as argument, as they 
-operate on the Conversation -- either by retrieving things to send to the server from it,
-or by (indirectly?) placing responses in it.
- 
-Known key operations
-- authenticate/establish http(s) connection -- should get a Model class passed in for this to get the server/auth info
-- establish a new logical connection based on the history from the Conversation -- depending on the protocol, this may need sending a bunch of context to the server 
-- sending user and system turns
-- receiving responses 
-- deal with is_history_invalidated() correctly
+# The Connection Interface
+
+The abstract base class `Connection` defines the following core virtual methods to be implemented by each protocol provider:
+
+```cpp
+namespace agentlib {
+
+class Connection {
+public:
+    virtual ~Connection() = default;
+
+    // Initializes connection headers, endpoint parameters, and transport client
+    virtual void initialize() = 0;
+
+    // Gracefully terminates the active session and releases transport/socket resources
+    virtual void close() = 0;
+
+    // Synchronizes conversation history, handling resets if history has been invalidated
+    virtual void sync_history(Conversation& convo) = 0;
+
+    // Submits the prompt to the model and streams structured events back to the agent
+    virtual void send_prompt(
+        Conversation& convo,
+        const std::string& agent_identity,
+        const std::vector<std::string>& active_families,
+        std::function<void(const stream_event&)> callback
+    ) = 0;
+
+    // Optional: Compaction status and operations
+    virtual bool supports_compaction() const { return false; }
+    virtual std::string compact_response(const std::string& previous_response_id, std::string* error_msg) { return ""; }
+
+    // Serialization of internal session states (e.g. OpenAI thread/session IDs)
+    virtual nlohmann::json serialize_state() const { return nlohmann::json::object(); }
+    virtual void deserialize_state(const nlohmann::json& state) {}
+};
+
+} // namespace agentlib
+```
 
 - **Stream Event Routing**: The Connection exposes streaming methods to the agent using a callback pattern. It emits structured stream events (e.g., `content_chunk`, `reasoning_chunk`, `tool_call_delta`, `completed`, `error`) containing incremental response data. The `ai_agent` acts as the router, digesting these events, updating the `Conversation` data model, and coordinating tool execution on completion.
 - **Connection Metadata Serialization**:
