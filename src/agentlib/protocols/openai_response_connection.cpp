@@ -68,7 +68,6 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 void openai_response_connection::send_prompt(
 	Conversation& convo,
 	const agent_properties& properties,
-	const std::vector<std::string>& active_families,
 	std::function<void(const stream_event&)> callback
 ) {
 	std::vector<message> messages;
@@ -173,7 +172,7 @@ void openai_response_connection::send_prompt(
 	payload["stream_options"] = {{"include_usage", true}};
 
 	nlohmann::json tools_array = nlohmann::json::array();
-	auto active_tools = tool_registry::get_instance().get_active_tools(active_families, false, properties);
+	auto active_tools = tool_registry::get_instance().get_active_tools(false, properties);
 	for (const auto &validator : active_tools) {
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {

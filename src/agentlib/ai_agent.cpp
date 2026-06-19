@@ -677,9 +677,9 @@ std::vector<std::string> ai_agent::get_active_skills() const
 void ai_agent::add_active_tool_family(const std::string &family_name)
 {
 	{
-		std::lock_guard<std::mutex> lock(state_mutex_);
-		if (std::find(active_tool_families_.begin(), active_tool_families_.end(), family_name) == active_tool_families_.end()) {
-			active_tool_families_.push_back(family_name);
+		std::lock_guard<std::mutex> lock(properties_mutex_);
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) == properties_.active_families.end()) {
+			properties_.active_families.push_back(family_name);
 			if (global_queue_) {
 				editor_event tool_ev;
 				tool_ev.type = event_type::agent_tool_update;
@@ -697,8 +697,8 @@ std::vector<std::string> ai_agent::get_active_tool_families() const
 
 	// Add dynamically activated ones
 	{
-		std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
-		for (const auto &fam : active_tool_families_) {
+		std::lock_guard<std::mutex> lock(properties_mutex_);
+		for (const auto &fam : properties_.active_families) {
 			if (std::find(families.begin(), families.end(), fam) == families.end()) {
 				families.push_back(fam);
 			}
@@ -726,8 +726,8 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 
 	// Check if dynamically activated for this agent session
 	{
-		std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
-		if (std::find(active_tool_families_.begin(), active_tool_families_.end(), family_name) != active_tool_families_.end()) {
+		std::lock_guard<std::mutex> lock(properties_mutex_);
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) != properties_.active_families.end()) {
 			return true;
 		}
 	}
@@ -1262,6 +1262,9 @@ void ai_agent::start_processing()
 			auto start_timestamp =
 			    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
+			auto props = self->get_properties();
+			props.active_families = self->get_active_tool_families();
+
 			self->client_->send_chat_stream(
 			    convo,
 			    [&](const chat_delta &delta) {
@@ -1338,7 +1341,7 @@ void ai_agent::start_processing()
 					    }
 				    }
 			    },
-			    &registry, self->get_active_tool_families(), previous_response_id, self->get_properties());
+			    &registry, previous_response_id, props);
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);

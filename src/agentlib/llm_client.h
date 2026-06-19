@@ -20,12 +20,11 @@ class llm_client
 	~llm_client();
 
 	llm_chat_response send_chat(const std::vector<message> &conversation, const tool_registry *registry = nullptr,
-				    const std::vector<std::string> &active_families = {}, const std::string &previous_response_id = "",
-				    const agent_properties &properties = {});
+				    const std::string &previous_response_id = "", const agent_properties &properties = {});
 
 	void send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-			      const tool_registry *registry = nullptr, const std::vector<std::string> &active_families = {},
-			      const std::string &previous_response_id = "", const agent_properties &properties = {});
+			      const tool_registry *registry = nullptr, const std::string &previous_response_id = "",
+			      const agent_properties &properties = {});
 
 	void cancel();
 	std::string compact_response(const std::string &previous_response_id, std::string *error_msg = nullptr);

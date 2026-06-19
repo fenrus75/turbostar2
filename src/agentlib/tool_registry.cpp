@@ -42,7 +42,7 @@ static std::string serialize_mcp_name(const std::string &name)
 	return res;
 }
 
-nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, const agent_properties &properties) const
+nlohmann::json tool_registry::get_tools_json(bool mutation_possible, const agent_properties &properties) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
@@ -63,8 +63,8 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 
 		std::string family = validator->get_family();
 		bool allowed = true;
-		if (!active_families.empty()) {
-			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		if (!properties.active_families.empty()) {
+			allowed = (std::find(properties.active_families.begin(), properties.active_families.end(), family) != properties.active_families.end());
 		}
 
 		if (!allowed) {
@@ -111,7 +111,7 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 	return tools_array;
 }
 
-nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, const agent_properties &properties) const
+nlohmann::json tool_registry::get_gemini_tools_json(bool mutation_possible, const agent_properties &properties) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
@@ -132,8 +132,8 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 
 		std::string family = validator->get_family();
 		bool allowed = true;
-		if (!active_families.empty()) {
-			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		if (!properties.active_families.empty()) {
+			allowed = (std::find(properties.active_families.begin(), properties.active_families.end(), family) != properties.active_families.end());
 		}
 
 		if (!allowed) {
@@ -179,7 +179,6 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 }
 
 std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
-	const std::vector<std::string> &active_families,
 	bool mutation_possible,
 	const agent_properties &properties
 ) const {
@@ -202,8 +201,8 @@ std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 
 		std::string family = validator->get_family();
 		bool allowed = true;
-		if (!active_families.empty()) {
-			allowed = (std::find(active_families.begin(), active_families.end(), family) != active_families.end());
+		if (!properties.active_families.empty()) {
+			allowed = (std::find(properties.active_families.begin(), properties.active_families.end(), family) != properties.active_families.end());
 		}
 
 		if (!allowed) {

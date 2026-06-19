@@ -50,7 +50,6 @@ public:
 	virtual void send_prompt(
 		Conversation& convo,
 		const agent_properties& properties,
-		const std::vector<std::string>& active_families,
 		std::function<void(const stream_event&)> callback
 	) = 0;
 

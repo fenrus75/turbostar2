@@ -199,7 +199,9 @@ int main()
 
 		// Test active families filtering in get_tools_json
 		std::vector<std::string> active_families = {"base"};
-		nlohmann::json tools = registry.get_tools_json(active_families);
+		agent_properties props;
+		props.active_families = active_families;
+		nlohmann::json tools = registry.get_tools_json(true, props);
 		bool found_family_mock = false;
 		for (const auto &t : tools) {
 			if (t["function"]["name"] == "family_mock") {
@@ -209,7 +211,8 @@ int main()
 		assert(!found_family_mock && "family_mock should NOT be in base family context!");
 
 		active_families.push_back("test_family");
-		tools = registry.get_tools_json(active_families);
+		props.active_families = active_families;
+		tools = registry.get_tools_json(true, props);
 		found_family_mock = false;
 		for (const auto &t : tools) {
 			if (t["function"]["name"] == "family_mock") {

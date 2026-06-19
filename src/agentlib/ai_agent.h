@@ -270,7 +270,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	/*
 	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
-	 * including todos_, subagents_, active_skills_, active_tool_families_, original_system_prompt_,
+	 * including todos_, subagents_, active_skills_, original_system_prompt_,
 	 * interactions_, and final_result_.
 	 * Locking Rules:
 	 * - Held during status changes, subagent spawning/management, and todo list modifications.
@@ -281,7 +281,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<todo_item> todos_;
 	std::vector<std::shared_ptr<ai_agent>> subagents_;
 	std::vector<std::string> active_skills_;
-	std::vector<std::string> active_tool_families_;
 	std::string original_system_prompt_;
 	std::string final_result_;
 

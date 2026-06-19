@@ -67,7 +67,6 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 void gemini_connection::send_prompt(
 	Conversation& convo,
 	const agent_properties& properties,
-	const std::vector<std::string>& active_families,
 	std::function<void(const stream_event&)> callback
 ) {
 	std::vector<message> messages;
@@ -158,7 +157,7 @@ void gemini_connection::send_prompt(
 	}
 
 	nlohmann::json tools_array = nlohmann::json::array();
-	auto active_tools = tool_registry::get_instance().get_active_tools(active_families, true, properties);
+	auto active_tools = tool_registry::get_instance().get_active_tools(true, properties);
 	for (const auto &validator : active_tools) {
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {

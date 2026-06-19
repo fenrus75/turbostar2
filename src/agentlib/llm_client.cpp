@@ -53,7 +53,7 @@ static std::shared_ptr<Conversation> build_temp_conversation(const std::vector<m
 }
 
 llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry * /*registry*/,
-					const std::vector<std::string> &active_families, const std::string &previous_response_id,
+					const std::string &previous_response_id,
 					const agent_properties &properties)
 {
 	llm_chat_response chat_response;
@@ -98,14 +98,13 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 		if (!delta.response_id.empty()) {
 			chat_response.response_id = delta.response_id;
 		}
-	}, nullptr, active_families, previous_response_id, properties);
+	}, nullptr, previous_response_id, properties);
 
 	return chat_response;
 }
 
 void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-				  const tool_registry * /*registry*/, const std::vector<std::string> &active_families,
-				  const std::string &previous_response_id, const agent_properties &properties)
+				  const tool_registry * /*registry*/, const std::string &previous_response_id, const agent_properties &properties)
 {
 	if (!connection_) {
 		connection_ = connection_factory::create(transport_, model_id_, type_);
@@ -117,7 +116,7 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 		convo->set_connection_state({{"metadata", metadata}});
 	}
 
-	connection_->send_prompt(*convo, properties, active_families, [callback](const stream_event& ev) {
+	connection_->send_prompt(*convo, properties, [callback](const stream_event& ev) {
 		chat_delta delta;
 		delta.response_id = ev.response_id;
 		delta.usage = ev.usage;
