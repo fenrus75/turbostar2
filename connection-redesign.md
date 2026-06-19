@@ -8,8 +8,10 @@ We define an abstract base class `Connection`. Concrete subclasses inherit from 
 Under the decoupled design (Option A), connections handle high-level formatting, stream parsing, and metadata management, but delegate network sockets and testing mocks (recording and replaying) to an underlying `llm_transport` instance.
 
 Initially, we will implement the following connection subclasses:
-1. `openai_connection`: Implements standard OpenAI chat completion formats. Handles OpenAI, Copilot, and custom OpenAI-compatible server APIs.
-2. `gemini_connection`: Implements Gemini-specific payload shapes and chunked array stream parsing.
+1. `openai_completion_connection`: Implements standard OpenAI chat completion formats. Handles OpenAI, Copilot, and custom OpenAI-compatible server APIs.
+2. `openai_response_connection`: Implements OpenAI Responses API format (mutations, compaction endpoint).
+3. `gemini_connection`: Implements Gemini-specific payload shapes and chunked array stream parsing.
+4. `claude_connection`: Implements Anthropic Claude API format (tool schemas using `input_schema`, alternating user/assistant message roles).
 
 No separate recording/replay connection classes are needed, as testing mocks are handled transparently by passing `recording_transport` or `replay_transport` to the connections.
 
@@ -18,8 +20,10 @@ No separate recording/replay connection classes are needed, as testing mocks are
 - Location: `src/agentlib/protocols/`
 - Class structure:
   - `connection.h` (Base class and stream event definitions)
-  - `openai_connection.h` / `openai_connection.cpp`
+  - `openai_completion_connection.h` / `openai_completion_connection.cpp`
+  - `openai_response_connection.h` / `openai_response_connection.cpp`
   - `gemini_connection.h` / `gemini_connection.cpp`
+  - `claude_connection.h` / `claude_connection.cpp`
   - `connection_factory.h` / `connection_factory.cpp` (Utility to instantiate connection based on `api_type`)
 
 # Major flow
