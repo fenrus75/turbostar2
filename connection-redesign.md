@@ -39,6 +39,20 @@ Known key operations
   - To prevent stale states across restarts or model switches, this JSON stores a signature (`model_id` and `protocol`) alongside the `metadata`.
   - Connections validate this signature on load. If it doesn't match the current session, or if the server rejects a restored `session_id` (e.g., due to expiration), the connection invalidates the state and falls back to rebuilding the session context from the conversation history.
 
+# Tool Declaration & Decoupling
+
+To prevent vendor-specific tool formatting logic from leaking into the `tool_registry` class (which currently has hardcoded methods like `get_tools_json()` and `get_gemini_tools_json()`):
+- **Registry Abstraction**: The `tool_registry` exposes a generic getter returning a list of active, allowed `tool_validator` instances:
+  ```cpp
+  std::vector<std::shared_ptr<tool_validator>> get_active_tools(
+      const std::vector<std::string> &active_families, 
+      bool mutation_possible, 
+      const std::string &agent_identity // Or agent_role enum
+  ) const;
+  ```
+- **Agent Identity Mapping**: The `Connection` must know the active agent's identity (currently represented as the `agent_role` enum, but soon transitioning to a `std::string`) to query the registry correctly. This identity will be passed from the `ai_agent` as context options during prompt/streaming calls.
+- **Provider-Specific Formatting**: Each `Connection` subclass iterates over this validator list to construct the exact JSON payload expected by the provider (e.g., nesting functions in OpenAI/Copilot format, double-nesting function declarations for Gemini, or mapping schema parameter names like `input_schema` for Anthropic).
+
 # Open Design Decisions
 
 - **Q1: Protocol vs. Transport Decoupling**
