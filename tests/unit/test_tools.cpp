@@ -353,9 +353,11 @@ int main()
 
 	std::cout << "\nTesting fs_read_lines boundary heuristics..." << std::endl;
 	{
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path temp_file_path = std::filesystem::path(proj_root) / "test_fs_read_lines_heuristics.py";
 		std::string temp_file = "test_fs_read_lines_heuristics.py";
 		{
-			std::ofstream out(temp_file);
+			std::ofstream out(temp_file_path);
 			out << "line 1\n"
 			    << "line 2\n"
 			    << "line 3\n"
@@ -380,7 +382,7 @@ int main()
 		}
 
 		{
-			std::ofstream out(temp_file);
+			std::ofstream out(temp_file_path);
 			for (int i = 1; i <= 100; ++i) {
 				if (i == 45) {
 					out << "\n";
@@ -404,9 +406,10 @@ int main()
 			assert(res.find("45:") == std::string::npos);
 		}
 
+		std::filesystem::path temp_cpp_path = std::filesystem::path(proj_root) / "test_fs_read_lines_heuristics.cpp";
 		std::string temp_cpp = "test_fs_read_lines_heuristics.cpp";
 		{
-			std::ofstream out(temp_cpp);
+			std::ofstream out(temp_cpp_path);
 			for (int i = 1; i <= 100; ++i) {
 				if (i == 45) {
 					out << "}\n";
@@ -424,8 +427,8 @@ int main()
 			assert(res.find("46:") == std::string::npos);
 		}
 
-		std::filesystem::remove(temp_file);
-		std::filesystem::remove(temp_cpp);
+		std::filesystem::remove(temp_file_path);
+		std::filesystem::remove(temp_cpp_path);
 		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;
 	}
 
