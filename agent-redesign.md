@@ -18,6 +18,7 @@ To ensure `agentlib` remains fully decoupled from visual rendering details (and 
 
 ### A. Turn (`agentlib::Turn`)
 Represents a single logical element/transaction in the conversation.
+
 ```cpp
 namespace agentlib {
 
@@ -48,10 +49,101 @@ public:
 
     // Serialization for disk storage
     virtual nlohmann::json serialize() const = 0;
+
+protected:
+    // Lossless Roundtripping: Holds any unmapped JSON keys found during API response/history parsing.
+    // Kept out of core C++ data structures to save memory, but merged back during serialization.
+    nlohmann::json extra_fields_;
 };
 
 } // namespace agentlib
 ```
+
+#### Concrete Subclasses & Formats
+
+##### 1. `system_turn`
+* **Purpose:** Holds system instructions (e.g. active coding guidelines, active tool schemas, or temporary context instructions).
+* **Data Fields:**
+  * `std::string content`
+  * `std::string purpose` (e.g. `"base"`, `"skills"`, `"tool_family"`)
+* **to_messages:**
+  ```json
+  [ { "role": "system", "content": "<content>" } ]
+  ```
+* **to_markdown:**
+  ```markdown
+  > [!NOTE]
+  > **System Instructions (<purpose>):**
+  > <content>
+  ```
+
+##### 2. `user_turn`
+* **Purpose:** Represents the developer's inputs.
+* **Data Fields:**
+  * `std::string content`
+  * `std::optional<std::string> name` (optional developer identifier)
+* **to_messages:**
+  ```json
+  [ { "role": "user", "content": "<content>", "name": "<name>" } ]
+  ```
+* **to_markdown:**
+  ```markdown
+  ### User
+  <content>
+  ```
+
+##### 3. `model_response_turn`
+* **Purpose:** Holds LLM text output, internal thoughts (e.g., DeepSeek `<think>` blocks), and any requested tool calls.
+* **Data Fields:**
+  * `std::string content` (response text)
+  * `std::optional<std::string> reasoning_content` (thinking content)
+  * `std::vector<tool_call> tool_calls` (calls to execute)
+  * `std::string response_id` (chaining tracking identifier)
+* **to_messages:**
+  * Maps role to `"assistant"`. 
+  * *Compaction Level 1:* Strips `reasoning_content` and `<think>` tags from `content`.
+  * *Compaction Level 2:* Additionally clears the `content` block if `tool_calls` is non-empty (stripping pseudo-reasoning).
+* **to_markdown:**
+  ```markdown
+  <think>
+  <reasoning_content>
+  </think>
+
+  <content>
+
+  *Requested Tools:*
+  * `tool_name` (ID: `call_id`) with arguments `...`
+  ```
+
+##### 4. `tool_execution_turn`
+* **Purpose:** Groups results of the tool calls requested in the preceding assistant turn (representing a transactional boundaries block).
+* **Data Fields:**
+  * `struct tool_result { std::string call_id; std::string name; std::string content; bool is_error; }`
+  * `std::vector<tool_result> results`
+* **to_messages:** Maps results into individual tool-role messages:
+  ```json
+  [ { "role": "tool", "tool_call_id": "<call_id>", "content": "<content>" } ]
+  ```
+* **to_markdown:**
+  ```markdown
+  #### Tool Executions:
+  
+  **`tool_name`** (ID: `call_id`) - *Success*
+  ```cpp
+  <content>
+  ```
+  ```
+
+##### 5. `error_turn`
+* **Purpose:** Captures developer-facing execution errors (safety blocks, command execution timeouts) that should not be transmitted to the LLM but need to be visually logged.
+* **Data Fields:**
+  * `std::string error_message`
+* **to_messages:** Returns an empty vector.
+* **to_markdown:**
+  ```markdown
+  > [!WARNING]
+  > **Execution Error:** <error_message>
+  ```
 
 ### B. Episode (`agentlib::Episode`)
 A sequential history of turns representing an archived or active slice of the conversation.
