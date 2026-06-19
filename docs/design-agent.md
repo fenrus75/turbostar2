@@ -7,9 +7,10 @@ For information on how to implement specific tools for the agent, see [design-to
 ---
 
 ## 1. Core Agent Loop
-The central coordinator is the `ai_agent` class, which interacts with the `ai_model` and `llm_client`.
+The central coordinator is the `ai_agent` class, which interacts with the `ai_model` and `Connection` subclasses.
 * **`ai_agent`**: Manages the high-level conversation loop, executes tools, handles telemetry, and triggers compaction.
-* **`llm_client`**: Handles the communication with the LLM backend (e.g., Gemini API, OpenAI), formatting payloads and parsing raw streaming or static responses.
+* **`Connection`**: Abstract base class representing a model provider protocol (e.g. `openai_completion_connection`, `openai_response_connection`, `gemini_connection`, `claude_connection`). It serializes payloads, manages headers, endpoints, state metadata, and parses streaming events (`stream_event`).
+* **`llm_client`**: A backward-compatible wrapper that instantiates the correct `Connection` subclass via `connection_factory` and routes calls.
 
 ---
 
