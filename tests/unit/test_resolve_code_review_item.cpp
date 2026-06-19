@@ -50,9 +50,11 @@ void test_resolve_tool_execution()
 	auto subagent = ai_agent::create(101, "DeveloperAgent", model, &q, nullptr);
 	subagent->set_parent(agent);
 	ctx.active_agent = subagent.get();
+	ctx.properties = subagent->get_properties();
 
 	// Test 1: Role rejection (reviewer role should not be allowed)
 	subagent->set_role(agent_role::reviewer);
+	ctx.properties = subagent->get_properties();
 	std::string args_json = "{\"id\": 1, \"commit_hash\": \"abcdef123456\"}";
 	auto prep = registry.prepare_tool("resolve_code_review_item", args_json, ctx);
 	assert(prep.tool == nullptr);
@@ -60,6 +62,7 @@ void test_resolve_tool_execution()
 
 	// Test 2: Role allowed (developer role)
 	subagent->set_role(agent_role::developer);
+	ctx.properties = subagent->get_properties();
 	std::string res_str = registry.execute_tool("resolve_code_review_item", args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 

@@ -50,9 +50,11 @@ void test_confirm_tool_execution()
 	auto subagent = ai_agent::create(101, "ReviewAgent", model, &q, nullptr);
 	subagent->set_parent(agent);
 	ctx.active_agent = subagent.get();
+	ctx.properties = subagent->get_properties();
 
 	// Test 1: Role rejection (default role is developer, confirm tool is verifier-only)
 	subagent->set_role(agent_role::developer);
+	ctx.properties = subagent->get_properties();
 	std::string args_json = "{\"id\": 1}";
 	auto prep = registry.prepare_tool("confirm_code_review_item", args_json, ctx);
 	assert(prep.tool == nullptr);
@@ -60,6 +62,7 @@ void test_confirm_tool_execution()
 
 	// Test 2: Role allowed (verifier role)
 	subagent->set_role(agent_role::verifier);
+	ctx.properties = subagent->get_properties();
 	std::string res_str = registry.execute_tool("confirm_code_review_item", args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 

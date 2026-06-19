@@ -1202,7 +1202,7 @@ void ai_agent::start_processing()
 				std::filesystem::path allowed_file = workspace_root / allowed_write;
 				ctx.fs_security.add_allowed_file(allowed_file, access_type::write);
 			}
-			if (self->get_role() == agent_role::developer) {
+			if (!self->is_read_only()) {
 				ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
 			}
 		}
@@ -1210,6 +1210,7 @@ void ai_agent::start_processing()
 		ctx.doc_provider = self->doc_provider_;
 		ctx.queue = self->global_queue_;
 		ctx.active_agent = self.get();
+		ctx.properties = self->get_properties();
 		ctx.mutation_possible = self->is_mutation_possible();
 		ctx.is_family_active = [self](const std::string &family) { return self->is_tool_family_active(family); };
 
@@ -1337,7 +1338,7 @@ void ai_agent::start_processing()
 					    }
 				    }
 			    },
-			    &registry, self->get_active_tool_families(), previous_response_id, self->get_role());
+			    &registry, self->get_active_tool_families(), previous_response_id, self->get_properties());
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -3223,6 +3224,55 @@ void ai_agent::set_allowed_write_file(const std::string &path)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	allowed_write_file_ = path;
+}
+
+bool ai_agent::is_read_only() const
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	return properties_.read_only;
+}
+
+void ai_agent::set_read_only(bool ro)
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	properties_.read_only = ro;
+}
+
+agent_role ai_agent::get_role() const
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	return properties_.role;
+}
+
+void ai_agent::set_role(agent_role r)
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	properties_.role = r;
+	properties_.read_only = (r == agent_role::summarizer);
+}
+
+agent_properties ai_agent::get_properties() const
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	return properties_;
+}
+
+void ai_agent::set_properties(const agent_properties &props)
+{
+	std::lock_guard<std::mutex> lock(properties_mutex_);
+	properties_ = props;
+}
+
+void ai_agent::set_planning(bool planning, size_t start_index)
+{
+	is_planning_.store(planning);
+	if (planning) {
+		planning_start_index_ = start_index;
+		set_read_only(true);
+	} else {
+		set_plan_file("");
+		set_read_only(get_role() == agent_role::summarizer);
+	}
 }
 
 } // namespace agentlib

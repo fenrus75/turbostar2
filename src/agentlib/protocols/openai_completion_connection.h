@@ -17,7 +17,7 @@ public:
 	void sync_history(Conversation& convo) override;
 	void send_prompt(
 		Conversation& convo,
-		const std::string& agent_identity,
+		const agent_properties& properties,
 		const std::vector<std::string>& active_families,
 		std::function<void(const stream_event&)> callback
 	) override;

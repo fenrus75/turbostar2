@@ -98,7 +98,7 @@ int main()
 		auto transport = std::make_shared<mock_transport>();
 		gemini_connection gemini_conn(transport, "gemini-1.5-pro", api_type::gemini);
 
-		gemini_conn.send_prompt(*convo, "developer", {}, [](const stream_event&){});
+		gemini_conn.send_prompt(*convo, agent_properties{}, {}, [](const stream_event&){});
 		assert(transport->last_path == "/v1beta/models/gemini-1.5-pro:streamGenerateContent?alt=sse");
 		json payload = json::parse(transport->last_body);
 		assert(payload.contains("systemInstruction"));
@@ -111,19 +111,19 @@ int main()
 	{
 		auto t1 = std::make_shared<mock_transport>();
 		openai_completion_connection c1(t1, "gpt-4", api_type::openai);
-		c1.send_prompt(*convo, "developer", {}, [](const stream_event&){});
+		c1.send_prompt(*convo, agent_properties{}, {}, [](const stream_event&){});
 		assert(t1->last_path == "/v1/chat/completions");
 	}
 	{
 		auto t2 = std::make_shared<mock_transport>();
 		openai_completion_connection c2(t2, "gpt-4", api_type::copilot);
-		c2.send_prompt(*convo, "developer", {}, [](const stream_event&){});
+		c2.send_prompt(*convo, agent_properties{}, {}, [](const stream_event&){});
 		assert(t2->last_path == "/chat/completions");
 	}
 	{
 		auto t3 = std::make_shared<mock_transport>();
 		openai_response_connection c3(t3, "gpt-4", api_type::openai_response);
-		c3.send_prompt(*convo, "developer", {}, [](const stream_event&){});
+		c3.send_prompt(*convo, agent_properties{}, {}, [](const stream_event&){});
 		assert(t3->last_path == "/v1/responses");
 	}
 
@@ -131,7 +131,7 @@ int main()
 	{
 		auto t = std::make_shared<mock_transport>();
 		openai_response_connection c(t, "gpt-4", api_type::openai_response);
-		c.send_prompt(*convo, "developer", {}, [](const stream_event&){});
+		c.send_prompt(*convo, agent_properties{}, {}, [](const stream_event&){});
 		json payload_resp = json::parse(t->last_body);
 		assert(payload_resp.contains("instructions"));
 		assert(payload_resp["instructions"].get<std::string>() == "First system instruction.\n\nSecond system instruction.");
@@ -174,7 +174,7 @@ int main()
 
 		openai_response_connection c(t, "gpt-4", api_type::openai_response);
 		std::vector<stream_event> events;
-		c.send_prompt(*convo, "developer", {}, [&](const stream_event& ev) {
+		c.send_prompt(*convo, agent_properties{}, {}, [&](const stream_event& ev) {
 			events.push_back(ev);
 		});
 

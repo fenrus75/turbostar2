@@ -5,6 +5,7 @@
 #include <functional>
 #include <nlohmann/json.hpp>
 #include "../llm_types.h"
+#include "../agent_properties.h"
 
 namespace agentlib {
 
@@ -48,7 +49,7 @@ public:
 	virtual void sync_history(Conversation& convo) = 0;
 	virtual void send_prompt(
 		Conversation& convo,
-		const std::string& agent_identity,
+		const agent_properties& properties,
 		const std::vector<std::string>& active_families,
 		std::function<void(const stream_event&)> callback
 	) = 0;

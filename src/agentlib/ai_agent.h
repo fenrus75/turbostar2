@@ -8,7 +8,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include "agent_role.h"
+#include "agent_properties.h"
 #include "ai_model.h"
 #include "document_provider.h"
 #include "interactions/interactions.h"
@@ -152,23 +152,14 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<std::shared_ptr<agent_interaction>> get_interactions() const;
 	void add_interaction(std::shared_ptr<agent_interaction> interaction);
 
-	bool is_read_only() const
-	{
-		return read_only_;
-	}
-	void set_read_only(bool ro)
-	{
-		read_only_ = ro;
-	}
+	bool is_read_only() const;
+	void set_read_only(bool ro);
 
-	agent_role get_role() const
-	{
-		return role_;
-	}
-	void set_role(agent_role r)
-	{
-		role_ = r;
-	}
+	agent_role get_role() const;
+	void set_role(agent_role r);
+
+	agent_properties get_properties() const;
+	void set_properties(const agent_properties &props);
 
 	std::string get_allowed_write_file() const;
 	void set_allowed_write_file(const std::string &path);
@@ -179,14 +170,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	{
 		return is_planning_.load();
 	}
-	void set_planning(bool planning, size_t start_index = 0)
-	{
-		is_planning_.store(planning);
-		if (planning)
-			planning_start_index_ = start_index;
-		else
-			set_plan_file("");
-	}
+	void set_planning(bool planning, size_t start_index = 0);
 	size_t get_planning_start_index() const
 	{
 		return planning_start_index_;
@@ -267,7 +251,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<agent_status> status_{agent_status::idle};
 	std::string current_tool_;
 	std::atomic<bool> is_closed_{false};
-	std::atomic<bool> read_only_{false};
 	std::atomic<bool> is_planning_{false};
 	size_t planning_start_index_{0};
 
@@ -359,7 +342,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<long long> next_lru_seq_{1};
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};
-	agent_role role_{agent_role::developer};
+	mutable std::mutex properties_mutex_;
+	agent_properties properties_;
 	std::string allowed_write_file_;
 };
 

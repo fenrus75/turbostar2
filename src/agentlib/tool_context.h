@@ -5,6 +5,7 @@
 #include "../event_queue.h"
 #include "document_provider.h"
 #include "file_security_manager.h"
+#include "agent_properties.h"
 
 namespace agentlib
 {
@@ -26,6 +27,7 @@ class tool_context
 	document_provider *doc_provider = nullptr;
 	event_queue *queue = nullptr;
 	ai_agent *active_agent = nullptr;
+	agent_properties properties;
 	bool mutation_possible = true;
 	std::string tool_call_id;
 

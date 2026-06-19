@@ -52,12 +52,14 @@ void test_perform_code_review_execution()
 	auto agent = ai_agent::create(1, "DeveloperAgent", model, &q, nullptr);
 	agent->set_role(agent_role::developer);
 	ctx.active_agent = agent.get();
+	ctx.properties = agent->get_properties();
 
 	// Test 1: Role gating (reviewer role should be blocked from calling this tool to avoid recursion)
 	auto reviewer_temp = ai_agent::create(2, "TempReviewer", model, &q, nullptr);
 	reviewer_temp->set_role(agent_role::reviewer);
 	tool_context reviewer_ctx = ctx;
 	reviewer_ctx.active_agent = reviewer_temp.get();
+	reviewer_ctx.properties = reviewer_temp->get_properties();
 
 	std::string args_json = "{\"files\": [\"src_to_review.cpp\"], \"instructions\": \"Check for bugs\", \"async\": true}";
 	auto prep = registry.prepare_tool("perform_code_review", args_json, reviewer_ctx);
@@ -186,6 +188,7 @@ void test_perform_code_review_splitting()
 		agent->set_role(agent_role::developer);
 		tool_context ctx_a = ctx;
 		ctx_a.active_agent = agent.get();
+		ctx_a.properties = agent->get_properties();
 
 		std::string args_json = "{\"files\": [\"file1.cpp\", \"file2.cpp\", \"file3.cpp\", \"file4.cpp\"], \"async\": true}";
 		auto prep = registry.prepare_tool("perform_code_review", args_json, ctx_a);
@@ -227,6 +230,7 @@ void test_perform_code_review_splitting()
 		agent->set_role(agent_role::developer);
 		tool_context ctx_b = ctx;
 		ctx_b.active_agent = agent.get();
+		ctx_b.properties = agent->get_properties();
 
 		std::vector<std::string> files_list;
 		for (int i = 1; i <= 12; ++i) {

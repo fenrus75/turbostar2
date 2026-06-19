@@ -42,7 +42,7 @@ static std::string serialize_mcp_name(const std::string &name)
 	return res;
 }
 
-nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, agent_role role) const
+nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, const agent_properties &properties) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
@@ -52,7 +52,7 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 			continue;
 		}
 
-		if (!validator->is_allowed_for_role(role)) {
+		if (!validator->is_allowed_for_role(properties.role)) {
 			continue;
 		}
 
@@ -111,7 +111,7 @@ nlohmann::json tool_registry::get_tools_json(const std::vector<std::string> &act
 	return tools_array;
 }
 
-nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, agent_role role) const
+nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::string> &active_families, bool mutation_possible, const agent_properties &properties) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	nlohmann::json tools_array = nlohmann::json::array();
@@ -121,7 +121,7 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 			continue;
 		}
 
-		if (!validator->is_allowed_for_role(role)) {
+		if (!validator->is_allowed_for_role(properties.role)) {
 			continue;
 		}
 
@@ -181,7 +181,7 @@ nlohmann::json tool_registry::get_gemini_tools_json(const std::vector<std::strin
 std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 	const std::vector<std::string> &active_families,
 	bool mutation_possible,
-	agent_role role
+	const agent_properties &properties
 ) const {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	std::vector<std::shared_ptr<tool_validator>> active_validators;
@@ -191,7 +191,7 @@ std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 			continue;
 		}
 
-		if (!validator->is_allowed_for_role(role)) {
+		if (!validator->is_allowed_for_role(properties.role)) {
 			continue;
 		}
 
@@ -213,22 +213,6 @@ std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 		active_validators.push_back(std::shared_ptr<tool_validator>(std::move(validator)));
 	}
 	return active_validators;
-}
-
-std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
-	const std::vector<std::string> &active_families,
-	bool mutation_possible,
-	const std::string &agent_identity
-) const {
-	agent_role role = agent_role::developer;
-	if (agent_identity == "reviewer") {
-		role = agent_role::reviewer;
-	} else if (agent_identity == "verifier") {
-		role = agent_role::verifier;
-	} else if (agent_identity == "summarizer") {
-		role = agent_role::summarizer;
-	}
-	return get_active_tools(active_families, mutation_possible, role);
 }
 
 std::vector<std::string> tool_registry::get_all_registered_families() const
@@ -285,13 +269,13 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (ctx.active_agent && !validator->is_allowed_for_role(ctx.active_agent->get_role())) {
+	if (!validator->is_allowed_for_role(ctx.properties.role)) {
 		res.error_message =
 		    "Security Violation: Agent role does not permit executing tool '" + name + "'.";
 		return res;
 	}
 
-	if (ctx.active_agent && ctx.active_agent->is_read_only() && !validator->is_pure()) {
+	if (ctx.properties.read_only && !validator->is_pure()) {
 		res.error_message =
 		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
 		return res;

@@ -67,7 +67,7 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 
 void openai_response_connection::send_prompt(
 	Conversation& convo,
-	const std::string& agent_identity,
+	const agent_properties& properties,
 	const std::vector<std::string>& active_families,
 	std::function<void(const stream_event&)> callback
 ) {
@@ -85,15 +85,6 @@ void openai_response_connection::send_prompt(
 			m.episode_level = 0;
 		}
 		messages.insert(messages.end(), ep_msgs.begin(), ep_msgs.end());
-	}
-
-	agent_role role = agent_role::developer;
-	if (agent_identity == "reviewer") {
-		role = agent_role::reviewer;
-	} else if (agent_identity == "verifier") {
-		role = agent_role::verifier;
-	} else if (agent_identity == "summarizer") {
-		role = agent_role::summarizer;
 	}
 
 	std::vector<message> normalized = normalize_history(messages);
@@ -182,7 +173,7 @@ void openai_response_connection::send_prompt(
 	payload["stream_options"] = {{"include_usage", true}};
 
 	nlohmann::json tools_array = nlohmann::json::array();
-	auto active_tools = tool_registry::get_instance().get_active_tools(active_families, false, role);
+	auto active_tools = tool_registry::get_instance().get_active_tools(active_families, false, properties);
 	for (const auto &validator : active_tools) {
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {
