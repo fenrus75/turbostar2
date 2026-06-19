@@ -4,63 +4,44 @@ This document records the current (status quo) architecture for managing agent i
 
 ---
 
-## 1. Architectural Concepts (The Status Quo)
+## 1. Architectural Concepts
 
-Currently, the concepts of what an agent "is" (identity/role) and what it "can do" (modes/capabilities/tool access) are tightly coupled and scattered across multiple layers of the codebase:
+The concepts of what an agent "is" (identity/role) and what it "can do" (modes/capabilities/tool access) have been unified under a single structure, `agent_properties` defined in [agent_properties.h](file:///home/arjan/git/turbostar2/src/agentlib/agent_properties.h):
+
+```cpp
+struct agent_properties {
+	agent_role role = agent_role::developer;
+	bool read_only = false;
+	std::vector<std::string> active_families;
+};
+```
+
+This struct is stored directly in `ai_agent::properties_` (protected by `properties_mutex_`) and passed directly through the client and connection layers down to the `tool_registry`:
 
 ```
-[ ai_agent ] ──(role_)──> [ llm_client ] ──(string identity)──> [ Connection ] ──(role_ enum)──> [ tool_registry ]
+[ ai_agent ] ──(properties_)──> [ llm_client ] ──(properties)──> [ Connection ] ──(properties)──> [ tool_registry ]
 ```
 
 ### A. Agent Role (`agent_role`)
 The agent's role is represented by the `agent_role` enum defined in [agent_role.h](file:///home/arjan/git/turbostar2/src/agentlib/agent_role.h):
 * `developer`: The primary autonomous developer agent. Has full read-write capabilities on the workspace root.
-* `reviewer`: A specialized code review agent. Defaulted to read-only except for a specific review output file.
+* `reviewer`: A specialized code review agent.
 * `verifier`: A verification agent that reviews the code reviewer's findings.
 * `summarizer`: A backend summarization agent (has no tools).
 
-The role is stored directly in `ai_agent::role_` and determines:
-1. **Tool Access:** Tools can restrict their execution to specific roles via `tool_validator::is_allowed_for_role(role)`.
-2. **File Permissions:** Inside the main agent loop, if `role_ == agent_role::developer`, the filesystem security context is granted write access to the entire workspace. Otherwise, it is read-only by default.
+The role is now used primarily for role-based tool restrictions via `tool_validator::is_allowed_for_role(role)`.
 
-### B. Agent Identity
-"Identity" refers to the semantic personality of the agent as understood by the LLM client and connection layers. 
-* Currently, the `ai_agent`'s `agent_role` enum is translated into a string (`"developer"`, `"reviewer"`, `"verifier"`, `"summarizer"`) by the `llm_client`.
-* This string is passed to the `Connection` subclasses (e.g. `openai_completion_connection`), which immediately convert it **back** to the `agent_role` enum in order to query the `tool_registry`.
-* This double-conversion prevents extensible or custom plugin-defined identities.
+### B. Decoupled Read-Only Capability
+The `read_only` boolean indicates if the agent is prohibited from executing state-modifying tools. This capability is decoupled from the role:
+* **Sandbox Enforcement:** In [ai_agent.cpp](file:///home/arjan/git/turbostar2/src/agentlib/ai_agent.cpp), workspace write permissions are granted based on `!self->is_read_only()` rather than checking if the role is `developer`.
+* **Tool Validation:** The `tool_registry` blocks non-pure tool execution if `ctx.properties.read_only` is true.
+* **Plan Mode:** When entering Plan Mode, `properties_.read_only` is set to `true`, and when exiting Plan Mode, it is restored back to the default for that agent's role.
 
-### C. Agent Mode (e.g., Plan Mode)
-"Plan Mode" is a specialized execution state where the agent is restricted to reading the codebase and outputting a plan of action.
-* **State Flag:** Managed via `is_planning_` (`std::atomic<bool>`) in `ai_agent`.
-* **Transitions:** Triggered by executing the `enter_plan_mode` tool and ended using the `exit_plan_mode` tool.
-* **Constraints:** When `is_planning()` is true, the `tool_registry` blocks the execution of all state-modifying tools unless:
-  1. The tool is explicitly `exit_plan_mode`.
-  2. The tool overrides `is_allowed_in_plan_mode(args, ctx)` to return `true` (e.g. `fs_write_file` or `fs_replace_lines` check that the target path matches `ctx.active_agent->get_plan_file()`).
-
-### D. Agent Capabilities (File Permissions)
-Capabilities define the specific sandboxed actions (specifically file read/write permissions) allowed for an agent instance:
-* **Read Access:** The agent is always granted read access to the entire workspace directory root.
-* **Write Access:**
-  * Developer role: Write access is granted to the entire workspace root.
-  * Non-developer roles: Read-only by default, but a single write-exception can be granted via `allowed_write_file_` (configured via `ai_agent::set_allowed_write_file`).
-* **Enforcement:** Enforced at the beginning of the `ai_agent` thread loop when configuring the `tool_context::fs_security` context:
-  ```cpp
-  ctx.fs_security.add_allowed_root(workspace_root, access_type::read);
-  std::string allowed_write = self->get_allowed_write_file();
-  if (!allowed_write.empty()) {
-      ctx.fs_security.add_allowed_file(workspace_root / allowed_write, access_type::write);
-  }
-  if (self->get_role() == agent_role::developer) {
-      ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
-  }
-  ```
-
-### E. Tool Groups / Families
-Tools are grouped into "families" (defined by `tool_validator::get_family()`).
-* **Active Families:** The agent tracks active tool groups via `active_tool_families_` (always defaults to `{"base"}`).
-* **Activation:** Additional families (such as `x86`, custom MCP servers) are activated dynamically using the `activate_tool_family` tool.
+### C. Active Tool Families
+The list of active tool groups is stored directly in `properties.active_families` instead of a separate vector:
+* **Activation:** Additional families (such as `x86`, custom MCP servers) are activated dynamically using the `activate_tool_family` tool, which appends the family name to `properties.active_families`.
 * **System Prompt Injection:** Every time a family is activated, the agent rebuilds its system prompt by appending the list of active families and a Markdown table of inactive families and instructions on when the agent should activate them.
-* **Registry Filtering:** The `Connection` requests tool schemas from the `tool_registry` by passing the `active_families` vector. The registry excludes tools belonging to inactive families.
+* **Registry Filtering:** The `Connection` requests tool schemas from the `tool_registry` by passing the `properties` struct. The registry filters out tools whose family is not present in `properties.active_families`.
 
 ---
 
@@ -72,8 +53,8 @@ The following flows show how these parameters interact during tool validation an
 When a tool is requested by the model:
 1. `tool_registry::prepare_tool` is called.
 2. **Family Check:** Checks if the tool's family is active (`ctx.is_family_active(family)`). If not, aborts.
-3. **Role Check:** Checks if the tool is allowed for the agent's role (`validator->is_allowed_for_role(role)`). If not, aborts.
-4. **Read-Only Check:** If the agent is read-only, checks if the tool is pure (`validator->is_pure()`). If not, aborts.
+3. **Role Check:** Checks if the tool is allowed for the agent's role (`validator->is_allowed_for_role(ctx.properties.role)`). If not, aborts.
+4. **Read-Only Check:** If `ctx.properties.read_only` is true, checks if the tool is pure (`validator->is_pure()`). If not, aborts.
 5. **Plan Mode Check:** If the agent is in Plan Mode:
    * Rejects if tool name is not `exit_plan_mode` and `validator->is_allowed_in_plan_mode(args, ctx)` returns `false`.
    * Write tools validate that the file target matches the configured `plan_file_`.
