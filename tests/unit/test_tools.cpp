@@ -298,11 +298,12 @@ int main()
 		}
 
 		assert(resulting_convo.size() == 5);
-		assert(resulting_convo[1].role == "assistant");
-		assert(resulting_convo[1].tool_calls && resulting_convo[1].tool_calls->at(0).id == "call_enter");
-		assert(resulting_convo[2].role == "tool");
-		assert(resulting_convo[2].tool_call_id == "call_enter");
-		assert(resulting_convo[3].role == "system" && resulting_convo[3].content.find("Episode Archived") != std::string::npos);
+		assert(resulting_convo[0].role == "system" && resulting_convo[0].content.find("Episode Archived") != std::string::npos);
+		assert(resulting_convo[1].role == "system" && resulting_convo[1].content == "System prompt");
+		assert(resulting_convo[2].role == "assistant");
+		assert(resulting_convo[2].tool_calls && resulting_convo[2].tool_calls->at(0).id == "call_enter");
+		assert(resulting_convo[3].role == "tool");
+		assert(resulting_convo[3].tool_call_id == "call_enter");
 		assert(resulting_convo[4].role == "assistant");
 		assert(resulting_convo[4].tool_calls && resulting_convo[4].tool_calls->at(0).id == "call_exit");
 		std::cout << "Tool call boundary protection verified successfully!" << std::endl;

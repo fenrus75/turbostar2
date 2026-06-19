@@ -124,6 +124,7 @@ int main()
 
 	// Activate window so that it accepts key input
 	win.set_active(true);
+	win.draw_content(false);
 
 	// Send keypress handled by input box
 	editor_event ev_type;

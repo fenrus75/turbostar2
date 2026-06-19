@@ -78,12 +78,18 @@ int main()
 	std::hash<std::string> hasher;
 	std::string hash_str = std::to_string(hasher(test_override_dir));
 
-	assert(tmp_dir.find(hash_str) != std::string::npos);
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	bool is_testsuite = in_testsuite && std::string(in_testsuite) == "1";
+	if (is_testsuite) {
+		assert(tmp_dir.find(".turbostar_tmp") != std::string::npos);
+	} else {
+		assert(tmp_dir.find(hash_str) != std::string::npos);
+		assert(tmp_dir.find("tmp") != std::string::npos);
+	}
 	assert(dump_dir.find(hash_str) != std::string::npos);
 	assert(db_dir.find(hash_str) != std::string::npos);
 	assert(history_dir.find(hash_str) != std::string::npos);
 
-	assert(tmp_dir.find("tmp") != std::string::npos);
 	assert(dump_dir.find("dumps") != std::string::npos);
 	assert(db_dir.find("dbs") != std::string::npos);
 	assert(history_dir.find("history/test") != std::string::npos);

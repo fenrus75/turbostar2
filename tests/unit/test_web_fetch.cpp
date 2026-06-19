@@ -12,6 +12,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/event_queue.h"
 #include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 
@@ -72,7 +73,7 @@ int main()
 
 	// D. Blacklisted Domain: rule is 'D'
 	{
-		std::filesystem::path domains_file = temp_home / ".cache" / "turbostar" / "allowed_domains.txt";
+		std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
 		write_file(domains_file, "D:blacklisted.com\n");
 
 		nlohmann::json args = {{"url", "https://blacklisted.com/index.html"}};
@@ -83,7 +84,7 @@ int main()
 
 	// E. Whitelisted Domain: rule is 'A' (will call curl, so we expect a connection error or success, but not blacklisted error)
 	{
-		std::filesystem::path domains_file = temp_home / ".cache" / "turbostar" / "allowed_domains.txt";
+		std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
 		write_file(domains_file, "A:127.0.0.1\n");
 
 		nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}};
@@ -96,7 +97,7 @@ int main()
 	// F. Prompts user: local IP (Deny Always)
 	{
 		// Clean up domains file
-		std::filesystem::path domains_file = temp_home / ".cache" / "turbostar" / "allowed_domains.txt";
+		std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
 		if (std::filesystem::exists(domains_file)) {
 			std::filesystem::remove(domains_file);
 		}
@@ -137,7 +138,7 @@ int main()
 	// G. Prompts user: Once
 	{
 		// Clean up domains file
-		std::filesystem::path domains_file = temp_home / ".cache" / "turbostar" / "allowed_domains.txt";
+		std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
 		if (std::filesystem::exists(domains_file)) {
 			std::filesystem::remove(domains_file);
 		}

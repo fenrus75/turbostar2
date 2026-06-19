@@ -242,10 +242,19 @@ std::string execute_command_sync(const std::string &cmd)
 }
 std::string get_global_cache_dir()
 {
+	const char *override_dir = std::getenv("TURBOSTAR_CACHE_DIR");
+	if (override_dir) {
+		return override_dir;
+	}
 	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	std::filesystem::path cache_dir;
 	if (in_testsuite && std::string(in_testsuite) == "1") {
-		cache_dir = std::filesystem::temp_directory_path() / std::format("turbostar_test_cache_{}", getpid());
+		const char *home = std::getenv("HOME");
+		if (home) {
+			cache_dir = std::filesystem::path(home) / ".cache" / std::format("turbostar_test_cache_{}", getpid());
+		} else {
+			cache_dir = std::filesystem::temp_directory_path() / std::format("turbostar_test_cache_{}", getpid());
+		}
 	} else {
 		const char *home = std::getenv("HOME");
 		if (home) {
@@ -287,6 +296,14 @@ std::string get_project_db_dir()
 
 std::string get_project_tmp_dir()
 {
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	if (in_testsuite && std::string(in_testsuite) == "1") {
+		std::filesystem::path tmp_dir = std::filesystem::path(get_project_dir()) / ".turbostar_tmp";
+		std::error_code ec;
+		std::filesystem::create_directories(tmp_dir, ec);
+		return tmp_dir.string();
+	}
+
 	std::filesystem::path tmp_dir = std::filesystem::path(get_project_cache_root()) / "tmp";
 
 	std::error_code ec;

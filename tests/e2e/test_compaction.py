@@ -4,10 +4,19 @@ import subprocess
 import tempfile
 import pytest
 
+def get_history_dir(tmp_path):
+    cache_root = os.path.join(tmp_path, ".cache")
+    if os.path.exists(cache_root):
+        for name in os.listdir(cache_root):
+            if name.startswith("turbostar"):
+                return os.path.join(cache_root, name, "projects")
+    return os.path.join(tmp_path, ".cache", "turbostar", "projects")
+
 # Helper to run agentcli in replay mode
 def run_agentcli(tmp_path, prompt, traffic_json_path):
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
+    env["TURBOSTAR_CACHE_DIR"] = os.path.join(str(tmp_path), ".cache", "turbostar")
     build_root = os.environ.get('MESON_BUILD_ROOT', 'build')
     cli_path = os.path.join(build_root, 'agentcli_replay')
     
@@ -76,6 +85,7 @@ def test_ephemeral_error_zapping(tmp_path):
         assert False, "ephemeral_errors_zapped was not 1"    
     # Verify conversation history
     conv = state.get("conversation", [])
+    print(f"CONVERSATION IN TEST: {json.dumps(conv, indent=2)}")
     assert len(conv) >= 4 
     
     # Check that the failed call is completely gone
@@ -117,7 +127,7 @@ def test_proactive_page_out(tmp_path):
     assert has_pointer
 
     # Verify files were created on disk
-    history_dir = os.path.join(tmp_path, ".cache", "turbostar", "projects")
+    history_dir = get_history_dir(tmp_path)
     # Find the hash dir
     if os.path.exists(history_dir):
         hash_dirs = os.listdir(history_dir)
@@ -135,7 +145,7 @@ def test_think_free_restore(tmp_path):
     
     run_agentcli(tmp_path, "Ping", create_traffic_file(tmp_path, "ping.json", []))
     
-    history_dir = os.path.join(tmp_path, ".cache", "turbostar", "projects")
+    history_dir = get_history_dir(tmp_path)
     hash_dirs = os.listdir(history_dir) if os.path.exists(history_dir) else []
     assert len(hash_dirs) > 0, "Agent failed to create project cache dir"
     

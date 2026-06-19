@@ -2,6 +2,7 @@
 #include <fstream>
 #include <future>
 #include <regex>
+#include <curl/curl.h>
 #include "../../agentlib/tool_context.h"
 #include "../../fs_utils.h"
 #include "web_fetch.h"
@@ -28,12 +29,42 @@ static bool is_local_ip(const std::string &domain)
 	if (domain.starts_with("10."))
 		return true;
 	if (domain.starts_with("172.")) {
-		// Approximate 172.16.x.x - 172.31.x.x for simplicity,
-		// covering all 172.x is safer but overly broad.
-		// For security, just assume all 172. are local in this context or strict check
 		return true;
 	}
 	return false;
+}
+
+static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t realsize = size * nmemb;
+	std::string *mem = static_cast<std::string *>(userp);
+	mem->append(static_cast<const char *>(contents), realsize);
+	return realsize;
+}
+
+static std::string perform_http_get(const std::string &url, int timeout_seconds = 30)
+{
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		return "Error: failed to initialize libcurl.";
+	}
+
+	std::string read_buffer;
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &read_buffer);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeout_seconds));
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+	CURLcode res = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+
+	if (res != CURLE_OK) {
+		return "curl: (" + std::to_string(res) + ") " + curl_easy_strerror(res) + "\n\nProcess exited with code " + std::to_string(res) + "\n";
+	}
+
+	return read_buffer;
 }
 
 web_fetch_tool::web_fetch_tool(std::string url, bool no_ask) : url_(std::move(url)), no_ask_(no_ask)
@@ -121,22 +152,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// Permission granted (Once or Always)
-	// Create config file for curl
-	std::filesystem::path temp_dir = std::filesystem::path(fs_utils::get_project_tmp_dir());
-	std::filesystem::path config_file = temp_dir / ("curl_config_" + std::to_string(std::hash<std::string>{}(url_)) + ".txt");
-
-	std::ofstream out(config_file);
-	if (!out) {
-		return "Error: Failed to create temporary curl config file.";
-	}
-	out << "url = \"" << url_ << "\"\n";
-	out.close();
-
-	std::string output = fs_utils::execute_command_sync("curl -sS -L -m 30 -K {}", config_file);
-
-	std::error_code ec;
-	std::filesystem::remove(config_file, ec);
+	std::string output = perform_http_get(url_);
 
 	if (output.empty()) {
 		return "Success: But received empty response.";

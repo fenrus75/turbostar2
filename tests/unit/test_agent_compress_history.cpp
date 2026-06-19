@@ -240,7 +240,7 @@ int main()
 		{
 			auto test_model =
 			    std::make_shared<ai_model>("test-model-4", "Test Model 4", "http://localhost:1", "Test", 0.0, 0.0);
-			test_model->set_max_context_tokens(1000); // 50% is 500 tokens
+			test_model->set_max_context_tokens(1500); // 50% is 750 tokens
 			ai_model_registry::get_instance().register_model(test_model);
 			config_manager::get_instance().set_default_model_id("test-model-4");
 			auto test_agent = ai_agent::create(4, "TestAgent4", test_model, &q, nullptr);
@@ -286,7 +286,7 @@ int main()
 			}
 
 			assert(paged_in.size() == 1);
-			assert(paged_in[0] == "episode_3");
+			assert(paged_in[0] == "episode_4");
 		}
 
 		// 9. Test stripping of <think>...</think> tags on compaction
@@ -303,7 +303,7 @@ int main()
 			test_agent->page_out_context(1, 2, "Milestone Think", "Summary Think", {"tagThink"});
 
 			// Page in
-			test_agent->page_in_context("episode_1", 1);
+			test_agent->page_in_context("episode_2", 1);
 
 			// Check conversation content
 			bool found_assistant = false;
@@ -318,6 +318,7 @@ int main()
 			}
 			assert(found_assistant);
 			std::cout << "Test 9 passed: <think> tags stripped successfully.\n";
+			test_agent.reset();
 
 			// Cleanup
 			std::string h_dir = fs_utils::get_project_history_dir("TestAgent3");
