@@ -52,7 +52,7 @@ nlohmann::json tool_registry::get_tools_json(bool mutation_possible, const agent
 			continue;
 		}
 
-		if (!validator->is_allowed_for_role(properties.role)) {
+		if (!validator->is_allowed_for_agent(properties)) {
 			continue;
 		}
 
@@ -123,7 +123,7 @@ std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 			continue;
 		}
 
-		if (!validator->is_allowed_for_role(properties.role)) {
+		if (!validator->is_allowed_for_agent(properties)) {
 			continue;
 		}
 
@@ -201,7 +201,7 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (!validator->is_allowed_for_role(ctx.properties.role)) {
+	if (!validator->is_allowed_for_agent(ctx.properties)) {
 		res.error_message =
 		    "Security Violation: Agent role does not permit executing tool '" + name + "'.";
 		return res;

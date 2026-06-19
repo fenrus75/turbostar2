@@ -206,6 +206,10 @@
 
 # done items (move items here on completion)
 
+## 19-06-2026
+- renamed `is_allowed_for_role` in `tool_validator` to `is_allowed_for_agent`, taking `agent_properties` struct as parameter, and moved it from inline to [tool_validator.cpp](file:///home/arjan/git/turbostar2/src/agentlib/tool_validator.cpp).
+- removed the leftover `get_gemini_tools_json` method from the `tool_registry` class and updated the design documentation.
+
 ## 18-06-2026
 - updated the `fs_read_lines` header formatting to print the total number of lines in the file (e.g. `(total X lines)`).
 - implemented forward-scanning semantic boundary heuristics (blank lines, scope closing delimiters, next definition/class/function, Python indentation drops) in the `fs_read_lines` tool to dynamically adjust returned context range.

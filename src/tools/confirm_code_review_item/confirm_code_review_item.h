@@ -41,8 +41,8 @@ public:
 		};
 	}
 
-	bool is_allowed_for_role(agentlib::agent_role role) const override {
-		return role == agentlib::agent_role::verifier;
+	bool is_allowed_for_agent(const agentlib::agent_properties &properties) const override {
+		return properties.role == agentlib::agent_role::verifier;
 	}
 
 protected:

@@ -66,10 +66,10 @@ class perform_code_review_validator : public agentlib::tool_validator
 		    {"required", nlohmann::json::array({"files"})}};
 	}
 
-	bool is_allowed_for_role(agentlib::agent_role role) const override
+	bool is_allowed_for_agent(const agentlib::agent_properties &properties) const override
 	{
 		// Only developer and verifier roles can spawn a review subagent (prevents infinite recursion)
-		return role == agentlib::agent_role::developer || role == agentlib::agent_role::verifier;
+		return properties.role == agentlib::agent_role::developer || properties.role == agentlib::agent_role::verifier;
 	}
 
       protected:

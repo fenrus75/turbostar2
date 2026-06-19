@@ -29,7 +29,7 @@ The agent's role is represented by the `agent_role` enum defined in [agent_role.
 * `verifier`: A verification agent that reviews the code reviewer's findings.
 * `summarizer`: A backend summarization agent (has no tools).
 
-The role is now used primarily for role-based tool restrictions via `tool_validator::is_allowed_for_role(role)`.
+The role is now used primarily for role-based tool restrictions via `tool_validator::is_allowed_for_agent(properties)`.
 
 ### B. Decoupled Read-Only Capability
 The `read_only` boolean indicates if the agent is prohibited from executing state-modifying tools. This capability is decoupled from the role:
@@ -53,7 +53,7 @@ The following flows show how these parameters interact during tool validation an
 When a tool is requested by the model:
 1. `tool_registry::prepare_tool` is called.
 2. **Family Check:** Checks if the tool's family is active (`ctx.is_family_active(family)`). If not, aborts.
-3. **Role Check:** Checks if the tool is allowed for the agent's role (`validator->is_allowed_for_role(ctx.properties.role)`). If not, aborts.
+3. **Agent Check:** Checks if the tool is allowed for the agent's properties (`validator->is_allowed_for_agent(ctx.properties)`). If not, aborts.
 4. **Read-Only Check:** If `ctx.properties.read_only` is true, checks if the tool is pure (`validator->is_pure()`). If not, aborts.
 5. **Plan Mode Check:** If the agent is in Plan Mode:
    * Rejects if tool name is not `exit_plan_mode` and `validator->is_allowed_in_plan_mode(args, ctx)` returns `false`.

@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 #include "tool_context.h"
 #include "llm_tool.h"
-#include "agent_role.h"
+#include "agent_properties.h"
 
 namespace agentlib {
 
@@ -48,14 +48,9 @@ public:
         return is_pure();
     }
 
-    // Indicates if the tool can be executed by the given agent role.
+    // Indicates if the tool can be executed by the given agent properties.
     // By default, summarizers are allowed no tools, while other roles can run any tool.
-    virtual bool is_allowed_for_role(agent_role role) const {
-        if (role == agent_role::summarizer) {
-            return false;
-        }
-        return true;
-    }
+    virtual bool is_allowed_for_agent(const agent_properties &properties) const;
 
     // Non-Virtual Interface (NVI): Enforces state and execution order.
     // Parses and validates args before the tool is allowed to be instantiated.
