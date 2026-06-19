@@ -1057,6 +1057,7 @@ void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction)
 	std::string turn_id = "turn_ui_notif_" + std::to_string(std::rand());
 	auto turn = std::make_shared<system_turn>(turn_id, interaction->get_raw_text(), "ui_notification");
 	turn->set_interaction(interaction);
+	turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 	tx->add_turn(turn);
 
 	curr_ep->add_transaction(tx);
@@ -1096,6 +1097,7 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 				inter = std::make_shared<interaction_user_message>(content);
 			}
 			t->set_interaction(inter);
+			t->set_sequence_number(conversation_->allocate_next_turn_seq());
 			tx->add_turn(t);
 			conversation_->add_transaction(tx);
 		}
@@ -1149,6 +1151,7 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 			auto t = std::make_shared<user_turn>(turn_id, prompt_text);
 			auto inter = std::make_shared<interaction_user_message>(prompt_text);
 			t->set_interaction(inter);
+			t->set_sequence_number(conversation_->allocate_next_turn_seq());
 			tx->add_turn(t);
 			conversation_->add_transaction(tx);
 		}
@@ -1247,6 +1250,7 @@ void ai_agent::start_processing()
 
 			std::string turn_id = "turn_" + std::to_string(std::rand());
 			auto response_turn = std::make_shared<model_response_turn>(turn_id, "", std::nullopt, std::vector<tool_call>{});
+			response_turn->set_sequence_number(self->conversation_->allocate_next_turn_seq());
 			active_tx->add_turn(response_turn);
 
 			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
@@ -1434,6 +1438,7 @@ void ai_agent::start_processing()
 						if (!tool_turn) {
 							std::string tool_turn_id = "turn_" + std::to_string(std::rand());
 							tool_turn = std::make_shared<tool_execution_turn>(tool_turn_id);
+							tool_turn->set_sequence_number(self->conversation_->allocate_next_turn_seq());
 							active_tx->add_turn(tool_turn);
 						}
 					}
@@ -1769,6 +1774,7 @@ void ai_agent::set_conversation_unlocked(const std::vector<message> &c)
 			}
 			if (!tool_turn) {
 				tool_turn = std::make_shared<tool_execution_turn>(turn_id);
+				tool_turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 				if (current_tx) {
 					current_tx->add_turn(tool_turn);
 				}
@@ -1787,6 +1793,7 @@ void ai_agent::set_conversation_unlocked(const std::vector<message> &c)
 		}
 		
 		if (turn && current_tx) {
+			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			current_tx->add_turn(turn);
 		}
 	}
@@ -2022,6 +2029,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 			}
 			if (!tool_turn) {
 				tool_turn = std::make_shared<tool_execution_turn>(turn_id);
+				tool_turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 				if (current_tx) {
 					current_tx->add_turn(tool_turn);
 				}
@@ -2040,6 +2048,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 		}
 
 		if (turn && current_tx) {
+			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			current_tx->add_turn(turn);
 		}
 	}
@@ -2717,6 +2726,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::system_injection);
 			std::string turn_id = "turn_auto_split_" + std::to_string(std::rand());
 			auto turn = std::make_shared<system_turn>(turn_id, content, "episode_archival");
+			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			tx->add_turn(turn);
 			
 			conversation_->add_transaction(tx);
@@ -3174,6 +3184,7 @@ void ai_agent::inject_archived_episodes_summary()
 		auto tx = std::make_shared<Transaction>(tx_id, transaction_type::system_injection);
 		std::string turn_id = "turn_archived_summary_" + std::to_string(std::rand());
 		auto turn = std::make_shared<system_turn>(turn_id, oss.str(), "reactivation_hint");
+		turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 		tx->add_turn(turn);
 
 		if (!curr_ep->get_transactions().empty()) {

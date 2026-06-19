@@ -38,6 +38,10 @@ Conversation (coordinator of active model, settings, and session status)
 * **UI Layer:** Visual presentation is driven by standard **Markdown representations** exported by transactions and turns (`to_markdown()`), or dynamically rendered using a bound `agent_interaction` View-Model.
 * **Active Tool Ownership & Invalidation:**
   * Tool registries, active tool families, and execution states are owned and managed exclusively by `ai_agent`.
+* **Sequence Numbers and Dynamic Querying:**
+  * Every `Turn` has a monotonic sequence number allocated from the `Conversation` (serialized as `sequence_number`).
+  * `Transaction` and `Episode` maintain cached `min_turn` and `max_turn` sequence numbers which are serialized to JSON.
+  * `Conversation::get_turns_since(seq)` provides a fast query vector of all new turns since a specific sequence number, skipping entire episodes or transactions if their `max_turn` is less than or equal to the query index.
   * `Conversation` is a pure data container. When the agent changes active tools/families or modifies history, it calls `conversation->invalidate_history(true)`. The transport layer checks this flag before making requests to determine if it must reset session/thread contexts.
 * **UI Mapping:**
   * A `Transaction` maps 1:1 to a single bordered TUI **Turn Box**.
