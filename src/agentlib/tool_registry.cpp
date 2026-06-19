@@ -61,16 +61,6 @@ nlohmann::json tool_registry::get_tools_json(bool mutation_possible, const agent
 			continue;
 		}
 
-		std::string family = validator->get_family();
-		bool allowed = true;
-		if (!properties.active_families.empty()) {
-			allowed = (std::find(properties.active_families.begin(), properties.active_families.end(), family) != properties.active_families.end());
-		}
-
-		if (!allowed) {
-			continue;
-		}
-
 		std::string desc = validator->get_description();
 		if (validator->is_pure()) {
 			desc += " [Read-Only: Safe for Plan Mode]";
@@ -129,16 +119,6 @@ std::vector<std::shared_ptr<tool_validator>> tool_registry::get_active_tools(
 
 		std::string tool_name = validator->get_name();
 		if (!mutation_possible && (tool_name == "agent_compress_history" || tool_name == "agent_restore_context")) {
-			continue;
-		}
-
-		std::string family = validator->get_family();
-		bool allowed = true;
-		if (!properties.active_families.empty()) {
-			allowed = (std::find(properties.active_families.begin(), properties.active_families.end(), family) != properties.active_families.end());
-		}
-
-		if (!allowed) {
 			continue;
 		}
 

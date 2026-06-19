@@ -223,6 +223,7 @@ int main()
 
 		// Test validation and prepare_tool under inactive family
 		tool_context family_ctx;
+		family_ctx.properties.active_families = {"base"};
 		bool is_active_called = false;
 		family_ctx.is_family_active = [&](const std::string &fam) {
 			is_active_called = true;
@@ -236,6 +237,7 @@ int main()
 
 		// Test validation and prepare_tool under active family
 		is_active_called = false;
+		family_ctx.properties.active_families = {"base", "test_family"};
 		family_ctx.is_family_active = [&](const std::string &fam) {
 			is_active_called = true;
 			return fam == "base" || fam == "test_family";

@@ -3252,6 +3252,13 @@ void ai_agent::set_role(agent_role r)
 	std::lock_guard<std::mutex> lock(properties_mutex_);
 	properties_.role = r;
 	properties_.read_only = (r == agent_role::summarizer);
+	if (r == agent_role::summarizer) {
+		properties_.active_families.clear();
+	} else {
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "base") == properties_.active_families.end()) {
+			properties_.active_families.insert(properties_.active_families.begin(), "base");
+		}
+	}
 }
 
 agent_properties ai_agent::get_properties() const
