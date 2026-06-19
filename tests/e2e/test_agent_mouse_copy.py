@@ -48,45 +48,35 @@ def test_agent_mouse_copy():
             print("LLM did not respond in 30.0s (slow or no local LLM). Skipping test.")
             sys.exit(77)
         
-        # Find which line on the screen contains the prompt
+        # Find which line on the screen contains the assistant response
         target_row = -1
-        for _ in range(20):
-            for idx, line in enumerate(runner.screen.display):
-                if "Hello agent!" in line:
-                    target_row = idx
-                    break
-            if target_row != -1:
+        start_col = -1
+        for idx, line in enumerate(runner.screen.display):
+            if "Hello!" in line:
+                target_row = idx
+                start_col = line.find("Hello!")
                 break
-            # Scroll up: ESC [ < 64 ; x ; y M (Mouse scroll up at x=10, y=10)
-            runner.send_raw_keys(b"\x1b[<64;10;10M")
-            time.sleep(0.1)
-            runner._read_output()
-
-        if target_row == -1:
-            raise AssertionError("Could not find prompt line on screen even after scrolling")
             
-        print(f"Found prompt line at 0-based screen row {target_row}")
+        if target_row == -1:
+            raise AssertionError("Could not find Hello! on screen")
+            
+        print(f"Found Hello! line at 0-based screen row {target_row}, col {start_col}")
         
         # SGR coordinate is 1-based: x_sgr = x_display + 1, y_sgr = y_display + 1
-        # Click at the first character of "Hello agent!".
-        # In the layout:
-        # border: 1 char
-        # prefix: 2 chars
-        # user message prefix: 2 chars ("> ")
-        # So "Hello agent!" starts at 0-based x = 5, which is x_sgr = 6.
-        # The y coordinate is target_row, which is y_sgr = target_row + 1.
         y_sgr = target_row + 1
+        x_start_sgr = start_col + 1
         
-        # Click at 'H': x_sgr = 6
-        runner.send_raw_keys(f"\x1b[<0;6;{y_sgr}M".encode())
+        # Click at 'H'
+        runner.send_raw_keys(f"\x1b[<0;{x_start_sgr};{y_sgr}M".encode())
         time.sleep(0.05)
         
-        # Drag to after '!': length is 12, so end x_sgr = 6 + 12 = 18
-        runner.send_raw_keys(f"\x1b[<32;18;{y_sgr}M".encode())
+        # Drag to after '!': length is 6, so end x_sgr = x_start_sgr + 6
+        x_end_sgr = x_start_sgr + 6
+        runner.send_raw_keys(f"\x1b[<32;{x_end_sgr};{y_sgr}M".encode())
         time.sleep(0.05)
         
-        # Release mouse: x_sgr = 18
-        runner.send_raw_keys(f"\x1b[<0;18;{y_sgr}m".encode())
+        # Release mouse
+        runner.send_raw_keys(f"\x1b[<0;{x_end_sgr};{y_sgr}m".encode())
         time.sleep(0.1)
         
         # 3. Quit editor cleanly, discarding changes
@@ -96,8 +86,8 @@ def test_agent_mouse_copy():
         runner.wait(timeout=5)
         
         # 4. Verify that the clipboard OSC 52 sequence was output
-        # Base64 for "Hello agent!" is "SGVsbG8gYWdlbnQh".
-        expected_seq = b"\x1b]52;c;SGVsbG8gYWdlbnQh\x07"
+        # Base64 for "Hello!" is "SGVsbG8h".
+        expected_seq = b"\x1b]52;c;SGVsbG8h\x07"
         if expected_seq not in runner.captured_bytes:
             print(f"Captured bytes count: {len(runner.captured_bytes)}")
             print(f"Last 200 captured bytes: {runner.captured_bytes[-200:]}")
