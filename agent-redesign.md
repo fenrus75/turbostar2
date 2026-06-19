@@ -29,6 +29,31 @@ Conversation (coordinator of active model, settings, and session status)
 
 ---
 
+## Telemetry & Time Tracking
+
+To track execution latency (e.g. inference time, compilation durations) and calculate chronological spans, every layer in the hierarchy supports the `time_range` interface.
+
+```cpp
+namespace agentlib {
+
+struct time_range {
+    uint64_t start_time{0}; // Unix timestamp (seconds or milliseconds) when event/processing started
+    uint64_t end_time{0};   // Unix timestamp when event/processing finished or last updated
+};
+
+} // namespace agentlib
+```
+
+### Time Accumulation Rules:
+* **Turn Layer:** 
+  * `start_time` is set when the first token arrives (or gets sent).
+  * `end_time` begins equal to `start_time` (e.g. for one-shot events) and is updated on each streaming append or log flush. The difference (`end_time - start_time`) represents the exact duration of compilation, inference, or user editing.
+* **Container Layers (Transaction, Episode, Conversation):**
+  * `start_time` is recursively calculated as `min(child.start_time)`.
+  * `end_time` is recursively calculated as `max(child.end_time)`.
+
+---
+
 ## Class Interfaces
 
 ### A. Turn (`agentlib::Turn`)
@@ -64,6 +89,7 @@ public:
     void set_interaction(std::shared_ptr<agent_interaction> view) { interaction_ = view; }
 
     // Streaming updates: appends incremental token chunks (for text or reasoning streams).
+    // Updates end_time of the time_range on each append.
     virtual void append_content(const std::string& chunk) {
         content_ += chunk;
         if (interaction_) {
@@ -71,12 +97,17 @@ public:
         }
     }
 
+    // Telemetry and sizing
+    virtual int estimate_token_count(int compaction_level) const = 0;
+    virtual time_range get_time_range() const = 0;
+
     // Serialization for disk storage
     virtual nlohmann::json serialize() const = 0;
 
 protected:
     std::string content_;
     std::shared_ptr<agent_interaction> interaction_;
+    time_range range_;
 
     // Lossless Roundtripping: Holds any unmapped JSON keys found during API response/history parsing.
     // Kept out of core C++ data structures to save memory, but merged back during serialization.
@@ -93,6 +124,7 @@ protected:
 * **Data Fields:**
   * `std::string content`
   * `std::string purpose` (e.g. `"base"`, `"skills"`, `"tool_family"`)
+* **estimate_token_count:** Returns exact or char-based approximation (`content.size() / 4`). Unchanged across compaction levels.
 * **to_messages:**
   ```json
   [ { "role": "system", "content": "<content>" } ]
@@ -109,6 +141,7 @@ protected:
 * **Data Fields:**
   * `std::string content`
   * `std::optional<std::string> name` (optional developer name)
+* **estimate_token_count:** Returns char-based approximation (`content.size() / 4`). Unchanged across compaction levels.
 * **to_messages:**
   ```json
   [ { "role": "user", "content": "<content>", "name": "<name>" } ]
@@ -126,6 +159,10 @@ protected:
   * `std::optional<std::string> reasoning_content` (thinking content)
   * `std::vector<tool_call> tool_calls` (calls to execute)
   * `std::string response_id` (chaining tracking identifier)
+* **estimate_token_count:**
+  * *Level 0 (Current):* Calculates tokens for both `content` and `reasoning_content`.
+  * *Level 1:* Strips `reasoning_content` (approximate tokens subtraction).
+  * *Level 2:* Strips both `reasoning_content` and `content` (returns 0 or minimal tool metadata overhead) if `tool_calls` is non-empty.
 * **to_messages:**
   * Maps role to `"assistant"`. 
   * *Compaction Level 1:* Strips `reasoning_content` and `<think>` tags from `content`.
@@ -147,6 +184,7 @@ protected:
 * **Data Fields:**
   * `struct tool_result { std::string call_id; std::string name; std::string content; bool is_error; }`
   * `std::vector<tool_result> results`
+* **estimate_token_count:** Sum of tool results content. Specialized tool subclasses can override this to reflect compaction (e.g. compiler turn output filtering).
 * **to_messages:** Maps results into individual tool-role messages:
   ```json
   [ { "role": "tool", "tool_call_id": "<call_id>", "content": "<content>" } ]
@@ -165,6 +203,7 @@ protected:
 * **Purpose:** Captures developer-facing execution errors (safety blocks, command execution timeouts) that should not be transmitted to the LLM but need to be visually logged.
 * **Data Fields:**
   * `std::string error_message`
+* **estimate_token_count:** Returns 0 (not sent to LLM).
 * **to_messages:** Returns an empty vector.
 * **to_markdown:**
   ```markdown
@@ -204,6 +243,27 @@ public:
     void add_turn(std::shared_ptr<Turn> turn);
     const std::vector<std::shared_ptr<Turn>>& get_turns() const;
 
+    // Telemetry and sizing: Sum of children estimated tokens
+    int estimate_token_count(int compaction_level) const {
+        int sum = 0;
+        for (const auto& turn : turns_) {
+            sum += turn->estimate_token_count(compaction_level);
+        }
+        return sum;
+    }
+
+    // Chronological span: min/max of children range bounds
+    time_range get_time_range() const {
+        if (turns_.empty()) return {};
+        time_range consolidated{ UINT64_MAX, 0 };
+        for (const auto& turn : turns_) {
+            time_range r = turn->get_time_range();
+            consolidated.start_time = std::min(consolidated.start_time, r.start_time);
+            consolidated.end_time = std::max(consolidated.end_time, r.end_time);
+        }
+        return consolidated;
+    }
+
     // Serialization
     nlohmann::json serialize() const;
     static std::shared_ptr<Transaction> deserialize(const nlohmann::json& j);
@@ -235,6 +295,33 @@ public:
     // Transaction collection
     void add_transaction(std::shared_ptr<Transaction> transaction);
     const std::vector<std::shared_ptr<Transaction>>& get_transactions() const;
+
+    // Sizing telemetry:
+    // - If level == 99 (archived): returns size of the archived summary string.
+    // - Otherwise: sum of child transaction tokens at compaction_level_ state.
+    int estimate_token_count(int compaction_level) const {
+        if (compaction_level_ == 99) {
+            // Estimate size of "[SYSTEM MEMORY: Archived Episode]..." summary instruction
+            return static_cast<int>((title_.size() + summary_.size()) / 4 + 50);
+        }
+        int sum = 0;
+        for (const auto& tx : transactions_) {
+            sum += tx->estimate_token_count(compaction_level);
+        }
+        return sum;
+    }
+
+    // Chronological span: min/max of transaction range bounds
+    time_range get_time_range() const {
+        if (transactions_.empty()) return {};
+        time_range consolidated{ UINT64_MAX, 0 };
+        for (const auto& tx : transactions_) {
+            time_range r = tx->get_time_range();
+            consolidated.start_time = std::min(consolidated.start_time, r.start_time);
+            consolidated.end_time = std::max(consolidated.end_time, r.end_time);
+        }
+        return consolidated;
+    }
 
     // Aggregates LLM messages for this episode:
     // - If level == 99 (archived): returns a single system message summary.
@@ -272,6 +359,27 @@ public:
     // Re-seeding / World View
     // Returns active editor workspace context (open files, compiler diagnostics) to rebuild system prompt.
     std::string get_current_world_view() const;
+
+    // Sizing telemetry: Sum of episode tokens based on their active compaction level settings
+    int estimate_token_count() const {
+        int sum = 0;
+        for (const auto& ep : episodes_) {
+            sum += ep->estimate_token_count(ep->get_compaction_level());
+        }
+        return sum;
+    }
+
+    // Chronological span: min/max of active episode range bounds
+    time_range get_time_range() const {
+        if (episodes_.empty()) return {};
+        time_range consolidated{ UINT64_MAX, 0 };
+        for (const auto& ep : episodes_) {
+            time_range r = ep->get_time_range();
+            consolidated.start_time = std::min(consolidated.start_time, r.start_time);
+            consolidated.end_time = std::max(consolidated.end_time, r.end_time);
+        }
+        return consolidated;
+    }
 
     // Appending inputs
     void add_transaction(std::shared_ptr<Transaction> transaction);
@@ -370,13 +478,6 @@ public:
         content_ += chunk;
         invalidate_cache();
     }
-
-protected:
-    std::string content_;
-    
-    // Invalidates visual line-wrapping and rendering cache, triggering NCurses TUI repaint
-    virtual void invalidate_cache() = 0;
-};
 
 } // namespace agentlib
 ```
