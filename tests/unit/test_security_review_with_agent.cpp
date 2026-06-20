@@ -7,6 +7,7 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/codereview_manager.h"
+#include "../../src/config_manager.h"
 #include "../../src/event_queue.h"
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
@@ -47,7 +48,10 @@ void test_security_review_with_agent_execution()
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::write);
 	ctx.queue = &q;
 
-	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost:1", "Test", 0.0, 0.0);
+	ai_model_registry::get_instance().register_model(model);
+	config_manager::get_instance().set_task_model_id("code_reviewer", "test-model");
+
 	auto agent = ai_agent::create(1, "DeveloperAgent", model, &q, nullptr);
 	agent->set_role(agent_role::developer);
 	ctx.active_agent = agent.get();

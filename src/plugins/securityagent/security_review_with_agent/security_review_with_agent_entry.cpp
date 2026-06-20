@@ -42,7 +42,7 @@ You are executing in an automated, headless environment. Note the following comm
 - **No Interactive Input**: The user cannot see your intermediate thoughts or outputs, nor can they provide interactive feedback during execution.
 - **No Questions**: You MUST NOT ask the user questions, request feedback, or prompt for interactive decisions (e.g., asking if you should create formal code review items for findings). You must make all review and filing decisions autonomously.
 - **Visible Channels**: The *only* outputs visible to the user are:
-  1. The contents of the configured output file (if provided).
+  1. The contents of the configured output file (if provided). You MUST write your findings to this file using the `fs_write_file` tool (or update/modify it using `fs_replace_content`). Merely outputting findings in your text response is NOT sufficient because the user cannot see it.
   2. Any items filed or updated via the `create_code_review_item` and `update_code_review_item` tools.
   3. The final result string passed as arguments to the `agent_report_final_result` tool.
 
@@ -78,7 +78,7 @@ You are allowed to read any related files (such as headers, imports, or referenc
 # Concluding Your Review
 
 MANDATORY STEP: At the end of the code review task, you **must** use the `agent_report_final_result` tool to indicate your completion and report your final summary (including the total count of security issues identified).
-- Reminder: You MUST NOT ask the user any questions (e.g. asking if you should create formal code review items). Do NOT wait for user input, just complete the review and invoke the `agent_report_final_result` tool.)raw";
+- Reminder: You MUST NOT ask the user any questions (e.g. asking if you should create formal code review items). Do NOT wait for user input, just complete the review, write your final findings to the output file using `fs_write_file`, and invoke the `agent_report_final_result` tool.)raw";
 
 security_review_with_agent_tool::security_review_with_agent_tool(security_review_with_agent_args args)
     : agentlib::llm_tool_action("Performing security code review"), args_(std::move(args))
@@ -137,10 +137,13 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	std::string reporting_instr;
 	if (!args_.result_file.empty()) {
 		reporting_instr = std::format(
-		    "**After each phase**, write your findings to the configured output file `{}` by updating it.\n"
+		    "**After each phase**, you MUST write/append your findings to the configured output file `{}` using the `fs_write_file` tool "
+		    "(or update it using the `fs_replace_content` tool).\n"
+		    "CRITICAL: Do NOT just output the findings in your conversation text. You MUST use the file-writing tools (`fs_write_file`) "
+		    "to actually write the findings to the file `{}`. If the file does not exist yet, create it with your initial findings. "
 		    "Avoid reporting issues already identified in earlier phases as duplicates. If a previously "
-		    "flagged issue is encountered in a later phase, update the existing entry with any new details or findings.",
-		    args_.result_file);
+		    "flagged issue is encountered in a later phase, update the existing entry in the file with any new details or findings.",
+		    args_.result_file, args_.result_file);
 	} else {
 		reporting_instr = "**After each phase**, use the `create_code_review_item` tool to report any items found in this phase.";
 	}
