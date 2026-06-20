@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "../../agentlib/llm_tool_action.h"
+#include "agentlib/llm_tool_action.h"
 
 namespace tools
 {

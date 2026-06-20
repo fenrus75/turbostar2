@@ -36,7 +36,7 @@ class hex_inspect_range_validator : public agentlib::tool_validator
 
 	std::string get_family() const override
 	{
-		return "x86";
+		return "base";
 	}
 
 	nlohmann::json get_parameters_schema() const override
