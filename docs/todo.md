@@ -56,8 +56,6 @@
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
-	- should be plugins (.so files) that we dlopen if we do this right
-		- need to sort a "make install" path that we pass in -- we want that already really for our libturbocatch.so so this is techdebt
 	- should be able to suggest model names/capabilities to be run in -- say a vision model for image processing tasks
 	- should be able to register /slash commands
 	- skills that plug into specific subagent types only
@@ -209,6 +207,7 @@
 # done items (move items here on completion)
 
 ## 20-06-2026
+- refactored `ai_agent.cpp` to query the tool activation reasons dynamically from the `tool_registry` instead of using a hardcoded string, allowing plugins to register custom reasons via `register_tool_family`.
 - implemented explicit `plugin_unload` hook lookup/execution inside `plugin_loader::~plugin_loader()` before unloading plugins with `dlclose()`.
 - converted `asm86` plugins from auto-registering static variables to programmatic entry points and explicit unregistration functions (`register_x86_assemble()`, `register_x86_disassemble()`, etc.).
 - resolved symbol duplication and static initializer conflicts in dynamic plugins by removing static dependencies (`core_dep`, `agent_dep`, `tools_dep`) from shared modules and utilizing `export_dynamic: true` on both the `turbostar` and `test_pluginloader` executables.

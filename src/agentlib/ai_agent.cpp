@@ -1,4 +1,5 @@
 #include "ai_agent.h"
+#include "agentlib/tool_registry.h"
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -820,10 +821,8 @@ void ai_agent::update_system_prompt_with_families()
 				    "| Tool Family | When to Activate |\n"
 				    "| --- | --- |\n";
 			for (const auto &fam : inactive_families) {
-				std::string reason;
-				if (fam == "x86") {
-					reason = "Activate when working with x86 assembly";
-				} else {
+				std::string reason = tool_registry::get_instance().get_tool_family_reason(fam);
+				if (reason.empty()) {
 					std::string cached =
 					    config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
 					if (cached.empty()) {

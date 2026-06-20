@@ -1,3 +1,5 @@
+#include "agentlib/tool_registry.h"
+
 extern "C" {
 
 const char *plugin_name(void)
@@ -30,6 +32,7 @@ void plugin_run(void)
 	register_x86_disassemble();
 	register_elf_list_sections();
 	register_elf_list_symbols();
+	agentlib::tool_registry::get_instance().register_tool_family("x86", "Activate when working with x86 assembly");
 }
 
 /*
@@ -41,6 +44,7 @@ void plugin_unload(void)
 	unregister_x86_disassemble();
 	unregister_elf_list_sections();
 	unregister_elf_list_symbols();
+	agentlib::tool_registry::get_instance().unregister_tool_family("x86");
 }
 
 }

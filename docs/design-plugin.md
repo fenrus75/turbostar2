@@ -93,6 +93,26 @@ void unregister_x86_assemble(void)
 }
 ```
 
+### Tool Family Activation Reasons
+
+Plugins can also register and unregister activation reasons for their custom tool families. This allows the host application to dynamically display activation guidance (e.g. in the system prompt) when a family is inactive, rather than hardcoding it in the host binary.
+
+To register a tool family reason, call `tool_registry::get_instance().register_tool_family(family, reason)` in `plugin_run` and `unregister_tool_family(family)` in `plugin_unload`.
+
+```cpp
+void plugin_run(void)
+{
+	...
+	agentlib::tool_registry::get_instance().register_tool_family("x86", "Activate when working with x86 assembly");
+}
+
+void plugin_unload(void)
+{
+	...
+	agentlib::tool_registry::get_instance().unregister_tool_family("x86");
+}
+```
+
 ---
 
 ## 4. Symbol Resolution and Linkage Rules

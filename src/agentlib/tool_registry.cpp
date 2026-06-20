@@ -28,6 +28,28 @@ void tool_registry::unregister_validator(const std::string &name)
 	validator_factories_.erase(name);
 }
 
+void tool_registry::register_tool_family(const std::string &name, const std::string &reason)
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	family_reasons_[name] = reason;
+}
+
+void tool_registry::unregister_tool_family(const std::string &name)
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	family_reasons_.erase(name);
+}
+
+std::string tool_registry::get_tool_family_reason(const std::string &name) const
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	auto it = family_reasons_.find(name);
+	if (it != family_reasons_.end()) {
+		return it->second;
+	}
+	return "";
+}
+
 tool_registry::~tool_registry()
 {
 }

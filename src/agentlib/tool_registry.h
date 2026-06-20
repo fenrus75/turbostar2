@@ -49,15 +49,21 @@ class tool_registry
 	// Executes the two-stage security and execution pipeline (Legacy / Convenience)
 	std::string execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
 
+	// Used to register and query activation reasons for tool families
+	void register_tool_family(const std::string &name, const std::string &reason);
+	void unregister_tool_family(const std::string &name);
+	std::string get_tool_family_reason(const std::string &name) const;
+
       private:
 	tool_registry() = default;
 	std::map<std::string, validator_factory> validator_factories_;
+	std::map<std::string, std::string> family_reasons_;
 
 	/*
-	 * mutex_ protects the validator_factories_ map which registers LLM agent tools.
+	 * mutex_ protects the validator_factories_ map and family_reasons_ map.
 	 *
 	 * Locking Rules:
-	 * - Held briefly during tool registration, unregistration, tool list querying,
+	 * - Held briefly during tool/family registration, unregistration, tool list querying,
 	 *   and tool preparation lookup.
 	 * - Declared as recursive_mutex because some validator descriptions (such as
 	 *   activate_tool_family_validator::get_description) query the registry back

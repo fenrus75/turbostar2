@@ -17,6 +17,7 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 	register_x86_disassemble();
+	tool_registry::get_instance().register_tool_family("x86", "Activate when working with x86 assembly");
 	project_manager::get_instance().initialize();
 
 

@@ -47,6 +47,13 @@ int main()
 	// Initialize tool registry and context
 	tool_registry &registry = tool_registry::get_instance();
 
+	// Test family reason registration
+	assert(registry.get_tool_family_reason("my_test_family").empty());
+	registry.register_tool_family("my_test_family", "reason for my test family");
+	assert(registry.get_tool_family_reason("my_test_family") == "reason for my test family");
+	registry.unregister_tool_family("my_test_family");
+	assert(registry.get_tool_family_reason("my_test_family").empty());
+
 	// Register our mock tool so "my_test_family" is registered
 	registry.register_validator([]() { return std::make_unique<test_tool_validator>(); });
 
