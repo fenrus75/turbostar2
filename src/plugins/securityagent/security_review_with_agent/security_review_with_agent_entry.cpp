@@ -151,12 +151,26 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 
 	// 5. Construct files to review list
 	std::string files_list_str;
-	for (const auto &f : args_.files) {
-		files_list_str += std::format("- {}\n", f);
+	std::string files_comma_str;
+	for (size_t i = 0; i < args_.files.size(); ++i) {
+		files_list_str += std::format("- {}\n", args_.files[i]);
+		if (i > 0) {
+			files_comma_str += ", ";
+		}
+		files_comma_str += args_.files[i];
 	}
 
-	// 6. Construct extra instructions
-	std::string extra_instr = args_.instructions.empty() ? "No special instructions provided." : args_.instructions;
+	// 6. Construct extra instructions. If the caller omitted instructions, we default to
+	// directing the agent to review the target files and save the output in the configured
+	// result file (if any). This provides a fallback prompt that outlines its clear objective.
+	std::string extra_instr = args_.instructions;
+	if (extra_instr.empty()) {
+		if (!args_.result_file.empty()) {
+			extra_instr = std::format("Review {} for security and place the result in `{}`.", files_comma_str, args_.result_file);
+		} else {
+			extra_instr = std::format("Review {} for security.", files_comma_str);
+		}
+	}
 
 	// 7. Inject template variables into system prompt
 	std::string system_prompt = SECURITY_SCAN_PROMPT_TEMPLATE;
@@ -169,9 +183,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	subagent->inject_context("system", system_prompt);
 
 	std::string task_prompt = std::format("Please perform a security code review on the following files:\n{}", files_list_str);
-	if (!args_.instructions.empty()) {
-		task_prompt += std::format("\nSpecific focus / instructions:\n{}", args_.instructions);
-	}
+	task_prompt += std::format("\nSpecific focus / instructions:\n{}", extra_instr);
 	subagent->submit_prompt(task_prompt);
 
 	// 9. Synchronously wait for the subagent to finish
