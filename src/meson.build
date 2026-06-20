@@ -34,8 +34,10 @@ core_sources = files(
   'history_manager.cpp',
   'utf8.cpp',
   'crash_handler.cpp',
-  'ansi.cpp'
+  'ansi.cpp',
+  'pluginloader.cpp'
 )
+
 
 
 agentlib_sources = files(
@@ -137,6 +139,7 @@ help_text_h = custom_target('help_text.h',
 libturbostar_core = static_library('turbostar_core',
   core_sources,
   include_directories : inc,
+  cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir)],
   dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep])
 
 libagentlib = static_library('agentlib',

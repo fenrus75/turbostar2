@@ -77,6 +77,16 @@ if zydis_found
   add_project_arguments('-DHAVE_ZYDIS=1', language : 'cpp')
 endif
 
+libdir = get_option('libdir')
+prefix = get_option('prefix')
+
+# Ensure we have the full, absolute path
+if libdir.startswith('/')
+  plugin_dir = libdir / 'turbostar' / 'plugins'
+else
+  plugin_dir = prefix / libdir / 'turbostar' / 'plugins'
+endif
+
 subdir('src')
 
 libturbocatch = shared_library('turbocatch',

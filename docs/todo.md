@@ -209,6 +209,7 @@
 # done items (move items here on completion)
 
 ## 19-06-2026
+- defined the `plugin_dir` absolute path resolution in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L79-L88) and propagated the `PLUGIN_DIR` macro definition as `cpp_args` to `libturbostar_core` in [src/meson.build](file:///home/arjan/git/turbostar2/src/meson.build#L142-L144), introducing an initial stub plugin loader in [src/pluginloader.cpp](file:///home/arjan/git/turbostar2/src/pluginloader.cpp) and [src/pluginloader.h](file:///home/arjan/git/turbostar2/src/pluginloader.h).
 - added the `src/plugins` subdirectory with a dummy plugin (`src/plugins/dummy/plugin.cpp`) defining an `extern "C" void plugin_run(void)` entry point, and registered it in the build files [meson.build](file:///home/arjan/git/turbostar2/meson.build) and [src/meson.build](file:///home/arjan/git/turbostar2/src/meson.build).
 - linked the main `turbostar` application to the `dl` library dependency (`dl_dep`) in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L57-L61).
 - enabled `export_dynamic` on the `turbostar` executable target in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L90-L94) to support dynamic plugin loading.
