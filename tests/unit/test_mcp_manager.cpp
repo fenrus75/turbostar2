@@ -249,7 +249,9 @@ if __name__ == "__main__":
 	assert(s_mock->get_startup_time_ms() >= 0);
 
 	// Schema serialization check (get_tools_json should map colons to __)
-	nlohmann::json tools_json = tool_registry::get_instance().get_tools_json();
+	agent_properties props;
+	props.active_families = {"base", "mock-python-server"};
+	nlohmann::json tools_json = tool_registry::get_instance().get_tools_json(true, props);
 	std::cout << "Discovered tools count: " << tools_json.size() << std::endl;
 	bool found_serialized_tool = false;
 	for (const auto &t : tools_json) {
@@ -263,6 +265,8 @@ if __name__ == "__main__":
 
 	// Tool execution check
 	tool_context ctx;
+	ctx.properties.active_families = {"base", "mock-python-server"};
+	ctx.is_family_active = [](const std::string &) { return true; };
 	std::string result =
 	    tool_registry::get_instance().execute_tool("mcp:mock-python-server:mock_tool", "{\"msg\": \"antigravity\"}", ctx);
 	std::cout << "Tool execution output: " << result << std::endl;

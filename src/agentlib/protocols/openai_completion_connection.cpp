@@ -141,10 +141,13 @@ void openai_completion_connection::send_prompt(
 	}
 
 	std::string line_buffer;
+	std::string full_response_buffer;
 	llm_usage final_usage{};
 	std::string final_response_id = "";
+	bool parsed_sse = false;
 
 	bool success = transport_->post_stream(endpoint, body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
+		full_response_buffer.append(data, len);
 		line_buffer.append(data, len);
 
 		size_t pos;
@@ -177,6 +180,7 @@ void openai_completion_connection::send_prompt(
 					}
 
 					if (chunk.contains("choices") && !chunk["choices"].empty()) {
+						parsed_sse = true;
 						auto choice = chunk["choices"][0];
 						if (choice.contains("delta")) {
 							auto d = choice["delta"];
@@ -221,6 +225,62 @@ void openai_completion_connection::send_prompt(
 		stream_event err_event{ stream_event::event_type::error, err, {}, {}, "" };
 		callback(err_event);
 	} else {
+		if (!parsed_sse && !full_response_buffer.empty()) {
+			try {
+				nlohmann::json chunk = nlohmann::json::parse(full_response_buffer);
+				if (chunk.contains("error") && chunk["error"].is_object() && chunk["error"].contains("message")) {
+					std::string err_msg = chunk["error"]["message"].get<std::string>();
+					stream_event err_event{ stream_event::event_type::error, err_msg, {}, {}, "" };
+					callback(err_event);
+					return;
+				}
+				if (chunk.contains("id") && chunk["id"].is_string()) {
+					final_response_id = chunk["id"].get<std::string>();
+				}
+				if (chunk.contains("usage") && !chunk["usage"].is_null()) {
+					auto usage = chunk["usage"];
+					if (usage.contains("prompt_tokens"))
+						final_usage.prompt_tokens = usage["prompt_tokens"].get<int>();
+					if (usage.contains("completion_tokens"))
+						final_usage.completion_tokens = usage["completion_tokens"].get<int>();
+					if (usage.contains("total_tokens"))
+						final_usage.total_tokens = usage["total_tokens"].get<int>();
+				}
+				if (chunk.contains("choices") && !chunk["choices"].empty()) {
+					auto choice = chunk["choices"][0];
+					if (choice.contains("message")) {
+						auto msg = choice["message"];
+						std::string content;
+						std::string reasoning_content;
+						std::vector<tool_call> tool_calls;
+
+						if (msg.contains("content") && !msg["content"].is_null()) {
+							content = msg["content"].get<std::string>();
+						}
+						if (msg.contains("reasoning_content") && !msg["reasoning_content"].is_null()) {
+							reasoning_content = msg["reasoning_content"].get<std::string>();
+						}
+						if (msg.contains("tool_calls")) {
+							tool_calls = msg["tool_calls"].get<std::vector<tool_call>>();
+						}
+						if (!content.empty()) {
+							stream_event event{ stream_event::event_type::content_chunk, content, {}, {}, final_response_id };
+							callback(event);
+						}
+						if (!reasoning_content.empty()) {
+							stream_event event{ stream_event::event_type::reasoning_chunk, reasoning_content, {}, {}, final_response_id };
+							callback(event);
+						}
+						if (!tool_calls.empty()) {
+							stream_event event{ stream_event::event_type::tool_call_delta, "", tool_calls, {}, final_response_id };
+							callback(event);
+						}
+					}
+				}
+			} catch (...) {
+			}
+		}
+
 		stream_event completed_event{ stream_event::event_type::completed, "", {}, final_usage, final_response_id };
 		callback(completed_event);
 	}

@@ -17,6 +17,7 @@ int main()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	ctx.properties.active_families = {"base", "x86"};
 
 	std::string project_root = project_manager::get_instance().get_project_root();
 	ctx.fs_security.set_working_directory(project_root);

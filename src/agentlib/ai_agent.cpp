@@ -789,17 +789,25 @@ void ai_agent::update_system_prompt_with_families()
 		// Rebuild the system prompt content
 		std::string families_str;
 		auto families = get_active_tool_families();
-		for (size_t i = 0; i < families.size(); ++i) {
-			if (i > 0) {
+		bool first_fam = true;
+		for (const auto &fam : families) {
+			if (fam.starts_with(':')) {
+				continue;
+			}
+			if (!first_fam) {
 				families_str += ", ";
 			}
-			families_str += std::format("'{}'", families[i]);
+			families_str += std::format("'{}'", fam);
+			first_fam = false;
 		}
 
 		std::string table_str;
 		auto registered_families = tool_registry::get_instance().get_all_registered_families();
 		std::vector<std::string> inactive_families;
 		for (const auto &fam : registered_families) {
+			if (fam.starts_with(':')) {
+				continue;
+			}
 			if (fam != "base" && !is_tool_family_active(fam)) {
 				inactive_families.push_back(fam);
 			}
@@ -1479,6 +1487,7 @@ void ai_agent::start_processing()
 									   std::chrono::system_clock::now().time_since_epoch())
 									   .count();
 					} else {
+						ctx.properties = self->get_properties();
 						ctx.tool_call_id = call.id;
 						auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
 

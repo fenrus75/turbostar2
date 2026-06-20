@@ -88,6 +88,8 @@ int main(int argc, char **argv)
 	auto model = std::make_shared<ai_model>(default_model_id, default_name, url, "CLI Test", cost_tx, cost_rx, api_key, default_type, 250000, cost_type);
 	auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
 	ctx.active_agent = test_agent.get();
+	ctx.properties = test_agent->get_properties();
+	ctx.is_family_active = [&](const std::string &family) { return test_agent->is_tool_family_active(family); };
 
 	agentlib::skill_manager::get_instance().initialize();
 	
@@ -154,6 +156,7 @@ int main(int argc, char **argv)
 								  "(which reads lines {} - {}). Please refer to the output of that tool call for the content.",
 								  parent_id, p_start, p_end);
 				} else {
+					ctx.properties = test_agent->get_properties();
 					tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
 				}
 				
