@@ -54,7 +54,7 @@ public:
 	) = 0;
 
 	virtual bool supports_compaction() const { return false; }
-	virtual std::string compact_response(const std::string& previous_response_id, std::string* error_msg) {
+	virtual std::string compact_response(const std::string& /*previous_response_id*/, std::string* error_msg) {
 		if (error_msg) {
 			*error_msg = "Compaction not supported by this connection type.";
 		}

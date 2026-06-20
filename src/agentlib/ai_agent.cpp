@@ -1190,7 +1190,6 @@ void ai_agent::start_processing()
 
 	std::thread([self = shared_from_this()]() {
 		event_logger::get_instance().log("Thread started: ai_agent main loop ({})", self->id_);
-		size_t last_synced_index = 0;
 		std::vector<message> convo;
 
 		auto &registry = tool_registry::get_instance();
@@ -1264,10 +1263,6 @@ void ai_agent::start_processing()
 			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
 			std::shared_ptr<interaction_llm_response> current_response = nullptr;
 			std::vector<tool_call> accumulated_tool_calls;
-
-			auto start_time = std::chrono::steady_clock::now();
-			auto start_timestamp =
-			    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 			auto props = self->get_properties();
 			props.active_families = self->get_active_tool_families();
@@ -1434,9 +1429,6 @@ void ai_agent::start_processing()
 					bool is_merged = (merged_to_parent.find(call.id) != merged_to_parent.end());
 					std::string tool_result;
 					std::shared_ptr<agent_interaction> custom_interaction;
-					long long tool_start_timestamp = 0;
-					long long tool_duration_ms = 0;
-
 					std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
 					{
 						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
@@ -1481,10 +1473,6 @@ void ai_agent::start_processing()
 								self->global_queue_->push(tool_ev);
 							}
 						}
-
-						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-									   std::chrono::system_clock::now().time_since_epoch())
-									   .count();
 					} else {
 						ctx.properties = self->get_properties();
 						ctx.tool_call_id = call.id;
@@ -1509,11 +1497,6 @@ void ai_agent::start_processing()
 							}
 						}
 
-						tool_start_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-									   std::chrono::system_clock::now().time_since_epoch())
-									   .count();
-						auto tool_start_time = std::chrono::steady_clock::now();
-
 						if (!prep.error_message.empty()) {
 							tool_result = prep.error_message;
 						} else {
@@ -1523,11 +1506,6 @@ void ai_agent::start_processing()
 								tool_result = "Execution Error: " + std::string(e.what());
 							}
 						}
-
-						auto tool_end_time = std::chrono::steady_clock::now();
-						tool_duration_ms =
-						    std::chrono::duration_cast<std::chrono::milliseconds>(tool_end_time - tool_start_time)
-							.count();
 					}
 
 					std::string result_preview = tool_result;
