@@ -180,5 +180,7 @@ tools_sources = files(
   'get_code_review_item/get_code_review_item_entry.cpp',
   'get_code_review_item/get_code_review_item_security.cpp',
   'perform_code_review/perform_code_review_entry.cpp',
-  'perform_code_review/perform_code_review_security.cpp'
+  'perform_code_review/perform_code_review_security.cpp',
+  'security_review_with_agent/security_review_with_agent_entry.cpp',
+  'security_review_with_agent/security_review_with_agent_security.cpp'
 )

@@ -591,3 +591,10 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Retrieves the full JSON details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.
 *   **Arguments:**
     *   `id` *(integer, required)*: The unique ID of the code review item.
+
+### `security_review_with_agent`
+*   **Description:** Spawns a dedicated security code review subagent (equipped with security scanning tools) to perform an audit of a set of files.
+*   **Arguments:**
+    *   `files` *(array of strings, required)*: List of file paths relative to the project root to perform security code review on.
+    *   `instructions` *(string, optional)*: Optional custom instructions or specific focus areas for the security agent.
+    *   `result_file` *(string, optional)*: Optional file path relative to project root where the final markdown findings will be written.

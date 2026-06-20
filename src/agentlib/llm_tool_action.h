@@ -12,6 +12,7 @@ namespace agentlib {
 | ------------ | ---------------------------------------------------- | 
 | fs_glob_tool | src/tools/fs_glob/fs_glob.h                          |
 | fs_man_tool   | src/tools/fs_man/fs_man.h                            |
+| security_review_with_agent_tool | src/tools/security_review_with_agent/security_review_with_agent.h |
 
 */
 class llm_tool_action : public llm_tool {

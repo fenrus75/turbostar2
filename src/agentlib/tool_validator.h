@@ -21,6 +21,7 @@ namespace agentlib {
 | resolve_code_review_item_validator | src/tools/resolve_code_review_item/resolve_code_review_item.h |
 | list_code_review_items_validator   | src/tools/list_code_review_items/list_code_review_items.h   |
 | get_code_review_item_validator     | src/tools/get_code_review_item/get_code_review_item.h       |
+| security_review_with_agent_validator | src/tools/security_review_with_agent/security_review_with_agent.h |
 
 */
 class tool_validator {

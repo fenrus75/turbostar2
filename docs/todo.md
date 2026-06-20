@@ -1,4 +1,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
+- git_blame toolcall (takes line ranges?)
+
 - we need a /command registery so that plugins can register commands
 
 - we need a ui_grid container type that auto-sizes cells with the aim of uniform sizes
@@ -211,6 +213,9 @@
 - resolved symbol duplication and static initializer conflicts in dynamic plugins by removing static dependencies (`core_dep`, `agent_dep`, `tools_dep`) from shared modules and utilizing `export_dynamic: true` on both the `turbostar` and `test_pluginloader` executables.
 - resolved the unit test crash on exit by explicitly initializing `tool_registry` before `plugin_loader` in `test_pluginloader.cpp` to align static lifecycle destruction ordering.
 - implemented a "Plugins..." metadata display dialog accessible under the TUI Help menu, querying dynamic plugin name and description fields and showing loaded module info.
+
+## 20-06-2026
+- implemented the `security_review_with_agent` tool call in the `base` family, spawning a dedicated security reviewer subagent pre-configured with the `:plugin:securityagent` tool family, and using the refined prompt template in `security_scan_prompt.md`.
 
 ## 19-06-2026
 - moved `x86_assemble` and `x86_disassemble` tools from `src/tools/` to the new `src/plugins/asm86/` plugin directory, updated the build targets to build them as part of the `asm86` shared module, cleaned up header includes to be relative to `src/`, and updated the unit tests in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L238-L254).

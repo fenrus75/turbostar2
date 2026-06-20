@@ -51,6 +51,9 @@ this one is likely always available even outside the code review tool group:
 - perform_code_review(file list, review_instructions, todo items, result_file, async)
     - creates a code review agent (agent 1)
     - when agent 1 completes, agent 2 (verification agent) spawns async
+- security_review_with_agent(files, instructions, result_file)
+    - spawns a dedicated security code review agent with the `:plugin:securityagent` tool family active
+
 
 # Agent 1: Code review agent
 
