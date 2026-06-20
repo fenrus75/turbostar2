@@ -302,6 +302,14 @@ test_security_scan_c = executable('test_security_scan_c',
   include_directories: inc)
 test('unit_test_security_scan_c', test_security_scan_c, suite: 'plugins')
 
+test_security_scan_semgrep = executable('test_security_scan_semgrep',
+  ['tests/unit/test_security_scan_semgrep.cpp',
+   'src/plugins/securityagent/security_scan_semgrep/security_scan_semgrep_entry.cpp',
+   'src/plugins/securityagent/security_scan_semgrep/security_scan_semgrep_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_security_scan_semgrep', test_security_scan_semgrep, suite: 'plugins')
+
 
 
 test_list_skills = executable('test_list_skills',
