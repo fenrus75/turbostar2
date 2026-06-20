@@ -1082,31 +1082,64 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 				ep = conversation_->create_new_episode(ep_id, "Injected Context", "System injected context");
 				ep->set_sequence_number(seq);
 			}
-			
-			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
-			transaction_type tx_type = transaction_type::system_injection;
-			if (role == "user" || role == "assistant") {
-				tx_type = transaction_type::user_exchange;
+
+			bool merged = false;
+			// If the newly injected context is a system message, we check if the last transaction
+			// was also a system injection. If so, we merge the new content into the existing
+			// system turn rather than creating a new transaction. This keeps the stored history
+			// consolidated, ensures a cleaner UI display, and avoids protocol/API fragmentation.
+			if (role == "system" && ep && !ep->get_transactions().empty()) {
+				auto last_tx = ep->get_transactions().back();
+				if (last_tx->get_type() == transaction_type::system_injection && !last_tx->get_turns().empty()) {
+					auto last_turn = last_tx->get_turns().back();
+					if (last_turn->get_type() == turn_type::system) {
+						std::string new_content = last_turn->get_content();
+						if (!new_content.empty()) {
+							new_content += "\n\n";
+						}
+						new_content += content;
+						last_turn->set_content(new_content);
+						if (auto inter = last_turn->get_interaction()) {
+							inter->push_content(new_content);
+						}
+						// If this turn is the first system turn (which caches its original prompt),
+						// we must also update original_system_prompt_ so that subsequent 
+						// update_system_prompt_with_families() calls do not overwrite/discard 
+						// the merged content.
+						if (!original_system_prompt_.empty()) {
+							original_system_prompt_ += "\n\n" + content;
+						}
+						merged = true;
+					}
+				}
 			}
-			auto tx = std::make_shared<Transaction>(tx_id, tx_type);
 			
-			std::string turn_id = "turn_" + std::to_string(std::rand());
-			std::shared_ptr<Turn> t;
-			std::shared_ptr<agent_interaction> inter;
-			if (role == "system") {
-				t = std::make_shared<system_turn>(turn_id, content, "context_injection");
-				inter = std::make_shared<interaction_system_message>(content);
-			} else if (role == "assistant") {
-				t = std::make_shared<model_response_turn>(turn_id, content, std::nullopt, std::vector<tool_call>{});
-				inter = std::make_shared<interaction_llm_response>(content);
-			} else {
-				t = std::make_shared<user_turn>(turn_id, content);
-				inter = std::make_shared<interaction_user_message>(content);
+			if (!merged) {
+				std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+				transaction_type tx_type = transaction_type::system_injection;
+				if (role == "user" || role == "assistant") {
+					tx_type = transaction_type::user_exchange;
+				}
+				auto tx = std::make_shared<Transaction>(tx_id, tx_type);
+				
+				std::string turn_id = "turn_" + std::to_string(std::rand());
+				std::shared_ptr<Turn> t;
+				std::shared_ptr<agent_interaction> inter;
+				if (role == "system") {
+					t = std::make_shared<system_turn>(turn_id, content, "context_injection");
+					inter = std::make_shared<interaction_system_message>(content);
+				} else if (role == "assistant") {
+					t = std::make_shared<model_response_turn>(turn_id, content, std::nullopt, std::vector<tool_call>{});
+					inter = std::make_shared<interaction_llm_response>(content);
+				} else {
+					t = std::make_shared<user_turn>(turn_id, content);
+					inter = std::make_shared<interaction_user_message>(content);
+				}
+				t->set_interaction(inter);
+				t->set_sequence_number(conversation_->allocate_next_turn_seq());
+				tx->add_turn(t);
+				conversation_->add_transaction(tx);
 			}
-			t->set_interaction(inter);
-			t->set_sequence_number(conversation_->allocate_next_turn_seq());
-			tx->add_turn(t);
-			conversation_->add_transaction(tx);
 		}
 	}
 

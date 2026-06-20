@@ -6,6 +6,9 @@
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
 #include "tools/agent_create/agent_create.h"
+#include "agentlib/data/conversation.h"
+#include "agentlib/data/episode.h"
+#include "agentlib/data/transaction.h"
 
 using namespace agentlib;
 
@@ -100,6 +103,33 @@ int main()
 		assert(!subagents.empty());
 		subagents[0]->wait_until_idle();
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+		// 8. Test merging of consecutive system context injections
+		{
+			std::cout << "Testing system context merging..." << std::endl;
+			auto test_agent = ai_agent::create(2, "TestMergeAgent", model, nullptr, nullptr);
+			test_agent->inject_context("system", "First system message");
+			test_agent->inject_context("system", "Second system message");
+			test_agent->inject_context("user", "User message");
+			test_agent->inject_context("system", "Third system message (should not merge with user in between)");
+
+			auto ep = test_agent->get_conversation_data()->get_current_episode();
+			assert(ep != nullptr);
+			const auto &transactions = ep->get_transactions();
+			assert(transactions.size() == 3);
+
+			// First transaction should have 1 turn containing the merged text
+			assert(transactions[0]->get_turns().size() == 1);
+			assert(transactions[0]->get_turns()[0]->get_content().starts_with("First system message\n\nSecond system message"));
+
+			// Second transaction should be the user message
+			assert(transactions[1]->get_turns().size() == 1);
+			assert(transactions[1]->get_turns()[0]->get_content() == "User message");
+
+			// Third transaction should be the third system message
+			assert(transactions[2]->get_turns().size() == 1);
+			assert(transactions[2]->get_turns()[0]->get_content().starts_with("Third system message (should not merge with user in between)"));
+		}
 
 		std::cout << "agent_create tool verified successfully!" << std::endl;
 	}
