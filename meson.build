@@ -57,7 +57,7 @@ ncurses = ncurses_dep
 cc_c = meson.get_compiler('c')
 libunwind_dep = cc_c.find_library('unwind', required: true)
 add_project_link_arguments('-lunwind', language : ['cpp', 'c'])
-dl_dep = cc_c.find_library('dl', required: false)
+dl_dep = cc_c.find_library('dl', required: true)
 
 zydis_found = false
 zydis_dep = dependency('zydis', required: false)
@@ -88,7 +88,7 @@ libturbocatch = shared_library('turbocatch',
 
 turbostar_exe = executable('turbostar',
   'src/main.cpp',
-  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true,
   install : true)
