@@ -905,6 +905,12 @@ test_grid_flow = executable('test_grid_flow',
   include_directories: inc)
 test('unit_grid_flow', test_grid_flow, suite: 'editor')
 
+test_durmovie = executable('test_durmovie',
+  'tests/unit/test_durmovie.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_durmovie', test_durmovie, suite: 'editor')
+
 test_multiline_edit = executable('test_multiline_edit',
   'tests/unit/test_multiline_edit.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

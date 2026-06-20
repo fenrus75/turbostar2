@@ -95,6 +95,11 @@ class ui_element
 	{
 		return false;
 	}
+	// Updates dynamic animations. Returns true if a redraw is needed.
+	virtual bool update_animation()
+	{
+		return false;
+	}
 	virtual bool want_horizontal_stretch() const
 	{
 		return false;
@@ -250,6 +255,7 @@ class ui_container : public ui_element
 	bool focus_previous() override;
 	bool focus_last() override;
 	bool flow() override;
+	bool update_animation() override;
 	virtual void child_got_selected(ui_element *child);
 	virtual void set_focus_by_name(const std::string &child_name);
 	void set_focused_child(ui_element *child)
