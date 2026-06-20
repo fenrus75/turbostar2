@@ -1,5 +1,4 @@
 subdir('tools')
-subdir('plugins')
 
 core_sources = files(
   'line.cpp',
@@ -162,3 +161,5 @@ core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [lib
 agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep, openssl_dep])
 tools_dep = declare_dependency(link_whole : libtools, dependencies : [zlib_dep, magic_dep])
 ui_dep = declare_dependency(link_whole : libturbostar_ui)
+
+subdir('plugins')

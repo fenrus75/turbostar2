@@ -238,19 +238,20 @@ test('unit_test_activate_tool_family', test_activate_tool_family)
 
 test_x86_disassemble = executable('test_x86_disassemble',
   ['tests/unit/test_x86_disassemble.cpp',
-   'src/tools/x86_disassemble/x86_disassemble_entry.cpp',
-   'src/tools/x86_disassemble/x86_disassemble_security.cpp'],
+   'src/plugins/asm86/x86_disassemble/x86_disassemble_entry.cpp',
+   'src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_x86_disassemble', test_x86_disassemble)
 
 test_x86_assemble = executable('test_x86_assemble',
   ['tests/unit/test_x86_assemble.cpp',
-   'src/tools/x86_assemble/x86_assemble_entry.cpp',
-   'src/tools/x86_assemble/x86_assemble_security.cpp'],
+   'src/plugins/asm86/x86_assemble/x86_assemble_entry.cpp',
+   'src/plugins/asm86/x86_assemble/x86_assemble_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_x86_assemble', test_x86_assemble)
+
 
 test_hex_inspect_range = executable('test_hex_inspect_range',
   ['tests/unit/test_hex_inspect_range.cpp',

@@ -3,7 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "x86_disassemble.h"
 
 #ifdef HAVE_ZYDIS

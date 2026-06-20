@@ -1,7 +1,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "x86_assemble.h"
 
 namespace tools

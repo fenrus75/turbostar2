@@ -3,8 +3,8 @@
 #include <random>
 #include <string>
 #include <vector>
-#include "../../fs_utils.h"
-#include "../../project_manager.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 #include "x86_assemble.h"
 
 namespace tools

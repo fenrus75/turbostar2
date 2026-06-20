@@ -161,10 +161,7 @@ tools_sources = files(
   'agent_terminate_run/agent_terminate_run_security.cpp',
   'activate_tool_family/activate_tool_family_entry.cpp',
   'activate_tool_family/activate_tool_family_security.cpp',
-  'x86_disassemble/x86_disassemble_entry.cpp',
-  'x86_disassemble/x86_disassemble_security.cpp',
-  'x86_assemble/x86_assemble_entry.cpp',
-  'x86_assemble/x86_assemble_security.cpp',
+
   'hex_inspect_range/hex_inspect_range_entry.cpp',
   'hex_inspect_range/hex_inspect_range_security.cpp',
   'elf_list_sections/elf_list_sections_entry.cpp',
