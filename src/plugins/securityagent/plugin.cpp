@@ -12,12 +12,16 @@ const char *plugin_description(void)
 	return "Provides tools for security audits and vulnerability scanning.";
 }
 
+void register_security_scan_python(void);
+void unregister_security_scan_python(void);
+
 /*
  * plugin_run serves as the entry point when the plugin is loaded dynamically.
  * extern "C" prevents C++ name mangling so the host can resolve the symbol.
  */
 void plugin_run(void)
 {
+	register_security_scan_python();
 	// Reminder: We will not register a new tool family.
 	// But we will use the (hidden) ":plugin:securityagent" tool family
 	// for all (except one) of the tools in this plugin.
@@ -28,5 +32,6 @@ void plugin_run(void)
  */
 void plugin_unload(void)
 {
+	unregister_security_scan_python();
 }
 }

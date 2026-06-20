@@ -23,7 +23,9 @@ asm86_plugin = shared_module('asm86',
 )
 
 securityagent_plugin = shared_module('securityagent',
-  'securityagent/plugin.cpp',
+  ['securityagent/plugin.cpp',
+   'securityagent/security_scan_python/security_scan_python_entry.cpp',
+   'securityagent/security_scan_python/security_scan_python_security.cpp'],
   dependencies: [nlohmann_json_dep],
   include_directories: inc,
   install: true,

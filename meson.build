@@ -286,6 +286,14 @@ test_elf_list_symbols = executable('test_elf_list_symbols',
   include_directories: inc)
 test('unit_test_elf_list_symbols', test_elf_list_symbols, suite: 'plugins')
 
+test_security_scan_python = executable('test_security_scan_python',
+  ['tests/unit/test_security_scan_python.cpp',
+   'src/plugins/securityagent/security_scan_python/security_scan_python_entry.cpp',
+   'src/plugins/securityagent/security_scan_python/security_scan_python_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_security_scan_python', test_security_scan_python, suite: 'plugins')
+
 
 
 test_list_skills = executable('test_list_skills',
