@@ -22,3 +22,12 @@ asm86_plugin = shared_module('asm86',
   install_dir: plugin_dir
 )
 
+securityagent_plugin = shared_module('securityagent',
+  'securityagent/plugin.cpp',
+  dependencies: [nlohmann_json_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+
