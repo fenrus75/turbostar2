@@ -1637,12 +1637,14 @@ void ai_agent::start_processing()
 			// Mount to global VFS
 			skill_manager::get_instance().get_vfs()->mount_buffer(uri, full_history);
 
-			std::string system_msg =
-			    "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
-			system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
-			system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
+			if (self->is_notify_parent_on_completion()) {
+				std::string system_msg =
+				    "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
+				system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
+				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
 
-			parent->inject_context("user", system_msg, true);
+				parent->inject_context("user", system_msg, true);
+			}
 		}
 	}).detach();
 }
@@ -3219,6 +3221,18 @@ bool ai_agent::is_exit_implicitly_on_idle() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
 	return exit_implicitly_on_idle_;
+}
+
+void ai_agent::set_notify_parent_on_completion(bool val)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	notify_parent_on_completion_ = val;
+}
+
+bool ai_agent::is_notify_parent_on_completion() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return notify_parent_on_completion_;
 }
 
 std::string ai_agent::get_allowed_write_file() const

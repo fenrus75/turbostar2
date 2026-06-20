@@ -221,6 +221,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	bool has_final_result() const;
 	void set_exit_implicitly_on_idle(bool val);
 	bool is_exit_implicitly_on_idle() const;
+	void set_notify_parent_on_completion(bool val);
+	bool is_notify_parent_on_completion() const;
 	std::map<std::string, episode_index_entry> get_episode_index() const
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -236,7 +238,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_conversation(const std::vector<message> &c);
 	std::shared_ptr<Conversation> get_conversation_data() const;
 
-      protected:
+       protected:
 	int id_;
 	std::string name_;
 	std::shared_ptr<ai_model> model_;
@@ -250,10 +252,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	/*
 	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
 	 * including todos_, subagents_, active_skills_, original_system_prompt_,
-	 * interactions_, final_result_, and exit_implicitly_on_idle_.
+	 * interactions_, final_result_, exit_implicitly_on_idle_, and notify_parent_on_completion_.
 	 * Locking Rules:
 	 * - Held during status changes, subagent spawning/management, todo list modifications,
-	 *   and modifications to the implicit exit flag.
+	 *   and modifications to the implicit exit and notification flags.
 	 * - status_cv_ is used in conjunction with state_mutex_ for waiting until the agent is idle.
 	 */
 	std::mutex state_mutex_;
@@ -264,6 +266,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::string original_system_prompt_;
 	std::string final_result_;
 	bool exit_implicitly_on_idle_{false};
+	bool notify_parent_on_completion_{true};
 
       private:
 	ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider);

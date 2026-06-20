@@ -68,6 +68,7 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 	// Synchronous execution: save original status and restore it afterwards
 	auto old_status = ctx.active_agent->get_status();
 	ctx.active_agent->set_status(agentlib::agent_status::waiting, new_agent->get_id());
+	new_agent->set_notify_parent_on_completion(false);
 	new_agent->wait_until_idle();
 	ctx.active_agent->set_status(old_status);
 
