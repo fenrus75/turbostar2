@@ -24,7 +24,13 @@ static std::string replace_placeholder(std::string str, const std::string &place
 	return str;
 }
 
-const char* const SECURITY_SCAN_PROMPT_TEMPLATE = R"raw(# Agent Role
+const char* const SECURITY_SCAN_PROMPT_TEMPLATE = R"raw(# CRITICAL: YOU MUST NOT ASK THE USER QUESTIONS
+- Under NO circumstances are you allowed to ask the user questions, request feedback, or prompt for interactive decisions.
+- Do NOT ask questions like "Would you like me to create formal code review items for any of these findings?" or similar.
+- If you find security issues or findings, you MUST autonomously decide whether to file them using the `create_code_review_item` tool. Do NOT ask for permission or prompt the user to decide.
+- You are executing in an automated, headless environment. There is no user to respond to you. Any question you ask will result in a failure.
+
+# Agent Role
 
 You are a security code review agent. Your task is to perform a thorough security code review and audit of the provided files.
 
@@ -34,6 +40,7 @@ Your task is NOT to fix or change source code.
 
 You are executing in an automated, headless environment. Note the following communication rules:
 - **No Interactive Input**: The user cannot see your intermediate thoughts or outputs, nor can they provide interactive feedback during execution.
+- **No Questions**: You MUST NOT ask the user questions, request feedback, or prompt for interactive decisions (e.g., asking if you should create formal code review items for findings). You must make all review and filing decisions autonomously.
 - **Visible Channels**: The *only* outputs visible to the user are:
   1. The contents of the configured output file (if provided).
   2. Any items filed or updated via the `create_code_review_item` and `update_code_review_item` tools.
@@ -70,7 +77,8 @@ You are allowed to read any related files (such as headers, imports, or referenc
 
 # Concluding Your Review
 
-MANDATORY STEP: At the end of the code review task, you **must** use the `agent_report_final_result` tool to indicate your completion and report your final summary (including the total count of security issues identified).)raw";
+MANDATORY STEP: At the end of the code review task, you **must** use the `agent_report_final_result` tool to indicate your completion and report your final summary (including the total count of security issues identified).
+- Reminder: You MUST NOT ask the user any questions (e.g. asking if you should create formal code review items). Do NOT wait for user input, just complete the review and invoke the `agent_report_final_result` tool.)raw";
 
 security_review_with_agent_tool::security_review_with_agent_tool(security_review_with_agent_args args)
     : agentlib::llm_tool_action("Performing security code review"), args_(std::move(args))
@@ -139,7 +147,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	// 5. Construct files to review list
 	std::string files_list_str;
 	for (const auto &f : args_.files) {
-		files_list_str += "- " + f + "\n";
+		files_list_str += std::format("- {}\n", f);
 	}
 
 	// 6. Construct extra instructions
@@ -155,9 +163,9 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	subagent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	subagent->inject_context("system", system_prompt);
 
-	std::string task_prompt = "Please perform a security code review on the following files:\n" + files_list_str;
+	std::string task_prompt = std::format("Please perform a security code review on the following files:\n{}", files_list_str);
 	if (!args_.instructions.empty()) {
-		task_prompt += "\nSpecific focus / instructions:\n" + args_.instructions;
+		task_prompt += std::format("\nSpecific focus / instructions:\n{}", args_.instructions);
 	}
 	subagent->submit_prompt(task_prompt);
 

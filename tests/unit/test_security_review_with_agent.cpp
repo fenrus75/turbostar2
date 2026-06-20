@@ -94,6 +94,7 @@ void test_security_review_with_agent_execution()
 	bool found_extra_instructions = false;
 	bool found_findings_file = false;
 	bool found_headless_constraints = false;
+	bool found_no_questions = false;
 
 	for (const auto &msg : sub_convo) {
 		if (msg.role == "system") {
@@ -112,6 +113,9 @@ void test_security_review_with_agent_execution()
 			if (msg.content.find("Headless Environment Constraints") != std::string::npos) {
 				found_headless_constraints = true;
 			}
+			if (msg.content.find("MUST NOT ask") != std::string::npos) {
+				found_no_questions = true;
+			}
 		}
 	}
 
@@ -120,6 +124,7 @@ void test_security_review_with_agent_execution()
 	assert(found_extra_instructions);
 	assert(found_findings_file);
 	assert(found_headless_constraints);
+	assert(found_no_questions);
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");
