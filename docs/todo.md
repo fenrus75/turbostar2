@@ -204,6 +204,8 @@
     - git add
     - ...
 
+- migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
+
 # done items (move items here on completion)
 
 ## 19-06-2026
