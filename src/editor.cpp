@@ -12,6 +12,7 @@
 #include "agentlib/ai_model.h"
 #include "binary_document.h"
 #include "build_error_manager.h"
+#include "codereview_manager.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
@@ -21,7 +22,6 @@
 #include "history_manager.h"
 #include "project_manager.h"
 #include "ui/agent_window.h"
-#include "codereview_manager.h"
 #include "ui/code_review_window.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
@@ -48,7 +48,7 @@ editor::editor(editor_options opts)
 
 	if (opts.filenames.empty()) {
 		bool loaded_files = false;
-		if (!project_root.empty()) {
+		if (!opts.start_with_agent && !project_root.empty()) {
 			std::vector<std::string> proj_files = history_manager::get_instance().get_project_files(project_root);
 			if (!proj_files.empty()) {
 				for (const auto &f : proj_files) {
@@ -59,16 +59,23 @@ editor::editor(editor_options opts)
 		}
 
 		if (!loaded_files) {
-			new_window("");
-			if (!opts.no_welcome && initial_agent_prompt_.empty()) {
-				active_dialog_ = create_welcome_dialog();
-				active_dialog_mode_ = dialog_mode::welcome;
-				set_focus(focus_target::dialog, "welcome");
+			if (opts.start_with_agent) {
+				new_agent_window();
+			} else {
+				new_window("");
+				if (!opts.no_welcome && initial_agent_prompt_.empty()) {
+					active_dialog_ = create_welcome_dialog();
+					active_dialog_mode_ = dialog_mode::welcome;
+					set_focus(focus_target::dialog, "welcome");
+				}
 			}
 		}
 	} else {
 		for (const auto &f : opts.filenames) {
 			new_window(f);
+		}
+		if (opts.start_with_agent) {
+			new_agent_window();
 		}
 	}
 }
@@ -213,8 +220,8 @@ void editor::new_codereview_window(int focus_item_id)
 		}
 	}
 
-	auto cr_win = std::make_unique<code_review_window>(
-	    static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_, focus_item_id);
+	auto cr_win = std::make_unique<code_review_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_,
+							   focus_item_id);
 	windows_.push_back(std::move(cr_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
@@ -493,7 +500,8 @@ void editor::run()
 					resolve_dialog(active_dialog_->get_action());
 				}
 				needs_render = true;
-			} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt || active_dialog_mode_ == dialog_mode::copilot_connect) {
+			} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt ||
+				   active_dialog_mode_ == dialog_mode::copilot_connect) {
 				needs_render = true;
 			}
 		}
@@ -733,10 +741,8 @@ void editor::run()
 				latency_spikes_.push_back(spike);
 
 				// Also log details to the event logger itself so it goes to the log file
-				event_logger::get_instance().log(
-					"LATENCY SPIKE: event '{}' took {:.3f} ms. Captured {} trace log lines.",
-					key_desc, spike.duration_ms, slice.size()
-				);
+				event_logger::get_instance().log("LATENCY SPIKE: event '{}' took {:.3f} ms. Captured {} trace log lines.",
+								 key_desc, spike.duration_ms, slice.size());
 			}
 		}
 	}
@@ -1161,8 +1167,10 @@ void editor::render(bool cursor_only)
 					return true;
 				std::filesystem::path doc_path(doc_filename);
 				std::filesystem::path item_path(item_filename);
-				std::filesystem::path abs_doc = doc_path.is_absolute() ? doc_path : std::filesystem::path(proj_root) / doc_path;
-				std::filesystem::path abs_item = item_path.is_absolute() ? item_path : std::filesystem::path(proj_root) / item_path;
+				std::filesystem::path abs_doc =
+				    doc_path.is_absolute() ? doc_path : std::filesystem::path(proj_root) / doc_path;
+				std::filesystem::path abs_item =
+				    item_path.is_absolute() ? item_path : std::filesystem::path(proj_root) / item_path;
 				return abs_doc.lexically_normal() == abs_item.lexically_normal();
 			};
 
@@ -1396,7 +1404,8 @@ std::string editor::get_k_block_status_help() const
 	return result;
 }
 
-void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration, std::function<void()> click_handler)
+void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration,
+				std::function<void()> click_handler)
 {
 	status_message msg;
 	msg.text = message;
@@ -1414,7 +1423,7 @@ void editor::clear_status_message(int priority)
 	active_status_messages_.erase(priority);
 }
 
-const editor::status_message* editor::get_active_status_message_obj() const
+const editor::status_message *editor::get_active_status_message_obj() const
 {
 	auto now = std::chrono::steady_clock::now();
 	for (auto it = active_status_messages_.rbegin(); it != active_status_messages_.rend(); ++it) {

@@ -42,7 +42,7 @@ class TurbostarRunner:
         self.slave_fd = None
         self.captured_bytes = bytearray()
 
-    def start(self, filename=None, use_lsp=False, extra_args=None, home_dir=None):
+    def start(self, filename=None, use_lsp=False, extra_args=None, home_dir=None, exe_path='./turbostar'):
         project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
         testrun_dir = os.path.join(project_root, 'testrun')
         os.makedirs(testrun_dir, exist_ok=True)
@@ -55,7 +55,6 @@ class TurbostarRunner:
             self.temp_home = tempfile.mkdtemp(prefix="turbostar_test_home_")
 
         # Binary is now automatically copied to testrun/ by the build system
-        exe_path = './turbostar'
         log_path_abs = os.path.abspath(self.log_path)
 
         cmd = [exe_path, '--log', log_path_abs, '--no-welcome-screen']

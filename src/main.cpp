@@ -222,6 +222,9 @@ int main(int argc, char **argv)
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
 
+	std::string binary_name = fs::path(argv[0]).filename().string();
+	bool is_turboagent = (binary_name == "turboagent");
+
 	editor_options opts{.debug_mode = debug_mode,
 			    .debug_string = debug_string,
 			    .filenames = filenames,
@@ -229,7 +232,8 @@ int main(int argc, char **argv)
 			    .no_lsp = no_lsp,
 			    .no_welcome = no_welcome,
 			    .initial_agent_prompt = agent_prompt,
-			    .fresh_agent = fresh_agent};
+			    .fresh_agent = fresh_agent,
+			    .start_with_agent = is_turboagent};
 	editor main_editor(opts);
 	main_editor.run();
 
@@ -252,4 +256,3 @@ int main(int argc, char **argv)
 	logger.log("Application exiting main().");
 	return 0;
 }
-

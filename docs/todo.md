@@ -44,10 +44,6 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-- "agent first editor second" mode? Decide what this would be like
-	- based on argv[0] - turbostar = editor window first, turboagent = agent window
-	- install turboagent as a symlink
-
 - usability: main editor window: mouse click on the bottom scroll bar moves the text down, rather than go to the position in the document indicated by the click
 
 - usability: main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
@@ -207,6 +203,7 @@
 # done items (move items here on completion)
 
 ## 20-06-2026
+- implemented `turboagent` startup mode. When invoked with the `turboagent` binary/symlink (checked via `argv[0]`), the editor starts directly with the Agent window active instead of a blank file editor window or a welcome dialog.
 - categorized all unit and E2E tests into three distinct Meson test suites (`"editor"`, `"agent"`, and `"plugins"`) to allow targeted test suite execution and reduce feedback loops.
 - refactored `ai_agent.cpp` to query the tool activation reasons dynamically from the `tool_registry` instead of using a hardcoded string, allowing plugins to register custom reasons via `register_tool_family`.
 - implemented explicit `plugin_unload` hook lookup/execution inside `plugin_loader::~plugin_loader()` before unloading plugins with `dlclose()`.

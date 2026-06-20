@@ -1,7 +1,7 @@
 #pragma once
 
-#include <functional>
 #include <chrono>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
@@ -44,6 +44,7 @@ struct editor_options {
 	bool no_welcome = false;
 	std::string initial_agent_prompt;
 	bool fresh_agent = false;
+	bool start_with_agent = false;
 };
 
 class editor : public agentlib::document_provider
@@ -62,8 +63,14 @@ class editor : public agentlib::document_provider
 	friend void test_vim_emulation();
 	friend void test_status_bar_paste();
 
-	const std::vector<latency_spike>& get_latency_spikes_for_testing() const { return latency_spikes_; }
-	void add_latency_spike_for_testing(const latency_spike &spike) { latency_spikes_.push_back(spike); }
+	const std::vector<latency_spike> &get_latency_spikes_for_testing() const
+	{
+		return latency_spikes_;
+	}
+	void add_latency_spike_for_testing(const latency_spike &spike)
+	{
+		latency_spikes_.push_back(spike);
+	}
 
 	/**
 	 * @brief Main execution loop.
@@ -142,7 +149,10 @@ class editor : public agentlib::document_provider
 	event_queue global_queue_;
 
 	std::thread::id main_thread_id_;
-	bool is_main_thread() const { return std::this_thread::get_id() == main_thread_id_; }
+	bool is_main_thread() const
+	{
+		return std::this_thread::get_id() == main_thread_id_;
+	}
 
 	friend class agentlib::ai_agent;
 
@@ -218,7 +228,7 @@ class editor : public agentlib::document_provider
 		std::function<void()> click_handler;
 	};
 	std::map<int, status_message> active_status_messages_;
-	const status_message* get_active_status_message_obj() const;
+	const status_message *get_active_status_message_obj() const;
 
 	std::string editing_model_id_;
 	std::string editing_model_server_id_;

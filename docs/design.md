@@ -38,6 +38,7 @@ After making a change, create a git commit for the change. Before committing, en
 
 - Turbostar uses C++, the C++23 language version
 - Turbostar uses the meson build system
+- **Binary Invocation Targets**: The application can be invoked under two names: `turbostar` (which starts the standard TUI text editor layout) and `turboagent` (a symlink that launches the application in agent-first mode, immediately opening and focusing the AI Agent window, skipping the welcome screen and workspace restoration unless files are explicitly passed as arguments).
 - Each class gets its own .cpp file with a matching header file
 - Data classes and presentation classes are strictly separated. All visual, windowing, and rendering components (e.g., `window`, `dialog`, `menu_bar`) reside within the `src/ui/` directory to enforce this separation.
 - ncursesw is used for creating the TUI

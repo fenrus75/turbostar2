@@ -103,6 +103,11 @@ turbostar_exe = executable('turbostar',
   export_dynamic: true,
   install : true)
 
+install_symlink('turboagent',
+  install_dir: 'bin',
+  pointing_to: 'turbostar'
+)
+
 agentcli_exe = executable('agentcli',
   'src/agentcli/main.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
@@ -132,7 +137,7 @@ agentcli_replay_exe = executable('agentcli_replay',
 copy_to_testrun_tgt = custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
-  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
+  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar" && ln -sf turbostar "$1/turboagent"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
   build_by_default: true
 )
 
@@ -1129,6 +1134,15 @@ if uv.found() or python.found()
   )
   test('e2e_exit_delay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_delay.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    is_parallel: false,
+    suite: 'agent'
+  )
+  test('e2e_turboagent_startup', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_turboagent_startup.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
