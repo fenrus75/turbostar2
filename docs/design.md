@@ -25,6 +25,8 @@ sections updated as enhancements are made to the project.
 | `docs/mcp.md`           | Model Context Protocol (MCP) design |
 | `docs/thread-lifecycle.md` | Thread lifecycle and teardown blueprint |
 | `docs/code-review.md`  | Code review system and agent tools |
+| `docs/design-plugin.md` | Plugin architecture, lifecycles, and tool registration |
+
 
 
 
@@ -239,5 +241,4 @@ To support modular and context-efficient tool management, tools are organized in
 
 ## Plugins
 Turbostar supports dynamic plugin loading to extend the editor's capabilities at runtime.
-- **Shared Modules**: Plugins are compiled as shared modules (`.so` files) and placed in the plugin directory (e.g. `libdir/turbostar/plugins`).
-- **Plugin Entry Point**: Every plugin must implement a `void plugin_run(void)` function with `extern "C"` bindings (disabling C++ name mangling) as its standard entry point.
+For details on dynamic loading architecture, C-linkage entry points, dynamic symbol linkage, tool registration lifecycles, and unit test lifecycle initialization, refer to `docs/design-plugin.md`.

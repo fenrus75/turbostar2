@@ -46,6 +46,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 | `button-recipe.md` | Guide for implementing Turbo Pascal style UI buttons. |
 | `colorscheme.md` | Defines the Turbo Pascal 7 color palette and ncurses pairs. |
 | `design.md` | Top-level architectural and design documentation. |
+| `design-plugin.md` | Plugin architecture, lifecycles, and tool registration. |
 | `file-dialog.md` | Specification for the Turbo Pascal style file dialog. |
 | `general-c++.md` | C++20 coding guidelines and rules. |
 | `joe-keys.md` | Reference for the "joe" dialect Wordstar keybindings. |
