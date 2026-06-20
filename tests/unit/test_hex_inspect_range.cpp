@@ -39,17 +39,17 @@ int main()
 	std::cout << "Testing hex_inspect_range..." << std::endl;
 
 	// 1. Test family activation constraint (inactive by default)
-	ctx.is_family_active = [](const std::string &family) { return family != "x86"; };
+	ctx.is_family_active = [](const std::string &family) { return family != "base"; };
 
 	{
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 0, \"size\": 64}";
 		auto prep = registry.prepare_tool("hex_inspect_range", args, ctx);
-		assert(prep.tool == nullptr && "hex_inspect_range must block if x86 family is inactive");
+		assert(prep.tool == nullptr && "hex_inspect_range must block if base family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
 	}
 
 	// 2. Test family activation constraint (active)
-	ctx.is_family_active = [](const std::string &family) { return family == "x86" || family == "base"; };
+	ctx.is_family_active = [](const std::string &family) { return family == "base"; };
 
 	// 3. Test successful execution on ELF Magic and file header
 	{

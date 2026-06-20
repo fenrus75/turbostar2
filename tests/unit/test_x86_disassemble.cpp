@@ -11,10 +11,14 @@
 
 using namespace agentlib;
 
+extern "C" void register_x86_disassemble(void);
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	register_x86_disassemble();
 	project_manager::get_instance().initialize();
+
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;

@@ -28,6 +28,10 @@ void tool_registry::unregister_validator(const std::string &name)
 	validator_factories_.erase(name);
 }
 
+tool_registry::~tool_registry()
+{
+}
+
 static std::string serialize_mcp_name(const std::string &name)
 {
 	if (!name.starts_with("mcp:")) {

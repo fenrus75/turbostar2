@@ -60,6 +60,7 @@ menu_bar::menu_bar()
 	     'h',
 	     {{"Key bindings", event_type::help, 'k', "F1", false},
 	      {"Tool status", event_type::tool_status, 't', "", false},
+	      {"Plugins...", event_type::plugins, 'p', "", false},
 	      {"About...", event_type::about, 'a', "", false}}}};
 }
 

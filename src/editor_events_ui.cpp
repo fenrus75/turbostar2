@@ -18,6 +18,7 @@
 #include "command_runner.h"
 #include "config_manager.h"
 #include "editor.h"
+#include "pluginloader.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "codereview_manager.h"
@@ -169,6 +170,26 @@ void editor::dispatch_event_ui(const editor_event &ev)
 							"Copyright (c) 2026", "Arjan van de Ven"};
 		active_dialog_ = create_message_dialog("About TurboStar", about_lines);
 		set_focus(focus_target::dialog, "menu_about");
+		return;
+	}
+
+	if (ev.type == event_type::plugins) {
+		logger.log("Dispatching plugins event.");
+		std::vector<std::string> lines;
+		const auto &plugins = plugin_loader::get_instance().get_plugins();
+		if (plugins.empty()) {
+			lines.push_back("No plugins loaded.");
+		} else {
+			for (const auto &p : plugins) {
+				lines.push_back(p.name + " (" + p.filename + ")");
+				if (!p.description.empty()) {
+					lines.push_back("  " + p.description);
+				}
+				lines.push_back("");
+			}
+		}
+		active_dialog_ = create_message_dialog("Loaded Plugins", lines);
+		set_focus(focus_target::dialog, "menu_plugins");
 		return;
 	}
 

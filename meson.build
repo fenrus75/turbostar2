@@ -158,8 +158,9 @@ test('unit_test_conversation_turns', test_conversation_turns)
 
 test_pluginloader = executable('test_pluginloader',
   ['tests/unit/test_pluginloader.cpp'],
-  dependencies : [core_dep, dl_dep],
-  include_directories: inc)
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true)
 test('unit_pluginloader', test_pluginloader)
 
 

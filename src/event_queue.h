@@ -30,6 +30,7 @@ enum class event_type {
 	new_doc,		    ///< Request to clear current document
 	revert,			    ///< Request to revert current document to saved state or clean dirty flag
 	about,			    ///< Request to show About dialog
+	plugins,		    ///< Request to show loaded Plugins list dialog
 	redraw,			    ///< Request a global UI re-render
 	find,			    ///< Request to find text (triggers dialog)
 	replace,		    ///< Request to replace text (triggers dialog)

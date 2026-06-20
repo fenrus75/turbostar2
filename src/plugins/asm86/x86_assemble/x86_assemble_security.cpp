@@ -88,6 +88,16 @@ class x86_assemble_validator : public agentlib::tool_validator
 	mutable x86_assemble_args args_;
 };
 
-REGISTER_TOOL(x86_assemble_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_x86_assemble(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::x86_assemble_validator>(); });
+}
+
+void unregister_x86_assemble(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("x86_assemble");
+}
+}

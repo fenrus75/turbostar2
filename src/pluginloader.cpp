@@ -2,17 +2,36 @@
 #include <filesystem>
 #include <dlfcn.h>
 
+plugin_loader& plugin_loader::get_instance()
+{
+	static plugin_loader instance;
+	return instance;
+}
+
 plugin_loader::plugin_loader()
 {
 }
 
 plugin_loader::~plugin_loader()
 {
-	for (void *handle : loaded_handles_) {
-		if (handle) {
-			dlclose(handle);
+	for (const auto &p : loaded_plugins_) {
+		if (p.handle) {
+			union {
+				void *ptr;
+				void (*func)(void);
+			} unload_cast;
+			unload_cast.ptr = dlsym(p.handle, "plugin_unload");
+			if (unload_cast.func) {
+				unload_cast.func();
+			}
+			dlclose(p.handle);
 		}
 	}
+}
+
+const std::vector<plugin_loader::plugin_info>& plugin_loader::get_plugins() const
+{
+	return plugin_infos_;
 }
 
 void plugin_loader::load_all_plugins()
@@ -27,19 +46,59 @@ void plugin_loader::load_all_plugins()
 		if (entry.is_regular_file() && entry.path().extension() == ".so") {
 			void *handle = dlopen(entry.path().c_str(), RTLD_LOCAL | RTLD_LAZY);
 			if (handle) {
+				// Query metadata functions
+				union {
+					void *ptr;
+					const char *(*func)(void);
+				} name_cast, desc_cast;
+
+				name_cast.ptr = dlsym(handle, "plugin_name");
+				desc_cast.ptr = dlsym(handle, "plugin_description");
+
+				std::string name;
+				if (name_cast.func) {
+					const char *res = name_cast.func();
+					if (res) {
+						name = res;
+					}
+				}
+				if (name.empty()) {
+					name = entry.path().stem().string();
+				}
+
+				std::string description;
+				if (desc_cast.func) {
+					const char *res = desc_cast.func();
+					if (res) {
+						description = res;
+					}
+				}
+
 				union {
 					void *ptr;
 					void (*func)(void);
-				} cast;
+				} run_cast;
 
-				cast.ptr = dlsym(handle, "plugin_run");
-				if (cast.func) {
-					cast.func();
+				run_cast.ptr = dlsym(handle, "plugin_run");
+				if (run_cast.func) {
+					run_cast.func();
 				}
-				loaded_handles_.push_back(handle);
+
+				plugin_info info;
+				info.filename = entry.path().filename().string();
+				info.name = name;
+				info.description = description;
+
+				loaded_plugin lp;
+				lp.handle = handle;
+				lp.info = info;
+
+				loaded_plugins_.push_back(lp);
+				plugin_infos_.push_back(info);
 			}
 		}
 	}
 #endif
 }
+
 

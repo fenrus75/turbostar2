@@ -5,6 +5,7 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <iostream>
 #include "tool_context.h"
 #include "tool_validator.h"
 #include "agent_properties.h"
@@ -22,6 +23,7 @@ class tool_registry
 	// Used by self-registering tools
 	void register_validator(validator_factory factory);
 	void unregister_validator(const std::string &name);
+	~tool_registry();
 
 	// Returns the JSON array of tools to inject into the OpenAI payload
 	nlohmann::json get_tools_json(bool mutation_possible = true, const agent_properties &properties = {}) const;
@@ -67,9 +69,15 @@ class tool_registry
 // Helper macro for static self-registration
 // Usage: REGISTER_TOOL(my_validator_class)
 template <typename T> struct tool_registrar {
+	std::string name;
 	tool_registrar()
 	{
+		name = T().get_name();
 		tool_registry::get_instance().register_validator([]() { return std::make_unique<T>(); });
+	}
+	~tool_registrar()
+	{
+		tool_registry::get_instance().unregister_validator(name);
 	}
 };
 
