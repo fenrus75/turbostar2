@@ -209,6 +209,9 @@
 ## 19-06-2026
 - renamed `is_allowed_for_role` in `tool_validator` to `is_allowed_for_agent`, taking `agent_properties` struct as parameter, and moved it from inline to [tool_validator.cpp](file:///home/arjan/git/turbostar2/src/agentlib/tool_validator.cpp).
 - removed the leftover `get_gemini_tools_json` method from the `tool_registry` class and updated the design documentation.
+- filtered out tool families starting with a colon (`:`) from active and inactive family listings in the system prompt to support silent tool families.
+- implemented dynamic agent properties and active tool families synchronization in `tool_context` before each tool preparation/execution.
+- added non-streaming JSON fallback parsing in `openai_completion_connection` to maintain backward compatibility with legacy non-streaming E2E test replay traffic files.
 
 ## 18-06-2026
 - updated the `fs_read_lines` header formatting to print the total number of lines in the file (e.g. `(total X lines)`).
