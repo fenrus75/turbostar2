@@ -208,6 +208,13 @@
 
 # done items (move items here on completion)
 
+## 20-06-2026
+- implemented explicit `plugin_unload` hook lookup/execution inside `plugin_loader::~plugin_loader()` before unloading plugins with `dlclose()`.
+- converted `asm86` plugins from auto-registering static variables to programmatic entry points and explicit unregistration functions (`register_x86_assemble()`, `register_x86_disassemble()`, etc.).
+- resolved symbol duplication and static initializer conflicts in dynamic plugins by removing static dependencies (`core_dep`, `agent_dep`, `tools_dep`) from shared modules and utilizing `export_dynamic: true` on both the `turbostar` and `test_pluginloader` executables.
+- resolved the unit test crash on exit by explicitly initializing `tool_registry` before `plugin_loader` in `test_pluginloader.cpp` to align static lifecycle destruction ordering.
+- implemented a "Plugins..." metadata display dialog accessible under the TUI Help menu, querying dynamic plugin name and description fields and showing loaded module info.
+
 ## 19-06-2026
 - moved `x86_assemble` and `x86_disassemble` tools from `src/tools/` to the new `src/plugins/asm86/` plugin directory, updated the build targets to build them as part of the `asm86` shared module, cleaned up header includes to be relative to `src/`, and updated the unit tests in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L238-L254).
 - implemented plugin loader functionality in [src/pluginloader.cpp](file:///home/arjan/git/turbostar2/src/pluginloader.cpp) to dynamically scan `PLUGIN_DIR`, load any `.so` plugin libraries using `dlopen`, look up their `plugin_run` entry points with `dlsym`, invoke them, and clean up handles on destruction.
