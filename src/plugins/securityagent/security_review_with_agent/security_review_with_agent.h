@@ -2,8 +2,8 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "../../agentlib/llm_tool_action.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/llm_tool_action.h"
+#include "agentlib/tool_validator.h"
 
 namespace tools
 {

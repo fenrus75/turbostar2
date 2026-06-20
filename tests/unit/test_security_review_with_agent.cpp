@@ -13,8 +13,11 @@
 
 using namespace agentlib;
 
+extern "C" void register_security_review_with_agent(void);
+
 void test_security_review_with_agent_execution()
 {
+	register_security_review_with_agent();
 	std::cout << "Testing security_review_with_agent tool..." << std::endl;
 
 	std::filesystem::path orig_path = std::filesystem::current_path();

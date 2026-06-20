@@ -3,12 +3,12 @@
 #include <format>
 #include <fstream>
 #include <sstream>
-#include "../../agentlib/ai_agent.h"
-#include "../../agentlib/interactions/llm_response.h"
-#include "../../config_manager.h"
-#include "../../event_logger.h"
-#include "../../fs_utils.h"
-#include "../../project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/interactions/llm_response.h"
+#include "config_manager.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 #include "security_review_with_agent.h"
 
 namespace tools

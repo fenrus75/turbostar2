@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "security_review_with_agent.h"
 
 namespace tools
@@ -54,6 +54,17 @@ std::unique_ptr<agentlib::llm_tool> security_review_with_agent_validator::create
 	return std::make_unique<security_review_with_agent_tool>(args_);
 }
 
-REGISTER_TOOL(security_review_with_agent_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_security_review_with_agent(void)
+{
+	agentlib::tool_registry::get_instance().register_validator(
+	    []() { return std::make_unique<tools::security_review_with_agent_validator>(); });
+}
+
+void unregister_security_review_with_agent(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("security_review_with_agent");
+}
+}
