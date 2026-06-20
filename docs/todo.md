@@ -7,7 +7,7 @@
 	- question: is this one type, or a few different subtypes? A: start with a simple basic type
 		- advanced features then can be considered to become a subclass
 	- but with fallback if it does not fit
-	- needs option to have both horizontal and vertical scroll bars
+	- needs option to have vertical scroll bars
 	- start all at min size, and grow equally until uniform, starting with the smallest cells
 	- option to keep horiz == vert as goal (square), vs decoupled -- this could drive subclasses?
 		- characters are not exactly square on the screen, we need to code some heuristic ratio to make the outcome look square
@@ -205,6 +205,9 @@
 # done items (move items here on completion)
 
 ## 20-06-2026
+- implemented the base `ui_grid_flow` container type supporting 2D uniform grid layouts with auto-wrapping, fixed columns, customizable padding/spacing, and balanced natural dimension calculations (first step of "Agent command center").
+- consolidated consecutive system context injections into a single system turn and transaction at creation time to keep saved sessions (`agent_chat_2.json`) and TUI chat history clean.
+- provided fallback instructions (detailing target files and result file locations) when custom instructions are omitted in the `security_review_with_agent` tool call.
 - implemented `turboagent` startup mode. When invoked with the `turboagent` binary/symlink (checked via `argv[0]`), the editor starts directly with the Agent window active instead of a blank file editor window or a welcome dialog.
 - categorized all unit and E2E tests into three distinct Meson test suites (`"editor"`, `"agent"`, and `"plugins"`) to allow targeted test suite execution and reduce feedback loops.
 - refactored `ai_agent.cpp` to query the tool activation reasons dynamically from the `tool_registry` instead of using a hardcoded string, allowing plugins to register custom reasons via `register_tool_family`.
