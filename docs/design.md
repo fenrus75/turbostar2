@@ -236,3 +236,8 @@ To support modular and context-efficient tool management, tools are organized in
 
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
+
+## Plugins
+Turbostar supports dynamic plugin loading to extend the editor's capabilities at runtime.
+- **Shared Modules**: Plugins are compiled as shared modules (`.so` files) and placed in the plugin directory (e.g. `libdir/turbostar/plugins`).
+- **Plugin Entry Point**: Every plugin must implement a `void plugin_run(void)` function with `extern "C"` bindings (disabling C++ name mangling) as its standard entry point.

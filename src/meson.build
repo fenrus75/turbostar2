@@ -1,4 +1,5 @@
 subdir('tools')
+subdir('plugins')
 
 core_sources = files(
   'line.cpp',
