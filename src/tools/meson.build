@@ -164,10 +164,6 @@ tools_sources = files(
 
   'hex_inspect_range/hex_inspect_range_entry.cpp',
   'hex_inspect_range/hex_inspect_range_security.cpp',
-  'elf_list_sections/elf_list_sections_entry.cpp',
-  'elf_list_sections/elf_list_sections_security.cpp',
-  'elf_list_symbols/elf_list_symbols_entry.cpp',
-  'elf_list_symbols/elf_list_symbols_security.cpp',
   'troff2md.cpp',
   'fs_man/fs_man_entry.cpp',
   'fs_man/fs_man_security.cpp',

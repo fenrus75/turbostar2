@@ -14,6 +14,10 @@ void register_x86_assemble(void);
 void unregister_x86_assemble(void);
 void register_x86_disassemble(void);
 void unregister_x86_disassemble(void);
+void register_elf_list_sections(void);
+void unregister_elf_list_sections(void);
+void register_elf_list_symbols(void);
+void unregister_elf_list_symbols(void);
 
 /*
  * Every plugin must implement a plugin_run function.
@@ -24,6 +28,8 @@ void plugin_run(void)
 {
 	register_x86_assemble();
 	register_x86_disassemble();
+	register_elf_list_sections();
+	register_elf_list_symbols();
 }
 
 /*
@@ -33,6 +39,8 @@ void plugin_unload(void)
 {
 	unregister_x86_assemble();
 	unregister_x86_disassemble();
+	unregister_elf_list_sections();
+	unregister_elf_list_symbols();
 }
 
 }

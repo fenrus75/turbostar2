@@ -1,7 +1,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "elf_list_sections.h"
 
 namespace tools
@@ -82,6 +82,16 @@ class elf_list_sections_validator : public agentlib::tool_validator
 	mutable elf_list_sections_args args_;
 };
 
-REGISTER_TOOL(elf_list_sections_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_elf_list_sections(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::elf_list_sections_validator>(); });
+}
+
+void unregister_elf_list_sections(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("elf_list_sections");
+}
+}

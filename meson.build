@@ -105,22 +105,25 @@ turbostar_exe = executable('turbostar',
 
 agentcli_exe = executable('agentcli',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
+  export_dynamic: true,
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
+  export_dynamic: true,
   install : false)
 
 agentcli_replay_exe = executable('agentcli_replay',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
+  export_dynamic: true,
   install : false)
 
 
@@ -264,19 +267,20 @@ test('unit_test_hex_inspect_range', test_hex_inspect_range)
 
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
-   'src/tools/elf_list_sections/elf_list_sections_entry.cpp',
-   'src/tools/elf_list_sections/elf_list_sections_security.cpp'],
+   'src/plugins/asm86/elf_list_sections/elf_list_sections_entry.cpp',
+   'src/plugins/asm86/elf_list_sections/elf_list_sections_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_elf_list_sections', test_elf_list_sections)
 
 test_elf_list_symbols = executable('test_elf_list_symbols',
   ['tests/unit/test_elf_list_symbols.cpp',
-   'src/tools/elf_list_symbols/elf_list_symbols_entry.cpp',
-   'src/tools/elf_list_symbols/elf_list_symbols_security.cpp'],
+   'src/plugins/asm86/elf_list_symbols/elf_list_symbols_entry.cpp',
+   'src/plugins/asm86/elf_list_symbols/elf_list_symbols_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_elf_list_symbols', test_elf_list_symbols)
+
 
 
 test_list_skills = executable('test_list_skills',

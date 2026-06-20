@@ -3,15 +3,18 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
+#include "agentlib/tool_registry.h"
+#include "project_manager.h"
 #include "elf_test_helper.h"
 
 using namespace agentlib;
 
+extern "C" void register_elf_list_sections(void);
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	register_elf_list_sections();
 	project_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();

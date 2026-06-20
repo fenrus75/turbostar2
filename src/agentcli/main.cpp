@@ -14,6 +14,7 @@
 
 #include "../agentlib/ai_model.h"
 #include "../config_manager.h"
+#include "../pluginloader.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -92,6 +93,7 @@ int main(int argc, char **argv)
 	ctx.is_family_active = [&](const std::string &family) { return test_agent->is_tool_family_active(family); };
 
 	agentlib::skill_manager::get_instance().initialize();
+	plugin_loader::get_instance().load_all_plugins();
 	
 	std::filesystem::path workspace_root = project_dir.empty() ? std::filesystem::current_path() : std::filesystem::path(project_dir);
 	ctx.fs_security.set_working_directory(workspace_root);
