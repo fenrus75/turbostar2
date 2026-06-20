@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 /*
  * The plugin_loader class is responsible for locating, loading,
  * and running dynamic plugins (.so files) from the configured plugin directory.
@@ -13,4 +15,8 @@ public:
 	 * Loads all plugins found in the PLUGIN_DIR directory.
 	 */
 	void load_all_plugins();
+
+private:
+	std::vector<void*> loaded_handles_;
 };
+

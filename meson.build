@@ -156,6 +156,13 @@ test_conversation_turns = executable('test_conversation_turns',
   include_directories: inc)
 test('unit_test_conversation_turns', test_conversation_turns)
 
+test_pluginloader = executable('test_pluginloader',
+  ['tests/unit/test_pluginloader.cpp'],
+  dependencies : [core_dep, dl_dep],
+  include_directories: inc)
+test('unit_pluginloader', test_pluginloader)
+
+
 test_history_manager = executable('test_history_manager',
   ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
