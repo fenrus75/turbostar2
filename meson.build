@@ -146,44 +146,44 @@ add_test_setup('default',
 test_event_logger = executable('test_event_logger',
   ['tests/unit/test_event_logger.cpp', 'src/event_logger.cpp'],
   include_directories: 'src')
-test('unit_event_logger', test_event_logger)
+test('unit_event_logger', test_event_logger, suite: 'agent')
 
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
   ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp'],
   include_directories: 'src')
-test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator)
+test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator, suite: 'editor')
 
 test_conversation_turns = executable('test_conversation_turns',
   ['tests/unit/test_conversation_turns.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_conversation_turns', test_conversation_turns)
+test('unit_test_conversation_turns', test_conversation_turns, suite: 'agent')
 
 test_pluginloader = executable('test_pluginloader',
   ['tests/unit/test_pluginloader.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true)
-test('unit_pluginloader', test_pluginloader)
+test('unit_pluginloader', test_pluginloader, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',
   ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
-test('unit_history_manager', test_history_manager)
+test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
   ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
-test('unit_command_runner', test_command_runner)
+test('unit_command_runner', test_command_runner, suite: 'editor')
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
   ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp'],
   dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_tool_infrastructure', test_tool_infrastructure)
+test('unit_tool_infrastructure', test_tool_infrastructure, suite: 'agent')
 
 test_tools = executable('test_tools',
   ['tests/unit/test_tools.cpp',
@@ -201,7 +201,7 @@ test_tools = executable('test_tools',
    'src/tools/fs_read_lines/fs_read_lines_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_tools', test_tools)
+test('unit_test_tools', test_tools, suite: 'agent')
 
 test_shell_security = executable('test_shell_security',
   ['tests/unit/test_shell_security.cpp',
@@ -209,19 +209,19 @@ test_shell_security = executable('test_shell_security',
    'src/tools/git_add/git_add_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_shell_security', test_shell_security)
+test('unit_shell_security', test_shell_security, suite: 'agent')
 
 test_fs_utils = executable('test_fs_utils',
   ['tests/unit/test_fs_utils.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_fs_utils', test_fs_utils)
+test('unit_fs_utils', test_fs_utils, suite: 'agent')
 
 test_fs_man = executable('test_fs_man',
   ['tests/unit/test_fs_man.cpp'],
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, zlib_dep],
   include_directories: inc)
-test('unit_test_fs_man', test_fs_man)
+test('unit_test_fs_man', test_fs_man, suite: 'agent')
 
 
 test_activate_skill = executable('test_activate_skill',
@@ -230,7 +230,7 @@ test_activate_skill = executable('test_activate_skill',
    'src/tools/activate_skill/activate_skill_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_activate_skill', test_activate_skill)
+test('unit_test_activate_skill', test_activate_skill, suite: 'agent')
 
 test_activate_tool_family = executable('test_activate_tool_family',
   ['tests/unit/test_activate_tool_family.cpp',
@@ -238,7 +238,7 @@ test_activate_tool_family = executable('test_activate_tool_family',
    'src/tools/activate_tool_family/activate_tool_family_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_activate_tool_family', test_activate_tool_family)
+test('unit_test_activate_tool_family', test_activate_tool_family, suite: 'agent')
 
 test_x86_disassemble = executable('test_x86_disassemble',
   ['tests/unit/test_x86_disassemble.cpp',
@@ -246,7 +246,7 @@ test_x86_disassemble = executable('test_x86_disassemble',
    'src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_x86_disassemble', test_x86_disassemble)
+test('unit_test_x86_disassemble', test_x86_disassemble, suite: 'plugins')
 
 test_x86_assemble = executable('test_x86_assemble',
   ['tests/unit/test_x86_assemble.cpp',
@@ -254,7 +254,7 @@ test_x86_assemble = executable('test_x86_assemble',
    'src/plugins/asm86/x86_assemble/x86_assemble_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_x86_assemble', test_x86_assemble)
+test('unit_test_x86_assemble', test_x86_assemble, suite: 'plugins')
 
 
 test_hex_inspect_range = executable('test_hex_inspect_range',
@@ -263,7 +263,7 @@ test_hex_inspect_range = executable('test_hex_inspect_range',
    'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
-test('unit_test_hex_inspect_range', test_hex_inspect_range)
+test('unit_test_hex_inspect_range', test_hex_inspect_range, suite: 'agent')
 
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
@@ -271,7 +271,7 @@ test_elf_list_sections = executable('test_elf_list_sections',
    'src/plugins/asm86/elf_list_sections/elf_list_sections_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_sections', test_elf_list_sections)
+test('unit_test_elf_list_sections', test_elf_list_sections, suite: 'plugins')
 
 test_elf_list_symbols = executable('test_elf_list_symbols',
   ['tests/unit/test_elf_list_symbols.cpp',
@@ -279,7 +279,7 @@ test_elf_list_symbols = executable('test_elf_list_symbols',
    'src/plugins/asm86/elf_list_symbols/elf_list_symbols_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_elf_list_symbols', test_elf_list_symbols)
+test('unit_test_elf_list_symbols', test_elf_list_symbols, suite: 'plugins')
 
 
 
@@ -289,7 +289,7 @@ test_list_skills = executable('test_list_skills',
    'src/tools/list_skills/list_skills_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_list_skills', test_list_skills)
+test('unit_test_list_skills', test_list_skills, suite: 'agent')
 
 test_list_tool_calls = executable('test_list_tool_calls',
   ['tests/unit/test_list_tool_calls.cpp',
@@ -297,7 +297,7 @@ test_list_tool_calls = executable('test_list_tool_calls',
    'src/tools/list_tool_calls/list_tool_calls_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_list_tool_calls', test_list_tool_calls)
+test('unit_test_list_tool_calls', test_list_tool_calls, suite: 'agent')
 
 test_message_agent = executable('test_message_agent',
   ['tests/unit/test_message_agent.cpp',
@@ -307,7 +307,7 @@ test_message_agent = executable('test_message_agent',
    'src/tools/agent_create/agent_create_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_message_agent', test_message_agent)
+test('unit_test_message_agent', test_message_agent, suite: 'agent')
 
 test_run_python = executable('test_run_python',
   ['tests/unit/test_run_python.cpp',
@@ -315,7 +315,7 @@ test_run_python = executable('test_run_python',
    'src/tools/run_python/run_python_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_run_python', test_run_python)
+test('unit_test_run_python', test_run_python, suite: 'agent')
 
 test_run_shell_command = executable('test_run_shell_command',
   ['tests/unit/test_run_shell_command.cpp',
@@ -323,7 +323,7 @@ test_run_shell_command = executable('test_run_shell_command',
    'src/tools/run_shell_command/run_shell_command_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_run_shell_command', test_run_shell_command)
+test('unit_test_run_shell_command', test_run_shell_command, suite: 'agent')
 
 test_sqlite_list_db = executable('test_sqlite_list_db',
   ['tests/unit/test_sqlite_list_db.cpp',
@@ -331,7 +331,7 @@ test_sqlite_list_db = executable('test_sqlite_list_db',
    'src/tools/sqlite_list_db/sqlite_list_db_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_sqlite_list_db', test_sqlite_list_db)
+test('unit_test_sqlite_list_db', test_sqlite_list_db, suite: 'agent')
 
 test_git_branch_create = executable('test_git_branch_create',
   ['tests/unit/test_git_branch_create.cpp',
@@ -339,7 +339,7 @@ test_git_branch_create = executable('test_git_branch_create',
    'src/tools/git_branch_create/git_branch_create_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_branch_create', test_git_branch_create)
+test('unit_test_git_branch_create', test_git_branch_create, suite: 'agent')
 
 test_git_branch_list = executable('test_git_branch_list',
   ['tests/unit/test_git_branch_list.cpp',
@@ -347,13 +347,13 @@ test_git_branch_list = executable('test_git_branch_list',
    'src/tools/git_branch_list/git_branch_list_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_branch_list', test_git_branch_list)
+test('unit_test_git_branch_list', test_git_branch_list, suite: 'agent')
 
 test_git_manager = executable('test_git_manager',
   ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_manager', test_git_manager)
+test('unit_test_git_manager', test_git_manager, suite: 'agent')
 
 test_git_checkout_branch = executable('test_git_checkout_branch',
   ['tests/unit/test_git_checkout_branch.cpp',
@@ -361,7 +361,7 @@ test_git_checkout_branch = executable('test_git_checkout_branch',
    'src/tools/git_checkout_branch/git_checkout_branch_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_checkout_branch', test_git_checkout_branch)
+test('unit_test_git_checkout_branch', test_git_checkout_branch, suite: 'agent')
 
 test_git_commit = executable('test_git_commit',
   ['tests/unit/test_git_commit.cpp',
@@ -369,7 +369,7 @@ test_git_commit = executable('test_git_commit',
    'src/tools/git_commit/git_commit_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_commit', test_git_commit)
+test('unit_test_git_commit', test_git_commit, suite: 'agent')
 
 test_git_diff_from_branch = executable('test_git_diff_from_branch',
   ['tests/unit/test_git_diff_from_branch.cpp',
@@ -377,7 +377,7 @@ test_git_diff_from_branch = executable('test_git_diff_from_branch',
    'src/tools/git_diff_from_branch/git_diff_from_branch_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_from_branch', test_git_diff_from_branch)
+test('unit_test_git_diff_from_branch', test_git_diff_from_branch, suite: 'agent')
 
 test_git_diff_staged = executable('test_git_diff_staged',
   ['tests/unit/test_git_diff_staged.cpp',
@@ -385,7 +385,7 @@ test_git_diff_staged = executable('test_git_diff_staged',
    'src/tools/git_diff_staged/git_diff_staged_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_staged', test_git_diff_staged)
+test('unit_test_git_diff_staged', test_git_diff_staged, suite: 'agent')
 
 test_git_diff_unstaged = executable('test_git_diff_unstaged',
   ['tests/unit/test_git_diff_unstaged.cpp',
@@ -393,7 +393,7 @@ test_git_diff_unstaged = executable('test_git_diff_unstaged',
    'src/tools/git_diff_unstaged/git_diff_unstaged_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_diff_unstaged', test_git_diff_unstaged)
+test('unit_test_git_diff_unstaged', test_git_diff_unstaged, suite: 'agent')
 
 test_git_init = executable('test_git_init',
   ['tests/unit/test_git_init.cpp',
@@ -401,7 +401,7 @@ test_git_init = executable('test_git_init',
    'src/tools/git_init/git_init_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_init', test_git_init)
+test('unit_test_git_init', test_git_init, suite: 'agent')
 
 test_git_log = executable('test_git_log',
   ['tests/unit/test_git_log.cpp',
@@ -409,7 +409,7 @@ test_git_log = executable('test_git_log',
    'src/tools/git_log/git_log_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_log', test_git_log)
+test('unit_test_git_log', test_git_log, suite: 'agent')
 
 test_git_pull = executable('test_git_pull',
   ['tests/unit/test_git_pull.cpp',
@@ -417,7 +417,7 @@ test_git_pull = executable('test_git_pull',
    'src/tools/git_pull/git_pull_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_pull', test_git_pull)
+test('unit_test_git_pull', test_git_pull, suite: 'agent')
 
 test_git_push = executable('test_git_push',
   ['tests/unit/test_git_push.cpp',
@@ -425,7 +425,7 @@ test_git_push = executable('test_git_push',
    'src/tools/git_push/git_push_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_push', test_git_push)
+test('unit_test_git_push', test_git_push, suite: 'agent')
 
 test_git_restore = executable('test_git_restore',
   ['tests/unit/test_git_restore.cpp',
@@ -433,7 +433,7 @@ test_git_restore = executable('test_git_restore',
    'src/tools/git_restore/git_restore_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_restore', test_git_restore)
+test('unit_test_git_restore', test_git_restore, suite: 'agent')
 
 test_git_status = executable('test_git_status',
   ['tests/unit/test_git_status.cpp',
@@ -441,7 +441,7 @@ test_git_status = executable('test_git_status',
    'src/tools/git_status/git_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_status', test_git_status)
+test('unit_test_git_status', test_git_status, suite: 'agent')
 
 test_git_unstage = executable('test_git_unstage',
   ['tests/unit/test_git_unstage.cpp',
@@ -449,7 +449,7 @@ test_git_unstage = executable('test_git_unstage',
    'src/tools/git_unstage/git_unstage_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_git_unstage', test_git_unstage)
+test('unit_test_git_unstage', test_git_unstage, suite: 'agent')
 
 test_wait_for_agent = executable('test_wait_for_agent',
   ['tests/unit/test_wait_for_agent.cpp',
@@ -459,7 +459,7 @@ test_wait_for_agent = executable('test_wait_for_agent',
    'src/tools/agent_create/agent_create_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_wait_for_agent', test_wait_for_agent)
+test('unit_test_wait_for_agent', test_wait_for_agent, suite: 'agent')
 
 test_web_fetch = executable('test_web_fetch',
   ['tests/unit/test_web_fetch.cpp',
@@ -467,7 +467,7 @@ test_web_fetch = executable('test_web_fetch',
    'src/tools/web_fetch/web_fetch_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_web_fetch', test_web_fetch)
+test('unit_test_web_fetch', test_web_fetch, suite: 'agent')
 
 
 test_agent_add_todo = executable('test_agent_add_todo',
@@ -476,7 +476,7 @@ test_agent_add_todo = executable('test_agent_add_todo',
    'src/tools/agent_add_todo/agent_add_todo_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_add_todo', test_agent_add_todo)
+test('unit_test_agent_add_todo', test_agent_add_todo, suite: 'agent')
 
 test_exit_plan_mode = executable('test_exit_plan_mode',
   ['tests/unit/test_exit_plan_mode.cpp',
@@ -486,13 +486,13 @@ test_exit_plan_mode = executable('test_exit_plan_mode',
    'src/tools/exit_plan_mode/exit_plan_mode_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_exit_plan_mode', test_exit_plan_mode)
+test('unit_test_exit_plan_mode', test_exit_plan_mode, suite: 'agent')
 
 test_latency_spike = executable('test_latency_spike',
   'tests/unit/test_latency_spike.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_latency_spike', test_latency_spike)
+test('unit_test_latency_spike', test_latency_spike, suite: 'agent')
 
 
 
@@ -502,7 +502,7 @@ test_agent_complete_todo = executable('test_agent_complete_todo',
    'src/tools/agent_complete_todo/agent_complete_todo_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_complete_todo', test_agent_complete_todo)
+test('unit_test_agent_complete_todo', test_agent_complete_todo, suite: 'agent')
 
 test_agent_compress_history = executable('test_agent_compress_history',
   ['tests/unit/test_agent_compress_history.cpp',
@@ -510,13 +510,13 @@ test_agent_compress_history = executable('test_agent_compress_history',
    'src/tools/agent_compress_history/agent_compress_history_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_compress_history', test_agent_compress_history, is_parallel: false)
+test('unit_test_agent_compress_history', test_agent_compress_history, is_parallel: false, suite: 'agent')
 
 test_exit_summarization = executable('test_exit_summarization',
   ['tests/unit/test_exit_summarization.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_exit_summarization', test_exit_summarization)
+test('unit_test_exit_summarization', test_exit_summarization, suite: 'agent')
 
 test_agent_create = executable('test_agent_create',
   ['tests/unit/test_agent_create.cpp',
@@ -524,13 +524,13 @@ test_agent_create = executable('test_agent_create',
    'src/tools/agent_create/agent_create_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_create', test_agent_create)
+test('unit_test_agent_create', test_agent_create, suite: 'agent')
 
 test_agent_window = executable('test_agent_window',
   ['tests/unit/test_agent_window.cpp'],
   dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_window', test_agent_window)
+test('unit_test_agent_window', test_agent_window, suite: 'agent')
 
 test_agent_delete_todo = executable('test_agent_delete_todo',
   ['tests/unit/test_agent_delete_todo.cpp',
@@ -538,7 +538,7 @@ test_agent_delete_todo = executable('test_agent_delete_todo',
    'src/tools/agent_delete_todo/agent_delete_todo_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_delete_todo', test_agent_delete_todo)
+test('unit_test_agent_delete_todo', test_agent_delete_todo, suite: 'agent')
 
 test_agent_end = executable('test_agent_end',
   ['tests/unit/test_agent_end.cpp',
@@ -546,7 +546,7 @@ test_agent_end = executable('test_agent_end',
    'src/tools/agent_end/agent_end_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_end', test_agent_end)
+test('unit_test_agent_end', test_agent_end, suite: 'agent')
 
 test_agent_get_output = executable('test_agent_get_output',
   ['tests/unit/test_agent_get_output.cpp',
@@ -554,7 +554,7 @@ test_agent_get_output = executable('test_agent_get_output',
    'src/tools/agent_get_output/agent_get_output_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_get_output', test_agent_get_output)
+test('unit_test_agent_get_output', test_agent_get_output, suite: 'agent')
 
 test_agent_report_final_result = executable('test_agent_report_final_result',
   ['tests/unit/test_agent_report_final_result.cpp',
@@ -566,13 +566,13 @@ test_agent_report_final_result = executable('test_agent_report_final_result',
    'src/tools/wait_for_agent/wait_for_agent_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_report_final_result', test_agent_report_final_result)
+test('unit_test_agent_report_final_result', test_agent_report_final_result, suite: 'agent')
 
 test_api_formatter = executable('test_api_formatter',
   ['tests/unit/test_api_formatter.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_api_formatter', test_api_formatter)
+test('unit_test_api_formatter', test_api_formatter, suite: 'agent')
 
 test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
   ['tests/unit/test_agent_get_run_screenshot.cpp',
@@ -580,7 +580,7 @@ test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
    'src/tools/agent_get_run_screenshot/agent_get_run_screenshot_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_get_run_screenshot', test_agent_get_run_screenshot)
+test('unit_test_agent_get_run_screenshot', test_agent_get_run_screenshot, suite: 'agent')
 
 test_agent_list = executable('test_agent_list',
   ['tests/unit/test_agent_list.cpp',
@@ -588,7 +588,7 @@ test_agent_list = executable('test_agent_list',
    'src/tools/agent_list/agent_list_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_list', test_agent_list)
+test('unit_test_agent_list', test_agent_list, suite: 'agent')
 
 test_agent_list_todos = executable('test_agent_list_todos',
   ['tests/unit/test_agent_list_todos.cpp',
@@ -596,7 +596,7 @@ test_agent_list_todos = executable('test_agent_list_todos',
    'src/tools/agent_list_todos/agent_list_todos_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_list_todos', test_agent_list_todos)
+test('unit_test_agent_list_todos', test_agent_list_todos, suite: 'agent')
 
 test_agent_mark_episode = executable('test_agent_mark_episode',
   ['tests/unit/test_agent_mark_episode.cpp',
@@ -604,7 +604,7 @@ test_agent_mark_episode = executable('test_agent_mark_episode',
    'src/tools/agent_mark_episode/agent_mark_episode_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_mark_episode', test_agent_mark_episode)
+test('unit_test_agent_mark_episode', test_agent_mark_episode, suite: 'agent')
 
 test_agent_set_status = executable('test_agent_set_status',
   ['tests/unit/test_agent_set_status.cpp',
@@ -612,7 +612,7 @@ test_agent_set_status = executable('test_agent_set_status',
    'src/tools/agent_set_status/agent_set_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_set_status', test_agent_set_status)
+test('unit_test_agent_set_status', test_agent_set_status, suite: 'agent')
 
 test_agent_start_app = executable('test_agent_start_app',
   ['tests/unit/test_agent_start_app.cpp',
@@ -620,7 +620,7 @@ test_agent_start_app = executable('test_agent_start_app',
    'src/tools/agent_start_app/agent_start_app_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_start_app', test_agent_start_app)
+test('unit_test_agent_start_app', test_agent_start_app, suite: 'agent')
 
 test_agent_set_application_binary = executable('test_agent_set_application_binary',
   ['tests/unit/test_agent_set_application_binary.cpp',
@@ -628,7 +628,7 @@ test_agent_set_application_binary = executable('test_agent_set_application_binar
    'src/tools/agent_set_application_binary/agent_set_application_binary_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_set_application_binary', test_agent_set_application_binary)
+test('unit_test_agent_set_application_binary', test_agent_set_application_binary, suite: 'agent')
 
 test_agent_status = executable('test_agent_status',
   ['tests/unit/test_agent_status.cpp',
@@ -636,7 +636,7 @@ test_agent_status = executable('test_agent_status',
    'src/tools/agent_status/agent_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_status', test_agent_status)
+test('unit_test_agent_status', test_agent_status, suite: 'agent')
 
 test_agent_terminate_run = executable('test_agent_terminate_run',
   ['tests/unit/test_agent_terminate_run.cpp',
@@ -644,7 +644,7 @@ test_agent_terminate_run = executable('test_agent_terminate_run',
    'src/tools/agent_terminate_run/agent_terminate_run_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_terminate_run', test_agent_terminate_run)
+test('unit_test_agent_terminate_run', test_agent_terminate_run, suite: 'agent')
 
 test_agent_todo_status = executable('test_agent_todo_status',
   ['tests/unit/test_agent_todo_status.cpp',
@@ -652,7 +652,7 @@ test_agent_todo_status = executable('test_agent_todo_status',
    'src/tools/agent_todo_status/agent_todo_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_todo_status', test_agent_todo_status)
+test('unit_test_agent_todo_status', test_agent_todo_status, suite: 'agent')
 
 test_agent_write_to_run = executable('test_agent_write_to_run',
   ['tests/unit/test_agent_write_to_run.cpp',
@@ -660,7 +660,7 @@ test_agent_write_to_run = executable('test_agent_write_to_run',
    'src/tools/agent_write_to_run/agent_write_to_run_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_write_to_run', test_agent_write_to_run)
+test('unit_test_agent_write_to_run', test_agent_write_to_run, suite: 'agent')
 
 test_ask_user = executable('test_ask_user',
   ['tests/unit/test_ask_user.cpp',
@@ -668,7 +668,7 @@ test_ask_user = executable('test_ask_user',
    'src/tools/ask_user/ask_user_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_ask_user', test_ask_user)
+test('unit_test_ask_user', test_ask_user, suite: 'agent')
 
 test_clear_all_errors = executable('test_clear_all_errors',
   ['tests/unit/test_clear_all_errors.cpp',
@@ -676,7 +676,7 @@ test_clear_all_errors = executable('test_clear_all_errors',
    'src/tools/clear_all_errors/clear_all_errors_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_clear_all_errors', test_clear_all_errors)
+test('unit_test_clear_all_errors', test_clear_all_errors, suite: 'agent')
 
 test_code_get_definition = executable('test_code_get_definition',
   ['tests/unit/test_code_get_definition.cpp',
@@ -684,7 +684,7 @@ test_code_get_definition = executable('test_code_get_definition',
    'src/tools/code_get_definition/code_get_definition_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_definition', test_code_get_definition, is_parallel: false)
+test('unit_test_code_get_definition', test_code_get_definition, is_parallel: false, suite: 'agent')
 
 test_code_get_references = executable('test_code_get_references',
   ['tests/unit/test_code_get_references.cpp',
@@ -692,7 +692,7 @@ test_code_get_references = executable('test_code_get_references',
    'src/tools/code_get_references/code_get_references_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_references', test_code_get_references, is_parallel: false)
+test('unit_test_code_get_references', test_code_get_references, is_parallel: false, suite: 'agent')
 
 test_code_get_scope = executable('test_code_get_scope',
   ['tests/unit/test_code_get_scope.cpp',
@@ -700,7 +700,7 @@ test_code_get_scope = executable('test_code_get_scope',
    'src/tools/code_get_scope/code_get_scope_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_scope', test_code_get_scope, is_parallel: false)
+test('unit_test_code_get_scope', test_code_get_scope, is_parallel: false, suite: 'agent')
 
 test_crashdump_get_info = executable('test_crashdump_get_info',
   ['tests/unit/test_crashdump_get_info.cpp',
@@ -708,19 +708,19 @@ test_crashdump_get_info = executable('test_crashdump_get_info',
    'src/tools/crashdump_get_info/crashdump_get_info_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_crashdump_get_info', test_crashdump_get_info)
+test('unit_test_crashdump_get_info', test_crashdump_get_info, suite: 'agent')
 
 test_assert_fail = executable('test_assert_fail',
   'tests/unit/test_assert_fail.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_assert_fail', test_assert_fail, is_parallel: false)
+test('unit_test_assert_fail', test_assert_fail, is_parallel: false, suite: 'agent')
 
 test_fallback_crash = executable('test_fallback_crash',
   'tests/unit/test_fallback_crash.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fallback_crash', test_fallback_crash, is_parallel: false)
+test('unit_test_fallback_crash', test_fallback_crash, is_parallel: false, suite: 'agent')
 
 test_crashdump_list = executable('test_crashdump_list',
   ['tests/unit/test_crashdump_list.cpp',
@@ -728,7 +728,7 @@ test_crashdump_list = executable('test_crashdump_list',
    'src/tools/crashdump_list/crashdump_list_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_crashdump_list', test_crashdump_list)
+test('unit_test_crashdump_list', test_crashdump_list, suite: 'agent')
 
 test_flag_as_error = executable('test_flag_as_error',
   ['tests/unit/test_flag_as_error.cpp',
@@ -736,7 +736,7 @@ test_flag_as_error = executable('test_flag_as_error',
    'src/tools/flag_as_error/flag_as_error_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_flag_as_error', test_flag_as_error)
+test('unit_test_flag_as_error', test_flag_as_error, suite: 'agent')
 
 test_fs_list_dir = executable('test_fs_list_dir',
   ['tests/unit/test_fs_list_dir.cpp',
@@ -744,7 +744,7 @@ test_fs_list_dir = executable('test_fs_list_dir',
    'src/tools/fs_list_dir/fs_list_dir_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
-test('unit_test_fs_list_dir', test_fs_list_dir)
+test('unit_test_fs_list_dir', test_fs_list_dir, suite: 'agent')
 
 test_fs_glob = executable('test_fs_glob',
   ['tests/unit/test_fs_glob.cpp',
@@ -752,7 +752,7 @@ test_fs_glob = executable('test_fs_glob',
    'src/tools/fs_glob/fs_glob_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_glob', test_fs_glob)
+test('unit_test_fs_glob', test_fs_glob, suite: 'agent')
 
 test_fs_replace_content = executable('test_fs_replace_content',
   ['tests/unit/test_fs_replace_content.cpp',
@@ -760,7 +760,7 @@ test_fs_replace_content = executable('test_fs_replace_content',
    'src/tools/fs_replace_content/fs_replace_content_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_replace_content', test_fs_replace_content)
+test('unit_test_fs_replace_content', test_fs_replace_content, suite: 'agent')
 
 test_fs_mkdir = executable('test_fs_mkdir',
   ['tests/unit/test_fs_mkdir.cpp',
@@ -768,7 +768,7 @@ test_fs_mkdir = executable('test_fs_mkdir',
    'src/tools/fs_mkdir/fs_mkdir_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_mkdir', test_fs_mkdir)
+test('unit_test_fs_mkdir', test_fs_mkdir, suite: 'agent')
 
 test_fs_read_binary = executable('test_fs_read_binary',
   ['tests/unit/test_fs_read_binary.cpp',
@@ -776,7 +776,7 @@ test_fs_read_binary = executable('test_fs_read_binary',
    'src/tools/fs_read_binary/fs_read_binary_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_read_binary', test_fs_read_binary)
+test('unit_test_fs_read_binary', test_fs_read_binary, suite: 'agent')
 
 test_fs_regexp_lines = executable('test_fs_regexp_lines',
   ['tests/unit/test_fs_regexp_lines.cpp',
@@ -784,7 +784,7 @@ test_fs_regexp_lines = executable('test_fs_regexp_lines',
    'src/tools/fs_regexp_lines/fs_regexp_lines_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_regexp_lines', test_fs_regexp_lines)
+test('unit_test_fs_regexp_lines', test_fs_regexp_lines, suite: 'agent')
 
 test_fs_compile_file = executable('test_fs_compile_file',
   ['tests/unit/test_fs_compile_file.cpp',
@@ -792,7 +792,7 @@ test_fs_compile_file = executable('test_fs_compile_file',
    'src/tools/fs_compile_file/fs_compile_file_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_compile_file', test_fs_compile_file)
+test('unit_test_fs_compile_file', test_fs_compile_file, suite: 'agent')
 
 test_fs_compile_info = executable('test_fs_compile_info',
   ['tests/unit/test_fs_compile_info.cpp',
@@ -800,7 +800,7 @@ test_fs_compile_info = executable('test_fs_compile_info',
    'src/tools/fs_compile_info/fs_compile_info_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_compile_info', test_fs_compile_info)
+test('unit_test_fs_compile_info', test_fs_compile_info, suite: 'agent')
 
 test_fs_compile_project = executable('test_fs_compile_project',
   ['tests/unit/test_fs_compile_project.cpp',
@@ -808,7 +808,7 @@ test_fs_compile_project = executable('test_fs_compile_project',
    'src/tools/fs_compile_project/fs_compile_project_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_compile_project', test_fs_compile_project)
+test('unit_test_fs_compile_project', test_fs_compile_project, suite: 'agent')
 
 test_fs_compile_summary = executable('test_fs_compile_summary',
   ['tests/unit/test_fs_compile_summary.cpp',
@@ -816,7 +816,7 @@ test_fs_compile_summary = executable('test_fs_compile_summary',
    'src/tools/fs_compile_summary/fs_compile_summary_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fs_compile_summary', test_fs_compile_summary)
+test('unit_test_fs_compile_summary', test_fs_compile_summary, suite: 'agent')
 
 test_get_current_datetime = executable('test_get_current_datetime',
   ['tests/unit/test_get_current_datetime.cpp',
@@ -824,7 +824,7 @@ test_get_current_datetime = executable('test_get_current_datetime',
    'src/tools/get_current_datetime/get_current_datetime_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_get_current_datetime', test_get_current_datetime)
+test('unit_test_get_current_datetime', test_get_current_datetime, suite: 'agent')
 
 
 test_open_in_editor = executable('test_open_in_editor',
@@ -833,73 +833,73 @@ test_open_in_editor = executable('test_open_in_editor',
    'src/tools/open_in_editor/open_in_editor_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_open_in_editor', test_open_in_editor)
+test('unit_test_open_in_editor', test_open_in_editor, suite: 'agent')
 
 test_vim_emulation = executable('test_vim_emulation',
   'tests/unit/test_vim_emulation.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_vim_emulation', test_vim_emulation)
+test('unit_test_vim_emulation', test_vim_emulation, suite: 'agent')
 
 test_file_security = executable('test_file_security',
   ['tests/unit/test_file_security.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
   include_directories: 'src')
-test('unit_file_security', test_file_security)
+test('unit_file_security', test_file_security, suite: 'agent')
 test_fs_replace_lines = executable('test_fs_replace_lines',
   ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep],
   include_directories: 'src')
-test('unit_fs_replace_lines', test_fs_replace_lines)
+test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
 
 test_virtual_file_system = executable('test_virtual_file_system',
   ['tests/unit/test_virtual_file_system.cpp', 'src/agentlib/virtual_file_system.cpp'],
   dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep],
   include_directories: 'src')
-test('unit_virtual_file_system', test_virtual_file_system)
+test('unit_virtual_file_system', test_virtual_file_system, suite: 'agent')
 
 test_mcp_manager = executable('test_mcp_manager',
   'tests/unit/test_mcp_manager.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_mcp_manager', test_mcp_manager)
+test('unit_mcp_manager', test_mcp_manager, suite: 'agent')
 
 test_listbox = executable('test_listbox',
   'tests/unit/test_listbox.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_listbox', test_listbox)
+test('unit_listbox', test_listbox, suite: 'editor')
 
 test_multiline_edit = executable('test_multiline_edit',
   'tests/unit/test_multiline_edit.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_multiline_edit', test_multiline_edit)
+test('unit_multiline_edit', test_multiline_edit, suite: 'editor')
 
 test_github_vfs = executable('test_github_vfs',
   ['tests/unit/test_github_vfs.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_github_vfs', test_github_vfs)
+test('unit_github_vfs', test_github_vfs, suite: 'agent')
 
 test_skill_manager = executable('test_skill_manager',
   ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep, re2_dep],
   include_directories: 'src')
-test('unit_skill_manager', test_skill_manager)
+test('unit_skill_manager', test_skill_manager, suite: 'agent')
 
 
 test_python_highlighter = executable('test_python_highlighter',
   ['tests/unit/test_python_highlighter.cpp', 'src/python_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
-test('unit_python_highlighter', test_python_highlighter)
+test('unit_python_highlighter', test_python_highlighter, suite: 'editor')
 
 test_markdown_highlighter = executable('test_markdown_highlighter',
   ['tests/unit/test_markdown_highlighter.cpp', 'src/markdown_highlighter.cpp', 'src/line.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
-test('unit_markdown_highlighter', test_markdown_highlighter)
+test('unit_markdown_highlighter', test_markdown_highlighter, suite: 'editor')
 
 
 
@@ -907,43 +907,43 @@ test_markdown_utils = executable('test_markdown_utils',
   ['tests/unit/test_markdown_utils.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
-test('unit_markdown_utils', test_markdown_utils)
+test('unit_markdown_utils', test_markdown_utils, suite: 'editor')
 
 test_utf8 = executable('test_utf8',
   ['tests/unit/test_utf8.cpp', 'src/utf8.cpp'],
   dependencies : [],
   include_directories: 'src')
-test('unit_utf8', test_utf8)
+test('unit_utf8', test_utf8, suite: 'editor')
 
 test_context_dnn = executable('test_context_dnn',
   'tests/unit/test_context_dnn.cpp',
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_context_dnn', test_context_dnn)
+test('unit_context_dnn', test_context_dnn, suite: 'agent')
 
 test_document = executable('test_document',
   'tests/unit/test_document.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_document', test_document, is_parallel: false)
+test('unit_document', test_document, is_parallel: false, suite: 'editor')
 
 test_gcc_log_parser = executable('test_gcc_log_parser',
   'tests/unit/test_gcc_log_parser.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_gcc_log_parser', test_gcc_log_parser)
+test('unit_gcc_log_parser', test_gcc_log_parser, suite: 'editor')
 
 test_line = executable('test_line',
   'tests/unit/test_line.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_line', test_line)
+test('unit_line', test_line, suite: 'editor')
 
 test_hex_highlighter = executable('test_hex_highlighter',
   'tests/unit/test_hex_highlighter.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_hex_highlighter', test_hex_highlighter)
+test('unit_hex_highlighter', test_hex_highlighter, suite: 'editor')
 
 
 
@@ -952,84 +952,84 @@ test_sqlite_validation = executable('test_sqlite_validation',
   ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_sqlite_validation', test_sqlite_validation)
+test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent')
 
 test_crashdump_clear = executable('test_crashdump_clear',
   ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_crashdump_clear', test_crashdump_clear)
+test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')
 
 test_pop_todo = executable('test_pop_todo',
   ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/data/turn.cpp', 'src/agentlib/data/system_turn.cpp', 'src/agentlib/data/user_turn.cpp', 'src/agentlib/data/model_response_turn.cpp', 'src/agentlib/data/tool_execution_turn.cpp', 'src/agentlib/data/error_turn.cpp', 'src/agentlib/data/transaction.cpp', 'src/agentlib/data/episode.cpp', 'src/agentlib/data/conversation.cpp', 'src/agentlib/data/turn_registry.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/protocols/connection_factory.cpp', 'src/agentlib/protocols/openai_completion_connection.cpp', 'src/agentlib/protocols/openai_response_connection.cpp', 'src/agentlib/protocols/gemini_connection.cpp', 'src/agentlib/protocols/claude_connection.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_pop_todo', test_pop_todo)
+test('unit_pop_todo', test_pop_todo, suite: 'agent')
 
 test_httplib_transport = executable('test_httplib_transport',
   ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_httplib_transport', test_httplib_transport)
+test('unit_httplib_transport', test_httplib_transport, suite: 'agent')
 
 test_copilot_models = executable('test_copilot_models',
   ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_copilot_models', test_copilot_models)
+test('unit_copilot_models', test_copilot_models, suite: 'agent')
 
 test_model_server = executable('test_model_server',
   ['tests/unit/test_model_server.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/agentlib/ai_model.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
-test('unit_model_server', test_model_server)
+test('unit_model_server', test_model_server, suite: 'agent')
 
 test_fs_grep_files = executable('test_fs_grep_files',
   ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_fs_grep_files', test_fs_grep_files)
+test('unit_fs_grep_files', test_fs_grep_files, suite: 'agent')
 
 test_project_layout = executable('test_project_layout',
   ['tests/unit/test_project_layout.cpp', 'src/project_manager.cpp', 'src/git_manager.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/fs_utils.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
-test('unit_project_layout', test_project_layout)
+test('unit_project_layout', test_project_layout, suite: 'agent')
 
 test_output_filter = executable('test_output_filter',
   ['tests/unit/test_output_filter.cpp'],
   include_directories: 'src')
-test('unit_output_filter', test_output_filter)
+test('unit_output_filter', test_output_filter, suite: 'editor')
 
 test_run_config = executable('test_run_config',
   'tests/unit/test_run_config.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_run_config', test_run_config)
+test('unit_run_config', test_run_config, suite: 'editor')
 
 test_tool_status = executable('test_tool_status',
   'tests/unit/test_tool_status.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_tool_status', test_tool_status)
+test('unit_tool_status', test_tool_status, suite: 'editor')
 
 test_codereview_manager = executable('test_codereview_manager',
   'tests/unit/test_codereview_manager.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_codereview_manager', test_codereview_manager)
+test('unit_codereview_manager', test_codereview_manager, suite: 'agent')
 
 test_code_review_window = executable('test_code_review_window',
   'tests/unit/test_code_review_window.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_code_review_window', test_code_review_window)
+test('unit_code_review_window', test_code_review_window, suite: 'agent')
 
 test_codereview_line_tracking = executable('test_codereview_line_tracking',
   'tests/unit/test_codereview_line_tracking.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_codereview_line_tracking', test_codereview_line_tracking)
+test('unit_codereview_line_tracking', test_codereview_line_tracking, suite: 'agent')
 
 test_create_code_review_item = executable('test_create_code_review_item',
   ['tests/unit/test_create_code_review_item.cpp',
@@ -1037,7 +1037,7 @@ test_create_code_review_item = executable('test_create_code_review_item',
    'src/tools/create_code_review_item/create_code_review_item_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_create_code_review_item', test_create_code_review_item)
+test('unit_create_code_review_item', test_create_code_review_item, suite: 'agent')
 
 test_update_code_review_item = executable('test_update_code_review_item',
   ['tests/unit/test_update_code_review_item.cpp',
@@ -1045,7 +1045,7 @@ test_update_code_review_item = executable('test_update_code_review_item',
    'src/tools/update_code_review_item/update_code_review_item_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_update_code_review_item', test_update_code_review_item)
+test('unit_update_code_review_item', test_update_code_review_item, suite: 'agent')
 
 test_confirm_code_review_item = executable('test_confirm_code_review_item',
   ['tests/unit/test_confirm_code_review_item.cpp',
@@ -1053,7 +1053,7 @@ test_confirm_code_review_item = executable('test_confirm_code_review_item',
    'src/tools/confirm_code_review_item/confirm_code_review_item_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_confirm_code_review_item', test_confirm_code_review_item)
+test('unit_confirm_code_review_item', test_confirm_code_review_item, suite: 'agent')
 
 test_resolve_code_review_item = executable('test_resolve_code_review_item',
   ['tests/unit/test_resolve_code_review_item.cpp',
@@ -1061,7 +1061,7 @@ test_resolve_code_review_item = executable('test_resolve_code_review_item',
    'src/tools/resolve_code_review_item/resolve_code_review_item_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_resolve_code_review_item', test_resolve_code_review_item)
+test('unit_resolve_code_review_item', test_resolve_code_review_item, suite: 'agent')
 
 test_list_code_review_items = executable('test_list_code_review_items',
   ['tests/unit/test_list_code_review_items.cpp',
@@ -1069,7 +1069,7 @@ test_list_code_review_items = executable('test_list_code_review_items',
    'src/tools/list_code_review_items/list_code_review_items_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_list_code_review_items', test_list_code_review_items)
+test('unit_list_code_review_items', test_list_code_review_items, suite: 'agent')
 
 test_get_code_review_item = executable('test_get_code_review_item',
   ['tests/unit/test_get_code_review_item.cpp',
@@ -1077,7 +1077,7 @@ test_get_code_review_item = executable('test_get_code_review_item',
    'src/tools/get_code_review_item/get_code_review_item_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_get_code_review_item', test_get_code_review_item)
+test('unit_get_code_review_item', test_get_code_review_item, suite: 'agent')
 
 test_perform_code_review = executable('test_perform_code_review',
   ['tests/unit/test_perform_code_review.cpp',
@@ -1085,7 +1085,7 @@ test_perform_code_review = executable('test_perform_code_review',
    'src/tools/perform_code_review/perform_code_review_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_perform_code_review', test_perform_code_review)
+test('unit_perform_code_review', test_perform_code_review, suite: 'agent')
 
 
 
@@ -1124,7 +1124,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 180,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
   test('e2e_exit_delay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_delay.py')],
@@ -1132,175 +1133,200 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
   test('e2e_basic', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_basic.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_k_block_help', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_k_block_help.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_hex_editor', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_hex_editor.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_mouse_copy', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_mouse_copy.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_disk_change', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_disk_change.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_readonly_help', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_readonly_help.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_menus', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menus.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_cursor', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_cursor_wrap', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_cursor_wrap.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_typing', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_typing.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_utf8', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_utf8.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_backspace', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_backspace.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_enter', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_enter.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_delete_line', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_delete_line.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_compaction', e2e_exe,
     args: e2e_base_args + ['-m', 'pytest', join_paths(meson.project_source_root(), 'tests/e2e/test_compaction.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'agent'
   )
   test('e2e_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_selection.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_power_nav', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_power_nav.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_undo_redo', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_undo_redo.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_insert_file', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_insert_file.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_format', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_format.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_settings', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_settings.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_bracket_matching', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_bracket_matching.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_scope_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_scope_selection.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_multiple_filenames', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_multiple_filenames.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   if git_prog.found()
     test('e2e_git', e2e_exe,
@@ -1309,7 +1335,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
       workdir: meson.project_build_root(),
       timeout: 60,
-      is_parallel: false
+      is_parallel: false,
+      suite: 'agent'
     )
     test('e2e_git_mouse', e2e_exe,
       args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_git_mouse.py')],
@@ -1317,7 +1344,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
       workdir: meson.project_build_root(),
       timeout: 60,
-      is_parallel: false
+      is_parallel: false,
+      suite: 'agent'
     )
   endif
 
@@ -1326,7 +1354,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_mouse_scroll_zorder', e2e_exe,
@@ -1334,7 +1363,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_window_drag_resize', e2e_exe,
@@ -1342,7 +1372,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_window_maximize', e2e_exe,
@@ -1350,7 +1381,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_window_popup', e2e_exe,
@@ -1358,7 +1390,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_close_dirty', e2e_exe,
@@ -1366,7 +1399,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_untitled_save_loop', e2e_exe,
@@ -1374,7 +1408,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_force_quit', e2e_exe,
@@ -1382,7 +1417,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_block_copy_move', e2e_exe,
@@ -1390,7 +1426,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_block_move_down', e2e_exe,
@@ -1398,7 +1435,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_block_write', e2e_exe,
@@ -1406,7 +1444,8 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
 
   test('e2e_word_line_edit', e2e_exe,
@@ -1414,133 +1453,152 @@ if uv.found() or python.found()
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_content_assertion', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_content_assertion.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_dialog_esc', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_dialog_esc.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_dialogs.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_menu_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_dialogs.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_menu_windows', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_windows.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_agent_window_single', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_window_single.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'agent'
   )
   test('e2e_lsp_missing_server', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_missing_server.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_extra_keys', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_extra_keys.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_search', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_search.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_search_autocomplete', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_search_autocomplete.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_file_dialog', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_file_dialog.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_advanced_search', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_advanced_search.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_ghost_x', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ghost_x.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_tabs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_tabs.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_syntax', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_syntax.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_syntax_markdown', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_syntax_markdown.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_ctrl_sequences', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ctrl_sequences.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_block_delete', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_block_delete.py')],
     env: e2e_env,
     depends: e2e_depends,
     workdir: meson.project_build_root(),
-    timeout: 60
+    timeout: 60,
+    suite: 'editor'
   )
   test('e2e_format_paragraph', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_format_paragraph.py')],
@@ -1548,7 +1606,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
   test('e2e_agent_todos', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_todos.py')],
@@ -1556,7 +1615,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
   test('e2e_elf_tools_replay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_elf_tools_replay.py')],
@@ -1564,7 +1624,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'plugins'
   )
   test('e2e_agent_create', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_create.py')],
@@ -1572,7 +1633,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
 
   test('e2e_agent_mouse_copy', e2e_exe,
@@ -1581,7 +1643,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
   test('e2e_exit_save_prompt_loop', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_exit_save_prompt_loop.py')],
@@ -1589,7 +1652,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
   test('e2e_modal_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_modal_dialogs.py')],
@@ -1597,7 +1661,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
   test('e2e_sqlite_tools', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_sqlite_tools.py')],
@@ -1605,7 +1670,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'agent'
   )
 
   test('e2e_debugger', e2e_exe,
@@ -1614,7 +1680,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
 
   test('e2e_linked_windows', e2e_exe,
@@ -1623,7 +1690,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
 
   test('e2e_ncurses_stuck', e2e_exe,
@@ -1632,7 +1700,8 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
 
   # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
@@ -1643,6 +1712,7 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false
+    is_parallel: false,
+    suite: 'editor'
   )
 endif

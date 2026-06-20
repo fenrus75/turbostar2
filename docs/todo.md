@@ -207,6 +207,7 @@
 # done items (move items here on completion)
 
 ## 20-06-2026
+- categorized all unit and E2E tests into three distinct Meson test suites (`"editor"`, `"agent"`, and `"plugins"`) to allow targeted test suite execution and reduce feedback loops.
 - refactored `ai_agent.cpp` to query the tool activation reasons dynamically from the `tool_registry` instead of using a hardcoded string, allowing plugins to register custom reasons via `register_tool_family`.
 - implemented explicit `plugin_unload` hook lookup/execution inside `plugin_loader::~plugin_loader()` before unloading plugins with `dlclose()`.
 - converted `asm86` plugins from auto-registering static variables to programmatic entry points and explicit unregistration functions (`register_x86_assemble()`, `register_x86_disassemble()`, etc.).

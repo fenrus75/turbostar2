@@ -52,3 +52,17 @@ Use established helper methods in `TurbostarRunner` instead of manually calculat
 **Do not use bare `assert` statements directly within test functions.**
 A direct `assert` in a test script is a strong signal that either an existing helper method in `TurbostarRunner` should be used, or a new helper should be created.
 - **Why:** Helper methods are critical because they can encapsulate robust polling logic and generate rich, diagnostic error messages (e.g., printing both expected and actual data, or showing a diff) upon failure, without clobbering the main test logic with boilerplate.
+
+## 7. Meson Test Suites
+
+To keep feedback loops short, all tests are categorized into three Meson test suites:
+- `editor`: UI components, Vim emulation, dialogs, cursor, text operations, syntax highlighting.
+- `agent`: AI agent functionality, LLM connection payload serialization, compaction, agent tools, code reviews.
+- `plugins`: Dynamic shared module loader (`plugin_loader`), plugin initialization, and plugin-specific tools (e.g. `x86_assemble`, `x86_disassemble`, `elf_list_sections`, `elf_list_symbols`).
+
+You can execute a specific suite of tests using the `--suite` option:
+```bash
+meson test -C build --suite editor
+meson test -C build --suite agent
+meson test -C build --suite plugins
+```
