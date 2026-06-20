@@ -14,6 +14,8 @@ const char *plugin_description(void)
 
 void register_security_scan_python(void);
 void unregister_security_scan_python(void);
+void register_security_scan_c(void);
+void unregister_security_scan_c(void);
 
 /*
  * plugin_run serves as the entry point when the plugin is loaded dynamically.
@@ -22,6 +24,7 @@ void unregister_security_scan_python(void);
 void plugin_run(void)
 {
 	register_security_scan_python();
+	register_security_scan_c();
 	// Reminder: We will not register a new tool family.
 	// But we will use the (hidden) ":plugin:securityagent" tool family
 	// for all (except one) of the tools in this plugin.
@@ -33,5 +36,6 @@ void plugin_run(void)
 void plugin_unload(void)
 {
 	unregister_security_scan_python();
+	unregister_security_scan_c();
 }
 }
