@@ -65,6 +65,26 @@ int main()
 		subagent->wait_until_idle();
 	}
 
+	// Test 3: Test exit_implicitly_on_idle flag
+	{
+		auto fail_model = std::make_shared<ai_model>("fail-model", "Fail Model", "http://localhost:1", "Test", 0.0, 0.0);
+		auto test_agent = ai_agent::create(201, "subagent_implicit_exit", fail_model, nullptr, nullptr);
+		assert(!test_agent->is_exit_implicitly_on_idle());
+		test_agent->set_exit_implicitly_on_idle(true);
+		assert(test_agent->is_exit_implicitly_on_idle());
+
+		assert(!test_agent->has_final_result());
+
+		test_agent->submit_prompt("Hello");
+		test_agent->wait_until_idle();
+
+		assert(test_agent->has_final_result());
+		std::string implicit_res = test_agent->get_final_result();
+		assert(!implicit_res.empty());
+		assert(implicit_res.find("Error: Streaming request failed") != std::string::npos);
+		std::cout << "Implicit final result on idle (error case): " << implicit_res << std::endl;
+	}
+
 	std::cout << "agent_report_final_result tests passed successfully.\n";
 	return 0;
 }

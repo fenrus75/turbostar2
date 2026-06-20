@@ -124,6 +124,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 
 	subagent->set_role(agentlib::agent_role::reviewer);
 	subagent->set_model(reviewer_model);
+	subagent->set_exit_implicitly_on_idle(true);
 
 	if (!args_.result_file.empty()) {
 		subagent->set_allowed_write_file(args_.result_file);

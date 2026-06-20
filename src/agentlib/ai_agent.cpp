@@ -1578,6 +1578,12 @@ void ai_agent::start_processing()
 			return;
 		}
 
+		if (self->is_exit_implicitly_on_idle()) {
+			if (!self->has_final_result()) {
+				self->set_final_result(final_response);
+			}
+		}
+
 		self->set_status(agent_status::idle);
 		event_logger::get_instance().log("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
 						 self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
@@ -3201,6 +3207,18 @@ bool ai_agent::has_final_result() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
 	return !final_result_.empty();
+}
+
+void ai_agent::set_exit_implicitly_on_idle(bool val)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	exit_implicitly_on_idle_ = val;
+}
+
+bool ai_agent::is_exit_implicitly_on_idle() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return exit_implicitly_on_idle_;
 }
 
 std::string ai_agent::get_allowed_write_file() const
