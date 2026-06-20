@@ -90,6 +90,7 @@ turbostar_exe = executable('turbostar',
   'src/main.cpp',
   dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc,
+  export_dynamic: true,
   install : true)
 
 agentcli_exe = executable('agentcli',
