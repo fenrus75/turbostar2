@@ -3,16 +3,6 @@
 
 - we need a /command registery so that plugins can register commands
 
-- we need a ui_grid container type that auto-sizes cells with the aim of uniform sizes
-	- question: is this one type, or a few different subtypes? A: start with a simple basic type
-		- advanced features then can be considered to become a subclass
-	- but with fallback if it does not fit
-	- needs option to have vertical scroll bars
-	- start all at min size, and grow equally until uniform, starting with the smallest cells
-	- option to keep horiz == vert as goal (square), vs decoupled -- this could drive subclasses?
-		- characters are not exactly square on the screen, we need to code some heuristic ratio to make the outcome look square
-	- option to not know the width or height in cells and try placement options based on available size
-
 
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
@@ -205,6 +195,7 @@
 # done items (move items here on completion)
 
 ## 20-06-2026
+- implemented the `ui_durmovie` element to render Durdraw JSON animations, with a hybrid animation state engine (state-based timer ticks in `update_animation` and static idle frames), UTF-8 safe glyph pre-parsing, and DOS-to-ncurses color palette mapping (second step of "Agent command center").
 - implemented the base `ui_grid_flow` container type supporting 2D uniform grid layouts with auto-wrapping, fixed columns, customizable padding/spacing, and balanced natural dimension calculations (first step of "Agent command center").
 - consolidated consecutive system context injections into a single system turn and transaction at creation time to keep saved sessions (`agent_chat_2.json`) and TUI chat history clean.
 - provided fallback instructions (detailing target files and result file locations) when custom instructions are omitted in the `security_review_with_agent` tool call.

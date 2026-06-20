@@ -31,6 +31,7 @@ class ui_container;
 | ui_textbox        | src/ui/components/ui_textbox.h                           |
 | ui_horizontal_flow | src/ui/components/ui_horizontal_flow.h                   |
 | ui_vertical_flow   | src/ui/components/ui_vertical_flow.h                     |
+| ui_durmovie       | src/ui/components/ui_durmovie.h                         |
 | ui_container      | src/ui/ui_element.h                                     |
 
 */
