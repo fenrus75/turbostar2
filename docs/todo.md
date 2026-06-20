@@ -209,6 +209,7 @@
 # done items (move items here on completion)
 
 ## 19-06-2026
+- enabled `export_dynamic` on the `turbostar` executable target in [meson.build](file:///home/arjan/git/turbostar2/meson.build#L90-L94) to support dynamic plugin loading.
 - renamed `is_allowed_for_role` in `tool_validator` to `is_allowed_for_agent`, taking `agent_properties` struct as parameter, and moved it from inline to [tool_validator.cpp](file:///home/arjan/git/turbostar2/src/agentlib/tool_validator.cpp).
 - removed the leftover `get_gemini_tools_json` method from the `tool_registry` class and updated the design documentation.
 - filtered out tool families starting with a colon (`:`) from active and inactive family listings in the system prompt to support silent tool families.
