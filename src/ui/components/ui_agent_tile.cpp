@@ -106,7 +106,8 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 	auto status = agent_->get_status();
 	std::string status_str = agent_status_to_string(status, tool_name);
 	std::string status_text;
-	if (is_currently_streaming) {
+	bool show_spinner = (status == agentlib::agent_status::thinking || status == agentlib::agent_status::tool_execution);
+	if (show_spinner) {
 		static const std::string spinner_chars[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
 		status_text = "S: " + spinner_chars[spinner_frame_ % 10] + " " + status_str;
 	} else {

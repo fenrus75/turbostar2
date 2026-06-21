@@ -21,7 +21,7 @@ void agent_center_window::draw_content(bool cursor_only) const
 	// Dynamic layout fit inside window content boundaries
 	grid_->set_bounds(x_ + 1, y_ + 1, width_ - 2, height_ - 2);
 	grid_->flow();
-	grid_->draw(0, 0);
+	grid_->draw(x_, y_);
 }
 
 void agent_center_window::draw_border() const
@@ -122,7 +122,7 @@ bool agent_center_window::process_events()
 			}
 		}
 
-		if (grid_->handle_event(*ev, 0, 0)) {
+		if (grid_->handle_event(*ev, x_, y_)) {
 			needs_render = true;
 			invalidate();
 		}

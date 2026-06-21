@@ -9,6 +9,7 @@
 #include <ncurses.h>
 #include <sstream>
 #include <thread>
+#include <unordered_set>
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include "binary_document.h"
@@ -22,8 +23,8 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
-#include "ui/agent_window.h"
 #include "ui/agent_center_window.h"
+#include "ui/agent_window.h"
 #include "ui/code_review_window.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
@@ -1529,37 +1530,40 @@ void editor::print_latency_report() const
 	}
 }
 
-static void collect_agents_recursive(
-	const std::shared_ptr<agentlib::ai_agent> &agent,
-	std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents)
+static void collect_agents_recursive(const std::shared_ptr<agentlib::ai_agent> &agent,
+				     std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents, std::unordered_set<int> &seen_ids)
 {
 	if (!agent || agent->get_status() == agentlib::agent_status::dead) {
 		return;
 	}
+	if (seen_ids.count(agent->get_id())) {
+		return;
+	}
+	seen_ids.insert(agent->get_id());
 	out_agents.push_back(agent);
 	for (const auto &subagent : agent->get_subagents()) {
-		collect_agents_recursive(subagent, out_agents);
+		collect_agents_recursive(subagent, out_agents, seen_ids);
 	}
 }
 
 std::vector<std::shared_ptr<agentlib::ai_agent>> editor::get_all_active_agents() const
 {
 	std::vector<std::shared_ptr<agentlib::ai_agent>> active_agents;
+	std::unordered_set<int> seen_ids;
 
 	// 1. Gather root agents from active agent windows
 	for (const auto &win : windows_) {
 		if (auto *agent_win = dynamic_cast<agent_window *>(win.get())) {
 			if (auto agent = agent_win->get_agent()) {
-				collect_agents_recursive(agent, active_agents);
+				collect_agents_recursive(agent, active_agents, seen_ids);
 			}
 		}
 	}
 
 	// 2. Gather headless background agents
 	for (const auto &agent : headless_agents_) {
-		collect_agents_recursive(agent, active_agents);
+		collect_agents_recursive(agent, active_agents, seen_ids);
 	}
 
 	return active_agents;
 }
-
