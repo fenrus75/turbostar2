@@ -33,27 +33,7 @@ std::string agent_list_tool::execute(agentlib::tool_context &ctx)
 	std::string table = "| ID | Name | Status |\n|---|---|---|\n";
 
 	for (const auto &sub : subagents) {
-		std::string status_str;
-		switch (sub->get_status()) {
-			case agentlib::agent_status::idle:
-				status_str = "Idle";
-				break;
-			case agentlib::agent_status::thinking:
-				status_str = "Thinking";
-				break;
-			case agentlib::agent_status::tool_execution:
-				status_str = "Tool Execution";
-				break;
-			case agentlib::agent_status::error:
-				status_str = "Error";
-				break;
-			case agentlib::agent_status::waiting:
-				status_str = "Waiting";
-				break;
-			default:
-				status_str = "Unknown";
-				break;
-		}
+		std::string status_str = agentlib::agent_status_to_name(sub->get_status());
 		table += std::format("| {} | {} | {} |\n", sub->get_id(), sub->get_name(), status_str);
 	}
 	return table;

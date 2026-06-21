@@ -62,6 +62,28 @@ std::string agent_status_to_string(agent_status status, const std::string &tool_
 			return "Waiting...";
 		case agent_status::error:
 			return "Error";
+		case agent_status::dead:
+			return "Dead";
+		default:
+			return "Unknown";
+	}
+}
+
+std::string agent_status_to_name(agent_status status)
+{
+	switch (status) {
+		case agent_status::idle:
+			return "Idle";
+		case agent_status::thinking:
+			return "Thinking";
+		case agent_status::tool_execution:
+			return "Tool Execution";
+		case agent_status::waiting:
+			return "Waiting";
+		case agent_status::error:
+			return "Error";
+		case agent_status::dead:
+			return "Dead";
 		default:
 			return "Unknown";
 	}

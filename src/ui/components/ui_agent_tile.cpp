@@ -114,6 +114,9 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 		case agentlib::agent_status::waiting:
 			status_pair = 3; // Yellow on Blue
 			break;
+		case agentlib::agent_status::dead:
+			status_pair = 38; // Dim/Dark Gray on Blue
+			break;
 		default:
 			status_pair = 38; // Dim/Dark Gray on Blue
 			break;

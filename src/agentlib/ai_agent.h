@@ -21,9 +21,10 @@ namespace agentlib
 {
 class Conversation;
 
-enum class agent_status { idle, thinking, tool_execution, waiting, error };
+enum class agent_status { idle, thinking, tool_execution, waiting, error, dead };
 
 std::string agent_status_to_string(agent_status status, const std::string &tool_name = "");
+std::string agent_status_to_name(agent_status status);
 
 struct todo_item {
 	std::string text;

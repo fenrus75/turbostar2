@@ -38,24 +38,7 @@ std::string agent_status_tool::execute(agentlib::tool_context &ctx)
 	oss << "Agent ID: " << target_agent->get_id() << "\n";
 	oss << "Name: " << target_agent->get_name() << "\n";
 
-	std::string status_str;
-	switch (target_agent->get_status()) {
-		case agentlib::agent_status::idle:
-			status_str = "Idle";
-			break;
-		case agentlib::agent_status::thinking:
-			status_str = "Thinking";
-			break;
-		case agentlib::agent_status::tool_execution:
-			status_str = "Tool Execution";
-			break;
-		case agentlib::agent_status::error:
-			status_str = "Error";
-			break;
-		case agentlib::agent_status::waiting:
-			status_str = "Waiting";
-			break;
-	}
+	std::string status_str = agentlib::agent_status_to_name(target_agent->get_status());
 	oss << "Status: " << status_str << "\n";
 
 	// We can expand this later with more details, like last error, tokens, etc.
