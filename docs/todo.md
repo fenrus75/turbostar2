@@ -192,8 +192,10 @@
 # done items (move items here on completion)
 
 ## 21-06-2026
+- implemented a thread-safe `agent_animation_registry` and global animation registration APIs, added `animation_name` property getter and setter to `ai_agent`, refactored `ui_durmovie` to share parsed animation frames using `std::shared_ptr`, and updated `ui_agent_tile` to dynamically poll and swap active agent animations.
 - implemented the `agent_center_window` class as a normal window displaying a dynamic grid layout of active AI agents via `ui_grid_flow` and `ui_agent_tile`, and added a "Command Center..." shortcut to the Agent menu.
 - completed registration, resolved compilation/circular dependencies, and finalized documentation for the `ui_agent_tile` component, mapping it in `ui_element.h` and detailing its stateful rendering in `docs/design-ui.md`.
+
 
 ## 20-06-2026
 - implemented the `ui_durmovie` element to render Durdraw JSON animations, with a hybrid animation state engine (state-based timer ticks in `update_animation` and static idle frames), UTF-8 safe glyph pre-parsing, and DOS-to-ncurses color palette mapping (second step of "Agent command center").
