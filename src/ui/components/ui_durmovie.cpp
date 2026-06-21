@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <utility>
 #include "default_movie.h"
+#include "fs_compile_project_movie.h"
 #include "event_logger.h"
 #include "utf8.h"
 
@@ -88,13 +89,19 @@ ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)
 		reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
 		animation_ = reg.get_animation("default");
 	}
+	if (!reg.get_animation("fs_compile_project")) {
+		reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
+	}
 }
 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, const std::string &json_str)
     : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
 {
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	if (!reg.get_animation("fs_compile_project")) {
+		reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
+	}
 	if (json_str.empty()) {
-		auto &reg = agentlib::agent_animation_registry::get_instance();
 		animation_ = reg.get_animation("default");
 		if (!animation_) {
 			reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
@@ -108,8 +115,11 @@ ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, std::shared_ptr<const agentlib::dur_animation_data> animation)
     : ui_element(std::move(name), x, y, width, height), animation_(std::move(animation)), last_frame_time_(std::chrono::steady_clock::now())
 {
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	if (!reg.get_animation("fs_compile_project")) {
+		reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
+	}
 	if (!animation_) {
-		auto &reg = agentlib::agent_animation_registry::get_instance();
 		animation_ = reg.get_animation("default");
 		if (!animation_) {
 			reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));

@@ -145,6 +145,12 @@ default_movie_h = custom_target('default_movie.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'default_movie_json']
 )
 
+fs_compile_project_movie_h = custom_target('fs_compile_project_movie.h',
+  input : '../artwork/fs_compile_project.json',
+  output : 'fs_compile_project_movie.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'fs_compile_project_movie_json']
+)
+
 # Define static libraries
 libturbostar_core = static_library('turbostar_core',
   core_sources,
@@ -163,7 +169,7 @@ libtools = static_library('tools',
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep])
 
 libturbostar_ui = static_library('turbostar_ui',
-  ui_sources + [help_text_h, default_movie_h],
+  ui_sources + [help_text_h, default_movie_h, fs_compile_project_movie_h],
   include_directories : inc,
   dependencies : [ncurses, thread_dep, nlohmann_json_dep, lsp_dep])
 

@@ -127,6 +127,18 @@ void test_default_movie()
 	assert(!movie.update_animation()); // elapsed time hasn't passed yet
 }
 
+void test_fs_compile_project_movie()
+{
+	std::cout << "Testing fs_compile_project embedded movie loading..." << std::endl;
+	ui_durmovie movie("compile_movie", 0, 0, 10, 5);
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	auto anim = reg.get_animation("fs_compile_project");
+	assert(anim != nullptr);
+	assert(anim->framerate > 0);
+	assert(anim->size_x > 0);
+	assert(anim->size_y > 0);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(5); // 5 second timeout safety watchdog
@@ -135,6 +147,7 @@ int main()
 	test_animation_timing();
 	test_real_json();
 	test_default_movie();
+	test_fs_compile_project_movie();
 
 	std::cout << "All ui_durmovie tests passed!" << std::endl;
 	return 0;
