@@ -13,6 +13,8 @@
 #include "../../src/event_queue.h"
 #include "../../src/config_manager.h"
 
+#include "../../src/tools/terminal_command_runner.h"
+
 using namespace agentlib;
 
 int main()
@@ -169,6 +171,20 @@ int main()
 		std::filesystem::remove("/tmp/mock_xauth");
 		unsetenv("DISPLAY");
 		unsetenv("XAUTHORITY");
+	}
+
+	// 8. Test terminal_command_runner trigger_update callback periodic firing
+	{
+		std::cout << "Testing terminal_command_runner trigger_update callback periodic firing..." << std::endl;
+		int trigger_count = 0;
+		auto interaction = std::make_shared<agentlib::interaction_terminal>("test", "test");
+		tools::terminal_command_runner runner(interaction, [&]() {
+			trigger_count++;
+		});
+		runner.apply_build_profile();
+		runner.execute("sleep 0.3");
+		std::cout << "Trigger count: " << trigger_count << std::endl;
+		assert(trigger_count > 0 && "trigger_update callback should have been called at least once during execution!");
 	}
 
 	std::cout << "run_shell_command tests passed successfully.\n";

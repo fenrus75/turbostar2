@@ -1487,6 +1487,7 @@ void ai_agent::start_processing()
 
 					// Provide UI update callback for long-running tools
 					ctx.trigger_ui_update = [this_ptr = self.get()]() {
+						this_ptr->update_last_activity_time();
 						if (this_ptr->global_queue_) {
 							editor_event ev;
 							ev.type = event_type::agent_tool_update;
@@ -1570,8 +1571,11 @@ void ai_agent::start_processing()
 							tool_result = prep.error_message;
 						} else {
 							try {
+								self->update_last_activity_time();
 								tool_result = prep.tool->execute(ctx);
+								self->update_last_activity_time();
 							} catch (const std::exception &e) {
+								self->update_last_activity_time();
 								tool_result = "Execution Error: " + std::string(e.what());
 							}
 						}
