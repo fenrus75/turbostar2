@@ -192,14 +192,11 @@ void ui_durmovie::load_json(const std::string &json_str)
 
 void ui_durmovie::set_animation(std::shared_ptr<const agentlib::dur_animation_data> animation)
 {
+	register_built_in_animations();
 	animation_ = std::move(animation);
 	if (!animation_) {
 		auto &reg = agentlib::agent_animation_registry::get_instance();
 		animation_ = reg.get_animation("default");
-		if (!animation_) {
-			reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
-			animation_ = reg.get_animation("default");
-		}
 	}
 	current_frame_ = 0;
 	last_frame_time_ = std::chrono::steady_clock::now();
