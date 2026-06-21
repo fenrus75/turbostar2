@@ -96,7 +96,13 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 	// 3. Render status line (index 9)
 	auto status = agent_->get_status();
 	std::string status_str = agent_status_to_string(status, tool_name);
-	std::string status_text = "S: " + status_str;
+	std::string status_text;
+	if (is_currently_streaming) {
+		static const std::string spinner_chars[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+		status_text = "S: " + spinner_chars[spinner_frame_ % 10] + " " + status_str;
+	} else {
+		status_text = "S: " + status_str;
+	}
 	std::string formatted_status = format_line(status_text, 20);
 
 	// Map status to aesthetic colors
@@ -147,6 +153,7 @@ bool ui_agent_tile::update_animation()
 	if (ms >= 250) {
 		if (tokens_increased) {
 			current_anim_frame_ = (current_anim_frame_ + 1) % 8;
+			spinner_frame_ = (spinner_frame_ + 1) % 10;
 			last_tokens_rx_ = current_tokens;
 			last_token_increase_time_ = now;
 			local_changed = true;
