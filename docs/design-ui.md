@@ -58,3 +58,15 @@ Derived from `ui_element`. Manages a list of child elements.
     - **Selection Action**: Pressing `Enter` while focused on the file list behaves contextually: if a directory is selected, the view descends into that directory and repopulates; if a file is selected, it triggers a confirmation action, acting similarly to pressing an "OK" button.
 - **`ui_agent_tile`**: A stateful widget (20x10) representing a single agent's status. It contains a child `ui_durmovie` element occupying the top 8 lines (0–7), a tool call / streaming status animation `"███████X"` on line 9 (index 8), and the translated agent status on line 10 (index 9). It handles animation updates using a 250ms interval if and only if the agent's `get_tokens_rx()` count increases, dynamically mapping status state enums to color pairs (e.g. green for thinking, cyan for tool execution, red for error).
 
+## Custom Animations and the Registry
+
+To separate the visual representation from core agent logic, the codebase implements a thread-safe animation registry:
+
+- **`agent_animation_registry`**: A thread-safe singleton registry located in `src/agentlib/agent_animation.h`. It holds registered Durdraw animations under unique string keys mapping to `std::shared_ptr<const dur_animation_data>`.
+- **Global Helper Functions**:
+  - `void register_agent_animation(const std::string &name, const std::string &json_str)`: Parses a Durdraw JSON animation and registers it by name.
+  - `void unregister_agent_animation(const std::string &name)`: Unregisters an animation by name.
+- **Agent Integration**: `ai_agent` exposes `get_animation_name()` and `set_animation_name(name)` (defaulting to `"default"`).
+- **UI Integration**: `ui_agent_tile` polls the agent's animation name inside `update_animation()`. If a change is detected, it dynamically swaps the child `ui_durmovie`'s animation from the registry, falling back to the `"default"` movie if a custom key is not registered or was unregistered.
+
+

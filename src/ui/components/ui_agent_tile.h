@@ -46,4 +46,6 @@ class ui_agent_tile : public ui_container
 	std::chrono::time_point<std::chrono::steady_clock> last_token_increase_time_;
 	int current_anim_frame_{0};
 	int spinner_frame_{0};
+	std::string current_animation_name_;
 };
+

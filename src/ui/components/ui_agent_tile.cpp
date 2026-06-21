@@ -38,8 +38,14 @@ ui_agent_tile::ui_agent_tile(std::string name, int x, int y, std::shared_ptr<age
       last_frame_time_(std::chrono::steady_clock::now()),
       last_token_increase_time_(std::chrono::steady_clock::now() - std::chrono::seconds(2))
 {
+	std::string anim_name = agent_ ? agent_->get_animation_name() : "default";
+	current_animation_name_ = anim_name;
+
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	auto anim_data = reg.get_animation(anim_name);
+
 	// Create the movie widget and add it as a child at (1, 1)
-	auto movie = std::make_unique<ui_durmovie>("durmovie", 1, 1, 20, 8);
+	auto movie = std::make_unique<ui_durmovie>("durmovie", 1, 1, 20, 8, anim_data);
 	durmovie_ = movie.get();
 	add_child(std::move(movie));
 
@@ -151,6 +157,20 @@ bool ui_agent_tile::update_animation()
 
 	if (!agent_) {
 		return child_changed;
+	}
+
+	std::string new_anim_name = agent_->get_animation_name();
+	if (new_anim_name != current_animation_name_) {
+		auto &reg = agentlib::agent_animation_registry::get_instance();
+		auto anim_data = reg.get_animation(new_anim_name);
+		if (!anim_data) {
+			anim_data = reg.get_animation("default");
+			current_animation_name_ = "default";
+		} else {
+			current_animation_name_ = new_anim_name;
+		}
+		durmovie_->set_animation(anim_data);
+		local_changed = true;
 	}
 
 	auto now = std::chrono::steady_clock::now();

@@ -3290,6 +3290,19 @@ bool ai_agent::is_notify_parent_on_completion() const
 	return notify_parent_on_completion_;
 }
 
+std::string ai_agent::get_animation_name() const
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	return animation_name_;
+}
+
+void ai_agent::set_animation_name(const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	animation_name_ = name;
+}
+
+
 std::string ai_agent::get_allowed_write_file() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
