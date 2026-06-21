@@ -99,11 +99,11 @@ void test_real_json()
 {
 	std::cout << "Testing real security.json parsing..." << std::endl;
 	// Try loading from standard relative paths depending on if run from root or build dir
-	std::ifstream f("artwork/security.json");
+	std::ifstream f("src/plugins/securityagent/security.json");
 	if (!f.is_open()) {
-		f.open("../artwork/security.json");
+		f.open("../src/plugins/securityagent/security.json");
 	}
-	assert(f.is_open() && "Could not open artwork/security.json");
+	assert(f.is_open() && "Could not open src/plugins/securityagent/security.json");
 
 	std::stringstream ss;
 	ss << f.rdbuf();

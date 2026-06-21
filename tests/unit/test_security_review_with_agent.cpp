@@ -85,6 +85,7 @@ void test_security_review_with_agent_execution()
 	auto subagent = subagents[0];
 	assert(subagent->get_role() == agent_role::reviewer);
 	assert(subagent->get_name() == "Security Reviewer");
+	assert(subagent->get_animation_name() == "securityagent");
 
 	// Verify it has the :plugin:securityagent tool family active
 	assert(subagent->is_tool_family_active(":plugin:securityagent"));
@@ -191,6 +192,7 @@ void test_security_review_with_agent_empty_instructions()
 	auto subagent = subagents[0];
 	assert(subagent->get_role() == agent_role::reviewer);
 	assert(subagent->get_name() == "Security Reviewer");
+	assert(subagent->get_animation_name() == "securityagent");
 
 	// Verify system prompt contents has the default instructions filled in
 	auto sub_convo = subagent->get_conversation();
