@@ -20,6 +20,9 @@ int main()
 	// Trigger draw_content to verify layout calculations run without crashing
 	win.draw_content(false);
 
+	// Trigger process_events to verify basic event processing runs without crashing
+	win.process_events();
+
 	// Verify cursor behavior
 	win.set_cursor_position();
 

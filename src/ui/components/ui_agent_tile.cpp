@@ -34,12 +34,12 @@ static std::string format_line(const std::string &content, size_t max_len)
 }
 
 ui_agent_tile::ui_agent_tile(std::string name, int x, int y, std::shared_ptr<agentlib::ai_agent> agent)
-    : ui_container(std::move(name), x, y, 20, 10), agent_(std::move(agent)), last_tokens_rx_(agent_ ? agent_->get_tokens_rx() : 0),
+    : ui_container(std::move(name), x, y, 22, 12), agent_(std::move(agent)), last_tokens_rx_(agent_ ? agent_->get_tokens_rx() : 0),
       last_frame_time_(std::chrono::steady_clock::now()),
       last_token_increase_time_(std::chrono::steady_clock::now() - std::chrono::seconds(2))
 {
-	// Create the movie widget and add it as a child at (0, 0)
-	auto movie = std::make_unique<ui_durmovie>("durmovie", 0, 0, 20, 8);
+	// Create the movie widget and add it as a child at (1, 1)
+	auto movie = std::make_unique<ui_durmovie>("durmovie", 1, 1, 20, 8);
 	durmovie_ = movie.get();
 	add_child(std::move(movie));
 
@@ -49,7 +49,16 @@ ui_agent_tile::ui_agent_tile(std::string name, int x, int y, std::shared_ptr<age
 
 void ui_agent_tile::draw(int abs_x, int abs_y) const
 {
-	// 1. Draw the child durmovie icon at top 8 lines
+	// Draw standard border around tile
+	ui_utils::border_style style = ui_utils::border_style::single;
+	int color_pair = 38; // Dim/Dark Gray on Blue
+	if (has_focus()) {
+		style = ui_utils::border_style::double_line;
+		color_pair = 22; // Bright Cyan on Blue
+	}
+	ui_utils::draw_border(abs_x, abs_y, width(), height(), style, color_pair);
+
+	// 1. Draw the child durmovie icon at top 8 lines (offset by 1, 1 inside border)
 	ui_container::draw(abs_x, abs_y);
 
 	if (!agent_) {
@@ -60,7 +69,7 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 	auto time_since_activity = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_token_increase_time_).count();
 	bool is_currently_streaming = (time_since_activity < 1000);
 
-	// 2. Render tool call line (index 8)
+	// 2. Render tool call line (index 9)
 	std::string tool_name = agent_->get_current_tool();
 	std::string tool_text;
 	if (is_currently_streaming) {
@@ -90,10 +99,10 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 		tool_pair = 22; // Bright Cyan on Blue
 	}
 	attron(COLOR_PAIR(tool_pair));
-	mvaddstr(abs_y + 8, abs_x, formatted_tool.c_str());
+	mvaddstr(abs_y + 9, abs_x + 1, formatted_tool.c_str());
 	attroff(COLOR_PAIR(tool_pair));
 
-	// 3. Render status line (index 9)
+	// 3. Render status line (index 10)
 	auto status = agent_->get_status();
 	std::string status_str = agent_status_to_string(status, tool_name);
 	std::string status_text;
@@ -129,7 +138,7 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 	}
 
 	attron(COLOR_PAIR(status_pair));
-	mvaddstr(abs_y + 9, abs_x, formatted_status.c_str());
+	mvaddstr(abs_y + 10, abs_x + 1, formatted_status.c_str());
 	attroff(COLOR_PAIR(status_pair));
 }
 
@@ -176,4 +185,9 @@ bool ui_agent_tile::update_animation()
 	}
 
 	return child_changed || local_changed;
+}
+
+bool ui_agent_tile::handle_event(const editor_event &ev, int abs_x, int abs_y)
+{
+	return ui_container::handle_event(ev, abs_x, abs_y);
 }

@@ -14,24 +14,24 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#include "agentlib/ai_agent.h"
+#include "agentlib/copilot_manager.h"
 #include "build_error_manager.h"
+#include "codereview_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
 #include "editor.h"
-#include "pluginloader.h"
 #include "event_logger.h"
 #include "fs_utils.h"
-#include "codereview_manager.h"
-#include "ui/code_review_window.h"
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "pluginloader.h"
 #include "project_manager.h"
 #include "ui/agent_window.h"
-#include "agentlib/ai_agent.h"
+#include "ui/code_review_window.h"
 #include "ui/dialog_factories.h"
 #include "ui/terminal_window.h"
-#include "agentlib/copilot_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -375,9 +375,12 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			std::string error_msg;
 			bool success = agentlib::copilot_manager::get_instance().fetch_and_register_github_models(error_msg);
 			if (success) {
-				active_dialog_ = create_message_dialog("Copilot Connected", {"GitHub Copilot is already connected!", "AI models list has been updated successfully."});
+				active_dialog_ =
+				    create_message_dialog("Copilot Connected", {"GitHub Copilot is already connected!",
+										"AI models list has been updated successfully."});
 			} else {
-				active_dialog_ = create_message_dialog("Copilot Error", {"GitHub Copilot is connected, but failed", "to fetch models catalog:", error_msg});
+				active_dialog_ = create_message_dialog(
+				    "Copilot Error", {"GitHub Copilot is connected, but failed", "to fetch models catalog:", error_msg});
 			}
 			active_dialog_mode_ = dialog_mode::none;
 			set_focus(focus_target::dialog, "btn_ok");
@@ -466,7 +469,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		if (item_opt) {
 			codereview_edit_item_id_ = ev.key_code;
 			if (ev.payload == "state") {
-				std::vector<std::string> states = {"invalid", "new", "confirmed", "disputed", "stale", "resolved", "verified-fixed"};
+				std::vector<std::string> states = {"invalid", "new",	  "confirmed",	   "disputed",
+								   "stale",   "resolved", "verified-fixed"};
 				active_dialog_ = create_ask_user_dialog("Select State", states);
 				active_dialog_mode_ = dialog_mode::codereview_select_state;
 			} else if (ev.payload == "severity") {
@@ -496,7 +500,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					verifier_agent = main_agent->spawn_subagent("Review Verifier");
 				} else {
 					auto default_model = agentlib::ai_model_registry::get_instance().get_default_model();
-					verifier_agent = agentlib::ai_agent::create(9999, "Review Verifier", default_model, &global_queue_, this);
+					verifier_agent =
+					    agentlib::ai_agent::create(9999, "Review Verifier", default_model, &global_queue_, this);
 					headless_agents_.push_back(verifier_agent);
 				}
 
@@ -508,33 +513,41 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					}
 					verifier_agent->set_role(agentlib::agent_role::verifier);
 
-					std::string system_prompt =
-					    "You are a code review verification agent. Your task is to verify the code review findings reported by the reviewer agent.\n"
-					    "Inspect the files and verify if the reported issues are correct, transitioning them from 'new' to 'confirmed' or 'disputed'.\n"
-					    "Also, if the developer claims to have resolved an issue, verify if the fix is indeed correct and transition it to "
-					    "'verified-fixed'.\n"
-					    "Use the confirm_code_review_item tool to confirm/verify items, and list_code_review_items to retrieve the list of items.\n";
+					std::string system_prompt = "You are a code review verification agent. Your task is to verify the "
+								    "code review findings reported by the reviewer agent.\n"
+								    "Inspect the files and verify if the reported issues are correct, "
+								    "transitioning them from 'new' to 'confirmed' or 'disputed'.\n"
+								    "Also, if the developer claims to have resolved an issue, verify if "
+								    "the fix is indeed correct and transition it to "
+								    "'verified-fixed'.\n"
+								    "Use the confirm_code_review_item tool to confirm/verify items, and "
+								    "list_code_review_items to retrieve the list of items.\n";
 
-					verifier_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
+					verifier_agent->inject_context("system",
+								       project_manager::get_instance().get_project_knowledge_prompt());
 					verifier_agent->inject_context("system", system_prompt);
-					verifier_agent->inject_context("system", "Instructions for subagent: When you have completed your verification, call the "
-										 "`agent_report_final_result` tool to report your final findings.");
+					verifier_agent->inject_context(
+					    "system", "Instructions for subagent: When you have completed your verification, call the "
+						      "`agent_report_final_result` tool to report your final findings.");
 
-					std::string task_prompt = std::format(
-					    "Please re-investigate and verify code review item #{} in file '{}' at line {}.\n"
-					    "Summary: {}\n"
-					    "Description: {}\n"
-					    "Proposed Fix: {}\n"
-					    "Current State: {}\n"
-					    "Please read the file, review the code, and determine if the issue is valid. Transition its state using the appropriate tool.",
-					    item.id, item.filename, item.line_number, item.summary, item.description, item.proposed_fix, item.state);
+					std::string task_prompt =
+					    std::format("Please re-investigate and verify code review item #{} in file '{}' at line {}.\n"
+							"Summary: {}\n"
+							"Description: {}\n"
+							"Proposed Fix: {}\n"
+							"Current State: {}\n"
+							"Please read the file, review the code, and determine if the issue is valid. "
+							"Transition its state using the appropriate tool.",
+							item.id, item.filename, item.line_number, item.summary, item.description,
+							item.proposed_fix, item.state);
 
 					// Submit the verification request to start the agent processing.
 					verifier_agent->submit_prompt(task_prompt);
 					// Immediately launch the subagent window to give the user real-time visibility
 					// into the verification steps and tool invocations.
 					open_subagent_window(verifier_agent);
-					set_status_message(std::format("Verification agent started in background for item #{}...", item.id), status_priorities::INFO);
+					set_status_message(std::format("Verification agent started in background for item #{}...", item.id),
+							   status_priorities::INFO);
 				} else {
 					set_status_message("Error: Failed to create verification agent.", status_priorities::WARNING);
 				}
@@ -548,38 +561,29 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		int target_id = ev.key_code;
 
-		// 1. Check if an agent window for this subagent already exists
+		// 1. Check if an agent window for this agent already exists
 		for (size_t i = 0; i < windows_.size(); ++i) {
 			if (auto aw = dynamic_cast<agent_window *>(windows_[i].get())) {
-				if (aw->get_agent()->get_id() == target_id) {
+				if (aw->get_agent() && aw->get_agent()->get_id() == target_id) {
 					activate_window(i);
 					return;
 				}
 			}
 		}
 
-		// 2. Window doesn't exist, we need to find the subagent and spawn a window
-		std::shared_ptr<agentlib::ai_agent> found_subagent = nullptr;
-		for (auto &win : windows_) {
-			// Find a status window or main agent window that knows about this subagent
-			if (auto aw = dynamic_cast<agent_window *>(win.get())) {
-				auto agent = aw->get_agent();
-				if (!agent) continue;
-				for (auto &sub : agent->get_subagents()) {
-					if (sub->get_id() == target_id) {
-						found_subagent = sub;
-						break;
-					}
-				}
-			}
-			if (found_subagent)
+		// 2. Window doesn't exist, find the agent and spawn a window
+		std::shared_ptr<agentlib::ai_agent> found_agent = nullptr;
+		for (const auto &agent : get_all_active_agents()) {
+			if (agent->get_id() == target_id) {
+				found_agent = agent;
 				break;
+			}
 		}
 
-		if (found_subagent) {
-			open_subagent_window(found_subagent);
+		if (found_agent) {
+			open_subagent_window(found_agent);
 		} else {
-			logger.log("Error: Could not find subagent with ID " + std::to_string(target_id) + " to open.");
+			logger.log("Error: Could not find agent with ID " + std::to_string(target_id) + " to open.");
 		}
 		return;
 	}
@@ -597,10 +601,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 
 		// Clean up headless agent if it exists
-		headless_agents_.erase(
-		    std::remove_if(headless_agents_.begin(), headless_agents_.end(),
-				   [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) { return agent && agent->get_id() == ev.key_code; }),
-		    headless_agents_.end());
+		headless_agents_.erase(std::remove_if(headless_agents_.begin(), headless_agents_.end(),
+						      [&ev](const std::shared_ptr<agentlib::ai_agent> &agent) {
+							      return agent && agent->get_id() == ev.key_code;
+						      }),
+				       headless_agents_.end());
 		return;
 	}
 
@@ -629,16 +634,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
 		if (item_opt) {
-			std::string msg = std::format(
-			    "Notification: Code review item created/updated (ID: {}):\n"
-			    "- File: {}\n"
-			    "- Line: {}\n"
-			    "- Summary: {}\n"
-			    "- Severity: {}\n"
-			    "- Description: {}\n",
-			    item_opt->id, item_opt->filename, item_opt->line_number,
-			    item_opt->summary, item_opt->severity, item_opt->description
-			);
+			std::string msg = std::format("Notification: Code review item created/updated (ID: {}):\n"
+						      "- File: {}\n"
+						      "- Line: {}\n"
+						      "- Summary: {}\n"
+						      "- Severity: {}\n"
+						      "- Description: {}\n",
+						      item_opt->id, item_opt->filename, item_opt->line_number, item_opt->summary,
+						      item_opt->severity, item_opt->description);
 			for (auto &win : windows_) {
 				if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
 					auto agent = agent_win->get_agent();
@@ -937,7 +940,8 @@ bool editor::terminate_run(int run_id)
 				if (fd >= 0 && tw->is_alive()) {
 					std::string quit_cmd = "quit\ny\n";
 					// Ignore write result
-					if (write(fd, quit_cmd.c_str(), quit_cmd.length()) < 0) {}
+					if (write(fd, quit_cmd.c_str(), quit_cmd.length()) < 0) {
+					}
 				}
 			}
 			tw->stop_process();

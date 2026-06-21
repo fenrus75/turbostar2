@@ -43,6 +43,85 @@ bool agent_center_window::process_events()
 	}
 
 	while (auto ev = get_queue().pop()) {
+		// 1. Intercept keyboard arrow keys for 2D grid navigation
+		if (ev->type == event_type::key_press) {
+			const auto &children = grid_->children();
+			if (!children.empty()) {
+				ui_element *current = grid_->focused_child();
+				int idx = -1;
+				if (current) {
+					for (size_t i = 0; i < children.size(); ++i) {
+						if (children[i].get() == current) {
+							idx = static_cast<int>(i);
+							break;
+						}
+					}
+				}
+
+				int target_idx = -1;
+				int key = ev->key_code;
+				int cell_width = 22;
+				int h_spacer = grid_->h_spacer();
+				int x_offset = grid_->x_offset();
+				int cols = 1;
+				int avail_w = grid_->width() - 2 * x_offset;
+				if (avail_w > cell_width) {
+					cols = (avail_w + h_spacer) / (cell_width + h_spacer);
+				}
+				if (cols < 1) {
+					cols = 1;
+				}
+
+				if (key == KEY_LEFT) {
+					if (idx > 0) {
+						target_idx = idx - 1;
+					}
+				} else if (key == KEY_RIGHT) {
+					if (idx != -1 && idx + 1 < (int)children.size()) {
+						target_idx = idx + 1;
+					}
+				} else if (key == KEY_UP) {
+					if (idx != -1 && idx - cols >= 0) {
+						target_idx = idx - cols;
+					}
+				} else if (key == KEY_DOWN) {
+					if (idx != -1 && idx + cols < (int)children.size()) {
+						target_idx = idx + cols;
+					}
+				}
+
+				if (target_idx != -1) {
+					if (current) {
+						current->set_focus(false);
+					}
+					ui_element *target_child = children[target_idx].get();
+					grid_->set_focused_child(target_child);
+					target_child->set_focus(true);
+					needs_render = true;
+					invalidate();
+					continue;
+				}
+			}
+		}
+
+		// 2. Intercept Enter key to open focused agent's window
+		if (ev->type == event_type::key_press && (ev->key_code == '\n' || ev->key_code == KEY_ENTER)) {
+			ui_element *focused = grid_->focused_child();
+			if (focused) {
+				if (auto *tile = dynamic_cast<ui_agent_tile *>(focused)) {
+					if (auto agent = tile->get_agent()) {
+						editor_event open_ev;
+						open_ev.type = event_type::open_subagent;
+						open_ev.key_code = agent->get_id();
+						editor_->dispatch(open_ev);
+						needs_render = true;
+						invalidate();
+						continue;
+					}
+				}
+			}
+		}
+
 		if (grid_->handle_event(*ev, 0, 0)) {
 			needs_render = true;
 			invalidate();
@@ -80,6 +159,16 @@ void agent_center_window::sync_agent_tiles()
 		return;
 	}
 
+	// Track the ID of the currently focused agent to restore it post-sync
+	int last_focused_id = -1;
+	if (grid_->focused_child()) {
+		if (auto *tile = dynamic_cast<ui_agent_tile *>(grid_->focused_child())) {
+			if (tile->get_agent()) {
+				last_focused_id = tile->get_agent()->get_id();
+			}
+		}
+	}
+
 	grid_->clear_children();
 	for (const auto &agent : active_agents) {
 		auto tile = std::make_unique<ui_agent_tile>("tile_" + std::to_string(agent->get_id()), 0, 0, agent);
@@ -88,5 +177,27 @@ void agent_center_window::sync_agent_tiles()
 
 	last_agent_ids_ = current_ids;
 	grid_->flow();
+
+	// Restore focus to previous agent or fallback to the first active one
+	ui_element *to_focus = nullptr;
+	if (last_focused_id != -1) {
+		for (const auto &child : grid_->children()) {
+			if (auto *tile = dynamic_cast<ui_agent_tile *>(child.get())) {
+				if (tile->get_agent() && tile->get_agent()->get_id() == last_focused_id) {
+					to_focus = child.get();
+					break;
+				}
+			}
+		}
+	}
+	if (!to_focus && !grid_->children().empty()) {
+		to_focus = grid_->children().front().get();
+	}
+
+	if (to_focus) {
+		grid_->set_focused_child(to_focus);
+		to_focus->set_focus(true);
+	}
+
 	invalidate();
 }

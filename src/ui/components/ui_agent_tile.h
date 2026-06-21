@@ -16,14 +16,25 @@ class ui_agent_tile : public ui_container
 
 	void draw(int abs_x, int abs_y) const override;
 	bool update_animation() override;
+	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
+
+	bool is_focusable() const override
+	{
+		return true;
+	}
 
 	int natural_width() const override
 	{
-		return 20;
+		return 22;
 	}
 	int natural_height() const override
 	{
-		return 10;
+		return 12;
+	}
+
+	std::shared_ptr<agentlib::ai_agent> get_agent() const
+	{
+		return agent_;
 	}
 
       private:

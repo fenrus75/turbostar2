@@ -265,6 +265,14 @@ class ui_container : public ui_element
 	{
 		focused_child_ = child;
 	}
+	ui_element *focused_child() const
+	{
+		return focused_child_;
+	}
+	const std::vector<std::unique_ptr<ui_element>> &children() const
+	{
+		return children_;
+	}
 	std::vector<ui_element *> get_focusable_elements() override;
 
       protected:
@@ -281,17 +289,17 @@ void draw_border(int x, int y, int width, int height, border_style style, int co
 
 // Represents a single-line text input field.
 
+#include "ui/components/ui_agent_tile.h"
 #include "ui/components/ui_button.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_checkbox_group.h"
 #include "ui/components/ui_fileselector.h"
+#include "ui/components/ui_grid_flow.h"
 #include "ui/components/ui_group_box.h"
 #include "ui/components/ui_horizontal_flow.h"
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_text_label.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
-#include "ui/components/ui_grid_flow.h"
-#include "ui/components/ui_agent_tile.h"

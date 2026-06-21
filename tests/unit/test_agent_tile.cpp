@@ -48,10 +48,10 @@ void test_agent_tile_basic()
 
 	ui_agent_tile tile("agent_tile", 0, 0, agent);
 
-	assert(tile.natural_width() == 20);
-	assert(tile.natural_height() == 10);
-	assert(tile.width() == 20);
-	assert(tile.height() == 10);
+	assert(tile.natural_width() == 22);
+	assert(tile.natural_height() == 12);
+	assert(tile.width() == 22);
+	assert(tile.height() == 12);
 }
 
 void test_agent_tile_animation()

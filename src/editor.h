@@ -110,6 +110,11 @@ class editor : public agentlib::document_provider
 	void handle_status_bar_click(int mouse_x);
 	std::vector<std::shared_ptr<agentlib::ai_agent>> get_all_active_agents() const;
 
+	/**
+	 * @brief Routes events from the global queue to the focused component.
+	 */
+	void dispatch(const editor_event &ev);
+
       private:
 	void new_window(const std::string &filename);
 	std::string get_k_block_status_help() const;
@@ -125,10 +130,6 @@ class editor : public agentlib::document_provider
 	std::shared_ptr<document> get_active_doc() const;
 	window *get_active_window() const;
 
-	/**
-	 * @brief Routes events from the global queue to the focused component.
-	 */
-	void dispatch(const editor_event &ev);
 	void dispatch_event_mouse(const editor_event &ev);
 	void dispatch_event_ui(const editor_event &ev);
 	void dispatch_event_file(const editor_event &ev);
