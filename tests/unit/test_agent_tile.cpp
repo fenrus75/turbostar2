@@ -12,11 +12,12 @@
 #define private public
 #define protected public
 #include "agentlib/ai_agent.h"
+#include "ui/components/ui_agent_tile.h"
 #undef private
 #undef protected
 
+#include "agentlib/agent_animation.h"
 #include "event_queue.h"
-#include "ui/components/ui_agent_tile.h"
 
 class mock_doc_provider : public agentlib::document_provider
 {

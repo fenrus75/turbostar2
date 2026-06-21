@@ -23,6 +23,24 @@ int main()
 	// Trigger process_events to verify basic event processing runs without crashing
 	win.process_events();
 
+	// Test Enter/Space/Carriage Return keys
+	editor_event ev_enter;
+	ev_enter.type = event_type::key_press;
+	ev_enter.key_code = '\n';
+	win.get_queue().push(ev_enter);
+
+	editor_event ev_cr;
+	ev_cr.type = event_type::key_press;
+	ev_cr.key_code = '\r';
+	win.get_queue().push(ev_cr);
+
+	editor_event ev_space;
+	ev_space.type = event_type::key_press;
+	ev_space.key_code = ' ';
+	win.get_queue().push(ev_space);
+
+	assert(!win.process_events());
+
 	// Verify cursor behavior
 	win.set_cursor_position();
 

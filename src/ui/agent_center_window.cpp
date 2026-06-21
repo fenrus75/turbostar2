@@ -112,8 +112,9 @@ bool agent_center_window::process_events()
 			}
 		}
 
-		// 2. Intercept Enter key to open focused agent's window
-		if (ev->type == event_type::key_press && (ev->key_code == '\n' || ev->key_code == KEY_ENTER)) {
+		// 2. Intercept Enter or Space keys to open focused agent's window
+		if (ev->type == event_type::key_press &&
+		    (ev->key_code == '\n' || ev->key_code == '\r' || ev->key_code == KEY_ENTER || ev->key_code == ' ')) {
 			ui_element *focused = grid_->focused_child();
 			if (focused) {
 				if (auto *tile = dynamic_cast<ui_agent_tile *>(focused)) {
