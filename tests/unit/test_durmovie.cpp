@@ -118,6 +118,15 @@ void test_real_json()
 	assert(!movie.update_animation()); // elapsed time hasn't passed yet
 }
 
+void test_default_movie()
+{
+	std::cout << "Testing default embedded movie loading..." << std::endl;
+	ui_durmovie movie("default_movie", 0, 0, 10, 5);
+	assert(movie.get_state() == durmovie_state::idle);
+	movie.set_state(durmovie_state::active);
+	assert(!movie.update_animation()); // elapsed time hasn't passed yet
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(5); // 5 second timeout safety watchdog
@@ -125,6 +134,7 @@ int main()
 	test_state_transitions();
 	test_animation_timing();
 	test_real_json();
+	test_default_movie();
 
 	std::cout << "All ui_durmovie tests passed!" << std::endl;
 	return 0;

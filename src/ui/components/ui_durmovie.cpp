@@ -4,6 +4,7 @@
 #include <ncurses.h>
 #include <nlohmann/json.hpp>
 #include <utility>
+#include "default_movie.h"
 #include "event_logger.h"
 #include "utf8.h"
 
@@ -85,12 +86,17 @@ static int get_movie_color_pair(uint8_t dos_fg, uint8_t dos_bg, bool &fg_bold)
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)
     : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
 {
+	load_json(reinterpret_cast<const char *>(default_movie_json));
 }
 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, const std::string &json_str)
     : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
 {
-	load_json(json_str);
+	if (json_str.empty()) {
+		load_json(reinterpret_cast<const char *>(default_movie_json));
+	} else {
+		load_json(json_str);
+	}
 }
 
 void ui_durmovie::load_json(const std::string &json_str)
