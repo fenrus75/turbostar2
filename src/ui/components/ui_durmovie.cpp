@@ -82,26 +82,29 @@ static int get_movie_color_pair(uint8_t dos_fg, uint8_t dos_bg, bool &fg_bold)
 	return pair;
 }
 
-ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)
-    : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
+static void register_built_in_animations()
 {
 	auto &reg = agentlib::agent_animation_registry::get_instance();
 	reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
-	animation_ = reg.get_animation("default");
 	reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
 	reg.register_animation_json("run_shell_command", reinterpret_cast<const char *>(run_shell_command_movie_json));
 	reg.register_animation_json("run_python", reinterpret_cast<const char *>(run_python_movie_json));
 }
 
+ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)
+    : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
+{
+	register_built_in_animations();
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	animation_ = reg.get_animation("default");
+}
+
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, const std::string &json_str)
     : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
 {
-	auto &reg = agentlib::agent_animation_registry::get_instance();
-	reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
-	reg.register_animation_json("run_shell_command", reinterpret_cast<const char *>(run_shell_command_movie_json));
-	reg.register_animation_json("run_python", reinterpret_cast<const char *>(run_python_movie_json));
+	register_built_in_animations();
 	if (json_str.empty()) {
-		reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
+		auto &reg = agentlib::agent_animation_registry::get_instance();
 		animation_ = reg.get_animation("default");
 	} else {
 		load_json(json_str);
@@ -111,12 +114,9 @@ ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, std::shared_ptr<const agentlib::dur_animation_data> animation)
     : ui_element(std::move(name), x, y, width, height), animation_(std::move(animation)), last_frame_time_(std::chrono::steady_clock::now())
 {
-	auto &reg = agentlib::agent_animation_registry::get_instance();
-	reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
-	reg.register_animation_json("run_shell_command", reinterpret_cast<const char *>(run_shell_command_movie_json));
-	reg.register_animation_json("run_python", reinterpret_cast<const char *>(run_python_movie_json));
+	register_built_in_animations();
 	if (!animation_) {
-		reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
+		auto &reg = agentlib::agent_animation_registry::get_instance();
 		animation_ = reg.get_animation("default");
 	}
 }
