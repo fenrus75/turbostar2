@@ -1501,10 +1501,10 @@ void ai_agent::start_processing()
 					std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
 					{
 						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-						for (const auto &t : active_tx->get_turns()) {
-							if (t->get_type() == turn_type::tool_execution) {
-								tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(t);
-								break;
+						if (!active_tx->get_turns().empty()) {
+							auto last_t = active_tx->get_turns().back();
+							if (last_t->get_type() == turn_type::tool_execution) {
+								tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(last_t);
 							}
 						}
 						if (!tool_turn) {
@@ -2086,12 +2086,10 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 			turn = std::make_shared<model_response_turn>(turn_id, msg.content, msg.reasoning_content, calls);
 		} else if (msg.role == "tool") {
 			std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
-			if (current_tx) {
-				for (const auto &t : current_tx->get_turns()) {
-					if (t->get_type() == turn_type::tool_execution) {
-						tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(t);
-						break;
-					}
+			if (current_tx && !current_tx->get_turns().empty()) {
+				auto last_t = current_tx->get_turns().back();
+				if (last_t->get_type() == turn_type::tool_execution) {
+					tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(last_t);
 				}
 			}
 			if (!tool_turn) {
