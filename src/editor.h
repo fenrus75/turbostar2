@@ -117,6 +117,7 @@ class editor : public agentlib::document_provider
 	void new_codereview_window(int focus_item_id = -1);
 	void new_diff_window();
 	void open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent);
+	std::vector<std::shared_ptr<agentlib::ai_agent>> get_all_active_agents() const;
 	void update_window_layout();
 	void activate_window(size_t index);
 	void update_window_menu();

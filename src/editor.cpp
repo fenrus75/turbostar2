@@ -9,6 +9,7 @@
 #include <ncurses.h>
 #include <sstream>
 #include <thread>
+#include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include "binary_document.h"
 #include "build_error_manager.h"
@@ -1510,3 +1511,38 @@ void editor::print_latency_report() const
 		std::cout << "--------------------------------------------------\n";
 	}
 }
+
+static void collect_agents_recursive(
+	const std::shared_ptr<agentlib::ai_agent> &agent,
+	std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents)
+{
+	if (!agent || agent->get_status() == agentlib::agent_status::dead) {
+		return;
+	}
+	out_agents.push_back(agent);
+	for (const auto &subagent : agent->get_subagents()) {
+		collect_agents_recursive(subagent, out_agents);
+	}
+}
+
+std::vector<std::shared_ptr<agentlib::ai_agent>> editor::get_all_active_agents() const
+{
+	std::vector<std::shared_ptr<agentlib::ai_agent>> active_agents;
+
+	// 1. Gather root agents from active agent windows
+	for (const auto &win : windows_) {
+		if (auto *agent_win = dynamic_cast<agent_window *>(win.get())) {
+			if (auto agent = agent_win->get_agent()) {
+				collect_agents_recursive(agent, active_agents);
+			}
+		}
+	}
+
+	// 2. Gather headless background agents
+	for (const auto &agent : headless_agents_) {
+		collect_agents_recursive(agent, active_agents);
+	}
+
+	return active_agents;
+}
+
