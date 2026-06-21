@@ -92,12 +92,39 @@ void test_animation_timing()
 	assert(!movie.update_animation());
 }
 
+#include <fstream>
+#include <sstream>
+
+void test_real_json()
+{
+	std::cout << "Testing real security.json parsing..." << std::endl;
+	// Try loading from standard relative paths depending on if run from root or build dir
+	std::ifstream f("artwork/security.json");
+	if (!f.is_open()) {
+		f.open("../artwork/security.json");
+	}
+	assert(f.is_open() && "Could not open artwork/security.json");
+
+	std::stringstream ss;
+	ss << f.rdbuf();
+	std::string json_str = ss.str();
+
+	ui_durmovie movie("real_movie", 0, 0, 20, 10);
+	movie.load_json(json_str);
+
+	assert(movie.get_state() == durmovie_state::idle);
+	movie.set_state(durmovie_state::active);
+	assert(movie.get_state() == durmovie_state::active);
+	assert(!movie.update_animation()); // elapsed time hasn't passed yet
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(5); // 5 second timeout safety watchdog
 	test_basic_parsing();
 	test_state_transitions();
 	test_animation_timing();
+	test_real_json();
 
 	std::cout << "All ui_durmovie tests passed!" << std::endl;
 	return 0;
