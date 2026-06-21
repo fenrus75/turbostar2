@@ -911,6 +911,12 @@ test_durmovie = executable('test_durmovie',
   include_directories: inc)
 test('unit_durmovie', test_durmovie, suite: 'editor')
 
+test_agent_tile = executable('test_agent_tile',
+  'tests/unit/test_agent_tile.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_agent_tile', test_agent_tile, suite: 'editor')
+
 test_multiline_edit = executable('test_multiline_edit',
   'tests/unit/test_multiline_edit.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
