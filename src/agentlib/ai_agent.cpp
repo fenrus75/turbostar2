@@ -1028,7 +1028,13 @@ std::vector<std::shared_ptr<agent_interaction>> ai_agent::get_interactions() con
 	for (const auto &ep : conversation_->get_episodes()) {
 		for (const auto &tx : ep->get_transactions()) {
 			for (const auto &turn : tx->get_turns()) {
-				if (auto inter = turn->get_interaction()) {
+				if (turn->get_type() == turn_type::tool_execution) {
+					if (auto tool_turn = dynamic_cast<const tool_execution_turn *>(turn.get())) {
+						for (const auto &inter : tool_turn->get_tool_interactions()) {
+							res.push_back(inter);
+						}
+					}
+				} else if (auto inter = turn->get_interaction()) {
 					res.push_back(inter);
 				}
 			}
@@ -1037,7 +1043,13 @@ std::vector<std::shared_ptr<agent_interaction>> ai_agent::get_interactions() con
 	if (auto curr_ep = conversation_->get_current_episode()) {
 		for (const auto &tx : curr_ep->get_transactions()) {
 			for (const auto &turn : tx->get_turns()) {
-				if (auto inter = turn->get_interaction()) {
+				if (turn->get_type() == turn_type::tool_execution) {
+					if (auto tool_turn = dynamic_cast<const tool_execution_turn *>(turn.get())) {
+						for (const auto &inter : tool_turn->get_tool_interactions()) {
+							res.push_back(inter);
+						}
+					}
+				} else if (auto inter = turn->get_interaction()) {
 					res.push_back(inter);
 				}
 			}
