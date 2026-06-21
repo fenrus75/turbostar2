@@ -151,6 +151,18 @@ void test_run_shell_command_movie()
 	assert(anim->size_y > 0);
 }
 
+void test_run_python_movie()
+{
+	std::cout << "Testing run_python embedded movie loading..." << std::endl;
+	ui_durmovie movie("run_python_movie", 0, 0, 10, 5);
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	auto anim = reg.get_animation("run_python");
+	assert(anim != nullptr);
+	assert(anim->framerate > 0);
+	assert(anim->size_x > 0);
+	assert(anim->size_y > 0);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(5); // 5 second timeout safety watchdog
@@ -161,6 +173,7 @@ int main()
 	test_default_movie();
 	test_fs_compile_project_movie();
 	test_run_shell_command_movie();
+	test_run_python_movie();
 
 	std::cout << "All ui_durmovie tests passed!" << std::endl;
 	return 0;

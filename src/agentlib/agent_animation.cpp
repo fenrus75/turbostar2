@@ -23,6 +23,12 @@ void agent_animation_registry::register_animation(const std::string &name, std::
 
 bool agent_animation_registry::register_animation_json(const std::string &name, const std::string &json_str)
 {
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		if (animations_.find(name) != animations_.end()) {
+			return true;
+		}
+	}
 	try {
 		auto root = nlohmann::json::parse(json_str);
 		if (!root.contains("DurMovie")) {
