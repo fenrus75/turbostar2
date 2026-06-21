@@ -1,6 +1,7 @@
 #include "ui/components/ui_agent_tile.h"
 #include <ncurses.h>
 #include "event_logger.h"
+#include "ui/components/ui_durmovie.h"
 #include "utf8.h"
 
 // Helper to format and pad/truncate a string to exactly max_len display width

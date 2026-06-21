@@ -4,8 +4,9 @@
 #include <memory>
 #include <string>
 #include "agentlib/ai_agent.h"
-#include "ui/components/ui_durmovie.h"
 #include "ui/ui_element.h"
+
+class ui_durmovie;
 
 class ui_agent_tile : public ui_container
 {

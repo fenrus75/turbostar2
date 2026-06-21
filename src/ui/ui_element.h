@@ -230,6 +230,7 @@ class ui_element
 | ui_checkbox_group     | src/ui/components/ui_checkbox_group.h                       |
 | ui_group_box          | src/ui/components/ui_group_box.h                           |
 | ui_grid_flow          | src/ui/components/ui_grid_flow.h                            |
+| ui_agent_tile         | src/ui/components/ui_agent_tile.h                           |
 
 */
 class ui_container : public ui_element
@@ -292,3 +293,4 @@ void draw_border(int x, int y, int width, int height, border_style style, int co
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
 #include "ui/components/ui_grid_flow.h"
+#include "ui/components/ui_agent_tile.h"

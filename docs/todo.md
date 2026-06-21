@@ -194,6 +194,9 @@
 
 # done items (move items here on completion)
 
+## 21-06-2026
+- completed registration, resolved compilation/circular dependencies, and finalized documentation for the `ui_agent_tile` component, mapping it in `ui_element.h` and detailing its stateful rendering in `docs/design-ui.md`.
+
 ## 20-06-2026
 - implemented the `ui_durmovie` element to render Durdraw JSON animations, with a hybrid animation state engine (state-based timer ticks in `update_animation` and static idle frames), UTF-8 safe glyph pre-parsing, and DOS-to-ncurses color palette mapping (second step of "Agent command center").
 - implemented the base `ui_grid_flow` container type supporting 2D uniform grid layouts with auto-wrapping, fixed columns, customizable padding/spacing, and balanced natural dimension calculations (first step of "Agent command center").
