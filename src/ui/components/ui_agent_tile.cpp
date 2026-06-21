@@ -84,18 +84,18 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 		std::string bar = anim_frames[current_anim_frame_];
 		if (!tool_name.empty()) {
 			std::string truncated_tool = tool_name;
-			if (truncated_tool.length() > 6) {
-				truncated_tool = truncated_tool.substr(0, 5) + "..";
+			if (truncated_tool.length() > 9) {
+				truncated_tool = truncated_tool.substr(0, 7) + "..";
 			}
-			tool_text = "T: " + truncated_tool + " [" + bar + "]";
+			tool_text = truncated_tool + " [" + bar + "]";
 		} else {
 			tool_text = "Streaming [" + bar + "]";
 		}
 	} else {
 		if (!tool_name.empty()) {
-			tool_text = "Tool: " + tool_name;
+			tool_text = tool_name;
 		} else {
-			tool_text = "T: none";
+			tool_text = "none";
 		}
 	}
 
@@ -115,9 +115,9 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 	bool show_spinner = (status == agentlib::agent_status::thinking || status == agentlib::agent_status::tool_execution);
 	if (show_spinner) {
 		static const std::string spinner_chars[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-		status_text = "S: " + spinner_chars[spinner_frame_ % 10] + " " + status_str;
+		status_text = spinner_chars[spinner_frame_ % 10] + " " + status_str;
 	} else {
-		status_text = "S: " + status_str;
+		status_text = status_str;
 	}
 	std::string formatted_status = format_line(status_text, 20);
 
