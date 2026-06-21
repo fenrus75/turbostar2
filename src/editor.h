@@ -108,16 +108,17 @@ class editor : public agentlib::document_provider
 	void clear_status_message(int priority);
 	std::string get_active_status_message() const;
 	void handle_status_bar_click(int mouse_x);
+	std::vector<std::shared_ptr<agentlib::ai_agent>> get_all_active_agents() const;
 
       private:
 	void new_window(const std::string &filename);
 	std::string get_k_block_status_help() const;
 	void new_agent_window();
+	void new_agent_center_window();
 	void new_crashdump_window();
 	void new_codereview_window(int focus_item_id = -1);
 	void new_diff_window();
 	void open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent);
-	std::vector<std::shared_ptr<agentlib::ai_agent>> get_all_active_agents() const;
 	void update_window_layout();
 	void activate_window(size_t index);
 	void update_window_menu();

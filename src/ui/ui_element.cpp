@@ -16,6 +16,12 @@ void ui_container::add_child(std::unique_ptr<ui_element> child)
 	}
 }
 
+void ui_container::clear_children()
+{
+	children_.clear();
+	focused_child_ = nullptr;
+}
+
 void ui_container::draw(int abs_x, int abs_y) const
 {
 	for (const auto &child : children_) {

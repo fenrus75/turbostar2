@@ -241,6 +241,7 @@ class ui_container : public ui_element
 	}
 
 	void add_child(std::unique_ptr<ui_element> child);
+	void clear_children();
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;

@@ -561,6 +561,12 @@ test_agent_window = executable('test_agent_window',
   include_directories: inc)
 test('unit_test_agent_window', test_agent_window, suite: 'agent')
 
+test_agent_center_window = executable('test_agent_center_window',
+  ['tests/unit/test_agent_center_window.cpp'],
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_center_window', test_agent_center_window, suite: 'agent')
+
 test_agent_delete_todo = executable('test_agent_delete_todo',
   ['tests/unit/test_agent_delete_todo.cpp',
    'src/tools/agent_delete_todo/agent_delete_todo_entry.cpp',

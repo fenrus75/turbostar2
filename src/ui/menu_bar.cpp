@@ -54,6 +54,7 @@ menu_bar::menu_bar()
 	    {"Agent",
 	     'a',
 	     {{"Open Chat...", event_type::open_agent, 'o', "", false},
+	      {"Command Center...", event_type::open_agent_center, 'c', "", false},
 	      {"Select Model...", event_type::agent_switch_model, 's', "", false}}},
 	    {"Window", 'w', {}},
 	    {"Help",

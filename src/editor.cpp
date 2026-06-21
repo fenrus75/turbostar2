@@ -23,6 +23,7 @@
 #include "history_manager.h"
 #include "project_manager.h"
 #include "ui/agent_window.h"
+#include "ui/agent_center_window.h"
 #include "ui/code_review_window.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
@@ -186,6 +187,22 @@ void editor::new_agent_window()
 	update_window_layout();
 
 	// Activate the main agent window
+	activate_window(windows_.size() - 1);
+}
+
+void editor::new_agent_center_window()
+{
+	// Check if there is already an open agent center window
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		if (dynamic_cast<agent_center_window *>(windows_[i].get())) {
+			activate_window(i);
+			return;
+		}
+	}
+
+	auto center_win = std::make_unique<agent_center_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, this);
+	windows_.push_back(std::move(center_win));
+	update_window_layout();
 	activate_window(windows_.size() - 1);
 }
 

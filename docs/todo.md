@@ -12,9 +12,6 @@
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
 
 
-- mega feature: agent "command center" view
-	- square tiles for agents in fun colors with their name, some art logo for known agent types
-	  their state, progress, context size, tokens used, summary of the task they're doing etc
 
 - have a separate model option for "plan mode" phase -- needs agentlib refactor first
 
@@ -195,6 +192,7 @@
 # done items (move items here on completion)
 
 ## 21-06-2026
+- implemented the `agent_center_window` class as a normal window displaying a dynamic grid layout of active AI agents via `ui_grid_flow` and `ui_agent_tile`, and added a "Command Center..." shortcut to the Agent menu.
 - completed registration, resolved compilation/circular dependencies, and finalized documentation for the `ui_agent_tile` component, mapping it in `ui_element.h` and detailing its stateful rendering in `docs/design-ui.md`.
 
 ## 20-06-2026

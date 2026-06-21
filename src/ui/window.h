@@ -15,6 +15,7 @@
 | subclass           | filename                                  |
 | ------------------ | ----------------------------------------- |
 | agent_window       | src/ui/agent_window.h                    |
+| agent_center_window | src/ui/agent_center_window.h              |
 | code_review_window | src/ui/code_review_window.h              |
 | crashdump_window   | src/ui/crashdump_window.h                |
 | diff_window        | src/ui/diff_window.h                     |

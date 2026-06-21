@@ -150,6 +150,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::help:
 		case event_type::tool_status:
 		case event_type::open_agent:
+		case event_type::open_agent_center:
 		case event_type::open_subagent:
 		case event_type::open_crashdump_viewer:
 		case event_type::agent_response:

@@ -60,6 +60,7 @@ enum class event_type {
 	agent_response,		    ///< Notification that LLM has responded
 	agent_tool_update,	    ///< Notification that LLM is executing a tool
 	open_agent,		    ///< Request to open the LLM agent chat window
+	open_agent_center,	    ///< Request to open the Agent Command Center window
 	open_subagent,		    ///< Request to open a specific subagent chat window (key_code is agent ID)
 	open_crashdump_viewer,	    ///< Request to open the crashdump viewer
 	agent_switch_model,	    ///< Request to switch the model for a specific agent

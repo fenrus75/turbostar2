@@ -99,6 +99,7 @@ ui_sources = files(
   'ui/window.cpp',
   'ui/hex_editor_window.cpp',
   'ui/agent_window.cpp',
+  'ui/agent_center_window.cpp',
   'ui/diff_window.cpp',
   'ui/crashdump_window.cpp',
   'ui/code_review_window.cpp',

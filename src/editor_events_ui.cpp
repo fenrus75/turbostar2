@@ -448,6 +448,12 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::open_agent_center) {
+		logger.log("Dispatching open_agent_center event.");
+		new_agent_center_window();
+		return;
+	}
+
 	if (ev.type == event_type::open_codereview_viewer) {
 		logger.log("Dispatching open_codereview_viewer event.");
 		new_codereview_window(ev.key_code);
