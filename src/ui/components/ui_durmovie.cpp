@@ -103,10 +103,9 @@ ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height, 
     : ui_element(std::move(name), x, y, width, height), last_frame_time_(std::chrono::steady_clock::now())
 {
 	register_built_in_animations();
-	if (json_str.empty()) {
-		auto &reg = agentlib::agent_animation_registry::get_instance();
-		animation_ = reg.get_animation("default");
-	} else {
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	animation_ = reg.get_animation("default");
+	if (!json_str.empty()) {
 		load_json(json_str);
 	}
 }
