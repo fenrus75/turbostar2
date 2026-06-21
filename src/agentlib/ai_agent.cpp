@@ -1328,6 +1328,8 @@ void ai_agent::start_processing()
 				    if (self->is_closed_)
 					    return;
 
+				    self->update_last_activity_time();
+
 				    if (!delta.response_id.empty()) {
 					    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
 					    self->last_response_id_ = delta.response_id;

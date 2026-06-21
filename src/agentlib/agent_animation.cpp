@@ -10,8 +10,8 @@ namespace agentlib
 
 agent_animation_registry &agent_animation_registry::get_instance()
 {
-	static agent_animation_registry instance;
-	return instance;
+	static agent_animation_registry *instance = new agent_animation_registry();
+	return *instance;
 }
 
 void agent_animation_registry::register_animation(const std::string &name, std::shared_ptr<const dur_animation_data> data)

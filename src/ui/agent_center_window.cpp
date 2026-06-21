@@ -18,6 +18,14 @@ void agent_center_window::draw_content(bool cursor_only) const
 		return;
 	}
 
+	// Clear background of content area to Dark Blue (Pair 3)
+	int bg_pair = 3;
+	attron(COLOR_PAIR(bg_pair));
+	for (int dy = 0; dy < height_ - 2; ++dy) {
+		mvprintw(y_ + 1 + dy, x_ + 1, "%*s", width_ - 2, "");
+	}
+	attroff(COLOR_PAIR(bg_pair));
+
 	// Dynamic layout fit inside window content boundaries
 	grid_->set_bounds(x_ + 1, y_ + 1, width_ - 2, height_ - 2);
 	grid_->flow();

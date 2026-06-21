@@ -34,7 +34,7 @@ static std::string format_line(const std::string &content, size_t max_len)
 }
 
 ui_agent_tile::ui_agent_tile(std::string name, int x, int y, std::shared_ptr<agentlib::ai_agent> agent)
-    : ui_container(std::move(name), x, y, 22, 12), agent_(std::move(agent)), last_tokens_rx_(agent_ ? agent_->get_tokens_rx() : 0),
+    : ui_container(std::move(name), x, y, 22, 12), agent_(std::move(agent)), last_agent_activity_time_ms_(agent_ ? agent_->get_last_activity_time_ms() : 0),
       last_frame_time_(std::chrono::steady_clock::now()),
       last_token_increase_time_(std::chrono::steady_clock::now() - std::chrono::seconds(2))
 {
@@ -176,15 +176,15 @@ bool ui_agent_tile::update_animation()
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_frame_time_).count();
 
-	uint64_t current_tokens = agent_->get_tokens_rx();
-	bool tokens_increased = (current_tokens > last_tokens_rx_);
+	long long current_activity_time = agent_->get_last_activity_time_ms();
+	bool activity_occurred = (current_activity_time > last_agent_activity_time_ms_);
 
-	// Frame increment rule: 250ms elapsed AND tokens have increased since last increment
+	// Frame increment rule: 250ms elapsed AND activity has occurred since last increment
 	if (ms >= 250) {
-		if (tokens_increased) {
+		if (activity_occurred) {
 			current_anim_frame_ = (current_anim_frame_ + 1) % 8;
 			spinner_frame_ = (spinner_frame_ + 1) % 10;
-			last_tokens_rx_ = current_tokens;
+			last_agent_activity_time_ms_ = current_activity_time;
 			last_token_increase_time_ = now;
 			local_changed = true;
 		}
@@ -192,8 +192,11 @@ bool ui_agent_tile::update_animation()
 	}
 
 	// Sync durmovie active state with active token streaming
-	auto time_since_activity = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_token_increase_time_).count();
-	if (time_since_activity < 1000) {
+	auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+	long long ms_since_activity = now_ms - current_activity_time;
+	bool is_currently_active = (current_activity_time > 0 && ms_since_activity < 1000);
+
+	if (is_currently_active) {
 		if (durmovie_->get_state() != durmovie_state::active) {
 			durmovie_->set_state(durmovie_state::active);
 			local_changed = true;

@@ -227,6 +227,16 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	std::string get_animation_name() const;
 	void set_animation_name(const std::string &name);
+
+	long long get_last_activity_time_ms() const
+	{
+		return last_activity_time_ms_.load();
+	}
+	void update_last_activity_time()
+	{
+		auto now = std::chrono::steady_clock::now().time_since_epoch();
+		last_activity_time_ms_.store(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+	}
 	std::map<std::string, episode_index_entry> get_episode_index() const
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -355,6 +365,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<long long> next_lru_seq_{1};
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};
+	std::atomic<long long> last_activity_time_ms_{0};
 	mutable std::mutex properties_mutex_;
 	agent_properties properties_;
 	std::string allowed_write_file_;

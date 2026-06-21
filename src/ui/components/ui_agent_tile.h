@@ -41,7 +41,7 @@ class ui_agent_tile : public ui_container
 	std::shared_ptr<agentlib::ai_agent> agent_;
 	ui_durmovie *durmovie_{nullptr};
 
-	uint64_t last_tokens_rx_{0};
+	long long last_agent_activity_time_ms_{0};
 	std::chrono::time_point<std::chrono::steady_clock> last_frame_time_;
 	std::chrono::time_point<std::chrono::steady_clock> last_token_increase_time_;
 	int current_anim_frame_{0};

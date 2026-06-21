@@ -67,16 +67,19 @@ void test_agent_tile_animation()
 	// No token activity initially, so animation should not update
 	assert(!tile.update_animation());
 
-	// Simulate token activity
-	agent->tokens_rx_ = 10;
+	// Simulate activity
+	agent->update_last_activity_time();
 
-	// Elapsed time hasn't passed 250ms yet, so it shouldn't update
+	// The first call transitions the movie from idle to active, returning true
+	assert(tile.update_animation());
+
+	// Subsequent calls before 250ms should return false
 	assert(!tile.update_animation());
 
 	// Sleep 260ms to let quarter-second timer expire
 	std::this_thread::sleep_for(std::chrono::milliseconds(260));
 
-	// Now it should detect token increase and update the animation!
+	// Now it should detect activity and update the animation frame!
 	assert(tile.update_animation());
 }
 
