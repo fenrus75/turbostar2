@@ -33,10 +33,10 @@ void plugin_run(void)
 	register_security_scan_c();
 	register_security_scan_semgrep();
 	register_security_review_with_agent();
-	register_agent_animation("securityagent", reinterpret_cast<const char *>(security_movie_json));
+	register_agent_animation("securityagent", security_movie_json);
 	// Reminder: We will not register a new tool family.
 	// But we will use the (hidden) ":plugin:securityagent" tool family
-	// for all (except one) of the tools in this plugin.
+	// for all (except "security_review_with_agent", which is global) of the tools in this plugin.
 }
 
 /*
@@ -51,4 +51,3 @@ void plugin_unload(void)
 	unregister_agent_animation("securityagent");
 }
 }
-

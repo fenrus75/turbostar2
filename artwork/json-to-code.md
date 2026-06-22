@@ -64,8 +64,8 @@ In your plugin's initialization code (typically `plugin_run`):
    ```cpp
    void plugin_run(void)
    {
-       // Register custom animation by name
-       register_agent_animation("my_custom_anim", reinterpret_cast<const char *>(my_movie_json));
+        // Register custom animation by name
+        register_agent_animation("my_custom_anim", my_movie_json);
    }
    ```
 3. Unregister the animation during cleanup (typically `plugin_unload`):

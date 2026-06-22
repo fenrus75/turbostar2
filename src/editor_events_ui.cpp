@@ -212,7 +212,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 		auto doc = std::make_shared<document>(global_queue_, "Help");
 
-		std::stringstream ss(reinterpret_cast<const char *>(help_text_md));
+		std::stringstream ss(help_text_md);
 		std::string line;
 		while (std::getline(ss, line)) {
 			if (!line.empty() && line.back() == '\r')

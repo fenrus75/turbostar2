@@ -14,7 +14,7 @@ def embed_text(input_file: str, output_file: str, var_name: str) -> None:
     with open(output_file, 'w') as f:
         f.write(f'// Auto-generated from {input_file} — do not edit\n')
         f.write('#pragma once\n\n')
-        f.write(f'static const unsigned char {var_name}[] = {{\n')
+        f.write(f'static const char {var_name}[] = {{\n')
         for i, byte in enumerate(data):
             f.write(f'0x{byte:02x},')
             if (i + 1) % 16 == 0:

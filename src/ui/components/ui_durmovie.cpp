@@ -85,10 +85,10 @@ static int get_movie_color_pair(uint8_t dos_fg, uint8_t dos_bg, bool &fg_bold)
 static void register_built_in_animations()
 {
 	auto &reg = agentlib::agent_animation_registry::get_instance();
-	reg.register_animation_json("default", reinterpret_cast<const char *>(default_movie_json));
-	reg.register_animation_json("fs_compile_project", reinterpret_cast<const char *>(fs_compile_project_movie_json));
-	reg.register_animation_json("run_shell_command", reinterpret_cast<const char *>(run_shell_command_movie_json));
-	reg.register_animation_json("run_python", reinterpret_cast<const char *>(run_python_movie_json));
+	reg.register_animation_json("default", default_movie_json);
+	reg.register_animation_json("fs_compile_project", fs_compile_project_movie_json);
+	reg.register_animation_json("run_shell_command", run_shell_command_movie_json);
+	reg.register_animation_json("run_python", run_python_movie_json);
 }
 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)
