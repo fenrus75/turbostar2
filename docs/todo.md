@@ -1,5 +1,11 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-- git_blame toolcall (takes line ranges?)
+- git_blame toolcall (takes line ranges?)	
+	- should take a filename and optional line start and line end as arguments
+	- to preserve context we should do a markdown table
+	| line range | commit hash | commit description |
+
+	and consolidate contiguous line ranges
+	- commit description is the 1 line commit description -- to save a round of tool calls
 
 - when an agent calls agent_report_final_result it needs to be marked as dead afterwards
 	- not idle
