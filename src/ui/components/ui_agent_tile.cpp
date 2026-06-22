@@ -95,13 +95,7 @@ void ui_agent_tile::draw(int abs_x, int abs_y) const
 		static const char *anim_frames[] = {"X███████", "█X██████", "██X█████", "███X████",
 						    "████X███", "█████X██", "██████X█", "███████X"};
 		std::string bar = anim_frames[current_anim_frame_];
-		if (!tool_name.empty()) {
-			std::string truncated_tool = tool_name;
-			if (truncated_tool.length() > 9) {
-				truncated_tool = truncated_tool.substr(0, 7) + "..";
-			}
-			tool_text = truncated_tool + " [" + bar + "]";
-		} else {
+		if (tool_name.empty()) {
 			tool_text = "Streaming [" + bar + "]";
 		}
 	} else {
