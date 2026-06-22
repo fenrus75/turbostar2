@@ -11,6 +11,10 @@
 	- not idle
 	- this will help it go away over time
 
+- the run application/etc tool calls might need a "timeout" parameter so that interactive apps don't get stuck forever
+
+- when an agent goes into dead state, all child agents should auto-kill
+
 - we shouldn't list dead agents in any UI (agent command center or subagent list in the agent window)
 
 - we need a /command registery so that plugins can register commands
@@ -26,7 +30,9 @@
 - separate model provider (server) database for easy population of model servers
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
 
-
+- persistent statistics framework
+	- count how often which tool call is used
+	- useful to see which ones are more important
 
 - have a separate model option for "plan mode" phase -- needs agentlib refactor first
 
