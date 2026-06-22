@@ -1,8 +1,17 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 - git_blame toolcall (takes line ranges?)
 
-- we need a /command registery so that plugins can register commands
+- when an agent calls agent_report_final_result it needs to be marked as dead afterwards
+	- not idle
+	- this will help it go away over time
 
+- we shouldn't list dead agents in any UI (agent command center or subagent list in the agent window)
+
+- we need a /command registery so that plugins can register commands
+	- will clean up the current handling a lot
+	- will need to decide what kind of things we need to pass to the handler
+		- agent_
+		- ...
 
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
