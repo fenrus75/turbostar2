@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Discover Turbostar's native AI agent capabilities, context paging layers, security sandboxing, and in-editor code review controls.">
-  <title>AI &amp; Agentic Features - Turbostar Workspace</title>
+  <meta name="description" content="Discover Turbostar's native systems-optimized AI agent, virtual context paging, secure systems sandboxing, and compile output optimization.">
+  <title>AI &amp; Agentic Systems Features - Turbostar Workspace</title>
   <link rel="stylesheet" href="style.css">
   <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
 </head>
@@ -28,10 +28,10 @@
   <!-- Main Content -->
   <main class="content-page">
     <section class="page-header" id="ai-header">
-      <span class="hero-tag">Native Telemetry &amp; Agents</span>
-      <h1 class="page-title">Designed for <span>Agentic Coding</span></h1>
+      <span class="hero-tag">Systems &amp; Low-Level Coding</span>
+      <h1 class="page-title">Agentic Coding for <span>Systems Engineers</span></h1>
       <p class="page-desc">
-        Turbostar is built from the ground up to support LLM agents as primary participants in the development lifecycle, featuring infinite virtual context paging and secure tool execution.
+        Turbostar is optimized specifically for systems and low-level development. We equip LLM agents with high-fidelity compiler feedback, sandboxed execution, and context-saving telemetry designed for heavy C++ and Python workspaces.
       </p>
     </section>
 
@@ -90,6 +90,74 @@
           </div>
           <div class="terminal-content">
             <img src="./screenshot-inline-agent-codereview.png" alt="Turbostar Inline Code Review Screen">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 3: Compiler Context Optimization -->
+    <section class="detail-split" id="compile-optimization">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Compiler Context Optimization</h2>
+        <p class="detail-text">
+          Low-level development is verbose. Healthy build logs can easily span hundreds of kilobytes of compiler outputs, wasting critical agent context and inflating token costs.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Noise Filtering:</strong> Turbostar filters out thousands of lines of successful compilation outputs (e.g. <code>[12/350] Compiling C++ object...</code>), leaving only the overall summary or precise error locations.</li>
+          <li><strong>Context Preservation:</strong> Instead of dumping massive raw compiler stdout logs, Turbostar parses compiler diagnostics, shrinking logs from 200+ KB of noise to less than 2 KB of actionable target context.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-compile-output">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">agentcli --run-build</div>
+            <div></div>
+          </div>
+          <div class="terminal-content" style="background: var(--bg-secondary);">
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code class="comment"># Raw compiler output (350+ targets compiled)</span>
+<span class="comment"># [Info] Truncating 14,295 lines of successful compilation output.</span>
+<span class="comment"># Retaining summary and diagnostics:</span>
+
+[349/350] Compiling C++ object src/editor_events.cpp.o ... <span class="literal">OK</span>
+[350/350] Linking target build/turbostar ... <span class="literal">OK</span>
+
+<span class="keyword">Build Success:</span> 350 targets built in 14.2s.
+<span class="keyword">Context Saved:</span> Retained 1.8 KB of 285.4 KB raw output.</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 4: Interactive Agent-Driven Debugging -->
+    <section class="detail-split reverse" id="agent-debugging">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Interactive Agent-Driven Debugging</h2>
+        <p class="detail-text">
+          Debugging isn't just about reading stack traces. Turbostar allows the AI agent to run, interact with, and debug your application concurrently in real-time.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Parallel GDB Control:</strong> The agent can drive GDB commands (setting breakpoints, stepping, viewing backtraces) in one window while feeding test inputs directly into the application's stdin in another.</li>
+          <li><strong>Signal &amp; I/O Isolation:</strong> Utilizes a dedicated loop control systemd namespace and custom signal disposition wrappers (ignoring job control signals) to prevent GDB from hung states (e.g. <code>SIGTTOU</code> loops).</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-agent-debugger">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --agent-debug</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <img src="./screenshot-debugger.png" alt="Turbostar Interactive Agent Debugging Split Screen">
           </div>
         </div>
       </div>
