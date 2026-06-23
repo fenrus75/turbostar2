@@ -15,6 +15,7 @@
 #include "mcp/mcp_manager.h"
 #include "pluginloader.h"
 #include "project_manager.h"
+#include "statistics_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -84,6 +85,7 @@ int main(int argc, char **argv)
 	}
 
 	config_manager::get_instance().load();
+	statistics_manager::get_instance().load();
 	agentlib::skill_manager::get_instance().initialize();
 	plugin_loader::get_instance().load_all_plugins();
 

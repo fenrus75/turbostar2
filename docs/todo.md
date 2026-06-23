@@ -22,9 +22,7 @@
 - separate model provider (server) database for easy population of model servers
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
 
-- persistent statistics framework
-	- count how often which tool call is used
-	- useful to see which ones are more important
+
 
 - have a separate model option for "plan mode" phase -- needs agentlib refactor first
 
@@ -206,6 +204,7 @@
 
 ## 23-06-2026
 - implemented proper agent "dead" state lifecycle: when an agent records a final result (either via explicit `agent_report_final_result` tool call or implicit exit on idle), its status is updated to `dead`. Transitioning to `dead` state recursively cascades to all child subagents, closing their threads and marking them as `dead`. Dead subagents are automatically excluded from both the Agent Command Center and the Agent Window sidebar UI.
+- implemented the persistent statistics framework, tracking metrics in `~/.cache/turbostar/statistics.json` using a thread-safe `statistics_manager` singleton. Integrated a tracking hook inside `tool_registry::execute_tool` to increment execution count for every tool call with format `toolcall:<name>`, loaded saved statistics at startup in `main.cpp`, and added unit test coverage in `tests/unit/test_statistics_manager.cpp`.
 
 ## 21-06-2026
 - implemented a thread-safe `agent_animation_registry` and global animation registration APIs, added `animation_name` property getter and setter to `ai_agent`, refactored `ui_durmovie` to share parsed animation frames using `std::shared_ptr`, and updated `ui_agent_tile` to dynamically poll and swap active agent animations.

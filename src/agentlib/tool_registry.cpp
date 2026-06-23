@@ -1,6 +1,7 @@
 #include "tool_registry.h"
 #include <iostream>
 #include "ai_agent.h"
+#include "statistics_manager.h"
 
 namespace agentlib
 {
@@ -272,6 +273,9 @@ std::string tool_registry::execute_tool(const std::string &name, const std::stri
 	if (!prep.error_message.empty()) {
 		return prep.error_message;
 	}
+
+	// Increment persistent statistics for the tool execution count
+	statistics_manager::get_instance().increment_stat(std::format("toolcall:{}", name));
 
 	// Execution
 	try {
