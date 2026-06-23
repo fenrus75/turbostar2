@@ -2,6 +2,16 @@
 
 - we should start making a retro-cool but modern website for turbostar
 
+- become an A2A server for plugins
+
+- become a client to A2A
+	we might need to do a "call A2A" type tool call
+
+- build an A2A directory
+	- maybe a .local style directory service? is there a protocol for autodiscovery?
+
+- have a turboserver mode where we are headless but only serve A2A requests?
+
 
 - git_blame toolcall (takes line ranges?)	
 	- should take a filename and optional line start and line end as arguments
