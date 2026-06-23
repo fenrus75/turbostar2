@@ -1,4 +1,8 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
+
+- we should start making a retro-cool but modern website for turbostar
+
+
 - git_blame toolcall (takes line ranges?)	
 	- should take a filename and optional line start and line end as arguments
 	- to preserve context we should do a markdown table
