@@ -1,5 +1,11 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+## Webpage Screenshots to Take
+- [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
+- [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
+- [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
+- [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
+
 - become an A2A server for plugins
 
 - become a client to A2A
