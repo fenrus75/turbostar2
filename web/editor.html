@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explore Turbostar's TUI editor features, including WordStar/Joe keybindings, standard C++ LSP configuration, and terminal debugging integrated with GDB.">
+  <title>Editor Features - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" class="active" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="editor-header">
+      <span class="hero-tag">A Highly Productive TUI</span>
+      <h1 class="page-title">Classic Aesthetics, <span>Modern Power</span></h1>
+      <p class="page-desc">
+        Turbostar provides a distraction-free, highly responsive workspace in the terminal. It pairs nostalgia with the robust utility developers demand for complex C++ and Python projects.
+      </p>
+    </section>
+
+    <!-- Visual Feature 1: Multi Window -->
+    <section class="detail-split" id="multi-window">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Multi-Window Tiled Workspace</h2>
+        <p class="detail-text">
+          Turbostar splits screen real estate dynamically, supporting multi-document layouts. Window boundaries are double-bordered, drop-shadowed, and react natively to mouse events for resizing and dragging.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Mouse Interception:</strong> Click and drag coordinates-free layouts natively. Hold <code>Shift</code> to override and trigger your terminal emulator's native selection.</li>
+          <li><strong>Linked Windows:</strong> Opening complementary files binds window pairs (e.g. Code Review edits &amp; compiler outputs) so they move and cycle focus synchronously.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-editfile">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar src/main.cpp</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <img src="../docs/screenshot-editfile.png" alt="Turbostar Multi-Window Editing Screen">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 2: Debugger -->
+    <section class="detail-split reverse" id="debugger-split">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Interactive GDB Debugging</h2>
+        <p class="detail-text">
+          Perform single-stepping, add breakpoints, and analyze variables directly inside the TUI editor window. Executes the program inside an integrated <code>gdbserver</code> environment.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Asynchronous execution:</strong> Compile projects and execute debugger steps concurrently on separate background worker threads.</li>
+          <li><strong>Status Help Prompts:</strong> Dynamic help status bar mappings update to show shortcuts based on cursor context and focus.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-debugger">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --debug</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <img src="../docs/screenshot-debugger.png" alt="Turbostar Interactive Debugging Split Screen">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keyboard Reference -->
+    <section class="page-header" id="key-reference">
+      <h2 class="detail-subtitle">Keyboard Quick Reference</h2>
+      <p class="detail-text" style="margin-bottom: 2rem;">
+        Turbostar utilizes WordStar/Joe-style keybinding structures for block selections, search controls, and text deletions.
+      </p>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Command Action</th>
+              <th>WordStar Keybinding</th>
+              <th>Alternative Shortcut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Open File Menu</strong></td>
+              <td>—</td>
+              <td><code>F10</code> or <code>Esc</code></td>
+            </tr>
+            <tr>
+              <td><strong>Load File</strong></td>
+              <td><code>^K O</code></td>
+              <td><code>F3</code></td>
+            </tr>
+            <tr>
+              <td><strong>Save Document</strong></td>
+              <td><code>^K S</code></td>
+              <td><code>F2</code></td>
+            </tr>
+            <tr>
+              <td><strong>Select Block Start</strong></td>
+              <td><code>^K B</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><strong>Select Block End</strong></td>
+              <td><code>^K K</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><strong>Toggle AI Agent Window</strong></td>
+              <td><code>^K A</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><strong>Undo History</strong></td>
+              <td><code>^K H</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><strong>Quit Editor</strong></td>
+              <td><code>^K Q</code></td>
+              <td><code>Alt+X</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source under the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

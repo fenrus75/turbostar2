@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Turbostar is a responsive, modern terminal-based (TUI) C++23 IDE featuring WordStar keybindings, live LSP diagnostics, Git integration, and native LLM agent capabilities with virtual context paging.">
+  <title>Turbostar - The C++23 TUI IDE Designed for Agentic Coding</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" class="active" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main>
+    <section class="hero" id="hero-section">
+      <span class="hero-tag">IDE for the Agentic Era</span>
+      <h1>A Modern Terminal Workspace with a <span>Nostalgic Heart</span></h1>
+      <p class="hero-subtitle">
+        Turbostar is a terminal-based (TUI) text editor designed with the classic look of Turbo Pascal, supercharged with WordStar keybindings, live LSP, and native LLM agent sandboxing.
+      </p>
+      <div class="cta-group">
+        <a href="#quickstart" class="btn btn-primary" id="cta-get-started">Get Started</a>
+        <a href="editor.html" class="btn btn-secondary" id="cta-learn-more">Explore Features</a>
+      </div>
+    </section>
+
+    <!-- Screenshot Showcase -->
+    <section class="showcase-frame" id="showcase-section">
+      <div class="terminal-mockup">
+        <div class="terminal-header">
+          <div class="terminal-dots">
+            <span class="terminal-dot close"></span>
+            <span class="terminal-dot minimize"></span>
+            <span class="terminal-dot maximize"></span>
+          </div>
+          <div class="terminal-title">turbostar --welcome</div>
+          <div></div>
+        </div>
+        <div class="terminal-content">
+          <img src="../docs/screenshot-welcome.png" alt="Turbostar Welcome Screen in terminal">
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature Highlights -->
+    <section class="features-section" id="features-overview">
+      <div class="section-header">
+        <h2 class="section-title">Everything You Expect. In the Terminal.</h2>
+        <p>Turbostar bridges the gap between classic rapid-development aesthetics and modern agent-driven telemetry.</p>
+      </div>
+      
+      <div class="grid">
+        <!-- Feature Card 1 -->
+        <article class="card" id="card-tui-editor">
+          <span class="card-icon">⌨️</span>
+          <h3 class="card-title">Classic TUI Workspace</h3>
+          <p class="card-desc">Double-line window borders, drop shadows, responsive visual splits, and authentic Joe/WordStar block selection modes.</p>
+          <a href="editor.html" class="card-link" id="link-tui-more">Read details &rarr;</a>
+        </article>
+
+        <!-- Feature Card 2 -->
+        <article class="card" id="card-lsp-git">
+          <span class="card-icon">🚀</span>
+          <h3 class="card-title">LSP &amp; Git Integration</h3>
+          <p class="card-desc">Auto-configured code diagnostics, symbol definitions, code refactoring, and real-time Git status tracking inside the window headers.</p>
+          <a href="editor.html" class="card-link" id="link-lsp-more">Explore setups &rarr;</a>
+        </article>
+
+        <!-- Feature Card 3 -->
+        <article class="card" id="card-ai-agent">
+          <span class="card-icon">🤖</span>
+          <h3 class="card-title">Agentic Telemetry</h3>
+          <p class="card-desc">A native LLM agent that edits files, compiles code, runs tests, and pages context in and out dynamically under secure systemd sandboxes.</p>
+          <a href="ai.html" class="card-link" id="link-ai-more">See AI tools &rarr;</a>
+        </article>
+      </div>
+    </section>
+
+    <!-- Quickstart / Installation Section -->
+    <section class="features-section" id="quickstart">
+      <div class="section-header">
+        <h2 class="section-title">Quick Installation</h2>
+        <p>Build from source in minutes on any modern Linux distribution.</p>
+      </div>
+      
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Prerequisites &amp; Setup</h3>
+          <p class="detail-text">
+            Turbostar is written in modern C++23 and utilizes the Meson build system for rapid compilation. Ensure you have GCC 13+ or Clang 16+, Meson, and Ninja installed.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Debian/Ubuntu:</strong> Install dependencies via <code>apt install g++ meson ninja-build libncursesw5-dev libre2-dev nlohmann-json3-dev libcurl4-openssl-dev libsqlite3-dev</code></li>
+            <li><strong>LSP Helpers:</strong> Install <code>clangd</code> (C++), <code>pylsp</code> (Python) and <code>gdb</code> for terminal debugger integrations.</li>
+          </ul>
+        </div>
+        
+        <div class="detail-visual">
+          <pre><code><span class="comment"># 1. Setup build directory</span>
+<span class="keyword">meson</span> setup build
+
+<span class="comment"># 2. Compile the project</span>
+<span class="keyword">meson</span> compile -C build -j4
+
+<span class="comment"># 3. Launch Turbostar</span>
+./build/turbostar</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source under the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="editor.html" id="foot-editor">Editor</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

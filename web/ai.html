@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Discover Turbostar's native AI agent capabilities, context paging layers, security sandboxing, and in-editor code review controls.">
+  <title>AI &amp; Agentic Features - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" class="active" id="nav-ai">AI Features</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="ai-header">
+      <span class="hero-tag">Native Telemetry &amp; Agents</span>
+      <h1 class="page-title">Designed for <span>Agentic Coding</span></h1>
+      <p class="page-desc">
+        Turbostar is built from the ground up to support LLM agents as primary participants in the development lifecycle, featuring infinite virtual context paging and secure tool execution.
+      </p>
+    </section>
+
+    <!-- Visual Feature 1: Context Paging -->
+    <section class="detail-split" id="context-paging">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Virtual Context Paging</h2>
+        <p class="detail-text">
+          Context windows are finite and costly. Instead of discarding history when the buffer fills, Turbostar pages chunks of conversation in and out dynamically, mimicking OS virtual memory.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Paging Levels:</strong> Implements tiered compression: Full Content, Think-Removed Content (condensing reasoning outputs), and Tool-Call Reduced Content (redirection markers for duplicated actions).</li>
+          <li><strong>On-Disk Fallback:</strong> Reductions occur in memory only; full details are saved to disk. Paged-out blocks leave hints instructing the agent on when to request page-in upgrades.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-undo">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --history-compaction</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <img src="../docs/screenshot-agent-undo-view.png" alt="Turbostar AI Agent History Compaction / Undo View">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 2: In-Editor Code Review -->
+    <section class="detail-split reverse" id="code-review">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">In-Editor Code Review &amp; Edits</h2>
+        <p class="detail-text">
+          Run automated security reviews and code formatting recommendations directly inside the TUI. Agent edits are tracked cleanly as single atomic undo operations.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Unified Review Dialogs:</strong> Inline review comments let developers step through and resolve suggestions with coordinate-free layout dialogs.</li>
+          <li><strong>Safety Verification:</strong> Python execution tools scan scripts automatically using <code>bandit</code> before running them.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-codereview">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --code-review</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <img src="../docs/screenshot-inline-agent-codereview.png" alt="Turbostar Inline Code Review Screen">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security Model -->
+    <section class="page-header" id="security-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem;">
+      <h2 class="detail-subtitle">Secure Tool Execution</h2>
+      <p class="detail-text" style="max-width: 800px; margin-bottom: 2rem;">
+        Turbostar provides native secure options for agents, reducing raw shell command risks and eliminating constant permission prompts.
+      </p>
+      
+      <div class="grid">
+        <article class="card" id="card-sandboxing">
+          <h3 class="card-title">Namespaced Sandboxing</h3>
+          <p class="card-desc">Agents operate inside secure sandboxes with read-only workspaces. Write commands are restricted to explicit files using a central security validator policy.</p>
+        </article>
+        
+        <article class="card" id="card-bandit">
+          <h3 class="card-title">Bandit Python Scanning</h3>
+          <p class="card-desc">Python tool execution requires automated scans. Any script containing high-severity warnings is blocked from executing natively.</p>
+        </article>
+        
+        <article class="card" id="card-x11">
+          <h3 class="card-title">Display &amp; forward controls</h3>
+          <p class="card-desc">Support running graphical X11/SDL2 tests inside the sandbox with secure environment forwarding (XAUTHORITY/DISPLAY bindings).</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source under the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="editor.html" id="foot-editor">Editor</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
