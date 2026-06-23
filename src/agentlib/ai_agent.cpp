@@ -613,6 +613,17 @@ void ai_agent::set_status(agent_status s, int target_id)
 		} else {
 			waiting_on_id_ = -1;
 		}
+
+		// When an agent goes into the dead state, all of its active subagents
+		// must also be terminated immediately to clean up background execution
+		// threads and prevent resource leaks. The termination must cascade
+		// recursively down the entire agent spawning hierarchy.
+		if (s == agent_status::dead) {
+			for (auto &sub : subagents_) {
+				sub->close();
+				sub->set_status(agent_status::dead);
+			}
+		}
 	}
 	status_cv_.notify_all();
 
@@ -627,7 +638,12 @@ void ai_agent::set_status(agent_status s, int target_id)
 void ai_agent::wait_until_idle()
 {
 	std::unique_lock<std::mutex> lock(state_mutex_);
-	status_cv_.wait(lock, [this]() { return status_ == agent_status::idle || status_ == agent_status::error; });
+	// The wait predicate must allow returning when the agent reaches the
+	// terminal dead state, in addition to normal idle or error states, to
+	// prevent waiting threads from hanging indefinitely on dead subagents.
+	status_cv_.wait(lock, [this]() {
+		return status_ == agent_status::idle || status_ == agent_status::error || status_ == agent_status::dead;
+	});
 }
 
 void ai_agent::cancel_current_task()
@@ -1657,8 +1673,17 @@ void ai_agent::start_processing()
 			}
 		}
 
-		self->set_status(agent_status::idle);
-		event_logger::get_instance().log("Agent {} went idle. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
+		// When an agent finishes its work, check if a final result has been
+		// recorded (either via an explicit tool call or implicit idle exit).
+		// If a final result exists, transition the status to dead. Otherwise,
+		// the agent remains active and returns to the idle state to wait for
+		// subsequent user instructions.
+		if (self->has_final_result()) {
+			self->set_status(agent_status::dead);
+		} else {
+			self->set_status(agent_status::idle);
+		}
+		event_logger::get_instance().log("Agent {} ended run loop. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
 						 self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
 
 		if (self->global_queue_) {

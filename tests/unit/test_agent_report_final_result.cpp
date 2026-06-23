@@ -83,8 +83,32 @@ int main()
 		assert(!implicit_res.empty());
 		assert(implicit_res.find("Error: Streaming request failed") != std::string::npos);
 		std::cout << "Implicit final result on idle (error case): " << implicit_res << std::endl;
+
+		// Assert that the agent status is now dead since it has a final result
+		assert(test_agent->get_status() == agent_status::dead);
+	}
+
+	// Test 4: Verify cascading dead status to child agents
+	{
+		std::cout << "Testing cascading dead status..." << std::endl;
+		auto parent_agent = ai_agent::create(301, "ParentCascade", model, nullptr, nullptr);
+		auto child_agent1 = parent_agent->spawn_subagent("ChildCascade1");
+		auto child_agent2 = child_agent1->spawn_subagent("ChildCascade2");
+
+		assert(parent_agent->get_status() == agent_status::idle);
+		assert(child_agent1->get_status() == agent_status::idle);
+		assert(child_agent2->get_status() == agent_status::idle);
+
+		// Transition parent to dead status
+		parent_agent->set_status(agent_status::dead);
+
+		// Assert that parent and all children recursively are marked dead
+		assert(parent_agent->get_status() == agent_status::dead);
+		assert(child_agent1->get_status() == agent_status::dead);
+		assert(child_agent2->get_status() == agent_status::dead);
 	}
 
 	std::cout << "agent_report_final_result tests passed successfully.\n";
 	return 0;
 }
+

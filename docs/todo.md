@@ -7,15 +7,7 @@
 	and consolidate contiguous line ranges
 	- commit description is the 1 line commit description -- to save a round of tool calls
 
-- when an agent calls agent_report_final_result it needs to be marked as dead afterwards
-	- not idle
-	- this will help it go away over time
-
 - the run application/etc tool calls might need a "timeout" parameter so that interactive apps don't get stuck forever
-
-- when an agent goes into dead state, all child agents should auto-kill
-
-- we shouldn't list dead agents in any UI (agent command center or subagent list in the agent window)
 
 - we need a /command registery so that plugins can register commands
 	- will clean up the current handling a lot
@@ -211,6 +203,9 @@
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
 # done items (move items here on completion)
+
+## 23-06-2026
+- implemented proper agent "dead" state lifecycle: when an agent records a final result (either via explicit `agent_report_final_result` tool call or implicit exit on idle), its status is updated to `dead`. Transitioning to `dead` state recursively cascades to all child subagents, closing their threads and marking them as `dead`. Dead subagents are automatically excluded from both the Agent Command Center and the Agent Window sidebar UI.
 
 ## 21-06-2026
 - implemented a thread-safe `agent_animation_registry` and global animation registration APIs, added `animation_name` property getter and setter to `ai_agent`, refactored `ui_durmovie` to share parsed animation frames using `std::shared_ptr`, and updated `ui_agent_tile` to dynamically poll and swap active agent animations.

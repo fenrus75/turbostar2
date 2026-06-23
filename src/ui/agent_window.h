@@ -67,4 +67,6 @@ class agent_window : public window
 
 	std::unique_ptr<ui_listbox> todos_list_;
 	std::unique_ptr<ui_listbox> subagents_list_;
+
+	std::vector<std::shared_ptr<agentlib::ai_agent>> get_active_subagents() const;
 };

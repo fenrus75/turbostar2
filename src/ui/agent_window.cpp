@@ -403,7 +403,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	subagents_list_ = std::make_unique<ui_listbox>(
 	    "subagents", 0, 0, 1, 1, [this](int) { invalidate(); },
 	    [this](int index) {
-		    auto subagents = agent_->get_subagents();
+		    auto subagents = get_active_subagents();
 		    if (index >= 0 && index < (int)subagents.size()) {
 			    editor_event sub_ev;
 			    sub_ev.type = event_type::open_subagent;
@@ -734,7 +734,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	subagents_list_ = std::make_unique<ui_listbox>(
 	    "subagents", 0, 0, 1, 1, [this](int) { invalidate(); },
 	    [this](int index) {
-		    auto subagents = agent_->get_subagents();
+		    auto subagents = get_active_subagents();
 		    if (index >= 0 && index < (int)subagents.size()) {
 			    editor_event sub_ev;
 			    sub_ev.type = event_type::open_subagent;
@@ -761,7 +761,7 @@ bool agent_window::process_events()
 
 	while (auto ev = get_queue().pop()) {
 		bool has_todos = !agent_->get_todos().empty();
-		bool has_subagents = !agent_->get_subagents().empty();
+		bool has_subagents = !get_active_subagents().empty();
 		bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
 		int sidebar_w = (width_ * 30) / 100;
 		sidebar_w = std::max(15, std::min(sidebar_w, width_ - 20));
@@ -1053,7 +1053,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 {
 	// 1. Draw the chat history in the upper portion
 	bool has_todos = !agent_->get_todos().empty();
-	bool has_subagents = !agent_->get_subagents().empty();
+	bool has_subagents = !get_active_subagents().empty();
 	bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
 	int sidebar_w = (width_ * 30) / 100;
 	sidebar_w = std::max(15, std::min(sidebar_w, width_ - 20));
@@ -1496,12 +1496,12 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 		// Draw Subagents listbox
 		if (has_subagents) {
 			std::vector<std::string> subagent_strings;
-			for (const auto &sub : agent_->get_subagents()) {
+			for (const auto &sub : get_active_subagents()) {
 				std::string sub_status = agent_status_to_string(sub->get_status(), sub->get_current_tool());
 				if (sub->get_status() == agent_status::waiting) {
-					sub_status = "Waiting (" + std::to_string(sub->get_waiting_on_id()) + ")";
+					sub_status = std::format("Waiting ({})", sub->get_waiting_on_id());
 				}
-				subagent_strings.push_back(sub->get_name() + " [" + sub_status + "]");
+				subagent_strings.push_back(std::format("{} [{}]", sub->get_name(), sub_status));
 			}
 			int sub_y = has_todos ? y_ + divider_y + 1 : y_ + 1;
 			int sub_h = has_todos ? (height_ - 2) - divider_y : height_ - 2;
@@ -1569,7 +1569,7 @@ void agent_window::draw_border() const
 	window::draw_border();
 
 	bool has_todos = !agent_->get_todos().empty();
-	bool has_subagents = !agent_->get_subagents().empty();
+	bool has_subagents = !get_active_subagents().empty();
 	bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
 
 	if (show_sidebar) {
@@ -1607,7 +1607,7 @@ void agent_window::set_cursor_position() const
 {
 	if (is_active()) {
 		bool has_todos = !agent_->get_todos().empty();
-		bool has_subagents = !agent_->get_subagents().empty();
+		bool has_subagents = !get_active_subagents().empty();
 		bool show_sidebar = sidebar_expanded_ && (has_todos || has_subagents);
 
 		if (show_sidebar && sidebar_focus_ == sidebar_focus::todos && todos_list_) {
@@ -1628,4 +1628,20 @@ bool agent_window::update_viewport() const
 	bool changed = (scroll_offset_ != last_scroll_offset_);
 	last_scroll_offset_ = scroll_offset_;
 	return changed;
+}
+
+std::vector<std::shared_ptr<agentlib::ai_agent>> agent_window::get_active_subagents() const
+{
+	std::vector<std::shared_ptr<agentlib::ai_agent>> active;
+	if (!agent_) {
+		return active;
+	}
+	// Filter subagents to only retrieve those that are not in the terminal dead state,
+	// ensuring dead subagents are hidden from the sidebar lists.
+	for (const auto &sub : agent_->get_subagents()) {
+		if (sub->get_status() != agentlib::agent_status::dead) {
+			active.push_back(sub);
+		}
+	}
+	return active;
 }
