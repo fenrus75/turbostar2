@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- we should start making a retro-cool but modern website for turbostar
-
 - become an A2A server for plugins
 
 - become a client to A2A
@@ -217,6 +215,7 @@
 # done items (move items here on completion)
 
 ## 23-06-2026
+- designed and created a modern, premium static website for Turbostar featuring custom HSL styling, responsive layouts, a detailed editor keybindings table, AI secure tool execution highlights, and screenshots showcase. Placed the web pages and stylesheet directly in the `docs/` directory for hosting on GitHub Pages.
 - implemented proper agent "dead" state lifecycle: when an agent records a final result (either via explicit `agent_report_final_result` tool call or implicit exit on idle), its status is updated to `dead`. Transitioning to `dead` state recursively cascades to all child subagents, closing their threads and marking them as `dead`. Dead subagents are automatically excluded from both the Agent Command Center and the Agent Window sidebar UI.
 - implemented the persistent statistics framework, tracking metrics in `~/.cache/turbostar/statistics.json` using a thread-safe `statistics_manager` singleton. Integrated a tracking hook inside `tool_registry::execute_tool` to increment execution count for every tool call with format `toolcall:<name>`, loaded saved statistics at startup in `main.cpp`, and added unit test coverage in `tests/unit/test_statistics_manager.cpp`.
 
