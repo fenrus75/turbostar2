@@ -8,7 +8,7 @@
 - [ ] Screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png)
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
-## Webpage content to add
+## Webpage content to add or change
 - [ ] 
 
 
@@ -225,6 +225,10 @@
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
 # done items (move items here on completion)
+
+## 24-06-2026
+- updated webpage compile/debug section to focus on "Developer native: Compile & Debug".
+- updated webpage crash catcher section to clarify signal interception during test runs and direct code line linking.
 
 ## 23-06-2026
 - added Agent Command Center dashboard screenshot (screenshot-agent-command-center.png).

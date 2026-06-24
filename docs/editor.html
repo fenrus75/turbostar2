@@ -72,13 +72,13 @@
     <!-- Visual Feature 2: Debugger -->
     <section class="detail-split reverse" id="debugger-split">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Interactive GDB Debugging</h2>
+        <h2 class="detail-subtitle">Developer Native: Compile &amp; Debug</h2>
         <p class="detail-text">
-          Perform single-stepping, add breakpoints, and analyze variables directly inside the TUI editor window. Executes the program inside an integrated <code>gdbserver</code> environment.
+          Designed specifically for low-level systems developers. Compile code and debug applications directly within the editor interface, keeping you fully in your workspace without context switching.
         </p>
         <ul class="detail-list">
-          <li><strong>Asynchronous execution:</strong> Compile projects and execute debugger steps concurrently on separate background worker threads.</li>
-          <li><strong>Status Help Prompts:</strong> Dynamic help status bar mappings update to show shortcuts based on cursor context and focus.</li>
+          <li><strong>In-Editor Compilation:</strong> Build your projects with standard toolchains (Meson, Make, GCC/Clang) instantly, with real-time feedback and direct error navigation.</li>
+          <li><strong>Interactive GDB Debugging:</strong> Perform single-stepping, set breakpoints, and inspect variables using an integrated <code>gdbserver</code> environment inside the TUI editor window.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -106,11 +106,12 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Integrated Crash Catcher (libturbocatch)</h2>
         <p class="detail-text">
-          Never lose your terminal state to a segmentation fault. Turbostar integrates <code>libturbocatch.so</code>, a specialized preloaded library that handles unexpected crashes gracefully.
+          Never lose your terminal state or get stuck debugging segmentation faults. Turbostar integrates <code>libturbocatch.so</code>, which intercepts failures during application runs or test suite execution.
         </p>
         <ul class="detail-list">
-          <li><strong>Graceful Terminal Restoration:</strong> Restores standard terminal modes immediately upon receiving signals like <code>SIGSEGV</code> or failed assertions, preventing your terminal from getting corrupted.</li>
-          <li><strong>Actionable Crash Reports:</strong> Intercepts assertion failures and prints clean backtraces using <code>libunwind</code>, automatically generating detailed markdown reports in the Crash Manager.</li>
+          <li><strong>Real-time Signal Interception:</strong> Catches unexpected crashes (<code>SIGSEGV</code>, <code>SIGABRT</code>, failed assertions) during both manual application runs and automated test suite execution.</li>
+          <li><strong>Source Code Linking:</strong> Parses the backtrace dynamically, automatically linking crash locations back to the exact filename and line number in the code editor for immediate fixing.</li>
+          <li><strong>Graceful Terminal Restoration:</strong> Instantly resets TUI terminal configurations back to standard modes on fatal signals, keeping your shell fully functional.</li>
         </ul>
       </div>
       <div class="detail-visual">
