@@ -1,12 +1,14 @@
 #include <format>
 #include <thread>
-#include "../../agentlib/ai_agent.h"
-#include "../../config_manager.h"
-#include "../../crashdump_manager.h"
-#include "../../fs_utils.h"
-#include "../output_filter.h"
-#include "../terminal_command_runner.h"
-#include "fs_compile_project.h"
+#include <sstream>
+#include "agentlib/ai_agent.h"
+#include "config_manager.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
+#include "tools/output_filter.h"
+#include "tools/terminal_command_runner.h"
+#include "tools/fs_compile_project/fs_compile_project.h"
+#include "event_logger.h"
 
 namespace tools
 {
@@ -85,7 +87,21 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 			std::vector<std::shared_ptr<output_filter>> filters;
 			filters.push_back(std::make_shared<meson_compile_filter>());
 			int lines_removed = 0;
+			size_t raw_bytes = output.length();
 			output = apply_output_filters(cmd, output, filters, &lines_removed);
+			size_t kept_bytes = output.length();
+
+			int lines_kept = 0;
+			{
+				std::stringstream ss(output);
+				std::string tmp;
+				while (std::getline(ss, tmp)) {
+					lines_kept++;
+				}
+			}
+			double raw_kb = raw_bytes / 1024.0;
+			double kept_kb = kept_bytes / 1024.0;
+			event_logger::get_instance().log("fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)", lines_removed, raw_kb - kept_kb, lines_kept, kept_kb);
 
 			if (auto agent = weak_agent.lock()) {
 				if (lines_removed > 0) {
@@ -93,10 +109,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (crashes_after > crashes_before) {
-					output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
-						  " new crash(es) occurred during execution. Please use the 'crashdump_list' and "
-						  "'crashdump_get_info' tools to "
-						  "investigate.";
+					output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
 				}
 
 				// Cap output at 10,000 characters to protect context window
@@ -105,7 +118,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 					output = "\n...[output truncated due to length]...\n" + output;
 				}
 
-				std::string formatted_injection = "```bash\n$ " + cmd + "\n" + output + "\n```";
+				std::string formatted_injection = std::format("```bash\n$ {}\n{}\n```", cmd, output);
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
 				std::string status = (exit_code == 0) ? "successfully" : "with errors";
 				std::string system_msg = std::format("The background task 'fs_compile_project' has completed {}. I updated "
@@ -133,16 +146,28 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	std::vector<std::shared_ptr<output_filter>> filters;
 	filters.push_back(std::make_shared<meson_compile_filter>());
 	int lines_removed = 0;
+	size_t raw_bytes = output.length();
 	output = apply_output_filters(cmd, output, filters, &lines_removed);
+	size_t kept_bytes = output.length();
+
+	int lines_kept = 0;
+	{
+		std::stringstream ss(output);
+		std::string tmp;
+		while (std::getline(ss, tmp)) {
+			lines_kept++;
+		}
+	}
+	double raw_kb = raw_bytes / 1024.0;
+	double kept_kb = kept_bytes / 1024.0;
+	event_logger::get_instance().log("fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)", lines_removed, raw_kb - kept_kb, lines_kept, kept_kb);
 
 	if (lines_removed > 0 && ctx.active_agent) {
 		ctx.active_agent->increment_stat("build_lines_pruned", lines_removed);
 	}
 
 	if (crashes_after > crashes_before) {
-		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
-			  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to "
-			  "investigate.";
+		output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
 	}
 
 	// Cap output at 10,000 characters to protect context window
@@ -151,7 +176,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return "```bash\n$ " + cmd + "\n" + output + "\n```";
+	return std::format("```bash\n$ {}\n{}\n```", cmd, output);
 }
 
 } // namespace tools
