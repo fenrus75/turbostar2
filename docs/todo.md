@@ -1,5 +1,7 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
+- the crash handler should first write() the ANSI escape codes to reset the terminal before printing the backtrace
+
 ## Webpage Screenshots to Take
 - [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
@@ -11,6 +13,11 @@
 ## Webpage content to add or change
 - [ ] 
 
+
+
+- consider a clock of sorts at the right side of the bottom status bar
+
+- we need to improve behavior when the terminal window is resized -- we detect it but don't adjust window sizes. Example: After growing the terminal, "maximize" doesn't maximize but goes to the original size.
 
 - become an A2A server for plugins
 
@@ -111,6 +118,9 @@
 	- security review
 		- plug in static local scanners
 		- maybe fuzzing helpers?
+
+	- fpga /verilog agent?
+
 
 
 - better integration for code coverage in the main editor
