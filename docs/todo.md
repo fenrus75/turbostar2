@@ -28,8 +28,7 @@
 - [x] AI: We should mention the dedicated run_python tool call that does not require the LLM to write a file first
 
 
-- have some log entry for the fs_compile_project context minimizer how much it threw out and how much it kept so we can give real data
-  on the webpage
+- [x] have some log entry for the fs_compile_project context minimizer how much it threw out and how much it kept so we can give real data on the webpage
 
 - become an A2A server for plugins
 
