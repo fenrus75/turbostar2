@@ -1,7 +1,5 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
-- the crash handler should first write() the ANSI escape codes to reset the terminal before printing the backtrace
-
 ## Webpage Screenshots to Take
 - [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
@@ -11,8 +9,8 @@
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
 ## Webpage content to add or change
-- [ ] 
-
+- [ ] AI: need to mention support for different protocols (openAI (both protocols), gemini, claude)    
+- 
 
 
 - consider a clock of sorts at the right side of the bottom status bar
@@ -237,6 +235,8 @@
 # done items (move items here on completion)
 
 ## 24-06-2026
+- modified fallback crash handler to write terminal reset escape sequences and diagnostics directly to STDERR_FILENO.
+- updated webpage AI standards section to document support for different LLM protocols (Gemini, OpenAI, Claude).
 - updated webpage compile/debug section to focus on "Developer native: Compile & Debug".
 - updated webpage crash catcher section to clarify signal interception during test runs and direct code line linking.
 

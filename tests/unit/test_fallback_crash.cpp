@@ -42,9 +42,10 @@ int main(int argc, char **argv)
 	}
 
 	if (pid == 0) {
-		// Child: Redirect stdout to pipe and run child mode
+		// Child: Redirect stdout and stderr to pipe and run child mode
 		close(pipefd[0]);
 		dup2(pipefd[1], STDOUT_FILENO);
+		dup2(pipefd[1], STDERR_FILENO);
 		close(pipefd[1]);
 
 		char *child_argv[] = {argv[0], (char *)"child", nullptr};

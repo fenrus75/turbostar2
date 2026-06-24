@@ -5,7 +5,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "ansi.h"
 
 #if __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -90,14 +89,16 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	(void)info;
 
 	// Reset terminal to sane state (disable mouse/bracketed paste, show cursor)
-	ansi::reset_terminal_state();
+	// We write directly to STDERR_FILENO to ensure the terminal is reset even if stdout is redirected.
+	const char *reset_seq = "\033[?1002l\033[?2004l\033[?25h\033[0m\n";
+	write(STDERR_FILENO, reset_seq, safe_strlen(reset_seq));
 
 	const char *msg_prefix = "\n*** Turbostar Fallback Crash Catcher ***\nCaught signal: ";
-	write(STDOUT_FILENO, msg_prefix, safe_strlen(msg_prefix));
+	write(STDERR_FILENO, msg_prefix, safe_strlen(msg_prefix));
 
 	char sig_buf[16];
 	safe_itoa(sig, sig_buf, sizeof(sig_buf));
-	write(STDOUT_FILENO, sig_buf, safe_strlen(sig_buf));
+	write(STDERR_FILENO, sig_buf, safe_strlen(sig_buf));
 
 	const char *sig_name = " (Unknown)";
 	if (sig == SIGSEGV) {
@@ -111,8 +112,8 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	} else if (sig == SIGBUS) {
 		sig_name = " (SIGBUS - Bus Error)";
 	}
-	write(STDOUT_FILENO, sig_name, safe_strlen(sig_name));
-	write(STDOUT_FILENO, "\n\nStack trace:\n", 15);
+	write(STDERR_FILENO, sig_name, safe_strlen(sig_name));
+	write(STDERR_FILENO, "\n\nStack trace:\n", 15);
 
 	unw_cursor_t cursor;
 	if (unw_init_local(&cursor, reinterpret_cast<unw_context_t *>(ucontext)) == 0) {
@@ -120,20 +121,20 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		do {
 			unw_word_t ip;
 			if (unw_get_reg(&cursor, UNW_REG_IP, &ip) == 0) {
-				write(STDOUT_FILENO, "  #", 3);
+				write(STDERR_FILENO, "  #", 3);
 				char frame_num_str[16];
 				safe_itoa(frame, frame_num_str, sizeof(frame_num_str));
-				write(STDOUT_FILENO, frame_num_str, safe_strlen(frame_num_str));
+				write(STDERR_FILENO, frame_num_str, safe_strlen(frame_num_str));
 
-				write(STDOUT_FILENO, " 0x", 3);
+				write(STDERR_FILENO, " 0x", 3);
 				char ip_str[32];
 				safe_hex_toa(ip, ip_str, sizeof(ip_str));
-				write(STDOUT_FILENO, ip_str, safe_strlen(ip_str));
+				write(STDERR_FILENO, ip_str, safe_strlen(ip_str));
 
 				char symbol[256];
 				unw_word_t offset;
 				if (unw_get_proc_name(&cursor, symbol, sizeof(symbol), &offset) == 0) {
-					write(STDOUT_FILENO, " in ", 4);
+					write(STDERR_FILENO, " in ", 4);
 					const char *sym_to_write = symbol;
 #ifdef HAS_CXXABI
 					int status = 0;
@@ -142,19 +143,19 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 						sym_to_write = demangled;
 					}
 #endif
-					write(STDOUT_FILENO, sym_to_write, safe_strlen(sym_to_write));
-					write(STDOUT_FILENO, " + 0x", 5);
+					write(STDERR_FILENO, sym_to_write, safe_strlen(sym_to_write));
+					write(STDERR_FILENO, " + 0x", 5);
 					char offset_str[32];
 					safe_hex_toa(offset, offset_str, sizeof(offset_str));
-					write(STDOUT_FILENO, offset_str, safe_strlen(offset_str));
+					write(STDERR_FILENO, offset_str, safe_strlen(offset_str));
 				}
-				write(STDOUT_FILENO, "\n", 1);
+				write(STDERR_FILENO, "\n", 1);
 			}
 			frame++;
 		} while (unw_step(&cursor) > 0 && frame < 128);
 	} else {
 		const char *err_msg = "  Failed to initialize stack unwinding via libunwind.\n";
-		write(STDOUT_FILENO, err_msg, safe_strlen(err_msg));
+		write(STDERR_FILENO, err_msg, safe_strlen(err_msg));
 	}
 
 	// Restore default handler and re-raise signal to cleanly terminate process
