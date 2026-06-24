@@ -106,7 +106,7 @@
         </p>
         <ul class="detail-list">
           <li><strong>Noise Filtering:</strong> Turbostar filters out thousands of lines of successful compilation outputs (e.g. <code>[12/350] Compiling C++ object...</code>), leaving only the overall summary or precise error locations.</li>
-          <li><strong>Context Preservation:</strong> Instead of dumping massive raw compiler stdout logs, Turbostar parses compiler diagnostics, shrinking logs from 200+ KB of noise to less than 2 KB of actionable target context.</li>
+          <li><strong>Context Preservation:</strong> Instead of dumping massive raw compiler stdout logs, Turbostar parses compiler diagnostics, shrinking logs from 40+ KB of noise to less than 1 KB of actionable target context.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -121,15 +121,15 @@
             <div></div>
           </div>
           <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code class="comment"># Raw compiler output (350+ targets compiled)</span>
-<span class="comment"># [Info] Truncating 14,295 lines of successful compilation output.</span>
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code class="comment"># Raw compiler output (480 targets compiled)</span>
+<span class="comment"># [Info] Truncating 476 lines of successful compilation output.</span>
 <span class="comment"># Retaining summary and diagnostics:</span>
 
-[349/350] Compiling C++ object src/editor_events.cpp.o ... <span class="literal">OK</span>
-[350/350] Linking target build/turbostar ... <span class="literal">OK</span>
+[479/480] Compiling C++ object src/editor_events.cpp.o ... <span class="literal">OK</span>
+[480/480] Linking target build/turbostar ... <span class="literal">OK</span>
 
-<span class="keyword">Build Success:</span> 350 targets built in 14.2s.
-<span class="keyword">Context Saved:</span> Retained 1.8 KB of 285.4 KB raw output.</code></pre>
+<span class="keyword">Build Success:</span> 480 targets built in 12.4s.
+<span class="keyword">Context Saved:</span> Retained 0.2 KB of 42.1 KB raw output.</code></pre>
           </div>
         </div>
       </div>
