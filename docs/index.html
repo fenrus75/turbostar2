@@ -21,6 +21,7 @@
         <a href="index.html" class="active" id="nav-home">Home</a>
         <a href="editor.html" id="nav-editor">Editor Features</a>
         <a href="ai.html" id="nav-ai">AI Features</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="nav-github" target="_blank" rel="noopener noreferrer">GitHub</a>
       </nav>
     </div>
   </header>
@@ -88,6 +89,14 @@
           <p class="card-desc">A native LLM agent that edits files, compiles code, runs tests, and pages context in and out dynamically under secure systemd sandboxes.</p>
           <a href="ai.html" class="card-link" id="link-ai-more">See AI tools &rarr;</a>
         </article>
+
+        <!-- Feature Card 4 -->
+        <article class="card" id="card-command-center">
+          <span class="card-icon">🎛️</span>
+          <h3 class="card-title">Agent Command Center</h3>
+          <p class="card-desc">Monitor running agents via a real-time grid overlay. Track animation states, task lifecycles, and subagent trees in a unified dashboard interface.</p>
+          <a href="ai.html#command-center-section" class="card-link" id="link-center-more">View dashboard &rarr;</a>
+        </article>
       </div>
     </section>
 
@@ -114,11 +123,11 @@
           <pre><code><span class="comment"># 1. Setup build directory</span>
 <span class="keyword">meson</span> setup build
 
-<span class="comment"># 2. Compile the project</span>
-<span class="keyword">meson</span> compile -C build -j4
+<span class="comment"># 2. Compile and install</span>
+<span class="keyword">meson</span> install -C build
 
 <span class="comment"># 3. Launch Turbostar</span>
-./build/turbostar</code></pre>
+turbostar</code></pre>
         </div>
       </div>
     </section>
@@ -131,6 +140,7 @@
       <div class="footer-links">
         <a href="editor.html" id="foot-editor">Editor</a>
         <a href="ai.html" id="foot-ai">AI Agents</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
     </div>
   </footer>

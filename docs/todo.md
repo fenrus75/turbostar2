@@ -5,6 +5,24 @@
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
+- [ ] Screenshot of the Agent Command Center dashboard (screenshot-agent-command-center.png)
+- [ ] Screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png)
+- [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
+
+## Webpage content to add
+- [x] Add link to github
+- [x] editor page: describe "joe" wordstar style keybindings
+- [x] fix build/run instructions to cover meson install rather than run from build/
+- [x] main page and AI page:have screenshot and description of "Agent Command Center"
+- [x] editor: coredump catcher (libturbocatch) description with crash manager screenshot
+- [x] editor: core view manager screenshot
+- [x] AI: context/agent aware Tool Call libraries for context cost reduction
+- [x] AI: coredump catcher available to the agent
+
+
+
+- have some log entry for the fs_compile_project context minimizer how much it threw out and how much it kept so we can give real data
+  on the webpage
 
 - become an A2A server for plugins
 
