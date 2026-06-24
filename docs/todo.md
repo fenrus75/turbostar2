@@ -18,7 +18,14 @@
 - [x] editor: core view manager screenshot
 - [x] AI: context/agent aware Tool Call libraries for context cost reduction
 - [x] AI: coredump catcher available to the agent
-
+- [x] Editor: mention explicit goal of being joe 'finger compatible' (while keeping with Turbo Pascal keys)
+- [x] AI: Section about plugins for special agent types (security review, x86 assembly)
+- [x] remove emphesis on telemetry, that's more internal focused
+- [x] Maybe a third page with details of all the tool calls we provide (or just html-link to tools.md)
+- [x] AI: Maybe a section "of course we support" with MCP servers, skills etc
+- [x] AI: The security section should talk more about everything running in limited namespaces (read only etc)
+- [x] AI: We should mention the github:// VFS feature where the coding agent always has access to all of public github
+- [x] AI: We should mention the dedicated run_python tool call that does not require the LLM to write a file first
 
 
 - have some log entry for the fs_compile_project context minimizer how much it threw out and how much it kept so we can give real data
