@@ -10,25 +10,8 @@
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
 ## Webpage content to add
-- [x] Add link to github
-- [x] editor page: describe "joe" wordstar style keybindings
-- [x] fix build/run instructions to cover meson install rather than run from build/
-- [x] main page and AI page:have screenshot and description of "Agent Command Center"
-- [x] editor: coredump catcher (libturbocatch) description with crash manager screenshot
-- [x] editor: core view manager screenshot
-- [x] AI: context/agent aware Tool Call libraries for context cost reduction
-- [x] AI: coredump catcher available to the agent
-- [x] Editor: mention explicit goal of being joe 'finger compatible' (while keeping with Turbo Pascal keys)
-- [x] AI: Section about plugins for special agent types (security review, x86 assembly)
-- [x] remove emphesis on telemetry, that's more internal focused
-- [x] Maybe a third page with details of all the tool calls we provide (or just html-link to tools.md)
-- [x] AI: Maybe a section "of course we support" with MCP servers, skills etc
-- [x] AI: The security section should talk more about everything running in limited namespaces (read only etc)
-- [x] AI: We should mention the github:// VFS feature where the coding agent always has access to all of public github
-- [x] AI: We should mention the dedicated run_python tool call that does not require the LLM to write a file first
+- [ ]
 
-
-- [x] have some log entry for the fs_compile_project context minimizer how much it threw out and how much it kept so we can give real data on the webpage
 
 - become an A2A server for plugins
 
