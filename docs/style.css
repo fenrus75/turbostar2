@@ -268,12 +268,22 @@ h1 span {
 .terminal-dot.minimize { background-color: var(--accent-yellow); }
 .terminal-dot.maximize { background-color: var(--accent-green); }
 
+.terminal-content a {
+  display: block;
+  cursor: zoom-in;
+}
+
 .terminal-content img {
   width: 100%;
   display: block;
   height: auto;
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
+  transition: opacity var(--transition-speed);
+}
+
+.terminal-content a:hover img {
+  opacity: 0.95;
 }
 
 /* Feature Grid */
