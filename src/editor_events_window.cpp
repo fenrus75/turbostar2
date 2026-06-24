@@ -102,7 +102,6 @@ void editor::dispatch_event_window(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::select_window) {
-		logger.log("Selecting window: " + std::to_string(ev.key_code));
 		activate_window(static_cast<size_t>(ev.key_code));
 		return;
 	}

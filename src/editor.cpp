@@ -251,6 +251,7 @@ void editor::activate_window(size_t index)
 	if (index >= windows_.size())
 		return;
 
+	event_logger::get_instance().log(std::format("Selecting window: {}", index));
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		windows_[i]->set_active(i == index);
 	}
@@ -665,8 +666,16 @@ void editor::run()
 		}
 
 		bool debug_exited = false;
-		for (auto &w : windows_) {
-			if (auto tw = dynamic_cast<ui::terminal_window *>(w.get())) {
+		// Process each window's PTY/process events and cursor requirements.
+		// We use a robust index-based loop instead of a range-based loop because processing events
+		// (such as Alt-W / close window or opening a new subagent chat window) can modify the
+		// windows_ vector (either erasing an element or appending a new one). An index-based check,
+		// combined with searching for the raw pointer, ensures we do not access invalidated iterators
+		// or dangling pointers if windows are deleted or shifted during iteration.
+		for (size_t i = 0; i < windows_.size(); ) {
+			window *raw_w = windows_[i].get();
+
+			if (auto tw = dynamic_cast<ui::terminal_window *>(raw_w)) {
 				if (tw->update_pty()) {
 					needs_render = true;
 				}
@@ -674,13 +683,29 @@ void editor::run()
 					debug_exited = true;
 				}
 			}
-			if (w->process_events()) {
+
+			if (raw_w->process_events()) {
 				needs_render = true;
 			}
-			if (w->needs_cursor()) {
-				needs_cursor_render = true;
-				w->clear_needs_cursor();
+
+			// Verify that the window is still alive and located in the windows_ vector before
+			// accessing it further, as process_events() could have synchronously triggered its deletion.
+			bool alive = false;
+			for (size_t j = 0; j < windows_.size(); ++j) {
+				if (windows_[j].get() == raw_w) {
+					alive = true;
+					break;
+				}
 			}
+
+			if (alive) {
+				if (raw_w->needs_cursor()) {
+					needs_cursor_render = true;
+					raw_w->clear_needs_cursor();
+				}
+				++i;
+			}
+			// If the window was deleted, elements shifted down so we do not increment the index i.
 		}
 
 		if (debug_exited) {

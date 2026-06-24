@@ -5,12 +5,11 @@
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
-- [ ] Screenshot of the Agent Command Center dashboard (screenshot-agent-command-center.png)
 - [ ] Screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png)
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
 ## Webpage content to add
-- [ ]
+- [ ] 
 
 
 - become an A2A server for plugins
@@ -228,6 +227,7 @@
 # done items (move items here on completion)
 
 ## 23-06-2026
+- added Agent Command Center dashboard screenshot (screenshot-agent-command-center.png).
 - designed and created a modern, premium static website for Turbostar featuring custom HSL styling, responsive layouts, a detailed editor keybindings table, AI secure tool execution highlights, and screenshots showcase. Placed the web pages and stylesheet directly in the `docs/` directory for hosting on GitHub Pages.
 - implemented proper agent "dead" state lifecycle: when an agent records a final result (either via explicit `agent_report_final_result` tool call or implicit exit on idle), its status is updated to `dead`. Transitioning to `dead` state recursively cascades to all child subagents, closing their threads and marking them as `dead`. Dead subagents are automatically excluded from both the Agent Command Center and the Agent Window sidebar UI.
 - implemented the persistent statistics framework, tracking metrics in `~/.cache/turbostar/statistics.json` using a thread-safe `statistics_manager` singleton. Integrated a tracking hook inside `tool_registry::execute_tool` to increment execution count for every tool call with format `toolcall:<name>`, loaded saved statistics at startup in `main.cpp`, and added unit test coverage in `tests/unit/test_statistics_manager.cpp`.

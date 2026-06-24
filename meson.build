@@ -1579,6 +1579,14 @@ if uv.found() or python.found()
     timeout: 60,
     suite: 'editor'
   )
+  test('e2e_close_window_crash', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_close_window_crash.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    suite: 'editor'
+  )
   test('e2e_agent_window_single', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_window_single.py')],
     env: e2e_env,
