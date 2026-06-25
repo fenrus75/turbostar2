@@ -57,7 +57,7 @@ class fs_list_dir_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "List the contents of a directory as a Markdown table.";
+		return "List the contents of a directory as a Markdown table. ALWAYS use this tool to list directory contents instead of running 'ls' in a shell command.";
 	}
 	nlohmann::json get_parameters_schema() const override;
 
