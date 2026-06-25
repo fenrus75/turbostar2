@@ -231,7 +231,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `no_ask` *(boolean, optional)*: If true, the tool will fail silently with a permission error if the domain is not pre-approved, rather than prompting the user for permission.
 
 ### `run_shell_command`
-*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval.
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow.
 *   **Arguments:**
     *   `command` *(string, required)*: The exact shell command to execute.
 

@@ -28,7 +28,7 @@ private:
 class run_shell_command_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "run_shell_command"; }
-    std::string get_description() const override { return "Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval."; }
+    std::string get_description() const override { return "Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {
