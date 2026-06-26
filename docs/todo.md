@@ -234,6 +234,7 @@
 # done items (move items here on completion)
 
 ## 26-06-2026
+- improved C++ syntax highlighter (.cpp, .h, .hpp, .c, .cc, .cxx) to highlight preprocessor directives, double-quoted strings, single-quoted character literals, comments, and keywords while preventing keyword collisions within comments and strings. Added comprehensive unit test coverage.
 - implemented Verilog/SystemVerilog syntax highlighter (.v, .sv, .vh, .svh) with keyword, string, and comment highlighting and unit test coverage.
 - implemented the consolidated range-based `git_blame` tool call (Variation 1B with single line grounding code snippet) in C++ with unit test coverage.
 
