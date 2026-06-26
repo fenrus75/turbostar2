@@ -141,6 +141,22 @@ def test_window_maximize():
         # Assert that it auto-restores on drag
         runner.assert_in_log("Auto-restoring maximized window on drag.", timeout=2.0)
 
+        # 9. Test terminal window resize on maximized window
+        # First, maximize window 1 again by double clicking its title bar.
+        # Its current title bar is at y=4, click at x=35, y=4 twice.
+        runner.send_mouse_click(35, 4)
+        time.sleep(0.1)
+        runner.send_mouse_click(35, 4)
+        time.sleep(0.5)
+
+        # Resize terminal to 90 columns by 30 lines
+        runner.resize_terminal(90, 30)
+        time.sleep(0.5)
+
+        # Assert that the terminal resize event was detected and layout was updated
+        runner.assert_in_log("Terminal resize event detected.", timeout=2.0)
+        runner.assert_in_log("Updating window layout: COLS=90", timeout=2.0)
+
     except Exception as e:
         if hasattr(runner, 'log_path') and os.path.exists(runner.log_path):
             with open(runner.log_path, 'r') as f:

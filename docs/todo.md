@@ -15,8 +15,6 @@
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 - consider a clock of sorts at the right side of the bottom status bar
 
-- we need to improve behavior when the terminal window is resized -- we detect it but don't adjust window sizes. Example: After growing the terminal, "maximize" doesn't maximize but goes to the original size.
-
 - become an A2A server for plugins
 
 - become a client to A2A
@@ -231,9 +229,14 @@
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
+- we need to add a few more viable color combinations for various syntax highlighting types
+
+- consider a syntax highlighter color editor dialog so the user can customize coloring
+
 # done items (move items here on completion)
 
 ## 26-06-2026
+- fixed terminal window resize behavior to re-layout window boundaries and keep maximized windows maximized, centering any active dialogs. Updated the E2E test suite to verify terminal resizing behavior.
 - improved C++ syntax highlighter (.cpp, .h, .hpp, .c, .cc, .cxx) to highlight preprocessor directives, double-quoted strings, single-quoted character literals, comments, and keywords while preventing keyword collisions within comments and strings. Added comprehensive unit test coverage.
 - implemented Verilog/SystemVerilog syntax highlighter (.v, .sv, .vh, .svh) with keyword, string, and comment highlighting and unit test coverage.
 - implemented the consolidated range-based `git_blame` tool call (Variation 1B with single line grounding code snippet) in C++ with unit test coverage.

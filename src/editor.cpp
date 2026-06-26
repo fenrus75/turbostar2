@@ -117,6 +117,8 @@ void editor::new_diff_window()
 
 void editor::update_window_layout()
 {
+	int total_h = LINES - 2;
+	event_logger::get_instance().log(std::format("Updating window layout: COLS={}, LINES={}, total_h={}", COLS, LINES, total_h));
 	needs_full_redraw_ = true;
 	int main_w = COLS;
 
@@ -131,7 +133,6 @@ void editor::update_window_layout()
 		}
 	}
 
-	int total_h = LINES - 2;
 	int app_h = (total_h * 2) / 3;
 	int gdb_h = total_h - app_h;
 

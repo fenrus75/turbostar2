@@ -70,12 +70,17 @@ class TurbostarRunner:
 
         self.master_fd, self.slave_fd = pty.openpty()
 
+        import fcntl
+        import termios
+        import struct
+        s = struct.pack('HHHH', self.lines, self.cols, 0, 0)
+        fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, s)
+
         env = os.environ.copy()
         env['TERM'] = 'xterm-256color'
-        env['COLUMNS'] = str(self.cols)
-        env['LINES'] = str(self.lines)
         env['HOME'] = self.temp_home # Isolate config/history
-
+        env.pop('COLUMNS', None)
+        env.pop('LINES', None)
         self.proc = subprocess.Popen(
             cmd,
             stdin=self.slave_fd,
@@ -446,3 +451,26 @@ class TurbostarRunner:
 
         if unhandled_event_error is not None:
             raise unhandled_event_error
+
+    def resize_terminal(self, cols, lines):
+        import fcntl
+        import termios
+        import struct
+        self.cols = cols
+        self.lines = lines
+        self.screen = pyte.Screen(cols, lines)
+        self.stream = pyte.Stream(self.screen)
+        
+        # Pack the resize structure for TIOCSWINSZ: rows, cols, x-pixel, y-pixel
+        s = struct.pack('HHHH', lines, cols, 0, 0)
+        fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, s)
+        
+        # Send SIGWINCH signal directly to the child process to trigger ncurses resize
+        import signal
+        if self.proc:
+            self.proc.send_signal(signal.SIGWINCH)
+            
+        time.sleep(0.2)
+        self._read_output()
+
+

@@ -585,6 +585,17 @@ void editor::dispatch_event_key(const editor_event &ev)
 		clear_status_message(status_priorities::HOVER); // Clear hover text on any input
 		logger.log("Dispatching key_press event: " + std::to_string(ev.key_code));
 
+		if (ev.key_code == KEY_RESIZE) {
+			logger.log("Terminal resize event detected.");
+			update_window_layout();
+			if (active_dialog_) {
+				int max_y, max_x;
+				getmaxyx(stdscr, max_y, max_x);
+				active_dialog_->set_position((max_x - active_dialog_->width()) / 2, (max_y - active_dialog_->height()) / 2);
+			}
+			return;
+		}
+
 		// 1. Modal Dialogs Interception
 		//
 		// CRITICAL IMPLEMENTATION DETAIL FOR MODALITY:
