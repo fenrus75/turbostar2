@@ -1013,6 +1013,12 @@ test_document = executable('test_document',
   include_directories: inc)
 test('unit_document', test_document, is_parallel: false, suite: 'editor')
 
+test_window_scroll = executable('test_window_scroll',
+  'tests/unit/test_window_scroll.cpp',
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_window_scroll', test_window_scroll, suite: 'editor')
+
 test_gcc_log_parser = executable('test_gcc_log_parser',
   'tests/unit/test_gcc_log_parser.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],

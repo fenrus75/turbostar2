@@ -67,11 +67,6 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-- usability: main editor window: mouse click on the bottom scroll bar moves the text down, rather than go to the position in the document indicated by the click
-
-- usability: main editor window: mouse click on the right scroll bar does not move the text, rather than go to the position in the document indicated by the click
-
-
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
@@ -234,6 +229,7 @@
 # done items (move items here on completion)
 
 ## 26-06-2026
+- implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.
 - implemented a dynamic clock (HH:MM format) on the right side of the bottom status bar, updating automatically and handling text truncation/layout alignment to prevent overlap.
 - fixed terminal window resize behavior to re-layout window boundaries and keep maximized windows maximized, centering any active dialogs. Updated the E2E test suite to verify terminal resizing behavior.
 - improved C++ syntax highlighter (.cpp, .h, .hpp, .c, .cc, .cxx) to highlight preprocessor directives, double-quoted strings, single-quoted character literals, comments, and keywords while preventing keyword collisions within comments and strings. Added comprehensive unit test coverage.

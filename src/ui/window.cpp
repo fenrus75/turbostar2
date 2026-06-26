@@ -238,25 +238,96 @@ bool window::process_events()
 					break;
 			}
 		} else if (ev->type == event_type::mouse_click && doc_) {
-			int click_row = top_line_ + (ev->mouse_y - y_ - 1);
-			int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
-			click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
-			click_col_display = std::max(0, click_col_display);
+			// 1. Right Scrollbar (Vertical)
+			if (ev->mouse_x == x_ + width_ - 1 && ev->mouse_y >= y_ + 1 && ev->mouse_y <= y_ + height_ - 2) {
+				int total_lines = static_cast<int>(doc_->get_line_count());
+				int content_h = std::max(1, height_ - 2);
+				int max_top = std::max(0, total_lines - content_h);
 
-			auto l = doc_->get_line(click_row);
-			int click_char = 0;
-			if (l) {
-				click_char = l->display_col_to_char_pos(click_col_display);
+				if (ev->mouse_y == y_ + 1) {
+					top_line_ = std::max(0, top_line_ - 1);
+				} else if (ev->mouse_y == y_ + height_ - 2) {
+					top_line_ = std::min(max_top, top_line_ + 1);
+				} else {
+					int track_h = height_ - 4;
+					if (track_h > 1) {
+						double ratio = static_cast<double>(ev->mouse_y - (y_ + 2)) / (track_h - 1);
+						top_line_ = static_cast<int>(ratio * max_top);
+						top_line_ = std::clamp(top_line_, 0, max_top);
+					}
+				}
+
+				if (doc_->get_cursor_y() < top_line_) {
+					doc_->move_cursor(0, top_line_ - doc_->get_cursor_y());
+				} else if (doc_->get_cursor_y() >= top_line_ + content_h) {
+					doc_->move_cursor(0, (top_line_ + content_h - 1) - doc_->get_cursor_y());
+				}
+				invalidate();
 			}
+			// 2. Bottom Scrollbar (Horizontal)
+			else if (ev->mouse_y == y_ + height_ - 1 && ev->mouse_x >= x_ + 1 && ev->mouse_x <= x_ + width_ - 2) {
+				int max_col = 0;
+				int total_lines = static_cast<int>(doc_->get_line_count());
+				for (int i = 0; i < std::min(total_lines, 5000); ++i) {
+					auto l = doc_->get_line(i);
+					if (l) {
+						max_col = std::max(max_col, l->char_to_display_col(l->length_in_chars()));
+					}
+				}
+				int content_w = std::max(1, width_ - 2);
+				int max_left = std::max(0, max_col - content_w);
 
-			doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+				if (ev->mouse_x == x_ + 1) {
+					left_column_ = std::max(0, left_column_ - 4);
+				} else if (ev->mouse_x == x_ + width_ - 2) {
+					left_column_ = std::min(max_left, left_column_ + 4);
+				} else {
+					int track_w = width_ - 4;
+					if (track_w > 1) {
+						double ratio = static_cast<double>(ev->mouse_x - (x_ + 2)) / (track_w - 1);
+						left_column_ = static_cast<int>(ratio * max_left);
+						left_column_ = std::clamp(left_column_, 0, max_left);
+					}
+				}
 
-			is_mouse_selecting_ = true;
-			mouse_sel_start_char_ = click_char;
-			mouse_sel_start_line_ = click_row;
-			mouse_sel_end_char_ = click_char;
-			mouse_sel_end_line_ = click_row;
-			invalidate();
+				int cur_y = doc_->get_cursor_y();
+				auto l = doc_->get_line(cur_y);
+				if (l) {
+					int display_col = get_cursor_x();
+					if (display_col < left_column_) {
+						int target_char = l->display_col_to_char_pos(left_column_);
+						doc_->move_cursor(target_char - doc_->get_cursor_x(), 0);
+					} else if (display_col >= left_column_ + content_w) {
+						int target_col = left_column_ + content_w - 1;
+						int target_char = l->display_col_to_char_pos(target_col);
+						doc_->move_cursor(target_char - doc_->get_cursor_x(), 0);
+					}
+				}
+				invalidate();
+			}
+			// 3. Main Text Content Area
+			else if (ev->mouse_x >= x_ + 1 && ev->mouse_x <= x_ + width_ - 2 &&
+			         ev->mouse_y >= y_ + 1 && ev->mouse_y <= y_ + height_ - 2) {
+				int click_row = top_line_ + (ev->mouse_y - y_ - 1);
+				int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
+				click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+				click_col_display = std::max(0, click_col_display);
+
+				auto l = doc_->get_line(click_row);
+				int click_char = 0;
+				if (l) {
+					click_char = l->display_col_to_char_pos(click_col_display);
+				}
+
+				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+
+				is_mouse_selecting_ = true;
+				mouse_sel_start_char_ = click_char;
+				mouse_sel_start_line_ = click_row;
+				mouse_sel_end_char_ = click_char;
+				mouse_sel_end_line_ = click_row;
+				invalidate();
+			}
 		} else if (ev->type == event_type::mouse_drag && doc_) {
 			if (is_mouse_selecting_) {
 				int click_row = top_line_ + (ev->mouse_y - y_ - 1);
