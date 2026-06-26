@@ -11,6 +11,7 @@ namespace agentlib {
 | subclass     | filename                                             |
 | ------------ | ---------------------------------------------------- | 
 | fs_glob_tool | src/tools/fs_glob/fs_glob.h                          |
+| git_blame_tool | src/tools/git_blame/git_blame.h                      |
 | fs_man_tool   | src/tools/fs_man/fs_man.h                            |
 | security_review_with_agent_tool | src/plugins/securityagent/security_review_with_agent/security_review_with_agent.h |
 

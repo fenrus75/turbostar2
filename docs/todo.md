@@ -1,4 +1,4 @@
-# short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
+# Web page todos
 
 ## Webpage Screenshots to Take
 - [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
@@ -9,9 +9,10 @@
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
 ## Webpage content to add or change
-- [ ] AI: need to mention support for different protocols (openAI (both protocols), gemini, claude)    
-- 
+- [ ] Editor: "Developer Native: Compile & Debug" -> "Developer Native: Compile, Run & Debug"
+	We can run the application inside the editor, no need to switch to some other terminal!
 
+# short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
 
 - consider a clock of sorts at the right side of the bottom status bar
 
@@ -26,15 +27,6 @@
 	- maybe a .local style directory service? is there a protocol for autodiscovery?
 
 - have a turboserver mode where we are headless but only serve A2A requests?
-
-
-- git_blame toolcall (takes line ranges?)	
-	- should take a filename and optional line start and line end as arguments
-	- to preserve context we should do a markdown table
-	| line range | commit hash | commit description |
-
-	and consolidate contiguous line ranges
-	- commit description is the 1 line commit description -- to save a round of tool calls
 
 - the run application/etc tool calls might need a "timeout" parameter so that interactive apps don't get stuck forever
 
@@ -233,6 +225,9 @@
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
 # done items (move items here on completion)
+
+## 26-06-2026
+- implemented the consolidated range-based `git_blame` tool call (Variation 1B with single line grounding code snippet) in C++ with unit test coverage.
 
 ## 24-06-2026
 - modified fallback crash handler to write terminal reset escape sequences and diagnostics directly to STDERR_FILENO.

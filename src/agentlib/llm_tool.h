@@ -14,6 +14,7 @@ namespace agentlib {
 | ------------------------------ | --------------------------------------------------------------- | 
 | agent_report_final_result_tool | src/tools/agent_report_final_result/agent_report_final_result.h |
 | fs_replace_content_tool        | src/tools/fs_replace_content/fs_replace_content.h               |
+| git_blame_tool                | src/tools/git_blame/git_blame.h                                 |
 
 */
 

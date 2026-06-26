@@ -427,6 +427,13 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** View the last 10 commit messages in the repository (git log -n 10 --oneline).
 *   **Arguments:** None.
 
+### `git_blame`
+*   **Description:** View the commit-level git blame history of a file, consolidated into contiguous ranges of lines with commit summary and date. Grounding code is provided for the start line of each range to assist the agent.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `start_line` *(integer, optional)*: Optional 1-based start line. Defaults to 1.
+    *   `end_line` *(integer, optional)*: Optional 1-based end line. Defaults to the end of the file.
+
 ### `git_branch_list`
 *   **Description:** List all git branches in the repository as a Markdown table, indicating the currently active branch.
 *   **Arguments:** None.

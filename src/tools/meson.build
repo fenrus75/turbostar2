@@ -87,6 +87,8 @@ tools_sources = files(
   'git_diff_staged/git_diff_staged_security.cpp',
   'git_log/git_log_entry.cpp',
   'git_log/git_log_security.cpp',
+  'git_blame/git_blame_entry.cpp',
+  'git_blame/git_blame_security.cpp',
   'git_add/git_add_entry.cpp',
   'git_add/git_add_security.cpp',
   'git_unstage/git_unstage_entry.cpp',

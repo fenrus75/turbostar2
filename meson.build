@@ -446,6 +446,14 @@ test_git_log = executable('test_git_log',
   include_directories: inc)
 test('unit_test_git_log', test_git_log, suite: 'agent')
 
+test_git_blame = executable('test_git_blame',
+  ['tests/unit/test_git_blame.cpp',
+   'src/tools/git_blame/git_blame_entry.cpp',
+   'src/tools/git_blame/git_blame_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_blame', test_git_blame, suite: 'agent')
+
 test_git_pull = executable('test_git_pull',
   ['tests/unit/test_git_pull.cpp',
    'src/tools/git_pull/git_pull_entry.cpp',

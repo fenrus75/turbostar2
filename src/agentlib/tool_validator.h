@@ -22,6 +22,7 @@ namespace agentlib {
 | list_code_review_items_validator   | src/tools/list_code_review_items/list_code_review_items.h   |
 | get_code_review_item_validator     | src/tools/get_code_review_item/get_code_review_item.h       |
 | security_review_with_agent_validator | src/plugins/securityagent/security_review_with_agent/security_review_with_agent.h |
+| git_blame_validator          | src/tools/git_blame/git_blame.h                              |
 
 */
 class tool_validator {
