@@ -29,6 +29,7 @@ core_sources = files(
   'cpp_highlighter.cpp',
   'python_highlighter.cpp',
   'markdown_highlighter.cpp',
+  'verilog_highlighter.cpp',
   'highlighter_registry.cpp',
   'ui/hex_highlighter.cpp',
   'history_manager.cpp',

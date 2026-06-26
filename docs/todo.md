@@ -13,7 +13,6 @@
 	We can run the application inside the editor, no need to switch to some other terminal!
 
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-
 - consider a clock of sorts at the right side of the bottom status bar
 
 - we need to improve behavior when the terminal window is resized -- we detect it but don't adjust window sizes. Example: After growing the terminal, "maximize" doesn't maximize but goes to the original size.
@@ -36,6 +35,13 @@
 		- agent_
 		- ...
 
+	- a registered /command action that activates a skill
+	- a registered /command action that does a toolcall
+
+
+- a /command action that activates a tool family (via menu?)
+
+
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
 	- https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/litellm_internal_staging/model_prices_and_context_window.json
@@ -45,9 +51,9 @@
 
 
 
-- have a separate model option for "plan mode" phase -- needs agentlib refactor first
+- feature: have a separate model option for "plan mode" phase
 
-- similar to "run with gdb" we should have a "run with perf record" so that the agent can natively do performance analysis/get perf data
+- feature: similar to "run with gdb" we should have a "run with perf record" so that the agent can natively do performance analysis/get perf data
 	- need to check the sysfs to see if this is available, if not just hide it entirely
 	- perf stat summary?
 	- hot functions
@@ -115,6 +121,7 @@
 
 - better integration for code coverage in the main editor
 	- color coding in the left window decoration?
+	- or color in the editor window with a view mode with a toggle key
 
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
@@ -227,6 +234,7 @@
 # done items (move items here on completion)
 
 ## 26-06-2026
+- implemented Verilog/SystemVerilog syntax highlighter (.v, .sv, .vh, .svh) with keyword, string, and comment highlighting and unit test coverage.
 - implemented the consolidated range-based `git_blame` tool call (Variation 1B with single line grounding code snippet) in C++ with unit test coverage.
 
 ## 24-06-2026

@@ -969,6 +969,12 @@ test_python_highlighter = executable('test_python_highlighter',
   include_directories: 'src')
 test('unit_python_highlighter', test_python_highlighter, suite: 'editor')
 
+test_verilog_highlighter = executable('test_verilog_highlighter',
+  ['tests/unit/test_verilog_highlighter.cpp', 'src/verilog_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  dependencies : [re2_dep],
+  include_directories: 'src')
+test('unit_verilog_highlighter', test_verilog_highlighter, suite: 'editor')
+
 test_markdown_highlighter = executable('test_markdown_highlighter',
   ['tests/unit/test_markdown_highlighter.cpp', 'src/markdown_highlighter.cpp', 'src/line.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [re2_dep],

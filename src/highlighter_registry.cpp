@@ -2,6 +2,7 @@
 #include "cpp_highlighter.h"
 #include "markdown_highlighter.h"
 #include "python_highlighter.h"
+#include "verilog_highlighter.h"
 
 // A default highlighter that does nothing
 class default_highlighter : public syntax_highlighter
@@ -30,6 +31,7 @@ highlighter_registry::highlighter_registry()
 	highlighters_.push_back(std::make_shared<cpp_highlighter>());
 	highlighters_.push_back(std::make_shared<markdown_highlighter>());
 	highlighters_.push_back(std::make_shared<python_highlighter>());
+	highlighters_.push_back(std::make_shared<verilog_highlighter>());
 }
 
 std::shared_ptr<syntax_highlighter> highlighter_registry::get_highlighter_for_file(const std::string &filename) const
