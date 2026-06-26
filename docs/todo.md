@@ -13,8 +13,6 @@
 	We can run the application inside the editor, no need to switch to some other terminal!
 
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-- consider a clock of sorts at the right side of the bottom status bar
-
 - become an A2A server for plugins
 
 - become a client to A2A
@@ -236,6 +234,7 @@
 # done items (move items here on completion)
 
 ## 26-06-2026
+- implemented a dynamic clock (HH:MM format) on the right side of the bottom status bar, updating automatically and handling text truncation/layout alignment to prevent overlap.
 - fixed terminal window resize behavior to re-layout window boundaries and keep maximized windows maximized, centering any active dialogs. Updated the E2E test suite to verify terminal resizing behavior.
 - improved C++ syntax highlighter (.cpp, .h, .hpp, .c, .cc, .cxx) to highlight preprocessor directives, double-quoted strings, single-quoted character literals, comments, and keywords while preventing keyword collisions within comments and strings. Added comprehensive unit test coverage.
 - implemented Verilog/SystemVerilog syntax highlighter (.v, .sv, .vh, .svh) with keyword, string, and comment highlighting and unit test coverage.

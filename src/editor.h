@@ -208,6 +208,7 @@ class editor : public agentlib::document_provider
 	std::unique_ptr<popup_menu> active_popup_;
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
 	std::string configuring_mcp_server_;
+	long long last_clock_minute_{0};
 
 	search_params current_search_;
 	std::string search_input_buffer_;

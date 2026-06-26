@@ -473,6 +473,14 @@ void editor::run()
 	while (is_running_) {
 		bool needs_render = false;
 		bool needs_cursor_render = false;
+
+		auto clock_now = std::chrono::system_clock::now();
+		auto clock_min = std::chrono::duration_cast<std::chrono::minutes>(clock_now.time_since_epoch()).count();
+		if (clock_min != last_clock_minute_) {
+			last_clock_minute_ = clock_min;
+			needs_render = true;
+		}
+
 		auto loop_now = std::chrono::steady_clock::now();
 		int check_interval = 10;
 		const char *env_interval = std::getenv("TURBOSTAR_MTIME_CHECK_INTERVAL");
