@@ -32,9 +32,9 @@ To maintain maximum compatibility with both Claude Code subagent specs and stand
 | `name` | String | **Required.** Unique identifier for the agent (lowercase, hyphens only). |
 | `description` | String | **Required.** Behavioral description used by the routing LLM to delegate tasks. |
 | `model` | String | *Optional.* Target model name (e.g. `gemini-1.5-pro`). Defaults to session model. |
-| `tools` | Array of Strings | *Optional.* List of specific tools the agent can see/call. |
-| `toolFamilies` / `tool_families` | Array of Strings | *Optional.* Custom groupings of tool permissions (e.g. `:read`, `:write`). |
-| `readOnly` / `read_only` | Boolean | *Optional.* Restricts the agent from using modifying/destructive tool families. |
+| `tools` | Array of Strings | *Optional.* List of specific tool names that this agent is allowed to execute/see. |
+| `toolFamilies` / `tool_families` | Array of Strings | *Optional.* List of active tool families allowed (maps to `tool_validator::get_family()`). |
+| `readOnly` / `read_only` | Boolean | *Optional.* Regulates filesystem write access (determines `file_security_manager` permissions). |
 | `permissionMode` / `permission_mode` | String | *Optional.* Configuration for safety prompts/approvals. |
 | `effort` | String | *Optional.* Reasoning depth level (e.g., `high`, `default`). |
 | `maxTurns` / `max_turns` | Integer | *Optional.* Bounds agent loop to prevent infinite execution chains. |
@@ -54,9 +54,9 @@ struct subagent {
     std::string description;
     std::string system_prompt;               // Extracted from Markdown body
     std::optional<std::string> model;
-    std::vector<std::string> tools;
-    std::vector<std::string> tool_families;  // Custom groupings (e.g. ":read")
-    bool read_only{false};                   // Restricts modifying operations
+    std::vector<std::string> tools;          // Explicit individual tool allow-list
+    std::vector<std::string> tool_families;  // Active tool families (e.g. "base", "fs", "assembly")
+    bool read_only{false};                   // If true, filesystem writes are disallowed
     std::optional<std::string> permission_mode;
     std::optional<std::string> effort;
     std::optional<int> max_turns;
@@ -70,16 +70,34 @@ struct subagent {
 
 ## 3. Tool Visibility & Permission Enforcement
 
-Rather than active sandboxing, the subagent configurations define the **visibility** and **allow-listing** of tools inside the subagent's runtime context.
+Subagent tool execution permissions are controlled by mapping subagent YAML properties directly to the underlying `agent_properties` structure associated with the spawned `ai_agent` session.
 
-### Filtering Rules
+```text
+YAML Schema              C++ agent_properties            Infrastructure Validation
+┌──────────────┐         ┌────────────────────┐          ┌───────────────────────┐
+│ tool_families├────────►│ active_families    ├─────────►│ tool_validator        │
+│              │         │                    │          │  .is_allowed_for_agent│
+├──────────────┤         ├────────────────────┤          ├───────────────────────┤
+│ read_only    ├────────►│ read_only          ├─────────►│ file_security_manager │
+│              │         │                    │          │  .validate_access     │
+├──────────────┤         ├────────────────────┤          ├───────────────────────┤
+│ tools        ├────────►│ active_tools       ├─────────►│ tool_registry         │
+│              │         │ (new visibility vec)          │  (filter LLM schema)  │
+└──────────────┘         └────────────────────┘          └───────────────────────┘
+```
 
-1. **Tool Families Filtering**:
-   If `tool_families` is defined, only tools belonging to those families are registered for the subagent.
-2. **Specific Tools Listing**:
-   If `tools` is defined, only those tools are added.
-3. **`read_only` Constraint**:
-   If `read_only` is true, the subagent's tool context automatically excludes any tool matching the `:write` or `:execute` families, regardless of other settings.
+### 1. Tool Families Control
+The list of `tool_families` (such as `"base"`, `"fs"`, `"security"`, or `"assembly"`) translates directly into the `std::vector<std::string> active_families` member of `agent_properties`.
+* The validator checks `tool_validator::is_allowed_for_agent` against this list before allowing tool execution.
+* If a plugin registers custom tools belonging to a new family, a subagent can access them by simply listing the family name in its frontmatter.
+
+### 2. Filesystem Read-Only Protection
+The `read_only` (or `readOnly`) boolean maps directly to `agent_properties::read_only`.
+* When `read_only` is true, the `file_security_manager` resolves paths and validates operations with `access_type::read` maximum permission, blocking any write/modify operations at the filesystem layer.
+
+### 3. Specific Tool Declarations
+The `tools` array is mapped to a visibility filter (e.g., a new `active_tools` vector inside `agent_properties`).
+* When the parent agent calls `create_agent` or when declaring schema capabilities to the LLM, the `tool_registry` dynamically filters out tool schemas that are not on the subagent's allowed `tools` list, keeping the LLM's system instructions and token footprint clean.
 
 ---
 
