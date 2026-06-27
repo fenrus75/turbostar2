@@ -6,9 +6,8 @@
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
 
-## Webpage content to add or change
-- [ ] Currently when you click on an image you go to a new tab -- it would be nicer if this would do some javascript tricks to show it
-     zoomed in as a "window/overlay" in the current tab, and then goes away on hitting some key or something
+
+# short term fixes -- not in priority order, agents can add and remove items as they come up
 
 - feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
 
@@ -234,6 +233,7 @@
 - updated the website's compile/debug section to focus on "Developer Native: Compile, Run & Debug" showing that applications can be executed directly within the editor.
 - enhanced the semgrep tool in the securityagent plugin to support scanning HTML files using a custom command line with '--config auto' and '--include="*.html"'.
 - integrated markdown_utils::align_all_tables in crashdump_window to pretty-print and align markdown tables in crash reports automatically.
+- implemented the webpage image overlay (lightbox) feature in JS/CSS so that clicking screenshot links shows a smooth zoomed-in modal in the current tab instead of opening in a new tab.
 
 ## 26-06-2026
 - implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.
