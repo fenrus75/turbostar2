@@ -6,6 +6,7 @@
 #include <ncurses.h>
 #include "project_manager.h"
 #include "fs_utils.h"
+#include "markdown_utils.h"
 
 crashdump_window::crashdump_window(int id, int x, int y, int width, int height, event_queue &global_queue)
     : window(id, x, y, width, height, "Crashdumps"), global_queue_(global_queue)
@@ -84,10 +85,12 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 	if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
 		const auto &dump = current_dumps_[selected_idx];
 
-		// Split raw_info by newline
+		// Align markdown tables in raw_info first
+		std::string raw = markdown_utils::align_all_tables(dump.raw_info, false);
+
+		// Split raw by newline
 		std::vector<std::string> lines;
 		size_t start = 0;
-		const std::string &raw = dump.raw_info;
 		while (start < raw.length()) {
 			size_t end = raw.find('\n', start);
 			if (end == std::string::npos) {
