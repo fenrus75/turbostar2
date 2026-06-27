@@ -11,6 +11,10 @@
 	We can run the application inside the editor, no need to switch to some other terminal!
 
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
+- feature: enhance our semgrep tool (in `src/plugins/securityagent/security_scan_semgrep/` ) to support html files
+	with `semgrep scan --config auto --include="*.html"` as command line for html files
+- feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
+
 - become an A2A server for plugins
 
 - become a client to A2A
