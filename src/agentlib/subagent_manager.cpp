@@ -11,6 +11,7 @@
 // Generated headers for embedded agents
 #include "research_agent.h"
 #include "self_agent.h"
+#include "agent_animation.h"
 
 namespace agentlib
 {
@@ -114,6 +115,32 @@ static std::optional<subagent> parse_subagent_content(const std::string &content
 			sa.max_turns = config["max_turns"].as<int>();
 		} else if (config["maxTurns"]) {
 			sa.max_turns = config["maxTurns"].as<int>();
+		}
+
+		// animation
+		if (config["animation"]) {
+			sa.animation_path = utf8::trim(config["animation"].as<std::string>());
+			if (!sa.animation_path.empty()) {
+				if (sa.animation_path.ends_with(".json")) {
+					std::filesystem::path anim_file(sa.animation_path);
+					if (anim_file.is_relative() && !origin.empty() && !origin.starts_with("builtin://") && !origin.starts_with("plugin://")) {
+						anim_file = std::filesystem::path(origin).parent_path() / anim_file;
+					}
+					if (std::filesystem::exists(anim_file)) {
+						std::ifstream f(anim_file);
+						if (f.is_open()) {
+							std::stringstream anim_ss;
+							anim_ss << f.rdbuf();
+							std::string anim_json = anim_ss.str();
+							if (agent_animation_registry::get_instance().register_animation_json(sa.name, anim_json)) {
+								sa.animation_name = sa.name;
+							}
+						}
+					}
+				} else {
+					sa.animation_name = sa.animation_path;
+				}
+			}
 		}
 
 		return sa;
@@ -222,11 +249,17 @@ std::optional<subagent> subagent_manager::parse_subagent_file(const std::filesys
 	return parse_subagent_content(ss.str(), path.string());
 }
 
-void subagent_manager::register_subagent(const std::string &name, const std::string &text)
+void subagent_manager::register_subagent(const std::string &name, const std::string &text, const std::string &animation_json)
 {
 	auto sa = parse_subagent_content(text, "plugin://" + name);
 	if (sa) {
 		sa->name = name; // Force the name requested by registration
+
+		if (!animation_json.empty()) {
+			if (agent_animation_registry::get_instance().register_animation_json(name, animation_json)) {
+				sa->animation_name = name;
+			}
+		}
 
 		// Overwrite if exists
 		auto it = std::remove_if(subagents_.begin(), subagents_.end(),
@@ -240,6 +273,9 @@ void subagent_manager::register_subagent(const std::string &name, const std::str
 
 void subagent_manager::unregister_subagent(const std::string &name)
 {
+	// Clean up animation registry entry if registered under subagent's name
+	agent_animation_registry::get_instance().unregister_animation(name);
+
 	auto it = std::remove_if(subagents_.begin(), subagents_.end(),
 		[&](const subagent &s) { return s.name == name; });
 	if (it != subagents_.end()) {

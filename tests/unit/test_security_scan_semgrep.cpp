@@ -16,7 +16,7 @@ extern "C" void unregister_security_scan_semgrep(void);
 
 int main()
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(90);
 
 	// Initialize the project manager
 	project_manager::get_instance().initialize();

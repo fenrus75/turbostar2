@@ -19,7 +19,7 @@ class subagent_manager
 	std::optional<subagent> find_subagent_by_name(const std::string &name) const;
 
 	// Dynamic registration interfaces for plugins
-	void register_subagent(const std::string &name, const std::string &text);
+	void register_subagent(const std::string &name, const std::string &text, const std::string &animation_json = "");
 	void unregister_subagent(const std::string &name);
 
       private:

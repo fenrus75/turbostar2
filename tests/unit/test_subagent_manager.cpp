@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "../../src/agentlib/subagent_manager.h"
+#include "../../src/agentlib/agent_animation.h"
 #include "../../src/event_logger.h"
 
 using namespace agentlib;
@@ -63,10 +64,12 @@ void test_subagent_manager_basic()
 		"  - x86\n"
 		"readOnly: true\n"
 		"maxTurns: 15\n"
+		"animation: custom_agent.json\n"
 		"---\n"
 		"This is the custom subagent system prompt.\n";
 
 	write_file(agents_dir / "custom_agent.md", custom_agent_md);
+	write_file(agents_dir / "custom_agent.json", "{\"DurMovie\": {\"version\": 1, \"frames\": []}}");
 
 	// Override research builtin in local/global path
 	std::string override_research_md = 
@@ -93,6 +96,11 @@ void test_subagent_manager_basic()
 	assert(custom_opt->read_only == true);
 	assert(custom_opt->max_turns.value() == 15);
 	assert(custom_opt->system_prompt == "This is the custom subagent system prompt.");
+	assert(custom_opt->animation_path == "custom_agent.json");
+	assert(custom_opt->animation_name == "custom-agent");
+
+	auto custom_anim = agent_animation_registry::get_instance().get_animation("custom-agent");
+	assert(custom_anim != nullptr);
 
 	// Verify override precedence took effect
 	auto over_research_opt = manager.find_subagent_by_name("research");
@@ -100,6 +108,9 @@ void test_subagent_manager_basic()
 	assert(over_research_opt->description == "Overridden research description");
 	assert(over_research_opt->read_only == false);
 	assert(over_research_opt->system_prompt == "Overridden system prompt.");
+
+	// Clean up animation
+	agent_animation_registry::get_instance().unregister_animation("custom-agent");
 
 	// Clean up
 	std::filesystem::remove_all(temp_home);
@@ -135,6 +146,25 @@ void test_subagent_manager_dynamic()
 	// Verify it is gone
 	auto sa_gone = manager.find_subagent_by_name("plugin-agent");
 	assert(!sa_gone.has_value());
+
+	// Test dynamic subagent with animation JSON
+	std::string anim_json = "{\"DurMovie\": {\"version\": 1, \"frames\": []}}";
+	manager.register_subagent("anim-agent", plugin_agent_md, anim_json);
+
+	auto sa_anim = manager.find_subagent_by_name("anim-agent");
+	assert(sa_anim.has_value());
+	assert(sa_anim->animation_name == "anim-agent");
+
+	// Verify animation is registered in registry
+	auto anim_data = agent_animation_registry::get_instance().get_animation("anim-agent");
+	assert(anim_data != nullptr);
+
+	// Unregister
+	manager.unregister_subagent("anim-agent");
+
+	// Verify animation is gone from registry
+	auto anim_gone = agent_animation_registry::get_instance().get_animation("anim-agent");
+	assert(anim_gone == nullptr);
 }
 
 int main()

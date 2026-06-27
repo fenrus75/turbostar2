@@ -18,6 +18,8 @@ struct subagent {
 	std::optional<std::string> effort;
 	std::optional<int> max_turns;
 	std::string file_path;
+	std::string animation_path;
+	std::string animation_name{"default"};
 };
 
 } // namespace agentlib

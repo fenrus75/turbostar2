@@ -62,6 +62,10 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 			}
 			new_agent->set_properties(props);
 
+			if (!sa->animation_name.empty()) {
+				new_agent->set_animation_name(sa->animation_name);
+			}
+
 			if (!sa->system_prompt.empty()) {
 				new_agent->inject_context("system", sa->system_prompt);
 			}
