@@ -105,10 +105,43 @@ void test_subagent_manager_basic()
 	std::filesystem::remove_all(temp_home);
 }
 
+void test_subagent_manager_dynamic()
+{
+	auto& manager = subagent_manager::get_instance();
+	manager.initialize();
+
+	std::string plugin_agent_md = 
+		"---\n"
+		"name: plugin-agent\n"
+		"description: Dynamic plugin subagent\n"
+		"read_only: true\n"
+		"---\n"
+		"Plugin subagent system prompt.\n";
+
+	// Register it
+	manager.register_subagent("plugin-agent", plugin_agent_md);
+
+	// Verify it can be found
+	auto sa_opt = manager.find_subagent_by_name("plugin-agent");
+	assert(sa_opt.has_value());
+	assert(sa_opt->description == "Dynamic plugin subagent");
+	assert(sa_opt->read_only == true);
+	assert(sa_opt->system_prompt == "Plugin subagent system prompt.");
+	assert(sa_opt->file_path == "plugin://plugin-agent");
+
+	// Unregister it
+	manager.unregister_subagent("plugin-agent");
+
+	// Verify it is gone
+	auto sa_gone = manager.find_subagent_by_name("plugin-agent");
+	assert(!sa_gone.has_value());
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_subagent_manager_basic();
+	test_subagent_manager_dynamic();
 	std::cout << "subagent_manager tests passed.\n";
 	return 0;
 }

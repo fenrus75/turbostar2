@@ -18,6 +18,10 @@ class subagent_manager
 	const std::vector<subagent> &get_subagents() const;
 	std::optional<subagent> find_subagent_by_name(const std::string &name) const;
 
+	// Dynamic registration interfaces for plugins
+	void register_subagent(const std::string &name, const std::string &text);
+	void unregister_subagent(const std::string &name);
+
       private:
 	subagent_manager() = default;
 	~subagent_manager() = default;

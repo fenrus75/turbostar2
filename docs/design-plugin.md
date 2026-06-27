@@ -113,6 +113,32 @@ void plugin_unload(void)
 }
 ```
 
+### Dynamic Subagent Registration
+
+Plugins can dynamically register compiled-in subagents by calling `subagent_manager::get_instance().register_subagent(name, text)` inside `plugin_run` and unregistering them inside `plugin_unload`.
+
+```cpp
+void plugin_run(void)
+{
+	...
+	agentlib::subagent_manager::get_instance().register_subagent("custom-assistant", R"---(
+name: custom-assistant
+description: Custom plugin subagent
+tool_families:
+  - base
+read_only: true
+---
+System prompt content.
+)---");
+}
+
+void plugin_unload(void)
+{
+	...
+	agentlib::subagent_manager::get_instance().unregister_subagent("custom-assistant");
+}
+```
+
 ---
 
 ## 4. Symbol Resolution and Linkage Rules

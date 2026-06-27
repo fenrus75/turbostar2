@@ -222,4 +222,29 @@ std::optional<subagent> subagent_manager::parse_subagent_file(const std::filesys
 	return parse_subagent_content(ss.str(), path.string());
 }
 
+void subagent_manager::register_subagent(const std::string &name, const std::string &text)
+{
+	auto sa = parse_subagent_content(text, "plugin://" + name);
+	if (sa) {
+		sa->name = name; // Force the name requested by registration
+
+		// Overwrite if exists
+		auto it = std::remove_if(subagents_.begin(), subagents_.end(),
+			[&](const subagent &s) { return s.name == name; });
+		if (it != subagents_.end()) {
+			subagents_.erase(it, subagents_.end());
+		}
+		subagents_.push_back(*sa);
+	}
+}
+
+void subagent_manager::unregister_subagent(const std::string &name)
+{
+	auto it = std::remove_if(subagents_.begin(), subagents_.end(),
+		[&](const subagent &s) { return s.name == name; });
+	if (it != subagents_.end()) {
+		subagents_.erase(it, subagents_.end());
+	}
+}
+
 } // namespace agentlib

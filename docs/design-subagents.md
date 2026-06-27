@@ -160,6 +160,15 @@ graph TD
 
 ---
 
-## 6. Deferments (Post-MVP Checklist)
+## 6. Dynamic Subagent Registration (Plugins)
+
+Shared plugins can dynamically extend the subagent list by registering compiled-in subagent profiles.
+* To register a subagent from a plugin, call `subagent_manager::get_instance().register_subagent(name, text)` inside the plugin's `plugin_run` lifecycle entry point.
+* To unregister, call `subagent_manager::get_instance().unregister_subagent(name)` inside the plugin's `plugin_unload` lifecycle entry point.
+* The `text` argument contains the raw markdown string with frontmatter, which is parsed and loaded into the subagents list with the origin path `plugin://<name>`.
+
+---
+
+## 7. Deferments (Post-MVP Checklist)
 
 * **Hot Reloading / `/rescan`**: Provide a TUI slash command or shortcut to re-trigger directory scanning without restarting the editor.
