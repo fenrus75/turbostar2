@@ -1,0 +1,114 @@
+#include "test_watchdog.h"
+#include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <cstdlib>
+#include "../../src/agentlib/subagent_manager.h"
+#include "../../src/event_logger.h"
+
+using namespace agentlib;
+
+void write_file(const std::filesystem::path& path, const std::string& content)
+{
+	std::filesystem::create_directories(path.parent_path());
+	std::ofstream out(path);
+	out << content;
+}
+
+void test_subagent_manager_basic()
+{
+	// Setup test home directory
+	std::filesystem::path temp_home = std::filesystem::absolute("./test_subagents_home");
+	if (std::filesystem::exists(temp_home)) {
+		std::filesystem::remove_all(temp_home);
+	}
+	std::filesystem::create_directories(temp_home);
+
+	// Set HOME environment variable
+	setenv("HOME", temp_home.c_str(), 1);
+
+	// 1. Verify builtins are loaded
+	auto& manager = subagent_manager::get_instance();
+	manager.initialize();
+
+	const auto& subagents = manager.get_subagents();
+	assert(subagents.size() >= 2);
+
+	auto research_opt = manager.find_subagent_by_name("research");
+	assert(research_opt.has_value());
+	assert(research_opt->read_only == true);
+	assert(research_opt->tool_families.size() == 1);
+	assert(research_opt->tool_families[0] == "base");
+
+	auto self_opt = manager.find_subagent_by_name("self");
+	assert(self_opt.has_value());
+	assert(self_opt->read_only == false);
+	assert(self_opt->tool_families.size() == 3);
+
+	// 2. Create custom global agent file to scan (verifying camelCase and snake_case properties)
+	std::filesystem::path agents_dir = temp_home / ".agents";
+	std::filesystem::create_directories(agents_dir);
+
+	std::string custom_agent_md = 
+		"---\n"
+		"name: custom-agent\n"
+		"description: A test subagent\n"
+		"model: test-model-pro\n"
+		"tools:\n"
+		"  - fs_read\n"
+		"  - ask_user\n"
+		"toolFamilies:\n"
+		"  - base\n"
+		"  - x86\n"
+		"readOnly: true\n"
+		"maxTurns: 15\n"
+		"---\n"
+		"This is the custom subagent system prompt.\n";
+
+	write_file(agents_dir / "custom_agent.md", custom_agent_md);
+
+	// Override research builtin in local/global path
+	std::string override_research_md = 
+		"---\n"
+		"name: research\n"
+		"description: Overridden research description\n"
+		"read_only: false\n"
+		"---\n"
+		"Overridden system prompt.\n";
+
+	write_file(agents_dir / "research.md", override_research_md);
+
+	// Reinitialize and verify
+	manager.initialize();
+
+	auto custom_opt = manager.find_subagent_by_name("custom-agent");
+	assert(custom_opt.has_value());
+	assert(custom_opt->description == "A test subagent");
+	assert(custom_opt->model.value() == "test-model-pro");
+	assert(custom_opt->tools.size() == 2);
+	assert(custom_opt->tools[0] == "fs_read");
+	assert(custom_opt->tool_families.size() == 2);
+	assert(custom_opt->tool_families[1] == "x86");
+	assert(custom_opt->read_only == true);
+	assert(custom_opt->max_turns.value() == 15);
+	assert(custom_opt->system_prompt == "This is the custom subagent system prompt.");
+
+	// Verify override precedence took effect
+	auto over_research_opt = manager.find_subagent_by_name("research");
+	assert(over_research_opt.has_value());
+	assert(over_research_opt->description == "Overridden research description");
+	assert(over_research_opt->read_only == false);
+	assert(over_research_opt->system_prompt == "Overridden system prompt.");
+
+	// Clean up
+	std::filesystem::remove_all(temp_home);
+}
+
+int main()
+{
+	test_watchdog::setup_watchdog(30);
+	test_subagent_manager_basic();
+	std::cout << "subagent_manager tests passed.\n";
+	return 0;
+}

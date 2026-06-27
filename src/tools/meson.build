@@ -33,6 +33,8 @@ tools_sources = files(
   'agent_list/agent_list_security.cpp',
   'agent_create/agent_create_entry.cpp',
   'agent_create/agent_create_security.cpp',
+  'list_subagents/list_subagents_entry.cpp',
+  'list_subagents/list_subagents_security.cpp',
   'agent_status/agent_status_entry.cpp',
   'agent_status/agent_status_security.cpp',
   'agent_end/agent_end_entry.cpp',

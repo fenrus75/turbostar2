@@ -3,6 +3,7 @@
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
 #include "agentlib/ai_agent.h"
+#include "agentlib/subagent_manager.h"
 #include "fs_utils.h"
 #include "agent_create.h"
 
@@ -11,11 +12,12 @@ namespace tools
 
 struct agent_create_raw_args {
 	std::string name;
+	std::string subagent_name;
 	std::string profile;
 	std::string task;
 	bool wait{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_create_raw_args, name, profile, task, wait);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_create_raw_args, name, subagent_name, profile, task, wait);
 
 /**
  * @brief Validator for the agent_create tool, enforcing name uniqueness, lengths, and string safety.
@@ -34,8 +36,8 @@ class agent_create_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Creates a new subagent to delegate tasks to. You must provide either a 'task' (user request) or a 'profile' "
-		       "(system instructions), or both.";
+		return "Creates a new subagent to delegate tasks to. You must provide a 'subagent_name', or a 'task' (user request), "
+		       "or a 'profile' (system instructions), or a combination of them.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -44,13 +46,16 @@ class agent_create_validator : public agentlib::tool_validator
 		    {"type", "object"},
 		    {"properties",
 		     {{"name", {{"type", "string"}, {"description", "A short, descriptive name for the subagent (max 64 chars)."}}},
+		      {"subagent_name",
+		       {{"type", "string"},
+			{"description", "Optional name of a registered subagent profile (e.g. 'research', 'self') to initialize prompt/tools configuration."}}},
 		      {"profile",
 		       {{"type", "string"},
-			{"description", "System instructions and personality profile for the subagent. Optional if 'task' is "
+			{"description", "System instructions and personality profile for the subagent. Optional if 'subagent_name' or 'task' is "
 					"provided (max 10000 chars)."}}},
 		      {"task",
 		       {{"type", "string"},
-			{"description", "The initial task or request for the subagent to perform. Optional if 'profile' is "
+			{"description", "The initial task or request for the subagent to perform. Optional if 'profile' or 'subagent_name' is "
 					"provided (max 10000 chars)."}}},
 		      {"wait",
 		       {{"type", "boolean"},
@@ -87,6 +92,14 @@ class agent_create_validator : public agentlib::tool_validator
 				return false;
 			}
 
+			if (!raw_args.subagent_name.empty()) {
+				auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(raw_args.subagent_name);
+				if (!sa) {
+					out_error = "Subagent profile '" + raw_args.subagent_name + "' not found.";
+					return false;
+				}
+			}
+
 			auto is_safe_multiline = [](const std::string &s) {
 				for (unsigned char c : s) {
 					if (c < 32 && c != 9 && c != 10 && c != 13) return false;
@@ -103,12 +116,13 @@ class agent_create_validator : public agentlib::tool_validator
 				out_error = "Security Violation: Task contains unsafe control characters or escape sequences.";
 				return false;
 			}
-			if (raw_args.profile.empty() && raw_args.task.empty()) {
-				out_error = "You must provide either a 'profile' or a 'task' to create an agent.";
+			if (raw_args.profile.empty() && raw_args.task.empty() && raw_args.subagent_name.empty()) {
+				out_error = "You must provide either a 'subagent_name', 'profile', or 'task' to create an agent.";
 				return false;
 			}
 
 			args_.name = raw_args.name;
+			args_.subagent_name = raw_args.subagent_name;
 			args_.profile = raw_args.profile;
 			args_.task = raw_args.task;
 			args_.wait = raw_args.wait;

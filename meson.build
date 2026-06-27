@@ -27,6 +27,19 @@ if not cc.has_header('dtl/dtl.hpp')
   error('dtl/dtl.hpp is required but not found. Please install libdtl-dev (or equivalent).')
 endif
 
+embed_prog = find_program('python3')
+research_agent_h = custom_target('research_agent.h',
+  input : 'agents/research.md',
+  output : 'research_agent.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'research_agent_md']
+)
+
+self_agent_h = custom_target('self_agent.h',
+  input : 'agents/self.md',
+  output : 'self_agent.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'self_agent_md']
+)
+
 httplib_dep = dependency('cpp-httplib', required : true)
 curl_dep = dependency('libcurl', required : true)
 openssl_dep = dependency('openssl', required : true)
@@ -563,10 +576,8 @@ test_exit_summarization = executable('test_exit_summarization',
 test('unit_test_exit_summarization', test_exit_summarization, suite: 'agent')
 
 test_agent_create = executable('test_agent_create',
-  ['tests/unit/test_agent_create.cpp',
-   'src/tools/agent_create/agent_create_entry.cpp',
-   'src/tools/agent_create/agent_create_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  ['tests/unit/test_agent_create.cpp'],
+  dependencies : [agent_dep, core_dep, tools_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_create', test_agent_create, suite: 'agent')
 
@@ -969,6 +980,12 @@ test_skill_manager = executable('test_skill_manager',
   include_directories: 'src')
 test('unit_skill_manager', test_skill_manager, suite: 'agent')
 
+test_subagent_manager = executable('test_subagent_manager',
+  ['tests/unit/test_subagent_manager.cpp'],
+  dependencies : [agent_dep, core_dep],
+  include_directories: 'src')
+test('unit_subagent_manager', test_subagent_manager, suite: 'agent')
+
 
 test_python_highlighter = executable('test_python_highlighter',
   ['tests/unit/test_python_highlighter.cpp', 'src/python_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
@@ -1048,7 +1065,7 @@ test('unit_hex_highlighter', test_hex_highlighter, suite: 'editor')
 
 
 test_sqlite_validation = executable('test_sqlite_validation',
-  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
+  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/subagent_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep],
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent')
@@ -1060,7 +1077,7 @@ test_crashdump_clear = executable('test_crashdump_clear',
 test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')
 
 test_pop_todo = executable('test_pop_todo',
-  ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/agentlib/agent_animation.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/data/turn.cpp', 'src/agentlib/data/system_turn.cpp', 'src/agentlib/data/user_turn.cpp', 'src/agentlib/data/model_response_turn.cpp', 'src/agentlib/data/tool_execution_turn.cpp', 'src/agentlib/data/error_turn.cpp', 'src/agentlib/data/transaction.cpp', 'src/agentlib/data/episode.cpp', 'src/agentlib/data/conversation.cpp', 'src/agentlib/data/turn_registry.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/protocols/connection_factory.cpp', 'src/agentlib/protocols/openai_completion_connection.cpp', 'src/agentlib/protocols/openai_response_connection.cpp', 'src/agentlib/protocols/gemini_connection.cpp', 'src/agentlib/protocols/claude_connection.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
+  ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/agentlib/agent_animation.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/data/turn.cpp', 'src/agentlib/data/system_turn.cpp', 'src/agentlib/data/user_turn.cpp', 'src/agentlib/data/model_response_turn.cpp', 'src/agentlib/data/tool_execution_turn.cpp', 'src/agentlib/data/error_turn.cpp', 'src/agentlib/data/transaction.cpp', 'src/agentlib/data/episode.cpp', 'src/agentlib/data/conversation.cpp', 'src/agentlib/data/turn_registry.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/protocols/connection_factory.cpp', 'src/agentlib/protocols/openai_completion_connection.cpp', 'src/agentlib/protocols/openai_response_connection.cpp', 'src/agentlib/protocols/gemini_connection.cpp', 'src/agentlib/protocols/claude_connection.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/agentlib/tool_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/subagent_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep],
   include_directories: 'src')
 test('unit_pop_todo', test_pop_todo, suite: 'agent')

@@ -9,6 +9,7 @@
 #include "../agentlib/recording_transport.h"
 #include "../agentlib/replay_transport.h"
 #include "../agentlib/skill_manager.h"
+#include "agentlib/subagent_manager.h"
 #include "../agentlib/tool_registry.h"
 #include "../event_queue.h"
 
@@ -93,6 +94,7 @@ int main(int argc, char **argv)
 	ctx.is_family_active = [&](const std::string &family) { return test_agent->is_tool_family_active(family); };
 
 	agentlib::skill_manager::get_instance().initialize();
+	agentlib::subagent_manager::get_instance().initialize();
 	plugin_loader::get_instance().load_all_plugins();
 	
 	std::filesystem::path workspace_root = project_dir.empty() ? std::filesystem::current_path() : std::filesystem::path(project_dir);

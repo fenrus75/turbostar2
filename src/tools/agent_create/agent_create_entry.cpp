@@ -1,4 +1,5 @@
 #include "agentlib/ai_agent.h"
+#include "agentlib/subagent_manager.h"
 #include "agentlib/interactions/llm_response.h"
 #include "project_manager.h"
 #include "agent_create.h"
@@ -26,8 +27,8 @@ bool agent_create_tool::validate_runtime(const agentlib::tool_context &ctx, std:
 		out_error = "Execution Error: Subagent name cannot be empty.";
 		return false;
 	}
-	if (args_.profile.empty() && args_.task.empty()) {
-		out_error = "Execution Error: You must provide either a 'profile' or a 'task' for the subagent.";
+	if (args_.subagent_name.empty() && args_.profile.empty() && args_.task.empty()) {
+		out_error = "Execution Error: You must provide either a 'subagent_name', a 'profile', or a 'task' for the subagent.";
 		return false;
 	}
 	return true;
@@ -51,12 +52,26 @@ std::string agent_create_tool::execute(agentlib::tool_context &ctx)
 	new_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	new_agent->inject_context("system", "Instructions for subagent: When you have completed your task, you MUST call the `agent_report_final_result` tool to report your final findings back to the parent agent. This ensures that the parent agent receives only your final response rather than your entire conversation history.");
 
-	if (!args_.profile.empty() && !args_.task.empty()) {
+	if (!args_.subagent_name.empty()) {
+		auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(args_.subagent_name);
+		if (sa) {
+			agentlib::agent_properties props = new_agent->get_properties();
+			props.read_only = sa->read_only;
+			if (!sa->tool_families.empty()) {
+				props.active_families = sa->tool_families;
+			}
+			new_agent->set_properties(props);
+
+			if (!sa->system_prompt.empty()) {
+				new_agent->inject_context("system", sa->system_prompt);
+			}
+		}
+	}
+
+	if (!args_.profile.empty()) {
 		new_agent->inject_context("system", args_.profile);
-		new_agent->submit_prompt(args_.task);
-	} else if (!args_.profile.empty()) {
-		new_agent->submit_prompt(args_.profile);
-	} else if (!args_.task.empty()) {
+	}
+	if (!args_.task.empty()) {
 		new_agent->submit_prompt(args_.task);
 	}
 

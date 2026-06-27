@@ -3,6 +3,7 @@
 #include <iostream>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/subagent_manager.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
 #include "tools/agent_create/agent_create.h"
@@ -16,6 +17,7 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
+	subagent_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
@@ -51,7 +53,7 @@ int main()
 			auto prep = registry.prepare_tool("create_agent",
 				"{\"name\": \"sub2\"}", ctx);
 			assert(prep.tool == nullptr);
-			assert(prep.error_message.find("either a 'profile' or a 'task'") != std::string::npos);
+			assert(prep.error_message.find("either a 'subagent_name', 'profile', or 'task'") != std::string::npos);
 		}
 
 		// 4. Reject overly long name (> 64 characters)
@@ -80,6 +82,26 @@ int main()
 			assert(prep.error_message.find("unsafe control characters") != std::string::npos);
 		}
 
+		// 6b. Verify subagent profile creation and list subagents
+		{
+			// Verify list_subagents tool returns research and self
+			std::string list_res = registry.execute_tool("list_subagents", "{}", ctx);
+			assert(list_res.find("research") != std::string::npos);
+			assert(list_res.find("self") != std::string::npos);
+
+			// Try to prepare tool with a non-existent subagent name (should fail)
+			auto prep_fail = registry.prepare_tool("create_agent",
+				"{\"name\": \"sub_bad\", \"subagent_name\": \"non_existent_profile\"}", ctx);
+			assert(prep_fail.tool == nullptr);
+			assert(prep_fail.error_message.find("not found") != std::string::npos);
+
+			// Try to prepare and execute tool with a valid subagent name (should succeed)
+			auto prep_ok = registry.prepare_tool("create_agent",
+				"{\"name\": \"sub_research\", \"subagent_name\": \"research\", \"task\": \"Perform scan\"}", ctx);
+			assert(prep_ok.tool != nullptr);
+			assert(prep_ok.error_message.empty());
+		}
+
 		// 7. Rejection if agent is read-only
 		auto original_ro = agent->is_read_only();
 		agent->set_read_only(true);
@@ -90,7 +112,7 @@ int main()
 
 		// Directly test validate_runtime on the tool under read-only state
 		{
-			tools::agent_create_tool direct_tool({"sub_ro", "profile", "task", false});
+			tools::agent_create_tool direct_tool({"sub_ro", "", "profile", "task", false});
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("read-only") != std::string::npos);

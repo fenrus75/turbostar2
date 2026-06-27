@@ -6,6 +6,7 @@
 #include <string>
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
+#include "agentlib/subagent_manager.h"
 #include "ansi.h"
 #include "config_manager.h"
 #include "crash_handler.h"
@@ -87,6 +88,7 @@ int main(int argc, char **argv)
 	config_manager::get_instance().load();
 	statistics_manager::get_instance().load();
 	agentlib::skill_manager::get_instance().initialize();
+	agentlib::subagent_manager::get_instance().initialize();
 	plugin_loader::get_instance().load_all_plugins();
 
 	auto &logger = event_logger::get_instance();

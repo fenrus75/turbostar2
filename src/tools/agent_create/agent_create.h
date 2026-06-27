@@ -11,6 +11,7 @@ namespace tools {
  */
 struct agent_create_args {
     std::string name;
+    std::string subagent_name;
     std::string profile;
     std::string task;
     bool wait{false};
