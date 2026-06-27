@@ -10,9 +10,14 @@
 - [ ] Editor: "Developer Native: Compile & Debug" -> "Developer Native: Compile, Run & Debug"
 	We can run the application inside the editor, no need to switch to some other terminal!
 
+- [ ] Currently when you click on an image you go to a new tab -- it would be nicer if this would do some javascript tricks to show it
+     zoomed in as a "window/overlay" in the current tab, and then goes away on hitting some key or something
+
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-- feature: enhance our semgrep tool (in `src/plugins/securityagent/security_scan_semgrep/` ) to support html files
-	with `semgrep scan --config auto --include="*.html"` as command line for html files
+
+- feature: enhance our semgrep tool (in `src/plugins/securityagent/security_scan_semgrep/` ) to support html files (.html extension)
+	with `semgrep scan --config auto --include="*.html"` as command line for html files instead of the default command line
+
 - feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
 
 - become an A2A server for plugins
@@ -233,6 +238,7 @@
 ## 27-06-2026
 - integrated the screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png) into the website.
 - merged the Crash Catcher and Core View Manager website sections under a single combined section with one unified screenshot, making `screenshot-core-view-manager.png` obsolete.
+- fixed the core dump details viewer screen (crashdump_window) to use the yellow-on-blue color scheme and restored active ncurses color attributes after the listbox draws.
 
 ## 26-06-2026
 - implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.

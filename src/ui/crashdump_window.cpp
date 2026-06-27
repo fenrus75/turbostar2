@@ -10,7 +10,7 @@
 crashdump_window::crashdump_window(int id, int x, int y, int width, int height, event_queue &global_queue)
     : window(id, x, y, width, height, "Crashdumps"), global_queue_(global_queue)
 {
-	set_background_color_pair(2); // Use standard window background
+	set_background_color_pair(3); // Use yellow-on-blue window background
 
 	listbox_ = std::make_unique<ui_listbox>(
 	    "crashdumps", 0, 0, width_ - 2, 5,
@@ -67,6 +67,9 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 		// Draw the listbox at its absolute screen coordinates.
 		listbox_->draw(listbox_->x(), listbox_->y());
 	}
+
+	// Restore window background color pair since listbox draw changes/turns off attributes
+	attron(COLOR_PAIR(get_background_color_pair()));
 
 	current_y += list_height;
 
