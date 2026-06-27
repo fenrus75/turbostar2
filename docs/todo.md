@@ -5,7 +5,6 @@
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
-- [ ] Screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png)
 - [ ] Screenshot of the Core View Manager layout (screenshot-core-view-manager.png)
 
 ## Webpage content to add or change
@@ -227,6 +226,9 @@
 - consider a syntax highlighter color editor dialog so the user can customize coloring
 
 # done items (move items here on completion)
+
+## 27-06-2026
+- integrated the screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png) into the website.
 
 ## 26-06-2026
 - implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.
