@@ -163,6 +163,10 @@
 
 - Feature: Implement Input Coalescing and Refresh Throttling in the main editor loop (described in docs/refresh-throttling-proposal.md) to reduce terminal redraw overhead and input latency under fast repeat keys or paste streams.
 
+- we need to add a few more viable color combinations for various syntax highlighting types
+
+- consider a syntax highlighter color editor dialog so the user can customize coloring
+
 
 # mid term items
 
@@ -216,8 +220,6 @@
 
 - Make skill_manager parsing and discovery fully compliant with the external skills specification (reading metadata, matching URIs, validating schema).
 
-- use a more conformant yaml parser for SKILL.md metadata extraction instead of manual line scanning
-
 - run a small LLM local to decide which model/etc gets to run agent asks
 
 - an "auto arrange windows" option of sorts
@@ -232,9 +234,6 @@
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
-- we need to add a few more viable color combinations for various syntax highlighting types
-
-- consider a syntax highlighter color editor dialog so the user can customize coloring
 
 # done items (move items here on completion)
 
@@ -246,3 +245,4 @@
 - enhanced the semgrep tool in the securityagent plugin to support scanning HTML files using a custom command line with '--config auto' and '--include="*.html"'.
 - integrated markdown_utils::align_all_tables in crashdump_window to pretty-print and align markdown tables in crash reports automatically.
 - implemented the webpage image overlay (lightbox) feature in JS/CSS so that clicking screenshot links shows a smooth zoomed-in modal in the current tab instead of opening in a new tab.
+- integrated yaml-cpp to parse SKILL.md headers fully and conformantly instead of using manual line scanning.

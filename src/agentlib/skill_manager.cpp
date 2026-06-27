@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <format>
+#include <yaml-cpp/yaml.h>
 #include "event_logger.h"
 #include "utf8.h"
 
@@ -52,39 +53,39 @@ void skill_manager::initialize()
 
 				std::string line;
 				if (std::getline(file, line) && utf8::trim(line) == "---") {
-					std::string name;
-					std::string description;
-					bool in_desc = false;
+					std::string frontmatter;
 					while (std::getline(file, line)) {
 						std::string trimmed = utf8::trim(line);
 						if (trimmed == "---") {
 							break;
 						}
-						if (trimmed.starts_with("name:")) {
-							name = utf8::trim(trimmed.substr(5));
-							in_desc = false;
-						} else if (trimmed.starts_with("description:")) {
-							description = utf8::trim(trimmed.substr(12));
-							in_desc = true;
-						} else if (in_desc) {
-							if (description.length() < kMaxDescriptionLength) {
-								if (!description.empty())
-									description += " ";
-								description += trimmed;
-							}
-						}
+						frontmatter += line + "\n";
 					}
 
-					if (!name.empty()) {
-						std::filesystem::path physical_root = entry.path().parent_path();
+					try {
+						YAML::Node config = YAML::Load(frontmatter);
+						std::string name;
+						if (config["name"]) {
+							name = config["name"].as<std::string>();
+						}
+						std::string description;
+						if (config["description"]) {
+							description = config["description"].as<std::string>();
+						}
 
-						skill new_skill;
-						new_skill.name = name;
-						new_skill.description = description;
-						new_skill.uri = "skills://" + name + "/";
-						skills_.push_back(new_skill);
+						if (!name.empty()) {
+							std::filesystem::path physical_root = entry.path().parent_path();
 
-						scan_and_mount(physical_root, name);
+							skill new_skill;
+							new_skill.name = name;
+							new_skill.description = description;
+							new_skill.uri = "skills://" + name + "/";
+							skills_.push_back(new_skill);
+
+							scan_and_mount(physical_root, name);
+						}
+					} catch (const std::exception &e) {
+						event_logger::get_instance().log("skill_manager: YAML parse error at {}: {}", entry.path().string(), e.what());
 					}
 				}
 			}
