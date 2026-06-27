@@ -28,6 +28,12 @@ security_movie_h = custom_target('security_movie.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'security_movie_json']
 )
 
+securityagent_agent_h = custom_target('securityagent_agent.h',
+  input : 'securityagent/securityagent.md',
+  output : 'securityagent_agent.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'securityagent_agent_md']
+)
+
 securityagent_plugin = shared_module('securityagent',
   ['securityagent/plugin.cpp',
    'securityagent/security_scan_python/security_scan_python_entry.cpp',
@@ -38,7 +44,8 @@ securityagent_plugin = shared_module('securityagent',
    'securityagent/security_scan_semgrep/security_scan_semgrep_security.cpp',
    'securityagent/security_review_with_agent/security_review_with_agent_entry.cpp',
    'securityagent/security_review_with_agent/security_review_with_agent_security.cpp',
-   security_movie_h],
+   security_movie_h,
+   securityagent_agent_h],
   dependencies: [nlohmann_json_dep],
   include_directories: inc,
   install: true,

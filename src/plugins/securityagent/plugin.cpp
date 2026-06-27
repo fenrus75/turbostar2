@@ -1,6 +1,8 @@
 #include "agentlib/tool_registry.h"
 #include "agentlib/agent_animation.h"
+#include "agentlib/subagent_manager.h"
 #include "security_movie.h"
+#include "securityagent_agent.h"
 
 extern "C" {
 
@@ -34,6 +36,7 @@ void plugin_run(void)
 	register_security_scan_semgrep();
 	register_security_review_with_agent();
 	register_agent_animation("securityagent", security_movie_json);
+	agentlib::subagent_manager::get_instance().register_subagent("securityagent", securityagent_agent_md, security_movie_json);
 	// Reminder: We will not register a new tool family.
 	// But we will use the (hidden) ":plugin:securityagent" tool family
 	// for all (except "security_review_with_agent", which is global) of the tools in this plugin.
@@ -49,5 +52,6 @@ void plugin_unload(void)
 	unregister_security_scan_semgrep();
 	unregister_security_review_with_agent();
 	unregister_agent_animation("securityagent");
+	agentlib::subagent_manager::get_instance().unregister_subagent("securityagent");
 }
 }
