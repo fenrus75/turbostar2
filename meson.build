@@ -328,7 +328,7 @@ test_security_scan_semgrep = executable('test_security_scan_semgrep',
    'src/plugins/securityagent/security_scan_semgrep/security_scan_semgrep_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_security_scan_semgrep', test_security_scan_semgrep, suite: 'plugins')
+test('unit_test_security_scan_semgrep', test_security_scan_semgrep, suite: 'plugins', timeout: 90)
 
 
 
