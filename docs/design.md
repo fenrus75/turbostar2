@@ -26,6 +26,7 @@ sections updated as enhancements are made to the project.
 | `docs/thread-lifecycle.md` | Thread lifecycle and teardown blueprint |
 | `docs/code-review.md`  | Code review system and agent tools |
 | `docs/design-plugin.md` | Plugin architecture, lifecycles, and tool registration |
+| `docs/design-subagents.md` | Subagent Library and Manager architecture |
 
 
 

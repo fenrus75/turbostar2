@@ -16,6 +16,10 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
+
+- feature: implement agent skills
+
 - feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
 
 - become an A2A server for plugins
