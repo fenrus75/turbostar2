@@ -7,9 +7,6 @@
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
 
 ## Webpage content to add or change
-- [ ] Editor: "Developer Native: Compile & Debug" -> "Developer Native: Compile, Run & Debug"
-	We can run the application inside the editor, no need to switch to some other terminal!
-
 - [ ] Currently when you click on an image you go to a new tab -- it would be nicer if this would do some javascript tricks to show it
      zoomed in as a "window/overlay" in the current tab, and then goes away on hitting some key or something
 
@@ -239,6 +236,7 @@
 - integrated the screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png) into the website.
 - merged the Crash Catcher and Core View Manager website sections under a single combined section with one unified screenshot, making `screenshot-core-view-manager.png` obsolete.
 - fixed the core dump details viewer screen (crashdump_window) to use the yellow-on-blue color scheme and restored active ncurses color attributes after the listbox draws.
+- updated the website's compile/debug section to focus on "Developer Native: Compile, Run & Debug" showing that applications can be executed directly within the editor.
 
 ## 26-06-2026
 - implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.
