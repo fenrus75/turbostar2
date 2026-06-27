@@ -1,3 +1,4 @@
+#include <filesystem>
 #include "command_runner.h"
 #include "fs_utils.h"
 #include "security_scan_semgrep.h"
@@ -26,7 +27,21 @@ std::string security_scan_semgrep_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No files specified for scan.";
 	}
 
-	std::string cmd = "/usr/bin/uvx -q semgrep scan --config=auto --json --quiet --config \"p/security-audit\" --config \"p/secrets\"";
+	bool is_html = false;
+	for (const auto &path : safe_paths_) {
+		if (std::filesystem::path(path).extension() == ".html") {
+			is_html = true;
+			break;
+		}
+	}
+
+	std::string cmd;
+	if (is_html) {
+		cmd = "/usr/bin/uvx -q semgrep scan --config auto --json --quiet --include=\"*.html\"";
+	} else {
+		cmd = "/usr/bin/uvx -q semgrep scan --config=auto --json --quiet --config \"p/security-audit\" --config \"p/secrets\"";
+	}
+
 	for (const auto &path : safe_paths_) {
 		cmd += " " + fs_utils::escape_shell_arg(path);
 	}

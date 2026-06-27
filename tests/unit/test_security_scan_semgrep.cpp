@@ -98,6 +98,27 @@ int main()
 		assert(res.find("\"paths\":") != std::string::npos);
 	}
 
+	// 6. Test scanning an HTML file
+	{
+		std::string dummy_file = "ts_sec_dummy.html";
+		std::string dummy_file_abs = project_root + "/" + dummy_file;
+		std::ofstream out(dummy_file_abs);
+		out << "<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n<h1>Hello</h1>\n</body>\n</html>\n";
+		out.close();
+
+		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string res = registry.execute_tool("security_scan_semgrep", args, ctx);
+
+		std::cout << "Semgrep output for dummy HTML file:\n" << res << std::endl;
+
+		// Clean up the dummy file
+		std::filesystem::remove(dummy_file_abs);
+
+		// The output should be a valid JSON containing 'results' or 'paths'
+		assert(res.find("\"results\":") != std::string::npos);
+		assert(res.find("\"paths\":") != std::string::npos);
+	}
+
 	// Clean up registration
 	unregister_security_scan_semgrep();
 

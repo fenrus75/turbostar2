@@ -11,9 +11,7 @@
      zoomed in as a "window/overlay" in the current tab, and then goes away on hitting some key or something
 
 # short term items (fixes needed -- agents can automatically add todo items to this section) -- not in priority order
-
-- feature: enhance our semgrep tool (in `src/plugins/securityagent/security_scan_semgrep/` ) to support html files (.html extension)
-	with `semgrep scan --config auto --include="*.html"` as command line for html files instead of the default command line
+- visual: crash viewer: the crash dump has markdown tables in it; we have in the  markdown:: namespace a capability to print markdown tables pretty, we should use that!
 
 - feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
 
@@ -237,6 +235,7 @@
 - merged the Crash Catcher and Core View Manager website sections under a single combined section with one unified screenshot, making `screenshot-core-view-manager.png` obsolete.
 - fixed the core dump details viewer screen (crashdump_window) to use the yellow-on-blue color scheme and restored active ncurses color attributes after the listbox draws.
 - updated the website's compile/debug section to focus on "Developer Native: Compile, Run & Debug" showing that applications can be executed directly within the editor.
+- enhanced the semgrep tool in the securityagent plugin to support scanning HTML files using a custom command line with '--config auto' and '--include="*.html"'.
 
 ## 26-06-2026
 - implemented scrollbar click interaction logic for the main editor window, allowing users to scroll horizontally/vertically proportionally by clicking on tracks or scroll by lines/columns by clicking arrows, while filtering standard clicks to only trigger cursor placement inside the text content area. Created unit test coverage for horizontal and vertical scrollbar clicks.
