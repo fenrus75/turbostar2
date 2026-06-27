@@ -101,17 +101,18 @@
       </div>
     </section>
 
-    <!-- Visual Feature 3: Crash Catcher (libturbocatch) -->
+    <!-- Visual Feature 3: Crash Catcher & Core Inspector -->
     <section class="detail-split" id="crash-catcher">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Integrated Crash Catcher (libturbocatch)</h2>
+        <h2 class="detail-subtitle">Crash Catcher &amp; Core View Manager</h2>
         <p class="detail-text">
-          Never lose your terminal state or get stuck debugging segmentation faults. Turbostar integrates <code>libturbocatch.so</code>, which intercepts failures during application runs or test suite execution.
+          Never get stuck debugging segmentation faults or lose your terminal state. Turbostar integrates <code>libturbocatch.so</code> to intercept failures, alongside a built-in Core View Manager to inspect crash dumps directly within the editor.
         </p>
         <ul class="detail-list">
-          <li><strong>Real-time Signal Interception:</strong> Catches unexpected crashes (<code>SIGSEGV</code>, <code>SIGABRT</code>, failed assertions) during both manual application runs and automated test suite execution.</li>
-          <li><strong>Source Code Linking:</strong> Parses the backtrace dynamically, automatically linking crash locations back to the exact filename and line number in the code editor for immediate fixing.</li>
-          <li><strong>Graceful Terminal Restoration:</strong> Instantly resets TUI terminal configurations back to standard modes on fatal signals, keeping your shell fully functional.</li>
+          <li><strong>Real-time Signal Interception:</strong> Catches unexpected crashes (<code>SIGSEGV</code>, <code>SIGABRT</code>, failed assertions) during manual runs or automated tests.</li>
+          <li><strong>Aggregated Logs &amp; Core Inspection:</strong> Displays recent application coredumps, complete with dates, target binaries, active thread identifiers, and register states.</li>
+          <li><strong>Source Code Linking:</strong> Parses the backtrace dynamically, automatically linking crash locations back to the exact filename and line number in the editor for immediate debugging.</li>
+          <li><strong>Graceful Terminal Restoration:</strong> Instantly resets TUI terminal configurations back to standard modes on fatal signals, keeping your shell functional.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -128,38 +129,6 @@
           <div class="terminal-content">
             <a href="./screenshot-crash-manager.png" target="_blank">
               <img src="./screenshot-crash-manager.png" alt="Turbostar Crash Catcher and Manager Interface">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 4: Core View Manager -->
-    <section class="detail-split reverse" id="core-view-manager">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Core View Manager</h2>
-        <p class="detail-text">
-          Easily inspect crash dumps and memory faults without leaving the editor. The Core View Manager aggregates system coredumps and provides a parsed, syntax-highlighted interface for stack investigation.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Aggregated Logs:</strong> Displays a list of recent application crashes, complete with dates, target binaries, and active thread identifiers.</li>
-          <li><strong>Stack Investigation:</strong> Highlights exactly which line of source code triggered the fault, matching symbol maps automatically.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-core-view">
-          <div class="terminal-header">
-            <div class="terminal-dots">
-              <span class="terminal-dot close"></span>
-              <span class="terminal-dot minimize"></span>
-              <span class="terminal-dot maximize"></span>
-            </div>
-            <div class="terminal-title">turbostar --core-view</div>
-            <div></div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-core-view-manager.png" target="_blank">
-              <img src="./screenshot-core-view-manager.png" alt="Turbostar Core View Manager Layout">
             </a>
           </div>
         </div>
