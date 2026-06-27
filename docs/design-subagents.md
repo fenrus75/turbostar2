@@ -4,9 +4,39 @@ This document details the architectural design for introducing a proper **Subage
 
 ---
 
-## 1. Directory Scanning Strategy
+## 1. Built-in Subagents (Binary Embedding)
 
-At startup, the `subagent_manager` will scan directories recursively to locate `*.md` files representing subagent definitions.
+To ensure that core subagents (e.g., `research`, `self`) are always available without relying on external file structures, a set of built-in subagents will be compiled directly into the binary.
+
+### Repository Structure
+* A new top-level directory `agents/` is created at the repository root, containing default subagent definitions as Markdown files (e.g., `agents/research.md`, `agents/self.md`).
+
+### Meson Compilation
+* Meson will compile these markdown files into C++ headers containing raw character array strings, using the existing `scripts/embed_text.py` script.
+* In [src/meson.build](file:///home/arjan/git/turbostar2/src/meson.build):
+  ```meson
+  research_agent_h = custom_target('research_agent.h',
+    input : '../agents/research.md',
+    output : 'research_agent.h',
+    command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'research_agent_md']
+  )
+  
+  self_agent_h = custom_target('self_agent.h',
+    input : '../agents/self.md',
+    output : 'self_agent.h',
+    command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'self_agent_md']
+  )
+  ```
+* These generated headers are added as dependency sources for `libagentlib`.
+
+### Initialization
+* During startup (inside `subagent_manager::initialize()`), the manager first loads and parses all built-in agent strings (e.g., `research_agent_md`, `self_agent_md`) using `YAML::Load` to populate the initial subagents list before scanning disk directories.
+
+---
+
+## 2. Directory Scanning Strategy
+
+After loading the built-in subagents, the `subagent_manager` scans directories recursively to locate `*.md` files representing custom or overridden subagent definitions.
 
 ### Scanning Paths
 
@@ -17,9 +47,15 @@ At startup, the `subagent_manager` will scan directories recursively to locate `
 | **Global** | `~/.gemini/config/agents/` | Global agentic platform configurations |
 | **Workspace** | `.agents/` | Project-scoped custom subagents (committed to repository) |
 
+### Precedence & Overrides
+If a custom subagent is scanned from a directory and shares the same `name` as a built-in agent (or an agent scanned earlier from a lower-priority path), the newer scanned agent **overrides** the previous definition. The order of loading and override precedence is:
+1. **Built-in Agents** (Lowest priority)
+2. **Global Paths** (`~/.cache/turbostar/agents/`, `~/.gemini/config/agents/`, `~/.agents/`)
+3. **Workspace Path** (`.agents/`) (Highest priority)
+
 ---
 
-## 2. Subagent Model & YAML Frontmatter Schema
+## 3. Subagent Model & YAML Frontmatter Schema
 
 Subagents are defined as Markdown files. The top of the file contains a YAML frontmatter block enclosed in `---` delimiters, and the rest of the file defines the **System Prompt** for the subagent.
 
@@ -60,7 +96,7 @@ struct subagent {
     std::optional<std::string> permission_mode;
     std::optional<std::string> effort;
     std::optional<int> max_turns;
-    std::string file_path;                   // Location of definition file
+    std::string file_path;                   // Location of definition file (empty for built-in)
 };
 
 } // namespace agentlib
@@ -68,7 +104,7 @@ struct subagent {
 
 ---
 
-## 3. Tool Visibility & Permission Enforcement
+## 4. Tool Visibility & Permission Enforcement
 
 Subagent tool execution permissions are controlled by mapping subagent YAML properties directly to the underlying `agent_properties` structure associated with the spawned `ai_agent` session.
 
@@ -101,7 +137,7 @@ The `tools` array is mapped to a visibility filter (e.g., a new `active_tools` v
 
 ---
 
-## 4. LLM Tool & Agent Creation Integration
+## 5. LLM Tool & Agent Creation Integration
 
 Dynamically loaded subagents will integrate with the agent creation execution loop through new and updated tools.
 
@@ -124,6 +160,6 @@ graph TD
 
 ---
 
-## 5. Deferments (Post-MVP Checklist)
+## 6. Deferments (Post-MVP Checklist)
 
 * **Hot Reloading / `/rescan`**: Provide a TUI slash command or shortcut to re-trigger directory scanning without restarting the editor.
