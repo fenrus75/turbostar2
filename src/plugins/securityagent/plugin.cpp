@@ -22,6 +22,8 @@ void register_security_scan_c(void);
 void unregister_security_scan_c(void);
 void register_security_scan_semgrep(void);
 void unregister_security_scan_semgrep(void);
+void register_security_verify_html(void);
+void unregister_security_verify_html(void);
 void register_security_review_with_agent(void);
 void unregister_security_review_with_agent(void);
 
@@ -34,6 +36,7 @@ void plugin_run(void)
 	register_security_scan_python();
 	register_security_scan_c();
 	register_security_scan_semgrep();
+	register_security_verify_html();
 	register_security_review_with_agent();
 	register_agent_animation("securityagent", security_movie_json);
 	agentlib::subagent_manager::get_instance().register_subagent("securityagent", securityagent_agent_md, security_movie_json);
@@ -50,6 +53,7 @@ void plugin_unload(void)
 	unregister_security_scan_python();
 	unregister_security_scan_c();
 	unregister_security_scan_semgrep();
+	unregister_security_verify_html();
 	unregister_security_review_with_agent();
 	unregister_agent_animation("securityagent");
 	agentlib::subagent_manager::get_instance().unregister_subagent("securityagent");

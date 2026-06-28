@@ -14,6 +14,7 @@ namespace agentlib {
 | git_blame_tool | src/tools/git_blame/git_blame.h                      |
 | fs_man_tool   | src/tools/fs_man/fs_man.h                            |
 | security_review_with_agent_tool | src/plugins/securityagent/security_review_with_agent/security_review_with_agent.h |
+| security_verify_html_tool | src/plugins/securityagent/security_verify_html/security_verify_html.h |
 
 */
 class llm_tool_action : public llm_tool {

@@ -14,8 +14,6 @@
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
-- feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
-
 - become an A2A server for plugins
 
 - become a client to A2A
@@ -232,6 +230,7 @@
 # done items (move items here on completion)
 
 ## 28-06-2026
+- implemented an HTML verifier tool (security_verify_html) for the securityagent plugin using "tidy" (if tidy exists).
 - implemented syntax highlighting colors configuration manager and dynamic colors.json persistence, and created an interactive side-by-side color picker dialog in the editor options menu.
 - agent skills
 - updated AI page with a default agent integration screenshot and introduction section.
