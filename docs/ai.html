@@ -38,8 +38,40 @@
       </p>
     </section>
 
-    <!-- Visual Feature 1: Context Paging -->
-    <section class="detail-split" id="context-paging">
+    <!-- Visual Feature 1: Agent Integration -->
+    <section class="detail-split" id="agent-integration">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">In-Editor Agent Integration</h2>
+        <p class="detail-text">
+          Turbostar features a native AI agent integrated directly into the workspace layout. The agent has full access to the project manager, filesystem context, compile state, and execution environments.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Interactive Chat:</strong> Toggle the Agent Chat window in any visual split workspace to converse, ask questions, or request code modifications.</li>
+          <li><strong>Automated Refactoring:</strong> The agent suggests and executes edits in real-time, rewriting blocks of code surgically using precise diff mappings.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-agent-main">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --agent-chat</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-agent-edits-the-program.png" target="_blank">
+              <img src="./screenshot-agent-edits-the-program.png" alt="Turbostar Native AI Agent Chat Interface">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 2: Context Paging -->
+    <section class="detail-split reverse" id="context-paging">
       <div class="detail-info">
         <h2 class="detail-subtitle">Virtual Context Paging</h2>
         <p class="detail-text">
@@ -62,16 +94,16 @@
             <div></div>
           </div>
           <div class="terminal-content">
-            <a href="./screenshot-agent-undo-view.png" target="_blank">
-              <img src="./screenshot-agent-undo-view.png" alt="Turbostar AI Agent History Compaction / Undo View">
+            <a href="./screenshot-agent-runs-the-testsuite.png" target="_blank">
+              <img src="./screenshot-agent-runs-the-testsuite.png" alt="Turbostar AI Agent Runs Test Suite showing context paging stats">
             </a>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Visual Feature 2: In-Editor Code Review -->
-    <section class="detail-split reverse" id="code-review">
+    <!-- Visual Feature 3: In-Editor Code Review -->
+    <section class="detail-split" id="code-review">
       <div class="detail-info">
         <h2 class="detail-subtitle">In-Editor Code Review &amp; Edits</h2>
         <p class="detail-text">
@@ -102,8 +134,8 @@
       </div>
     </section>
 
-    <!-- Visual Feature 3: Compiler Context Optimization -->
-    <section class="detail-split" id="compile-optimization">
+    <!-- Visual Feature 4: Compiler Context Optimization -->
+    <section class="detail-split reverse" id="compile-optimization">
       <div class="detail-info">
         <h2 class="detail-subtitle">Compiler Context Optimization</h2>
         <p class="detail-text">
@@ -140,8 +172,8 @@
       </div>
     </section>
 
-    <!-- Visual Feature 4: Interactive Agent-Driven Debugging -->
-    <section class="detail-split reverse" id="agent-debugging">
+    <!-- Visual Feature 5: Interactive Agent-Driven Debugging -->
+    <section class="detail-split" id="agent-debugging">
       <div class="detail-info">
         <h2 class="detail-subtitle">Interactive Agent-Driven Debugging</h2>
         <p class="detail-text">
@@ -172,8 +204,8 @@
       </div>
     </section>
 
-    <!-- Visual Feature 5: Agent Command Center -->
-    <section class="detail-split" id="command-center-section">
+    <!-- Visual Feature 6: Agent Command Center -->
+    <section class="detail-split reverse" id="command-center-section">
       <div class="detail-info">
         <h2 class="detail-subtitle">Agent Command Center</h2>
         <p class="detail-text">
@@ -198,6 +230,38 @@
           <div class="terminal-content">
             <a href="./screenshot-agent-command-center.png" target="_blank">
               <img src="./screenshot-agent-command-center.png" alt="Turbostar Agent Command Center Dashboard">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 7: Integrated Undo History -->
+    <section class="detail-split" id="undo-history">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Integrated Undo History</h2>
+        <p class="detail-text">
+          Agent edits are not destructive. Unlike external CLI coding tools that overwrite source files blindly, all changes made by the Turbostar agent are integrated directly into the editor's core transaction undo buffer.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Granular Undo:</strong> You can step back through the agent's edits line-by-line or block-by-block using standard editor undo keys.</li>
+          <li><strong>Transformed Views:</strong> Visual highlighting shows exactly what lines the agent modified, giving you absolute control over what gets committed.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-undo-view">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --undo-history</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-agent-undo-view.png" target="_blank">
+              <img src="./screenshot-agent-undo-view.png" alt="Turbostar Integrated Agent Undo History View">
             </a>
           </div>
         </div>
@@ -280,6 +344,11 @@
         <article class="card" id="card-customizations">
           <h3 class="card-title">Customizations &amp; Rules</h3>
           <p class="card-desc">Inject global or project-level guidelines and constraints into agent turn iterations dynamically using custom markdown configurations.</p>
+        </article>
+
+        <article class="card" id="card-claude-subagents">
+          <h3 class="card-title">Claude-Style Subagents</h3>
+          <p class="card-desc">Define helper subagents using standard Markdown profiles with YAML frontmatter, dynamically specifying tool namespaces, permissions, and visual animations.</p>
         </article>
       </div>
     </section>

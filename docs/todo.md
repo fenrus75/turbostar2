@@ -1,4 +1,4 @@
-# Web page todos
+# Web page todos (in `docs/index.html`, `docs/ai.html` and `docs/editor.html`)
 
 ## Webpage Screenshots to Take
 - [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
@@ -7,18 +7,12 @@
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
 
 ## Webpage todo items (do not delete this header line)
-- [ ] AI page: we should show a default agent screenshot and add some basic description of agent integration
-- [ ] AI page: the screenshot for virtual context paging is wrong, it is for the "Agent changes are part of the editor undo history" feature,
-         which we don't describe separately but should, it's a great feature. We just need to also add a new screenshot for virtual context paging
-         we probably should describe the "Agent changes are part of the editor undo history" at the end of the main features
 
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
-
-- feature: implement agent skills
 
 - feature: create a HTML verifier tool for our securityagent plugin that uses "tidy" -- and is only available if tidy exists
 
@@ -46,7 +40,7 @@
 
 - a /command action that activates a tool family (via menu?)
 
-- a /command action for /clear
+- a /command action for /clear of agent history -- basically a new connection
 
 - separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
@@ -240,6 +234,12 @@
 
 
 # done items (move items here on completion)
+
+## 28-06-2026
+- agent skills
+- updated AI page with a default agent integration screenshot and introduction section.
+- updated AI page virtual context paging section with the runs-testsuite screenshot, and added a dedicated section describing the integrated agent undo history.
+- added Claude-style agent definitions and dynamic subagents card to the Standards & Extensibility grid on the AI page.
 
 ## 27-06-2026
 - integrated the screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png) into the website.
