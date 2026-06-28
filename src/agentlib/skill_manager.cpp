@@ -39,9 +39,6 @@ void skill_manager::initialize()
 	if (!std::filesystem::exists(skills_base) || !std::filesystem::is_directory(skills_base)) {
 		return;
 	}
-
-	constexpr std::size_t kMaxDescriptionLength = 1024;
-
 	try {
 		for (const auto &entry : std::filesystem::recursive_directory_iterator(skills_base, std::filesystem::directory_options::skip_permission_denied)) {
 			if (entry.is_regular_file() && entry.path().filename().string() == "SKILL.md") {

@@ -2031,12 +2031,11 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 	for (auto attr : attrs) {
 		item_names.push_back(syntax_color_manager::get_attribute_name(attr));
 	}
-
 	auto [init_fg, init_bg] = syntax_color_manager::get_instance().get_color(attrs[0]);
 
 	ui_listbox *listbox_ptr = nullptr;
 
-	auto picker = std::make_unique<ui_color_picker>("color_picker", 26, 1, init_fg, init_bg, 7, [&listbox_ptr, attrs](uint8_t fg, uint8_t bg) {
+	auto picker = std::make_unique<ui_color_picker>("color_picker", 26, 1, init_fg, init_bg, 7, [&listbox_ptr](uint8_t fg, uint8_t bg) {
 		if (listbox_ptr) {
 			int idx = listbox_ptr->get_selected_index();
 			if (idx >= 0 && idx < static_cast<int>(attrs.size())) {
@@ -2046,7 +2045,7 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 	});
 	auto picker_raw = picker.get();
 
-	auto listbox = std::make_unique<ui_listbox>("attribute_list", 2, 1, 22, 10, [picker_raw, attrs](int idx) {
+	auto listbox = std::make_unique<ui_listbox>("attribute_list", 2, 1, 22, 10, [picker_raw](int idx) {
 		if (idx >= 0 && idx < static_cast<int>(attrs.size())) {
 			auto [fg, bg] = syntax_color_manager::get_instance().get_color(attrs[idx]);
 			picker_raw->set_selected_colors(fg, bg);

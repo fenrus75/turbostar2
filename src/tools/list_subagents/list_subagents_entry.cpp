@@ -6,12 +6,12 @@
 namespace tools
 {
 
-bool list_subagents_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+bool list_subagents_tool::validate_runtime(const agentlib::tool_context &/*ctx*/, std::string &/*out_error*/) const
 {
 	return true;
 }
 
-std::string list_subagents_tool::execute(agentlib::tool_context &ctx)
+std::string list_subagents_tool::execute(agentlib::tool_context &/*ctx*/)
 {
 	const auto &subagents = agentlib::subagent_manager::get_instance().get_subagents();
 	if (subagents.empty()) {

@@ -149,10 +149,11 @@ The following dependencies are needed at runtime for various diagnostic and help
 *   `gdb` (For debugging run targets)
 *   `python3-bandit` (For Python security validation)
 *   `elfutils` (For `eu-addr2line` crash backtraces)
+*   `cppcheck` (For C/C++ security scanning and diagnostics)
 
 
 ```bash
-sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils
+sudo apt install clangd clang-format gdbserver gdb python3-bandit elfutils cppcheck
 ```
 
 ### Build Instructions
