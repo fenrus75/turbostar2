@@ -26,8 +26,8 @@ static int get_color_picker_pair(uint8_t fg, uint8_t bg)
 	return pair;
 }
 
-ui_color_picker::ui_color_picker(std::string name, int x, int y, uint8_t initial_fg, uint8_t initial_bg, uint8_t dialog_bg)
-    : ui_element(std::move(name), x, y, 50, 6), selected_fg_(initial_fg), selected_bg_(initial_bg), dialog_bg_(dialog_bg)
+ui_color_picker::ui_color_picker(std::string name, int x, int y, uint8_t initial_fg, uint8_t initial_bg, uint8_t dialog_bg, std::function<void(uint8_t, uint8_t)> on_change)
+    : ui_element(std::move(name), x, y, 50, 6), selected_fg_(initial_fg), selected_bg_(initial_bg), dialog_bg_(dialog_bg), on_change_(std::move(on_change))
 {
 }
 
@@ -135,6 +135,10 @@ void ui_color_picker::draw(int abs_x, int abs_y) const
 
 bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
+	bool handled = false;
+	uint8_t old_fg = selected_fg_;
+	uint8_t old_bg = selected_bg_;
+
 	if (ev.type == event_type::key_press) {
 		if (has_focus_) {
 			if (ev.key_code == KEY_LEFT) {
@@ -143,20 +147,20 @@ bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				} else {
 					selected_bg_ = (selected_bg_ + 7) % 8;
 				}
-				return true;
+				handled = true;
 			}
-			if (ev.key_code == KEY_RIGHT) {
+			else if (ev.key_code == KEY_RIGHT) {
 				if (!focus_bg_row_) {
 					selected_fg_ = (selected_fg_ + 1) % 16;
 				} else {
 					selected_bg_ = (selected_bg_ + 1) % 8;
 				}
-				return true;
+				handled = true;
 			}
-			if (ev.key_code == KEY_UP) {
+			else if (ev.key_code == KEY_UP) {
 				if (focus_bg_row_) {
 					focus_bg_row_ = false;
-					return true;
+					handled = true;
 				} else {
 					// Propagate focus up
 					ui_element *p = parent_;
@@ -165,13 +169,13 @@ bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 							break;
 						p = p->parent();
 					}
-					return true;
+					handled = true;
 				}
 			}
-			if (ev.key_code == KEY_DOWN) {
+			else if (ev.key_code == KEY_DOWN) {
 				if (!focus_bg_row_) {
 					focus_bg_row_ = true;
-					return true;
+					handled = true;
 				} else {
 					// Propagate focus down
 					ui_element *p = parent_;
@@ -180,26 +184,26 @@ bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 							break;
 						p = p->parent();
 					}
-					return true;
+					handled = true;
 				}
 			}
-			if (ev.key_code == '\t') {
+			else if (ev.key_code == '\t') {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_next())
 						break;
 					p = p->parent();
 				}
-				return true;
+				handled = true;
 			}
-			if (ev.key_code == KEY_BTAB) {
+			else if (ev.key_code == KEY_BTAB) {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_previous())
 						break;
 					p = p->parent();
 				}
-				return true;
+				handled = true;
 			}
 		}
 	}
@@ -212,7 +216,7 @@ bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				if (idx >= 0 && idx < 16) {
 					selected_fg_ = idx;
 					focus_bg_row_ = false;
-					return true;
+					handled = true;
 				}
 			}
 			// Click on Background row
@@ -221,10 +225,17 @@ bool ui_color_picker::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				if (idx >= 0 && idx < 8) {
 					selected_bg_ = idx;
 					focus_bg_row_ = true;
-					return true;
+					handled = true;
 				}
 			}
 		}
+	}
+
+	if (handled) {
+		if (on_change_ && (selected_fg_ != old_fg || selected_bg_ != old_bg)) {
+			on_change_(selected_fg_, selected_bg_);
+		}
+		return true;
 	}
 
 	return false;

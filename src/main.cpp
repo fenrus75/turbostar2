@@ -17,6 +17,7 @@
 #include "pluginloader.h"
 #include "project_manager.h"
 #include "statistics_manager.h"
+#include "syntax_color_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -109,6 +110,7 @@ int main(int argc, char **argv)
 	setenv("ESCDELAY", "25", 1);
 	initscr();
 	start_color();
+	syntax_color_manager::get_instance().initialize();
 	// Color pairs based on docs/colorscheme.md
 	// Note: using (COLOR_X + 8) to access bright versions (8-15) in
 	// 16-color terminals

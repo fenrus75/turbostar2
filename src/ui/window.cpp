@@ -12,6 +12,7 @@
 #include "git_manager.h"
 #include "ui/ui_element.h"
 #include "utf8.h"
+#include "syntax_color_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
     : x_(x), y_(y), width_(width), height_(height), restore_x_(x), restore_y_(y), restore_width_(width), restore_height_(height), id_(id),
@@ -713,16 +714,7 @@ void window::draw_content(bool cursor_only) const
 							if (attr == syntax_attribute::keyword)
 								pair = 26; // Keyword on Magenta
 						} else {
-							if (attr == syntax_attribute::keyword)
-								pair = 12;
-							else if (attr == syntax_attribute::heading)
-								pair = 22;
-							else if (attr == syntax_attribute::bold)
-								pair = 23;
-							else if (attr == syntax_attribute::list_item)
-								pair = 24;
-							else if (attr == syntax_attribute::trailing_space)
-								pair = 27; // White on Red
+							pair = syntax_color_manager::get_instance().get_color_pair(attr);
 						}
 					}
 

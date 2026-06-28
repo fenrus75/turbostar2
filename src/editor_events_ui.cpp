@@ -238,6 +238,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::syntax_colors_config) {
+		logger.log("Dispatching syntax_colors_config event.");
+		active_dialog_ = create_syntax_colors_dialog();
+		active_dialog_mode_ = dialog_mode::syntax_colors;
+		set_focus(focus_target::dialog, "syntax_colors");
+		return;
+	}
+
 	if (ev.type == event_type::task_models_config) {
 		logger.log("Dispatching task_models_config event.");
 		active_dialog_ = create_task_models_dialog();

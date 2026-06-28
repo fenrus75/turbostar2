@@ -7,7 +7,8 @@
 class ui_color_picker : public ui_element
 {
       public:
-	ui_color_picker(std::string name, int x, int y, uint8_t initial_fg = 15, uint8_t initial_bg = 1, uint8_t dialog_bg = 7);
+	ui_color_picker(std::string name, int x, int y, uint8_t initial_fg = 15, uint8_t initial_bg = 1, uint8_t dialog_bg = 7,
+			std::function<void(uint8_t, uint8_t)> on_change = nullptr);
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
@@ -18,10 +19,12 @@ class ui_color_picker : public ui_element
 
 	uint8_t selected_fg() const { return selected_fg_; }
 	uint8_t selected_bg() const { return selected_bg_; }
+	void set_selected_colors(uint8_t fg, uint8_t bg) { selected_fg_ = fg; selected_bg_ = bg; }
 
       private:
 	uint8_t selected_fg_;
 	uint8_t selected_bg_;
 	uint8_t dialog_bg_;
+	std::function<void(uint8_t, uint8_t)> on_change_;
 	mutable bool focus_bg_row_{false};
 };

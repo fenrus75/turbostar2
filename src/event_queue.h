@@ -87,7 +87,8 @@ enum class event_type {
 	open_codereview_viewer,	    ///< Request to open the code review viewer window
 	codereview_action,	    ///< Request to show a code review edit/comment/state dialog
 	codereview_updated,	    ///< Notification that a code review item has been created or updated
-	model_servers_config	    ///< Request to show model servers configuration dialog
+	model_servers_config,	    ///< Request to show model servers configuration dialog
+	syntax_colors_config	    ///< Request to show syntax colors configuration dialog
 };
 
 namespace status_priorities

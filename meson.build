@@ -968,6 +968,12 @@ test_ui_color_picker = executable('test_ui_color_picker',
   include_directories: inc)
 test('unit_ui_color_picker', test_ui_color_picker, suite: 'editor')
 
+test_syntax_color_manager = executable('test_syntax_color_manager',
+  'tests/unit/test_syntax_color_manager.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_syntax_color_manager', test_syntax_color_manager, suite: 'editor')
+
 test_multiline_edit = executable('test_multiline_edit',
   'tests/unit/test_multiline_edit.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

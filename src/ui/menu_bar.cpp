@@ -46,6 +46,7 @@ menu_bar::menu_bar()
 	    {"Options",
 	     'p',
 	     {{"Preferences...", event_type::settings, 'p', "", false},
+	      {"Syntax Highlighting...", event_type::syntax_colors_config, 'H', "", false},
 	      {"Models...", event_type::models_config, 'M', "", false},
 	      {"Model Servers...", event_type::model_servers_config, 'S', "", false},
 	      {"Task Models...", event_type::task_models_config, 'T', "", false},

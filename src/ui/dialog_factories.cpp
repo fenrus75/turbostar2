@@ -26,6 +26,7 @@
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
 #include "utf8.h"
+#include "syntax_color_manager.h"
 
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename)
 {
@@ -2008,4 +2009,76 @@ void apply_model_server_edit_from_dialog(const dialog &dlg, const std::string &o
 							      api_key_opt ? *api_key_opt : "", type);
 	registry.update_server(server);
 	registry.save_servers();
+}
+
+std::unique_ptr<dialog> create_syntax_colors_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Syntax Highlight Colors", 78, 14);
+
+	static const std::vector<syntax_attribute> attrs = {
+		syntax_attribute::normal,
+		syntax_attribute::keyword,
+		syntax_attribute::comment,
+		syntax_attribute::string_literal,
+		syntax_attribute::heading,
+		syntax_attribute::bold,
+		syntax_attribute::italic,
+		syntax_attribute::list_item,
+		syntax_attribute::trailing_space
+	};
+
+	std::vector<std::string> item_names;
+	for (auto attr : attrs) {
+		item_names.push_back(syntax_color_manager::get_attribute_name(attr));
+	}
+
+	auto [init_fg, init_bg] = syntax_color_manager::get_instance().get_color(attrs[0]);
+
+	ui_listbox *listbox_ptr = nullptr;
+
+	auto picker = std::make_unique<ui_color_picker>("color_picker", 26, 1, init_fg, init_bg, 7, [&listbox_ptr, attrs](uint8_t fg, uint8_t bg) {
+		if (listbox_ptr) {
+			int idx = listbox_ptr->get_selected_index();
+			if (idx >= 0 && idx < static_cast<int>(attrs.size())) {
+				syntax_color_manager::get_instance().set_color(attrs[idx], fg, bg);
+			}
+		}
+	});
+	auto picker_raw = picker.get();
+
+	auto listbox = std::make_unique<ui_listbox>("attribute_list", 2, 1, 22, 10, [picker_raw, attrs](int idx) {
+		if (idx >= 0 && idx < static_cast<int>(attrs.size())) {
+			auto [fg, bg] = syntax_color_manager::get_instance().get_color(attrs[idx]);
+			picker_raw->set_selected_colors(fg, bg);
+		}
+	}, nullptr);
+	listbox_ptr = listbox.get();
+
+	listbox->set_items(item_names);
+	listbox->set_selected_index(0);
+
+	dlg->add_child(std::move(listbox));
+	dlg->add_child(std::move(picker));
+
+	auto buttons = std::make_unique<ui_buttons_horizontal>("buttons", 2, 12, 74, 1);
+	buttons->set_centered(true);
+	
+	buttons->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save)", 'O', [d = dlg.get()]() {
+		syntax_color_manager::get_instance().save();
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+
+	buttons->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'C', [d = dlg.get()]() {
+		syntax_color_manager::get_instance().reload();
+		d->set_action(dialog_result::cancelled);
+		d->set_result("cancel");
+	}, true));
+
+	dlg->add_child(std::move(buttons));
+
+	dlg->set_focused_child(listbox_ptr);
+	listbox_ptr->set_focus(true);
+
+	return dlg;
 }

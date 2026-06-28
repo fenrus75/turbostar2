@@ -200,7 +200,8 @@ class editor : public agentlib::document_provider
 		codereview_edit_field,
 		codereview_add_comment,
 		codereview_select_state,
-		codereview_select_severity
+		codereview_select_severity,
+		syntax_colors
 	};
 	int codereview_edit_item_id_{-1};
 	dialog_mode active_dialog_mode_{dialog_mode::none};

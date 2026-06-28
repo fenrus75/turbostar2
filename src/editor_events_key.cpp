@@ -22,6 +22,7 @@
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 #include "codereview_manager.h"
+#include "syntax_color_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -553,6 +554,9 @@ void editor::resolve_dialog(dialog_result res)
 
 	} else if (res == dialog_result::cancelled) {
 		is_quitting_ = false;
+		if (active_dialog_mode_ == dialog_mode::syntax_colors) {
+			syntax_color_manager::get_instance().reload();
+		}
 		if (active_dialog_mode_ == dialog_mode::reload_prompt) {
 			if (doc) {
 				doc->update_last_disk_mtime();
