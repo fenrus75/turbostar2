@@ -1291,7 +1291,8 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 					{"clang-format", "clang-format", "clang-format", false},
 					{"bandit", "bandit", "python3-bandit", false},
 					{"eu-addr2line", "eu-addr2line", "elfutils", false},
-					{"cppcheck", "cppcheck", "cppcheck", false}};
+					{"cppcheck", "cppcheck", "cppcheck", false},
+					{"tidy", "tidy", "tidy", false}};
 
 	std::vector<std::string> missing_packages;
 	for (auto &t : tools) {
