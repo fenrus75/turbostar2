@@ -22,8 +22,6 @@ class subagent_manager
 	void register_subagent(const std::string &name, const std::string &text, const std::string &animation_json = "");
 	void unregister_subagent(const std::string &name);
 
-	// Generate system prompt section listing loaded subagents
-	std::string get_subagents_prompt_section() const;
 
       private:
 	subagent_manager() = default;

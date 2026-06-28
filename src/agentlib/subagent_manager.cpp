@@ -283,27 +283,5 @@ void subagent_manager::unregister_subagent(const std::string &name)
 	}
 }
 
-std::string subagent_manager::get_subagents_prompt_section() const
-{
-	if (subagents_.empty()) {
-		return "";
-	}
-
-	std::string section = "\n\n*** DIRECTIVE: SUBAGENTS ***\n"
-	                      "For complex, specialized, or concurrent sub-tasks, you should consider creating helper subagents using the `create_agent` tool.\n"
-	                      "Provide the helper's identifier in the `subagent_name` argument to inherit its system prompt, tools, and visual animations.\n\n"
-	                      "| Identifier | Description | Read-Only | Allowed Tool Families |\n"
-	                      "| --- | --- | --- | --- |\n";
-	for (const auto &sa : subagents_) {
-		std::string ro = sa.read_only ? "Yes" : "No";
-		std::string families;
-		for (size_t i = 0; i < sa.tool_families.size(); ++i) {
-			if (i > 0) families += ", ";
-			families += sa.tool_families[i];
-		}
-		section += std::format("| {} | {} | {} | {} |\n", sa.name, sa.description, ro, families);
-	}
-	return section;
-}
 
 } // namespace agentlib

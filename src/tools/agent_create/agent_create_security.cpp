@@ -36,19 +36,47 @@ class agent_create_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Creates a new subagent to delegate tasks to. You must provide a 'subagent_name', or a 'task' (user request), "
-		       "or a 'profile' (system instructions), or a combination of them.";
+		std::string base_desc = "Creates a new subagent to delegate tasks to. You must provide a 'subagent_name', or a 'task' (user request), "
+		                        "or a 'profile' (system instructions), or a combination of them.";
+
+		const auto &subagents = agentlib::subagent_manager::get_instance().get_subagents();
+		if (subagents.empty()) {
+			return base_desc;
+		}
+
+		nlohmann::json subagents_arr = nlohmann::json::array();
+		for (const auto &sa : subagents) {
+			subagents_arr.push_back({
+				{"name", sa.name},
+				{"description", sa.description},
+				{"read_only", sa.read_only},
+				{"tool_families", sa.tool_families}
+			});
+		}
+
+		return base_desc + "\n\n<available_subagents>\n" + subagents_arr.dump() + "\n</available_subagents>";
 	}
 
 	nlohmann::json get_parameters_schema() const override
 	{
+		nlohmann::json enum_arr = nlohmann::json::array();
+		for (const auto &sa : agentlib::subagent_manager::get_instance().get_subagents()) {
+			enum_arr.push_back(sa.name);
+		}
+
+		nlohmann::json subagent_name_prop = {
+			{"type", "string"},
+			{"description", "Optional name of a pre-configured subagent profile to initialize prompt/tools configuration."}
+		};
+		if (!enum_arr.empty()) {
+			subagent_name_prop["enum"] = enum_arr;
+		}
+
 		return {
 		    {"type", "object"},
 		    {"properties",
 		     {{"name", {{"type", "string"}, {"description", "A short, descriptive name for the subagent (max 64 chars)."}}},
-		      {"subagent_name",
-		       {{"type", "string"},
-			{"description", "Optional name of a registered subagent profile (e.g. 'research', 'self') to initialize prompt/tools configuration."}}},
+		      {"subagent_name", subagent_name_prop},
 		      {"profile",
 		       {{"type", "string"},
 			{"description", "System instructions and personality profile for the subagent. Optional if 'subagent_name' or 'task' is "
