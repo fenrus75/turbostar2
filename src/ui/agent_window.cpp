@@ -8,6 +8,7 @@
 #include <sstream>
 #include "agentlib/httplib_transport.h"
 #include "agentlib/skill_manager.h"
+#include "agentlib/subagent_manager.h"
 #include "ansi.h"
 #include "config_manager.h"
 #include "event_logger.h"
@@ -67,6 +68,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "- **Resolution**: Use `resolve_code_review_item` when issues are addressed or ruled out.";
 
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
+	system_prompt += agentlib::subagent_manager::get_instance().get_subagents_prompt_section();
 
 	agent_->inject_context("system", system_prompt);
 
