@@ -161,10 +161,6 @@
 
 - Feature: Implement Input Coalescing and Refresh Throttling in the main editor loop (described in docs/refresh-throttling-proposal.md) to reduce terminal redraw overhead and input latency under fast repeat keys or paste streams.
 
-- we need to add a few more viable color combinations for various syntax highlighting types
-
-- consider a syntax highlighter color editor dialog so the user can customize coloring
-
 
 # mid term items
 
@@ -236,6 +232,7 @@
 # done items (move items here on completion)
 
 ## 28-06-2026
+- implemented syntax highlighting colors configuration manager and dynamic colors.json persistence, and created an interactive side-by-side color picker dialog in the editor options menu.
 - agent skills
 - updated AI page with a default agent integration screenshot and introduction section.
 - updated AI page virtual context paging section with the runs-testsuite screenshot, and added a dedicated section describing the integrated agent undo history.
