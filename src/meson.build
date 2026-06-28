@@ -123,6 +123,7 @@ ui_sources = files(
   'ui/components/ui_agent_tile.cpp',
   'ui/components/ui_checkbox.cpp',
   'ui/components/ui_checkbox_group.cpp',
+  'ui/components/ui_color_picker.cpp',
   'ui/components/ui_radio.cpp',
   'ui/components/ui_ask_user_group.cpp',
   'ui/components/ui_group_box.cpp',

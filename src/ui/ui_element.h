@@ -32,6 +32,7 @@ class ui_container;
 | ui_horizontal_flow | src/ui/components/ui_horizontal_flow.h                   |
 | ui_vertical_flow   | src/ui/components/ui_vertical_flow.h                     |
 | ui_durmovie       | src/ui/components/ui_durmovie.h                         |
+| ui_color_picker   | src/ui/components/ui_color_picker.h                     |
 | ui_container      | src/ui/ui_element.h                                     |
 
 */
@@ -295,6 +296,7 @@ void draw_border(int x, int y, int width, int height, border_style style, int co
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_checkbox_group.h"
+#include "ui/components/ui_color_picker.h"
 #include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_grid_flow.h"
 #include "ui/components/ui_group_box.h"

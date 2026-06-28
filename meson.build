@@ -962,6 +962,12 @@ test_agent_tile = executable('test_agent_tile',
   include_directories: inc)
 test('unit_agent_tile', test_agent_tile, suite: 'editor')
 
+test_ui_color_picker = executable('test_ui_color_picker',
+  'tests/unit/test_ui_color_picker.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_ui_color_picker', test_ui_color_picker, suite: 'editor')
+
 test_multiline_edit = executable('test_multiline_edit',
   'tests/unit/test_multiline_edit.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
