@@ -8,6 +8,7 @@
 #include "fs_compile_project_movie.h"
 #include "run_shell_command_movie.h"
 #include "run_python_movie.h"
+#include "turbostar_movie.h"
 #include "event_logger.h"
 #include "utf8.h"
 
@@ -89,6 +90,7 @@ static void register_built_in_animations()
 	reg.register_animation_json("fs_compile_project", fs_compile_project_movie_json);
 	reg.register_animation_json("run_shell_command", run_shell_command_movie_json);
 	reg.register_animation_json("run_python", run_python_movie_json);
+	reg.register_animation_json("turbostar", turbostar_movie_json);
 }
 
 ui_durmovie::ui_durmovie(std::string name, int x, int y, int width, int height)

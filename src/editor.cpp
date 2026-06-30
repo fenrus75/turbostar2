@@ -530,7 +530,8 @@ void editor::run()
 				}
 				needs_render = true;
 			} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt ||
-				   active_dialog_mode_ == dialog_mode::copilot_connect) {
+				   active_dialog_mode_ == dialog_mode::copilot_connect ||
+				   active_dialog_mode_ == dialog_mode::welcome) {
 				needs_render = true;
 			}
 		}

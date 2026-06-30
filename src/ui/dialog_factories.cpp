@@ -8,6 +8,7 @@
 #include "agentlib/ai_model.h"
 #include "agentlib/model_server.h"
 #include "agentlib/copilot_manager.h"
+#include "agentlib/agent_animation.h"
 #include "config_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -25,6 +26,7 @@
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
+#include "ui/components/ui_durmovie.h"
 #include "utf8.h"
 #include "syntax_color_manager.h"
 
@@ -194,27 +196,38 @@ class welcome_dialog_impl : public dialog
 		}
 		return dialog::handle_event(ev, abs_x, abs_y);
 	}
+
+	bool tick() override
+	{
+		update_animation();
+		return false;
+	}
 };
 
 std::unique_ptr<dialog> create_welcome_dialog()
 {
-	std::vector<std::string> lines = {"TurboStar", std::format("Version {}", TURBOSTAR_VERSION), "Copyright (c) 2026 by",
-					  "Arjan van de Ven"};
+	std::vector<std::string> lines = {
+		std::format("Version {}", TURBOSTAR_VERSION),
+		"Copyright (c) 2026 by Arjan van de Ven"
+	};
 
-	int width = 36;
-	for (const auto &line : lines) {
-		if (static_cast<int>(line.length()) + 6 > width) {
-			width = static_cast<int>(line.length()) + 6;
-		}
-	}
+	int flow_width = 38;
+	int width = flow_width + 6;
 
-	auto dlg = std::make_unique<welcome_dialog_impl>("About", width, 12);
+	auto dlg = std::make_unique<welcome_dialog_impl>("About Turbostar", width, 22);
 
-	auto flow = std::make_unique<ui_vertical_flow>("welcome_flow", 3, 2);
+	auto flow = std::make_unique<ui_vertical_flow>("welcome_flow", 3, 1, 0);
+
+	auto movie = std::make_unique<ui_durmovie>("turbostar_movie", 0, 0, 35, 16);
+	auto &reg = agentlib::agent_animation_registry::get_instance();
+	auto anim = reg.get_animation("turbostar");
+	movie->set_animation(anim);
+	movie->set_state(durmovie_state::active);
+	flow->add_child(std::move(movie));
 
 	for (const auto &line : lines) {
 		auto label = std::make_unique<ui_text_label>(line, true);
-		label->set_width(width - 6);
+		label->set_width(flow_width);
 		flow->add_child(std::move(label));
 	}
 
