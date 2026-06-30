@@ -12,12 +12,22 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- subagent creation wizzard dialog
+
+- model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
+   for specific tasks set up these aliases.
+	- base
+	- plan
+	- review
+	- code
+	- image
+
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
-- become an A2A server for plugins
+- become an A2A server for our agents
 
 - become a client to A2A
-	we might need to do a "call A2A" type tool call
+	we need to parse agent cards and hook them up to our subagent directory
 
 - build an A2A directory
 	- maybe a .local style directory service? is there a protocol for autodiscovery?
@@ -46,8 +56,6 @@
 
 - separate model provider (server) database for easy population of model servers
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
-
-
 
 - feature: have a separate model option for "plan mode" phase
 
