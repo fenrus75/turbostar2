@@ -12,6 +12,11 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- when the agent does a grep for a word, we should also do an LSP search for it and report where it is defined/etc
+  as part of the result
+
+- somehow do python plugins for agents and tool calls?
+
 - subagent creation wizzard dialog
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
