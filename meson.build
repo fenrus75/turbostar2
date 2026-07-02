@@ -759,7 +759,7 @@ test_code_get_definition = executable('test_code_get_definition',
    'src/tools/code_get_definition/code_get_definition_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_definition', test_code_get_definition, is_parallel: false, suite: 'agent')
+test('unit_test_code_get_definition', test_code_get_definition, suite: 'agent')
 
 test_code_get_references = executable('test_code_get_references',
   ['tests/unit/test_code_get_references.cpp',
@@ -767,7 +767,7 @@ test_code_get_references = executable('test_code_get_references',
    'src/tools/code_get_references/code_get_references_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_references', test_code_get_references, is_parallel: false, suite: 'agent')
+test('unit_test_code_get_references', test_code_get_references, suite: 'agent')
 
 test_code_get_scope = executable('test_code_get_scope',
   ['tests/unit/test_code_get_scope.cpp',
@@ -775,7 +775,7 @@ test_code_get_scope = executable('test_code_get_scope',
    'src/tools/code_get_scope/code_get_scope_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_code_get_scope', test_code_get_scope, is_parallel: false, suite: 'agent')
+test('unit_test_code_get_scope', test_code_get_scope, suite: 'agent')
 
 test_crashdump_get_info = executable('test_crashdump_get_info',
   ['tests/unit/test_crashdump_get_info.cpp',
@@ -789,13 +789,13 @@ test_assert_fail = executable('test_assert_fail',
   'tests/unit/test_assert_fail.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_assert_fail', test_assert_fail, is_parallel: false, suite: 'agent')
+test('unit_test_assert_fail', test_assert_fail, suite: 'agent')
 
 test_fallback_crash = executable('test_fallback_crash',
   'tests/unit/test_fallback_crash.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fallback_crash', test_fallback_crash, is_parallel: false, suite: 'agent')
+test('unit_test_fallback_crash', test_fallback_crash, suite: 'agent')
 
 test_crashdump_list = executable('test_crashdump_list',
   ['tests/unit/test_crashdump_list.cpp',
@@ -1055,7 +1055,7 @@ test_document = executable('test_document',
   'tests/unit/test_document.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
-test('unit_document', test_document, is_parallel: false, suite: 'editor')
+test('unit_document', test_document, suite: 'editor')
 
 test_window_scroll = executable('test_window_scroll',
   'tests/unit/test_window_scroll.cpp',
@@ -1277,7 +1277,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'agent'
   )
   test('e2e_turboagent_startup', e2e_exe,
@@ -1767,7 +1766,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'editor'
   )
   test('e2e_agent_todos', e2e_exe,
@@ -1804,7 +1802,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'agent'
   )
   test('e2e_exit_save_prompt_loop', e2e_exe,
@@ -1822,7 +1819,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'editor'
   )
   test('e2e_sqlite_tools', e2e_exe,
@@ -1831,7 +1827,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'agent'
   )
 
@@ -1841,7 +1836,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'editor'
   )
 
@@ -1851,7 +1845,6 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'editor'
   )
 
@@ -1861,12 +1854,9 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
-    is_parallel: false,
     suite: 'editor'
   )
 
-  # IMPORTANT: Keep e2e_lsp_selection as the very last test in this file.
-  # It has a tendency to make later tests fail randomly if it is not last.
   test('e2e_lsp_selection', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_lsp_selection.py')],
     env: e2e_env,
