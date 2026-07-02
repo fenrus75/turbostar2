@@ -7,17 +7,16 @@
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
 
 ## Webpage todo items (do not delete this header line)
-
+- [ ] Editor: Add a section about our built-in hex editor, we have a screenshot for this in `docs/hexeditor.png`
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- usability: a way to, in our agent multi-line edit ui element, pop up a full editing window for longer prompts. We have
-   a full scale editor after all! This will likely benefit all users of the multi-line edit element.
-   The content of the window should stay fully synchronized with the multi-line edit element.
 
 - usability: "prompt-from-file" -- simple clickable thing in the agent window that loads the content of a file into the multi-line edit
-   field for the prompt
+   field for the prompt  -- better option: support ^K mode in multiline edit, with "R" for reading from file
+
+- agent prompt (multi-line edit) -- have a cursor-up/down way of repeating older prompts (so shell-like history)
 
 - somehow do python plugins for agents and tool calls?
 
@@ -81,6 +80,8 @@
 		- for python we have our security analyzer -- we should run this when reviewing python files
 		- if we had backtraces/crashes that involve this file we should include them in context or at least reference them with the toolcall to get the details
 
+
+- we should create a code review agent file in agents/
 
 - the code review agent should have access to the security plugin tool namespace
 
@@ -246,6 +247,8 @@
 # done items (move items here on completion)
 
 ## 02-07-2026
+- implemented F5 key shortcut to pop up a multiline prompt in a full editor window named `*Prompt*` with real-time bidirectional synchronization.
+- implemented command line option `--force-ascii` and tristate file type check (`ASCII`, `MAYBE`, `BINARY`) to prompt the user when opening files with null bytes.
 - implemented timeout parameters for shell command, python, testing, and compile tool execution, and added a default 60s timeout for git commands via `execute_command_sync`.
 - extended the `fs_grep_files` tool to perform an LSP symbol search on regular word queries, returning their definition locations formatted with "is defined in" at the top of the output.
 
