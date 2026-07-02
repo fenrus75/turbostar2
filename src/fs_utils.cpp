@@ -85,6 +85,48 @@ bool is_binary_file(const std::string &filepath)
 	return false;
 }
 
+file_type_t get_file_type(const std::string &filepath)
+{
+	if (filepath.empty()) {
+		return file_type_t::ASCII;
+	}
+	std::error_code ec;
+	if (!std::filesystem::is_regular_file(filepath, ec)) {
+		return file_type_t::ASCII;
+	}
+	uint64_t size = std::filesystem::file_size(filepath, ec);
+	if (ec || size == 0) {
+		return file_type_t::ASCII;
+	}
+	std::ifstream file(filepath, std::ios::binary);
+	if (!file.is_open()) {
+		return file_type_t::ASCII;
+	}
+	char buffer[4096];
+	file.read(buffer, std::min<size_t>(size, sizeof(buffer)));
+	size_t bytes_read = file.gcount();
+
+	bool has_zero = false;
+	bool has_other_control = false;
+
+	for (size_t i = 0; i < bytes_read; ++i) {
+		unsigned char b = static_cast<unsigned char>(buffer[i]);
+		if (b == 0) {
+			has_zero = true;
+		} else if ((b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) || b == 127) {
+			has_other_control = true;
+		}
+	}
+
+	if (has_other_control) {
+		return file_type_t::BINARY;
+	}
+	if (has_zero) {
+		return file_type_t::MAYBE;
+	}
+	return file_type_t::ASCII;
+}
+
 std::string count_lines_in_file(const std::string &filepath)
 {
 	if (is_binary_file(filepath)) {

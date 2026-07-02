@@ -140,6 +140,8 @@ class editor : public agentlib::document_provider
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
+	void open_file_as_text(const std::string &filename);
+	void open_file_as_binary(const std::string &filename);
 	void check_files_changed();
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
@@ -201,7 +203,8 @@ class editor : public agentlib::document_provider
 		codereview_add_comment,
 		codereview_select_state,
 		codereview_select_severity,
-		syntax_colors
+		syntax_colors,
+		maybe_binary_prompt
 	};
 	int codereview_edit_item_id_{-1};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
@@ -209,6 +212,7 @@ class editor : public agentlib::document_provider
 	std::unique_ptr<popup_menu> active_popup_;
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
 	std::string configuring_mcp_server_;
+	std::string pending_open_filename_;
 	long long last_clock_minute_{0};
 
 	search_params current_search_;

@@ -936,6 +936,59 @@ std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::
 	return std::make_unique<file_dialog_impl>(title, initial_path);
 }
 
+std::unique_ptr<dialog> create_maybe_binary_prompt_dialog(const std::string &filename)
+{
+	int max_dlg_width = COLS > 8 ? COLS - 8 : 50;
+	if (max_dlg_width > 120)
+		max_dlg_width = 120;
+
+	std::string display_name = filename;
+	int msg_overhead = 40; // Length of prefix/suffix around name
+	if (static_cast<int>(display_name.length()) + msg_overhead + 4 > max_dlg_width) {
+		int max_filename_len = max_dlg_width - msg_overhead - 4;
+		if (max_filename_len < 10)
+			max_filename_len = 10;
+		display_name = fs_utils::shorten_filename(display_name, max_filename_len);
+	}
+
+	int desired_width = std::max(55, static_cast<int>(display_name.length()) + msg_overhead + 4);
+	auto dlg = std::make_unique<dialog>("Binary Warning", desired_width, 8);
+
+	auto flow = std::make_unique<ui_vertical_flow>("maybe_binary_flow", 2, 2);
+
+	std::string msg = "File '" + display_name + "' contains null bytes. Open as Text or Hex?";
+	auto label = std::make_unique<ui_text_label>(msg, true);
+	label->set_width(desired_width - 4);
+	flow->add_child(std::move(label));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_text", "Text", 'T', [d = dlg.get()]() {
+		d->set_result("text");
+		d->set_action(dialog_result::confirmed);
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_hex", "Hex", 'H', [d = dlg.get()]() {
+		d->set_result("hex");
+		d->set_action(dialog_result::confirmed);
+	}));
+	btns->add_child(std::make_unique<ui_button>(
+	    "btn_cancel", "Cancel", 'C',
+	    [d = dlg.get()]() {
+		    d->set_result("cancel");
+		    d->set_action(dialog_result::cancelled);
+	    },
+	    true));
+	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
+	dlg->add_child(std::move(flow));
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+	dlg->set_focus_by_name("btn_text");
+	return dlg;
+}
+
 std::unique_ptr<dialog> create_model_list_dialog()
 {
 	auto dlg = std::make_unique<dialog>("AI Models", 60, 17);

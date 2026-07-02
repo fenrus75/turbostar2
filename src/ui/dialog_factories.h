@@ -20,6 +20,7 @@ void apply_settings_from_dialog(const dialog &dlg);
 std::unique_ptr<dialog> create_task_models_dialog();
 void apply_task_models_from_dialog(const dialog &dlg);
 std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path);
+std::unique_ptr<dialog> create_maybe_binary_prompt_dialog(const std::string &filename);
 
 std::unique_ptr<dialog> create_model_list_dialog();
 std::unique_ptr<dialog> create_model_selection_dialog();

@@ -85,21 +85,46 @@ editor::editor(editor_options opts)
 
 void editor::new_window(const std::string &filename)
 {
-	std::shared_ptr<document> doc;
-	std::unique_ptr<window> win;
-
-	if (!filename.empty() && fs_utils::is_binary_file(filename)) {
-		auto bin_doc = std::make_shared<binary_document>(global_queue_, filename);
-		doc = bin_doc;
-		win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename, bin_doc);
-	} else {
-		doc = std::make_shared<document>(global_queue_, filename);
-		doc->add_listener(&codereview_manager::get_instance());
-		win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
-		win->attach_document(doc);
+	if (filename.empty()) {
+		open_file_as_text("");
+		return;
 	}
 
+	fs_utils::file_type_t type = fs_utils::get_file_type(filename);
+	if (config_manager::get_instance().is_force_ascii()) {
+		type = fs_utils::file_type_t::ASCII;
+	}
+
+	if (type == fs_utils::file_type_t::BINARY) {
+		open_file_as_binary(filename);
+	} else if (type == fs_utils::file_type_t::ASCII) {
+		open_file_as_text(filename);
+	} else { // MAYBE
+		pending_open_filename_ = filename;
+		active_dialog_ = create_maybe_binary_prompt_dialog(filename);
+		active_dialog_mode_ = dialog_mode::maybe_binary_prompt;
+		set_focus(focus_target::dialog, "maybe_binary_prompt");
+	}
+}
+
+void editor::open_file_as_text(const std::string &filename)
+{
+	auto doc = std::make_shared<document>(global_queue_, filename);
+	doc->add_listener(&codereview_manager::get_instance());
+	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
+	win->attach_document(doc);
+
 	documents_.push_back(doc);
+	windows_.push_back(std::move(win));
+	activate_window(windows_.size() - 1);
+}
+
+void editor::open_file_as_binary(const std::string &filename)
+{
+	auto bin_doc = std::make_shared<binary_document>(global_queue_, filename);
+	auto win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename, bin_doc);
+
+	documents_.push_back(bin_doc);
 	windows_.push_back(std::move(win));
 	activate_window(windows_.size() - 1);
 }

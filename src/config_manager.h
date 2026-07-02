@@ -99,6 +99,15 @@ class config_manager
 		paranoid_mode_ = paranoid;
 	}
 
+	bool is_force_ascii() const
+	{
+		return force_ascii_;
+	}
+	void set_force_ascii(bool force)
+	{
+		force_ascii_ = force;
+	}
+
 	bool is_log_all_tool_calls() const
 	{
 		return log_all_tool_calls_;
@@ -178,6 +187,8 @@ class config_manager
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
+
+	bool force_ascii_{false};
 
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};

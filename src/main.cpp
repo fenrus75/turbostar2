@@ -45,6 +45,7 @@ int main(int argc, char **argv)
 	std::string override_model_id;
 	std::string project_dir;
 	bool fresh_agent = false;
+	bool force_ascii = false;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
@@ -52,6 +53,7 @@ int main(int argc, char **argv)
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
+	app.add_flag("--force-ascii", force_ascii, "Force opening files as ASCII text");
 	app.add_option("--project-dir", project_dir, "Override the project directory (useful for testing isolated environments)");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
@@ -227,6 +229,8 @@ int main(int argc, char **argv)
 	if (!override_model_id.empty()) {
 		config_manager::get_instance().set_default_model_id(override_model_id);
 	}
+
+	config_manager::get_instance().set_force_ascii(force_ascii);
 
 	std::string binary_name = fs::path(argv[0]).filename().string();
 	bool is_turboagent = (binary_name == "turboagent");

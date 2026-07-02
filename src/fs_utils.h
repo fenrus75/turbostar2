@@ -29,7 +29,14 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p);
 /**
  * @brief Heuristically checks if a file is a binary file by scanning for a null byte in the first 4KB.
  */
+enum class file_type_t {
+    ASCII,
+    MAYBE,
+    BINARY
+};
+
 bool is_binary_file(const std::string &filepath);
+file_type_t get_file_type(const std::string &filepath);
 
 /**
  * @brief Rapidly counts the number of lines in a file by scanning memory. Returns empty string if file is binary or too large.

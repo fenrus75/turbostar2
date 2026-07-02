@@ -78,6 +78,13 @@ void editor::resolve_dialog(dialog_result res)
 			if (doc) {
 				doc->insert_file(result_path);
 			}
+		} else if (active_dialog_mode_ == dialog_mode::maybe_binary_prompt) {
+			std::string val = active_dialog_->get_result();
+			if (val == "text") {
+				open_file_as_text(pending_open_filename_);
+			} else if (val == "hex") {
+				open_file_as_binary(pending_open_filename_);
+			}
 		} else if (active_dialog_mode_ == dialog_mode::ask_user || active_dialog_mode_ == dialog_mode::approve_plan) {
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value(active_dialog_->get_result());
