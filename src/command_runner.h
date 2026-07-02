@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 #include "fs_utils.h"
 
 enum class home_access_t {
@@ -12,7 +13,10 @@ enum class home_access_t {
 
 class command_runner {
 public:
-    command_runner() { apply_default_profile(); }
+    command_runner() {
+        apply_default_profile();
+        start_time_ = std::chrono::steady_clock::now();
+    }
     virtual ~command_runner() = default;
 
     // Configuration Setters
@@ -27,6 +31,9 @@ public:
     void set_bypass_crashdump_check(bool bypass) { bypass_crashdump_check_ = bypass; }
     void set_use_pty(bool use_pty) { use_pty_ = use_pty; }
     void set_enable_crash_catcher(bool enable) { enable_crash_catcher_ = enable; }
+    void set_timeout(int seconds) { timeout_seconds_ = seconds; }
+    int get_timeout() const { return timeout_seconds_; }
+    bool has_timed_out() const { return timed_out_; }
 
     // Pre-defined Security Profiles
     void apply_default_profile();
@@ -93,6 +100,11 @@ protected:
     // ------------------------------------------------------------------------
 
     virtual bool should_continue() const;
+
+protected:
+    int timeout_seconds_{0};
+    mutable bool timed_out_{false};
+    mutable std::chrono::time_point<std::chrono::steady_clock> start_time_;
 
 
 private:

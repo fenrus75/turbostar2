@@ -86,14 +86,11 @@ public:
     terminal_command_runner(std::shared_ptr<agentlib::interaction_terminal> interaction, 
                             std::function<void()> trigger_update)
         : interaction_(interaction), trigger_update_(std::move(trigger_update)) {
-        start_time_ = std::chrono::steady_clock::now();
-        last_ui_update_time_ = start_time_;
+        last_ui_update_time_ = std::chrono::steady_clock::now();
     }
 
     std::string get_final_output() const { return utf8::sanitize(parser_.get_full_output()); }
     
-    void set_timeout(int seconds) { timeout_seconds_ = seconds; }
-
 protected:
     bool should_continue() const override {
         // Periodically trigger UI updates to keep animations active during execution
@@ -104,15 +101,7 @@ protected:
                 trigger_update_();
             }
         }
-        if (!command_runner::should_continue()) {
-            return false;
-        }
-        if (timeout_seconds_ > 0) {
-            if (std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count() > timeout_seconds_) {
-                return false;
-            }
-        }
-        return true;
+        return command_runner::should_continue();
     }
 
     void on_output_chunk(const std::string& chunk) override {
@@ -128,9 +117,7 @@ private:
     terminal_parser parser_;
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
     std::function<void()> trigger_update_;
-    std::chrono::time_point<std::chrono::steady_clock> start_time_;
     mutable std::chrono::time_point<std::chrono::steady_clock> last_ui_update_time_;
-    int timeout_seconds_{0};
 };
 
 } // namespace tools

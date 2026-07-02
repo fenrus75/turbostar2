@@ -248,6 +248,8 @@ std::string command_runner::build_command(const std::string &raw_command) const
 
 int command_runner::execute(const std::string &command)
 {
+	start_time_ = std::chrono::steady_clock::now();
+	timed_out_ = false;
 	std::string final_command = build_command(command);
 	if (final_command.find("2>") == std::string::npos && final_command.find(">&") == std::string::npos) {
 		final_command += " 2>&1";
@@ -391,5 +393,15 @@ void sync_command_runner::on_output_line(const std::string &line)
 
 bool command_runner::should_continue() const
 {
-	return !project_manager::get_instance().is_exiting();
+	if (project_manager::get_instance().is_exiting()) {
+		return false;
+	}
+	if (timeout_seconds_ > 0) {
+		auto now = std::chrono::steady_clock::now();
+		if (std::chrono::duration_cast<std::chrono::seconds>(now - start_time_).count() > timeout_seconds_) {
+			timed_out_ = true;
+			return false;
+		}
+	}
+	return true;
 }

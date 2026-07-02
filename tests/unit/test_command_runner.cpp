@@ -153,6 +153,20 @@ int main()
 		fs::current_path(orig_cwd);
 	}
 
+	// Test timeout functionality
+	{
+		sync_command_runner runner;
+		runner.set_timeout(1);
+		auto start = std::chrono::steady_clock::now();
+		int exit_code = runner.execute("sleep 10");
+		auto end = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+
+		std::cout << "Timeout test finished in " << duration << "s with exit code " << exit_code << "\n";
+		assert(runner.has_timed_out());
+		assert(duration < 5); // Should have timed out in ~1s instead of waiting 10s
+	}
+
 	std::cout << "test_command_runner passed!\n";
 	return 0;
 }
