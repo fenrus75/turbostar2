@@ -37,14 +37,7 @@
 
 - have a turboserver mode where we are headless but only serve A2A requests?
 
-- we need a /command registery so that plugins can register commands
-	- will clean up the current handling a lot
-	- will need to decide what kind of things we need to pass to the handler
-		- agent_
-		- ...
 
-	- a registered /command action that activates a skill
-	- a registered /command action that does a toolcall
 
 
 - a /command action that activates a tool family (via menu?)
@@ -242,6 +235,7 @@
 # done items (move items here on completion)
 
 ## 02-07-2026
+- implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.
 - implemented input history for text input boxes and multiline prompt edits, persistent per project.
 - implemented ^K R shortcut inside ui_multiline_edit to prompt for and read/insert external file contents.
 - implemented F5 key shortcut to pop up a multiline prompt in a full editor window named `*Prompt*` with real-time bidirectional synchronization.
