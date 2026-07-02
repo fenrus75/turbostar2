@@ -15,6 +15,42 @@ ui_multiline_edit::ui_multiline_edit(std::string name, int width, int height,
 {
 }
 
+ui_multiline_edit::~ui_multiline_edit()
+{
+	if (linked_doc_) {
+		linked_doc_->remove_listener(this);
+	}
+}
+
+void ui_multiline_edit::link_document(std::shared_ptr<document> doc)
+{
+	if (linked_doc_) {
+		linked_doc_->remove_listener(this);
+	}
+	linked_doc_ = doc;
+	if (linked_doc_) {
+		linked_doc_->add_listener(this);
+		buffer_ = linked_doc_->get_text_all();
+		cursor_pos_ = buffer_.length();
+		update_scroll();
+	}
+}
+
+void ui_multiline_edit::on_document_changed(const std::string &filename)
+{
+	if (linked_doc_ && filename == linked_doc_->get_filename()) {
+		std::string text = linked_doc_->get_text_all();
+		if (buffer_ != text) {
+			buffer_ = text;
+			cursor_pos_ = buffer_.length();
+			update_scroll();
+			if (on_change_) {
+				on_change_(buffer_);
+			}
+		}
+	}
+}
+
 void ui_multiline_edit::set_buffer(const std::string &text)
 {
 	buffer_ = text;
@@ -296,7 +332,12 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 		if (has_focus_) {
 			int key = ev.key_code;
 
-		if (key == 11) { // Ctrl-K
+		if (key == KEY_F(5)) {
+			if (on_external_edit_) {
+				on_external_edit_();
+				handled = true;
+			}
+		} else if (key == 11) { // Ctrl-K
 			k_block_mode_ = true;
 			handled = true;
 		} else if (k_block_mode_) {
@@ -540,8 +581,18 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 		}
 	}
 
-	if (handled && buffer_ != orig_buffer && on_change_) {
-		on_change_(buffer_);
+	if (handled && buffer_ != orig_buffer) {
+		if (linked_doc_) {
+			std::string doc_text = linked_doc_->get_text_all();
+			if (doc_text != buffer_) {
+				linked_doc_->clear();
+				linked_doc_->insert_text(buffer_);
+				linked_doc_->clear_modified();
+			}
+		}
+		if (on_change_) {
+			on_change_(buffer_);
+		}
 	}
 	return handled;
 }

@@ -148,6 +148,13 @@ void editor::dispatch_event_file(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::open_prompt_editor) {
+		if (ev.multiline_edit_ptr) {
+			open_prompt_in_editor(ev.multiline_edit_ptr, ev.payload);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::open_file) {
 		logger.log("Dispatching open_file event for: " + ev.payload);
 		if (ev.payload.empty())

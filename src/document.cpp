@@ -173,6 +173,11 @@ bool document::save()
 	bool modified = modified_;
 	lock.unlock();
 
+	if (fname == "*Prompt*") {
+		clear_modified();
+		return true;
+	}
+
 	if (fname.empty()) {
 		event_logger::get_instance().log("Save failed: No filename specified.");
 		return false;
@@ -188,6 +193,10 @@ bool document::save()
 
 bool document::save_to_file(const std::string &filename)
 {
+	if (filename == "*Prompt*") {
+		clear_modified();
+		return true;
+	}
 	std::unique_lock lock(mutex_);
 	std::string text_to_save;
 	for (int i = 0; i < line_count_unlocked(); ++i) {
@@ -496,6 +505,9 @@ void document::set_modified()
 		return;
 	modified_ = true;
 	lsp_diagnostics_.clear();
+	for (auto *l : listeners_) {
+		l->on_document_changed(filename_);
+	}
 }
 
 bool document::is_space_at(int y, int x) const

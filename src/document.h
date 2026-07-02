@@ -27,6 +27,7 @@ public:
 	virtual ~document_listener() = default;
 	virtual void on_line_inserted(const std::string &filename, int y) = 0;
 	virtual void on_line_deleted(const std::string &filename, int y) = 0;
+	virtual void on_document_changed(const std::string &/*filename*/) {}
 };
 
 enum class undo_group_type {

@@ -129,6 +129,36 @@ void editor::open_file_as_binary(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
+void editor::open_prompt_in_editor(ui_multiline_edit *edit, const std::string &initial_text)
+{
+	std::string virtual_filename = "*Prompt*";
+
+	// Check if already open
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		auto doc = windows_[i]->get_document();
+		if (doc && doc->get_filename() == virtual_filename) {
+			edit->link_document(doc);
+			activate_window(i);
+			return;
+		}
+	}
+
+	// Create virtual prompt document
+	auto doc = std::make_shared<document>(global_queue_, virtual_filename);
+	doc->clear();
+	doc->insert_text(initial_text);
+	doc->clear_modified();
+
+	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, virtual_filename);
+	win->attach_document(doc);
+
+	documents_.push_back(doc);
+	windows_.push_back(std::move(win));
+	activate_window(windows_.size() - 1);
+
+	edit->link_document(doc);
+}
+
 void editor::new_diff_window()
 {
 	auto doc = get_active_doc();

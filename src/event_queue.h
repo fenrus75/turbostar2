@@ -1,5 +1,7 @@
 #pragma once
 
+class ui_multiline_edit;
+
 #include <future>
 #include <memory>
 #include <mutex>
@@ -88,7 +90,8 @@ enum class event_type {
 	codereview_action,	    ///< Request to show a code review edit/comment/state dialog
 	codereview_updated,	    ///< Notification that a code review item has been created or updated
 	model_servers_config,	    ///< Request to show model servers configuration dialog
-	syntax_colors_config	    ///< Request to show syntax colors configuration dialog
+	syntax_colors_config,	    ///< Request to show syntax colors configuration dialog
+	open_prompt_editor	    ///< Request to edit a multiline edit buffer in a full editor window
 };
 
 namespace status_priorities
@@ -149,6 +152,7 @@ struct editor_event {
 	std::vector<std::string> prompt_options;
 	std::shared_ptr<std::promise<std::string>> prompt_promise;
 	std::shared_ptr<void> generic_promise;
+	ui_multiline_edit *multiline_edit_ptr{nullptr};
 };
 
 /**
