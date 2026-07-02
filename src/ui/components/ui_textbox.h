@@ -49,7 +49,7 @@ class ui_textbox : public ui_element
 	bool history_enabled_{false};
 	std::string history_id_;
 	int history_index_{-1};
-	std::string history_temp_entry_;
+	std::unordered_map<int, std::string> traversal_edits_;
 
 	std::string buffer_;
 	int cursor_pos_;

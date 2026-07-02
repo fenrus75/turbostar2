@@ -123,6 +123,9 @@ void ui_textbox::draw(int abs_x, int abs_y) const
 
 bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 {
+	std::string orig_buffer = buffer_;
+	bool handled = false;
+
 	if (ev.type == event_type::key_press) {
 		if (has_focus_) {
 			selection_start_ = -1;
@@ -132,6 +135,7 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			if (history_enabled_ && !buffer_.empty()) {
 				input_history_manager::get_instance().add_entry(history_id_, buffer_);
 				history_index_ = -1;
+				traversal_edits_.clear();
 			}
 			if (on_submit_)
 				on_submit_(buffer_);
@@ -139,61 +143,63 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 
 		if (has_focus_) {
-			int key = ev.key_code;
-			if (history_enabled_ &&
-			    (key == KEY_BACKSPACE || key == 127 || key == 8 || key == KEY_DC ||
-			     (key >= 32 && key <= 126) || key == 25)) {
-				history_index_ = -1;
-			}
-
 			if (ev.key_code == KEY_RIGHT) {
 				if (autocomplete_provider_ && !buffer_.empty()) {
 					std::string sug = autocomplete_provider_(buffer_);
 					if (!sug.empty() && sug.length() > buffer_.length() &&
 					    cursor_pos_ == static_cast<int>(buffer_.length())) {
 						set_buffer(sug);
-						return true;
+						handled = true;
+						goto finish;
 					}
 				}
 				if (cursor_pos_ < static_cast<int>(buffer_.length()))
 					cursor_pos_++;
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_LEFT) {
 				if (cursor_pos_ > 0)
 					cursor_pos_--;
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_HOME || ev.key_code == 1) {
 				cursor_pos_ = 0;
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_END || ev.key_code == 5) {
 				cursor_pos_ = buffer_.length();
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
 				if (cursor_pos_ > 0) {
 					buffer_.erase(cursor_pos_ - 1, 1);
 					cursor_pos_--;
 				}
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == 25) { // Ctrl-Y: Clear textbox (delete line)
 				buffer_.clear();
 				cursor_pos_ = 0;
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_DC) { // Delete
 				if (cursor_pos_ < static_cast<int>(buffer_.length())) {
 					buffer_.erase(cursor_pos_, 1);
 				}
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code >= 32 && ev.key_code <= 126) {
 				buffer_.insert(cursor_pos_, 1, static_cast<char>(ev.key_code));
 				cursor_pos_++;
-				return true;
+				handled = true;
+				goto finish;
 			}
 
 			if (ev.key_code == KEY_DOWN || ev.key_code == '\t') {
@@ -202,13 +208,13 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 					if (max_index > 0 && history_index_ > -1) {
 						history_index_--;
 						if (history_index_ == -1) {
-							set_buffer(history_temp_entry_);
+							set_buffer(traversal_edits_[-1]);
 						} else {
-							const auto &hist = input_history_manager::get_instance().get_history(history_id_);
-							set_buffer(hist[hist.size() - 1 - history_index_]);
+							set_buffer(traversal_edits_[history_index_]);
 						}
 					}
-					return true;
+					handled = true;
+					goto finish;
 				}
 				ui_element *p = parent_;
 				while (p) {
@@ -216,22 +222,30 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 						break;
 					p = p->parent();
 				}
-				return true;
+				handled = true;
+				goto finish;
 			}
 			if (ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
 				if (history_enabled_ && ev.key_code == KEY_UP) {
 					int max_index = input_history_manager::get_instance().get_history(history_id_).size();
 					if (max_index > 0) {
-						if (history_index_ == -1) {
-							history_temp_entry_ = buffer_;
+						if (history_index_ == -1 && traversal_edits_.find(-1) == traversal_edits_.end()) {
+							traversal_edits_[-1] = buffer_;
 						}
 						if (history_index_ < max_index - 1) {
 							history_index_++;
-							const auto &hist = input_history_manager::get_instance().get_history(history_id_);
-							set_buffer(hist[hist.size() - 1 - history_index_]);
+							if (traversal_edits_.find(history_index_) != traversal_edits_.end()) {
+								set_buffer(traversal_edits_[history_index_]);
+							} else {
+								const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+								std::string item = hist[hist.size() - 1 - history_index_];
+								set_buffer(item);
+								traversal_edits_[history_index_] = item;
+							}
 						}
 					}
-					return true;
+					handled = true;
+					goto finish;
 				}
 				ui_element *p = parent_;
 				while (p) {
@@ -239,16 +253,14 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 						break;
 					p = p->parent();
 				}
-				return true;
+				handled = true;
+				goto finish;
 			}
 		}
 	}
 
 	if (ev.type == event_type::paste) {
 		if (has_focus_) {
-			if (history_enabled_) {
-				history_index_ = -1;
-			}
 			selection_start_ = -1;
 			selection_end_ = -1;
 			std::string sanitized = ev.payload;
@@ -258,7 +270,8 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 			buffer_.insert(cursor_pos_, sanitized);
 			cursor_pos_ += sanitized.length();
-			return true;
+			handled = true;
+			goto finish;
 		}
 	}
 
@@ -331,7 +344,13 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 	}
 
-	return false;
+	handled = false;
+
+finish:
+	if (buffer_ != orig_buffer && history_enabled_) {
+		traversal_edits_[history_index_] = buffer_;
+	}
+	return handled;
 }
 
 std::optional<std::string> ui_textbox::get_value(const std::string &target_name) const
@@ -349,5 +368,9 @@ void ui_textbox::set_focus(bool focus)
 		selection_start_ = -1;
 		selection_end_ = -1;
 		is_mouse_selecting_ = false;
+		if (history_enabled_) {
+			history_index_ = -1;
+			traversal_edits_.clear();
+		}
 	}
 }

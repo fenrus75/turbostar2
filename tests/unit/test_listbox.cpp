@@ -13,6 +13,7 @@
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
+#include "input_history_manager.h"
 
 int main()
 {
@@ -429,6 +430,62 @@ int main()
 		container.set_focus(false);
 		tb->get_selection_range(start, end);
 		assert(start == -1 && end == -1);
+	}
+
+	// Test history traversal and cloning edits
+	{
+		input_history_manager::get_instance().add_entry("test_history", "command A");
+		input_history_manager::get_instance().add_entry("test_history", "command B");
+
+		ui_textbox tb("my_textbox", 40, "");
+		tb.set_history_enabled(true, "test_history");
+		tb.set_focus(true);
+
+		// Type "my draft"
+		editor_event ev_char;
+		ev_char.type = event_type::key_press;
+		for (char c : std::string("my draft")) {
+			ev_char.key_code = c;
+			tb.handle_event(ev_char, 0, 0);
+		}
+		assert(*tb.get_value("my_textbox") == "my draft");
+
+		// Press Up
+		editor_event ev_up;
+		ev_up.type = event_type::key_press;
+		ev_up.key_code = KEY_UP;
+		tb.handle_event(ev_up, 0, 0);
+		assert(*tb.get_value("my_textbox") == "command B");
+
+		// Edit it: append 'x'
+		ev_char.key_code = 'x';
+		tb.handle_event(ev_char, 0, 0);
+		assert(*tb.get_value("my_textbox") == "command Bx");
+
+		// Press Up again
+		tb.handle_event(ev_up, 0, 0);
+		assert(*tb.get_value("my_textbox") == "command A");
+
+		// Press Down
+		editor_event ev_down;
+		ev_down.type = event_type::key_press;
+		ev_down.key_code = KEY_DOWN;
+		tb.handle_event(ev_down, 0, 0);
+		// Should return to the edited clone
+		assert(*tb.get_value("my_textbox") == "command Bx");
+
+		// Press Down again
+		tb.handle_event(ev_down, 0, 0);
+		// Should return to "my draft"
+		assert(*tb.get_value("my_textbox") == "my draft");
+
+		// Lose focus
+		tb.set_focus(false);
+		tb.set_focus(true);
+		// Press Up
+		tb.handle_event(ev_up, 0, 0);
+		// Should start fresh and show the actual history item "command B" without modifications
+		assert(*tb.get_value("my_textbox") == "command B");
 	}
 
 	std::cout << "ui_listbox and ui_element unit tests passed!\n";

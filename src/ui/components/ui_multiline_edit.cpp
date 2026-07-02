@@ -342,11 +342,6 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 	if (ev.type == event_type::key_press) {
 		if (has_focus_) {
 			int key = ev.key_code;
-			if (history_enabled_ &&
-			    (key == KEY_BACKSPACE || key == 127 || key == 8 || key == KEY_DC ||
-			     (key >= 32 && key <= 126) || key == 24 || key == 26 || key == 3)) {
-				history_index_ = -1;
-			}
 
 		if (key == KEY_F(5)) {
 			editor_event open_ev;
@@ -471,13 +466,19 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 						} else if (history_enabled_) {
 							int max_index = input_history_manager::get_instance().get_history(history_id_).size();
 							if (max_index > 0) {
-								if (history_index_ == -1) {
-									history_temp_entry_ = buffer_;
+								if (history_index_ == -1 && traversal_edits_.find(-1) == traversal_edits_.end()) {
+									traversal_edits_[-1] = buffer_;
 								}
 								if (history_index_ < max_index - 1) {
 									history_index_++;
-									const auto &hist = input_history_manager::get_instance().get_history(history_id_);
-									set_buffer(hist[hist.size() - 1 - history_index_]);
+									if (traversal_edits_.find(history_index_) != traversal_edits_.end()) {
+										set_buffer(traversal_edits_[history_index_]);
+									} else {
+										const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+										std::string item = hist[hist.size() - 1 - history_index_];
+										set_buffer(item);
+										traversal_edits_[history_index_] = item;
+									}
 									cursor_pos_ = buffer_.length();
 									update_scroll();
 								}
@@ -492,10 +493,9 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 						} else if (history_enabled_ && history_index_ > -1) {
 							history_index_--;
 							if (history_index_ == -1) {
-								set_buffer(history_temp_entry_);
+								set_buffer(traversal_edits_[-1]);
 							} else {
-								const auto &hist = input_history_manager::get_instance().get_history(history_id_);
-								set_buffer(hist[hist.size() - 1 - history_index_]);
+								set_buffer(traversal_edits_[history_index_]);
 							}
 							cursor_pos_ = buffer_.length();
 							update_scroll();
@@ -588,6 +588,7 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 						if (history_enabled_) {
 							input_history_manager::get_instance().add_entry(history_id_, buffer_);
 							history_index_ = -1;
+							traversal_edits_.clear();
 						}
 						on_submit_(buffer_);
 						buffer_.clear();
@@ -650,6 +651,9 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 		if (on_change_) {
 			on_change_(buffer_);
 		}
+	}
+	if (buffer_ != orig_buffer && history_enabled_) {
+		traversal_edits_[history_index_] = buffer_;
 	}
 	return handled;
 }

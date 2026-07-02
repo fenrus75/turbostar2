@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 
 class ui_multiline_edit : public ui_element, public document_listener
 {
@@ -41,6 +42,10 @@ public:
 
     void set_focus(bool focus) override {
         ui_element::set_focus(focus);
+        if (!focus && history_enabled_) {
+            history_index_ = -1;
+            traversal_edits_.clear();
+        }
     }
 
     void pos_to_coord(size_t pos, size_t &line_idx, size_t &col) const;
@@ -78,7 +83,7 @@ private:
     bool history_enabled_{false};
     std::string history_id_;
     int history_index_{-1};
-    std::string history_temp_entry_;
+    std::unordered_map<int, std::string> traversal_edits_;
 
     static inline event_queue *global_queue_s_{nullptr};
 };
