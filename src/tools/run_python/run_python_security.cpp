@@ -11,6 +11,7 @@ struct run_python_raw_args {
 	std::optional<std::string> code;
 	std::optional<std::string> file_path;
 	std::optional<std::vector<std::string>> dependencies;
+	std::optional<int> timeout;
 };
 
 void from_json(const nlohmann::json &j, run_python_raw_args &p)
@@ -21,6 +22,8 @@ void from_json(const nlohmann::json &j, run_python_raw_args &p)
 		p.file_path = j.at("file_path").get<std::string>();
 	if (j.contains("dependencies"))
 		p.dependencies = j.at("dependencies").get<std::vector<std::string>>();
+	if (j.contains("timeout"))
+		p.timeout = j.at("timeout").get<int>();
 }
 
 class run_python_validator : public agentlib::tool_validator
@@ -50,7 +53,8 @@ class run_python_validator : public agentlib::tool_validator
 	{
 		nlohmann::json props = {
 		    {"code", {{"type", "string"}, {"description", "The raw Python code string to execute."}}},
-		    {"file_path", {{"type", "string"}, {"description", "The relative path to a Python script to execute."}}}};
+		    {"file_path", {{"type", "string"}, {"description", "The relative path to a Python script to execute."}}},
+		    {"timeout", {{"type", "integer"}, {"description", "Optional timeout in seconds. Default is 300."}}}};
 
 		if (has_uv()) {
 			props["dependencies"] = {
@@ -94,6 +98,11 @@ class run_python_validator : public agentlib::tool_validator
 			args_.file_path = raw_args.file_path;
 			if (raw_args.dependencies.has_value()) {
 				args_.dependencies = raw_args.dependencies.value();
+			}
+			if (raw_args.timeout.has_value()) {
+				args_.timeout = raw_args.timeout.value();
+			} else {
+				args_.timeout = 300;
 			}
 			return true;
 		} catch (const std::exception &e) {

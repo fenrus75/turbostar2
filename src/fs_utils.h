@@ -45,7 +45,7 @@ std::string get_compile_command_for_file(const std::string &filepath, const std:
  * @brief Executes a shell command synchronously, capturing stdout and stderr.
  * It also parses the output lines using gcc_log_parser and populates build_error_manager.
  */
-std::string execute_command_sync(const std::string &cmd);
+std::string execute_command_sync(const std::string &cmd, int timeout_seconds = 60);
 
 /**
  * @brief Returns the global Turbostar cache directory (~/.cache/turbostar).

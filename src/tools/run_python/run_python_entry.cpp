@@ -97,6 +97,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		sync_command_runner bandit_runner;
 		bandit_runner.apply_build_profile();
 		bandit_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+		bandit_runner.set_timeout(args_.timeout);
 
 		// SECURE-BY-DESIGN: The path is automatically escaped by execute_and_get_output when formatting.
 		std::string bandit_output = bandit_runner.execute_and_get_output("bandit --severity-level=high {} 2>&1", bandit_target_path);
@@ -113,6 +114,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	runner.apply_strict_agent_profile();
 	runner.set_enable_crash_catcher(true);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+	runner.set_timeout(args_.timeout);
 
 	// Allow uv cache explicitly if it exists
 	const char *home = std::getenv("HOME");

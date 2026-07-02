@@ -10,8 +10,9 @@ namespace tools {
 struct fs_compile_project_args {
     bool clean{false};
     bool async{false};
+    int timeout{600};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_compile_project_args, clean, async);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_compile_project_args, clean, async, timeout);
 
 class fs_compile_project_tool : public agentlib::llm_tool {
 public:
@@ -42,6 +43,10 @@ public:
                 {"async", {
                     {"type", "boolean"},
                     {"description", "Optional. If true, starts the project compilation in the background."}
+                }},
+                {"timeout", {
+                    {"type", "integer"},
+                    {"description", "Optional timeout in seconds. Default is 600."}
                 }}
             }}
         };

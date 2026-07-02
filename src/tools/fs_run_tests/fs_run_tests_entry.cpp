@@ -10,8 +10,8 @@
 namespace tools
 {
 
-fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names)
-    : test_names_(std::move(test_names))
+fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout)
+    : test_names_(std::move(test_names)), timeout_(timeout)
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Test Suite", "Running tests...");
 }
@@ -34,6 +34,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 
 	terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
 	runner.set_enable_crash_catcher(true);
+	runner.set_timeout(timeout_);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
 	std::string build_system = config_manager::get_instance().get_build_system();

@@ -13,6 +13,7 @@ struct run_python_args {
     std::optional<std::string> code;
     std::optional<std::string> file_path;
     std::vector<std::string> dependencies;
+    int timeout = 300;
 };
 
 class run_python_tool : public agentlib::llm_tool {

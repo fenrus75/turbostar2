@@ -9,7 +9,7 @@ namespace tools {
 
 class fs_run_tests_tool : public agentlib::llm_tool {
 public:
-    fs_run_tests_tool(std::vector<std::string> test_names = {});
+    fs_run_tests_tool(std::vector<std::string> test_names = {}, int timeout = 300);
 
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
@@ -18,6 +18,7 @@ public:
 private:
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
     std::vector<std::string> test_names_;
+    int timeout_;
 };
 
 class fs_run_tests_validator : public agentlib::tool_validator {
@@ -33,6 +34,10 @@ public:
                     {"type", "array"},
                     {"items", {{"type", "string"}}},
                     {"description", "Optional list of specific test names to run. If omitted, runs all tests."}
+                }},
+                {"timeout", {
+                    {"type", "integer"},
+                    {"description", "Optional timeout in seconds. Default is 300."}
                 }}
             }}
         };
@@ -50,7 +55,11 @@ protected:
                 tests.push_back(t.get<std::string>());
             }
         }
-        return std::make_unique<fs_run_tests_tool>(tests);
+        int timeout = 300;
+        if (args.contains("timeout") && args["timeout"].is_number_integer()) {
+            timeout = args["timeout"].get<int>();
+        }
+        return std::make_unique<fs_run_tests_tool>(tests, timeout);
     }
 };
 

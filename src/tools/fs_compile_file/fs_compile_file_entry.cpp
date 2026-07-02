@@ -55,9 +55,10 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 
 		std::thread([safe_path = safe_path_,
 			     runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
-			     captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string()]() {
+			     captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
 			runner->set_enable_crash_catcher(true);
 			runner->set_project_dir(workspace_dir);
+			runner->set_timeout(timeout);
 
 			size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
 			int exit_code = runner->execute(cmd);
@@ -96,6 +97,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 
 	terminal_command_runner runner(interaction_, ctx.trigger_ui_update);
 	runner.set_enable_crash_catcher(true);
+	runner.set_timeout(args_.timeout);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
 	size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
