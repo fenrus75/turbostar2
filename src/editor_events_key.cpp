@@ -904,8 +904,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 		}
 
 		window *active_win = get_active_window();
-		bool is_agent = active_win && dynamic_cast<agent_window *>(active_win) != nullptr;
-		bool bypass_global_shortcuts = is_agent;
+		bool bypass_global_shortcuts = active_win && active_win->bypass_global_shortcuts();
 
 		if (!bypass_global_shortcuts) {
 			if (ev.key_code == 12) { // Ctrl-L

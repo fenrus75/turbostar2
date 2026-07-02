@@ -22,6 +22,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			   event_queue &global_queue, agentlib::document_provider *doc_provider, bool fresh_agent)
     : window(id, x, y, width, height, "Agent Chat")
 {
+	set_bypass_global_shortcuts(true);
 	agent_ = ai_agent::create(id, "Agent", std::move(model), &global_queue, doc_provider);
 
 	std::string system_prompt =
@@ -425,6 +426,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 agent_window::agent_window(int id, int x, int y, int width, int height, std::shared_ptr<agentlib::ai_agent> existing_agent)
     : window(id, x, y, width, height, existing_agent->get_name()), agent_(std::move(existing_agent))
 {
+	set_bypass_global_shortcuts(true);
 	set_background_color_pair(17);
 
 	input_box_ = std::make_unique<ui_multiline_edit>("input", 0, 0, width_ - 2, 3, [this, id](const std::string &text) {

@@ -62,6 +62,15 @@ class window
 		is_visible_ = visible;
 	}
 
+	bool bypass_global_shortcuts() const
+	{
+		return bypass_global_shortcuts_;
+	}
+	void set_bypass_global_shortcuts(bool bypass)
+	{
+		bypass_global_shortcuts_ = bypass;
+	}
+
 	int get_x() const
 	{
 		return x_;
@@ -198,6 +207,7 @@ class window
 	uint64_t last_active_timestamp_{0};
 	int display_priority_{0};
 	bool is_visible_{true};
+	bool bypass_global_shortcuts_{false};
 
 	mutable int top_line_{0};
 	mutable int left_column_{0};

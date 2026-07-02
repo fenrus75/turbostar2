@@ -1318,6 +1318,7 @@ if uv.found() or python.found()
     depends: e2e_depends,
     workdir: meson.project_build_root(),
     timeout: 60,
+    is_parallel: false,
     suite: 'editor'
   )
   test('e2e_disk_change', e2e_exe,
