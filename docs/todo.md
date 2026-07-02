@@ -13,8 +13,6 @@
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 
-- agent prompt (multi-line edit) -- have a cursor-up/down way of repeating older prompts (so shell-like history)
-
 - somehow do python plugins for agents and tool calls?
 
 - subagent creation wizzard dialog
@@ -244,6 +242,7 @@
 # done items (move items here on completion)
 
 ## 02-07-2026
+- implemented input history for text input boxes and multiline prompt edits, persistent per project.
 - implemented ^K R shortcut inside ui_multiline_edit to prompt for and read/insert external file contents.
 - implemented F5 key shortcut to pop up a multiline prompt in a full editor window named `*Prompt*` with real-time bidirectional synchronization.
 - implemented command line option `--force-ascii` and tristate file type check (`ASCII`, `MAYBE`, `BINARY`) to prompt the user when opening files with null bytes.
