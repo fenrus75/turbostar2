@@ -1,4 +1,5 @@
 #include "ui/agent_window.h"
+#include "ui/command_registry.h"
 #include <algorithm>
 #include <cmath>
 #include <format>
@@ -97,266 +98,41 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			trimmed_text.clear();
 		}
 
-		if (trimmed_text == "/quit") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::close_window;
-			ev.key_code = id; // Pass the window ID so the dispatcher knows which one to close
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/model") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::agent_switch_model;
-			ev.key_code = id; // Pass the window ID
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/mcp") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::mcp_config;
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/skills") {
-			input_box_->set_buffer(""); // Clear the box
-			auto &skills = skill_manager::get_instance().get_skills();
-			std::string skills_text = "Available Skills:\n";
-			if (skills.empty()) {
-				skills_text += "  (No skills available)";
-			} else {
-				for (const auto &s : skills) {
-					skills_text += std::format("- {} ({})\n", s.name, s.description);
-				}
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		// Trigger manual stateful response compaction if the backend is in OpenAI stateful mode.
-		if (trimmed_text == "/compact") {
-			input_box_->set_buffer(""); // Clear the box
-			agent_->force_compaction();
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/save")) {
-			input_box_->set_buffer(""); // Clear the box
-			std::string filepath;
-			if (trimmed_text.length() > 6) {
-				filepath = trimmed_text.substr(6);
-				utf8::trim_trailing_whitespace(filepath);
-			}
-
-			if (filepath.empty()) {
-				std::string tmp_dir = fs_utils::get_project_tmp_dir();
-				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
-			}
-
-			agent_->save_conversation(filepath);
-
-			// Show a system message that it was saved
-			event_logger::get_instance().log("Conversation saved to: {}", filepath);
-			agent_->add_interaction(
-			    std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/info")) {
-			input_box_->set_buffer("");
-			std::string info_str = "Agent Info:\n";
-			if (agent_->get_model()) {
-				auto m = agent_->get_model();
-				info_str += std::format("  Active Model ID:   {}\n", m->get_id());
-				info_str += std::format("  Active Model Name: {}\n", m->get_name());
-				info_str += std::format("  Endpoint URL:      {}\n", m->get_url());
-				info_str += std::format("  API Type:          {}\n", (m->get_api_type() == api_type::openai ? "openai" :
-											m->get_api_type() == api_type::openai_response ? "openai_response" :
-											m->get_api_type() == api_type::gemini ? "gemini" :
-											m->get_api_type() == api_type::claude ? "claude" :
-											m->get_api_type() == api_type::copilot ? "copilot" : "unknown"));
-			} else {
-				info_str += "  (No active model configured on agent)\n";
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(info_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/stats")) {
-			input_box_->set_buffer(""); // Clear the box
-			auto stats = agent_->get_stats();
-			std::string stats_str = "Agent Statistics:\n";
-			if (stats.empty()) {
-				stats_str += "  (No stats recorded yet)";
-			} else {
-				for (const auto &[key, value] : stats) {
-					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
-				}
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(stats_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/help")) {
-			input_box_->set_buffer("");
-			std::string help_str = "Available Commands:\n"
-					       "  /help             - Show this help message\n"
-					       "  /info             - Show current model configuration and info\n"
-					       "  /quit             - Close the agent window\n"
-					       "  /save             - Save the active context to disk manually\n"
-					       "  /stats            - Show compaction and performance statistics\n"
-					       "  /memory           - List all paged-out history archives\n"
-					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
-					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-					       "  /model            - Switch the AI model for this agent\n"
-					       "  /mcp              - Open the MCP Servers dialog\n"
-					       "  /skills           - List all available agent skills\n"
-					       "  /compact          - Force stateful response compaction manually";
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/memory")) {
-			input_box_->set_buffer(""); // Clear the box
-			std::string mem_index = agent_->get_memory_index();
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(mem_index));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/episode")) {
-			input_box_->set_buffer("");
-			std::string title = "User Episode";
-			if (trimmed_text.length() > 11) {
-				title = trimmed_text.substr(11);
-			}
-
-			size_t start_index = 1;
-			auto convo = agent_->get_conversation();
-			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-				if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) {
-					start_index = i + 1;
-					break;
-				}
-			}
-
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title,
-						 {"manual-episode"});
-			agent_->add_interaction(
-			    std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/pageout ")) {
-			input_box_->set_buffer("");
-			std::string arg = trimmed_text.substr(9);
-			if (arg.starts_with("episode_")) {
-				if (agent_->set_episode_state(arg, 99)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged out episode: " + arg));
-				} else {
-					agent_->add_interaction(
-					    std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
-				}
-			} else {
-				try {
-					int n = std::stoi(arg);
-					agent_->page_out_context(1, n + 1, "Manual Pageout",
-								 "User manually triggered /pageout " + std::to_string(n), {});
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged out " + std::to_string(n) + " turns."));
-				} catch (...) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
-				}
-			}
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text == "/pagein" || trimmed_text.starts_with("/pagein ")) {
-			input_box_->set_buffer("");
-			if (trimmed_text == "/pagein") {
-				// Default no-argument behavior: page in as much as possible backward from the front
-				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
-				if (paged_in.empty()) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "No episodes paged in (either 50% limit reached or all episodes already active)."));
-				} else {
-					std::string msg = "Successfully paged in episodes: ";
-					for (size_t i = 0; i < paged_in.size(); ++i) {
-						msg += paged_in[i] + (i < paged_in.size() - 1 ? ", " : "");
-					}
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(msg));
-				}
-			} else {
-				// Argument provided
-				std::string args = trimmed_text.substr(8);
-				std::string episode_id = args;
-				int level = 1;
-
-				size_t space_pos = args.find(' ');
-				if (space_pos != std::string::npos) {
-					episode_id = args.substr(0, space_pos);
-					try {
-						level = std::stoi(args.substr(space_pos + 1));
-					} catch (...) {
-						level = 1;
-					}
-				}
-
-				if (agent_->set_episode_state(episode_id, level)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
-				} else {
-					agent_->add_interaction(
-					    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
-				}
-			}
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		// Block unknown slash commands from hitting the LLM
 		if (trimmed_text.starts_with("/")) {
 			input_box_->set_buffer("");
+			std::string cmd_name;
+			std::string args;
+			size_t space_pos = trimmed_text.find(' ');
+			if (space_pos != std::string::npos) {
+				cmd_name = trimmed_text.substr(1, space_pos - 1);
+				args = trimmed_text.substr(space_pos + 1);
+				size_t first = args.find_first_not_of(" \t\r\n");
+				if (first != std::string::npos) {
+					args.erase(0, first);
+					args.erase(args.find_last_not_of(" \t\r\n") + 1);
+				} else {
+					args.clear();
+				}
+			} else {
+				cmd_name = trimmed_text.substr(1);
+			}
+
+			auto cmd = command_registry::get_instance().get_command(cmd_name);
+			if (cmd) {
+				agent_command::context ctx;
+				ctx.agent = agent_.get();
+				ctx.window_id = id;
+				ctx.arguments = args;
+				ctx.global_queue = agent_->get_global_queue() ? agent_->get_global_queue() : &get_queue();
+
+				cmd->execute(ctx);
+				scroll_offset_ = 0;
+				invalidate();
+				return;
+			}
+
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-			    "Unknown command. Type /help for a list of available commands."));
+			    std::format("Unknown command: /{}. Type /help for a list of available commands.", cmd_name)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
@@ -442,266 +218,41 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			trimmed_text.clear();
 		}
 
-		if (trimmed_text == "/quit") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::close_window;
-			ev.key_code = id; // Pass the window ID so the dispatcher knows which one to close
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/model") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::agent_switch_model;
-			ev.key_code = id; // Pass the window ID
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/mcp") {
-			input_box_->set_buffer(""); // Clear the box
-			editor_event ev;
-			ev.type = event_type::mcp_config;
-			if (agent_->get_global_queue()) {
-				agent_->get_global_queue()->push(ev);
-			} else {
-				get_queue().push(ev);
-			}
-			return;
-		}
-
-		if (trimmed_text == "/skills") {
-			input_box_->set_buffer(""); // Clear the box
-			auto &skills = skill_manager::get_instance().get_skills();
-			std::string skills_text = "Available Skills:\n";
-			if (skills.empty()) {
-				skills_text += "  (No skills available)";
-			} else {
-				for (const auto &s : skills) {
-					skills_text += std::format("- {} ({})\n", s.name, s.description);
-				}
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		// Trigger manual stateful response compaction if the backend is in OpenAI stateful mode.
-		if (trimmed_text == "/compact") {
-			input_box_->set_buffer(""); // Clear the box
-			agent_->force_compaction();
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/save")) {
-			input_box_->set_buffer(""); // Clear the box
-			std::string filepath;
-			if (trimmed_text.length() > 6) {
-				filepath = trimmed_text.substr(6);
-				utf8::trim_trailing_whitespace(filepath);
-			}
-
-			if (filepath.empty()) {
-				std::string tmp_dir = fs_utils::get_project_tmp_dir();
-				filepath = tmp_dir + "/agent_chat_" + std::to_string(id) + ".json";
-			}
-
-			agent_->save_conversation(filepath);
-
-			// Show a system message that it was saved
-			event_logger::get_instance().log("Conversation saved to: {}", filepath);
-			agent_->add_interaction(
-			    std::make_shared<agentlib::interaction_system_message>(std::format("Conversation saved to: {}", filepath)));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/info")) {
-			input_box_->set_buffer("");
-			std::string info_str = "Agent Info:\n";
-			if (agent_->get_model()) {
-				auto m = agent_->get_model();
-				info_str += std::format("  Active Model ID:   {}\n", m->get_id());
-				info_str += std::format("  Active Model Name: {}\n", m->get_name());
-				info_str += std::format("  Endpoint URL:      {}\n", m->get_url());
-				info_str += std::format("  API Type:          {}\n", (m->get_api_type() == api_type::openai ? "openai" :
-											m->get_api_type() == api_type::openai_response ? "openai_response" :
-											m->get_api_type() == api_type::gemini ? "gemini" :
-											m->get_api_type() == api_type::claude ? "claude" :
-											m->get_api_type() == api_type::copilot ? "copilot" : "unknown"));
-			} else {
-				info_str += "  (No active model configured on agent)\n";
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(info_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/stats")) {
-			input_box_->set_buffer(""); // Clear the box
-			auto stats = agent_->get_stats();
-			std::string stats_str = "Agent Statistics:\n";
-			if (stats.empty()) {
-				stats_str += "  (No stats recorded yet)";
-			} else {
-				for (const auto &[key, value] : stats) {
-					stats_str += "  " + key + ": " + std::to_string(value) + "\n";
-				}
-			}
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(stats_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/help")) {
-			input_box_->set_buffer("");
-			std::string help_str = "Available Commands:\n"
-					       "  /help             - Show this help message\n"
-					       "  /info             - Show current model configuration and info\n"
-					       "  /quit             - Close the agent window\n"
-					       "  /save             - Save the active context to disk manually\n"
-					       "  /stats            - Show compaction and performance statistics\n"
-					       "  /memory           - List all paged-out history archives\n"
-					       "  /episode [text] - Drop a semantic anchor and compress history manually\n"
-					       "  /pageout <N> or <id> - Page out turns or a specific active episode\n"
-					       "  /pagein <id> [level] - Restore or change compression level of an episode\n"
-					       "  /model            - Switch the AI model for this agent\n"
-					       "  /mcp              - Open the MCP Servers dialog\n"
-					       "  /skills           - List all available agent skills\n"
-					       "  /compact          - Force stateful response compaction manually";
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(help_str));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/memory")) {
-			input_box_->set_buffer(""); // Clear the box
-			std::string mem_index = agent_->get_memory_index();
-			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(mem_index));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/episode")) {
-			input_box_->set_buffer("");
-			std::string title = "User Episode";
-			if (trimmed_text.length() > 11) {
-				title = trimmed_text.substr(11);
-			}
-
-			size_t start_index = 1;
-			auto convo = agent_->get_conversation();
-			for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-				if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) {
-					start_index = i + 1;
-					break;
-				}
-			}
-
-			agent_->page_out_context(start_index, convo.size(), title, "User manually triggered episode: " + title,
-						 {"manual-episode"});
-			agent_->add_interaction(
-			    std::make_shared<agentlib::interaction_system_message>("Episode manually recorded. History compressed."));
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text.starts_with("/pageout ")) {
-			input_box_->set_buffer("");
-			std::string arg = trimmed_text.substr(9);
-			if (arg.starts_with("episode_")) {
-				if (agent_->set_episode_state(arg, 99)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged out episode: " + arg));
-				} else {
-					agent_->add_interaction(
-					    std::make_shared<agentlib::interaction_system_message>("Failed to page out episode: " + arg));
-				}
-			} else {
-				try {
-					int n = std::stoi(arg);
-					agent_->page_out_context(1, n + 1, "Manual Pageout",
-								 "User manually triggered /pageout " + std::to_string(n), {});
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged out " + std::to_string(n) + " turns."));
-				} catch (...) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Usage: /pageout <number_of_turns> or /pageout <episode_id>"));
-				}
-			}
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		if (trimmed_text == "/pagein" || trimmed_text.starts_with("/pagein ")) {
-			input_box_->set_buffer("");
-			if (trimmed_text == "/pagein") {
-				// Default no-argument behavior: page in as much as possible backward from the front
-				std::vector<std::string> paged_in = agent_->page_in_history_auto(1);
-				if (paged_in.empty()) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "No episodes paged in (either 50% limit reached or all episodes already active)."));
-				} else {
-					std::string msg = "Successfully paged in episodes: ";
-					for (size_t i = 0; i < paged_in.size(); ++i) {
-						msg += paged_in[i] + (i < paged_in.size() - 1 ? ", " : "");
-					}
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(msg));
-				}
-			} else {
-				// Argument provided
-				std::string args = trimmed_text.substr(8);
-				std::string episode_id = args;
-				int level = 1;
-
-				size_t space_pos = args.find(' ');
-				if (space_pos != std::string::npos) {
-					episode_id = args.substr(0, space_pos);
-					try {
-						level = std::stoi(args.substr(space_pos + 1));
-					} catch (...) {
-						level = 1;
-					}
-				}
-
-				if (agent_->set_episode_state(episode_id, level)) {
-					agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-					    "Successfully paged in " + episode_id + " at level " + std::to_string(level)));
-				} else {
-					agent_->add_interaction(
-					    std::make_shared<agentlib::interaction_system_message>("Failed to page in " + episode_id));
-				}
-			}
-			scroll_offset_ = 0;
-			invalidate();
-			return;
-		}
-
-		// Block unknown slash commands from hitting the LLM
 		if (trimmed_text.starts_with("/")) {
 			input_box_->set_buffer("");
+			std::string cmd_name;
+			std::string args;
+			size_t space_pos = trimmed_text.find(' ');
+			if (space_pos != std::string::npos) {
+				cmd_name = trimmed_text.substr(1, space_pos - 1);
+				args = trimmed_text.substr(space_pos + 1);
+				size_t first = args.find_first_not_of(" \t\r\n");
+				if (first != std::string::npos) {
+					args.erase(0, first);
+					args.erase(args.find_last_not_of(" \t\r\n") + 1);
+				} else {
+					args.clear();
+				}
+			} else {
+				cmd_name = trimmed_text.substr(1);
+			}
+
+			auto cmd = command_registry::get_instance().get_command(cmd_name);
+			if (cmd) {
+				agent_command::context ctx;
+				ctx.agent = agent_.get();
+				ctx.window_id = id;
+				ctx.arguments = args;
+				ctx.global_queue = agent_->get_global_queue() ? agent_->get_global_queue() : &get_queue();
+
+				cmd->execute(ctx);
+				scroll_offset_ = 0;
+				invalidate();
+				return;
+			}
+
 			agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(
-			    "Unknown command. Type /help for a list of available commands."));
+			    std::format("Unknown command: /{}. Type /help for a list of available commands.", cmd_name)));
 			scroll_offset_ = 0;
 			invalidate();
 			return;
