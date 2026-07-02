@@ -43,8 +43,6 @@
 
 - have a turboserver mode where we are headless but only serve A2A requests?
 
-- the run application/etc tool calls might need a "timeout" parameter so that interactive apps don't get stuck forever
-
 - we need a /command registery so that plugins can register commands
 	- will clean up the current handling a lot
 	- will need to decide what kind of things we need to pass to the handler
@@ -248,6 +246,7 @@
 # done items (move items here on completion)
 
 ## 02-07-2026
+- implemented timeout parameters for shell command, python, testing, and compile tool execution, and added a default 60s timeout for git commands via `execute_command_sync`.
 - extended the `fs_grep_files` tool to perform an LSP symbol search on regular word queries, returning their definition locations formatted with "is defined in" at the top of the output.
 
 ## 28-06-2026
