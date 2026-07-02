@@ -25,6 +25,12 @@ public:
     void set_on_external_edit(std::function<void()> cb) { on_external_edit_ = std::move(cb); }
     void link_document(std::shared_ptr<document> doc);
     void insert_text(const std::string &text);
+    void set_history_enabled(bool enabled, const std::string &history_id)
+    {
+        history_enabled_ = enabled;
+        history_id_ = history_id;
+    }
+
 
     static void set_global_queue(event_queue *q) { global_queue_s_ = q; }
 
@@ -68,6 +74,11 @@ private:
     
     // Internal helper to calculate line wrapping and cursor position
     void update_scroll();
+
+    bool history_enabled_{false};
+    std::string history_id_;
+    int history_index_{-1};
+    std::string history_temp_entry_;
 
     static inline event_queue *global_queue_s_{nullptr};
 };

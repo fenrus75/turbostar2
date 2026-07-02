@@ -32,6 +32,7 @@
 #include "ui/hex_editor_window.h"
 #include "ui/terminal_window.h"
 #include "ui/components/ui_multiline_edit.h"
+#include "input_history_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -43,6 +44,7 @@ editor::editor(editor_options opts)
 	main_thread_id_ = std::this_thread::get_id();
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();
+	input_history_manager::get_instance().load();
 	git_manager::get_instance().start(global_queue_);
 	bool lsp_allowed = !opts.no_lsp && config_manager::get_instance().is_lsp_enabled();
 	if (lsp_allowed) {

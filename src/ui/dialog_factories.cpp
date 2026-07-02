@@ -1,4 +1,5 @@
 #include "ui/dialog_factories.h"
+#include "input_history_manager.h"
 #include "codereview_manager.h"
 #include <chrono>
 #include <cstdlib>
@@ -567,23 +568,27 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	auto flow = std::make_unique<ui_vertical_flow>("search_flow", 2, 2);
 
 	// Query
-	flow->add_child(std::make_unique<ui_textbox>(
+	auto query_tb = std::make_unique<ui_textbox>(
 	    "query", 54, initial_params.query,
 	    [d = dlg.get()](const std::string &) {
 		    d->set_action(dialog_result::confirmed);
 		    d->set_result("ok");
 	    },
-	    "Text to find"));
+	    "Text to find");
+	query_tb->set_history_enabled(true, "search_query");
+	flow->add_child(std::move(query_tb));
 
 	// Replace
 	if (is_replace) {
-		flow->add_child(std::make_unique<ui_textbox>(
+		auto replace_tb = std::make_unique<ui_textbox>(
 		    "replacement", 54, initial_params.replacement,
 		    [d = dlg.get()](const std::string &) {
 			    d->set_action(dialog_result::confirmed);
 			    d->set_result("ok");
 		    },
-		    "Replace with"));
+		    "Replace with");
+		replace_tb->set_history_enabled(true, "replace_query");
+		flow->add_child(std::move(replace_tb));
 	}
 
 	// Options Group
@@ -862,6 +867,7 @@ class file_dialog_impl : public dialog
 		auto name_row = std::make_unique<ui_horizontal_flow>("name_row", 0, 0);
 		name_row->add_child(std::make_unique<ui_text_label>("Name"));
 		auto tb = std::make_unique<ui_textbox>("filename", 0, 0, 40, "", on_tb_submit);
+		tb->set_history_enabled(true, "open_filename");
 		tb->set_autocomplete_provider([this](const std::string &buf) { return get_fs_view()->get_autocomplete_suggestion(buf); });
 		tb_ = tb.get();
 		name_row->add_child(std::move(tb));

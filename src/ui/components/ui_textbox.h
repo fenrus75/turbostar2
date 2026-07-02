@@ -39,7 +39,18 @@ class ui_textbox : public ui_element
 		end = selection_end_;
 	}
 
+	void set_history_enabled(bool enabled, const std::string &history_id)
+	{
+		history_enabled_ = enabled;
+		history_id_ = history_id;
+	}
+
       private:
+	bool history_enabled_{false};
+	std::string history_id_;
+	int history_index_{-1};
+	std::string history_temp_entry_;
+
 	std::string buffer_;
 	int cursor_pos_;
 	std::function<void(const std::string &)> on_submit_;

@@ -34,6 +34,7 @@ core_sources = files(
   'highlighter_registry.cpp',
   'ui/hex_highlighter.cpp',
   'history_manager.cpp',
+  'input_history_manager.cpp',
   'utf8.cpp',
   'crash_handler.cpp',
   'ansi.cpp',

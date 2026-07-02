@@ -13,6 +13,7 @@
 #include "config_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "input_history_manager.h"
 #include "project_manager.h"
 #include "utf8.h"
 
@@ -367,6 +368,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		invalidate();
 	});
 
+	input_box_->set_history_enabled(true, "agent_prompt");
+
 	input_box_->set_on_change([this](const std::string &text) {
 		if (text.starts_with("/")) {
 			editor_event status_ev;
@@ -709,6 +712,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		scroll_offset_ = 0;
 		invalidate();
 	});
+
+	input_box_->set_history_enabled(true, "agent_prompt");
 
 	input_box_->set_on_change([this](const std::string &text) {
 		if (text.starts_with("/")) {

@@ -1,4 +1,5 @@
 #include "ui_multiline_edit.h"
+#include "input_history_manager.h"
 #include <cctype>
 #include <ncurses.h>
 #include "ansi.h"
@@ -341,6 +342,11 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 	if (ev.type == event_type::key_press) {
 		if (has_focus_) {
 			int key = ev.key_code;
+			if (history_enabled_ &&
+			    (key == KEY_BACKSPACE || key == 127 || key == 8 || key == KEY_DC ||
+			     (key >= 32 && key <= 126) || key == 24 || key == 26 || key == 3)) {
+				history_index_ = -1;
+			}
 
 		if (key == KEY_F(5)) {
 			editor_event open_ev;
@@ -462,11 +468,37 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 						if (cursor_vl_idx > 0) {
 							cursor_pos_ = coord_to_pos(cursor_vl_idx - 1, cursor_col);
 							moved = true;
+						} else if (history_enabled_) {
+							int max_index = input_history_manager::get_instance().get_history(history_id_).size();
+							if (max_index > 0) {
+								if (history_index_ == -1) {
+									history_temp_entry_ = buffer_;
+								}
+								if (history_index_ < max_index - 1) {
+									history_index_++;
+									const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+									set_buffer(hist[hist.size() - 1 - history_index_]);
+									cursor_pos_ = buffer_.length();
+									update_scroll();
+								}
+							}
+							moved = true;
 						}
 						break;
 					case nav_action::down:
 						if (cursor_vl_idx < visual_lines_.size() - 1) {
 							cursor_pos_ = coord_to_pos(cursor_vl_idx + 1, cursor_col);
+							moved = true;
+						} else if (history_enabled_ && history_index_ > -1) {
+							history_index_--;
+							if (history_index_ == -1) {
+								set_buffer(history_temp_entry_);
+							} else {
+								const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+								set_buffer(hist[hist.size() - 1 - history_index_]);
+							}
+							cursor_pos_ = buffer_.length();
+							update_scroll();
 							moved = true;
 						}
 						break;
@@ -553,6 +585,10 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 						selection_start_ = -1;
 						selection_end_ = -1;
 						selection_is_persistent_ = false;
+						if (history_enabled_) {
+							input_history_manager::get_instance().add_entry(history_id_, buffer_);
+							history_index_ = -1;
+						}
 						on_submit_(buffer_);
 						buffer_.clear();
 						cursor_pos_ = 0;

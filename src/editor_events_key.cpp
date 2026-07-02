@@ -16,6 +16,7 @@
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
 #include "history_manager.h"
+#include "input_history_manager.h"
 #include "linux_clang_format.h"
 #include "mcp/mcp_manager.h"
 #include "project_manager.h"
@@ -38,6 +39,7 @@ void editor::resolve_dialog(dialog_result res)
 			std::string result_path = active_dialog_->get_result();
 			new_window(result_path);
 			history_manager::get_instance().add_file(result_path);
+			input_history_manager::get_instance().add_entry("open_filename", result_path);
 		} else if (active_dialog_mode_ == dialog_mode::save) {
 			std::string result_path = active_dialog_->get_result();
 			doc->save_to_file(result_path);
@@ -68,6 +70,10 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
 			history_manager::get_instance().add_search(current_search_.query);
+			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
+			if (active_dialog_mode_ == dialog_mode::replace) {
+				input_history_manager::get_instance().add_entry("replace_query", current_search_.replacement);
+			}
 			if (doc->find_next(current_search_)) {
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;

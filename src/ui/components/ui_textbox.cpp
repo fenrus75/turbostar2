@@ -1,4 +1,5 @@
 #include "ui/components/ui_textbox.h"
+#include "input_history_manager.h"
 #include <algorithm>
 #include <ctype.h>
 #include <ncurses.h>
@@ -128,12 +129,23 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			selection_end_ = -1;
 		}
 		if ((ev.key_code == '\n' || ev.key_code == '\r' || ev.key_code == KEY_ENTER) && has_focus_) {
+			if (history_enabled_ && !buffer_.empty()) {
+				input_history_manager::get_instance().add_entry(history_id_, buffer_);
+				history_index_ = -1;
+			}
 			if (on_submit_)
 				on_submit_(buffer_);
 			return true;
 		}
 
 		if (has_focus_) {
+			int key = ev.key_code;
+			if (history_enabled_ &&
+			    (key == KEY_BACKSPACE || key == 127 || key == 8 || key == KEY_DC ||
+			     (key >= 32 && key <= 126) || key == 25)) {
+				history_index_ = -1;
+			}
+
 			if (ev.key_code == KEY_RIGHT) {
 				if (autocomplete_provider_ && !buffer_.empty()) {
 					std::string sug = autocomplete_provider_(buffer_);
@@ -185,6 +197,19 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 			}
 
 			if (ev.key_code == KEY_DOWN || ev.key_code == '\t') {
+				if (history_enabled_ && ev.key_code == KEY_DOWN) {
+					int max_index = input_history_manager::get_instance().get_history(history_id_).size();
+					if (max_index > 0 && history_index_ > -1) {
+						history_index_--;
+						if (history_index_ == -1) {
+							set_buffer(history_temp_entry_);
+						} else {
+							const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+							set_buffer(hist[hist.size() - 1 - history_index_]);
+						}
+					}
+					return true;
+				}
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_next())
@@ -194,6 +219,20 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				return true;
 			}
 			if (ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
+				if (history_enabled_ && ev.key_code == KEY_UP) {
+					int max_index = input_history_manager::get_instance().get_history(history_id_).size();
+					if (max_index > 0) {
+						if (history_index_ == -1) {
+							history_temp_entry_ = buffer_;
+						}
+						if (history_index_ < max_index - 1) {
+							history_index_++;
+							const auto &hist = input_history_manager::get_instance().get_history(history_id_);
+							set_buffer(hist[hist.size() - 1 - history_index_]);
+						}
+					}
+					return true;
+				}
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_previous())
@@ -207,6 +246,9 @@ bool ui_textbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 	if (ev.type == event_type::paste) {
 		if (has_focus_) {
+			if (history_enabled_) {
+				history_index_ = -1;
+			}
 			selection_start_ = -1;
 			selection_end_ = -1;
 			std::string sanitized = ev.payload;
