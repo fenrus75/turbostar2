@@ -903,118 +903,124 @@ void editor::dispatch_event_key(const editor_event &ev)
 			return;
 		}
 
-		if (ev.key_code == 12) { // Ctrl-L
-			logger.log("Repeating last search.");
-			std::shared_ptr<document> active_doc = get_active_doc();
-			if (active_doc) {
-				logger.log("Active doc found for ^L. query=" + current_search_.query +
-					   " backward=" + std::to_string(current_search_.backward));
-				bool found = active_doc->find_next(current_search_, true);
-				logger.log("find_next returned: " + std::to_string(found));
-				if (found) {
+		window *active_win = get_active_window();
+		bool is_agent = active_win && dynamic_cast<agent_window *>(active_win) != nullptr;
+		bool bypass_global_shortcuts = is_agent;
+
+		if (!bypass_global_shortcuts) {
+			if (ev.key_code == 12) { // Ctrl-L
+				logger.log("Repeating last search.");
+				std::shared_ptr<document> active_doc = get_active_doc();
+				if (active_doc) {
+					logger.log("Active doc found for ^L. query=" + current_search_.query +
+						   " backward=" + std::to_string(current_search_.backward));
+					bool found = active_doc->find_next(current_search_, true);
+					logger.log("find_next returned: " + std::to_string(found));
+					if (found) {
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
+					}
+				}
+				return;
+			}
+
+			if (ev.key_code == 27) { // ESC key
+				// Make sure no other prompt/dialog is active
+				if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
+				    active_mode_ == input_mode::normal) {
+					logger.log("Entering Vim prefix mode via ESC.");
+					vim_prefix_mode_ = true;
+					return;
+				}
+			}
+
+			if (vim_prefix_mode_) {
+				vim_prefix_mode_ = false;
+				if (ev.key_code == ':') {
+					logger.log("Entering Vim Command mode.");
+					active_mode_ = input_mode::vim;
+					vim_input_buffer_ = "";
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
+					return;
 				}
 			}
-			return;
-		}
 
-		if (ev.key_code == 27) { // ESC key
-			// Make sure no other prompt/dialog is active
-			if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
-			    active_mode_ == input_mode::normal) {
-				logger.log("Entering Vim prefix mode via ESC.");
-				vim_prefix_mode_ = true;
-				return;
+			if (active_mode_ == input_mode::k_block) {
+				if (handle_k_block_key(ev.key_code)) {
+					if (active_mode_ == input_mode::k_block) {
+						active_mode_ = input_mode::normal;
+					}
+					return;
+				}
+				active_mode_ = input_mode::normal;
 			}
-		}
 
-		if (vim_prefix_mode_) {
-			vim_prefix_mode_ = false;
-			if (ev.key_code == ':') {
-				logger.log("Entering Vim Command mode.");
-				active_mode_ = input_mode::vim;
-				vim_input_buffer_ = "";
+			if (active_mode_ == input_mode::q_block) {
+				if (handle_q_block_key(ev.key_code)) {
+					if (active_mode_ == input_mode::q_block) {
+						active_mode_ = input_mode::normal;
+					}
+					return;
+				}
+				active_mode_ = input_mode::normal;
+			}
+
+			if (active_mode_ == input_mode::p_block) {
+				if (handle_p_block_key(ev.key_code)) {
+					if (active_mode_ == input_mode::p_block) {
+						active_mode_ = input_mode::normal;
+					}
+					return;
+				}
+				active_mode_ = input_mode::normal;
+			}
+
+			if (ev.key_code == 11) { // Ctrl-K
+				logger.log("Entering K-block mode.");
+				active_mode_ = input_mode::k_block;
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
 				return;
 			}
-		}
 
-		if (active_mode_ == input_mode::k_block) {
-			if (handle_k_block_key(ev.key_code)) {
-				if (active_mode_ == input_mode::k_block) {
-					active_mode_ = input_mode::normal;
+			if (ev.key_code == 17) { // Ctrl-Q
+				logger.log("Entering Q-block mode.");
+				active_mode_ = input_mode::q_block;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+
+			if (ev.key_code == 16) { // Ctrl-P
+				logger.log("Entering P-block mode.");
+				active_mode_ = input_mode::p_block;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (ev.key_code == 31) { // Ctrl-_ (Undo)
+				logger.log("Undo requested.");
+				std::shared_ptr<document> active_doc = get_active_doc();
+				if (active_doc) {
+					active_doc->undo();
 				}
 				return;
 			}
-			active_mode_ = input_mode::normal;
-		}
 
-		if (active_mode_ == input_mode::q_block) {
-			if (handle_q_block_key(ev.key_code)) {
-				if (active_mode_ == input_mode::q_block) {
-					active_mode_ = input_mode::normal;
+			if (ev.key_code == 30) { // Ctrl-^ (Redo)
+				logger.log("Redo requested.");
+				std::shared_ptr<document> active_doc = get_active_doc();
+				if (active_doc) {
+					active_doc->redo();
 				}
 				return;
 			}
-			active_mode_ = input_mode::normal;
-		}
-
-		if (active_mode_ == input_mode::p_block) {
-			if (handle_p_block_key(ev.key_code)) {
-				if (active_mode_ == input_mode::p_block) {
-					active_mode_ = input_mode::normal;
-				}
-				return;
-			}
-			active_mode_ = input_mode::normal;
-		}
-
-		if (ev.key_code == 11) { // Ctrl-K
-			logger.log("Entering K-block mode.");
-			active_mode_ = input_mode::k_block;
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
-			return;
-		}
-
-		if (ev.key_code == 17) { // Ctrl-Q
-			logger.log("Entering Q-block mode.");
-			active_mode_ = input_mode::q_block;
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
-			return;
-		}
-
-		if (ev.key_code == 16) { // Ctrl-P
-			logger.log("Entering P-block mode.");
-			active_mode_ = input_mode::p_block;
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
-			return;
-		}
-		if (ev.key_code == 31) { // Ctrl-_ (Undo)
-			logger.log("Undo requested.");
-			std::shared_ptr<document> active_doc = get_active_doc();
-			if (active_doc) {
-				active_doc->undo();
-			}
-			return;
-		}
-
-		if (ev.key_code == 30) { // Ctrl-^ (Redo)
-			logger.log("Redo requested.");
-			std::shared_ptr<document> active_doc = get_active_doc();
-			if (active_doc) {
-				active_doc->redo();
-			}
-			return;
 		}
 
 		if (ev.key_code < 0) { // Alt + key

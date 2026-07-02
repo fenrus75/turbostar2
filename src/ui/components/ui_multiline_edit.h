@@ -29,9 +29,9 @@ public:
     static void set_global_queue(event_queue *q) { global_queue_s_ = q; }
 
     // document_listener overrides
-    void on_line_inserted(const std::string &filename, int y) override {}
-    void on_line_deleted(const std::string &filename, int y) override {}
-    void on_document_changed(const std::string &filename) override;
+    void on_line_inserted(const std::string &/*filename*/, int /*y*/) override {}
+    void on_line_deleted(const std::string &/*filename*/, int /*y*/) override {}
+    void on_document_changed(const std::string &/*filename*/) override;
 
     void set_focus(bool focus) override {
         ui_element::set_focus(focus);
