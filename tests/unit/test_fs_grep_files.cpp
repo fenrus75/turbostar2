@@ -62,6 +62,20 @@ class mock_document_provider : public agentlib::document_provider
 	}
 };
 
+class test_fs_grep_files_tool_mocked : public tools::fs_grep_files_tool
+{
+      public:
+	using tools::fs_grep_files_tool::fs_grep_files_tool;
+	std::vector<lsp_manager::symbol_info> mock_symbols;
+
+      protected:
+	std::vector<lsp_manager::symbol_info> get_lsp_symbols(const std::string &query) override
+	{
+		(void)query;
+		return mock_symbols;
+	}
+};
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -149,6 +163,32 @@ int main()
 
 		std::cout << "RES5B:\n" << res5b << std::endl;
 		assert(res5b.find("WARNING: You have already performed this exact search query") != std::string::npos);
+	}
+
+	// Test 6: LSP symbol lookup and formatting
+	{
+		test_fs_grep_files_tool_mocked tool6(args1);
+		
+		lsp_manager::symbol_info sym1;
+		sym1.name = "hello";
+		sym1.kind = 12; // Function
+		sym1.location.path = (temp_dir / "src/hello.cpp").string();
+		sym1.location.range = {41, 0, 41, 10}; // 0-indexed line 41 -> line 42
+
+		lsp_manager::symbol_info sym2;
+		sym2.name = "hello_world";
+		sym2.kind = 5; // Class
+		sym2.location.path = (temp_dir / "src/hello.h").string();
+		sym2.location.range = {9, 0, 9, 5}; // 0-indexed line 9 -> line 10
+
+		tool6.mock_symbols = {sym1, sym2};
+
+		std::string res6 = tool6.execute(ctx);
+		std::cout << "RES6:\n" << res6 << std::endl;
+
+		assert(res6.find("### LSP Symbol Definitions:") != std::string::npos);
+		assert(res6.find("* **Function `hello`** is defined in `src/hello.cpp` at line 42") != std::string::npos);
+		assert(res6.find("* **Class `hello_world`** is defined in `src/hello.h` at line 10") != std::string::npos);
 	}
 
 	fs::remove_all(temp_dir);

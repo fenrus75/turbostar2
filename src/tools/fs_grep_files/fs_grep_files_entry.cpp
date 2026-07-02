@@ -10,11 +10,73 @@
 #include "../../config_manager.h"
 #include "fs_grep_files.h"
 #include "../../fs_utils.h"
+#include "project_manager.h"
+#include <format>
+#include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
 namespace tools
 {
+
+static std::string symbol_kind_to_string(int kind)
+{
+	switch (kind) {
+		case 1: return "File";
+		case 2: return "Module";
+		case 3: return "Namespace";
+		case 4: return "Package";
+		case 5: return "Class";
+		case 6: return "Method";
+		case 7: return "Property";
+		case 8: return "Field";
+		case 9: return "Constructor";
+		case 10: return "Enum";
+		case 11: return "Interface";
+		case 12: return "Function";
+		case 13: return "Variable";
+		case 14: return "Constant";
+		case 15: return "String";
+		case 16: return "Number";
+		case 17: return "Boolean";
+		case 18: return "Array";
+		case 19: return "Object";
+		case 20: return "Key";
+		case 21: return "Null";
+		case 22: return "EnumMember";
+		case 23: return "Struct";
+		case 24: return "Event";
+		case 25: return "Operator";
+		case 26: return "TypeParameter";
+		default: return "Symbol";
+	}
+}
+
+static bool is_exact_or_suffix_match(const std::string &sym_name, const std::string &query)
+{
+	if (sym_name == query) {
+		return true;
+	}
+	if (sym_name.length() > query.length() + 2) {
+		if (sym_name.compare(sym_name.length() - query.length(), query.length(), query) == 0 &&
+		    sym_name.compare(sym_name.length() - query.length() - 2, 2, "::") == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool contains_case_insensitive(const std::string &haystack, const std::string &needle)
+{
+	if (needle.empty()) return true;
+	auto it = std::search(
+		haystack.begin(), haystack.end(),
+		needle.begin(), needle.end(),
+		[](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+	);
+	return it != haystack.end();
+}
 
 struct last_search_info {
 	std::string pattern;
@@ -23,6 +85,11 @@ struct last_search_info {
 	bool is_regex{false};
 };
 static last_search_info g_last_search;
+
+std::vector<lsp_manager::symbol_info> fs_grep_files_tool::get_lsp_symbols(const std::string &query)
+{
+	return project_manager::get_instance().lsp_query_workspace_symbols(query);
+}
 
 fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::move(args))
 {
@@ -91,6 +158,56 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 	// Use the resolved, safe starting path
 	fs::path search_path(args_.safe_search_path);
+
+	std::string lsp_section;
+	bool is_regular_word = !args_.is_regex && !args_.pattern.empty() &&
+		std::all_of(args_.pattern.begin(), args_.pattern.end(), [](char c) {
+			return std::isalnum(c) || c == '_';
+		});
+
+	if (is_regular_word) {
+		std::vector<lsp_manager::symbol_info> raw_symbols = get_lsp_symbols(args_.pattern);
+		std::vector<lsp_manager::symbol_info> exact_matches;
+		std::vector<lsp_manager::symbol_info> other_matches;
+
+		for (const auto &sym : raw_symbols) {
+			if (sym.location.path.empty()) {
+				continue;
+			}
+			if (is_exact_or_suffix_match(sym.name, args_.pattern)) {
+				exact_matches.push_back(sym);
+			} else if (contains_case_insensitive(sym.name, args_.pattern)) {
+				other_matches.push_back(sym);
+			}
+		}
+
+		// Combine prioritised matches, cap at 5
+		std::vector<lsp_manager::symbol_info> final_symbols;
+		final_symbols.insert(final_symbols.end(), exact_matches.begin(), exact_matches.end());
+		if (final_symbols.size() < 5) {
+			for (const auto &sym : other_matches) {
+				if (final_symbols.size() >= 5) break;
+				final_symbols.push_back(sym);
+			}
+		}
+
+		if (!final_symbols.empty()) {
+			std::stringstream lsp_ss;
+			lsp_ss << "### LSP Symbol Definitions:\n";
+			for (const auto &sym : final_symbols) {
+				std::string kind_str = symbol_kind_to_string(sym.kind);
+				fs::path abs_path(sym.location.path);
+				std::string display_path = abs_path.is_absolute() ?
+					fs::relative(abs_path, root_path).string() : sym.location.path;
+				
+				// Format: * **<Kind> `name`** is defined in `path` at line <line>
+				lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
+					kind_str, sym.name, display_path, sym.location.range.start_y + 1);
+			}
+			lsp_ss << "\n---\n\n";
+			lsp_section = lsp_ss.str();
+		}
+	}
 
 	std::set<std::string> open_files;
 	if (ctx.doc_provider) {
@@ -231,65 +348,70 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		return "Error during search traversal: " + std::string(e.what());
 	}
 
-	if (detailed_matches.empty() && overflow_files.empty()) {
+	if (detailed_matches.empty() && overflow_files.empty() && lsp_section.empty()) {
 		return "No matches found.";
 	}
 
-	std::stringstream ss;
-	ss << "Found " << total_detailed_matches;
-	if (!overflow_files.empty()) {
-		ss << "+";
-	}
-	ss << " matches across " << (detailed_matches.size() + overflow_files.size()) << " files:\n\n";
+	std::string result_str;
+	if (detailed_matches.empty() && overflow_files.empty()) {
+		result_str = lsp_section + "No matches found.";
+	} else {
+		std::stringstream ss;
+		ss << "Found " << total_detailed_matches;
+		if (!overflow_files.empty()) {
+			ss << "+";
+		}
+		ss << " matches across " << (detailed_matches.size() + overflow_files.size()) << " files:\n\n";
 
-	for (const auto &[file, matches] : detailed_matches) {
-		ss << "### `" << file << "`\n";
-		for (const auto &match : matches) {
-			std::string content = match.second;
-			// Truncate excessively long blocks to protect context window, but be generous for context
-			if (content.length() > 2000) {
-				content = content.substr(0, 1997) + "...";
+		for (const auto &[file, matches] : detailed_matches) {
+			ss << "### `" << file << "`\n";
+			for (const auto &match : matches) {
+				std::string content = match.second;
+				// Truncate excessively long blocks to protect context window, but be generous for context
+				if (content.length() > 2000) {
+					content = content.substr(0, 1997) + "...";
+				}
+
+				if (args_.context_lines == 0) {
+					// Legacy bullet-point format for 0 context lines to save tokens
+					std::string single_line = content;
+					if (!single_line.empty() && single_line.back() == '\n')
+						single_line.pop_back(); // Remove trailing newline
+					size_t colon_pos = single_line.find(": ");
+					if (colon_pos != std::string::npos) {
+						single_line = single_line.substr(colon_pos + 2);
+					}
+					ss << "* **Line " << match.first << ":** `" << escape_markdown(single_line) << "`\n";
+				} else {
+					// New multi-line block format
+					ss << "**Match near Line " << match.first << ":**\n";
+					// Optionally extract extension for syntax highlighting
+					std::string ext = "";
+					size_t dot_pos = file.find_last_of('.');
+					if (dot_pos != std::string::npos && dot_pos < file.length() - 1) {
+						ext = file.substr(dot_pos + 1);
+					}
+					ss << "```" << ext << "\n" << content;
+					if (!content.empty() && content.back() != '\n')
+						ss << "\n";
+					ss << "```\n";
+				}
 			}
+			ss << "\n";
+		}
 
-			if (args_.context_lines == 0) {
-				// Legacy bullet-point format for 0 context lines to save tokens
-				std::string single_line = content;
-				if (!single_line.empty() && single_line.back() == '\n')
-					single_line.pop_back(); // Remove trailing newline
-				size_t colon_pos = single_line.find(": ");
-				if (colon_pos != std::string::npos) {
-					single_line = single_line.substr(colon_pos + 2);
-				}
-				ss << "* **Line " << match.first << ":** `" << escape_markdown(single_line) << "`\n";
-			} else {
-				// New multi-line block format
-				ss << "**Match near Line " << match.first << ":**\n";
-				// Optionally extract extension for syntax highlighting
-				std::string ext = "";
-				size_t dot_pos = file.find_last_of('.');
-				if (dot_pos != std::string::npos && dot_pos < file.length() - 1) {
-					ext = file.substr(dot_pos + 1);
-				}
-				ss << "```" << ext << "\n" << content;
-				if (!content.empty() && content.back() != '\n')
-					ss << "\n";
-				ss << "```\n";
+		if (!overflow_files.empty()) {
+			ss << "---\n";
+			ss << "*Note: `max_results` (" << args_.max_results
+			   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or specifying "
+			      "a `search_path`.*\n";
+			for (const auto &f : overflow_files) {
+				ss << "- `" << f << "`\n";
 			}
 		}
-		ss << "\n";
+		result_str = lsp_section + ss.str();
 	}
 
-	if (!overflow_files.empty()) {
-		ss << "---\n";
-		ss << "*Note: `max_results` (" << args_.max_results
-		   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or specifying "
-		      "a `search_path`.*\n";
-		for (const auto &f : overflow_files) {
-			ss << "- `" << f << "`\n";
-		}
-	}
-
-	std::string result_str = ss.str();
 	interaction_->set_result(result_str);
 	if (ctx.trigger_ui_update) {
 		ctx.trigger_ui_update();

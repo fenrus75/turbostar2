@@ -12,8 +12,12 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- when the agent does a grep for a word, we should also do an LSP search for it and report where it is defined/etc
-  as part of the result
+- usability: a way to, in our agent multi-line edit ui element, pop up a full editing window for longer prompts. We have
+   a full scale editor after all! This will likely benefit all users of the multi-line edit element.
+   The content of the window should stay fully synchronized with the multi-line edit element.
+
+- usability: "prompt-from-file" -- simple clickable thing in the agent window that loads the content of a file into the multi-line edit
+   field for the prompt
 
 - somehow do python plugins for agents and tool calls?
 
@@ -175,9 +179,10 @@
 
 # mid term items
 
+- wayland virtual server so that gui apps can be debugger cleverly 
 
 
-- find a security scan tool for javascript/nodejs
+- find a security scan tool for javascript/nodejs -- semgrep is a start
 
 - feature: add mouse click interaction on the compaction progress bar to trigger the detailed memory popup dialog (deferred phase)
 
@@ -241,6 +246,9 @@
 
 
 # done items (move items here on completion)
+
+## 02-07-2026
+- extended the `fs_grep_files` tool to perform an LSP symbol search on regular word queries, returning their definition locations formatted with "is defined in" at the top of the output.
 
 ## 28-06-2026
 - implemented an HTML verifier tool (security_verify_html) for the securityagent plugin using "tidy" (if tidy exists).

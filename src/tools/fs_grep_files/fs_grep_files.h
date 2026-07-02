@@ -9,6 +9,8 @@
 #include "../../agentlib/tool_validator.h"
 #include "../../agentlib/interactions/tool_interaction.h"
 
+#include "lsp_manager.h"
+
 namespace tools {
 
 struct fs_grep_files_args {
@@ -30,6 +32,9 @@ public:
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override { return interaction_; }
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
+
+protected:
+    virtual std::vector<lsp_manager::symbol_info> get_lsp_symbols(const std::string& query);
 
 private:
     fs_grep_files_args args_;
