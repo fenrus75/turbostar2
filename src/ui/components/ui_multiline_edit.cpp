@@ -51,6 +51,16 @@ void ui_multiline_edit::on_document_changed(const std::string &filename)
 	}
 }
 
+void ui_multiline_edit::insert_text(const std::string &text)
+{
+	buffer_.insert(cursor_pos_, text);
+	cursor_pos_ += text.length();
+	update_scroll();
+	if (on_change_) {
+		on_change_(buffer_);
+	}
+}
+
 void ui_multiline_edit::set_buffer(const std::string &text)
 {
 	buffer_ = text;
@@ -333,10 +343,14 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 			int key = ev.key_code;
 
 		if (key == KEY_F(5)) {
-			if (on_external_edit_) {
-				on_external_edit_();
-				handled = true;
+			editor_event open_ev;
+			open_ev.type = event_type::open_prompt_editor;
+			open_ev.payload = buffer_;
+			open_ev.multiline_edit_ptr = this;
+			if (global_queue_s_) {
+				global_queue_s_->push(open_ev);
 			}
+			handled = true;
 		} else if (key == 11) { // Ctrl-K
 			k_block_mode_ = true;
 			handled = true;
@@ -357,6 +371,13 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 				selection_start_ = -1;
 				selection_end_ = -1;
 				selection_is_persistent_ = false;
+			} else if (key == 'r' || key == 'R') {
+				editor_event prompt_ev;
+				prompt_ev.type = event_type::prompt_insert_file;
+				prompt_ev.multiline_edit_ptr = this;
+				if (global_queue_s_) {
+					global_queue_s_->push(prompt_ev);
+				}
 			} else {
 				handled = false;
 			}

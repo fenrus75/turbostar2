@@ -78,6 +78,16 @@ void editor::resolve_dialog(dialog_result res)
 			if (doc) {
 				doc->insert_file(result_path);
 			}
+		} else if (active_dialog_mode_ == dialog_mode::insert_file_multiline) {
+			std::string result_path = active_dialog_->get_result();
+			if (pending_multiline_edit_ptr_ && !result_path.empty()) {
+				std::ifstream file(result_path);
+				if (file.is_open()) {
+					std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+					pending_multiline_edit_ptr_->insert_text(content);
+				}
+			}
+			pending_multiline_edit_ptr_ = nullptr;
 		} else if (active_dialog_mode_ == dialog_mode::maybe_binary_prompt) {
 			std::string val = active_dialog_->get_result();
 			if (val == "text") {

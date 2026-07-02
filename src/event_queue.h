@@ -91,7 +91,8 @@ enum class event_type {
 	codereview_updated,	    ///< Notification that a code review item has been created or updated
 	model_servers_config,	    ///< Request to show model servers configuration dialog
 	syntax_colors_config,	    ///< Request to show syntax colors configuration dialog
-	open_prompt_editor	    ///< Request to edit a multiline edit buffer in a full editor window
+	open_prompt_editor,	    ///< Request to edit a multiline edit buffer in a full editor window
+	prompt_insert_file	    ///< Request to insert a file into a multiline edit buffer
 };
 
 namespace status_priorities

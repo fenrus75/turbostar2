@@ -182,6 +182,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::format_doc:
 		case event_type::open_file:
 		case event_type::open_prompt_editor:
+		case event_type::prompt_insert_file:
 			dispatch_event_file(ev);
 			break;
 		case event_type::close_window:

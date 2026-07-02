@@ -24,6 +24,9 @@ public:
     void set_on_change(std::function<void(const std::string&)> cb) { on_change_ = std::move(cb); }
     void set_on_external_edit(std::function<void()> cb) { on_external_edit_ = std::move(cb); }
     void link_document(std::shared_ptr<document> doc);
+    void insert_text(const std::string &text);
+
+    static void set_global_queue(event_queue *q) { global_queue_s_ = q; }
 
     // document_listener overrides
     void on_line_inserted(const std::string &filename, int y) override {}
@@ -65,4 +68,6 @@ private:
     
     // Internal helper to calculate line wrapping and cursor position
     void update_scroll();
+
+    static inline event_queue *global_queue_s_{nullptr};
 };

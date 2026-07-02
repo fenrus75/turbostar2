@@ -155,6 +155,16 @@ void editor::dispatch_event_file(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::prompt_insert_file) {
+		if (ev.multiline_edit_ptr) {
+			active_dialog_ = create_file_dialog("Insert File", ".");
+			active_dialog_mode_ = dialog_mode::insert_file_multiline;
+			pending_multiline_edit_ptr_ = ev.multiline_edit_ptr;
+			set_focus(focus_target::dialog, "menu_insert_file_multiline");
+		}
+		return;
+	}
+
 	if (ev.type == event_type::open_file) {
 		logger.log("Dispatching open_file event for: " + ev.payload);
 		if (ev.payload.empty())

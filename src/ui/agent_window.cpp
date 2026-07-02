@@ -392,15 +392,6 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		}
 	});
 
-	input_box_->set_on_external_edit([this]() {
-		editor_event ev;
-		ev.type = event_type::open_prompt_editor;
-		ev.payload = input_box_->get_buffer();
-		ev.multiline_edit_ptr = input_box_.get();
-		if (agent_->get_global_queue()) {
-			agent_->get_global_queue()->push(ev);
-		}
-	});
 
 	// List available skills at startup for the user
 	auto &skills = skill_manager::get_instance().get_skills();
@@ -743,15 +734,6 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 		}
 	});
 
-	input_box_->set_on_external_edit([this]() {
-		editor_event ev;
-		ev.type = event_type::open_prompt_editor;
-		ev.payload = input_box_->get_buffer();
-		ev.multiline_edit_ptr = input_box_.get();
-		if (agent_->get_global_queue()) {
-			agent_->get_global_queue()->push(ev);
-		}
-	});
 
 	todos_list_ = std::make_unique<ui_listbox>("todos", 0, 0, 1, 1, [this](int) { invalidate(); }, [](int) {});
 

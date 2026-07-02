@@ -205,7 +205,8 @@ class editor : public agentlib::document_provider
 		codereview_select_state,
 		codereview_select_severity,
 		syntax_colors,
-		maybe_binary_prompt
+		maybe_binary_prompt,
+		insert_file_multiline
 	};
 	int codereview_edit_item_id_{-1};
 	dialog_mode active_dialog_mode_{dialog_mode::none};
@@ -214,6 +215,7 @@ class editor : public agentlib::document_provider
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
 	std::string configuring_mcp_server_;
 	std::string pending_open_filename_;
+	ui_multiline_edit *pending_multiline_edit_ptr_{nullptr};
 	long long last_clock_minute_{0};
 
 	search_params current_search_;
