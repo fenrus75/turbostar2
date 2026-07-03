@@ -27,7 +27,7 @@ sections updated as enhancements are made to the project.
 | `docs/code-review.md`  | Code review system and agent tools |
 | `docs/design-plugin.md` | Plugin architecture, lifecycles, and tool registration |
 | `docs/design-subagents.md` | Subagent Library and Manager architecture |
-
+| `docs/design-website.md` | Project website structure, styling guidelines, and update rules |
 
 
 
