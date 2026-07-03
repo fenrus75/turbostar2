@@ -1,4 +1,4 @@
-#include "python_highlighter.h"
+#include "highlighter/python_highlighter.h"
 #include <filesystem>
 #include <vector>
 #include "utf8.h"

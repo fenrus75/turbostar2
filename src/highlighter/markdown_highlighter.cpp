@@ -1,4 +1,4 @@
-#include "markdown_highlighter.h"
+#include "highlighter/markdown_highlighter.h"
 #include <filesystem>
 #include <memory>
 #include <re2/re2.h>

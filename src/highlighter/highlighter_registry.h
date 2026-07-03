@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "syntax_highlighter.h"
+#include "highlighter/syntax_highlighter.h"
 
 /**
  * @brief Singleton registry holding all available syntax highlighters.

@@ -1,4 +1,4 @@
-#include "verilog_highlighter.h"
+#include "highlighter/verilog_highlighter.h"
 #include <filesystem>
 #include <vector>
 #include "utf8.h"

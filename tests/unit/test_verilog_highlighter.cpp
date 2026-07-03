@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include "line.h"
-#include "verilog_highlighter.h"
+#include "highlighter/verilog_highlighter.h"
 
 void test_verilog_file_support()
 {

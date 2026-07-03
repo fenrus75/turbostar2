@@ -29,7 +29,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "git_manager.h"
-#include "highlighter_registry.h"
+#include "highlighter/highlighter_registry.h"
 #include "history_manager.h"
 #include "project_manager.h"
 

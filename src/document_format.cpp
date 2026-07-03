@@ -10,7 +10,7 @@
 #include "document.h"
 #include "event_logger.h"
 #include "fs_utils.h"
-#include "highlighter_registry.h"
+#include "highlighter/highlighter_registry.h"
 #include "lsp_manager.h"
 #include "project_manager.h"
 

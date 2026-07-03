@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include "line.h"
-#include "python_highlighter.h"
+#include "highlighter/python_highlighter.h"
 
 void test_python_keywords()
 {

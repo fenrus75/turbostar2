@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include "line.h"
-#include "html_highlighter.h"
+#include "highlighter/html_highlighter.h"
 
 void test_html_supports_file()
 {

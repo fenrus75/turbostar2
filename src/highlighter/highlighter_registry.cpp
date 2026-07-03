@@ -1,9 +1,9 @@
-#include "highlighter_registry.h"
-#include "cpp_highlighter.h"
-#include "markdown_highlighter.h"
-#include "python_highlighter.h"
-#include "verilog_highlighter.h"
-#include "html_highlighter.h"
+#include "highlighter/highlighter_registry.h"
+#include "highlighter/cpp_highlighter.h"
+#include "highlighter/markdown_highlighter.h"
+#include "highlighter/python_highlighter.h"
+#include "highlighter/verilog_highlighter.h"
+#include "highlighter/html_highlighter.h"
 
 // A default highlighter that does nothing
 class default_highlighter : public syntax_highlighter

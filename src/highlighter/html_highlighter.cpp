@@ -1,4 +1,4 @@
-#include "html_highlighter.h"
+#include "highlighter/html_highlighter.h"
 #include <filesystem>
 #include <algorithm>
 #include <vector>

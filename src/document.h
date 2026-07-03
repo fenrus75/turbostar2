@@ -12,7 +12,7 @@
 #include <vector>
 #include "event_queue.h"
 #include "line.h"
-#include "syntax_highlighter.h"
+#include "highlighter/syntax_highlighter.h"
 /*
 
 # subclasses of document_listener

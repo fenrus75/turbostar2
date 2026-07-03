@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syntax_highlighter.h"
+#include "highlighter/syntax_highlighter.h"
 
 class markdown_highlighter : public syntax_highlighter
 {

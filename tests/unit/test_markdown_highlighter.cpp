@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include "line.h"
-#include "markdown_highlighter.h"
+#include "highlighter/markdown_highlighter.h"
 
 void test_markdown_supports_file()
 {
