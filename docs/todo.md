@@ -243,7 +243,7 @@
 # done items (move items here on completion)
 
 ## 03-07-2026
-- HTML links, images, and tables extraction: Implemented an optional `html` plugin with the `html_extract_tables`, `html_list_links`, and `html_list_images` tools using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, pipe escaping/sanitization, aligned markdown table outputs, and parameter/size validation.
+- HTML links, images, tables, and text extraction: Implemented an optional `html` plugin with the `html_extract_tables`, `html_list_links`, `html_list_images`, and `html_extract_text` tools using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, list formatting, bold/italic toggles (Option C), pipe escaping/sanitization, aligned markdown table outputs, and parameter/size validation.
 - Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
 - HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.

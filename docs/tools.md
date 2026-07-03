@@ -571,6 +571,12 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the HTML file relative to project root.
 
+### `html_extract_text` (Family: `html`)
+*   **Description:** Extracts structured text from an HTML document as Markdown, keeping lists, headers, code blocks, tables, and links.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the HTML file relative to project root.
+    *   `rich` *(boolean, optional)*: If true (default), inline elements (bold/italic) will be preserved in Markdown format. If false, they will be stripped.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**

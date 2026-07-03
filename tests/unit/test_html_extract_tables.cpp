@@ -52,6 +52,11 @@ int main()
 			<h1>Document Title</h1>
 			<p>Introductory paragraph with a <a href="https://example.com/info">link here</a>.</p>
 			<img src="assets/banner.png" alt="Welcome banner" />
+			<p>Here is some <b>bold text</b> and <i>italic text</i>, and inline <code>code snippet</code>.</p>
+			<ul>
+				<li>First list item</li>
+				<li>Second list item</li>
+			</ul>
 			<h2>Section A</h2>
 			<p>Details about Section A</p>
 			<h3>Subsection A.1</h3>
@@ -166,6 +171,36 @@ int main()
 		assert(res.find("Error:") == std::string::npos);
 		assert(res.find("Welcome banner") != std::string::npos);
 		assert(res.find("assets/banner.png") != std::string::npos);
+	}
+
+	// 9. Test html_extract_text (rich = true, default)
+	{
+		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string res = registry.execute_tool("html_extract_text", args, ctx);
+		std::cout << "extract text rich result:\n" << res << "\n";
+		assert(!res.empty());
+		assert(res.find("Error:") == std::string::npos);
+		assert(res.find("# Document Title") != std::string::npos);
+		assert(res.find("**bold text**") != std::string::npos);
+		assert(res.find("*italic text*") != std::string::npos);
+		assert(res.find("`code snippet`") != std::string::npos);
+		assert(res.find("- First list item") != std::string::npos);
+		assert(res.find("[link here](https://example.com/info)") != std::string::npos);
+		assert(res.find("Item 2") != std::string::npos); // Table content preserved
+	}
+
+	// 10. Test html_extract_text (rich = false)
+	{
+		std::string args = "{\"path\": \"" + html_path + "\", \"rich\": false}";
+		std::string res = registry.execute_tool("html_extract_text", args, ctx);
+		std::cout << "extract text non-rich result:\n" << res << "\n";
+		assert(!res.empty());
+		assert(res.find("Error:") == std::string::npos);
+		assert(res.find("bold text") != std::string::npos);
+		assert(res.find("**bold text**") == std::string::npos); // bold tag stripped
+		assert(res.find("italic text") != std::string::npos);
+		assert(res.find("*italic text*") == std::string::npos); // italic tag stripped
+		assert(res.find("`code snippet`") != std::string::npos); // inline code always kept
 	}
 
 	// Clean up mock files
