@@ -555,6 +555,12 @@ These tools allow the agent to interact with the project's Git repository.
     *   `start_offset` *(integer, optional)*: 0-based byte offset to start inspecting. Defaults to 0.
     *   `size` *(integer, optional)*: Number of bytes to inspect. Defaults to 256. Maximum 4096.
 
+### `html_extract_tables` (Family: `html`)
+*   **Description:** Parses an HTML file, extracts all tables, and formats them as beautifully aligned markdown tables. Prepends active heading structures (H1, H2, H3) above each table automatically.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the HTML file relative to project root.
+    *   `output_path` *(string, optional)*: Optional path relative to project root to write the markdown output file to.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**
