@@ -15,10 +15,6 @@
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
-- nit: the x86 disassembler uses 0x000000321 kind of very long versions of hex numbers -- we should shorten those
-	- 4, 8 and 16 digits are nice sizes -- but this means decoding these as a number
-	- this will be string manipulation, so alternative is to just replace 0x00000 with 0x0 repeatedly, we'll get very close
- 	  to the perfect answer
 
 - feature: a hex editor tool plugin -- read ranges of (binary) files as hex, and edit bytes in hex
 	- hexedit plugin-namespace
@@ -258,6 +254,7 @@
 - HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.
 - Hex editor split: Refactored and split file format highlighters into dedicated classes under `src/hex/`.
 - JPEG/JFIF support: Added APP0 headers, SOF0/SOF2 frame dimensions, and entropy scan segment parsing for JPEG/JFIF files to the hex highlighter.
+- Hex disassembler: Shortened long hexadecimal address/offset/immediate representations in disassembler outputs by stripping leading zeros.
 
 ## 02-07-2026
 - implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.
