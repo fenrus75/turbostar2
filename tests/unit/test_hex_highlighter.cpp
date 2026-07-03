@@ -144,6 +144,8 @@ void test_elf_highlighter()
 	// Write mock x86-64 instructions into .text at offset 450
 	data[450] = 0x51; // push rcx
 	data[451] = 0x8D; data[452] = 0x45; data[453] = 0xFF; // lea eax, [rbp-0x01]
+	// mov eax, 0x00000321 (imm32: 21 03 00 00)
+	data[454] = 0xB8; data[455] = 0x21; data[456] = 0x03; data[457] = 0x00; data[458] = 0x00;
 
 	elf_hex_highlighter hl;
 	assert(hl.can_handle(data) == true);
@@ -195,6 +197,13 @@ void test_elf_highlighter()
 	assert(inf.description.find("in my_func") != std::string::npos);
 	assert(inf.range_start == 450);
 	assert(inf.range_size == 1);
+
+	// Test address shortening for offset 454
+	highlight_info inf_short = hl.get_info(data, 454);
+	assert(inf_short.type == hex_semantic_type::code_section);
+	assert(inf_short.description.find("mov") != std::string::npos);
+	assert(inf_short.description.find("0x321") != std::string::npos);
+	assert(inf_short.description.find("0x0000") == std::string::npos);
 #else
 	assert(inf.description.find("Sec \".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]\"") != std::string::npos);
 #endif

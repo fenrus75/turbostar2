@@ -289,6 +289,42 @@ std::string get_shdr_flags_desc(uint64_t val)
 	return std::format("0x{:X} ({})", val, res);
 }
 
+std::string shorten_hex_numbers(const std::string &input)
+{
+	std::string result;
+	size_t i = 0;
+	while (i < input.length()) {
+		if (i + 2 < input.length() && input[i] == '0' && input[i + 1] == 'x') {
+			result += "0x";
+			i += 2;
+			size_t hex_start = i;
+			while (i < input.length() &&
+			       ((input[i] >= '0' && input[i] <= '9') ||
+				(input[i] >= 'a' && input[i] <= 'f') ||
+				(input[i] >= 'A' && input[i] <= 'F'))) {
+				i++;
+			}
+			size_t hex_len = i - hex_start;
+			if (hex_len > 0) {
+				std::string hex_digits = input.substr(hex_start, hex_len);
+				size_t first_non_zero = 0;
+				while (first_non_zero < hex_digits.length() && hex_digits[first_non_zero] == '0') {
+					first_non_zero++;
+				}
+				if (first_non_zero == hex_digits.length()) {
+					result += "0";
+				} else {
+					result += hex_digits.substr(first_non_zero);
+				}
+			}
+		} else {
+			result += input[i];
+			i++;
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 bool elf_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
@@ -971,7 +1007,7 @@ highlight_info elf_hex_highlighter::get_info(const std::vector<uint8_t> &data, s
 						highlight_info info;
 						info.type = sec.semantic;
 						info.description = std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})",
-										  instruction.text, symbol_ctx, sec.name,
+										  shorten_hex_numbers(instruction.text), symbol_ctx, sec.name,
 										  get_shdr_type_desc(sec.type_val), sec.offset, relative);
 						info.range_start = inst_start;
 						info.range_size = inst_len;
