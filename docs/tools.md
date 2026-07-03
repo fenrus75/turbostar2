@@ -561,6 +561,16 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the HTML file relative to project root.
     *   `output_path` *(string, optional)*: Optional path relative to project root to write the markdown output file to.
 
+### `html_list_links` (Family: `html`)
+*   **Description:** Extracts all hyperlink anchor text and URLs from an HTML document and formats them into an aligned markdown table.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the HTML file relative to project root.
+
+### `html_list_images` (Family: `html`)
+*   **Description:** Extracts all image alt texts and source URLs from an HTML document and formats them into an aligned markdown table.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the HTML file relative to project root.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**

@@ -50,7 +50,8 @@ int main()
 		<head><title>Mock HTML</title></head>
 		<body>
 			<h1>Document Title</h1>
-			<p>Introductory paragraph</p>
+			<p>Introductory paragraph with a <a href="https://example.com/info">link here</a>.</p>
+			<img src="assets/banner.png" alt="Welcome banner" />
 			<h2>Section A</h2>
 			<p>Details about Section A</p>
 			<h3>Subsection A.1</h3>
@@ -145,11 +146,33 @@ int main()
 		}
 	}
 
+	// 7. Test html_list_links
+	{
+		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string res = registry.execute_tool("html_list_links", args, ctx);
+		std::cout << "list links result:\n" << res << "\n";
+		assert(!res.empty());
+		assert(res.find("Error:") == std::string::npos);
+		assert(res.find("link here") != std::string::npos);
+		assert(res.find("https://example.com/info") != std::string::npos);
+	}
+
+	// 8. Test html_list_images
+	{
+		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string res = registry.execute_tool("html_list_images", args, ctx);
+		std::cout << "list images result:\n" << res << "\n";
+		assert(!res.empty());
+		assert(res.find("Error:") == std::string::npos);
+		assert(res.find("Welcome banner") != std::string::npos);
+		assert(res.find("assets/banner.png") != std::string::npos);
+	}
+
 	// Clean up mock files
 	std::filesystem::remove(full_html_path);
 	std::filesystem::remove(full_large_html_path);
 	std::filesystem::remove(full_out_path);
 
-	std::cout << "html_extract_tables tool tests passed successfully.\n";
+	std::cout << "html plugin tool tests passed successfully.\n";
 	return 0;
 }
