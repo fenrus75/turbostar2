@@ -185,6 +185,14 @@ test_pluginloader = executable('test_pluginloader',
   export_dynamic: true)
 test('unit_pluginloader', test_pluginloader, suite: 'plugins')
 
+test_hexedit_plugin = executable('test_hexedit_plugin',
+  ['tests/unit/test_hexedit_plugin.cpp',
+   'src/plugins/hexedit/hexdump_tool.cpp',
+   'src/plugins/hexedit/hexwrite_tool.cpp'],
+  dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_hexedit_plugin', test_hexedit_plugin, suite: 'plugins')
+
 
 test_history_manager = executable('test_history_manager',
   ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp'],
@@ -789,7 +797,7 @@ test_assert_fail = executable('test_assert_fail',
   'tests/unit/test_assert_fail.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_assert_fail', test_assert_fail, suite: 'agent')
+test('unit_test_assert_fail', test_assert_fail, suite: 'agent', depends: libturbocatch)
 
 test_fallback_crash = executable('test_fallback_crash',
   'tests/unit/test_fallback_crash.cpp',

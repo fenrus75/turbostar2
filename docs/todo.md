@@ -16,10 +16,6 @@
     increase the limits?
 
 
-- feature: a hex editor tool plugin -- read ranges of (binary) files as hex, and edit bytes in hex
-	- hexedit plugin-namespace
-	- later feature: file format aware edits?
-		(example: auto-update checksums of known headers)
 
 - somehow do python plugins for agents and tool calls?
 
@@ -75,6 +71,7 @@
 	- perf stat summary?
 	- hot functions
 	- fs_read_lines option to get per line perf data?
+	- not just the agent tool -- also in the editor!
 
 - code review enhancements
 	- we can provide upfront a set of static analysis data to the code review agent
@@ -255,6 +252,7 @@
 - Hex editor split: Refactored and split file format highlighters into dedicated classes under `src/hex/`.
 - JPEG/JFIF support: Added APP0 headers, SOF0/SOF2 frame dimensions, and entropy scan segment parsing for JPEG/JFIF files to the hex highlighter.
 - Hex disassembler: Shortened long hexadecimal address/offset/immediate representations in disassembler outputs by stripping leading zeros.
+- Hex editor plugin: Implemented `hexedit` shared module plugin registering the `hexedit` tool family with `hexdump` and `hexwrite` tools, complete with file format metadata annotation integration and a dedicated unit test suite.
 
 ## 02-07-2026
 - implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.

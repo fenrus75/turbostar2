@@ -1,0 +1,82 @@
+#include "plugins/hexedit/hexdump_validator.h"
+#include <nlohmann/json.hpp>
+#include "agentlib/tool_registry.h"
+
+namespace tools
+{
+
+struct hexdump_raw_args {
+	std::string path;
+	size_t start_offset{0};
+	size_t size{0};
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(hexdump_raw_args, path, start_offset, size);
+
+std::string hexdump_validator::get_description() const
+{
+	return "Reads a range of bytes from a binary or text file and returns a formatted hexdump "
+	       "complete with offset offsets, raw hex tuples, ASCII representations, and structural annotations "
+	       "(such as ELF/PNG/JPEG headers) if format-specific patterns are detected.";
+}
+
+nlohmann::json hexdump_validator::get_parameters_schema() const
+{
+	return {
+	    {"type", "object"},
+	    {"properties",
+	     {{"path", {{"type", "string"}, {"description", "The path to the file relative to the project root."}}},
+	      {"start_offset", {{"type", "integer"}, {"minimum", 0}, {"description", "Byte offset from which to start reading. Defaults to 0."}}},
+	      {"size", {{"type", "integer"}, {"minimum", 1}, {"description", "Number of bytes to read."}}}}},
+	    {"required", nlohmann::json::array({"path", "size"})}};
+}
+
+bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
+					   std::string &out_error) const
+{
+	try {
+		hexdump_raw_args parsed = raw_json.get<hexdump_raw_args>();
+		if (parsed.path.empty()) {
+			out_error = "Path cannot be empty.";
+			return false;
+		}
+		if (parsed.size == 0) {
+			out_error = "Size must be at least 1 byte.";
+			return false;
+		}
+
+		std::string canonical_path;
+		if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
+			return false;
+		}
+
+		args_.requested_path = parsed.path;
+		args_.safe_path = canonical_path;
+		args_.start_offset = parsed.start_offset;
+		args_.size = parsed.size;
+
+		return true;
+	} catch (const std::exception &e) {
+		out_error = "Invalid arguments: " + std::string(e.what());
+		return false;
+	}
+}
+
+std::unique_ptr<agentlib::llm_tool> hexdump_validator::create_tool_impl(const nlohmann::json & /*raw_json*/) const
+{
+	return std::make_unique<hexdump_tool>(args_);
+}
+
+} // namespace tools
+
+extern "C" {
+void register_hexdump(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::hexdump_validator>(); });
+}
+
+void unregister_hexdump(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("hexdump");
+}
+}

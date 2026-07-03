@@ -55,3 +55,16 @@ securityagent_plugin = shared_module('securityagent',
   install_dir: plugin_dir
 )
 
+hexedit_plugin = shared_module('hexedit',
+  ['hexedit/plugin.cpp',
+   'hexedit/hexdump_tool.cpp',
+   'hexedit/hexdump_validator.cpp',
+   'hexedit/hexwrite_tool.cpp',
+   'hexedit/hexwrite_validator.cpp'],
+  dependencies: [nlohmann_json_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+

@@ -24,7 +24,8 @@ namespace agentlib {
 | security_review_with_agent_validator | src/plugins/securityagent/security_review_with_agent/security_review_with_agent.h |
 | git_blame_validator          | src/tools/git_blame/git_blame.h                              |
 | security_verify_html_validator | src/plugins/securityagent/security_verify_html/security_verify_html.h |
-
+| hexdump_validator | src/plugins/hexedit/hexdump_validator.h |
+| hexwrite_validator | src/plugins/hexedit/hexwrite_validator.h |
 */
 class tool_validator {
 public:
