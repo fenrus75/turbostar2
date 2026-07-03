@@ -1031,6 +1031,12 @@ test_markdown_highlighter = executable('test_markdown_highlighter',
   include_directories: 'src')
 test('unit_markdown_highlighter', test_markdown_highlighter, suite: 'editor')
 
+test_html_highlighter = executable('test_html_highlighter',
+  ['tests/unit/test_html_highlighter.cpp', 'src/html_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_html_highlighter', test_html_highlighter, suite: 'editor')
+
 
 
 test_markdown_utils = executable('test_markdown_utils',

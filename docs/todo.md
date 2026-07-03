@@ -12,22 +12,29 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- a hex editor plugin -- read parts as hex, and edit bytes in hex
+- nit: the hexeditor has a size limit that's a bit on the small side 
+
+- nit: the x86 disassembler uses 0x000000321 kind of very long versions of hex numbers -- we should shorten those
+	- 4, 8 and 16 digits are nice sizes -- but this means decoding these as a number
+	- this will be string manipulation, so alternative is to just replace 0x00000 with 0x0 repeatedly, we'll get very close
+ 	  to the perfect answer
+
+- feature: a hex editor plugin -- read parts as hex, and edit bytes in hex
 	- hexedit plugin-namespace
 	- later feature: file format aware edits?
 		(example: auto-update checksums of known headers)
 
 - somehow do python plugins for agents and tool calls?
 
-- subagent creation wizzard dialog
+- feature: subagent creation wizzard dialog
 
-- allow /command class to activate a specific skill
+- feature: allow the /command class to activate a specific skill
 
-- allow for "invisible" skills -- skills that you can activate, but are not enumerated to save tokens
+- feature: allow for "invisible" skills -- skills that you can activate, but are not enumerated to save tokens
 	- all user provided (e.g. filesystem discovered) skills will be visible
 	- plugins and internal skills can be invisible
 
-- allow plugins to register skills by providing a std::string rather than a filename
+- feature: allow plugins to register skills by providing a std::string rather than a filename
 
 - implement /grill-me in a plugin, see https://raw.githubusercontent.com/mattpocock/skills/733d312884b3878a9a9cff693c5886943753a741/skills/productivity/grill-me/SKILL.md as
    the reference skill for this (note: we must give Matt Pocock credit in the plugin code, he deserves it)
@@ -252,6 +259,7 @@
 
 ## 03-07-2026
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
+- HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.
 
 ## 02-07-2026
 - implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.
