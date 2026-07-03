@@ -3,9 +3,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
+#include "agentlib/tool_registry.h"
+#include "pluginloader.h"
+#include "project_manager.h"
 #include "elf_test_helper.h"
+#include "hex/hex_highlighter_registry.h"
 
 using namespace agentlib;
 
@@ -14,16 +16,23 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
+	// Force initialization of registry and highlighter registry
 	tool_registry &registry = tool_registry::get_instance();
+	(void)hex_highlighter_registry::get_instance();
+
+	// Load the dynamic plugins (including hexedit)
+	auto &loader = plugin_loader::get_instance();
+	loader.load_all_plugins();
+
 	tool_context ctx;
-	ctx.properties.active_families = {"base", "x86"};
+	ctx.properties.active_families = {"hexedit", "x86"};
 
 	std::string project_root = project_manager::get_instance().get_project_root();
 	ctx.fs_security.set_working_directory(project_root);
 	ctx.fs_security.add_allowed_root(project_root, access_type::read);
 	ctx.fs_security.add_allowed_root(project_root, access_type::write);
 
-	std::string elf_path = "tests/unit/mock_elf_inspect_range.bin";
+	std::string elf_path = "tests/unit/mock_elf_hexinspect.bin";
 	std::string full_elf_path = project_root + "/" + elf_path;
 
 	// Write mock ELF file to disk
@@ -36,26 +45,26 @@ int main()
 	ofs.write(reinterpret_cast<const char *>(elf_bytes.data()), elf_bytes.size());
 	ofs.close();
 
-	std::cout << "Testing hex_inspect_range..." << std::endl;
+	std::cout << "Testing hexinspect..." << std::endl;
 
 	// 1. Test family activation constraint (inactive by default)
-	ctx.is_family_active = [](const std::string &family) { return family != "base"; };
+	ctx.is_family_active = [](const std::string &family) { return family != "hexedit"; };
 
 	{
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 0, \"size\": 64}";
-		auto prep = registry.prepare_tool("hex_inspect_range", args, ctx);
-		assert(prep.tool == nullptr && "hex_inspect_range must block if base family is inactive");
+		auto prep = registry.prepare_tool("hexinspect", args, ctx);
+		assert(prep.tool == nullptr && "hexinspect must block if hexedit family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
 	}
 
 	// 2. Test family activation constraint (active)
-	ctx.is_family_active = [](const std::string &family) { return family == "base"; };
+	ctx.is_family_active = [](const std::string &family) { return family == "hexedit"; };
 
 	// 3. Test successful execution on ELF Magic and file header
 	{
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 0, \"size\": 16}";
-		std::string res = registry.execute_tool("hex_inspect_range", args, ctx);
-		std::cout << "hex_inspect_range result:\n" << res << "\n";
+		std::string res = registry.execute_tool("hexinspect", args, ctx);
+		std::cout << "hexinspect result:\n" << res << "\n";
 		assert(!res.empty());
 		assert(res.find("Error:") == std::string::npos);
 		assert(res.find("Binary Structure Inspection") != std::string::npos);
@@ -72,7 +81,7 @@ int main()
 	// 4. Test validation of empty path
 	{
 		std::string args = "{\"path\": \"\"}";
-		auto prep = registry.prepare_tool("hex_inspect_range", args, ctx);
+		auto prep = registry.prepare_tool("hexinspect", args, ctx);
 		assert(prep.tool == nullptr);
 		assert(!prep.error_message.empty());
 	}
@@ -80,7 +89,7 @@ int main()
 	// 5. Test out of bounds start_offset
 	{
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 500000, \"size\": 64}";
-		std::string res = registry.execute_tool("hex_inspect_range", args, ctx);
+		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		assert(res.find("Error:") != std::string::npos);
 		assert(res.find("out of bounds") != std::string::npos);
 	}
@@ -88,6 +97,6 @@ int main()
 	// Clean up mock file
 	std::filesystem::remove(full_elf_path);
 
-	std::cout << "hex_inspect_range tool tests passed successfully.\n";
+	std::cout << "hexinspect tool tests passed successfully.\n";
 	return 0;
 }

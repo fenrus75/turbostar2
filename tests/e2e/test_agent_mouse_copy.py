@@ -77,7 +77,15 @@ def test_agent_mouse_copy():
         
         # Release mouse
         runner.send_raw_keys(f"\x1b[<0;{x_end_sgr};{y_sgr}m".encode())
-        time.sleep(0.1)
+        
+        # Wait up to 2 seconds for clipboard sequence to be captured
+        expected_seq = b"\x1b]52;c;SGVsbG8h\x07"
+        start_wait = time.time()
+        while time.time() - start_wait < 2.0:
+            if expected_seq in runner.captured_bytes:
+                break
+            time.sleep(0.05)
+            runner._read_output()
         
         # 3. Quit editor cleanly, discarding changes
         runner.send_keys(KEY_ESC + '1') # Focus main editor document

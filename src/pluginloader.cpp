@@ -1,6 +1,7 @@
 #include "pluginloader.h"
 #include <filesystem>
 #include <dlfcn.h>
+#include <cstdlib>
 
 plugin_loader& plugin_loader::get_instance()
 {
@@ -36,16 +37,26 @@ const std::vector<plugin_loader::plugin_info>& plugin_loader::get_plugins() cons
 
 void plugin_loader::load_all_plugins()
 {
+	std::filesystem::path plugin_path;
+	const char *env_plugin_dir = std::getenv("TURBOSTAR_PLUGIN_DIR");
+	if (env_plugin_dir && *env_plugin_dir) {
+		plugin_path = env_plugin_dir;
+	} else {
 #ifdef PLUGIN_DIR
-	std::filesystem::path plugin_path(PLUGIN_DIR);
-	if (!std::filesystem::exists(plugin_path) || !std::filesystem::is_directory(plugin_path)) {
+		plugin_path = PLUGIN_DIR;
+#endif
+	}
+
+	if (plugin_path.empty() || !std::filesystem::exists(plugin_path) || !std::filesystem::is_directory(plugin_path)) {
 		return;
 	}
 
 	for (const auto &entry : std::filesystem::directory_iterator(plugin_path)) {
 		if (entry.is_regular_file() && entry.path().extension() == ".so") {
 			void *handle = dlopen(entry.path().c_str(), RTLD_LOCAL | RTLD_LAZY);
-			if (handle) {
+			if (!handle) {
+				fprintf(stderr, "dlopen failed for %s: %s\n", entry.path().c_str(), dlerror());
+			} else {
 				// Query metadata functions
 				union {
 					void *ptr;
@@ -98,7 +109,6 @@ void plugin_loader::load_all_plugins()
 			}
 		}
 	}
-#endif
 }
 
 

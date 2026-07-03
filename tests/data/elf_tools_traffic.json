@@ -1428,7 +1428,7 @@
         {
           "function": {
             "description": "Inspects the semantic/structural details of a binary file range using registered syntax highlighters (like ELF or PNG). Returns a markdown list of fields, offsets, sizes, and annotations in the range. [Read-Only: Safe for Plan Mode]",
-            "name": "hex_inspect_range",
+            "name": "hexinspect",
             "parameters": {
               "properties": {
                 "path": {
@@ -3351,7 +3351,7 @@
         {
           "function": {
             "description": "Inspects the semantic/structural details of a binary file range using registered syntax highlighters (like ELF or PNG). Returns a markdown list of fields, offsets, sizes, and annotations in the range. [Read-Only: Safe for Plan Mode]",
-            "name": "hex_inspect_range",
+            "name": "hexinspect",
             "parameters": {
               "properties": {
                 "path": {

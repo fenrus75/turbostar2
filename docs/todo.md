@@ -247,6 +247,7 @@
 # done items (move items here on completion)
 
 ## 03-07-2026
+- Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
 - HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.
 - Hex editor split: Refactored and split file format highlighters into dedicated classes under `src/hex/`.

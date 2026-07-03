@@ -183,7 +183,7 @@ test_pluginloader = executable('test_pluginloader',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true)
-test('unit_pluginloader', test_pluginloader, suite: 'plugins')
+test('unit_pluginloader', test_pluginloader, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 test_hexedit_plugin = executable('test_hexedit_plugin',
   ['tests/unit/test_hexedit_plugin.cpp',
@@ -290,13 +290,12 @@ test_x86_assemble = executable('test_x86_assemble',
 test('unit_test_x86_assemble', test_x86_assemble, suite: 'plugins')
 
 
-test_hex_inspect_range = executable('test_hex_inspect_range',
-  ['tests/unit/test_hex_inspect_range.cpp',
-   'src/tools/hex_inspect_range/hex_inspect_range_entry.cpp',
-   'src/tools/hex_inspect_range/hex_inspect_range_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
-  include_directories: inc)
-test('unit_test_hex_inspect_range', test_hex_inspect_range, suite: 'agent')
+test_hexinspect = executable('test_hexinspect',
+  ['tests/unit/test_hexinspect.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true)
+test('unit_test_hexinspect', test_hexinspect, suite: 'plugins', depends: hexedit_plugin, env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
@@ -1272,7 +1271,8 @@ if uv.found() or python.found()
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root(),
     'UV_OFFLINE=1',
-    'TURBOSTAR_IN_TESTSUITE=1'
+    'TURBOSTAR_IN_TESTSUITE=1',
+    'TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'
   ]
   e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt]
 

@@ -16,11 +16,14 @@ void register_hexdump(void);
 void unregister_hexdump(void);
 void register_hexwrite(void);
 void unregister_hexwrite(void);
+void register_hexinspect(void);
+void unregister_hexinspect(void);
 
 void plugin_run(void)
 {
 	register_hexdump();
 	register_hexwrite();
+	register_hexinspect();
 	agentlib::tool_registry::get_instance().register_tool_family("hexedit", "Activate when viewing or writing raw hex data in binary/text files");
 }
 
@@ -28,6 +31,7 @@ void plugin_unload(void)
 {
 	unregister_hexdump();
 	unregister_hexwrite();
+	unregister_hexinspect();
 	agentlib::tool_registry::get_instance().unregister_tool_family("hexedit");
 }
 

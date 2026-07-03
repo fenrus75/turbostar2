@@ -1,11 +1,12 @@
+#include "plugins/hexedit/hexinspect_tool.h"
 #include <algorithm>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <vector>
-#include "../magic_compat.h"
+#include "hex/hex_highlighter.h"
 #include "hex/hex_highlighter_registry.h"
-#include "hex_inspect_range.h"
+#include "tools/magic_compat.h"
 
 namespace tools
 {
@@ -62,17 +63,17 @@ std::string sanitize_for_table(std::string str)
 }
 } // namespace
 
-hex_inspect_range_tool::hex_inspect_range_tool(hex_inspect_range_args args)
+hexinspect_tool::hexinspect_tool(hexinspect_args args)
     : llm_tool_action("Inspecting binary structures in " + args.requested_path), args_(std::move(args))
 {
 }
 
-bool hex_inspect_range_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
+bool hexinspect_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
 {
 	return true;
 }
 
-std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
+std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 {
 	std::ifstream file(args_.safe_path, std::ios::binary);
 	if (!file.is_open()) {
@@ -81,11 +82,17 @@ std::string hex_inspect_range_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	file.seekg(0, std::ios::end);
-	std::streamsize size = file.tellg();
+	std::streamsize file_size = file.tellg();
 	file.seekg(0, std::ios::beg);
 
-	std::vector<uint8_t> bytes(size);
-	if (size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), size)) {
+	if (file_size > 50 * 1024 * 1024) {
+		file.close();
+		set_failure(ctx, "File is too large (>50MB).");
+		return "Error: File is too large (>50MB) to read.";
+	}
+
+	std::vector<uint8_t> bytes(file_size);
+	if (file_size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), file_size)) {
 		file.close();
 		set_failure(ctx, "Failed to read file.");
 		return "Error: Failed to read file.";

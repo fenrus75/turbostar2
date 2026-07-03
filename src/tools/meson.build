@@ -166,8 +166,7 @@ tools_sources = files(
   'activate_tool_family/activate_tool_family_entry.cpp',
   'activate_tool_family/activate_tool_family_security.cpp',
 
-  'hex_inspect_range/hex_inspect_range_entry.cpp',
-  'hex_inspect_range/hex_inspect_range_security.cpp',
+
   'troff2md.cpp',
   'fs_man/fs_man_entry.cpp',
   'fs_man/fs_man_security.cpp',

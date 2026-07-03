@@ -1,27 +1,29 @@
 #pragma once
+
 #include <string>
+#include <vector>
 #include "agentlib/llm_tool_action.h"
 
 namespace tools
 {
 
-struct hex_inspect_range_args {
+struct hexinspect_args {
 	std::string requested_path;
-	int start_offset;
-	int size;
 	std::string safe_path;
+	size_t start_offset{0};
+	size_t size{0};
 };
 
-class hex_inspect_range_tool : public agentlib::llm_tool_action
+class hexinspect_tool : public agentlib::llm_tool_action
 {
       public:
-	explicit hex_inspect_range_tool(hex_inspect_range_args args);
+	explicit hexinspect_tool(hexinspect_args args);
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
 
       private:
-	hex_inspect_range_args args_;
+	hexinspect_args args_;
 };
 
 } // namespace tools

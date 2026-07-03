@@ -22,7 +22,15 @@ def test_mouse_copy():
         
         # 4. Release mouse
         runner.send_raw_keys(b"\x1b[<0;14;3m")
-        time.sleep(0.1)
+        
+        # Wait up to 2 seconds for clipboard sequence to be captured
+        expected_seq = b"\x1b]52;c;V29ybGQh\x07"
+        start_wait = time.time()
+        while time.time() - start_wait < 2.0:
+            if expected_seq in runner.captured_bytes:
+                break
+            time.sleep(0.05)
+            runner._read_output()
         
         # 5. Quit editor cleanly, discarding changes
         runner.send_ctrlk('q')
