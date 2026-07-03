@@ -12,6 +12,11 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- a "filter" registry of named functions that take a std::string as argument and return a std::string 
+	example "html2text" but there are others
+    - we can then have web_fetch, but also other tools, have an optional "filter" argument
+
+
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
@@ -243,6 +248,7 @@
 # done items (move items here on completion)
 
 ## 03-07-2026
+- Web fetch file saving: Added `output_path` parameter to the `web_fetch` tool allowing agents to download and save fetched HTTP/HTTPS content directly to a workspace file, complying with standard file write permission rules.
 - HTML links, images, tables, and text extraction: Implemented an optional `html` plugin with the `html_extract_tables`, `html_list_links`, `html_list_images`, and `html_extract_text` tools using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, list formatting, bold/italic toggles (Option C), pipe escaping/sanitization, aligned markdown table outputs, and parameter/size validation.
 - Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.

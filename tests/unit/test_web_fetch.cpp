@@ -180,6 +180,53 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
+	// J. output_path verification (validation, security, and writing output to disk)
+	{
+		// 1. Invalid type for output_path
+		{
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", 123}};
+			auto prep = registry.prepare_tool("web_fetch", args.dump(), ctx);
+			assert(prep.tool == nullptr);
+			assert(!prep.error_message.empty());
+		}
+
+		// 2. output_path outside workspace (security boundary check)
+		{
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", "../outside.txt"}};
+			auto prep = registry.prepare_tool("web_fetch", args.dump(), ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("Security Violation") != std::string::npos);
+		}
+
+		// 3. Successful download write to disk
+		{
+			std::string out_fn = "web_fetch_test_out.txt";
+			std::string full_out_fn = project_manager::get_instance().get_project_root() + "/" + out_fn;
+			if (std::filesystem::exists(full_out_fn)) {
+				std::filesystem::remove(full_out_fn);
+			}
+
+			std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
+			write_file(domains_file, "A:127.0.0.1\n");
+
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", out_fn}};
+			std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
+			std::cout << "Result download execution: " << result << std::endl;
+			assert(result.find("Success: Downloaded") != std::string::npos);
+			assert(result.find(out_fn) != std::string::npos);
+
+			// Verify file was written and is not empty
+			assert(std::filesystem::exists(full_out_fn));
+			std::ifstream ifs(full_out_fn);
+			std::string file_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			ifs.close();
+			assert(!file_content.empty());
+
+			// Clean up
+			std::filesystem::remove(full_out_fn);
+		}
+	}
+
 	// Clean up
 	std::filesystem::remove_all(temp_home);
 	std::cout << "web_fetch tests passed successfully.\n";

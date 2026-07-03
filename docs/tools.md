@@ -228,6 +228,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.
 *   **Arguments:**
     *   `url` *(string, required)*: The full URL to fetch (must start with http:// or https://).
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace to save the fetched content directly to disk.
     *   `no_ask` *(boolean, optional)*: If true, the tool will fail silently with a permission error if the domain is not pre-approved, rather than prompting the user for permission.
 
 ### `run_shell_command`

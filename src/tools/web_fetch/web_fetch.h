@@ -6,18 +6,24 @@
 namespace tools
 {
 
+struct web_fetch_args {
+	std::string url;
+	std::string output_path;
+	std::string safe_output_path;
+	bool no_ask = false;
+};
+
 class web_fetch_tool : public agentlib::llm_tool
 {
       public:
-	explicit web_fetch_tool(std::string url, bool no_ask = false);
+	explicit web_fetch_tool(web_fetch_args args);
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
 
       private:
-	std::string url_;
+	web_fetch_args args_;
 	std::string domain_;
-	bool no_ask_{false};
 };
 
 class web_fetch_validator : public agentlib::tool_validator
@@ -40,6 +46,9 @@ class web_fetch_validator : public agentlib::tool_validator
       protected:
 	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &args) const override;
+
+      private:
+	mutable web_fetch_args parsed_args_;
 };
 
 } // namespace tools

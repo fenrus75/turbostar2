@@ -67,9 +67,9 @@ static std::string perform_http_get(const std::string &url, int timeout_seconds 
 	return read_buffer;
 }
 
-web_fetch_tool::web_fetch_tool(std::string url, bool no_ask) : url_(std::move(url)), no_ask_(no_ask)
+web_fetch_tool::web_fetch_tool(web_fetch_args args) : args_(std::move(args))
 {
-	domain_ = extract_domain(url_);
+	domain_ = extract_domain(args_.url);
 }
 
 bool web_fetch_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
@@ -106,7 +106,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (rule != 'A') {
-		if (no_ask_) {
+		if (args_.no_ask) {
 			return "Error: Permission denied (silent failure).";
 		}
 
@@ -119,7 +119,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 
 		editor_event ev;
 		ev.type = event_type::prompt_user;
-		ev.payload = "Agent wants to fetch URL:\n" + url_ + "\n\nAllow connection to " + domain_ + "?";
+		ev.payload = "Agent wants to fetch URL:\n" + args_.url + "\n\nAllow connection to " + domain_ + "?";
 
 		bool is_local = is_local_ip(domain_);
 		if (is_local) {
@@ -152,7 +152,17 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	std::string output = perform_http_get(url_);
+	std::string output = perform_http_get(args_.url);
+
+	if (!args_.safe_output_path.empty()) {
+		std::ofstream ofs(args_.safe_output_path, std::ios::binary);
+		if (!ofs.is_open()) {
+			return "Error: Failed to open output file " + args_.output_path + " for writing.";
+		}
+		ofs.write(output.data(), output.size());
+		ofs.close();
+		return std::format("Success: Downloaded {} bytes and saved to {}.", output.size(), args_.output_path);
+	}
 
 	if (output.empty()) {
 		return "Success: But received empty response.";
