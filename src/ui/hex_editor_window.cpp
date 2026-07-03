@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <ncurses.h>
 #include <sstream>
-#include "ui/hex_highlighter.h"
+#include "hex/hex_highlighter_registry.h"
 
 hex_editor_window::hex_editor_window(int id, int x, int y, int width, int height, const std::string &title,
 				     std::shared_ptr<binary_document> doc)

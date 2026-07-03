@@ -3,7 +3,9 @@
 #include <iostream>
 #include <memory>
 #include <vector>
-#include "ui/hex_highlighter.h"
+#include "hex/hex_highlighter_registry.h"
+#include "hex/elf.h"
+#include "hex/png.h"
 
 // Helper to write values in little endian format to a vector
 void write_u16_le(std::vector<uint8_t> &data, size_t offset, uint16_t val)

@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 #include "../magic_compat.h"
-#include "../../ui/hex_highlighter.h"
+#include "hex/hex_highlighter_registry.h"
 #include "hex_inspect_range.h"
 
 namespace tools

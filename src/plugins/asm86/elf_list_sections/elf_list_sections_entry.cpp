@@ -2,7 +2,7 @@
 #include <format>
 #include <fstream>
 #include <vector>
-#include "ui/hex_highlighter.h"
+#include "hex/elf.h"
 #include "elf_list_sections.h"
 
 namespace tools

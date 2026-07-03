@@ -1,0 +1,27 @@
+#include "hex/hex_highlighter_registry.h"
+#include "hex/elf.h"
+#include "hex/png.h"
+
+hex_highlighter_registry &hex_highlighter_registry::get_instance()
+{
+	static hex_highlighter_registry inst;
+	return inst;
+}
+
+hex_highlighter_registry::hex_highlighter_registry()
+{
+	// Register ELF highlighter
+	highlighters_.push_back(std::make_shared<elf_hex_highlighter>());
+	// Register PNG highlighter
+	highlighters_.push_back(std::make_shared<png_hex_highlighter>());
+}
+
+std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(const std::vector<uint8_t> &data) const
+{
+	for (const auto &hl : highlighters_) {
+		if (hl->can_handle(data)) {
+			return hl;
+		}
+	}
+	return nullptr;
+}

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <re2/re2.h>
 #include <vector>
-#include "ui/hex_highlighter.h"
+#include "hex/elf.h"
 #include "elf_list_symbols.h"
 
 namespace tools
