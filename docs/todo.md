@@ -7,15 +7,31 @@
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
 
 ## Webpage todo items (do not delete this header line)
-- [ ] Editor: Add a section about our built-in hex editor, we have a screenshot for this in `docs/hexeditor.png`
+
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- a hex editor plugin -- read parts as hex, and edit bytes in hex
+	- hexedit plugin-namespace
+	- later feature: file format aware edits?
+		(example: auto-update checksums of known headers)
 
 - somehow do python plugins for agents and tool calls?
 
 - subagent creation wizzard dialog
+
+- allow /command class to activate a specific skill
+
+- allow for "invisible" skills -- skills that you can activate, but are not enumerated to save tokens
+	- all user provided (e.g. filesystem discovered) skills will be visible
+	- plugins and internal skills can be invisible
+
+- allow plugins to register skills by providing a std::string rather than a filename
+
+- implement /grill-me in a plugin, see https://raw.githubusercontent.com/mattpocock/skills/733d312884b3878a9a9cff693c5886943753a741/skills/productivity/grill-me/SKILL.md as
+   the reference skill for this (note: we must give Matt Pocock credit in the plugin code, he deserves it)
+	- once we have invisible skills and let plugins register skills, this is relatively easy
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
@@ -233,6 +249,9 @@
 
 
 # done items (move items here on completion)
+
+## 03-07-2026
+- Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
 
 ## 02-07-2026
 - implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.

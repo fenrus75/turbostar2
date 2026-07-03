@@ -136,6 +136,41 @@
       </div>
     </section>
 
+    <!-- Visual Feature 4: Hex Editor -->
+    <section class="detail-split reverse" id="hex-editor">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Integrated Hex Editor</h2>
+        <p class="detail-text">
+          Analyze and edit binary files natively in the TUI workspace without corrupting raw data. Turbostar automatically detects binary formats on load and activates a specialized hex editing mode with dedicated buffer management.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Dual Column Focus:</strong> Seamlessly toggle editing focus between the raw Hex tuples and clean ASCII view using the <code>Tab</code> key.</li>
+          <li><strong>Dynamic Scaling:</strong> Display wrapping adjusts automatically to multiples of 16 bytes per line depending on the window's current width.</li>
+          <li><strong>High-Contrast Color Coding:</strong> Differentiate address offsets, null bytes (<code>00</code>), printable ASCII, and non-printable control characters with theme-matched color pairs.</li>
+          <li><strong>Nibble-Level Editing:</strong> Edit hex digits at the individual half-byte (nibble) level, or directly type printable characters in the ASCII column.</li>
+          <li><strong>Smart Auto-Grow:</strong> Edit in overwrite mode by default to protect file integrity, with automated file expansion when appending bytes at EOF.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-hexeditor">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot close"></span>
+              <span class="terminal-dot minimize"></span>
+              <span class="terminal-dot maximize"></span>
+            </div>
+            <div class="terminal-title">turbostar --hexedit</div>
+            <div></div>
+          </div>
+          <div class="terminal-content">
+            <a href="./hexeditor.png" target="_blank">
+              <img src="./hexeditor.png" alt="Turbostar Integrated Hex Editor Mode">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Keyboard Reference -->
     <section class="page-header" id="key-reference">
       <h2 class="detail-subtitle">Keyboard Quick Reference</h2>
