@@ -1868,3 +1868,20 @@ if uv.found() or python.found()
     suite: 'editor'
   )
 endif
+
+tidy_prog = find_program('tidy', required: false)
+if tidy_prog.found()
+  html_tests = [
+    ['index', 'docs/index.html'],
+    ['editor', 'docs/editor.html'],
+    ['ai', 'docs/ai.html']
+  ]
+  foreach item : html_tests
+    test_name = 'website_validate_' + item[0]
+    html_path = item[1]
+    test(test_name, embed_prog,
+      args: [join_paths(meson.project_source_root(), 'scripts/verify_html.py'), join_paths(meson.project_source_root(), html_path)],
+      suite: 'website'
+    )
+  endforeach
+endif
