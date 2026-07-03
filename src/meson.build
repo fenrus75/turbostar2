@@ -35,6 +35,7 @@ core_sources = files(
   'highlighter/highlighter_registry.cpp',
   'hex/elf.cpp',
   'hex/png.cpp',
+  'hex/jpeg.cpp',
   'hex/hex_highlighter_registry.cpp',
   'history_manager.cpp',
   'input_history_manager.cpp',

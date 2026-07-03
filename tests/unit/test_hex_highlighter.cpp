@@ -1,11 +1,13 @@
 #include "test_watchdog.h"
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <vector>
 #include "hex/hex_highlighter_registry.h"
 #include "hex/elf.h"
 #include "hex/png.h"
+#include "hex/jpeg.h"
 
 // Helper to write values in little endian format to a vector
 void write_u16_le(std::vector<uint8_t> &data, size_t offset, uint16_t val)
@@ -292,11 +294,135 @@ void test_png_highlighter()
 	assert(dynamic_cast<png_hex_highlighter *>(detected.get()) != nullptr);
 }
 
+void test_jpeg_highlighter()
+{
+	std::vector<uint8_t> data(50, 0);
+
+	// SOI marker (offset 0): FF D8
+	data[0] = 0xFF;
+	data[1] = 0xD8;
+
+	// APP0 marker (offset 2): FF E0
+	data[2] = 0xFF;
+	data[3] = 0xE0;
+	// length (2 bytes): 16 (Big Endian -> 0 16)
+	data[4] = 0;
+	data[5] = 16;
+	// Identifier: "JFIF\0"
+	data[6] = 'J'; data[7] = 'F'; data[8] = 'I'; data[9] = 'F'; data[10] = 0;
+	// Major, minor version: 1.2
+	data[11] = 1;
+	data[12] = 2;
+	// Units: 1 (Pixels/inch)
+	data[13] = 1;
+	// Xdensity: 72 (Big Endian -> 0 72)
+	data[14] = 0;
+	data[15] = 72;
+	// Ydensity: 72 (Big Endian -> 0 72)
+	data[16] = 0;
+	data[17] = 72;
+	// Thumbnail: 0x0
+	data[18] = 0;
+	data[19] = 0;
+
+	// SOF0 marker (offset 20): FF C0
+	data[20] = 0xFF;
+	data[21] = 0xC0;
+	// length (2 bytes): 8 (0 8)
+	data[22] = 0;
+	data[23] = 8;
+	// precision: 8
+	data[24] = 8;
+	// height: 600 (Big Endian -> 2 88)
+	data[25] = 2;
+	data[26] = 88;
+	// width: 800 (Big Endian -> 3 32)
+	data[27] = 3;
+	data[28] = 32;
+	// components: 3
+	data[29] = 3;
+
+	// EOI marker (offset 30): FF D9
+	data[30] = 0xFF;
+	data[31] = 0xD9;
+
+	jpeg_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+
+	bool success = hl.parse(data);
+	assert(success == true);
+
+	// Test SOI
+	highlight_info inf = hl.get_info(data, 0);
+	assert(inf.type == hex_semantic_type::magic);
+	assert(inf.description.find("Start of Image") != std::string::npos);
+
+	// Test APP0 (offset 2)
+	inf = hl.get_info(data, 2);
+	assert(inf.type == hex_semantic_type::file_header);
+	assert(inf.description.find("JFIF APP0") != std::string::npos);
+	assert(inf.description.find("Ver 1.02") != std::string::npos);
+	assert(inf.description.find("Pixels/inch") != std::string::npos);
+
+	// Test SOF0 (offset 20)
+	inf = hl.get_info(data, 20);
+	assert(inf.type == hex_semantic_type::sect_header);
+	assert(inf.description.find("SOF0 Header") != std::string::npos);
+	assert(inf.description.find("Width = 800") != std::string::npos);
+	assert(inf.description.find("Height = 600") != std::string::npos);
+
+	// Test EOI
+	inf = hl.get_info(data, 30);
+	assert(inf.type == hex_semantic_type::magic);
+	assert(inf.description.find("End of Image") != std::string::npos);
+
+	// Test auto-detect registry
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<jpeg_hex_highlighter *>(detected.get()) != nullptr);
+}
+
+void test_real_jpeg_file()
+{
+	std::string path = "docs/assets/logo.jpg";
+	std::ifstream file(path, std::ios::binary);
+	if (!file.is_open()) {
+		path = "../docs/assets/logo.jpg";
+		file.open(path, std::ios::binary);
+	}
+	if (!file.is_open()) {
+		std::cout << "Skipping real JPEG file test (logo.jpg not found)" << std::endl;
+		return;
+	}
+
+	file.seekg(0, std::ios::end);
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> data(size);
+	file.read(reinterpret_cast<char *>(data.data()), size);
+	file.close();
+
+	jpeg_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+	bool success = hl.parse(data);
+	assert(success == true);
+
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<jpeg_hex_highlighter *>(detected.get()) != nullptr);
+	std::cout << "Real JPEG file test passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_elf_highlighter();
 	test_png_highlighter();
+	test_jpeg_highlighter();
+	test_real_jpeg_file();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }
