@@ -12,14 +12,15 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- nit: the hexeditor has a size limit that's a bit on the small side 
+- nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
+    increase the limits?
 
 - nit: the x86 disassembler uses 0x000000321 kind of very long versions of hex numbers -- we should shorten those
 	- 4, 8 and 16 digits are nice sizes -- but this means decoding these as a number
 	- this will be string manipulation, so alternative is to just replace 0x00000 with 0x0 repeatedly, we'll get very close
  	  to the perfect answer
 
-- feature: a hex editor plugin -- read parts as hex, and edit bytes in hex
+- feature: a hex editor tool plugin -- read ranges of (binary) files as hex, and edit bytes in hex
 	- hexedit plugin-namespace
 	- later feature: file format aware edits?
 		(example: auto-update checksums of known headers)
@@ -60,9 +61,6 @@
 
 - have a turboserver mode where we are headless but only serve A2A requests?
 
-
-
-
 - a /command action that activates a tool family (via menu?)
 
 - a /command action for /clear of agent history -- basically a new connection
@@ -91,10 +89,8 @@
 		- for python we have our security analyzer -- we should run this when reviewing python files
 		- if we had backtraces/crashes that involve this file we should include them in context or at least reference them with the toolcall to get the details
 
-
-- we should create a code review agent file in agents/
-
-- the code review agent should have access to the security plugin tool namespace
+- feature: we should create a code review agent file in agents/
+	- the code review agent should have access to the security plugin tool namespace
 
 - the git_ family of tools should be in a git tool namespace, and this should be in the normal baseline tool set
 
@@ -260,6 +256,8 @@
 ## 03-07-2026
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
 - HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.
+- Hex editor split: Refactored and split file format highlighters into dedicated classes under `src/hex/`.
+- JPEG/JFIF support: Added APP0 headers, SOF0/SOF2 frame dimensions, and entropy scan segment parsing for JPEG/JFIF files to the hex highlighter.
 
 ## 02-07-2026
 - implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.
