@@ -534,7 +534,21 @@ These tools allow the agent to interact with the project's Git repository.
     *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
     *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
 
-### `hex_inspect_range` (Family: `x86`)
+### `hexdump` (Family: `hexedit`)
+*   **Description:** Generates a formatted hexadecimal dump of a binary file. Annotates output with binary structure details (like ELF or PNG segments) automatically using registered syntax highlighters.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the binary file relative to project root.
+    *   `start_offset` *(integer, optional)*: 0-based byte offset to start the dump. Defaults to 0.
+    *   `size` *(integer, optional)*: Number of bytes to dump. Defaults to 256. Maximum 4096.
+
+### `hexwrite` (Family: `hexedit`)
+*   **Description:** Overwrites/patches raw bytes at a specific offset in a binary file. Creates a new file or expands an existing file if the offset exceeds the current file size.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the binary file relative to project root.
+    *   `data` *(string, required)*: Hexadecimal bytes to write, optionally space-separated or with prefix (e.g. `'0x7f 0x45'` or `'7f 45'`).
+    *   `offset` *(integer, optional)*: 0-based byte offset to write the data. Defaults to 0.
+
+### `hexinspect` (Family: `hexedit`)
 *   **Description:** Inspects the semantic/structural details of a binary file range using registered syntax highlighters (like ELF or PNG). Returns a markdown list of fields, offsets, sizes, and annotations in the range.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the binary file relative to project root.
