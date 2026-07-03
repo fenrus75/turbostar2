@@ -51,6 +51,12 @@ std::string tool_registry::get_tool_family_reason(const std::string &name) const
 	return "";
 }
 
+bool tool_registry::has_tool_family(const std::string &name) const
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	return family_reasons_.contains(name);
+}
+
 tool_registry::~tool_registry()
 {
 }

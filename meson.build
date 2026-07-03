@@ -302,6 +302,16 @@ test_hexinspect = executable('test_hexinspect',
   export_dynamic: true)
 test('unit_test_hexinspect', test_hexinspect, suite: 'plugins', depends: hexedit_plugin, env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
+if lexbor_dep.found()
+  test_html_extract_tables = executable('test_html_extract_tables',
+    ['tests/unit/test_html_extract_tables.cpp'],
+    dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+    include_directories: inc,
+    export_dynamic: true)
+
+  test('unit_test_html_extract_tables', test_html_extract_tables, suite: 'plugins', depends: html_plugin, env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+endif
+
 test_elf_list_sections = executable('test_elf_list_sections',
   ['tests/unit/test_elf_list_sections.cpp',
    'src/plugins/asm86/elf_list_sections/elf_list_sections_entry.cpp',

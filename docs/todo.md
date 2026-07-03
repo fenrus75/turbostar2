@@ -15,9 +15,8 @@
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
+- sloppy: we need to fix meson.build to install libturbocatch.so as part of "meson install" -- and then also look for it in that location
 
-
-- somehow do python plugins for agents and tool calls?
 
 - feature: subagent creation wizzard dialog
 
@@ -213,11 +212,7 @@
 
 
 # long term items
-- should we use turbo vision?
-	- pro: automatic the full look
-	- pro: automatic all window/etc interactions working well
-	- con: total rewrite and cumbersome framework
-	- con: agents struggle with turbo vision framework - it's ancient and not well trained on
+- feature: somehow do python plugins for agents and tool calls?
 
 - full gdbserver support so we can run the application and single step through it from the GUI
     - we're already 80% there!
@@ -228,6 +223,7 @@
   if this will break ncurses' brain.
 
 - Make skill_manager parsing and discovery fully compliant with the external skills specification (reading metadata, matching URIs, validating schema).
+	- need to check what is missing now that we have a real YAML parser
 
 - run a small LLM local to decide which model/etc gets to run agent asks
 
@@ -247,6 +243,7 @@
 # done items (move items here on completion)
 
 ## 03-07-2026
+- HTML tables extraction: Implemented an optional `html` plugin with the `html_extract_tables` tool using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, pipe escaping/sanitization, output formatting, and parameter/size validation.
 - Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.
 - Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
 - HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.

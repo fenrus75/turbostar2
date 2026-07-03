@@ -53,6 +53,7 @@ class tool_registry
 	void register_tool_family(const std::string &name, const std::string &reason);
 	void unregister_tool_family(const std::string &name);
 	std::string get_tool_family_reason(const std::string &name) const;
+	bool has_tool_family(const std::string &name) const;
 
       private:
 	tool_registry() = default;
