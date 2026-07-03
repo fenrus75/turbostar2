@@ -70,3 +70,16 @@ hexedit_plugin = shared_module('hexedit',
   install_dir: plugin_dir
 )
 
+if lexbor_dep.found()
+  html_plugin = shared_module('html',
+    ['html/plugin.cpp',
+     'html/html_extract_tables_tool.cpp',
+     'html/html_extract_tables_validator.cpp'],
+    dependencies: [nlohmann_json_dep, lexbor_dep],
+    include_directories: inc,
+    install: true,
+    name_prefix: '',
+    install_dir: plugin_dir
+  )
+endif
+

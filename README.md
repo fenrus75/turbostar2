@@ -133,11 +133,12 @@ You will need the following installed to build Turbostar:
 *   `libdtl-dev` (Diff Template Library)
 *   `libunwind-dev` (For stack unwinding)
 *   `libmagic-dev` (Optional, for rich file type detection)
+*   `liblexbor-dev` (Optional, for HTML table/text extraction tools)
 
 On Debian/Ubuntu-based systems, you can install the build dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev liblexbor-dev
 ```
 
 ### Runtime Prerequisites

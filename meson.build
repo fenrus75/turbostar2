@@ -59,6 +59,11 @@ if not enable_libmagic.disabled()
   endif
 endif
 
+lexbor_dep = dependency('lexbor', required : false)
+if lexbor_dep.found()
+  add_project_arguments('-DHAS_LEXBOR', language : 'cpp')
+endif
+
 
 lsp_fw = subproject('lsp-framework')
 lsp_dep = lsp_fw.get_variable('lsp_dep')
