@@ -967,6 +967,12 @@ test_listbox = executable('test_listbox',
   include_directories: inc)
 test('unit_listbox', test_listbox, suite: 'editor')
 
+test_input_history = executable('test_input_history',
+  'tests/unit/test_input_history.cpp',
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_input_history', test_input_history, suite: 'editor')
+
 test_grid_flow = executable('test_grid_flow',
   'tests/unit/test_grid_flow.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

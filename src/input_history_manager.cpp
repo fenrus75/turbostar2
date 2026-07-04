@@ -1,5 +1,6 @@
 #include "input_history_manager.h"
 #include "project_manager.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -13,9 +14,9 @@ input_history_manager &input_history_manager::get_instance()
 
 std::string input_history_manager::get_history_file_path() const
 {
-	std::string root = project_manager::get_instance().get_project_root();
-	if (!root.empty()) {
-		return root + "/.turbostar_input_history.json";
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (!cache_root.empty()) {
+		return cache_root + "/.turbostar_input_history.json";
 	}
 	const char *home = getenv("HOME");
 	if (home) {
