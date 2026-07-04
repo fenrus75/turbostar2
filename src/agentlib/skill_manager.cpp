@@ -23,11 +23,43 @@ virtual_file_system *skill_manager::get_vfs()
 
 const std::vector<skill> &skill_manager::get_skills() const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	return skills_;
+}
+
+void skill_manager::register_skill(const std::string &name, const std::string &description, const std::string &uri, bool visible)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto &s : skills_) {
+		if (s.name == name) {
+			s.description = description;
+			s.uri = uri;
+			s.visible = visible;
+			return;
+		}
+	}
+	skill new_skill;
+	new_skill.name = name;
+	new_skill.description = description;
+	new_skill.uri = uri;
+	new_skill.visible = visible;
+	skills_.push_back(new_skill);
+}
+
+void skill_manager::set_visibility(const std::string &name, bool visible)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto &s : skills_) {
+		if (s.name == name) {
+			s.visible = visible;
+			return;
+		}
+	}
 }
 
 void skill_manager::initialize()
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	skills_.clear();
 	vfs_ = std::make_unique<virtual_file_system>();
 

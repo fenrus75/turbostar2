@@ -41,7 +41,13 @@ class activate_skill_validator : public agentlib::tool_validator
 
 		nlohmann::json skills_arr = nlohmann::json::array();
 		for (const auto &s : skills) {
-			skills_arr.push_back({{"name", s.name}, {"description", s.description}, {"location", s.uri}});
+			if (s.visible) {
+				skills_arr.push_back({{"name", s.name}, {"description", s.description}, {"location", s.uri}});
+			}
+		}
+
+		if (skills_arr.empty()) {
+			return base_desc;
 		}
 
 		return base_desc + "\n\n<available_skills>\n" + skills_arr.dump() + "\n</available_skills>";

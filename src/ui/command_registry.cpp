@@ -62,12 +62,15 @@ class skills_command : public agent_command
 	{
 		auto &skills = skill_manager::get_instance().get_skills();
 		std::string skills_text = "Available Skills:\n";
-		if (skills.empty()) {
-			skills_text += "  (No skills available)";
-		} else {
-			for (const auto &s : skills) {
+		int visible_count = 0;
+		for (const auto &s : skills) {
+			if (s.visible) {
 				skills_text += std::format("- {} ({})\n", s.name, s.description);
+				visible_count++;
 			}
+		}
+		if (visible_count == 0) {
+			skills_text += "  (No skills available)";
 		}
 		ctx.agent->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
 	}

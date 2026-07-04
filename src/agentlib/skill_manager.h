@@ -6,12 +6,15 @@
 #include <memory>
 #include "virtual_file_system.h"
 
+#include <mutex>
+
 namespace agentlib {
 
 struct skill {
     std::string name;
     std::string description;
     std::string uri;
+    bool visible = true;
 };
 
 class skill_manager {
@@ -29,6 +32,12 @@ public:
     
     const std::vector<skill>& get_skills() const;
 
+    // Registers a skill dynamically
+    void register_skill(const std::string &name, const std::string &description, const std::string &uri, bool visible = true);
+
+    // Toggles visibility of a registered skill
+    void set_visibility(const std::string &name, bool visible);
+
 private:
     skill_manager() = default;
     ~skill_manager() = default;
@@ -36,6 +45,13 @@ private:
     void scan_and_mount(const std::filesystem::path& base_dir, const std::string& skill_name);
 
     std::unique_ptr<virtual_file_system> vfs_{std::make_unique<virtual_file_system>()};
+    /*
+     * mutex_ protects the skills_ vector during dynamic registration,
+     * visibility updates, and initialization.
+     * Locking Rules:
+     * - Held briefly when modifying or reading skills_ in thread-safe contexts.
+     */
+    mutable std::mutex mutex_;
     std::vector<skill> skills_;
 };
 

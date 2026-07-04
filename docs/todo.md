@@ -12,8 +12,15 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
+- feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
+	- reference: https://developers.openai.com/api/docs/guides/images-vision
+```json
+{
+    "type": "input_image",
+    "image_url": "<Base64 data url>",
+}
+```
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?

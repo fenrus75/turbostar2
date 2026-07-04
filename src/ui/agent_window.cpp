@@ -173,13 +173,16 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	});
 
 
-	// List available skills at startup for the user
 	auto &skills = skill_manager::get_instance().get_skills();
-	if (!skills.empty()) {
-		std::string skills_text = "Available Skills:\n";
-		for (const auto &s : skills) {
+	std::string skills_text = "Available Skills:\n";
+	int visible_count = 0;
+	for (const auto &s : skills) {
+		if (s.visible) {
 			skills_text += "- " + s.name + "\n";
+			visible_count++;
 		}
+	}
+	if (visible_count > 0) {
 		agent_->add_interaction(std::make_shared<agentlib::interaction_system_message>(skills_text));
 	}
 
