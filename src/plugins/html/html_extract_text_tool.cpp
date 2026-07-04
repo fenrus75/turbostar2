@@ -58,11 +58,15 @@ std::string collapse_whitespace(const std::string &s)
 void collect_rows(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &rows)
 {
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
-		if (tag == LXB_TAG_TR) {
-			rows.push_back(child);
-		} else if (tag == LXB_TAG_TABLE) {
-			continue;
+		if (lxb_dom_node_type(child) == LXB_DOM_NODE_TYPE_ELEMENT) {
+			lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
+			if (tag == LXB_TAG_TR) {
+				rows.push_back(child);
+			} else if (tag == LXB_TAG_TABLE) {
+				continue;
+			} else {
+				collect_rows(child, rows);
+			}
 		} else {
 			collect_rows(child, rows);
 		}
@@ -72,11 +76,15 @@ void collect_rows(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &rows)
 void collect_cells(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &cells)
 {
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
-		if (tag == LXB_TAG_TH || tag == LXB_TAG_TD) {
-			cells.push_back(child);
-		} else if (tag == LXB_TAG_TABLE) {
-			continue;
+		if (lxb_dom_node_type(child) == LXB_DOM_NODE_TYPE_ELEMENT) {
+			lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
+			if (tag == LXB_TAG_TH || tag == LXB_TAG_TD) {
+				cells.push_back(child);
+			} else if (tag == LXB_TAG_TABLE) {
+				continue;
+			} else {
+				collect_cells(child, cells);
+			}
 		} else {
 			collect_cells(child, cells);
 		}
@@ -87,7 +95,7 @@ void process_table(lxb_html_document_t *document, lxb_dom_node_t *table_node, st
 {
 	std::string caption_text;
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(table_node); child != nullptr; child = lxb_dom_node_next(child)) {
-		if (lxb_dom_node_tag_id(child) == LXB_TAG_CAPTION) {
+		if (lxb_dom_node_type(child) == LXB_DOM_NODE_TYPE_ELEMENT && lxb_dom_node_tag_id(child) == LXB_TAG_CAPTION) {
 			size_t len = 0;
 			lxb_char_t *text = lxb_dom_node_text_content(child, &len);
 			if (text) {
@@ -198,7 +206,10 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		return;
 	}
 
-	lxb_tag_id_t tag = lxb_dom_node_tag_id(node);
+	lxb_tag_id_t tag = LXB_TAG__UNDEF;
+	if (type == LXB_DOM_NODE_TYPE_ELEMENT) {
+		tag = lxb_dom_node_tag_id(node);
+	}
 
 	// Skip non-visible tags
 	if (tag == LXB_TAG_SCRIPT || tag == LXB_TAG_STYLE || tag == LXB_TAG_HEAD || tag == LXB_TAG_NOSCRIPT || tag == LXB_TAG_IFRAME) {
@@ -381,6 +392,72 @@ std::string html_extract_text_tool::execute(agentlib::tool_context & /*ctx*/)
 	std::string html_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 	ifs.close();
 
+	return html::convert_to_markdown(html_content, args_.rich);
+}
+
+} // namespace tools
+
+namespace html
+{
+
+void find_tables_local(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &tables)
+{
+	if (!node)
+		return;
+
+	if (lxb_dom_node_type(node) == LXB_DOM_NODE_TYPE_ELEMENT && lxb_dom_node_tag_id(node) == LXB_TAG_TABLE) {
+		tables.push_back(node);
+		return;
+	}
+
+	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
+		find_tables_local(child, tables);
+	}
+}
+
+std::string extract_tables(const std::string &html_content)
+{
+	lxb_html_document_t *document = lxb_html_document_create();
+	if (!document) {
+		return "Error: Failed to initialize HTML parser.";
+	}
+
+	lxb_status_t status = lxb_html_document_parse(document,
+						      reinterpret_cast<const lxb_char_t *>(html_content.data()),
+						      html_content.size());
+	if (status != LXB_STATUS_OK) {
+		lxb_html_document_destroy(document);
+		return "Error: Failed to parse HTML content.";
+	}
+
+	lxb_dom_node_t *body_node = nullptr;
+	if (document->body) {
+		body_node = lxb_dom_interface_node(document->body);
+	} else {
+		body_node = lxb_dom_interface_node(lxb_dom_document_root(lxb_dom_interface_document(document)));
+	}
+
+	std::vector<lxb_dom_node_t *> tables;
+	find_tables_local(body_node, tables);
+
+	if (tables.empty()) {
+		lxb_html_document_destroy(document);
+		return "No tables found in the HTML file.";
+	}
+
+	std::string tbl_output;
+	for (auto *table : tables) {
+		tools::process_table(document, table, tbl_output);
+		tbl_output += "\n";
+	}
+
+	lxb_html_document_destroy(document);
+
+	return markdown_utils::align_all_tables(tools::trim(tbl_output), false);
+}
+
+std::string convert_to_markdown(const std::string &html_content, bool rich)
+{
 	lxb_html_document_t *document = lxb_html_document_create();
 	if (!document) {
 		return "Error: Failed to initialize HTML parser.";
@@ -404,7 +481,7 @@ std::string html_extract_text_tool::execute(agentlib::tool_context & /*ctx*/)
 	std::string extracted;
 	int list_depth = 0;
 	std::vector<int> list_counters;
-	walk_node(document, body_node, extracted, args_.rich, list_depth, list_counters);
+	tools::walk_node(document, body_node, extracted, rich, list_depth, list_counters);
 
 	lxb_html_document_destroy(document);
 
@@ -432,7 +509,7 @@ std::string html_extract_text_tool::execute(agentlib::tool_context & /*ctx*/)
 		}
 	}
 
-	return markdown_utils::align_all_tables(trim(final_out), false);
+	return markdown_utils::align_all_tables(tools::trim(final_out), false);
 }
 
-} // namespace tools
+} // namespace html

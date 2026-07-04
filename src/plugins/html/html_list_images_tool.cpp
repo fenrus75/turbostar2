@@ -41,7 +41,7 @@ void find_images(lxb_html_document_t * /*document*/, lxb_dom_node_t *node, std::
 	if (!node)
 		return;
 
-	if (lxb_dom_node_tag_id(node) == LXB_TAG_IMG) {
+	if (lxb_dom_node_type(node) == LXB_DOM_NODE_TYPE_ELEMENT && lxb_dom_node_tag_id(node) == LXB_TAG_IMG) {
 		size_t src_len = 0;
 		const lxb_char_t *src_val = lxb_dom_element_get_attribute(
 		    lxb_dom_interface_element(node),

@@ -10,6 +10,7 @@ struct web_fetch_args {
 	std::string url;
 	std::string output_path;
 	std::string safe_output_path;
+	std::string filter;
 	bool no_ask = false;
 };
 

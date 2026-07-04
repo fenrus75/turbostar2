@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include "agentlib/tool_registry.h"
+#include "agentlib/filter_registry.h"
 #include "pluginloader.h"
 #include "project_manager.h"
 
@@ -201,6 +202,39 @@ int main()
 		assert(res.find("italic text") != std::string::npos);
 		assert(res.find("*italic text*") == std::string::npos); // italic tag stripped
 		assert(res.find("`code snippet`") != std::string::npos); // inline code always kept
+	}
+
+	// 11. Test filter registry integration for html_to_markdown
+	{
+		std::string html_in = "<h1>Hello</h1><p>World with <b>bold</b>.</p>";
+		bool success = false;
+		std::string res = filter_registry::get_instance().apply_filter("html_to_markdown", html_in, success);
+		assert(success);
+		std::cout << "filter html_to_markdown result:\n" << res << "\n";
+		assert(res.find("# Hello") != std::string::npos);
+		assert(res.find("**bold**") != std::string::npos);
+	}
+
+	// 12. Test filter registry integration for html_to_markdown_plain
+	{
+		std::string html_in = "<h1>Hello</h1><p>World with <b>bold</b>.</p>";
+		bool success = false;
+		std::string res = filter_registry::get_instance().apply_filter("html_to_markdown_plain", html_in, success);
+		assert(success);
+		std::cout << "filter html_to_markdown_plain result:\n" << res << "\n";
+		assert(res.find("# Hello") != std::string::npos);
+		assert(res.find("bold") != std::string::npos);
+		assert(res.find("**bold**") == std::string::npos);
+	}
+
+	// 13. Test filter registry integration for html_extract_tables
+	{
+		std::string html_in = "<table><tr><td>Cell A</td><td>Cell B</td></tr></table>";
+		bool success = false;
+		std::string res = filter_registry::get_instance().apply_filter("html_extract_tables", html_in, success);
+		assert(success);
+		std::cout << "filter html_extract_tables result:\n" << res << "\n";
+		assert(res.find("| Cell A | Cell B |") != std::string::npos);
 	}
 
 	// Clean up mock files

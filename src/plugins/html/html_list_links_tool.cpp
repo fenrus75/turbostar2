@@ -41,7 +41,7 @@ void find_links(lxb_html_document_t *document, lxb_dom_node_t *node, std::vector
 	if (!node)
 		return;
 
-	if (lxb_dom_node_tag_id(node) == LXB_TAG_A) {
+	if (lxb_dom_node_type(node) == LXB_DOM_NODE_TYPE_ELEMENT && lxb_dom_node_tag_id(node) == LXB_TAG_A) {
 		size_t value_len = 0;
 		const lxb_char_t *href_val = lxb_dom_element_get_attribute(
 		    lxb_dom_interface_element(node),

@@ -10,6 +10,7 @@
 #include <thread>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/filter_registry.h"
 #include "../../src/event_queue.h"
 #include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
@@ -224,6 +225,33 @@ int main()
 
 			// Clean up
 			std::filesystem::remove(full_out_fn);
+		}
+
+		// 4. Test filter registration and application
+		{
+			filter_registry::get_instance().register_filter("uppercase", [](const std::string &input) {
+				std::string result = input;
+				std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+				return result;
+			});
+
+			std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
+			write_file(domains_file, "A:127.0.0.1\n");
+
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"filter", "uppercase"}};
+			std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
+			std::cout << "Result filter execution: " << result << std::endl;
+			assert(result.find("COULD NOT CONNECT") != std::string::npos || result.find("COULDNT_CONNECT") != std::string::npos);
+
+			filter_registry::get_instance().unregister_filter("uppercase");
+		}
+
+		// 5. Test unregistered filter failure
+		{
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"filter", "nonexistent_filter"}};
+			std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
+			std::cout << "Result unregistered filter: " << result << std::endl;
+			assert(result.find("Error: Filter 'nonexistent_filter' is not registered") != std::string::npos);
 		}
 	}
 

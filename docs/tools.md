@@ -229,6 +229,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:**
     *   `url` *(string, required)*: The full URL to fetch (must start with http:// or https://).
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace to save the fetched content directly to disk.
+    *   `filter` *(string, optional)*: Optional content processing filter to apply before returning or saving (e.g. `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`).
     *   `no_ask` *(boolean, optional)*: If true, the tool will fail silently with a permission error if the domain is not pre-approved, rather than prompting the user for permission.
 
 ### `run_shell_command`

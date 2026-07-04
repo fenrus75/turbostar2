@@ -52,6 +52,7 @@ agentlib_sources = files(
   'agentlib/agent_animation.cpp',
   'agentlib/llm_client.cpp',
   'agentlib/tool_registry.cpp',
+  'agentlib/filter_registry.cpp',
   'agentlib/tool_validator.cpp',
   'agentlib/httplib_transport.cpp',
   'agentlib/recording_transport.cpp',

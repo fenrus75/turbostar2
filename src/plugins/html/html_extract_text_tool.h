@@ -26,3 +26,9 @@ class html_extract_text_tool : public agentlib::llm_tool_action
 };
 
 } // namespace tools
+
+namespace html
+{
+std::string convert_to_markdown(const std::string &html_content, bool rich);
+std::string extract_tables(const std::string &html_content);
+}

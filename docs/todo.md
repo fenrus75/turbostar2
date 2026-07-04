@@ -248,6 +248,7 @@
 # done items (move items here on completion)
 
 ## 03-07-2026
+- Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
 - Web fetch file saving: Added `output_path` parameter to the `web_fetch` tool allowing agents to download and save fetched HTTP/HTTPS content directly to a workspace file, complying with standard file write permission rules.
 - HTML links, images, tables, and text extraction: Implemented an optional `html` plugin with the `html_extract_tables`, `html_list_links`, `html_list_images`, and `html_extract_text` tools using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, list formatting, bold/italic toggles (Option C), pipe escaping/sanitization, aligned markdown table outputs, and parameter/size validation.
 - Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.

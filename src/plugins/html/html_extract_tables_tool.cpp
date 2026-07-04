@@ -40,11 +40,15 @@ std::string sanitize_cell(const std::string &raw)
 void collect_rows(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &rows)
 {
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
-		if (tag == LXB_TAG_TR) {
-			rows.push_back(child);
-		} else if (tag == LXB_TAG_TABLE) {
-			continue;
+		if (lxb_dom_node_type(child) == LXB_DOM_NODE_TYPE_ELEMENT) {
+			lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
+			if (tag == LXB_TAG_TR) {
+				rows.push_back(child);
+			} else if (tag == LXB_TAG_TABLE) {
+				continue;
+			} else {
+				collect_rows(child, rows);
+			}
 		} else {
 			collect_rows(child, rows);
 		}
@@ -54,11 +58,15 @@ void collect_rows(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &rows)
 void collect_cells(lxb_dom_node_t *node, std::vector<lxb_dom_node_t *> &cells)
 {
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
-		if (tag == LXB_TAG_TH || tag == LXB_TAG_TD) {
-			cells.push_back(child);
-		} else if (tag == LXB_TAG_TABLE) {
-			continue;
+		if (lxb_dom_node_type(child) == LXB_DOM_NODE_TYPE_ELEMENT) {
+			lxb_tag_id_t tag = lxb_dom_node_tag_id(child);
+			if (tag == LXB_TAG_TH || tag == LXB_TAG_TD) {
+				cells.push_back(child);
+			} else if (tag == LXB_TAG_TABLE) {
+				continue;
+			} else {
+				collect_cells(child, cells);
+			}
 		} else {
 			collect_cells(child, cells);
 		}
@@ -151,7 +159,10 @@ void traverse_dom(lxb_html_document_t *document, lxb_dom_node_t *node, std::vect
 	if (!node)
 		return;
 
-	lxb_tag_id_t tag = lxb_dom_node_tag_id(node);
+	lxb_tag_id_t tag = LXB_TAG__UNDEF;
+	if (lxb_dom_node_type(node) == LXB_DOM_NODE_TYPE_ELEMENT) {
+		tag = lxb_dom_node_tag_id(node);
+	}
 
 	if (tag >= LXB_TAG_H1 && tag <= LXB_TAG_H3) {
 		int level = tag - LXB_TAG_H1;

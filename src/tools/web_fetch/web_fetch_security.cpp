@@ -13,6 +13,9 @@ nlohmann::json web_fetch_validator::get_parameters_schema() const
 		  {"output_path",
 		   {{"type", "string"},
 		    {"description", "Optional. The relative file path under the project workspace to save the fetched content."}}},
+		  {"filter",
+		   {{"type", "string"},
+		    {"description", "Optional. A named content processing filter to apply (e.g. 'html_to_markdown')."}}},
 		  {"no_ask",
 		   {{"type", "boolean"},
 		    {"description", "Optional. If true, the tool will fail silently if the domain is not pre-approved, instead of "
@@ -58,9 +61,18 @@ bool web_fetch_validator::validate_args_impl(const nlohmann::json &args, const a
 		}
 	}
 
+	std::string filter;
+	if (args.contains("filter")) {
+		if (!args["filter"].is_string()) {
+			out_error = "Invalid 'filter' argument (must be string).";
+			return false;
+		}
+		filter = args["filter"].get<std::string>();
+	}
+
 	// Check for unexpected arguments
 	for (auto it = args.begin(); it != args.end(); ++it) {
-		if (it.key() != "url" && it.key() != "no_ask" && it.key() != "output_path") {
+		if (it.key() != "url" && it.key() != "no_ask" && it.key() != "output_path" && it.key() != "filter") {
 			out_error = "Unexpected parameter '" + it.key() + "' passed to tool.";
 			return false;
 		}
@@ -69,6 +81,7 @@ bool web_fetch_validator::validate_args_impl(const nlohmann::json &args, const a
 	parsed_args_.url = url;
 	parsed_args_.output_path = output_path;
 	parsed_args_.safe_output_path = safe_output_path;
+	parsed_args_.filter = filter;
 	parsed_args_.no_ask = args.contains("no_ask") ? args["no_ask"].get<bool>() : false;
 
 	return true;

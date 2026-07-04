@@ -4,6 +4,7 @@
 #include <regex>
 #include <curl/curl.h>
 #include "../../agentlib/tool_context.h"
+#include "../../agentlib/filter_registry.h"
 #include "../../fs_utils.h"
 #include "web_fetch.h"
 
@@ -153,6 +154,22 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string output = perform_http_get(args_.url);
+
+	if (!args_.filter.empty()) {
+		bool success = false;
+		std::string filtered = agentlib::filter_registry::get_instance().apply_filter(args_.filter, output, success);
+		if (!success) {
+			auto available = agentlib::filter_registry::get_instance().get_registered_filters();
+			std::string avail_str;
+			for (size_t i = 0; i < available.size(); ++i) {
+				if (i > 0) avail_str += ", ";
+				avail_str += "'" + available[i] + "'";
+			}
+			return "Error: Filter '" + args_.filter + "' is not registered. Available filters: " +
+			       (avail_str.empty() ? "(none)" : avail_str);
+		}
+		output = filtered;
+	}
 
 	if (!args_.safe_output_path.empty()) {
 		std::ofstream ofs(args_.safe_output_path, std::ios::binary);
