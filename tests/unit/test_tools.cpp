@@ -488,6 +488,60 @@ int main()
 		std::cout << "ai_agent::coalesce_tool_calls verified successfully!" << std::endl;
 	}
 
+	{
+		std::cout << "\nTesting apply_text_filter..." << std::endl;
+
+		// Test 1: Simple filter execution returning value
+		std::string result = registry.execute_tool(
+			"apply_text_filter",
+			"{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\"}",
+			ctx
+		);
+		std::cout << "Result: " << result << std::endl;
+		assert(result == "Hello World");
+
+		// Test 2: Filter execution writing to output_path
+		std::string output_file = "test_filtered_out.txt";
+		std::string result_write = registry.execute_tool(
+			"apply_text_filter",
+			"{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\", \"output_path\": \"" + output_file + "\"}",
+			ctx
+		);
+		std::cout << "Write result: " << result_write << std::endl;
+		assert(result_write.find("Successfully applied filter") != std::string::npos);
+
+		std::string full_out_path = (ctx.fs_security.get_working_directory() / output_file).string();
+		assert(std::filesystem::exists(full_out_path));
+
+		std::ifstream ifs(full_out_path);
+		std::string file_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(file_content == "Hello World");
+		ifs.close();
+		std::filesystem::remove(full_out_path);
+
+		// Test 3: Invalid filter name error validation
+		auto prep_invalid_filter = registry.prepare_tool(
+			"apply_text_filter",
+			"{\"text\": \"Hello\", \"filter\": \"nonexistent_filter_name_xyz\"}",
+			ctx
+		);
+		assert(prep_invalid_filter.tool == nullptr);
+		std::cout << "Invalid filter error: " << prep_invalid_filter.error_message << std::endl;
+		assert(prep_invalid_filter.error_message.find("Invalid filter name") != std::string::npos);
+		assert(prep_invalid_filter.error_message.find("strip_ansi") != std::string::npos); // Should list available filters
+
+		// Test 4: Security violation on write path
+		auto prep_security = registry.prepare_tool(
+			"apply_text_filter",
+			"{\"text\": \"Hello\", \"filter\": \"strip_ansi\", \"output_path\": \"../../unsafe.txt\"}",
+			ctx
+		);
+		assert(prep_security.tool == nullptr);
+		assert(prep_security.error_message.find("Security Violation") != std::string::npos ||
+		       prep_security.error_message.find("Access Denied") != std::string::npos ||
+		       prep_security.error_message.find("outside workspace") != std::string::npos);
+	}
+
 	std::cout << "\nAll test tools verified!" << std::endl;
 	return 0;
 }

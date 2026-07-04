@@ -26,6 +26,7 @@ namespace agentlib {
 | security_verify_html_validator | src/plugins/securityagent/security_verify_html/security_verify_html.h |
 | hexdump_validator | src/plugins/hexedit/hexdump_validator.h |
 | hexwrite_validator | src/plugins/hexedit/hexwrite_validator.h |
+| apply_text_filter_validator | src/tools/apply_text_filter/apply_text_filter.h |
 */
 class tool_validator {
 public:

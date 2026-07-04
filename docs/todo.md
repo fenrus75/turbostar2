@@ -12,6 +12,10 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: a markdown_to_html filter 
+	- should be straightforward structural conversion
+	- almost a line by line regexp, after some boilerplate headers
+
 - feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
 	- reference: https://developers.openai.com/api/docs/guides/images-vision
@@ -27,6 +31,8 @@
     increase the limits?
 
 - feature: subagent creation wizzard dialog
+
+- feature: we have a groff-to-markdown converter - this could be another filter
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
@@ -243,6 +249,7 @@
 - Input history file path: Fixed a bug where `.turbostar_input_history.json` was incorrectly written to the project's repository root instead of the project-specific cache root (`~/.cache/turbostar/projects/...`), avoiding repository pollution. Added a dedicated unit test `test_input_history` to verify correct file path creation.
 - Matt Pocock Skills plugin: Implemented a new dynamic shared module plugin (`mattpocock`) registering a hidden `grill-me` skill and binding it to the new `/grill-me` slash command, using Matt Pocock's industry-leading productivity instructions.
 - libturbocatch installation: Configured `libturbocatch.so` to install to `$prefix/libexec/turbostar/` in `meson.build` and implemented robust path lookup prioritizing `TURBOSTAR_TURBOCATCH_DIR` environment variables, `TURBOCATCH_DIR` compilation macros, build root fallbacks, and system search paths. Added the build-root environment variable to unit tests and E2E runs.
+- `apply_text_filter` agent tool: Implemented a new generic agent tool allowing the LLM/Agent to apply registered text processing or format conversion filters (e.g. `strip_utf8`, `strip_ansi`, `html_to_markdown`, `markdown_align_tables`) to any input text. Supports returning the converted string directly or saving it directly to a safe workspace file. Includes robust Stage 1 JSON validation, filter name enumeration on error, and a comprehensive unit test suite.
 
 ## 03-07-2026
 - Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
