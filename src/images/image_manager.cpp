@@ -346,6 +346,18 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+
+		if (!clean_alias.empty()) {
+			for (auto &meta : mappings_) {
+				if (meta.sha256 != hash) {
+					auto name_it = std::find(meta.names.begin(), meta.names.end(), clean_alias);
+					if (name_it != meta.names.end()) {
+						meta.names.erase(name_it);
+					}
+				}
+			}
+		}
+
 		auto it = std::find_if(mappings_.begin(), mappings_.end(), [&](const image_metadata &m) {
 			return m.sha256 == hash;
 		});

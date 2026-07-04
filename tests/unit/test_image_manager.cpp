@@ -145,6 +145,38 @@ int main()
 		assert(manager.resolve_uri(uri_del).empty());
 	}
 
+	std::cout << "Testing alias reassigning / edit-in-place..." << std::endl;
+	{
+		std::string temp_png1 = manager.get_temp_image_path();
+		std::ofstream ofs1(temp_png1, std::ios::binary);
+		assert(ofs1);
+		ofs1.write("\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x00\x00\x00\x00", 33);
+		ofs1.close();
+		std::string uri1 = manager.ingest_image(temp_png1, "my-alias.png");
+		assert(!uri1.empty());
+
+		assert(manager.resolve_uri("images://my-alias.png") == manager.resolve_uri(uri1));
+
+		std::string temp_png2 = manager.get_temp_image_path();
+		std::ofstream ofs2(temp_png2, std::ios::binary);
+		assert(ofs2);
+		ofs2.write("\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x00\x00\x00\x01", 33);
+		ofs2.close();
+		std::string uri2 = manager.ingest_image(temp_png2, "my-alias.png");
+		assert(!uri2.empty());
+		assert(uri1 != uri2);
+
+		assert(manager.resolve_uri("images://my-alias.png") == manager.resolve_uri(uri2));
+
+		image_metadata meta1;
+		assert(manager.get_metadata(uri1, meta1));
+		assert(meta1.names.empty());
+
+		image_metadata meta2;
+		assert(manager.get_metadata(uri2, meta2));
+		assert(std::find(meta2.names.begin(), meta2.names.end(), "my-alias.png") != meta2.names.end());
+	}
+
 	std::cout << "Testing cache clearing..." << std::endl;
 	manager.clear_cache();
 	assert(manager.get_all_mappings().empty());
