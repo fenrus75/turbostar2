@@ -12,6 +12,8 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- severe bug: .turbostar_input_history.json is placed in the project git directory instead of the ~/.cache/turbostar/projects/... project directory
+
 - feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
 	- reference: https://developers.openai.com/api/docs/guides/images-vision

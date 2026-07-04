@@ -47,6 +47,72 @@ void skill_manager::register_skill(const std::string &name, const std::string &d
 	skills_.push_back(new_skill);
 }
 
+void skill_manager::register_skill(const std::string &skill_content, bool visible)
+{
+	std::map<std::string, std::string> files;
+	files["SKILL.md"] = skill_content;
+	register_skill(files, visible);
+}
+
+void skill_manager::register_skill(const std::map<std::string, std::string> &files, bool visible)
+{
+	auto it = files.find("SKILL.md");
+	if (it == files.end()) {
+		event_logger::get_instance().log("skill_manager: Failed to register skill: SKILL.md not found in files map.");
+		return;
+	}
+
+	const std::string &skill_content = it->second;
+
+	// Parse the frontmatter from SKILL.md content
+	std::stringstream ss(skill_content);
+	std::string line;
+	std::string name;
+	std::string description;
+
+	if (std::getline(ss, line) && utf8::trim(line) == "---") {
+		std::string frontmatter;
+		bool in_frontmatter = true;
+		while (std::getline(ss, line)) {
+			std::string trimmed = utf8::trim(line);
+			if (trimmed == "---") {
+				in_frontmatter = false;
+				break;
+			}
+			frontmatter += line + "\n";
+		}
+
+		if (!in_frontmatter) {
+			try {
+				YAML::Node config = YAML::Load(frontmatter);
+				if (config["name"]) {
+					name = config["name"].as<std::string>();
+				}
+				if (config["description"]) {
+					description = config["description"].as<std::string>();
+				}
+			} catch (const std::exception &e) {
+				event_logger::get_instance().log("skill_manager: YAML parse error during dynamic registration: {}", e.what());
+				return;
+			}
+		}
+	}
+
+	if (name.empty()) {
+		event_logger::get_instance().log("skill_manager: Failed to register skill: Could not parse name from SKILL.md frontmatter.");
+		return;
+	}
+
+	// 1. Register the skill metadata
+	register_skill(name, description, "skills://" + name + "/", visible);
+
+	// 2. Mount all files in the map to VFS under skills://<name>/
+	for (const auto &pair : files) {
+		std::string uri = "skills://" + name + "/" + pair.first;
+		vfs_->mount_buffer(uri, pair.second);
+	}
+}
+
 void skill_manager::set_visibility(const std::string &name, bool visible)
 {
 	std::lock_guard<std::mutex> lock(mutex_);

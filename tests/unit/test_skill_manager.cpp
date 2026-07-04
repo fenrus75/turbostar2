@@ -107,11 +107,92 @@ void test_hidden_skills()
 	assert(found_updated);
 }
 
+void test_dynamic_registration()
+{
+	auto& manager = skill_manager::get_instance();
+	manager.initialize();
+
+	// 1. Register via string content
+	std::string string_skill = 
+		"---\n"
+		"name: string_skill_test\n"
+		"description: String skill description\n"
+		"---\n"
+		"String instructions go here.\n";
+
+	manager.register_skill(string_skill, false);
+
+	const auto& skills = manager.get_skills();
+	bool found_string_skill = false;
+	for (const auto& s : skills) {
+		if (s.name == "string_skill_test") {
+			found_string_skill = true;
+			assert(s.description == "String skill description");
+			assert(s.visible == false);
+		}
+	}
+	assert(found_string_skill);
+
+	// Verify it was mounted in VFS
+	auto view_opt = manager.get_vfs()->read_file("skills://string_skill_test/SKILL.md");
+	assert(view_opt);
+	assert(std::string(view_opt.value()->view()) == string_skill);
+
+	// 2. Register via map of files
+	std::map<std::string, std::string> files;
+	std::string map_skill = 
+		"---\n"
+		"name: map_skill_test\n"
+		"description: Map skill description\n"
+		"---\n"
+		"Map instructions go here.\n";
+	files["SKILL.md"] = map_skill;
+	files["helper.txt"] = "helper content";
+
+	manager.register_skill(files, true);
+
+	const auto& skills2 = manager.get_skills();
+	bool found_map_skill = false;
+	for (const auto& s : skills2) {
+		if (s.name == "map_skill_test") {
+			found_map_skill = true;
+			assert(s.description == "Map skill description");
+			assert(s.visible == true);
+		}
+	}
+	assert(found_map_skill);
+
+	// Verify both files were mounted
+	auto skill_md = manager.get_vfs()->read_file("skills://map_skill_test/SKILL.md");
+	assert(skill_md);
+	assert(std::string(skill_md.value()->view()) == map_skill);
+
+	auto helper = manager.get_vfs()->read_file("skills://map_skill_test/helper.txt");
+	assert(helper);
+	assert(std::string(helper.value()->view()) == "helper content");
+
+	// 3. Test unregistering
+	manager.unregister_skill("map_skill_test");
+	const auto& skills3 = manager.get_skills();
+	bool found_after_unreg = false;
+	for (const auto& s : skills3) {
+		if (s.name == "map_skill_test") {
+			found_after_unreg = true;
+		}
+	}
+	assert(!found_after_unreg);
+
+	// VFS prefix should be unmounted
+	auto unreg_skill_md = manager.get_vfs()->read_file("skills://map_skill_test/SKILL.md");
+	assert(!unreg_skill_md);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_robust_skill_parsing();
 	test_hidden_skills();
+	test_dynamic_registration();
 	std::cout << "skill_manager tests passed.\n";
 	return 0;
 }
