@@ -12,9 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- severe bug: .turbostar_input_history.json is placed in the project git directory instead of the ~/.cache/turbostar/projects/... project directory
-	 - get_project_root() from the project manager will get us this directory!
-
 - feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
 	- reference: https://developers.openai.com/api/docs/guides/images-vision
@@ -250,6 +247,7 @@
 
 ## 04-07-2026
 - Dynamic skill plugins: Implemented support for "hidden" (invisible) skills by adding a visibility toggle, enabling plugins to register skills silently without polluting the user/agent enumeration. Added `ai_agent::activate_skill` for centralized, consistent programmatic skill activation that automatically formats and injects instructions into the agent's interaction history as a system message. Added `register_skill` overloads in `skill_manager` supporting dynamic registration of both simple single-string skills and complex multi-file skills mapped to string maps.
+- Input history file path: Fixed a bug where `.turbostar_input_history.json` was incorrectly written to the project's repository root instead of the project-specific cache root (`~/.cache/turbostar/projects/...`), avoiding repository pollution. Added a dedicated unit test `test_input_history` to verify correct file path creation.
 
 ## 03-07-2026
 - Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
