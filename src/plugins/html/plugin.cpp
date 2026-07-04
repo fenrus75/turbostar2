@@ -1,5 +1,5 @@
 #include "agentlib/tool_registry.h"
-#include "agentlib/filter_registry.h"
+#include "filter_registry.h"
 #include "plugins/html/html_extract_text_tool.h"
 
 extern "C" {

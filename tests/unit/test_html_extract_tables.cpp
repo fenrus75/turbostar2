@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include "agentlib/tool_registry.h"
-#include "agentlib/filter_registry.h"
+#include "filter_registry.h"
 #include "pluginloader.h"
 #include "project_manager.h"
 

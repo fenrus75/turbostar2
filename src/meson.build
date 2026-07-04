@@ -48,11 +48,11 @@ core_sources = files(
 
 
 agentlib_sources = files(
+  'filter_registry.cpp',
   'agentlib/ai_agent.cpp',
   'agentlib/agent_animation.cpp',
   'agentlib/llm_client.cpp',
   'agentlib/tool_registry.cpp',
-  'agentlib/filter_registry.cpp',
   'agentlib/tool_validator.cpp',
   'agentlib/httplib_transport.cpp',
   'agentlib/recording_transport.cpp',

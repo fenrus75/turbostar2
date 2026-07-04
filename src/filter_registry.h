@@ -22,7 +22,7 @@ class filter_registry
 	std::vector<std::string> get_registered_filters() const;
 
       private:
-	filter_registry() = default;
+	filter_registry();
 	mutable std::mutex mutex_;
 	std::map<std::string, filter_func> filters_;
 };

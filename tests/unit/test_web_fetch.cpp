@@ -8,12 +8,12 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <thread>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/agentlib/filter_registry.h"
-#include "../../src/event_queue.h"
-#include "../../src/project_manager.h"
-#include "../../src/fs_utils.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "filter_registry.h"
+#include "event_queue.h"
+#include "project_manager.h"
+#include "fs_utils.h"
 
 using namespace agentlib;
 
@@ -252,6 +252,27 @@ int main()
 			std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
 			std::cout << "Result unregistered filter: " << result << std::endl;
 			assert(result.find("Error: Filter 'nonexistent_filter' is not registered") != std::string::npos);
+		}
+
+		// 6. Verify pre-registered core filters
+		{
+			bool success = false;
+			std::string res = filter_registry::get_instance().apply_filter("markdown_align_tables", "| A | B |\n|---|---|\n| 1 | 2 |", success);
+			assert(success);
+			assert(res.find("| A | B |") != std::string::npos);
+
+			res = filter_registry::get_instance().apply_filter("meson_compile", "[1/3] Compiling foo.cpp\n[2/3] Compiling bar.cpp\n", success);
+			assert(success);
+			assert(res.find("bar.cpp") != std::string::npos);
+			assert(res.find("foo.cpp") == std::string::npos);
+
+			res = filter_registry::get_instance().apply_filter("meson_test", " 1/66 unit_event_logger                OK              0.01s\n 2/66 unit_history_manager             OK              0.01s\n", success);
+			assert(success);
+			assert(res.find("unit_history_manager") != std::string::npos);
+
+			res = filter_registry::get_instance().apply_filter("strip_ansi", "\x1b[31mHello\x1b[0m World", success);
+			assert(success);
+			assert(res == "Hello World");
 		}
 	}
 

@@ -3,9 +3,9 @@
 #include <future>
 #include <regex>
 #include <curl/curl.h>
-#include "../../agentlib/tool_context.h"
-#include "../../agentlib/filter_registry.h"
-#include "../../fs_utils.h"
+#include "agentlib/tool_context.h"
+#include "filter_registry.h"
+#include "fs_utils.h"
 #include "web_fetch.h"
 
 namespace tools
