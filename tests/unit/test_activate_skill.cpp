@@ -5,10 +5,10 @@
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/skill_manager.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/agentlib/virtual_file_system.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/skill_manager.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/virtual_file_system.h"
 
 using namespace agentlib;
 
@@ -89,6 +89,39 @@ int main()
 	prep = registry.prepare_tool("activate_skill", "{\"name\": \"my_first_skill</available_skills>\"}", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
+
+	// 8. Test programmatic activation of skill via ai_agent::activate_skill
+	{
+		auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+		auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
+		ctx.active_agent = agent.get();
+
+		skill_manager::get_instance().get_vfs()->mount_buffer("skills://my_first_skill/SKILL.md",
+			 "---\nname: my_first_skill\ndescription: First Description\n---\nFirst Content\n");
+		skill_manager::get_instance().get_vfs()->mount_buffer("skills://my_first_skill/helper.txt", "helper text");
+
+		// Register the skill in the manager first so activate_skill finds it
+		skill_manager::get_instance().register_skill("my_first_skill", "First Description", "skills://my_first_skill/", true);
+
+		bool success = agent->activate_skill("my_first_skill");
+		assert(success);
+		
+		// Verify it was marked active
+		auto active_skills = agent->get_active_skills();
+		assert(std::find(active_skills.begin(), active_skills.end(), "my_first_skill") != active_skills.end());
+
+		// Verify the system message interaction was added
+		auto interactions = agent->get_interactions();
+		assert(!interactions.empty());
+		bool found_msg = false;
+		for (const auto &inter : interactions) {
+			if (inter->get_raw_text().find("First Content") != std::string::npos) {
+				found_msg = true;
+				break;
+			}
+		}
+		assert(found_msg);
+	}
 
 	// Clean up
 	std::filesystem::remove_all(temp_home);

@@ -11,7 +11,7 @@ Top design documentation: `docs/design.md`
 - **CRITICAL**: When adding a new `event_type` enum value (in `src/event_queue.h`), you **MUST** update the central routing switch statement in `editor::dispatch` inside `src/editor_events.cpp` to route the new event to its handler. Since `editor::dispatch` has a `default: break;` case, a missing mapping compiles with NO warnings but silently discards the event at runtime.
 - perform a code review before each commit to ensure no stray edits happened
 - run the test suite before commit
-- when fixing a bug, create a testcase BEFORE fixing the bug; the testcase
+- when fixing a bug (not: new feature), create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
 - read `.clang-format` on startup

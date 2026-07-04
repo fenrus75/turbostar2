@@ -38,6 +38,12 @@ public:
     // Toggles visibility of a registered skill
     void set_visibility(const std::string &name, bool visible);
 
+    // Formats a skill's content to XML <skill_content> block
+    std::string format_skill_content(const std::string &name) const;
+
+    // Unregisters a skill dynamically
+    void unregister_skill(const std::string &name);
+
 private:
     skill_manager() = default;
     ~skill_manager() = default;

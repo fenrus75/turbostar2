@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <format>
+#include <sstream>
 #include <yaml-cpp/yaml.h>
 #include "event_logger.h"
 #include "utf8.h"
@@ -145,6 +146,75 @@ void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const 
 	} catch (...) {
 		event_logger::get_instance().log("skill_manager: Unknown error scanning and mounting skills");
 	}
+}
+
+std::string skill_manager::format_skill_content(const std::string &name) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	const skill *target = nullptr;
+	for (const auto &s : skills_) {
+		if (s.name == name) {
+			target = &s;
+			break;
+		}
+	}
+	if (!target) {
+		return "Error: Skill '" + name + "' not found.";
+	}
+
+	std::string base_uri = target->uri;
+	if (!base_uri.empty() && base_uri.back() != '/') {
+		base_uri += '/';
+	}
+
+	std::string skill_md_uri = base_uri + "SKILL.md";
+	auto view_opt = vfs_->read_file(skill_md_uri);
+
+	std::string instructions;
+	if (view_opt) {
+		instructions = std::string(view_opt.value()->view());
+	} else {
+		instructions = "Error: SKILL.md not found in skill root.";
+	}
+
+	std::stringstream ss;
+	ss << "<skill_content name=\"" << name << "\">\n";
+	ss << instructions << "\n\n";
+	ss << "Skill directory: `" << base_uri << "`\n";
+	ss << "Relative paths in this skill are relative to the skill directory.\n\n";
+	ss << "<skill_resources>\n";
+
+	auto entries = vfs_->list_directory(base_uri);
+	for (const auto &entry : entries) {
+		if (entry.uri.rfind(base_uri, 0) != 0)
+			continue;
+
+		std::string filename = entry.uri.substr(base_uri.length());
+		if (filename.empty())
+			continue;
+
+		if (entry.type == 'D')
+			continue;
+
+		ss << "  <file>" << filename << "</file>\n";
+	}
+
+	ss << "</skill_resources>\n";
+	ss << "</skill_content>";
+
+	return ss.str();
+}
+
+void skill_manager::unregister_skill(const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto it = skills_.begin(); it != skills_.end(); ++it) {
+		if (it->name == name) {
+			skills_.erase(it);
+			break;
+		}
+	}
+	vfs_->unmount_prefix("skills://" + name + "/");
 }
 
 } // namespace agentlib

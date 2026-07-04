@@ -707,6 +707,17 @@ void ai_agent::add_active_skill(const std::string &skill_name)
 	}
 }
 
+bool ai_agent::activate_skill(const std::string &skill_name)
+{
+	add_active_skill(skill_name);
+	std::string content = skill_manager::get_instance().format_skill_content(skill_name);
+	if (content.rfind("Error:", 0) == 0) {
+		return false;
+	}
+	add_interaction(std::make_shared<interaction_system_message>(content));
+	return true;
+}
+
 std::vector<std::string> ai_agent::get_active_skills() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));

@@ -142,6 +142,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return last_inference_duration_ms_.load();
 	}
 	void add_active_skill(const std::string &skill_name);
+	bool activate_skill(const std::string &skill_name);
 	std::vector<std::string> get_active_skills() const;
 	void add_active_tool_family(const std::string &family_name);
 	std::vector<std::string> get_active_tool_families() const;
