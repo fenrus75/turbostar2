@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv)
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(30, false);
 #if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
 	std::cout << "Skipping test_fallback_crash because it is incompatible with AddressSanitizer (ASan)." << std::endl;
 	return 77;
