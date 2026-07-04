@@ -50,6 +50,9 @@ class image_manager
 	// Clears all cache files and resets mappings.json
 	void clear_cache();
 
+	// Deletes a specific image from VFS cache and mapping index
+	bool delete_image(const std::string &uri);
+
 	// For test/introspection: get all mappings
 	std::vector<image_metadata> get_all_mappings();
 

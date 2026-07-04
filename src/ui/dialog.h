@@ -22,6 +22,7 @@ enum class dialog_result {
 | force_quit_dialog_impl      | src/ui/dialog_factories.cpp  |
 | file_dialog_impl            | src/ui/dialog_factories.cpp  |
 | copilot_connect_dialog_impl | src/ui/dialog_factories.cpp  |
+| image_manager_dialog_impl   | src/ui/dialog_factories.cpp  |
 
 */
 class dialog : public ui_container{

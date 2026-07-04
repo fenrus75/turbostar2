@@ -126,6 +126,25 @@ int main()
 	assert(reloaded_meta.height == 5);
 	assert(std::find(reloaded_meta.file_ids.begin(), reloaded_meta.file_ids.end(), "file-openai-xyz123") != reloaded_meta.file_ids.end());
 
+	std::cout << "Testing delete_image..." << std::endl;
+	{
+		// Create a temporary PNG image to ingest then delete
+		std::string temp_test_png = manager.get_temp_image_path();
+		std::ofstream ofs(temp_test_png, std::ios::binary);
+		assert(ofs);
+		ofs.write("\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x00\x00\x00\x00", 25);
+		ofs.close();
+
+		std::string uri_del = manager.ingest_image(temp_test_png, "to-delete.png");
+		assert(!uri_del.empty());
+		assert(!manager.resolve_uri(uri_del).empty());
+
+		// Now delete it
+		bool deleted = manager.delete_image(uri_del);
+		assert(deleted);
+		assert(manager.resolve_uri(uri_del).empty());
+	}
+
 	std::cout << "Testing cache clearing..." << std::endl;
 	manager.clear_cache();
 	assert(manager.get_all_mappings().empty());

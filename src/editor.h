@@ -206,9 +206,13 @@ class editor : public agentlib::document_provider
 		codereview_select_severity,
 		syntax_colors,
 		maybe_binary_prompt,
-		insert_file_multiline
+		insert_file_multiline,
+		image_manager,
+		image_import_select_file,
+		image_save_select_file
 	};
 	int codereview_edit_item_id_{-1};
+	std::string pending_image_vfs_uri_;
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;

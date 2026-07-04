@@ -442,4 +442,30 @@ std::vector<image_metadata> image_manager::get_all_mappings()
 	return mappings_;
 }
 
+bool image_manager::delete_image(const std::string &uri)
+{
+	std::string physical_path = resolve_uri(uri);
+	if (physical_path.empty()) {
+		return false;
+	}
+
+	std::filesystem::path p(physical_path);
+	std::string hash = p.filename().string();
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	auto it = std::find_if(mappings_.begin(), mappings_.end(), [&](const image_metadata &m) {
+		return m.sha256 == hash;
+	});
+
+	if (it != mappings_.end()) {
+		mappings_.erase(it);
+		std::error_code ec;
+		std::filesystem::remove(physical_path, ec);
+		save_mappings();
+		return true;
+	}
+
+	return false;
+}
+
 } // namespace images

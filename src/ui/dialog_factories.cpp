@@ -1,6 +1,7 @@
 #include "ui/dialog_factories.h"
 #include "input_history_manager.h"
 #include "codereview_manager.h"
+#include "images/image_manager.h"
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -2154,4 +2155,172 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 	listbox_ptr->set_focus(true);
 
 	return dlg;
+}
+
+class image_manager_dialog_impl : public dialog
+{
+      public:
+	image_manager_dialog_impl() : dialog("Image VFS Manager", 72, 21)
+	{
+		auto on_selection_changed = [this](int idx) {
+			update_selection(idx);
+		};
+
+		auto on_submit = [this](int /*idx*/) {
+			save_selected();
+		};
+
+		auto flow = std::make_unique<ui_vertical_flow>("main_flow", 2, 1);
+
+		auto top_section = std::make_unique<ui_horizontal_flow>("top_section", 0, 0);
+
+		auto left_col = std::make_unique<ui_vertical_flow>("left_col", 0, 0);
+		left_col->add_child(std::make_unique<ui_text_label>("VFS Images:"));
+
+		auto lb = std::make_unique<ui_listbox>("image_list", 40, 9, on_selection_changed, on_submit);
+		lb_ = lb.get();
+		left_col->add_child(std::move(lb));
+
+		top_section->add_child(std::move(left_col));
+
+		auto right_col = std::make_unique<ui_vertical_flow>("right_col", 0, 0);
+		right_col->add_child(std::make_unique<ui_text_label>("Image Info:"));
+
+		auto lbl_alias = std::make_unique<ui_text_label>("Alias: -");
+		lbl_alias_ = lbl_alias.get();
+		right_col->add_child(std::move(lbl_alias));
+
+		auto lbl_dims = std::make_unique<ui_text_label>("Dims:  -");
+		lbl_dims_ = lbl_dims.get();
+		right_col->add_child(std::move(lbl_dims));
+
+		auto lbl_mime = std::make_unique<ui_text_label>("MIME:  -");
+		lbl_mime_ = lbl_mime.get();
+		right_col->add_child(std::move(lbl_mime));
+
+		auto lbl_size = std::make_unique<ui_text_label>("Size:  -");
+		lbl_size_ = lbl_size.get();
+		right_col->add_child(std::move(lbl_size));
+
+		right_col->add_child(std::make_unique<ui_text_label>(""));
+
+		// Thumbnail placeholder space to the right
+		right_col->add_child(std::make_unique<ui_text_label>("+------------------+"));
+		right_col->add_child(std::make_unique<ui_text_label>("|                  |"));
+		right_col->add_child(std::make_unique<ui_text_label>("|   [ Thumbnail ]  |"));
+		right_col->add_child(std::make_unique<ui_text_label>("|                  |"));
+		right_col->add_child(std::make_unique<ui_text_label>("+------------------+"));
+
+		top_section->add_child(std::move(right_col));
+		flow->add_child(std::move(top_section));
+
+		flow->add_child(std::make_unique<ui_text_label>(""));
+
+		auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+		btns->set_centered(true);
+		btns->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [this]() {
+			import_image();
+		}));
+		btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 's', [this]() {
+			save_selected();
+		}));
+		btns->add_child(std::make_unique<ui_button>("btn_delete", "Delete", 'd', [this]() {
+			delete_selected();
+		}));
+		btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [this]() {
+			set_action(dialog_result::cancelled);
+			set_result("cancel");
+		}));
+
+		flow->add_child(std::move(btns));
+		add_child(std::move(flow));
+
+		this->flow();
+
+		refresh_list();
+		populate_list();
+		update_selection(0);
+
+		set_focused_child(lb_);
+		lb_->set_focus(true);
+	}
+
+	void refresh_list()
+	{
+		mappings_ = images::image_manager::get_instance().get_all_mappings();
+	}
+
+	void populate_list()
+	{
+		std::vector<std::string> items;
+		for (const auto &meta : mappings_) {
+			std::string name = meta.names.empty() ? meta.sha256.substr(0, 8) : meta.names[0];
+			items.push_back(name);
+		}
+		lb_->set_items(items);
+	}
+
+	void update_selection(int idx)
+	{
+		if (idx >= 0 && idx < (int)mappings_.size()) {
+			const auto &meta = mappings_[idx];
+			std::string name = meta.names.empty() ? "(none)" : meta.names[0];
+			lbl_alias_->set_text("Alias: " + name);
+			lbl_dims_->set_text("Dims:  " + std::to_string(meta.width) + "x" + std::to_string(meta.height));
+			lbl_mime_->set_text("MIME:  " + meta.mime_type);
+			lbl_size_->set_text("Size:  " + std::to_string(meta.size_bytes) + " B");
+		} else {
+			lbl_alias_->set_text("Alias: -");
+			lbl_dims_->set_text("Dims:  -");
+			lbl_mime_->set_text("MIME:  -");
+			lbl_size_->set_text("Size:  -");
+		}
+	}
+
+	void import_image()
+	{
+		set_action(dialog_result::confirmed);
+		set_result("import");
+	}
+
+	void save_selected()
+	{
+		int idx = lb_->get_selected_index();
+		if (idx >= 0 && idx < (int)mappings_.size()) {
+			set_action(dialog_result::confirmed);
+			set_result("save:images://by-sha256/" + mappings_[idx].sha256);
+		}
+	}
+
+	void delete_selected()
+	{
+		int idx = lb_->get_selected_index();
+		if (idx >= 0 && idx < (int)mappings_.size()) {
+			std::string uri = "images://by-sha256/" + mappings_[idx].sha256;
+			images::image_manager::get_instance().delete_image(uri);
+			refresh_list();
+			populate_list();
+			int new_idx = std::min(idx, (int)mappings_.size() - 1);
+			if (new_idx >= 0) {
+				lb_->set_selected_index(new_idx);
+				update_selection(new_idx);
+			} else {
+				update_selection(-1);
+			}
+		}
+	}
+
+      private:
+	ui_listbox *lb_{nullptr};
+	ui_text_label *lbl_alias_{nullptr};
+	ui_text_label *lbl_dims_{nullptr};
+	ui_text_label *lbl_mime_{nullptr};
+	ui_text_label *lbl_size_{nullptr};
+
+	std::vector<images::image_metadata> mappings_;
+};
+
+std::unique_ptr<dialog> create_image_manager_dialog()
+{
+	return std::make_unique<image_manager_dialog_impl>();
 }

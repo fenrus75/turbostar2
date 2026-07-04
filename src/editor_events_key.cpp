@@ -23,6 +23,7 @@
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 #include "codereview_manager.h"
+#include "images/image_manager.h"
 #include "syntax_color_manager.h"
 
 namespace fs = std::filesystem;
@@ -569,6 +570,49 @@ void editor::resolve_dialog(dialog_result res)
 			}
 			set_focus(focus_target::window, "dialog_close");
 			return;
+		} else if (active_dialog_mode_ == dialog_mode::image_manager) {
+			std::string val = active_dialog_->get_result();
+			if (val == "import") {
+				active_dialog_ = create_file_dialog("Import Image", ".");
+				active_dialog_mode_ = dialog_mode::image_import_select_file;
+				set_focus(focus_target::dialog, "image_import_select_file");
+				return;
+			} else if (val.starts_with("save:")) {
+				pending_image_vfs_uri_ = val.substr(5);
+				std::string default_name = "";
+				images::image_metadata meta;
+				if (images::image_manager::get_instance().get_metadata(pending_image_vfs_uri_, meta)) {
+					default_name = meta.names.empty() ? meta.sha256.substr(0, 8) + ".png" : meta.names[0];
+				}
+				active_dialog_ = create_file_dialog("Save Image As", default_name.empty() ? "." : default_name);
+				active_dialog_mode_ = dialog_mode::image_save_select_file;
+				set_focus(focus_target::dialog, "image_save_select_file");
+				return;
+			}
+		} else if (active_dialog_mode_ == dialog_mode::image_import_select_file) {
+			std::string filepath = active_dialog_->get_result();
+			if (!filepath.empty() && std::filesystem::exists(filepath)) {
+				std::string alias = std::filesystem::path(filepath).filename().string();
+				images::image_manager::get_instance().ingest_image(filepath, alias);
+			}
+			active_dialog_ = create_image_manager_dialog();
+			active_dialog_mode_ = dialog_mode::image_manager;
+			set_focus(focus_target::dialog, "image_manager");
+			return;
+		} else if (active_dialog_mode_ == dialog_mode::image_save_select_file) {
+			std::string dest_path = active_dialog_->get_result();
+			if (!dest_path.empty() && !pending_image_vfs_uri_.empty()) {
+				std::string src_path = images::image_manager::get_instance().resolve_uri(pending_image_vfs_uri_);
+				if (!src_path.empty()) {
+					std::error_code ec;
+					std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing, ec);
+				}
+			}
+			pending_image_vfs_uri_ = "";
+			active_dialog_ = create_image_manager_dialog();
+			active_dialog_mode_ = dialog_mode::image_manager;
+			set_focus(focus_target::dialog, "image_manager");
+			return;
 		}
 
 		active_dialog_.reset();
@@ -584,6 +628,14 @@ void editor::resolve_dialog(dialog_result res)
 			if (doc) {
 				doc->update_last_disk_mtime();
 			}
+		}
+		if (active_dialog_mode_ == dialog_mode::image_import_select_file ||
+		    active_dialog_mode_ == dialog_mode::image_save_select_file) {
+			pending_image_vfs_uri_ = "";
+			active_dialog_ = create_image_manager_dialog();
+			active_dialog_mode_ = dialog_mode::image_manager;
+			set_focus(focus_target::dialog, "image_manager");
+			return;
 		}
 		if (active_dialog_mode_ == dialog_mode::ask_user || active_dialog_mode_ == dialog_mode::approve_plan) {
 			if (active_ask_user_promise_) {

@@ -92,7 +92,8 @@ enum class event_type {
 	model_servers_config,	    ///< Request to show model servers configuration dialog
 	syntax_colors_config,	    ///< Request to show syntax colors configuration dialog
 	open_prompt_editor,	    ///< Request to edit a multiline edit buffer in a full editor window
-	prompt_insert_file	    ///< Request to insert a file into a multiline edit buffer
+	prompt_insert_file,	    ///< Request to insert a file into a multiline edit buffer
+	image_manager		    ///< Request to show the image VFS manager dialog
 };
 
 namespace status_priorities

@@ -171,6 +171,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::open_codereview_viewer:
 		case event_type::codereview_action:
 		case event_type::codereview_updated:
+		case event_type::image_manager:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:
