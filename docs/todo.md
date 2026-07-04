@@ -27,13 +27,7 @@
 
 - sloppy: we need to fix meson.build to install libturbocatch.so as part of "meson install" -- and then also look for it in that location
 
-
 - feature: subagent creation wizzard dialog
-
-
-- implement /grill-me in a plugin, see https://raw.githubusercontent.com/mattpocock/skills/733d312884b3878a9a9cff693c5886943753a741/skills/productivity/grill-me/SKILL.md as
-   the reference skill for this (note: we must give Matt Pocock credit in the plugin code, he deserves it)
-	- once we have invisible skills and let plugins register skills, this is relatively easy
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
@@ -248,6 +242,7 @@
 ## 04-07-2026
 - Dynamic skill plugins: Implemented support for "hidden" (invisible) skills by adding a visibility toggle, enabling plugins to register skills silently without polluting the user/agent enumeration. Added `ai_agent::activate_skill` for centralized, consistent programmatic skill activation that automatically formats and injects instructions into the agent's interaction history as a system message. Added `register_skill` overloads in `skill_manager` supporting dynamic registration of both simple single-string skills and complex multi-file skills mapped to string maps.
 - Input history file path: Fixed a bug where `.turbostar_input_history.json` was incorrectly written to the project's repository root instead of the project-specific cache root (`~/.cache/turbostar/projects/...`), avoiding repository pollution. Added a dedicated unit test `test_input_history` to verify correct file path creation.
+- Matt Pocock Skills plugin: Implemented a new dynamic shared module plugin (`mattpocock`) registering a hidden `grill-me` skill and binding it to the new `/grill-me` slash command, using Matt Pocock's industry-leading productivity instructions.
 
 ## 03-07-2026
 - Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
