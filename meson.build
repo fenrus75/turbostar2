@@ -1001,6 +1001,12 @@ test_agent_animation = executable('test_agent_animation',
   include_directories: inc)
 test('unit_agent_animation', test_agent_animation, suite: 'agent')
 
+test_image_manager = executable('test_image_manager',
+  'tests/unit/test_image_manager.cpp',
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, openssl_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_image_manager', test_image_manager, suite: 'agent')
+
 
 test_agent_tile = executable('test_agent_tile',
   'tests/unit/test_agent_tile.cpp',

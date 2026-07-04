@@ -42,7 +42,8 @@ core_sources = files(
   'utf8.cpp',
   'crash_handler.cpp',
   'ansi.cpp',
-  'pluginloader.cpp'
+  'pluginloader.cpp',
+  'images/image_manager.cpp'
 )
 
 
