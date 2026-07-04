@@ -1,5 +1,5 @@
 #include "ui/agent_window.h"
-#include "ui/command_registry.h"
+#include "agentlib/command_registry.h"
 #include <algorithm>
 #include <cmath>
 #include <format>

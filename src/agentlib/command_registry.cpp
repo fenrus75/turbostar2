@@ -1,4 +1,4 @@
-#include "ui/command_registry.h"
+#include "agentlib/command_registry.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include "agentlib/skill_manager.h"

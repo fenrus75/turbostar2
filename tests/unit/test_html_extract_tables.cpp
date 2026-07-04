@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 #include "agentlib/tool_registry.h"
+#include "agentlib/command_registry.h"
+#include "agentlib/skill_manager.h"
 #include "filter_registry.h"
 #include "pluginloader.h"
 #include "project_manager.h"
@@ -15,6 +17,9 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
+	// Force initialization of singletons before plugin_loader to align shutdown lifetime
+	(void)command_registry::get_instance();
+	(void)skill_manager::get_instance();
 	tool_registry &registry = tool_registry::get_instance();
 
 	// Load the dynamic plugins (including html if lexbor is found)

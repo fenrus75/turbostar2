@@ -89,3 +89,11 @@ if lexbor_dep.found()
   )
 endif
 
+mattpocock_plugin = shared_module('mattpocock',
+  'mattpocock/plugin.cpp',
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+

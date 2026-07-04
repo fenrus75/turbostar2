@@ -49,6 +49,7 @@ core_sources = files(
 
 agentlib_sources = files(
   'filter_registry.cpp',
+  'agentlib/command_registry.cpp',
   'agentlib/ai_agent.cpp',
   'agentlib/agent_animation.cpp',
   'agentlib/llm_client.cpp',
@@ -139,8 +140,7 @@ ui_sources = files(
   'ui/components/ui_dropdown.cpp',
   'ui/dialog.cpp',
   'ui/dialog_factories.cpp',
-  'ui/popup_menu.cpp',
-  'ui/command_registry.cpp'
+  'ui/popup_menu.cpp'
 )
 
 # Helper for embedding help text
