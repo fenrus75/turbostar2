@@ -3,11 +3,6 @@
         "Hello agent!"
     ],
     "open_filename": [
-        "/tmp/tmp6c6grfxg.txt",
-        "/tmp/tmph2kzvu9q.txt",
-        "/tmp/tmphq05hgwf.txt",
-        "/tmp/tmpnyy6drl4.txt",
-        "/tmp/tmp1wvo4a84.txt",
         "/tmp/tmp6z4vlfdg.txt",
         "/tmp/tmpki08ta5g.txt",
         "/tmp/tmp6xg5a_kz.txt",
@@ -57,16 +52,21 @@
         "/tmp/tmpd3tdj6f2.txt",
         "/tmp/tmp_go47s2p.txt",
         "/tmp/tmp1zsxeri8.txt",
-        "/home/arjan/git/turbostar2/tests/data/scope_sel_start.txt",
         "/tmp/tmpnovpf2pa.txt",
         "/tmp/tmpvrvxx8sv.txt",
         "/tmp/tmpc3cyx2mm.txt",
-        "test_dir_auto",
         "foo",
         "/home/arjan/git/turbostar2/testrun/test_dir_auto/foobar.txt",
-        "/home/arjan/git/turbostar2/tests/data/format_para_start.txt",
         "/tmp/tmpuwv9pb78.txt",
-        "/tmp/tmpjw1y2avn.txt"
+        "/tmp/tmpjw1y2avn.txt",
+        "/home/arjan/git/turbostar2/tests/data/scope_sel_start.txt",
+        "/tmp/tmpn4sbyore.txt",
+        "/tmp/tmpd19y6m2l.txt",
+        "/tmp/tmpg8fc34xg.txt",
+        "test_dir_auto",
+        "/home/arjan/git/turbostar2/tests/data/format_para_start.txt",
+        "/tmp/tmpd4ip3ad6.txt",
+        "/tmp/tmptb4e8ilp.txt"
     ],
     "search_query": [
         "Apple"

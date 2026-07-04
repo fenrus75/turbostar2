@@ -273,6 +273,10 @@ int main()
 			res = filter_registry::get_instance().apply_filter("strip_ansi", "\x1b[31mHello\x1b[0m World", success);
 			assert(success);
 			assert(res == "Hello World");
+
+			res = filter_registry::get_instance().apply_filter("strip_utf8", "Hello \xc3\xa9 World", success);
+			assert(success);
+			assert(res == "Hello  World");
 		}
 	}
 

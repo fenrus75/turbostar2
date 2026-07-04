@@ -43,8 +43,24 @@ static std::string strip_ansi(const std::string& input) {
 	return output;
 }
 
+static std::string strip_utf8(const std::string& input) {
+	std::string output;
+	output.reserve(input.length());
+	for (char c : input) {
+		unsigned char uc = static_cast<unsigned char>(c);
+		if (uc <= 127) {
+			output += c;
+		}
+	}
+	return output;
+}
+
 filter_registry::filter_registry()
 {
+	register_filter("strip_utf8", [](const std::string &input) {
+		return strip_utf8(input);
+	});
+
 	register_filter("strip_ansi", [](const std::string &input) {
 		return strip_ansi(input);
 	});
