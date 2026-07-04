@@ -871,7 +871,7 @@ test_fs_read_binary = executable('test_fs_read_binary',
   ['tests/unit/test_fs_read_binary.cpp',
    'src/tools/fs_read_binary/fs_read_binary_entry.cpp',
    'src/tools/fs_read_binary/fs_read_binary_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
 test('unit_test_fs_read_binary', test_fs_read_binary, suite: 'agent')
 

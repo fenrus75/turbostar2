@@ -1,9 +1,9 @@
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "project_manager.h"
 
 using namespace agentlib;
 
@@ -35,6 +35,7 @@ int main()
 			std::cout << "Read binary result (b64): " << res << std::endl;
 			assert(!res.empty());
 			assert(res.find("Error:") == std::string::npos);
+			assert(res.find("data:text/plain;base64,") == 0);
 		}
 
 		// Success case: read first 4 bytes of poem.txt in hex format
