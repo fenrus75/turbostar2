@@ -43,6 +43,25 @@ int main()
 	assert(file.has_value());
 	assert(file.value()->view().find("grill-me") != std::string_view::npos);
 
+	// Verify that the image_basic plugin loaded and registered its components if available
+	bool found_image_basic = false;
+	for (const auto &p : loader.get_plugins()) {
+		if (std::string(p.name) == "Basic Image Operations") {
+			found_image_basic = true;
+		}
+	}
+	if (found_image_basic) {
+		auto &registry = agentlib::tool_registry::get_instance();
+		agentlib::agent_properties props;
+		props.active_families.push_back("image");
+		auto validators = registry.get_active_tools(true, props);
+		bool has_image_resize = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+			return v->get_name() == "image_resize";
+		});
+		assert(has_image_resize);
+		assert(registry.has_tool_family("image"));
+	}
+
 	std::cout << "pluginloader unit tests passed!\n";
 	return 0;
 }

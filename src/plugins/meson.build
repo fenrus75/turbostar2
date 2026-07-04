@@ -97,3 +97,16 @@ mattpocock_plugin = shared_module('mattpocock',
   install_dir: plugin_dir
 )
 
+if graphicsmagick_dep.found()
+  image_basic_plugin = shared_module('image_basic',
+    ['image_basic/plugin.cpp',
+     'image_basic/image_resize_tool.cpp',
+     'image_basic/image_resize_validator.cpp'],
+    dependencies: [nlohmann_json_dep, graphicsmagick_dep],
+    include_directories: inc,
+    install: true,
+    name_prefix: '',
+    install_dir: plugin_dir
+  )
+endif
+

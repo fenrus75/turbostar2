@@ -17,6 +17,7 @@ namespace agentlib {
 | security_verify_html_tool | src/plugins/securityagent/security_verify_html/security_verify_html.h |
 | hexdump_tool | src/plugins/hexedit/hexdump_tool.h |
 | hexwrite_tool | src/plugins/hexedit/hexwrite_tool.h |
+| image_resize_tool | src/plugins/image_basic/image_resize_tool.h |
 */
 class llm_tool_action : public llm_tool {
 public:
