@@ -15,6 +15,7 @@
 - feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
 	- reference: https://developers.openai.com/api/docs/guides/images-vision
+	- format looks like this for the openai response api:
 ```json
 {
     "type": "input_image",
@@ -24,8 +25,6 @@
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
-
-- sloppy: we need to fix meson.build to install libturbocatch.so as part of "meson install" -- and then also look for it in that location
 
 - feature: subagent creation wizzard dialog
 
@@ -243,6 +242,7 @@
 - Dynamic skill plugins: Implemented support for "hidden" (invisible) skills by adding a visibility toggle, enabling plugins to register skills silently without polluting the user/agent enumeration. Added `ai_agent::activate_skill` for centralized, consistent programmatic skill activation that automatically formats and injects instructions into the agent's interaction history as a system message. Added `register_skill` overloads in `skill_manager` supporting dynamic registration of both simple single-string skills and complex multi-file skills mapped to string maps.
 - Input history file path: Fixed a bug where `.turbostar_input_history.json` was incorrectly written to the project's repository root instead of the project-specific cache root (`~/.cache/turbostar/projects/...`), avoiding repository pollution. Added a dedicated unit test `test_input_history` to verify correct file path creation.
 - Matt Pocock Skills plugin: Implemented a new dynamic shared module plugin (`mattpocock`) registering a hidden `grill-me` skill and binding it to the new `/grill-me` slash command, using Matt Pocock's industry-leading productivity instructions.
+- libturbocatch installation: Configured `libturbocatch.so` to install to `$prefix/libexec/turbostar/` in `meson.build` and implemented robust path lookup prioritizing `TURBOSTAR_TURBOCATCH_DIR` environment variables, `TURBOCATCH_DIR` compilation macros, build root fallbacks, and system search paths. Added the build-root environment variable to unit tests and E2E runs.
 
 ## 03-07-2026
 - Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.

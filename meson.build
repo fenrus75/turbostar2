@@ -106,14 +106,22 @@ else
   plugin_dir = prefix / libdir / 'turbostar' / 'plugins'
 endif
 
-subdir('src')
+libexecdir = get_option('libexecdir')
+if libexecdir.startswith('/')
+  turbocatch_dir = libexecdir / 'turbostar'
+else
+  turbocatch_dir = prefix / libexecdir / 'turbostar'
+endif
 
 libturbocatch = shared_library('turbocatch',
   'src/crash_catcher/crash_catcher.c',
   dependencies: [libunwind_dep, dl_dep],
   override_options: ['b_sanitize=none'],
-  install: false
+  install: true,
+  install_dir: turbocatch_dir
 )
+
+subdir('src')
 
 turbostar_exe = executable('turbostar',
   'src/main.cpp',
@@ -811,7 +819,7 @@ test_assert_fail = executable('test_assert_fail',
   'tests/unit/test_assert_fail.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_assert_fail', test_assert_fail, suite: 'agent', depends: libturbocatch)
+test('unit_test_assert_fail', test_assert_fail, suite: 'agent', depends: libturbocatch, env: ['TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()])
 
 test_fallback_crash = executable('test_fallback_crash',
   'tests/unit/test_fallback_crash.cpp',
@@ -1293,9 +1301,10 @@ if uv.found() or python.found()
     'PROJECT_ROOT=' + meson.project_source_root(),
     'UV_OFFLINE=1',
     'TURBOSTAR_IN_TESTSUITE=1',
-    'TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'
+    'TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins',
+    'TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()
   ]
-  e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt]
+  e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt, libturbocatch]
 
   test('e2e_context_paging', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_context_paging.py')],

@@ -185,7 +185,7 @@ turbostar_movie_h = custom_target('turbostar_movie.h',
 libturbostar_core = static_library('turbostar_core',
   core_sources,
   include_directories : inc,
-  cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir)],
+  cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
   dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep])
 
 libagentlib = static_library('agentlib',

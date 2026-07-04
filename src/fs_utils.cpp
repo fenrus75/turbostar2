@@ -533,16 +533,36 @@ std::string shorten_filename(const std::string &filepath, int max_length)
 std::string get_turbocatch_lib_path()
 {
 	static std::string cached_path = []() {
+		std::vector<std::string> search_paths;
+
+		const char *env_dir = std::getenv("TURBOSTAR_TURBOCATCH_DIR");
+		if (env_dir && *env_dir) {
+			search_paths.push_back((std::filesystem::path(env_dir) / "libturbocatch.so").string());
+		}
+
 		std::string proj_root = project_manager::get_instance().get_project_root();
-		std::vector<std::string> search_paths = {
-		    (std::filesystem::path(proj_root) / "build" / "libturbocatch.so").string(), "libturbocatch.so",
-		    "/usr/lib/x86_64-linux-gnu/libturbocatch.so", "/usr/lib64/libturbocatch.so",
-		    std::filesystem::absolute(std::filesystem::path("build") / "libturbocatch.so").string()};
+		if (!proj_root.empty()) {
+			search_paths.push_back((std::filesystem::path(proj_root) / "build" / "libturbocatch.so").string());
+		}
+
+#ifdef TURBOCATCH_DIR
+		search_paths.push_back((std::filesystem::path(TURBOCATCH_DIR) / "libturbocatch.so").string());
+#endif
+
+		search_paths.push_back("libturbocatch.so");
+		search_paths.push_back("/usr/lib/x86_64-linux-gnu/libturbocatch.so");
+		search_paths.push_back("/usr/lib64/libturbocatch.so");
+		search_paths.push_back(std::filesystem::absolute(std::filesystem::path("build") / "libturbocatch.so").string());
+
 		for (const auto &path : search_paths) {
 			if (std::filesystem::exists(path)) {
 				return std::filesystem::absolute(path).string();
 			}
 		}
+
+#ifdef TURBOCATCH_DIR
+		return (std::filesystem::path(TURBOCATCH_DIR) / "libturbocatch.so").string();
+#endif
 		return std::filesystem::absolute(std::filesystem::path("build") / "libturbocatch.so").string();
 	}();
 	return cached_path;
