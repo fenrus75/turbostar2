@@ -24,6 +24,12 @@ public:
 	void load_all_plugins();
 
 	/*
+	 * Calls plugin_unload on all loaded plugins to unregister resources.
+	 * This should be called early during the application shutdown sequence.
+	 */
+	void unload_all_plugins();
+
+	/*
 	 * Returns the list of metadata for loaded plugins.
 	 */
 	const std::vector<plugin_info>& get_plugins() const;
@@ -45,6 +51,7 @@ private:
 
 	std::vector<loaded_plugin> loaded_plugins_;
 	std::vector<plugin_info> plugin_infos_;
+	bool unloaded_ = false;
 };
 
 

@@ -15,6 +15,22 @@ plugin_loader::plugin_loader()
 
 plugin_loader::~plugin_loader()
 {
+	unload_all_plugins();
+
+	for (const auto &p : loaded_plugins_) {
+		if (p.handle) {
+			dlclose(p.handle);
+		}
+	}
+}
+
+void plugin_loader::unload_all_plugins()
+{
+	if (unloaded_) {
+		return;
+	}
+	unloaded_ = true;
+
 	for (const auto &p : loaded_plugins_) {
 		if (p.handle) {
 			union {
@@ -25,7 +41,6 @@ plugin_loader::~plugin_loader()
 			if (unload_cast.func) {
 				unload_cast.func();
 			}
-			dlclose(p.handle);
 		}
 	}
 }

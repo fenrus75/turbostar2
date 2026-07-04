@@ -256,6 +256,8 @@ int main(int argc, char **argv)
 
 	endwin();
 
+	plugin_loader::get_instance().unload_all_plugins();
+
 	// Print interactive event response latency metrics
 	main_editor.print_latency_report();
 
