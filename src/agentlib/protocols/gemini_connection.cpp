@@ -3,11 +3,73 @@
 #include "../../event_logger.h"
 #include "../tool_registry.h"
 #include "../agent_role.h"
+#include "images/image_manager.h"
+#include "fs_utils.h"
 #include <chrono>
 #include <map>
 #include <algorithm>
+#include <fstream>
 
 namespace agentlib {
+
+static nlohmann::json process_user_parts_gemini(const std::string &content)
+{
+	std::string remaining = content;
+	nlohmann::json arr = nlohmann::json::array();
+
+	while (true) {
+		size_t found = remaining.find("images://");
+		if (found == std::string::npos) {
+			if (!remaining.empty()) {
+				arr.push_back({{"text", remaining}});
+			}
+			break;
+		}
+
+		if (found > 0) {
+			arr.push_back({{"text", remaining.substr(0, found)}});
+		}
+
+		size_t uri_end = found;
+		while (uri_end < remaining.length() && 
+		       !std::isspace(remaining[uri_end]) && 
+		       remaining[uri_end] != '"' && 
+		       remaining[uri_end] != '\'' && 
+		       remaining[uri_end] != ')' && 
+		       remaining[uri_end] != ']') {
+			uri_end++;
+		}
+
+		std::string uri = remaining.substr(found, uri_end - found);
+		std::string physical_path = images::image_manager::get_instance().resolve_uri(uri);
+		if (!physical_path.empty()) {
+			std::ifstream ifs(physical_path, std::ios::binary);
+			if (ifs) {
+				std::vector<unsigned char> data((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+				std::string b64 = fs_utils::base64_encode(std::span<const unsigned char>(data.data(), data.size()));
+				
+				images::image_metadata meta;
+				std::string mime = "image/png";
+				if (images::image_manager::get_instance().get_metadata(uri, meta)) {
+					mime = meta.mime_type;
+				}
+				arr.push_back({
+					{"inlineData", {
+						{"mimeType", mime},
+						{"data", b64}
+					}}
+				});
+			}
+		}
+
+		remaining = remaining.substr(uri_end);
+	}
+
+	if (arr.empty() && !content.empty()) {
+		arr.push_back({{"text", content}});
+	}
+	return arr;
+}
 
 gemini_connection::gemini_connection(std::shared_ptr<llm_transport> transport, std::string model_id, api_type type)
 	: transport_(std::move(transport)), model_id_(std::move(model_id)), type_(type)
@@ -130,7 +192,13 @@ void gemini_connection::send_prompt(
 				part["text"] = msg.content;
 			}
 		} else {
-			part["text"] = msg.content;
+			if (msg.role == "user" && msg.content.find("images://") != std::string::npos) {
+				nlohmann::json parts_array = process_user_parts_gemini(msg.content);
+				contents.push_back({{"role", "user"}, {"parts", parts_array}});
+				continue;
+			} else {
+				part["text"] = msg.content;
+			}
 		}
 
 		std::string r = "user";

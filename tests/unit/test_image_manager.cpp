@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <cstring>
 
 using namespace images;
 
@@ -129,6 +130,74 @@ int main()
 	manager.clear_cache();
 	assert(manager.get_all_mappings().empty());
 	assert(manager.resolve_uri(uri_png).empty());
+
+	std::cout << "Testing assistant generated image base64 interception..." << std::endl;
+	{
+		const unsigned char png_data[] = {
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // Signature
+			0x00, 0x00, 0x00, 0x0d,                         // IHDR Length
+			'I', 'H', 'D', 'R',                             // IHDR Type
+			0x00, 0x00, 0x00, 0x05,                         // Width (5)
+			0x00, 0x00, 0x00, 0x05,                         // Height (5)
+			0x08, 0x02, 0x00, 0x00, 0x00,                   // Extra
+			0x00, 0x00, 0x00, 0x00                          // CRC
+		};
+		std::string b64 = fs_utils::base64_encode(std::span<const unsigned char>(png_data, sizeof(png_data)));
+		std::string content = "Here is your generated image: data:image/png;base64," + b64 + " Enjoy!";
+		
+		std::string updated_content;
+		size_t last_pos = 0;
+		while (true) {
+			size_t start = content.find("data:image/", last_pos);
+			if (start == std::string::npos) {
+				updated_content += content.substr(last_pos);
+				break;
+			}
+			
+			updated_content += content.substr(last_pos, start - last_pos);
+			
+			size_t base64_start = content.find(";base64,", start);
+			if (base64_start == std::string::npos) {
+				updated_content += "data:image/";
+				last_pos = start + 11;
+				continue;
+			}
+			
+			size_t data_start = base64_start + 8;
+			size_t data_end = data_start;
+			while (data_end < content.length() && 
+			       (std::isalnum(content[data_end]) || 
+			        content[data_end] == '+' || 
+			        content[data_end] == '/' || 
+			        content[data_end] == '=')) {
+				data_end++;
+			}
+			
+			std::string b64_data = content.substr(data_start, data_end - data_start);
+			
+			std::vector<unsigned char> decoded = fs_utils::base64_decode(b64_data);
+			assert(!decoded.empty());
+			assert(decoded.size() == sizeof(png_data));
+			assert(std::memcmp(decoded.data(), png_data, sizeof(png_data)) == 0);
+			
+			std::string temp_path = manager.get_temp_image_path();
+			std::ofstream ofs(temp_path, std::ios::binary);
+			assert(ofs);
+			ofs.write(reinterpret_cast<const char*>(decoded.data()), decoded.size());
+			ofs.close();
+			
+			std::string vfs_uri = manager.ingest_image(temp_path);
+			assert(!vfs_uri.empty());
+			assert(vfs_uri.starts_with("images://by-sha256/"));
+			
+			updated_content += vfs_uri;
+			last_pos = data_end;
+		}
+		
+		std::cout << "Intercepted updated content: " << updated_content << std::endl;
+		assert(updated_content.find("images://by-sha256/") != std::string::npos);
+		assert(updated_content.find("data:image/") == std::string::npos);
+	}
 
 	std::cout << "\nAll image_manager tests verified successfully!" << std::endl;
 	return 0;

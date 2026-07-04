@@ -16,6 +16,7 @@
 #include "../fs_utils.h"
 #include "../mcp/mcp_manager.h"
 #include "../project_manager.h"
+#include "images/image_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
 #include "copilot_manager.h"
@@ -1459,6 +1460,60 @@ void ai_agent::start_processing()
 				time_range r = response_turn->get_time_range();
 				r.end_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 				response_turn->set_time_range(r);
+
+				std::string content = response_turn->get_content();
+				if (content.find("data:image/") != std::string::npos) {
+					std::string updated_content;
+					size_t last_pos = 0;
+					while (true) {
+						size_t start = content.find("data:image/", last_pos);
+						if (start == std::string::npos) {
+							updated_content += content.substr(last_pos);
+							break;
+						}
+						
+						updated_content += content.substr(last_pos, start - last_pos);
+						
+						size_t base64_start = content.find(";base64,", start);
+						if (base64_start == std::string::npos) {
+							updated_content += "data:image/";
+							last_pos = start + 11;
+							continue;
+						}
+						
+						size_t data_start = base64_start + 8;
+						size_t data_end = data_start;
+						while (data_end < content.length() && 
+						       (std::isalnum(content[data_end]) || 
+						        content[data_end] == '+' || 
+						        content[data_end] == '/' || 
+						        content[data_end] == '=')) {
+							data_end++;
+						}
+						
+						std::string b64_data = content.substr(data_start, data_end - data_start);
+						
+						std::vector<unsigned char> decoded = fs_utils::base64_decode(b64_data);
+						if (!decoded.empty()) {
+							std::string temp_path = images::image_manager::get_instance().get_temp_image_path();
+							std::ofstream ofs(temp_path, std::ios::binary);
+							if (ofs) {
+								ofs.write(reinterpret_cast<const char*>(decoded.data()), decoded.size());
+								ofs.close();
+								
+								std::string vfs_uri = images::image_manager::get_instance().ingest_image(temp_path);
+								updated_content += vfs_uri;
+							} else {
+								updated_content += content.substr(start, data_end - start);
+							}
+						} else {
+							updated_content += content.substr(start, data_end - start);
+						}
+						
+						last_pos = data_end;
+					}
+					response_turn->set_content(updated_content);
+				}
 			}
 
 			if (!accumulated_tool_calls.empty()) {
