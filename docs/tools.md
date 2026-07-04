@@ -232,6 +232,13 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `filter` *(string, optional)*: Optional content processing filter to apply before returning or saving (e.g. `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`).
     *   `no_ask` *(boolean, optional)*: If true, the tool will fail silently with a permission error if the domain is not pre-approved, rather than prompting the user for permission.
 
+### `apply_text_filter`
+*   **Description:** Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via 'html_to_markdown', aligning tables via 'markdown_align_tables', or sanitizing input via 'strip_ansi'/'strip_utf8') to the input text. Optionally saves the converted output directly to a workspace file.
+*   **Arguments:**
+    *   `text` *(string, required)*: The input text to convert or filter.
+    *   `filter` *(string, required)*: The name of the filter to apply (e.g., `strip_utf8`, `strip_ansi`, `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`).
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace to save the converted output directly to disk.
+
 ### `run_shell_command`
 *   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow.
 *   **Arguments:**
