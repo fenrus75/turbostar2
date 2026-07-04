@@ -16,16 +16,7 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
-	- both for sending and  receiving
-	- reference: https://developers.openai.com/api/docs/guides/images-vision
-	- format looks like this for the openai response api:
-```json
-{
-    "type": "input_image",
-    "image_url": "<Base64 data url>",
-}
-```
+
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -90,7 +81,7 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-- image repository as vfs:// space so that the agent can manipulate images without having to worry about 'real files'
+
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
@@ -254,6 +245,8 @@
 - libturbocatch installation: Configured `libturbocatch.so` to install to `$prefix/libexec/turbostar/` in `meson.build` and implemented robust path lookup prioritizing `TURBOSTAR_TURBOCATCH_DIR` environment variables, `TURBOCATCH_DIR` compilation macros, build root fallbacks, and system search paths. Added the build-root environment variable to unit tests and E2E runs.
 - `apply_text_filter` agent tool: Implemented a new generic agent tool allowing the LLM/Agent to apply registered text processing or format conversion filters (e.g. `strip_utf8`, `strip_ansi`, `html_to_markdown`, `markdown_align_tables`) to any input text. Supports returning the converted string directly or saving it directly to a safe workspace file. Includes robust Stage 1 JSON validation, filter name enumeration on error, and a comprehensive unit test suite.
 - Image capability core infrastructure: Designed and implemented the C++ core `images://` virtual file system (`image_manager` singleton) under `src/images/` to support content-deduplicated image caching (stored by SHA-256 in the project cache directory) and logically separated VFS addressable views (`by-sha256/`, `by-file-id/`, `by-name/`). Added modern OpenSSL 3.0 EVP-based file hashing, native PNG/JPEG dimensional metadata extraction, MIME detection, and dynamic plugin helper APIs (temp path generation and ingestion). Created a comprehensive unit test suite `test_image_manager`.
+- Multimodal VFS Integration & Interception: Glued the `images://` VFS into connection protocols (OpenAI Completions/Response, Claude, Gemini) to translate URIs into base64 multimodal blocks. Added automatic post-response interception in the editor's main agent processing to extract, decode, cache, and replace raw inline base64 images with clean VFS URIs in conversation history.
+- Image Manager TUI Dialog: Implemented a Turbo Pascal style dialog (`create_image_manager_dialog()`) for managing the `images://` VFS. Renders a scrollable list of VFS images with a dynamic metadata pane, thumbnail preview space, and interactive modal actions for Importing (via file selector), Saving (exporting to real files), and Deleting cached VFS entries. Accessible via the main menu bar under `Agent -> Image VFS Manager...`.
 
 ## 03-07-2026
 - Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
