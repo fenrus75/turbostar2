@@ -14,7 +14,7 @@
 
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
-	- almost a line by line regexp, after some boilerplate headers
+	- almost a line by line regexp, after some boilerplate headers / footers
 
 - feature: in our agent communication libraries, we should support images, using "Base64-encoded data URL" format.
 	- both for sending and  receiving
@@ -90,6 +90,8 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
+- image repository as vfs:// space so that the agent can manipulate images without having to worry about 'real files'
+
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
@@ -111,6 +113,7 @@
 
 	- file format conversion
 		- PDF to XYZ
+			- with persistent cache, quick conversion followed by background slower-but-more-accurate conversion
 		- OCR
 
 	- english grammer/spelling/clarity
