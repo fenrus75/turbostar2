@@ -21,6 +21,8 @@ namespace agentlib {
 | image_crop_tool | src/plugins/image_basic/image_crop_tool.h |
 | image_rotate_tool | src/plugins/image_basic/image_rotate_tool.h |
 | image_mirror_tool | src/plugins/image_basic/image_mirror_tool.h |
+| image_grayscale_tool | src/plugins/image_basic/image_grayscale_tool.h |
+| image_threshold_tool | src/plugins/image_basic/image_threshold_tool.h |
 */
 class llm_tool_action : public llm_tool {
 public:

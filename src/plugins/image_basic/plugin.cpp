@@ -20,6 +20,10 @@ void register_image_rotate(void);
 void unregister_image_rotate(void);
 void register_image_mirror(void);
 void unregister_image_mirror(void);
+void register_image_grayscale(void);
+void unregister_image_grayscale(void);
+void register_image_threshold(void);
+void unregister_image_threshold(void);
 
 void plugin_run(void)
 {
@@ -27,6 +31,8 @@ void plugin_run(void)
 	register_image_crop();
 	register_image_rotate();
 	register_image_mirror();
+	register_image_grayscale();
+	register_image_threshold();
 	agentlib::tool_registry::get_instance().register_tool_family("image", "Activate when performing image manipulation or editing");
 }
 
@@ -36,6 +42,8 @@ void plugin_unload(void)
 	unregister_image_crop();
 	unregister_image_rotate();
 	unregister_image_mirror();
+	unregister_image_grayscale();
+	unregister_image_threshold();
 	agentlib::tool_registry::get_instance().unregister_tool_family("image");
 }
 

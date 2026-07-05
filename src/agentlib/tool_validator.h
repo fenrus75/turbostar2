@@ -31,6 +31,8 @@ namespace agentlib {
 | image_crop_validator | src/plugins/image_basic/image_crop_validator.h |
 | image_rotate_validator | src/plugins/image_basic/image_rotate_validator.h |
 | image_mirror_validator | src/plugins/image_basic/image_mirror_validator.h |
+| image_grayscale_validator | src/plugins/image_basic/image_grayscale_validator.h |
+| image_threshold_validator | src/plugins/image_basic/image_threshold_validator.h |
 */
 class tool_validator {
 public:
