@@ -619,6 +619,22 @@ These tools allow the agent to interact with the project's Git repository.
     *   `direction` *(string, optional)*: The direction to mirror: `'horizontal'` (flop), `'vertical'` (flip), or `'both'`. Default is `'horizontal'`.
     *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the mirrored image as.
 
+### `image_grayscale` (Family: `image`)
+*   **Description:** Converts an image to grayscale. If output is specified, saves the grayscale image as a new image alias; otherwise, converts in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image.
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the grayscale image as.
+
+### `image_threshold` (Family: `image`)
+*   **Description:** Applies standard or adaptive thresholding (binarization) to an image. If output is specified, saves the binarized image as a new image alias; otherwise, binarizes in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image.
+    *   `level` *(number, optional)*: Optional standard threshold level. If specified, standard binarization thresholding is used. If omitted, local adaptive thresholding is performed.
+    *   `windowWidth` *(integer, optional, default: 16)*: Neighborhood window width for adaptive thresholding.
+    *   `windowHeight` *(integer, optional, default: 16)*: Neighborhood window height for adaptive thresholding.
+    *   `offset` *(number, optional, default: 0.0)*: Local constant subtraction offset for adaptive thresholding.
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the binarized image as.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**
