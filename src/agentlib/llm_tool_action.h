@@ -23,6 +23,8 @@ namespace agentlib {
 | image_mirror_tool | src/plugins/image_basic/image_mirror_tool.h |
 | image_grayscale_tool | src/plugins/image_basic/image_grayscale_tool.h |
 | image_threshold_tool | src/plugins/image_basic/image_threshold_tool.h |
+| image_import_tool | src/tools/image_import/image_import.h |
+| image_export_tool | src/tools/image_export/image_export.h |
 */
 class llm_tool_action : public llm_tool {
 public:

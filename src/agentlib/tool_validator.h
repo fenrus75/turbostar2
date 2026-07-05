@@ -33,6 +33,8 @@ namespace agentlib {
 | image_mirror_validator | src/plugins/image_basic/image_mirror_validator.h |
 | image_grayscale_validator | src/plugins/image_basic/image_grayscale_validator.h |
 | image_threshold_validator | src/plugins/image_basic/image_threshold_validator.h |
+| image_import_validator | src/tools/image_import/image_import.h |
+| image_export_validator | src/tools/image_export/image_export.h |
 */
 class tool_validator {
 public:

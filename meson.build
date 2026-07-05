@@ -1009,6 +1009,12 @@ test_image_manager = executable('test_image_manager',
   include_directories: inc)
 test('unit_image_manager', test_image_manager, suite: 'agent')
 
+test_image_tools = executable('test_image_tools',
+  'tests/unit/test_image_tools.cpp',
+  dependencies : [tools_dep, agent_dep, core_dep, nlohmann_json_dep, thread_dep, openssl_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep],
+  include_directories: inc)
+test('unit_image_tools', test_image_tools, suite: 'agent')
+
 
 test_agent_tile = executable('test_agent_tile',
   'tests/unit/test_agent_tile.cpp',

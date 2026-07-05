@@ -27,7 +27,16 @@ bool image_crop_validator::validate_args_impl(const nlohmann::json &raw_json, co
 			return false;
 		}
 
-		std::string resolved = images::image_manager::get_instance().resolve_uri(parsed.name);
+		auto resolve_image_uri = [](const std::string &uri) -> std::string {
+			if (uri.starts_with("images://")) {
+				return images::image_manager::get_instance().resolve_uri(uri);
+			}
+			std::string resolved = images::image_manager::get_instance().resolve_uri("images://by-name/" + uri);
+			if (!resolved.empty()) return resolved;
+			return images::image_manager::get_instance().resolve_uri("images://" + uri);
+		};
+
+		std::string resolved = resolve_image_uri(parsed.name);
 		if (resolved.empty()) {
 			out_error = "Source image URI could not be resolved: " + parsed.name;
 			return false;
