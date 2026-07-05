@@ -64,9 +64,13 @@ int main()
 		bool has_image_rotate = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
 			return v->get_name() == "image_rotate";
 		});
+		bool has_image_mirror = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+			return v->get_name() == "image_mirror";
+		});
 		assert(has_image_resize);
 		assert(has_image_crop);
 		assert(has_image_rotate);
+		assert(has_image_mirror);
 		assert(registry.has_tool_family("image"));
 	}
 
