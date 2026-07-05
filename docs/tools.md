@@ -586,6 +586,39 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the HTML file relative to project root.
     *   `rich` *(boolean, optional)*: If true (default), inline elements (bold/italic) will be preserved in Markdown format. If false, they will be stripped.
 
+### `image_resize` (Family: `image`)
+*   **Description:** Resizes an image to target dimensions or by a scaling ratio. If output is specified, saves the resized image as a new image alias; otherwise, resizes in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image (e.g. `images://by-name/image.png` or `image.png`).
+    *   `newX` *(integer, optional)*: Optional new width in pixels.
+    *   `newY` *(integer, optional)*: Optional new height in pixels.
+    *   `ratio` *(number, optional)*: Optional scaling ratio (e.g. 0.5 to shrink to 50%).
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the resized image as.
+
+### `image_crop` (Family: `image`)
+*   **Description:** Crops a rectangular selection from an image. If output is specified, saves the cropped selection as a new image alias; otherwise, crops in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the source image.
+    *   `width` *(integer, required)*: Width of the crop selection in pixels.
+    *   `height` *(integer, required)*: Height of the crop selection in pixels.
+    *   `x` *(integer, required)*: X coordinate offset of the selection.
+    *   `y` *(integer, required)*: Y coordinate offset of the selection.
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the cropped image as.
+
+### `image_rotate` (Family: `image`)
+*   **Description:** Rotates an image counter-clockwise by specified degrees. If output is specified, saves the rotated image as a new image alias; otherwise, rotates in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image.
+    *   `degrees` *(number, required)*: The number of degrees to rotate counter-clockwise.
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the rotated image as.
+
+### `image_mirror` (Family: `image`)
+*   **Description:** Mirrors (flips/flops) an image horizontally, vertically, or both. If output is specified, saves the mirrored image as a new image alias; otherwise, mirrors in place.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image.
+    *   `direction` *(string, optional)*: The direction to mirror: `'horizontal'` (flop), `'vertical'` (flip), or `'both'`. Default is `'horizontal'`.
+    *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the mirrored image as.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**
