@@ -7,25 +7,23 @@
 namespace tools
 {
 
-struct image_resize_args {
-	std::string original_uri;
+struct image_rotate_args {
+	std::string name;
 	std::string safe_path;
-	std::optional<int> newX;
-	std::optional<int> newY;
-	std::optional<double> ratio;
+	double degrees = 0.0;
 	std::optional<std::string> output;
 };
 
-class image_resize_tool : public agentlib::llm_tool_action
+class image_rotate_tool : public agentlib::llm_tool_action
 {
       public:
-	explicit image_resize_tool(image_resize_args args);
+	explicit image_rotate_tool(image_rotate_args args);
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
 
       private:
-	image_resize_args args_;
+	image_rotate_args args_;
 };
 
 } // namespace tools

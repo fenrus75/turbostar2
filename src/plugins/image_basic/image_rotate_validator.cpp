@@ -1,0 +1,62 @@
+#include "plugins/image_basic/image_rotate_validator.h"
+#include <nlohmann/json.hpp>
+#include "agentlib/tool_registry.h"
+#include "images/image_manager.h"
+
+namespace tools
+{
+
+struct image_rotate_raw_args {
+	std::string name;
+	double degrees = 0.0;
+	std::optional<std::string> output;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(image_rotate_raw_args, name, degrees, output);
+
+bool image_rotate_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context & /*ctx*/,
+						    std::string &out_error) const
+{
+	try {
+		image_rotate_raw_args parsed = raw_json.get<image_rotate_raw_args>();
+		if (parsed.name.empty()) {
+			out_error = "Image name/URI cannot be empty.";
+			return false;
+		}
+
+		std::string resolved = images::image_manager::get_instance().resolve_uri(parsed.name);
+		if (resolved.empty()) {
+			out_error = "Image URI could not be resolved: " + parsed.name;
+			return false;
+		}
+
+		args_.name = parsed.name;
+		args_.safe_path = resolved;
+		args_.degrees = parsed.degrees;
+		args_.output = parsed.output;
+
+		return true;
+	} catch (const std::exception &e) {
+		out_error = "Invalid arguments: " + std::string(e.what());
+		return false;
+	}
+}
+
+std::unique_ptr<agentlib::llm_tool> image_rotate_validator::create_tool_impl(const nlohmann::json & /*raw_json*/) const
+{
+	return std::make_unique<image_rotate_tool>(args_);
+}
+
+} // namespace tools
+
+extern "C" {
+void register_image_rotate(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::image_rotate_validator>(); });
+}
+
+void unregister_image_rotate(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("image_rotate");
+}
+}

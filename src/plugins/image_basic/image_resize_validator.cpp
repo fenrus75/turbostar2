@@ -11,9 +11,10 @@ struct image_resize_raw_args {
 	std::optional<int> newX;
 	std::optional<int> newY;
 	std::optional<double> ratio;
+	std::optional<std::string> output;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(image_resize_raw_args, name, newX, newY, ratio);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(image_resize_raw_args, name, newX, newY, ratio, output);
 
 bool image_resize_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context & /*ctx*/,
 						    std::string &out_error) const
@@ -54,6 +55,7 @@ bool image_resize_validator::validate_args_impl(const nlohmann::json &raw_json, 
 		args_.newX = parsed.newX;
 		args_.newY = parsed.newY;
 		args_.ratio = parsed.ratio;
+		args_.output = parsed.output;
 
 		return true;
 	} catch (const std::exception &e) {

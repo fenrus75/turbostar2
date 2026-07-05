@@ -16,7 +16,7 @@ class image_resize_validator : public agentlib::tool_validator
 	std::string get_name() const override { return "image_resize"; }
 	std::string get_description() const override
 	{
-		return "Resizes an image. If a name alias is provided, the resize is done in place.";
+		return "Resizes an image. If output is specified, saves the resized image as a new image alias; otherwise, resizes in place.";
 	}
 	std::string get_family() const override { return "image"; }
 	nlohmann::json get_parameters_schema() const override
@@ -27,7 +27,8 @@ class image_resize_validator : public agentlib::tool_validator
 		     {{"name", {{"type", "string"}, {"description", "The name alias or VFS URI of the image (e.g. 'images://by-name/image.png' or 'image.png')."}}},
 		      {"newX", {{"type", "integer"}, {"description", "Optional new width in pixels."}}},
 		      {"newY", {{"type", "integer"}, {"description", "Optional new height in pixels."}}},
-		      {"ratio", {{"type", "number"}, {"description", "Optional scaling ratio (e.g. 0.5 to shrink to 50%)."}}}}},
+		      {"ratio", {{"type", "number"}, {"description", "Optional scaling ratio (e.g. 0.5 to shrink to 50%)."}}},
+		      {"output", {{"type", "string"}, {"description", "Optional new alias name or VFS URI to save the resized image as."}}}}},
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 
