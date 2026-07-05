@@ -586,6 +586,19 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the HTML file relative to project root.
     *   `rich` *(boolean, optional)*: If true (default), inline elements (bold/italic) will be preserved in Markdown format. If false, they will be stripped.
 
+### `image_import` (Family: `image`)
+*   **Description:** Imports an image from a local file or a web URL into the virtual VFS image database.
+*   **Arguments:**
+    *   `filename` *(string, optional)*: Path to a local image file relative to the project root.
+    *   `URL` *(string, optional)*: HTTP/HTTPS URL of the image to download.
+    *   `output` *(string, required)*: The alias name to assign to the imported image (e.g. `logo.png`).
+
+### `image_export` (Family: `image`)
+*   **Description:** Exports an image from the virtual image database to a real file in the workspace.
+*   **Arguments:**
+    *   `name` *(string, required)*: The name alias or VFS URI of the image to export.
+    *   `filename` *(string, required)*: The destination path relative to the project root where the file will be saved.
+
 ### `image_resize` (Family: `image`)
 *   **Description:** Resizes an image to target dimensions or by a scaling ratio. If output is specified, saves the resized image as a new image alias; otherwise, resizes in place.
 *   **Arguments:**
