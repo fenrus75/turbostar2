@@ -28,6 +28,7 @@ namespace agentlib {
 | hexwrite_validator | src/plugins/hexedit/hexwrite_validator.h |
 | apply_text_filter_validator | src/tools/apply_text_filter/apply_text_filter.h |
 | image_resize_validator | src/plugins/image_basic/image_resize_validator.h |
+| image_crop_validator | src/plugins/image_basic/image_crop_validator.h |
 */
 class tool_validator {
 public:

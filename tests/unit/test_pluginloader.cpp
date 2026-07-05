@@ -58,7 +58,11 @@ int main()
 		bool has_image_resize = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
 			return v->get_name() == "image_resize";
 		});
+		bool has_image_crop = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+			return v->get_name() == "image_crop";
+		});
 		assert(has_image_resize);
+		assert(has_image_crop);
 		assert(registry.has_tool_family("image"));
 	}
 

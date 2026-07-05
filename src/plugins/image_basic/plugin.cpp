@@ -14,16 +14,20 @@ const char *plugin_description(void)
 
 void register_image_resize(void);
 void unregister_image_resize(void);
+void register_image_crop(void);
+void unregister_image_crop(void);
 
 void plugin_run(void)
 {
 	register_image_resize();
+	register_image_crop();
 	agentlib::tool_registry::get_instance().register_tool_family("image", "Activate when performing image manipulation or editing");
 }
 
 void plugin_unload(void)
 {
 	unregister_image_resize();
+	unregister_image_crop();
 	agentlib::tool_registry::get_instance().unregister_tool_family("image");
 }
 
