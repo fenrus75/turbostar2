@@ -16,7 +16,11 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
+- make an agent for https://www.docling.ai for pdf to markdown conversion
 
+- make an image processing agent with detailed description for how the image:// namespace works
+
+- thumbnails for image list
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -24,6 +28,7 @@
 - feature: subagent creation wizzard dialog
 
 - feature: we have a groff-to-markdown converter - this could be another filter
+	or should we have one central "to_markdown" filter and auto-detect input formats?
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
