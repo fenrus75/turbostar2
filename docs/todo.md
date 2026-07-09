@@ -27,6 +27,8 @@
 
 - feature: subagent creation wizzard dialog
 
+- read .clang-format and check how many spaces are in a tab
+
 - feature: we have a groff-to-markdown converter - this could be another filter
 	or should we have one central "to_markdown" filter and auto-detect input formats?
 
@@ -86,7 +88,7 @@
 
 - the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-
+- interaction issue: when you copy a block, the cursor should be at the top of the new selection not the bottom
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
