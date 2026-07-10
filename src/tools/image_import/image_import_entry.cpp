@@ -200,7 +200,7 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 		ofs.close();
 
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, cleaned_output);
-		std::filesystem::remove(temp_out); // Cleanup temp file
+//		std::filesystem::remove(temp_out); // Cleanup temp file
 
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest VFS image from downloaded data");
