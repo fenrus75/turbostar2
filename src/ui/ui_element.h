@@ -112,7 +112,16 @@ class ui_element
 		return name_;
 	}
 
+	// CRITICAL WARNING FOR SUBCLASS DRAW IMPLEMENTATIONS:
+	// The `abs_x` and `abs_y` parameters ALREADY include the element's relative offsets `x_` and `y_`.
+	// - DO NOT add `x_` or `y_` to `abs_x` or `abs_y` when rendering (e.g. `abs_y + y_` is WRONG!).
+	// - Doing so causes a double-translation bug, rendering the element twice as far down/right as intended.
 	virtual void draw(int abs_x, int abs_y) const = 0;
+
+	// CRITICAL WARNING FOR SUBCLASS EVENT HANDLER IMPLEMENTATIONS:
+	// The `abs_x` and `abs_y` parameters ALREADY include the element's relative offsets `x_` and `y_`.
+	// - Use `abs_x` and `abs_y` directly as the absolute top-left coordinate of the widget for hit testing.
+	// - DO NOT add `x_` or `y_` to `abs_x` or `abs_y` when checking mouse bounds.
 	virtual bool handle_event(const editor_event &ev, int abs_x, int abs_y) = 0;
 
 	virtual bool has_overlay() const
