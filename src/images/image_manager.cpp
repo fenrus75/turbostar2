@@ -320,7 +320,7 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 
 	try {
 		std::filesystem::copy_file(temp_path, dest_path, std::filesystem::copy_options::overwrite_existing);
-		std::filesystem::remove(temp_path);
+//		std::filesystem::remove(temp_path);
 	} catch (...) {
 		return "";
 	}
