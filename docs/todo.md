@@ -29,8 +29,6 @@
 
 - feature: subagent creation wizzard dialog
 
-- read .clang-format and check how many spaces are in a tab
-
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
 	- base
@@ -303,3 +301,4 @@
 - Find and replace: Fixed search-and-replace so that the editor now supports both individual prompted replacements and global "Change all" operations. Implemented `replace_current` and `replace_all` in `document`, and wired them to the Replace dialog box and the interactive status bar prompt (`Replace? (Y)es / (N)o / (A)ll / (Q)uit`). Added unit test coverage in `tests/unit/test_document.cpp` and a full E2E test suite in `tests/e2e/test_replace.py`.
 - Test suite performance optimization: Analyzed test durations from the meson execution logs and identified two slow unit tests: `unit_test_security_scan_semgrep` (14s) and `unit_test_fs_compile_file` (3.2s). Optimized them by mocking their expensive command-line invocations when running inside the test suite (`TURBOSTAR_IN_TESTSUITE` set), reducing their execution times to milliseconds and saving 17+ seconds.
 - Groff-to-Markdown filter: Hooked up the existing `troff2md` parser to the central `filter_registry` infrastructure under the name `"troff_to_markdown"`. Dynamically registered the filter during application startup in `editor::editor` constructor and added comprehensive unit test coverage inside `tests/unit/test_tools.cpp`.
+- Read .clang-format on startup: Added parsing of project-level `.clang-format` config files on startup in `main.cpp` to auto-detect and configure the visual tab width parameter (`TabWidth`). Added Test 15 to `tests/unit/test_document.cpp` verifying the parsing and layout logic.
