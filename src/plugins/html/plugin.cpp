@@ -31,13 +31,13 @@ void plugin_run(void)
 	register_html_extract_text();
 	agentlib::filter_registry::get_instance().register_filter("html_to_markdown", [](const std::string &html_content) {
 		return html::convert_to_markdown(html_content, true);
-	});
+	}, {"web"});
 	agentlib::filter_registry::get_instance().register_filter("html_to_markdown_plain", [](const std::string &html_content) {
 		return html::convert_to_markdown(html_content, false);
-	});
+	}, {"web"});
 	agentlib::filter_registry::get_instance().register_filter("html_extract_tables", [](const std::string &html_content) {
 		return html::extract_tables(html_content);
-	});
+	}, {"web"});
 	agentlib::tool_registry::get_instance().register_tool_family("html", "Activate when extracting data, tables, or info from HTML documents");
 }
 

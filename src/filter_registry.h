@@ -15,16 +15,21 @@ class filter_registry
 
 	static filter_registry &get_instance();
 
-	void register_filter(const std::string &name, filter_func func);
+	void register_filter(const std::string &name, filter_func func, const std::vector<std::string> &categories = {});
 	void unregister_filter(const std::string &name);
 	bool has_filter(const std::string &name) const;
 	std::string apply_filter(const std::string &name, const std::string &input, bool &out_success) const;
-	std::vector<std::string> get_registered_filters() const;
+	std::vector<std::string> get_registered_filters(const std::string &category = "") const;
 
       private:
 	filter_registry();
 	mutable std::mutex mutex_;
-	std::map<std::string, filter_func> filters_;
+	
+	struct filter_info {
+		filter_func func;
+		std::vector<std::string> categories;
+	};
+	std::map<std::string, filter_info> filters_;
 };
 
 } // namespace agentlib

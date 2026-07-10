@@ -121,7 +121,7 @@ void plugin_run(void)
 	register_image_grayscale();
 	register_image_threshold();
 	agentlib::tool_registry::get_instance().register_tool_family("image", "Activate when performing image manipulation or editing");
-	agentlib::filter_registry::get_instance().register_filter("image_thumbnail", generate_image_thumbnail_json);
+	agentlib::filter_registry::get_instance().register_filter("image_thumbnail", generate_image_thumbnail_json, {"image"});
 }
 
 void plugin_unload(void)

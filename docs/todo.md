@@ -16,10 +16,6 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-
-
-
-
 - make an agent file for https://www.docling.ai for pdf to markdown conversion
 
 - make an image processing agent with detailed description for how the image:// namespace works
@@ -97,13 +93,13 @@
 
 
 	- image processing
-		- file format conversion
-		- cut out parts of image into new image (crop)
-		- rescale image / rotate / ..
-		- to grayscale conversion
-		- basic filters? gimplib?
-		- USB camera access
-		- opencv segmentation/yolo/etc done local
+		- [ ] file format conversion
+		- [x] cut out parts of image into new image (crop)
+		- [x] rescale image / rotate / ..
+		- [x] to grayscale conversion
+		- [ ] basic filters? gimplib?
+		- [ ] USB camera access
+		- [ ] opencv segmentation/yolo/etc done local
 
 
 	- file format conversion

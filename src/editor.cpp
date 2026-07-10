@@ -49,7 +49,32 @@ editor::editor(editor_options opts)
 	// linking troff2md.cpp's AST parser functions into headless unit test binaries that don't need UI-related filters.
 	agentlib::filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
 		return ::troff2md(input);
-	});
+	}, {"text"});
+
+	agentlib::filter_registry::get_instance().register_filter("to_markdown", [](const std::string &input) {
+		std::string trimmed = input;
+		trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+
+		if (trimmed.starts_with("<html") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<div") || trimmed.starts_with("<p>")) {
+			auto &registry = agentlib::filter_registry::get_instance();
+			if (registry.has_filter("html_to_markdown")) {
+				bool success = false;
+				std::string result = registry.apply_filter("html_to_markdown", input, success);
+				if (success) return result;
+			}
+		}
+
+		if (trimmed.starts_with(".SH") || trimmed.starts_with(".TH") || trimmed.starts_with(".PP") || trimmed.starts_with(".Dd") || trimmed.starts_with(".de")) {
+			auto &registry = agentlib::filter_registry::get_instance();
+			if (registry.has_filter("troff_to_markdown")) {
+				bool success = false;
+				std::string result = registry.apply_filter("troff_to_markdown", input, success);
+				if (success) return result;
+			}
+		}
+
+		return input;
+	}, {"text", "web"});
 	line::global_tab_width = config_manager::get_instance().get_tab_width();
 	main_thread_id_ = std::this_thread::get_id();
 	last_mtime_check_time_ = std::chrono::steady_clock::now();

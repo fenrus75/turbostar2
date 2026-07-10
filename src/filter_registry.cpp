@@ -59,35 +59,35 @@ filter_registry::filter_registry()
 {
 	register_filter("strip_utf8", [](const std::string &input) {
 		return strip_utf8(input);
-	});
+	}, {"text"});
 
 	register_filter("strip_ansi", [](const std::string &input) {
 		return strip_ansi(input);
-	});
+	}, {"text"});
 
 	register_filter("markdown_align_tables", [](const std::string &input) {
 		return markdown_utils::align_all_tables(input, false);
-	});
+	}, {"text"});
 
 	register_filter("meson_compile", [](const std::string &input) {
 		std::vector<std::shared_ptr<tools::output_filter>> filters = {
 			std::make_shared<tools::meson_compile_filter>()
 		};
 		return tools::apply_output_filters("meson compile", input, filters);
-	});
+	}, {"build"});
 
 	register_filter("meson_test", [](const std::string &input) {
 		std::vector<std::shared_ptr<tools::output_filter>> filters = {
 			std::make_shared<tools::meson_test_filter>()
 		};
 		return tools::apply_output_filters("meson test", input, filters);
-	});
+	}, {"build"});
 }
 
-void filter_registry::register_filter(const std::string &name, filter_func func)
+void filter_registry::register_filter(const std::string &name, filter_func func, const std::vector<std::string> &categories)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	filters_[name] = std::move(func);
+	filters_[name] = filter_info{std::move(func), categories};
 }
 
 void filter_registry::unregister_filter(const std::string &name)
@@ -112,18 +112,27 @@ std::string filter_registry::apply_filter(const std::string &name, const std::st
 			out_success = false;
 			return "";
 		}
-		func = it->second;
+		func = it->second.func;
 	}
 	out_success = true;
 	return func(input);
 }
 
-std::vector<std::string> filter_registry::get_registered_filters() const
+std::vector<std::string> filter_registry::get_registered_filters(const std::string &category) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	std::vector<std::string> names;
-	for (const auto &[name, _] : filters_) {
-		names.push_back(name);
+	for (const auto &[name, info] : filters_) {
+		if (category.empty()) {
+			names.push_back(name);
+		} else {
+			for (const auto &cat : info.categories) {
+				if (cat == category) {
+					names.push_back(name);
+					break;
+				}
+			}
+		}
 	}
 	return names;
 }

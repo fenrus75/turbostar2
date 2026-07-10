@@ -159,7 +159,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		bool success = false;
 		std::string filtered = agentlib::filter_registry::get_instance().apply_filter(args_.filter, output, success);
 		if (!success) {
-			auto available = agentlib::filter_registry::get_instance().get_registered_filters();
+			auto available = agentlib::filter_registry::get_instance().get_registered_filters("web");
 			std::string avail_str;
 			for (size_t i = 0; i < available.size(); ++i) {
 				if (i > 0) avail_str += ", ";
