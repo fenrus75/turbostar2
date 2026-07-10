@@ -162,11 +162,9 @@ void ui_thumbnail::draw(int abs_x, int abs_y) const
 
 			int pair_idx = dynamic_colors::dynamic_alloc_pair(fg_col, bg_col);
 
-			attron(COLOR_PAIR(pair_idx));
+			attr_set(A_NORMAL, pair_idx, NULL);
 			mvaddstr(abs_y + y_ + y, abs_x + x_ + x, "▄");
 			attroff(COLOR_PAIR(pair_idx));
 		}
 	}
 }
-
-

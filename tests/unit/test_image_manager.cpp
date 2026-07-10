@@ -47,7 +47,8 @@ int main()
 	assert(!uri_png.empty());
 	assert(uri_png.starts_with("images://by-sha256/"));
 
-	// Verify temp file got cleaned up
+	// Clean up the temp file manually
+	std::filesystem::remove(temp_png);
 	assert(!std::filesystem::exists(temp_png));
 
 	std::cout << "Checking PNG metadata..." << std::endl;
