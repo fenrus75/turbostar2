@@ -373,3 +373,41 @@ void config_manager::set_tab_width(int width)
 {
 	tab_width_ = width;
 }
+
+void config_manager::read_clang_format(const std::string &project_root)
+{
+	std::string path = (fs::path(project_root) / ".clang-format").string();
+	std::ifstream file(path);
+	if (!file.is_open())
+		return;
+
+	std::string line;
+	while (std::getline(file, line)) {
+		if (line.empty() || line[0] == '#' || line[0] == ';')
+			continue;
+
+		size_t colon = line.find(':');
+		if (colon == std::string::npos)
+			continue;
+
+		std::string key = line.substr(0, colon);
+		std::string val = line.substr(colon + 1);
+
+		// Trim key and val
+		key.erase(0, key.find_first_not_of(" \t"));
+		key.erase(key.find_last_not_of(" \t") + 1);
+		val.erase(0, val.find_first_not_of(" \t"));
+		val.erase(val.find_last_not_of(" \t") + 1);
+
+		if (key == "TabWidth") {
+			try {
+				int width = std::stoi(val);
+				if (width > 0 && width <= 32) {
+					set_tab_width(width);
+				}
+			} catch (...) {
+			}
+			break;
+		}
+	}
+}

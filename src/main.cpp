@@ -217,6 +217,12 @@ int main(int argc, char **argv)
 
 	project_manager::get_instance().initialize();
 
+	// Read project .clang-format if available to auto-detect tab width
+	std::string project_root = project_manager::get_instance().get_project_root();
+	if (!project_root.empty()) {
+		config_manager::get_instance().read_clang_format(project_root);
+	}
+
 	// Load project-specific configuration overlay if available
 	std::string cache_root = fs_utils::get_project_cache_root();
 	if (!cache_root.empty()) {
@@ -227,7 +233,6 @@ int main(int argc, char **argv)
 	}
 
 	// Initialize and start MCP servers asynchronously in a background thread
-	std::string project_root = project_manager::get_instance().get_project_root();
 	agentlib::mcp_manager::get_instance().start_async(project_root);
 
 	if (!override_model_id.empty()) {

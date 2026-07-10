@@ -13,6 +13,7 @@ class config_manager
 
 	void load();
 	void load_from_file(const std::string &path);
+	void read_clang_format(const std::string &project_root);
 	void save_global();
 	void save_project(const std::string &project_root);
 	std::string get_clang_format_style() const
