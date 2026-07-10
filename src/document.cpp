@@ -536,7 +536,8 @@ bool document::is_terminator_at_unlocked(int y, int x) const
 	size_t offset = lines_[y]->char_to_byte_offset(x);
 	if (offset < text.length()) {
 		char ch = text[offset];
-		return ch == '"' || ch == ';' || ch == ',';
+		return ch == '"' || ch == '\'' || ch == ';' || ch == ',' || ch == '.' ||
+		       ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}';
 	}
 	return false;
 }

@@ -446,6 +446,29 @@ int main()
 		assert(doc.get_line(0)->get_text() == "   \"foo_");
 	}
 
+	// Test 12: delete_word_forward respects brackets and parentheses as terminators/boundaries (to avoid eating ()'s)
+	{
+		document doc(queue);
+		doc.insert_text("word(abc)");
+
+		// Move cursor to start of "word" (index 0)
+		doc.move_cursor(-doc.get_cursor_x(), 0);
+
+		// Delete word forward
+		doc.delete_word_forward();
+
+		// It should delete "word" and stop at the parenthesis `(`.
+		assert(doc.get_line(0)->get_text() == "(abc)");
+		assert(doc.get_cursor_x() == 0);
+
+		// Delete word forward again (starts on parenthesis terminator)
+		doc.delete_word_forward();
+
+		// It should delete just the parenthesis `(`.
+		assert(doc.get_line(0)->get_text() == "abc)");
+		assert(doc.get_cursor_x() == 0);
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

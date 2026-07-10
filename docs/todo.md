@@ -16,9 +16,8 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- replace (in searc/replace) does not work
-
-- in the editor, ^W eats ()'s and should not
+- replace (in searc/replace) does not work -- there is no replacement happening
+	- need to make a testcase first
 
 - make an agent for https://www.docling.ai for pdf to markdown conversion
 
@@ -300,3 +299,6 @@
 - integrated markdown_utils::align_all_tables in crashdump_window to pretty-print and align markdown tables in crash reports automatically.
 - implemented the webpage image overlay (lightbox) feature in JS/CSS so that clicking screenshot links shows a smooth zoomed-in modal in the current tab instead of opening in a new tab.
 - integrated yaml-cpp to parse SKILL.md headers fully and conformantly instead of using manual line scanning.
+
+## 10-07-2026
+- fixed word deletion boundary checking so that parenthesis and bracket characters (`(`, `)`, `[`, `]`, `{`, `}`) and other punctuation (`.`, `'`) are treated as word boundaries. This prevents the Ctrl-W command (`delete_word_forward`) from eating parentheses blocks.

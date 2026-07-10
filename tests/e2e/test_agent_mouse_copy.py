@@ -62,17 +62,20 @@ def test_agent_mouse_copy():
             
         print(f"Found Hello! line at 0-based screen row {target_row}, col {start_col}")
         
+        # Settle down to allow layout/focus state to stabilize
+        time.sleep(0.5)
+        
         # SGR coordinate is 1-based: x_sgr = x_display + 1, y_sgr = y_display + 1
         y_sgr = target_row + 1
         # Click inside the word 'Hello!' (on the 'e' to avoid borders)
         x_start_sgr = start_col + 2
         runner.send_raw_keys(f"\x1b[<0;{x_start_sgr};{y_sgr}M".encode())
-        time.sleep(0.05)
+        time.sleep(0.2)
         
         # Drag to after 'Hello!' to capture the rest of the word
         x_end_sgr = start_col + 10
         runner.send_raw_keys(f"\x1b[<32;{x_end_sgr};{y_sgr}M".encode())
-        time.sleep(0.05)
+        time.sleep(0.2)
         
         # Release mouse
         runner.send_raw_keys(f"\x1b[<0;{x_end_sgr};{y_sgr}m".encode())
