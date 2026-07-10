@@ -162,6 +162,8 @@ class document
 
 	void notify_cursor_changed() const;
 	bool find_next(const search_params &params, bool is_repeat = false);
+	bool replace_current(const search_params &params);
+	int replace_all(const search_params &params);
 
 	void format_range(int start_y, int end_y);
 	void format_paragraph();
@@ -258,6 +260,7 @@ class document
 	int cursor_x_{0};
 	int cursor_y_{0};
 	int target_cursor_x_{0}; // "Ghost X" for vertical navigation across short lines
+	int last_match_len_chars_{0};
 
 	mutable std::string last_hover_word_;
 

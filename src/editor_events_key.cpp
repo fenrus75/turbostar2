@@ -68,17 +68,50 @@ void editor::resolve_dialog(dialog_result res)
 				doc->write_selection_to_file(result_path);
 				history_manager::get_instance().add_file(result_path);
 			}
-		} else if (active_dialog_mode_ == dialog_mode::search || active_dialog_mode_ == dialog_mode::replace) {
+		} else if (active_dialog_mode_ == dialog_mode::search) {
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
 			history_manager::get_instance().add_search(current_search_.query);
 			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
-			if (active_dialog_mode_ == dialog_mode::replace) {
-				input_history_manager::get_instance().add_entry("replace_query", current_search_.replacement);
-			}
-			if (doc->find_next(current_search_)) {
+			if (doc && doc->find_next(current_search_)) {
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
+			}
+		} else if (active_dialog_mode_ == dialog_mode::replace) {
+			current_search_ = extract_search_params(*active_dialog_, current_search_);
+			history_manager::get_instance().add_search(current_search_.query);
+			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
+			input_history_manager::get_instance().add_entry("replace_query", current_search_.replacement);
+
+			std::string dlg_res = active_dialog_->get_result();
+			if (dlg_res == "change_all") {
+				if (doc) {
+					int count = doc->replace_all(current_search_);
+					set_status_message(std::format("Replaced {} occurrence(s).", count));
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
+				}
+			} else if (dlg_res == "ok") {
+				if (current_search_.prompt_on_replace) {
+					if (doc && doc->find_next(current_search_)) {
+						active_mode_ = input_mode::replace_prompt;
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
+					} else {
+						set_status_message("Search string not found.");
+					}
+				} else {
+					if (doc) {
+						int count = doc->replace_all(current_search_);
+						set_status_message(std::format("Replaced {} occurrence(s).", count));
+						editor_event redraw_ev;
+						redraw_ev.type = event_type::redraw;
+						global_queue_.push(redraw_ev);
+					}
+				}
 			}
 		} else if (active_dialog_mode_ == dialog_mode::insert_file) {
 			std::string result_path = active_dialog_->get_result();
@@ -920,6 +953,68 @@ void editor::dispatch_event_key(const editor_event &ev)
 				return;
 			}
 			return; // Consume all keys in prompt mode
+		}
+
+		// Status Bar Replace Prompt
+		if (active_mode_ == input_mode::replace_prompt) {
+			char c = 0;
+			if (!ev.utf8_char.empty()) {
+				c = std::tolower(ev.utf8_char[0]);
+			}
+			if (ev.key_code == 27 || c == 'q') { // ESC or 'q'
+				active_mode_ = input_mode::normal;
+				clear_status_message(status_priorities::WARNING);
+				set_status_message("Search/replace cancelled.");
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (c == 'y') {
+				if (doc) {
+					doc->replace_current(current_search_);
+					if (doc->find_next(current_search_, true)) {
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+					} else {
+						active_mode_ = input_mode::normal;
+						clear_status_message(status_priorities::WARNING);
+						set_status_message("Search/replace complete.");
+					}
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (c == 'n') {
+				if (doc) {
+					if (doc->find_next(current_search_, true)) {
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+					} else {
+						active_mode_ = input_mode::normal;
+						clear_status_message(status_priorities::WARNING);
+						set_status_message("Search/replace complete.");
+					}
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (c == 'a') {
+				if (doc) {
+					doc->replace_current(current_search_);
+					int count = doc->replace_all(current_search_) + 1;
+					active_mode_ = input_mode::normal;
+					clear_status_message(status_priorities::WARNING);
+					set_status_message(std::format("Replaced {} occurrence(s).", count));
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			return; // Consume all other keys while in prompt
 		}
 
 		// 3. Status Bar Go to Line Prompt

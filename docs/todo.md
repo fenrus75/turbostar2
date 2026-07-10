@@ -16,8 +16,10 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- replace (in searc/replace) does not work -- there is no replacement happening
-	- need to make a testcase first
+
+
+- running the whole testsuite is starting to take a long time even on a fast machine
+	- need to check which tests take the longest, and then investigate why those take long and if that can be fixed
 
 - make an agent for https://www.docling.ai for pdf to markdown conversion
 
@@ -302,3 +304,4 @@
 
 ## 10-07-2026
 - fixed word deletion boundary checking so that parenthesis and bracket characters (`(`, `)`, `[`, `]`, `{`, `}`) and other punctuation (`.`, `'`) are treated as word boundaries. This prevents the Ctrl-W command (`delete_word_forward`) from eating parentheses blocks.
+- Find and replace: Fixed search-and-replace so that the editor now supports both individual prompted replacements and global "Change all" operations. Implemented `replace_current` and `replace_all` in `document`, and wired them to the Replace dialog box and the interactive status bar prompt (`Replace? (Y)es / (N)o / (A)ll / (Q)uit`). Added unit test coverage in `tests/unit/test_document.cpp` and a full E2E test suite in `tests/e2e/test_replace.py`.

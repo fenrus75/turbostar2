@@ -1233,6 +1233,9 @@ void editor::render(bool cursor_only)
 		case input_mode::vim:
 			status_help = ":" + vim_input_buffer_ + "_";
 			break;
+		case input_mode::replace_prompt:
+			status_help = "Replace? (Y)es / (N)o / (A)ll / (Q)uit";
+			break;
 		case input_mode::normal:
 			if (active_win) {
 				status_help = active_win->get_status_help();

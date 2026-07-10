@@ -469,6 +469,37 @@ int main()
 		assert(doc.get_cursor_x() == 0);
 	}
 
+	// Test 13: search and replace operations (replace_current and replace_all)
+	{
+		document doc(queue);
+		doc.insert_text("apple grape apple orange");
+
+		search_params params;
+		params.query = "apple";
+		params.replacement = "lemon";
+		params.ignore_case = true;
+		params.whole_words = true;
+
+		// Move cursor to start
+		doc.move_cursor(-doc.get_cursor_x(), 0);
+
+		// Find first match
+		bool found = doc.find_next(params);
+		assert(found);
+		assert(doc.get_cursor_x() == 0); // "apple" at 0
+
+		// Replace current
+		bool replaced = doc.replace_current(params);
+		assert(replaced);
+		assert(doc.get_line(0)->get_text() == "lemon grape apple orange");
+		assert(doc.get_cursor_x() == 5); // cursor moves to end of replacement
+
+		// Replace all remaining
+		int count = doc.replace_all(params);
+		assert(count == 1); // Only the second "apple" replaced (first already replaced)
+		assert(doc.get_line(0)->get_text() == "lemon grape lemon orange");
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

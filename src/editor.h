@@ -169,7 +169,7 @@ class editor : public agentlib::document_provider
 	std::vector<std::unique_ptr<window>> windows_;
 
 	focus_target current_focus_{focus_target::window};
-	enum class input_mode { normal, k_block, q_block, p_block, searching, search_options, going_to_line, inline_agent, vim };
+	enum class input_mode { normal, k_block, q_block, p_block, searching, search_options, going_to_line, inline_agent, vim, replace_prompt };
 	input_mode active_mode_{input_mode::normal};
 
 	std::string vim_input_buffer_;

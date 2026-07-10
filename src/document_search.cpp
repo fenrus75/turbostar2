@@ -78,11 +78,13 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		}
 	}
 
-	auto check_line = [&](int y, int x_limit) -> int {
+	int match_len = 0;
+	auto check_line = [&](int y, int x_limit, int &out_match_len) -> int {
 		std::string line_text = lines_[y]->get_text();
 		std::string original_line_text = line_text;
 
 		int best_found_char_idx = -1;
+		int best_found_char_len = 0;
 		size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
 
 		size_t line_scope_start_byte = 0;
@@ -107,12 +109,20 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			if (params.backward) {
 				if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
 					best_found_char_idx = static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
+					size_t char_pos_end = utf8::byte_to_char_pos(original_line_text, byte_pos + match.size());
+					best_found_char_len = static_cast<int>(char_pos_end - best_found_char_idx);
 				}
 			} else {
 				if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
-					return static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
+					int found_idx = static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
+					size_t char_pos_end = utf8::byte_to_char_pos(original_line_text, byte_pos + match.size());
+					out_match_len = static_cast<int>(char_pos_end - found_idx);
+					return found_idx;
 				}
 			}
+		}
+		if (params.backward && best_found_char_idx != -1) {
+			out_match_len = best_found_char_len;
 		}
 		return best_found_char_idx;
 	};
@@ -125,10 +135,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			} else {
 				x_lim = lines_[y]->length_in_chars();
 			}
-			int found_x = check_line(y, x_lim);
+			int found_x = check_line(y, x_lim, match_len);
 			if (found_x != -1) {
 				cursor_y_ = y;
 				cursor_x_ = found_x;
+				last_match_len_chars_ = match_len;
 				lock.unlock();
 				notify_cursor_changed();
 				return true;
@@ -142,10 +153,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			} else {
 				x_lim = 0;
 			}
-			int found_x = check_line(y, x_lim);
+			int found_x = check_line(y, x_lim, match_len);
 			if (found_x != -1) {
 				cursor_y_ = y;
 				cursor_x_ = found_x;
+				last_match_len_chars_ = match_len;
 				lock.unlock();
 				notify_cursor_changed();
 				return true;
@@ -265,4 +277,99 @@ void document::select_enclosing_scope()
 		}
 		sy--;
 	}
+}
+
+bool document::replace_current(const search_params &params)
+{
+	std::unique_lock lock(mutex_);
+	if (is_read_only())
+		return false;
+
+	if (cursor_y_ < 0 || cursor_y_ >= line_count_unlocked() || last_match_len_chars_ <= 0)
+		return false;
+
+	int line_char_len = lines_[cursor_y_]->length_in_chars();
+	if (cursor_x_ < 0 || cursor_x_ + last_match_len_chars_ > line_char_len)
+		return false;
+
+	std::string line_text = lines_[cursor_y_]->get_text();
+	size_t start_byte = lines_[cursor_y_]->char_to_byte_offset(cursor_x_);
+	size_t end_byte = lines_[cursor_y_]->char_to_byte_offset(cursor_x_ + last_match_len_chars_);
+
+	// Build the new line content
+	std::string new_text = line_text.substr(0, start_byte) + params.replacement + line_text.substr(end_byte);
+
+	begin_edit_group("", undo_group_type::typing);
+	record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
+	
+	int rep_len_chars = static_cast<int>(utf8::length(params.replacement));
+	adjust_selection_for_delete(cursor_y_, cursor_x_, last_match_len_chars_);
+	adjust_selection_for_insert(cursor_y_, cursor_x_, rep_len_chars);
+
+	lines_[cursor_y_]->set_text(new_text);
+	mark_line_dirty(lines_[cursor_y_]);
+
+	// Move cursor to the end of the replaced text
+	cursor_x_ += rep_len_chars;
+	last_match_len_chars_ = 0; // consumed
+
+	set_modified();
+	end_edit_group();
+
+	update_target_cursor_x_unlocked();
+	lock.unlock();
+	notify_cursor_changed();
+	return true;
+}
+
+int document::replace_all(const search_params &params)
+{
+	int count = 0;
+	// Save cursor state
+	int orig_y = cursor_y_;
+	int orig_x = cursor_x_;
+
+	search_params local_params = params;
+	// We want to replace everything from the beginning of the scope
+	local_params.from_cursor = false;
+	local_params.backward = false; // Always forward for replace_all to avoid loops
+
+	// Move cursor to start of scope to begin search
+	std::unique_lock lock(mutex_);
+	int scope_sy = 0, scope_sx = 0;
+	if (params.selected_text_only && selection_start_y_ != -1) {
+		int scope_ex = 0, scope_ey = 0;
+		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
+	}
+	cursor_y_ = scope_sy;
+	cursor_x_ = scope_sx;
+	lock.unlock();
+
+	// Loop find and replace
+	bool is_first = true;
+	while (true) {
+		if (is_first) {
+			local_params.from_cursor = false;
+		} else {
+			local_params.from_cursor = true;
+		}
+
+		if (!find_next(local_params, !is_first)) {
+			break;
+		}
+
+		if (replace_current(local_params)) {
+			count++;
+		}
+		is_first = false;
+	}
+
+	// Restore cursor if not replaced
+	if (count == 0) {
+		std::unique_lock ulock(mutex_);
+		cursor_y_ = orig_y;
+		cursor_x_ = orig_x;
+	}
+	
+	return count;
 }
