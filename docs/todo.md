@@ -21,7 +21,7 @@
 - running the whole testsuite is starting to take a long time even on a fast machine
 	- need to check which tests take the longest, and then investigate why those take long and if that can be fixed
 
-- make an agent for https://www.docling.ai for pdf to markdown conversion
+- make an Agent for https://www.docling.ai for pdf to markdown conversion
 
 - make an image processing agent with detailed description for how the image:// namespace works
 

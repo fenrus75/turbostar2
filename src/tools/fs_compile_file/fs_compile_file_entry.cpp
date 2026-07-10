@@ -46,6 +46,29 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 		async_enabled = false;
 	}
 
+	if (std::getenv("TURBOSTAR_IN_TESTSUITE")) {
+		std::string formatted_injection = "```bash\n$ " + cmd + "\nMock compile output\n```";
+		if (async_enabled) {
+			std::weak_ptr<agentlib::ai_agent> weak_agent;
+			if (ctx.active_agent) {
+				weak_agent = ctx.active_agent->shared_from_this();
+			}
+			std::string captured_tool_call_id = ctx.tool_call_id;
+			std::thread([safe_path = safe_path_, weak_agent, captured_tool_call_id, formatted_injection]() {
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				if (auto agent = weak_agent.lock()) {
+					agent->replace_tool_result(captured_tool_call_id, formatted_injection);
+					std::string system_msg = std::format("The background task 'fs_compile_file' ({}) has completed successfully. I "
+									     "updated your previous tool result with the output.",
+									     safe_path);
+					agent->inject_context("system", system_msg, true);
+				}
+			}).detach();
+			return "Compilation started in the background. The output will be injected here when it completes.";
+		}
+		return formatted_injection;
+	}
+
 	if (async_enabled) {
 		std::weak_ptr<agentlib::ai_agent> weak_agent;
 		if (ctx.active_agent) {
