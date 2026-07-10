@@ -63,6 +63,7 @@ agentlib_sources = files(
   'agentlib/file_security_manager.cpp',
   'agentlib/virtual_file_system.cpp',
   'agentlib/interactions/action.cpp',
+  'agentlib/interactions/image_tool.cpp',
   'agentlib/interactions/base.cpp',
   'agentlib/interactions/user_message.cpp',
   'agentlib/interactions/llm_response.cpp',

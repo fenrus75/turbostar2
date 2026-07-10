@@ -7,4 +7,5 @@
 #include "llm_response.h"
 #include "reasoning.h"
 #include "tool_interaction.h"
+#include "image_tool.h"
 #include "system_message.h"
