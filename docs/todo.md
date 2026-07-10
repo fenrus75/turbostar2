@@ -20,7 +20,7 @@
 
 
 
-- make an Agent for https://www.docling.ai for pdf to markdown conversion
+- make an agent file for https://www.docling.ai for pdf to markdown conversion
 
 - make an image processing agent with detailed description for how the image:// namespace works
 
@@ -30,8 +30,6 @@
 - feature: subagent creation wizzard dialog
 
 - read .clang-format and check how many spaces are in a tab
-
-
 
 - model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.

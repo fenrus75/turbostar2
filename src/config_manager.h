@@ -108,6 +108,12 @@ class config_manager
 		force_ascii_ = force;
 	}
 
+	int get_tab_width() const
+	{
+		return tab_width_;
+	}
+	void set_tab_width(int width);
+
 	bool is_log_all_tool_calls() const
 	{
 		return log_all_tool_calls_;
@@ -189,6 +195,7 @@ class config_manager
 	std::string get_config_file_path() const;
 
 	bool force_ascii_{false};
+	int tab_width_{8};
 
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};

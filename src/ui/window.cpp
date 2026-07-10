@@ -571,7 +571,7 @@ void window::draw_content(bool cursor_only) const
 
 			int char_width = 1;
 			if (utf8_char == "\t") {
-				char_width = 8 - (start_col % 8);
+				char_width = line::global_tab_width - (start_col % line::global_tab_width);
 			}
 
 			int end_col = start_col + char_width;

@@ -8,6 +8,7 @@
 #include <thread>
 #include "../../src/document.h"
 #include "../../src/event_queue.h"
+#include "config_manager.h"
 
 int main()
 {
@@ -498,6 +499,27 @@ int main()
 		int count = doc.replace_all(params);
 		assert(count == 1); // Only the second "apple" replaced (first already replaced)
 		assert(doc.get_line(0)->get_text() == "lemon grape lemon orange");
+	}
+
+	// Test 14: Dynamic tab width configuration
+	{
+		line l("\tA");
+		
+		// Default tab width is 8
+		config_manager::get_instance().set_tab_width(8);
+		line::global_tab_width = 8;
+		assert(l.char_to_display_col(1) == 8);
+		assert(l.char_to_display_col(2) == 9);
+		
+		// Change tab width to 4
+		config_manager::get_instance().set_tab_width(4);
+		line::global_tab_width = 4;
+		assert(l.char_to_display_col(1) == 4);
+		assert(l.char_to_display_col(2) == 5);
+
+		// Restore default
+		config_manager::get_instance().set_tab_width(8);
+		line::global_tab_width = 8;
 	}
 
 	std::cout << "document unit test passed!\n";

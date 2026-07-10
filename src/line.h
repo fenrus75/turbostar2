@@ -9,6 +9,8 @@
 class line
 {
       public:
+	static int global_tab_width;
+
 	line() = default;
 	explicit line(const std::string &text);
 	~line() = default;

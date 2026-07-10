@@ -4,6 +4,8 @@
 #include <mutex>
 #include "utf8.h"
 
+int line::global_tab_width = 8;
+
 line::line(const std::string &text) : text_(text)
 {
 	// Initialize attributes to normal for all chars
@@ -174,7 +176,7 @@ int line::char_to_display_col(int char_pos) const
 
 		if (c < 0x80) {
 			if (c == '\t') {
-				col = (col / 8 + 1) * 8;
+				col = (col / global_tab_width + 1) * global_tab_width;
 			} else {
 				col += 1;
 			}

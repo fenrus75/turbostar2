@@ -27,9 +27,6 @@ void config_manager::load()
 	// 1. Load global config
 	std::string global_path = get_config_file_path();
 	load_from_file(global_path);
-
-	// 2. Load project config if available (we determine this later or let main trigger it)
-	// For now, load() just loads global. main.cpp will orchestrate project overlay after git_manager is ready.
 }
 
 void config_manager::load_from_file(const std::string &path)
@@ -89,6 +86,11 @@ void config_manager::load_from_file(const std::string &path)
 			run_target_mode_ = value;
 		} else if (key == "gdb_auto_continue") {
 			gdb_auto_continue_ = (value == "true" || value == "1");
+		} else if (key == "tab_width") {
+			try {
+				tab_width_ = std::stoi(value);
+			} catch (...) {
+			}
 		} else if (key.starts_with("family.")) {
 			bool is_project = (path.find(".turbostar") == std::string::npos);
 			size_t dot1 = 7; // length of "family."
@@ -191,6 +193,7 @@ void config_manager::save_project(const std::string &target_path)
 	file << "run_arguments=" << run_arguments_ << "\n";
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
+	file << "tab_width=" << tab_width_ << "\n";
 
 	for (const auto &[task_id, model_id] : task_models_) {
 		if (!model_id.empty()) {
@@ -364,4 +367,9 @@ std::string config_manager::get_task_model_id(const std::string &task_id) const
 void config_manager::set_task_model_id(const std::string &task_id, const std::string &model_id)
 {
 	task_models_[task_id] = model_id;
+}
+
+void config_manager::set_tab_width(int width)
+{
+	tab_width_ = width;
 }
