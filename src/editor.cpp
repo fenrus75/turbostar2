@@ -23,6 +23,8 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
+#include "filter_registry.h"
+#include "tools/troff2md.h"
 #include "ui/agent_center_window.h"
 #include "ui/agent_window.h"
 #include "ui/code_review_window.h"
@@ -41,6 +43,12 @@ editor::editor(editor_options opts)
       initial_agent_prompt_(std::move(opts.initial_agent_prompt)), fresh_agent_(opts.fresh_agent)
 {
 	ui_multiline_edit::set_global_queue(&global_queue_);
+	// The troff_to_markdown filter parses manual page troff syntax and converts it to GitHub Flavored Markdown (GFM).
+	// This filter is registered dynamically at editor startup rather than statically inside the filter registry to avoid
+	// linking troff2md.cpp's AST parser functions into headless unit test binaries that don't need UI-related filters.
+	agentlib::filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
+		return ::troff2md(input);
+	});
 	main_thread_id_ = std::this_thread::get_id();
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();

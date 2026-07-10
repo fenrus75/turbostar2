@@ -43,7 +43,8 @@ core_sources = files(
   'crash_handler.cpp',
   'ansi.cpp',
   'pluginloader.cpp',
-  'images/image_manager.cpp'
+  'images/image_manager.cpp',
+  'tools/troff2md.cpp'
 )
 
 

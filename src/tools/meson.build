@@ -169,7 +169,6 @@ tools_sources = files(
   'activate_tool_family/activate_tool_family_security.cpp',
 
 
-  'troff2md.cpp',
   'fs_man/fs_man_entry.cpp',
   'fs_man/fs_man_security.cpp',
   'create_code_review_item/create_code_review_item_entry.cpp',

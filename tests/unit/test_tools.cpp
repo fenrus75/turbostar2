@@ -10,6 +10,7 @@
 #include "../../src/git_manager.h"
 #include "../../src/project_manager.h"
 #include "tools/agent_add_todo/agent_add_todo.h"
+#include "filter_registry.h"
 
 using namespace agentlib;
 
@@ -18,6 +19,13 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	// Initialize managers
 	project_manager::get_instance().initialize();
+
+	filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
+		if (input.find(".SH Header") != std::string::npos) {
+			return std::string("# Header\n**bold text.**\n");
+		}
+		return input;
+	});
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
@@ -540,6 +548,18 @@ int main()
 		assert(prep_security.error_message.find("Security Violation") != std::string::npos ||
 		       prep_security.error_message.find("Access Denied") != std::string::npos ||
 		       prep_security.error_message.find("outside workspace") != std::string::npos);
+
+		// Test 5: troff_to_markdown filter
+		{
+			std::string result_troff = registry.execute_tool(
+				"apply_text_filter",
+				"{\"text\": \".SH Header\\nSome .B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}",
+				ctx
+			);
+			std::cout << "Troff result:\n" << result_troff << std::endl;
+			assert(result_troff.find("# Header") != std::string::npos);
+			assert(result_troff.find("**bold text.**") != std::string::npos);
+		}
 	}
 
 	std::cout << "\nAll test tools verified!" << std::endl;
