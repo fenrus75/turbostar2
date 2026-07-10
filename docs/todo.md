@@ -16,11 +16,13 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
+- replace (in searc/replace) does not work
+
+- ^W eats ()'s and should not
+
 - make an agent for https://www.docling.ai for pdf to markdown conversion
 
 - make an image processing agent with detailed description for how the image:// namespace works
-
-- thumbnails for image list
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -244,6 +246,9 @@
 
 
 # done items (move items here on completion)
+
+## 09-07-2026
+- Image thumbnails for TUI dialog: Implemented dynamic true-color ncurses thumbnail rendering for the Image VFS Manager dialog. Created the `ui_thumbnail` element (inheriting from `ui_element`) using Unicode vertical half-block (`▄`) rendering. Created a thread-safe `dynamic_colors` utility utilizing standard 256-color cube mapping to match terminal color spaces accurately without changing palette state. The downsampling logic is decoupled via the `filter_registry` (`"image_thumbnail"` filter registered by the optional `image-basic` plugin), allowing graceful text-based fallback when the plugin is not loaded. Added a dedicated unit test target `test_ui_thumbnail`.
 
 ## 04-07-2026
 - Dynamic skill plugins: Implemented support for "hidden" (invisible) skills by adding a visibility toggle, enabling plugins to register skills silently without polluting the user/agent enumeration. Added `ai_agent::activate_skill` for centralized, consistent programmatic skill activation that automatically formats and injects instructions into the agent's interaction history as a system message. Added `register_skill` overloads in `skill_manager` supporting dynamic registration of both simple single-string skills and complex multi-file skills mapped to string maps.

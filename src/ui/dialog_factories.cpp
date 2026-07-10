@@ -29,6 +29,7 @@
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
 #include "ui/components/ui_durmovie.h"
+#include "ui/components/ui_thumbnail.h"
 #include "utf8.h"
 #include "syntax_color_manager.h"
 
@@ -2204,12 +2205,10 @@ class image_manager_dialog_impl : public dialog
 
 		right_col->add_child(std::make_unique<ui_text_label>(""));
 
-		// Thumbnail placeholder space to the right
-		right_col->add_child(std::make_unique<ui_text_label>("+------------------+"));
-		right_col->add_child(std::make_unique<ui_text_label>("|                  |"));
-		right_col->add_child(std::make_unique<ui_text_label>("|   [ Thumbnail ]  |"));
-		right_col->add_child(std::make_unique<ui_text_label>("|                  |"));
-		right_col->add_child(std::make_unique<ui_text_label>("+------------------+"));
+		// Dynamic color thumbnail widget: width 20, height 5 (meaning 10 pixel rows)
+		auto thumb = std::make_unique<ui_thumbnail>("thumbnail", 0, 0, 20, 5);
+		thumb_ = thumb.get();
+		right_col->add_child(std::move(thumb));
 
 		top_section->add_child(std::move(right_col));
 		flow->add_child(std::move(top_section));
@@ -2269,11 +2268,15 @@ class image_manager_dialog_impl : public dialog
 			lbl_dims_->set_text("Dims:  " + std::to_string(meta.width) + "x" + std::to_string(meta.height));
 			lbl_mime_->set_text("MIME:  " + meta.mime_type);
 			lbl_size_->set_text("Size:  " + std::to_string(meta.size_bytes) + " B");
+
+			std::string uri = "images://by-sha256/" + meta.sha256;
+			thumb_->set_image_path(uri);
 		} else {
 			lbl_alias_->set_text("Alias: -");
 			lbl_dims_->set_text("Dims:  -");
 			lbl_mime_->set_text("MIME:  -");
 			lbl_size_->set_text("Size:  -");
+			thumb_->clear_image();
 		}
 	}
 
@@ -2316,6 +2319,7 @@ class image_manager_dialog_impl : public dialog
 	ui_text_label *lbl_dims_{nullptr};
 	ui_text_label *lbl_mime_{nullptr};
 	ui_text_label *lbl_size_{nullptr};
+	ui_thumbnail *thumb_{nullptr};
 
 	std::vector<images::image_metadata> mappings_;
 };

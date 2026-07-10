@@ -141,7 +141,9 @@ ui_sources = files(
   'ui/components/ui_dropdown.cpp',
   'ui/dialog.cpp',
   'ui/dialog_factories.cpp',
-  'ui/popup_menu.cpp'
+  'ui/popup_menu.cpp',
+  'ui/components/ui_thumbnail.cpp',
+  'ui/dynamic_colors.cpp'
 )
 
 # Helper for embedding help text
