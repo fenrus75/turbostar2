@@ -18,7 +18,7 @@
 
 - replace (in searc/replace) does not work
 
-- ^W eats ()'s and should not
+- in the editor, ^W eats ()'s and should not
 
 - make an agent for https://www.docling.ai for pdf to markdown conversion
 

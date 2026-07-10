@@ -129,13 +129,13 @@ void ui_thumbnail::draw(int abs_x, int abs_y) const
 				else if (r == 0 || r == height_ - 1) ch = '-';
 				else if (c == 0 || c == width_ - 1) ch = '|';
 				
-				mvaddch(abs_y + y_ + r, abs_x + x_ + c, ch);
+				mvaddch(abs_y + r, abs_x + c, ch);
 			}
 		}
 		std::string label = "[No Preview]";
-		int label_x = x_ + (width_ - (int)label.length()) / 2;
-		int label_y = y_ + height_ / 2;
-		if (label_x >= x_ && label_x + (int)label.length() <= x_ + width_ && label_y >= y_ && label_y < y_ + height_) {
+		int label_x = (width_ - (int)label.length()) / 2;
+		int label_y = height_ / 2;
+		if (label_x >= 0 && label_x + (int)label.length() <= width_ && label_y >= 0 && label_y < height_) {
 			mvaddstr(abs_y + label_y, abs_x + label_x, label.c_str());
 		}
 		return;
@@ -163,7 +163,7 @@ void ui_thumbnail::draw(int abs_x, int abs_y) const
 			int pair_idx = dynamic_colors::dynamic_alloc_pair(fg_col, bg_col);
 
 			attr_set(A_NORMAL, pair_idx, NULL);
-			mvaddstr(abs_y + y_ + y, abs_x + x_ + x, "▄");
+			mvaddstr(abs_y + y, abs_x + x, "▄");
 			attroff(COLOR_PAIR(pair_idx));
 		}
 	}
