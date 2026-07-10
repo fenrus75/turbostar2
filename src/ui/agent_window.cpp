@@ -17,6 +17,10 @@
 #include "input_history_manager.h"
 #include "project_manager.h"
 #include "utf8.h"
+#include "filter_registry.h"
+#include "ui/dynamic_colors.h"
+#include "images/image_manager.h"
+#include <filesystem>
 
 using namespace agentlib;
 
@@ -714,6 +718,21 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 			}
 			auto lines = turn.items[i]->render(inner_width, turn.bg);
 			turn.height += lines.size();
+
+			// Add thumbnail height if it's an image tool result containing an ingested image path
+			if (turn.items[i]->get_type() == agentlib::interaction_type::tool_result) {
+				std::string raw_text = turn.items[i]->get_raw_text();
+				size_t uri_pos = raw_text.find("New URI: ");
+				if (uri_pos != std::string::npos) {
+					std::string img_uri = raw_text.substr(uri_pos + 9);
+					while (!img_uri.empty() && (img_uri.back() == '.' || img_uri.back() == ' ' || img_uri.back() == '\r' || img_uri.back() == '\n')) {
+						img_uri.pop_back();
+					}
+					if (!img_uri.empty()) {
+						turn.height += 6; // 1 separator + 5 thumbnail rows
+					}
+				}
+			}
 		}
 		total_turns_height += turn.height;
 	}
@@ -814,6 +833,140 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				l.suffix_color_pair = box_cp;
 				box_lines.push_back(l);
 			}
+			// Check if this item is a tool result and contains a New URI pattern for images
+			if (item->get_type() == agentlib::interaction_type::tool_result) {
+				std::string raw_text = item->get_raw_text();
+				size_t uri_pos = raw_text.find("New URI: ");
+				if (uri_pos != std::string::npos) {
+					std::string img_uri = raw_text.substr(uri_pos + 9);
+					// Trim trailing periods/spaces/newlines
+					while (!img_uri.empty() && (img_uri.back() == '.' || img_uri.back() == ' ' || img_uri.back() == '\r' || img_uri.back() == '\n')) {
+						img_uri.pop_back();
+					}
+					
+					if (!img_uri.empty()) {
+						// Add a separator line before the thumbnail
+						agentlib::interaction_line sep;
+						sep.text = std::string(inner_width, ' ');
+						sep.prefix = vert + " ";
+						sep.prefix_color_pair = box_cp;
+						sep.suffix = " " + vert;
+						sep.suffix_color_pair = box_cp;
+						box_lines.push_back(sep);
+
+						int thumb_w = 20;
+						int thumb_h = 5;
+						if (thumb_w > inner_width) {
+							thumb_w = inner_width;
+						}
+						int left_pad = (inner_width - thumb_w) / 2;
+
+						for (int r = 0; r < thumb_h; ++r) {
+							agentlib::interaction_line tline;
+							tline.text = std::string(inner_width, ' ');
+							tline.prefix = vert + " ";
+							tline.prefix_color_pair = box_cp;
+							tline.suffix = " " + vert;
+							tline.suffix_color_pair = box_cp;
+
+							tline.custom_draw_fn = [this, img_uri, r, thumb_w, thumb_h, left_pad](int x, int y, int /*width*/) {
+								auto it = thumbnail_cache_.find(img_uri);
+								if (it == thumbnail_cache_.end()) {
+									std::string physical_path;
+									if (img_uri.starts_with("images://")) {
+										physical_path = images::image_manager::get_instance().resolve_uri(img_uri);
+									} else {
+										physical_path = images::image_manager::get_instance().resolve_uri("images://by-name/" + img_uri);
+										if (physical_path.empty()) {
+											physical_path = images::image_manager::get_instance().resolve_uri("images://" + img_uri);
+										}
+									}
+									if (physical_path.empty() && std::filesystem::exists(img_uri)) {
+										physical_path = img_uri;
+									}
+
+									cached_thumbnail cached;
+									cached.width = thumb_w;
+									cached.height = thumb_h * 2;
+
+									auto &registry = agentlib::filter_registry::get_instance();
+									if (!physical_path.empty() && registry.has_filter("image_thumbnail")) {
+										nlohmann::json input_json = {
+											{"path", physical_path},
+											{"width", thumb_w},
+											{"height", thumb_h * 2}
+										};
+										bool success = false;
+										std::string result_str = registry.apply_filter("image_thumbnail", input_json.dump(), success);
+										if (success) {
+											try {
+												nlohmann::json out = nlohmann::json::parse(result_str);
+												int grid_w = out["width"].get<int>();
+												int grid_h = out["height"].get<int>();
+												auto raw_pixels = out["pixels"];
+												
+												cached.pixels.resize(grid_h, std::vector<int>(grid_w * 3, 0));
+												int idx = 0;
+												for (const auto &item_px : raw_pixels) {
+													int px = idx % grid_w;
+													int py = idx / grid_w;
+													if (py < grid_h && px < grid_w) {
+														cached.pixels[py][px * 3 + 0] = item_px[0].get<int>();
+														cached.pixels[py][px * 3 + 1] = item_px[1].get<int>();
+														cached.pixels[py][px * 3 + 2] = item_px[2].get<int>();
+													}
+													idx++;
+												}
+											} catch (...) {}
+										}
+									}
+									thumbnail_cache_[img_uri] = cached;
+									it = thumbnail_cache_.find(img_uri);
+								}
+
+								const auto &cached = it->second;
+								if (cached.pixels.empty()) {
+									std::string ph = " [No Preview] ";
+									if (r == thumb_h / 2) {
+										mvaddstr(y, x + left_pad + (thumb_w - (int)ph.length()) / 2, ph.c_str());
+									}
+									return;
+								}
+
+								int top_y = r * 2;
+								int bot_y = r * 2 + 1;
+								int draw_x = x + left_pad;
+
+								for (int col = 0; col < thumb_w; ++col) {
+									int top_r = 0, top_g = 0, top_b = 0;
+									int bot_r = 0, bot_g = 0, bot_b = 0;
+									if (col < (int)cached.pixels[0].size() / 3) {
+										if (top_y < (int)cached.pixels.size()) {
+											top_r = cached.pixels[top_y][col * 3 + 0];
+											top_g = cached.pixels[top_y][col * 3 + 1];
+											top_b = cached.pixels[top_y][col * 3 + 2];
+										}
+										if (bot_y < (int)cached.pixels.size()) {
+											bot_r = cached.pixels[bot_y][col * 3 + 0];
+											bot_g = cached.pixels[bot_y][col * 3 + 1];
+											bot_b = cached.pixels[bot_y][col * 3 + 2];
+										}
+									}
+
+									int fg = dynamic_colors::dynamic_get_color(bot_r, bot_g, bot_b);
+									int bg = dynamic_colors::dynamic_get_color(top_r, top_g, top_b);
+									int cp = dynamic_colors::dynamic_alloc_pair(fg, bg);
+
+									attr_set(A_NORMAL, cp, NULL);
+									mvaddstr(y, draw_x + col, "▄");
+								}
+								attr_set(A_NORMAL, 0, NULL);
+							};
+							box_lines.push_back(tline);
+						}
+					}
+				}
+			}
 		}
 
 		// Bottom border
@@ -848,46 +1001,51 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 			}
 
 			// Draw text with potential selection highlight
-			bool has_mouse_sel = (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1);
-			int mouse_start_l = mouse_sel_start_line_;
-			int mouse_start_c = mouse_sel_start_char_;
-			int mouse_end_l = mouse_sel_end_line_;
-			int mouse_end_c = mouse_sel_end_char_;
-			if (has_mouse_sel) {
-				if (mouse_start_l > mouse_end_l || (mouse_start_l == mouse_end_l && mouse_start_c > mouse_end_c)) {
-					std::swap(mouse_start_l, mouse_end_l);
-					std::swap(mouse_start_c, mouse_end_c);
-				}
-			}
-
-			int text_len = utf8::display_width(line_it->text);
-			size_t byte_off = 0;
-			std::string utf8_char;
-			utf8_char.reserve(4);
-
-			for (int char_idx = 0; char_idx < text_len; ++char_idx) {
-				if (!utf8::next_character(line_it->text, byte_off, utf8_char))
-					break;
-
-				bool in_selection = false;
+			if (line_it->custom_draw_fn) {
+				line_it->custom_draw_fn(current_x, current_y, inner_width);
+				current_x += inner_width;
+			} else {
+				bool has_mouse_sel = (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1);
+				int mouse_start_l = mouse_sel_start_line_;
+				int mouse_start_c = mouse_sel_start_char_;
+				int mouse_end_l = mouse_sel_end_line_;
+				int mouse_end_c = mouse_sel_end_char_;
 				if (has_mouse_sel) {
-					int line_viewport_y = current_y - (y_ + 1);
-					if (line_viewport_y > mouse_start_l && line_viewport_y < mouse_end_l) {
-						in_selection = true;
-					} else if (line_viewport_y == mouse_start_l && line_viewport_y == mouse_end_l) {
-						in_selection = (char_idx >= mouse_start_c && char_idx < mouse_end_c);
-					} else if (line_viewport_y == mouse_start_l) {
-						in_selection = (char_idx >= mouse_start_c);
-					} else if (line_viewport_y == mouse_end_l) {
-						in_selection = (char_idx < mouse_end_c);
+					if (mouse_start_l > mouse_end_l || (mouse_start_l == mouse_end_l && mouse_start_c > mouse_end_c)) {
+						std::swap(mouse_start_l, mouse_end_l);
+						std::swap(mouse_start_c, mouse_end_c);
 					}
 				}
 
-				int cp = in_selection ? 8 : line_it->color_pair;
-				attron(COLOR_PAIR(cp));
-				mvprintw(current_y, current_x, "%s", utf8_char.c_str());
-				attroff(COLOR_PAIR(cp));
-				current_x += 1;
+				int text_len = utf8::display_width(line_it->text);
+				size_t byte_off = 0;
+				std::string utf8_char;
+				utf8_char.reserve(4);
+
+				for (int char_idx = 0; char_idx < text_len; ++char_idx) {
+					if (!utf8::next_character(line_it->text, byte_off, utf8_char))
+						break;
+
+					bool in_selection = false;
+					if (has_mouse_sel) {
+						int line_viewport_y = current_y - (y_ + 1);
+						if (line_viewport_y > mouse_start_l && line_viewport_y < mouse_end_l) {
+							in_selection = true;
+						} else if (line_viewport_y == mouse_start_l && line_viewport_y == mouse_end_l) {
+							in_selection = (char_idx >= mouse_start_c && char_idx < mouse_end_c);
+						} else if (line_viewport_y == mouse_start_l) {
+							in_selection = (char_idx >= mouse_start_c);
+						} else if (line_viewport_y == mouse_end_l) {
+							in_selection = (char_idx < mouse_end_c);
+						}
+					}
+
+					int cp = in_selection ? 8 : line_it->color_pair;
+					attron(COLOR_PAIR(cp));
+					mvprintw(current_y, current_x, "%s", utf8_char.c_str());
+					attroff(COLOR_PAIR(cp));
+					current_x += 1;
+				}
 			}
 
 			if (!line_it->suffix.empty()) {

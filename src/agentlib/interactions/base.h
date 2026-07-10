@@ -5,6 +5,8 @@
 #include <memory>
 #include "agent_theme.h"
 
+#include <functional>
+
 namespace agentlib {
 
 enum class interaction_type {
@@ -26,6 +28,7 @@ struct interaction_line {
     int prefix_color_pair = 0;
     std::string suffix = "";
     int suffix_color_pair = 0;
+    std::function<void(int x, int y, int width)> custom_draw_fn = nullptr;
 };
 
 class agent_interaction {

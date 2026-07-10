@@ -12,6 +12,10 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- build system (meson.build); we copy the turbostar binary to the test directory, which means we cannot do this while tests are running.
+    if instead we copy it as turbostar.new and then mv turbostar.new turbostar, we CAN do this.
+    (mv will work over busy files while cp will not)
+
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
@@ -298,3 +302,4 @@
 - Test suite performance optimization: Analyzed test durations from the meson execution logs and identified two slow unit tests: `unit_test_security_scan_semgrep` (14s) and `unit_test_fs_compile_file` (3.2s). Optimized them by mocking their expensive command-line invocations when running inside the test suite (`TURBOSTAR_IN_TESTSUITE` set), reducing their execution times to milliseconds and saving 17+ seconds.
 - Groff-to-Markdown filter: Hooked up the existing `troff2md` parser to the central `filter_registry` infrastructure under the name `"troff_to_markdown"`. Dynamically registered the filter during application startup in `editor::editor` constructor and added comprehensive unit test coverage inside `tests/unit/test_tools.cpp`.
 - Read .clang-format on startup: Added parsing of project-level `.clang-format` config files on startup in `main.cpp` to auto-detect and configure the visual tab width parameter (`TabWidth`). Added Test 15 to `tests/unit/test_document.cpp` verifying the parsing and layout logic.
+- Image thumbnail interactions: Added support for rendering interactive color TUI thumbnails of modified images directly inside the agent chat window for all image manipulation toolcalls. Extended the rendering pipeline with a custom drawing callback pattern to keep dependencies fully decoupled.

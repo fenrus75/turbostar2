@@ -4,6 +4,14 @@
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_multiline_edit.h"
 #include "ui/window.h"
+#include <map>
+#include <vector>
+
+struct cached_thumbnail {
+	int width = 0;
+	int height = 0;
+	std::vector<std::vector<int>> pixels;
+};
 
 class agent_window : public window
 {
@@ -67,6 +75,8 @@ class agent_window : public window
 
 	std::unique_ptr<ui_listbox> todos_list_;
 	std::unique_ptr<ui_listbox> subagents_list_;
+
+	mutable std::map<std::string, cached_thumbnail> thumbnail_cache_;
 
 	std::vector<std::shared_ptr<agentlib::ai_agent>> get_active_subagents() const;
 };
