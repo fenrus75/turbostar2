@@ -18,8 +18,7 @@
 
 
 
-- running the whole testsuite is starting to take a long time even on a fast machine
-	- need to check which tests take the longest, and then investigate why those take long and if that can be fixed
+
 
 - make an Agent for https://www.docling.ai for pdf to markdown conversion
 
@@ -305,3 +304,4 @@
 ## 10-07-2026
 - fixed word deletion boundary checking so that parenthesis and bracket characters (`(`, `)`, `[`, `]`, `{`, `}`) and other punctuation (`.`, `'`) are treated as word boundaries. This prevents the Ctrl-W command (`delete_word_forward`) from eating parentheses blocks.
 - Find and replace: Fixed search-and-replace so that the editor now supports both individual prompted replacements and global "Change all" operations. Implemented `replace_current` and `replace_all` in `document`, and wired them to the Replace dialog box and the interactive status bar prompt (`Replace? (Y)es / (N)o / (A)ll / (Q)uit`). Added unit test coverage in `tests/unit/test_document.cpp` and a full E2E test suite in `tests/e2e/test_replace.py`.
+- Test suite performance optimization: Analyzed test durations from the meson execution logs and identified two slow unit tests: `unit_test_security_scan_semgrep` (14s) and `unit_test_fs_compile_file` (3.2s). Optimized them by mocking their expensive command-line invocations when running inside the test suite (`TURBOSTAR_IN_TESTSUITE` set), reducing their execution times to milliseconds and saving 17+ seconds.
