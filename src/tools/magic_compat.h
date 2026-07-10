@@ -19,6 +19,10 @@ inline const char *magic_file(magic_t, const char *)
 {
 	return nullptr;
 }
+inline const char *magic_buffer(magic_t, const void *, size_t)
+{
+	return nullptr;
+}
 inline void magic_close(magic_t)
 {
 }

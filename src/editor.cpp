@@ -26,6 +26,7 @@
 #include "line.h"
 #include "filter_registry.h"
 #include "tools/troff2md.h"
+#include "tools/magic_compat.h"
 #include "ui/agent_center_window.h"
 #include "ui/agent_window.h"
 #include "ui/code_review_window.h"
@@ -55,7 +56,37 @@ editor::editor(editor_options opts)
 		std::string trimmed = input;
 		trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
 
-		if (trimmed.starts_with("<html") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<div") || trimmed.starts_with("<p>")) {
+		bool detected_html = false;
+		bool detected_troff = false;
+
+		// 1. Try detecting format using libmagic
+		magic_t magic = magic_open(MAGIC_MIME_TYPE);
+		if (magic) {
+			if (magic_load(magic, nullptr) == 0) {
+				const char *mime = magic_buffer(magic, input.data(), input.size());
+				if (mime) {
+					std::string mime_str(mime);
+					if (mime_str.find("html") != std::string::npos) {
+						detected_html = true;
+					} else if (mime_str.find("troff") != std::string::npos || mime_str.find("nroff") != std::string::npos || mime_str.find("x-man") != std::string::npos) {
+						detected_troff = true;
+					}
+				}
+			}
+			magic_close(magic);
+		}
+
+		// 2. Fall back to existing heuristics if libmagic didn't detect or is disabled
+		if (!detected_html && !detected_troff) {
+			if (trimmed.starts_with("<html") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<div") || trimmed.starts_with("<p>")) {
+				detected_html = true;
+			} else if (trimmed.starts_with(".SH") || trimmed.starts_with(".TH") || trimmed.starts_with(".PP") || trimmed.starts_with(".Dd") || trimmed.starts_with(".de")) {
+				detected_troff = true;
+			}
+		}
+
+		// 3. Delegate to sub-filters
+		if (detected_html) {
 			auto &registry = agentlib::filter_registry::get_instance();
 			if (registry.has_filter("html_to_markdown")) {
 				bool success = false;
@@ -64,7 +95,7 @@ editor::editor(editor_options opts)
 			}
 		}
 
-		if (trimmed.starts_with(".SH") || trimmed.starts_with(".TH") || trimmed.starts_with(".PP") || trimmed.starts_with(".Dd") || trimmed.starts_with(".de")) {
+		if (detected_troff) {
 			auto &registry = agentlib::filter_registry::get_instance();
 			if (registry.has_filter("troff_to_markdown")) {
 				bool success = false;
