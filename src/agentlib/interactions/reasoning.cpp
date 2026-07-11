@@ -33,7 +33,7 @@ std::vector<interaction_line> interaction_reasoning::format_lines(int width, bac
 		}
 	}
 	
-	return wrap_text("", markdown_utils::align_all_tables(display_text, false), width, color);
+	return wrap_text("", markdown_utils::align_all_tables(display_text, false, 0, width), width, color);
 }
 
 } // namespace agentlib

@@ -233,9 +233,8 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 	int current_tokens = calculate_current_tokens();
 	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
 	int limit_tokens = static_cast<int>(max_tokens * target_fraction);
-	std::cout << "[debug page_in_history_auto] current_tokens=" << current_tokens 
-	          << ", max_tokens=" << max_tokens << ", limit_tokens=" << limit_tokens 
-	          << ", paged_out count=" << paged_out.size() << std::endl;
+	event_logger::get_instance().log(std::format("[debug page_in_history_auto] current_tokens={}, max_tokens={}, limit_tokens={}, paged_out count={}",
+		current_tokens, max_tokens, limit_tokens, paged_out.size()));
 
 	std::vector<std::string> paged_in_ids;
 
@@ -254,9 +253,8 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 		int net_change = ep_tokens - old_tokens;
 		if (net_change < 0) net_change = 0;
 
-		std::cout << "  [debug page_in_history_auto] entry=" << entry->id << ", ep_tokens=" << ep_tokens 
-		          << ", old_tokens=" << old_tokens << ", net_change=" << net_change 
-		          << ", sum=" << (current_tokens + net_change) << std::endl;
+		event_logger::get_instance().log(std::format("  [debug page_in_history_auto] entry={}, ep_tokens={}, old_tokens={}, net_change={}, sum={}",
+			entry->id, ep_tokens, old_tokens, net_change, current_tokens + net_change));
 		if (current_tokens + net_change <= limit_tokens) {
 			if (set_episode_state(entry->id, default_level)) {
 				current_tokens += net_change;
@@ -2159,9 +2157,10 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 		}
 	}
 
-	std::cout << "[page_out_context] start_index=" << start_index << ", end_index=" << end_index << ", flat_convo.size()=" << flat_convo.size() << std::endl;
+	event_logger::get_instance().log(std::format("[page_out_context] start_index={}, end_index={}, flat_convo.size()={}",
+		start_index, end_index, flat_convo.size()));
 	if (start_index >= end_index || end_index > flat_convo.size()) {
-		std::cout << "[page_out_context] Early return triggered!" << std::endl;
+		event_logger::get_instance().log("[page_out_context] Early return triggered!");
 		return;
 	}
 
@@ -2422,11 +2421,10 @@ void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool
 	std::unique_lock<std::mutex> lock(conversation_mutex_);
 
 	auto flat_convo = get_conversation_unlocked();
-	std::cout << "[page_out_prior_context] called. target_episode_id=" << target_episode_id 
-	          << ", include_all_prior=" << include_all_prior 
-	          << ", flat_convo.size()=" << flat_convo.size() << std::endl;
+	event_logger::get_instance().log(std::format("[page_out_prior_context] called. target_episode_id={}, include_all_prior={}, flat_convo.size()={}",
+		target_episode_id, include_all_prior, flat_convo.size()));
 	if (flat_convo.size() < 3) {
-		std::cout << "[page_out_prior_context] flat_convo.size() < 3, early return!" << std::endl;
+		event_logger::get_instance().log("[page_out_prior_context] flat_convo.size() < 3, early return!");
 		return; // Nothing to compress
 	}
 
@@ -2474,16 +2472,16 @@ void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool
 		}
 	}
 
-	std::cout << "[page_out_prior_context] start_index=" << start_index << ", end_index=" << end_index << std::endl;
+	event_logger::get_instance().log(std::format("[page_out_prior_context] start_index={}, end_index={}", start_index, end_index));
 	if (start_index >= end_index) {
-		std::cout << "[page_out_prior_context] start_index >= end_index early return!" << std::endl;
+		event_logger::get_instance().log("[page_out_prior_context] start_index >= end_index early return!");
 		event_logger::get_instance().log("Context too small to page out naturally.");
 		return;
 	}
 
 	// Unlock and delegate to the core paging function
 	lock.unlock();
-	std::cout << "[page_out_prior_context] Delegating to page_out_context..." << std::endl;
+	event_logger::get_instance().log("[page_out_prior_context] Delegating to page_out_context...");
 	page_out_context(start_index, end_index, title, summary, tags);
 }
 

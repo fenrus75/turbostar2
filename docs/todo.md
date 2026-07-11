@@ -145,10 +145,6 @@
 
 - bug: valgrind does not work in our sandbox
 
-- visual bug: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
-	- need to just spill to the right instead?
-	- or cut down some wide columns to make things fit (replace super long fields with "....")
-	- our markdown table formatter needs a desired_width (which padds) and a max_width (which can truncate) set of parameters
 
 - feature: sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
@@ -236,6 +232,7 @@
 # done items (move items here on completion)
 
 ## 11-07-2026
+- markdown table visual wrapping: Enhanced `markdown_utils` table aligner with `min_width` (even expansion) and `max_width` (widest-column shrinking with ellipsis truncation). Configured all agent interaction formatters (`llm_response`, `reasoning`, `system_message`, `tool_interaction`) to dynamically calculate and enforce maximum visual table widths before wrapping to prevent table formatting layout corruption in the TUI.
 - tool family/skill persistence: Added serialization and restoration of `active_skills` and `active_families` in `ai_agent::save_conversation` and `ai_agent::load_active_state` to preserve active tool families and skills across agent exit and restart. Added verification inside `unit_test_activate_tool_family`.
 - image manager persistence: Added `images::image_manager::get_instance().initialize();` to the startup sequences in `src/main.cpp` and `src/agentcli/main.cpp` to correctly reload the saved VFS metadata from `mappings.json` on application startup.
 - block copy/move cursor position: Fixed `copy_selection()` and `move_selection()` in `src/document_selection.cpp` to reset the cursor position to the top of the newly copied or moved selection rather than leaving it at the bottom.
