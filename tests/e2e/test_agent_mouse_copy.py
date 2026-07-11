@@ -70,12 +70,12 @@ def test_agent_mouse_copy():
         # Click inside the word 'Hello!' (on the 'e' to avoid borders)
         x_start_sgr = start_col + 2
         runner.send_raw_keys(f"\x1b[<0;{x_start_sgr};{y_sgr}M".encode())
-        time.sleep(0.2)
+        time.sleep(0.5)
         
         # Drag to after 'Hello!' to capture the rest of the word
         x_end_sgr = start_col + 10
         runner.send_raw_keys(f"\x1b[<32;{x_end_sgr};{y_sgr}M".encode())
-        time.sleep(0.2)
+        time.sleep(0.5)
         
         # Release mouse
         runner.send_raw_keys(f"\x1b[<0;{x_end_sgr};{y_sgr}m".encode())

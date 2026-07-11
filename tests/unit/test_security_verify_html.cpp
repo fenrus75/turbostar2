@@ -79,7 +79,7 @@ int main()
 
 	// 5. Test scanning a small valid dummy HTML file
 	{
-		std::string dummy_file = "ts_sec_dummy.html";
+		std::string dummy_file = "ts_sec_verify_dummy.html";
 		std::string dummy_file_abs = project_root + "/" + dummy_file;
 		std::ofstream out(dummy_file_abs);
 		out << "<!DOCTYPE html>\n<html>\n<head>\n<title>Dummy</title>\n</head>\n<body>\n<p>hello</p>\n</body>\n</html>\n";

@@ -1011,9 +1011,12 @@ test('unit_image_manager', test_image_manager, suite: 'agent')
 
 test_image_tools = executable('test_image_tools',
   'tests/unit/test_image_tools.cpp',
-  dependencies : [tools_dep, agent_dep, core_dep, nlohmann_json_dep, thread_dep, openssl_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep],
-  include_directories: inc)
-test('unit_image_tools', test_image_tools, suite: 'agent')
+  dependencies : [tools_dep, agent_dep, core_dep, nlohmann_json_dep, thread_dep, openssl_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true)
+test('unit_image_tools', test_image_tools, suite: 'agent',
+  depends: [image_basic_plugin],
+  env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 
 test_agent_tile = executable('test_agent_tile',
