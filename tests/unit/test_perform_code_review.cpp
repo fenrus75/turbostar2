@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <csignal>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/codereview_manager.h"
@@ -41,7 +42,7 @@ void test_perform_code_review_execution()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	event_queue q;
+	static event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
@@ -119,6 +120,14 @@ void test_perform_code_review_execution()
 	can_write = sub_ctx.fs_security.validate_access("other_file.cpp", access_type::write, resolved_path, out_err);
 	assert(!can_write);
 
+	// Cancel and wait for background threads to exit to prevent stack-use-after-return
+	subagent->cancel_current_task();
+	subagent->set_status(agent_status::error);
+	subagent->wait_until_idle();
+	agent->cancel_current_task();
+	agent->set_status(agent_status::dead);
+	agent->wait_until_idle();
+
 	// Cleanup
 	fs_utils::set_override_project_dir("");
 	unsetenv("TURBOSTAR_PROJECT_ROOT");
@@ -173,7 +182,7 @@ void test_perform_code_review_splitting()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	event_queue q;
+	static event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
@@ -222,6 +231,15 @@ void test_perform_code_review_splitting()
 		assert(found_f2);
 		assert(found_f3);
 		assert(found_f4);
+
+		for (auto &sa : subagents) {
+			sa->cancel_current_task();
+			sa->set_status(agent_status::error);
+			sa->wait_until_idle();
+		}
+		agent->cancel_current_task();
+		agent->set_status(agent_status::dead);
+		agent->wait_until_idle();
 	}
 
 	// Test Scenario B: Split by count (expecting 2 subagents)
@@ -268,6 +286,15 @@ void test_perform_code_review_splitting()
 		}
 		assert(unique_files_g1.size() == 10);
 		assert(unique_files_g2.size() == 2);
+
+		for (auto &sa : subagents) {
+			sa->cancel_current_task();
+			sa->set_status(agent_status::error);
+			sa->wait_until_idle();
+		}
+		agent->cancel_current_task();
+		agent->set_status(agent_status::dead);
+		agent->wait_until_idle();
 	}
 
 	// Cleanup
@@ -280,6 +307,9 @@ void test_perform_code_review_splitting()
 
 int main()
 {
+#ifndef _WIN32
+	signal(SIGPIPE, SIG_IGN);
+#endif
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();

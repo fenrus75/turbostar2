@@ -215,25 +215,38 @@ int main()
 			    ctx);
 			assert(compress_res.find("successfully") != std::string::npos);
 
-			// Wait for background summary worker to run (it should finish instantly using fallback)
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-			history_dir = fs_utils::get_project_history_dir(test_agent->get_name());
+			// Wait for background summary worker to run (it should finish using fallback)
+			std::string hint;
 			bool found_meta = false;
-			for (const auto &entry : std::filesystem::directory_iterator(history_dir)) {
-				std::string filename = entry.path().filename().string();
-				if (filename.find("episode_") != std::string::npos && filename.ends_with("_metadata.json")) {
-					found_meta = true;
-					std::ifstream f(entry.path());
-					nlohmann::json root;
-					f >> root;
-					std::string hint = root.value("reactivation_hint", "");
-					std::cout << "Large episode metadata hint: '" << hint << "'" << std::endl;
-					assert(hint.find("Large episode") != std::string::npos);
-					assert(hint.find("Huge Milestone") != std::string::npos);
+			history_dir = fs_utils::get_project_history_dir(test_agent->get_name());
+
+			for (int i = 0; i < 50; ++i) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				found_meta = false;
+				for (const auto &entry : std::filesystem::directory_iterator(history_dir)) {
+					std::string filename = entry.path().filename().string();
+					if (filename.find("episode_") != std::string::npos && filename.ends_with("_metadata.json")) {
+						found_meta = true;
+						std::ifstream f(entry.path());
+						nlohmann::json root;
+						try {
+							f >> root;
+							hint = root.value("reactivation_hint", "");
+						} catch (...) {}
+						if (!hint.empty() && hint.find("Large episode") != std::string::npos) {
+							break;
+						}
+					}
+				}
+				if (found_meta && !hint.empty() && hint.find("Large episode") != std::string::npos) {
+					break;
 				}
 			}
+
+			std::cout << "Large episode metadata hint: '" << hint << "'" << std::endl;
 			assert(found_meta);
+			assert(hint.find("Large episode") != std::string::npos);
+			assert(hint.find("Huge Milestone") != std::string::npos);
 		}
 
 		// 10. Test page_in_history_auto backward-paging with 50% context window limit

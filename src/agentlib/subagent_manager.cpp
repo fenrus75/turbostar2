@@ -153,8 +153,8 @@ static std::optional<subagent> parse_subagent_content(const std::string &content
 
 subagent_manager &subagent_manager::get_instance()
 {
-	static subagent_manager instance;
-	return instance;
+	static subagent_manager *instance = new subagent_manager();
+	return *instance;
 }
 
 void subagent_manager::initialize()
@@ -249,7 +249,7 @@ std::optional<subagent> subagent_manager::parse_subagent_file(const std::filesys
 	return parse_subagent_content(ss.str(), path.string());
 }
 
-void subagent_manager::register_subagent(const std::string &name, const std::string &text, const std::string &animation_json)
+void subagent_manager::register_subagent(std::string name, std::string text, std::string animation_json)
 {
 	auto sa = parse_subagent_content(text, "plugin://" + name);
 	if (sa) {
@@ -271,7 +271,7 @@ void subagent_manager::register_subagent(const std::string &name, const std::str
 	}
 }
 
-void subagent_manager::unregister_subagent(const std::string &name)
+void subagent_manager::unregister_subagent(std::string name)
 {
 	// Clean up animation registry entry if registered under subagent's name
 	agent_animation_registry::get_instance().unregister_animation(name);

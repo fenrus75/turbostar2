@@ -603,6 +603,7 @@ void ai_agent::close()
 	}
 	is_closed_ = true;
 	cancel_current_task();
+	global_queue_ = nullptr;
 }
 void ai_agent::set_status(agent_status s, int target_id)
 {

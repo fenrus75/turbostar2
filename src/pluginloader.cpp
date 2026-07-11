@@ -17,11 +17,11 @@ plugin_loader::~plugin_loader()
 {
 	unload_all_plugins();
 
-	for (const auto &p : loaded_plugins_) {
-		if (p.handle) {
-			dlclose(p.handle);
-		}
-	}
+	// We intentionally do not call dlclose() on exit.
+	// When the process terminates, the operating system reclaims all library resources.
+	// Calling dlclose() here unloads the libraries, which prevents LeakSanitizer (ASAN)
+	// and Valgrind from resolving static/global pointers inside them, causing false
+	// positive "definitely lost" leak reports of internal dynamic loader metadata (104 bytes).
 }
 
 void plugin_loader::unload_all_plugins()
