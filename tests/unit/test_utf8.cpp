@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <clocale>
 #include "utf8.h"
 
 void test_utf8_char_len()
@@ -67,14 +68,47 @@ void test_utf8_next_character()
 	assert(!utf8::next_character(s, offset, c));
 }
 
+void test_utf8_wrap_string()
+{
+	// 1. Basic wrapping with no prefix
+	std::string text1 = "Quick brown fox jumps over the lazy dog";
+	// Available width = 15. Wraps at spaces.
+	auto lines1 = utf8::wrap_string("", text1, 15);
+	assert(lines1.size() == 3);
+	assert(lines1[0] == "Quick brown fox");
+	assert(lines1[1] == "jumps over the");
+	assert(lines1[2] == "lazy dog");
+
+	// 2. Wrapping with a prefix (e.g. comment characters)
+	std::string text2 = "This is a comment line that should wrap nicely.";
+	// Prefix = "// ", width = 25. prefix_len = 3. available = 22.
+	auto lines2 = utf8::wrap_string("// ", text2, 25);
+	assert(lines2.size() == 3);
+	assert(lines2[0] == "// This is a comment line");
+	assert(lines2[1] == "   that should wrap");
+	assert(lines2[2] == "   nicely.");
+
+	// 3. Wrapping with UTF-8 double-width characters
+	std::string text3 = "螃蟹 螃蟹 螃蟹 螃蟹 螃蟹"; // each 🦀/Chinese char is width 2
+	// Width = 11. Prefix = "* ". prefix_len = 2. available = 9.
+	// "螃蟹" is display width 4. "螃蟹 螃蟹" is display width 9.
+	auto lines3 = utf8::wrap_string("* ", text3, 11);
+	assert(lines3.size() == 3);
+	assert(lines3[0] == "* 螃蟹 螃蟹");
+	assert(lines3[1] == "  螃蟹 螃蟹");
+	assert(lines3[2] == "  螃蟹");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	std::setlocale(LC_ALL, "");
 	test_utf8_char_len();
 	test_utf8_length();
 	test_utf8_char_to_byte_offset();
 	test_utf8_byte_to_char_pos();
 	test_utf8_next_character();
+	test_utf8_wrap_string();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

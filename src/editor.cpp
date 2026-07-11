@@ -23,6 +23,7 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "project_manager.h"
+#include "utf8.h"
 #include "line.h"
 #include "filter_registry.h"
 #include "tools/troff2md.h"
@@ -60,20 +61,13 @@ editor::editor(editor_options opts)
 		bool detected_troff = false;
 
 		// 1. Try detecting format using libmagic
-		magic_t magic = magic_open(MAGIC_MIME_TYPE);
-		if (magic) {
-			if (magic_load(magic, nullptr) == 0) {
-				const char *mime = magic_buffer(magic, input.data(), input.size());
-				if (mime) {
-					std::string mime_str(mime);
-					if (mime_str.find("html") != std::string::npos) {
-						detected_html = true;
-					} else if (mime_str.find("troff") != std::string::npos || mime_str.find("nroff") != std::string::npos || mime_str.find("x-man") != std::string::npos) {
-						detected_troff = true;
-					}
-				}
+		std::string mime_str = utf8::detect_mime(input);
+		if (!mime_str.empty()) {
+			if (mime_str.find("html") != std::string::npos) {
+				detected_html = true;
+			} else if (mime_str.find("troff") != std::string::npos || mime_str.find("nroff") != std::string::npos || mime_str.find("x-man") != std::string::npos) {
+				detected_troff = true;
 			}
-			magic_close(magic);
 		}
 
 		// 2. Fall back to existing heuristics if libmagic didn't detect or is disabled

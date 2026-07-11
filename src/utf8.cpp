@@ -1,5 +1,7 @@
 #include "utf8.h"
 #include <wchar.h>
+#include "tools/magic_compat.h"
+
 namespace utf8
 {
 
@@ -174,6 +176,100 @@ void trim_trailing_whitespace(std::string &s)
 	} else {
 		s.erase(last + 1);
 	}
+}
+
+std::vector<std::string> wrap_string(const std::string &prefix, const std::string &text, int width)
+{
+	std::vector<std::string> lines;
+	int prefix_utf8_len = static_cast<int>(utf8::display_width(prefix));
+
+	if (width <= prefix_utf8_len + 4) {
+		lines.push_back(prefix + text);
+		return lines;
+	}
+
+	int available_width = width - prefix_utf8_len;
+	std::string current_prefix = prefix;
+	size_t byte_idx = 0;
+
+	while (byte_idx < text.length()) {
+		size_t chunk_byte_len = 0;
+		int chars_consumed = 0;
+		size_t last_space_byte_idx = std::string::npos;
+		size_t last_space_chars = 0;
+
+		size_t peek_idx = byte_idx;
+		while (peek_idx < text.length()) {
+			unsigned char c = static_cast<unsigned char>(text[peek_idx]);
+			size_t char_bytes = utf8::char_len(c);
+
+			if (peek_idx + char_bytes > text.length()) {
+				char_bytes = text.length() - peek_idx;
+			}
+
+			std::string_view glyph(text.data() + peek_idx, char_bytes);
+			size_t glyph_w = utf8::display_width(glyph);
+
+			if (chars_consumed + static_cast<int>(glyph_w) > available_width) {
+				break;
+			}
+
+			if (c == ' ' || c == '\t') {
+				last_space_byte_idx = peek_idx;
+				last_space_chars = chars_consumed;
+			}
+
+			peek_idx += char_bytes;
+			chars_consumed += glyph_w;
+			chunk_byte_len += char_bytes;
+		}
+
+		if (peek_idx < text.length() && text[peek_idx] != ' ' && text[peek_idx] != '\t' &&
+		    last_space_byte_idx != std::string::npos && last_space_byte_idx > byte_idx) {
+			chunk_byte_len = last_space_byte_idx - byte_idx;
+			chars_consumed = last_space_chars;
+		}
+
+		if (chunk_byte_len == 0) {
+			unsigned char c = static_cast<unsigned char>(text[byte_idx]);
+			size_t char_bytes = utf8::char_len(c);
+			if (byte_idx + char_bytes > text.length()) {
+				char_bytes = text.length() - byte_idx;
+			}
+			chunk_byte_len = char_bytes;
+		}
+
+		lines.push_back(current_prefix + text.substr(byte_idx, chunk_byte_len));
+		byte_idx += chunk_byte_len;
+
+		while (byte_idx < text.length() && (text[byte_idx] == ' ' || text[byte_idx] == '\t')) {
+			byte_idx++;
+		}
+
+		current_prefix = std::string(prefix_utf8_len, ' ');
+	}
+
+	if (lines.empty()) {
+		lines.push_back(prefix);
+	}
+
+	return lines;
+}
+
+std::string detect_mime(std::string_view buffer)
+{
+	std::string mime_type = "";
+	magic_t magic = magic_open(MAGIC_MIME_TYPE);
+	if (magic) {
+		if (magic_load(magic, nullptr) == 0) {
+			const char *mime = magic_buffer(magic, buffer.data(), buffer.size());
+			if (mime) {
+				mime_type = mime;
+			}
+		}
+		magic_close(magic);
+	}
+	return mime_type;
 }
 
 } // namespace utf8

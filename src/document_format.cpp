@@ -13,6 +13,8 @@
 #include "highlighter/highlighter_registry.h"
 #include "lsp_manager.h"
 #include "project_manager.h"
+#include "utf8.h"
+#include "tools/magic_compat.h"
 
 
 namespace fs = std::filesystem;
@@ -214,9 +216,130 @@ void document::format_paragraph()
 	while (ey < line_count_unlocked() - 1 && !is_empty(ey + 1)) {
 		ey++;
 	}
-	lock.unlock();
 
-	format_range(sy, ey);
+	// Check if C/C++ file
+	bool is_c_cpp = false;
+	size_t dot = filename_.find_last_of('.');
+	if (dot != std::string::npos) {
+		std::string ext = filename_.substr(dot);
+		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+		if (ext == ".cpp" || ext == ".hpp" || ext == ".cc" || ext == ".cxx" || ext == ".c" || ext == ".h" || ext == ".cu" || ext == ".cuh") {
+			is_c_cpp = true;
+		}
+	}
+
+	if (!is_c_cpp) {
+		// 1. Try detecting language using libmagic
+		std::string paragraph_text;
+		for (int y = sy; y <= ey; ++y) {
+			paragraph_text += lines_[y]->get_text() + "\n";
+		}
+		std::string mime_str = utf8::detect_mime(paragraph_text);
+		if (mime_str.find("x-c") != std::string::npos || mime_str.find("x-cpp") != std::string::npos) {
+			is_c_cpp = true;
+		}
+
+		// 2. Fall back to lightweight code score heuristic if libmagic didn't detect C/C++
+		if (!is_c_cpp) {
+			int code_score = 0;
+			for (int y = sy; y <= ey; ++y) {
+				std::string t = lines_[y]->get_text();
+				if (t.find('{') != std::string::npos) code_score++;
+				if (t.find('}') != std::string::npos) code_score++;
+				if (t.find(';') != std::string::npos) code_score++;
+				if (t.find("void ") != std::string::npos) code_score++;
+				if (t.find("int ") != std::string::npos) code_score++;
+				if (t.find("return ") != std::string::npos) code_score++;
+			}
+			if (code_score >= 2) {
+				is_c_cpp = true;
+			}
+		}
+	}
+
+	if (is_c_cpp) {
+		lock.unlock();
+		format_range(sy, ey);
+		return;
+	}
+
+	// Non-C/C++ paragraph wrapping using wrap_string
+	std::string first_line = lines_[sy]->get_text();
+	std::string prefix = "";
+	size_t idx = 0;
+	// Consume leading whitespace
+	while (idx < first_line.length() && (first_line[idx] == ' ' || first_line[idx] == '\t')) {
+		prefix += first_line[idx];
+		idx++;
+	}
+	// Check if there is a comment character
+	if (idx < first_line.length()) {
+		if (first_line[idx] == '#' || first_line[idx] == '*' || first_line[idx] == ';') {
+			prefix += first_line[idx];
+			idx++;
+			// Also consume one space after if present
+			if (idx < first_line.length() && first_line[idx] == ' ') {
+				prefix += ' ';
+			}
+		} else if (first_line[idx] == '/' && idx + 1 < first_line.length() && first_line[idx + 1] == '/') {
+			prefix += "//";
+			idx += 2;
+			// Also consume one space after if present
+			if (idx < first_line.length() && first_line[idx] == ' ') {
+				prefix += ' ';
+			}
+		}
+	}
+
+	std::string joined_text = "";
+	for (int y = sy; y <= ey; ++y) {
+		std::string line_text = lines_[y]->get_text();
+		if (!prefix.empty() && line_text.starts_with(prefix)) {
+			line_text = line_text.substr(prefix.length());
+		}
+		std::string trimmed = utf8::trim(line_text);
+		if (!trimmed.empty()) {
+			if (!joined_text.empty()) {
+				joined_text += " ";
+			}
+			joined_text += trimmed;
+		}
+	}
+
+	if (joined_text.empty()) {
+		lock.unlock();
+		return;
+	}
+
+	int max_w = config_manager::get_instance().get_max_line_width();
+	std::vector<std::string> wrapped = utf8::wrap_string(prefix, joined_text, max_w);
+
+	begin_edit_group("Format paragraph");
+
+	// 1. Insert new lines
+	for (size_t i = 0; i < wrapped.size(); ++i) {
+		auto nl = std::make_shared<line>(wrapped[i]);
+		lines_.insert(lines_.begin() + sy + i, nl);
+		record_action(edit_action::action_type::insert_line, sy + static_cast<int>(i), nullptr);
+		mark_line_dirty(nl);
+	}
+
+	// 2. Delete old lines (now shifted forward by wrapped.size())
+	int old_start = sy + static_cast<int>(wrapped.size());
+	int num_to_delete = ey - sy + 1;
+	for (int i = 0; i < num_to_delete; ++i) {
+		record_action(edit_action::action_type::delete_line, old_start, lines_[old_start]);
+		lines_.erase(lines_.begin() + old_start);
+	}
+
+	cursor_y_ = sy;
+	cursor_x_ = 0;
+
+	end_edit_group();
+	set_modified();
+	update_target_cursor_x_unlocked();
+	lock.unlock();
+	notify_cursor_changed();
 }
 
 void document::trim_trailing_whitespace()

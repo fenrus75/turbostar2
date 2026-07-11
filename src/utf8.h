@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace utf8
 {
@@ -53,5 +54,15 @@ std::string trim(std::string_view s);
  * @brief Removes trailing whitespace (spaces, tabs, newlines, carriage returns) from a string in-place.
  */
 void trim_trailing_whitespace(std::string& s);
+
+/**
+ * @brief Wrap a text string to a specific display width, prepending prefix to the first line and indents subsequent lines.
+ */
+std::vector<std::string> wrap_string(const std::string &prefix, const std::string &text, int width);
+
+/**
+ * @brief Detect the MIME type of a buffer using libmagic.
+ */
+std::string detect_mime(std::string_view buffer);
 
 } // namespace utf8

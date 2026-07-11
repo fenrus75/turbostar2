@@ -54,8 +54,7 @@ magic_dep = dependency('', required : false)
 if not enable_libmagic.disabled()
   magic_lib = cc.find_library('magic', required : enable_libmagic.enabled())
   if magic_lib.found()
-    magic_dep = magic_lib
-    add_project_arguments('-DHAS_LIBMAGIC', language : 'cpp')
+    magic_dep = declare_dependency(dependencies : [magic_lib], compile_args : ['-DHAS_LIBMAGIC'])
   endif
 endif
 
