@@ -198,7 +198,11 @@ void document::copy_selection()
 			selection_end_x_ = block.back().length_in_chars();
 	}
 
+	cursor_x_ = tx;
+	cursor_y_ = ty;
+
 	set_modified();
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -269,7 +273,11 @@ void document::move_selection()
 			selection_end_x_ = block.back().length_in_chars();
 	}
 
+	cursor_x_ = fx;
+	cursor_y_ = fy;
+
 	set_modified();
+	update_target_cursor_x_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }

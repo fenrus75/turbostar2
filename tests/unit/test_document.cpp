@@ -541,6 +541,45 @@ int main()
 		config_manager::get_instance().set_tab_width(8);
 	}
 
+	// Test 16: Cursor position after copy_selection and move_selection
+	{
+		document doc(queue);
+		doc.append_line("Line 1");
+		doc.append_line("Line 2");
+		doc.append_line("Line 3");
+
+		// Select Line 2 completely
+		doc.set_selection(1, 0, 1, 6);
+
+		// Place cursor at Line 3 (index 2, column 0)
+		doc.move_cursor(-doc.get_cursor_x(), 0);
+		assert(doc.get_cursor_y() == 2);
+		assert(doc.get_cursor_x() == 0);
+
+		// Copy block
+		doc.copy_selection();
+
+		// Cursor should be at the top of the new selection (index 2, column 0)
+		assert(doc.get_cursor_y() == 2);
+		assert(doc.get_cursor_x() == 0);
+
+		// Now test move_selection
+		// Select Line 1 completely
+		doc.set_selection(0, 0, 0, 6);
+
+		// Place cursor at Line 4 (index 3, column 0)
+		doc.move_cursor(0, 1);
+		assert(doc.get_cursor_y() == 3);
+		assert(doc.get_cursor_x() == 0);
+
+		// Move selection
+		doc.move_selection();
+
+		// Cursor should be at the top of the moved selection
+		assert(doc.get_cursor_y() == 2);
+		assert(doc.get_cursor_x() == 0);
+	}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

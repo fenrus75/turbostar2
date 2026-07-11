@@ -85,8 +85,6 @@
 
 - bug: the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-- bug: interaction issue: when you copy a block, the cursor should be at the top of the new selection not the bottom
-
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
@@ -242,7 +240,9 @@
 # done items (move items here on completion)
 
 ## 11-07-2026
+- block copy/move cursor position: Fixed `copy_selection()` and `move_selection()` in `src/document_selection.cpp` to reset the cursor position to the top of the newly copied or moved selection rather than leaving it at the bottom.
 - build system: Fixed deploy target in `meson.build` to copy the `turbostar` binary as `turbostar.new` and then move it atomically to replace `turbostar`. This avoids "Text file busy" errors when building the project while E2E tests are running.
+
 
 - Image thumbnails for TUI dialog: Implemented dynamic true-color ncurses thumbnail rendering for the Image VFS Manager dialog. Created the `ui_thumbnail` element (inheriting from `ui_element`) using Unicode vertical half-block (`▄`) rendering. Created a thread-safe `dynamic_colors` utility utilizing standard 256-color cube mapping to match terminal color spaces accurately without changing palette state. The downsampling logic is decoupled via the `filter_registry` (`"image_thumbnail"` filter registered by the optional `image-basic` plugin), allowing graceful text-based fallback when the plugin is not loaded. Added a dedicated unit test target `test_ui_thumbnail`.
 
