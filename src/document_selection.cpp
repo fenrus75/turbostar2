@@ -421,7 +421,12 @@ void document::adjust_selection_for_line_delete(int y)
 			sx = 0;
 			if (y >= line_count_unlocked() - 1) {
 				sy = y - 1;
-				sx = lines_[sy]->length_in_chars();
+				if (sy >= 0 && sy < line_count_unlocked()) {
+					sx = lines_[sy]->length_in_chars();
+				} else {
+					sy = -1;
+					sx = -1;
+				}
 			}
 		} else if (sy > y) {
 			sy--;
