@@ -214,7 +214,7 @@ class TurbostarRunner:
             log = self.get_log()
             if log.count(text) >= count:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
         raise AssertionError(f"Text '{text}' not found {count} times in log after {timeout}s")
 
     def assert_not_in_log(self, text, timeout=1.0):
@@ -223,14 +223,14 @@ class TurbostarRunner:
             log = self.get_log()
             if text in log:
                 raise AssertionError(f"Text '{text}' found in log but should not be")
-            time.sleep(0.1)
+            time.sleep(0.05)
 
     def assert_file_exists(self, path, timeout=1.0):
         start_time = time.time()
         while time.time() - start_time < timeout:
             if os.path.exists(path):
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
         raise AssertionError(f"File '{path}' does not exist after {timeout}s")
 
     def assert_file_contains(self, path, text, timeout=1.0):
@@ -241,7 +241,7 @@ class TurbostarRunner:
                 content = f.read()
             if text in content:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
         raise AssertionError(f"File '{path}' does not contain '{text}' after {timeout}s")
 
     def assert_cursor_position(self, expected_y, expected_x, timeout=5.0):
@@ -250,7 +250,7 @@ class TurbostarRunner:
             actual_y, actual_x = self.get_cursor_position()
             if actual_y == expected_y and actual_x == expected_x:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
 
         actual_y, actual_x = self.get_cursor_position()
         raise AssertionError(f"Cursor position mismatch! Expected ({expected_y}, {expected_x}), got ({actual_y}, {actual_x}) after timeout")
@@ -262,7 +262,7 @@ class TurbostarRunner:
             for line in self.screen.display:
                 if text in line:
                     return
-            time.sleep(0.1)
+            time.sleep(0.05)
         
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' not found on screen after {timeout}s. Screen content:\n{display_str}")
@@ -278,7 +278,7 @@ class TurbostarRunner:
             # The menu top border is drawn on line index 1
             if len(self.screen.display) > 1 and '┌' in self.screen.display[1]:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
         
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Menu dropdown not found on screen after {timeout}s. Screen content:\n{display_str}")
@@ -294,7 +294,7 @@ class TurbostarRunner:
                     break
             if not found:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
 
         display_str = "\n".join(self.screen.display)
         raise AssertionError(f"Text '{text}' found on screen after {timeout}s, but should not be. Screen content:\n{display_str}")
@@ -311,7 +311,7 @@ class TurbostarRunner:
             title_line = self.screen.display[1] if len(self.screen.display) > 1 else ""
             if expected_status in title_line:
                 return
-            time.sleep(0.1)
+            time.sleep(0.05)
         
         title_line = self.screen.display[1] if len(self.screen.display) > 1 else ""
         raise AssertionError(f"Git status '{expected_status}' not found in title bar after {timeout}s. Title line:\n{title_line}")
@@ -338,7 +338,7 @@ class TurbostarRunner:
                 
                 if actual_s == expected_s and actual_e == expected_e:
                     return
-            time.sleep(0.1)
+            time.sleep(0.05)
 
         log = self.get_log()
         matches = list(re.finditer(r"State:.*?S=(\S+).*?E=(\S+)", log))
@@ -472,5 +472,4 @@ class TurbostarRunner:
             
         time.sleep(0.2)
         self._read_output()
-
 
