@@ -97,6 +97,46 @@ size_t display_width(const std::string &s)
 	return utf8::display_width(s);
 }
 
+static std::string truncate_cell(const std::string &content, size_t target_width)
+{
+	size_t disp_w = utf8::display_width(content);
+	if (disp_w <= target_width) {
+		return content;
+	}
+
+	if (target_width <= 3) {
+		size_t byte_offset = 0;
+		std::string result;
+		std::string glyph;
+		size_t current_w = 0;
+		while (utf8::next_character(content, byte_offset, glyph)) {
+			size_t glyph_w = utf8::display_width(glyph);
+			if (current_w + glyph_w > target_width) {
+				break;
+			}
+			result += glyph;
+			current_w += glyph_w;
+		}
+		return result;
+	} else {
+		size_t limit = target_width - 3;
+		size_t byte_offset = 0;
+		std::string result;
+		std::string glyph;
+		size_t current_w = 0;
+		while (utf8::next_character(content, byte_offset, glyph)) {
+			size_t glyph_w = utf8::display_width(glyph);
+			if (current_w + glyph_w > limit) {
+				break;
+			}
+			result += glyph;
+			current_w += glyph_w;
+		}
+		result += "...";
+		return result;
+	}
+}
+
 std::string align_all_tables(const std::string &text, bool framed, int min_width, int max_width)
 {
 	std::vector<std::string> lines;
@@ -179,7 +219,42 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 		}
 		size_t current_width = framing_chars + separators_chars + padding_chars + content_chars;
 
-		if (min_width > 0 && current_width < static_cast<size_t>(min_width)) {
+		// Case A: Natural width exceeds max_width -> Shrink
+		if (max_width > 0 && current_width > static_cast<size_t>(max_width)) {
+			size_t target_content_chars = static_cast<size_t>(max_width);
+			size_t overhead = framing_chars + separators_chars + padding_chars;
+			if (target_content_chars > overhead) {
+				target_content_chars -= overhead;
+			} else {
+				target_content_chars = 0;
+			}
+
+			while (true) {
+				size_t total_content = 0;
+				for (size_t w : col_widths) {
+					total_content += w;
+				}
+				if (total_content <= target_content_chars) {
+					break;
+				}
+
+				size_t widest_idx = 0;
+				size_t max_w = col_widths[0];
+				for (size_t i = 1; i < col_widths.size(); ++i) {
+					if (col_widths[i] > max_w) {
+						max_w = col_widths[i];
+						widest_idx = i;
+					}
+				}
+
+				if (max_w == 0) {
+					break;
+				}
+				col_widths[widest_idx]--;
+			}
+		}
+		// Case B: Natural width is below min_width -> Expand
+		else if (min_width > 0 && current_width < static_cast<size_t>(min_width)) {
 			size_t needed = static_cast<size_t>(min_width) - current_width;
 			size_t extra_per_col = (needed + N - 1) / N; // Round up to add space evenly
 			std::vector<size_t> col_add(N, extra_per_col);
@@ -233,6 +308,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 						aligned_line += "│";
 					aligned_line += std::string(opts.padding, ' ');
 					std::string cell = (i < row.size()) ? row[i] : "";
+					cell = truncate_cell(cell, col_widths[i]);
 					aligned_line += cell;
 					size_t cell_len = display_width(cell);
 					if (col_widths[i] > cell_len) {
@@ -260,6 +336,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 					aligned_line += std::string(opts.padding, ' ');
 
 					std::string cell = (i < row.size()) ? row[i] : "";
+					cell = truncate_cell(cell, col_widths[i]);
 					aligned_line += cell;
 
 					size_t cell_len = display_width(cell);

@@ -92,6 +92,26 @@ void test_align_table_min_max_width()
 	assert(aligned2[0] == "| Name      | Age    |");
 	assert(aligned2[1] == "|-----------|--------|");
 	assert(aligned2[2] == "| Alice     | 30     |");
+
+	// 3. Test maximum width shrinking and ellipsis truncation
+	std::vector<std::string> long_table = {
+		"| Name | Description |",
+		"|---|---|",
+		"| Alice | Software Engineer at Google DeepMind |",
+		"| Bob | Designer |"
+	};
+	// Natural width = 47. We request max_width = 30.
+	// Overhead = 2 (pipes) + 1 (separator) + 4 (padding) = 7.
+	// Target content chars = 23.
+	// Widest column (col2) is shrunk from 35 to 18.
+	// col1 (5) and col2 (18) sum = 23.
+	// Description in row 2 truncates to "Software Engine..." (length 18).
+	auto aligned3 = table_aligner::align_table_block(long_table, {}, 0, 30);
+	assert(aligned3.size() == 4);
+	assert(aligned3[0] == "| Name  | Description        |");
+	assert(aligned3[1] == "|-------|--------------------|");
+	assert(aligned3[2] == "| Alice | Software Engine... |");
+	assert(aligned3[3] == "| Bob   | Designer           |");
 }
 
 int main()
