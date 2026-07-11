@@ -308,7 +308,7 @@ test('unit_test_x86_assemble', test_x86_assemble, suite: 'plugins')
 
 test_hexinspect = executable('test_hexinspect',
   ['tests/unit/test_hexinspect.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep, magic_dep],
   include_directories: inc,
   export_dynamic: true)
 test('unit_test_hexinspect', test_hexinspect, suite: 'plugins', depends: hexedit_plugin, env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
