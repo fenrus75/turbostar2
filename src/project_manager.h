@@ -30,8 +30,13 @@ class project_manager
 	 */
 	std::string get_project_root() const
 	{
-		assert(initialized_ && "project_manager must be initialized before calling get_project_root");
+		assert((!enforce_initialization_ || initialized_) && "project_manager must be initialized before calling get_project_root");
 		return project_root_;
+	}
+
+	void set_enforce_initialization(bool enforce)
+	{
+		enforce_initialization_ = enforce;
 	}
 
 	bool is_exiting() const
@@ -53,7 +58,7 @@ class project_manager
 	 */
 	std::string get_project_instructions() const
 	{
-		assert(initialized_ && "project_manager must be initialized before calling get_project_instructions");
+		assert((!enforce_initialization_ || initialized_) && "project_manager must be initialized before calling get_project_instructions");
 		return instructions_;
 	}
 
@@ -62,7 +67,7 @@ class project_manager
 	 */
 	std::string get_clang_format() const
 	{
-		assert(initialized_ && "project_manager must be initialized before calling get_clang_format");
+		assert((!enforce_initialization_ || initialized_) && "project_manager must be initialized before calling get_clang_format");
 		return clang_format_;
 	}
 
@@ -216,4 +221,5 @@ class project_manager
 
 	std::atomic<bool> is_exiting_{false};
 	std::atomic<bool> initialized_{false};
+	std::atomic<bool> enforce_initialization_{false};
 };

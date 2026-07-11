@@ -486,6 +486,14 @@ bool ai_agent::load_active_state(bool fresh_agent)
 		std::ifstream file(filepath);
 		nlohmann::json root;
 		file >> root;
+		if (root.contains("active_skills") && root["active_skills"].is_array()) {
+			std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
+			active_skills_ = root["active_skills"].get<std::vector<std::string>>();
+		}
+		if (root.contains("active_families") && root["active_families"].is_array()) {
+			std::lock_guard<std::mutex> prop_lock(properties_mutex_);
+			properties_.active_families = root["active_families"].get<std::vector<std::string>>();
+		}
 		if (root.contains("final_result") && root["final_result"].is_string()) {
 			std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
 			final_result_ = root["final_result"].get<std::string>();
@@ -579,6 +587,8 @@ bool ai_agent::load_active_state(bool fresh_agent)
 
 		// Page in recent episodes up to 30% target fraction on startup
 		page_in_history_auto(1, 0.3);
+
+		update_system_prompt_with_families();
 
 		event_logger::get_instance().log("Agent {} restored active state from {}", name_, filepath);
 		return true;
@@ -1985,6 +1995,11 @@ void ai_agent::save_conversation(const std::string &filepath) const
 	{
 		std::lock_guard<std::mutex> state_lock(const_cast<std::mutex &>(state_mutex_));
 		root["final_result"] = final_result_;
+		root["active_skills"] = active_skills_;
+	}
+	{
+		std::lock_guard<std::mutex> prop_lock(properties_mutex_);
+		root["active_families"] = properties_.active_families;
 	}
 	if (conversation_) {
 		root["conversation"] = conversation_->serialize();

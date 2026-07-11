@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/project_manager.h"
 
 using namespace agentlib;
 
@@ -101,6 +102,40 @@ int main()
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("not found") != std::string::npos);
+
+	// 4. Test active tool family and skill persistence
+	{
+		std::filesystem::path temp_home = std::filesystem::absolute("./test_activate_tf_home");
+		if (std::filesystem::exists(temp_home)) {
+			std::filesystem::remove_all(temp_home);
+		}
+		std::filesystem::create_directories(temp_home);
+		setenv("HOME", temp_home.c_str(), 1);
+
+		// Initialize project_manager with the custom HOME set
+		project_manager::get_instance().initialize();
+
+		auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
+		auto agent = ai_agent::create(2, "PersistenceAgent", model, nullptr, nullptr);
+		
+		agent->add_active_tool_family("my_test_family");
+		agent->add_active_skill("my_test_skill");
+		
+		agent->save_active_state();
+
+		// Create a new agent instance with same ID/Name
+		auto agent2 = ai_agent::create(2, "PersistenceAgent", model, nullptr, nullptr);
+		bool restored = agent2->load_active_state(false);
+		assert(restored && "Agent state should be successfully restored!");
+
+		auto active_fams = agent2->get_active_tool_families();
+		auto active_skills = agent2->get_active_skills();
+
+		assert(std::find(active_fams.begin(), active_fams.end(), "my_test_family") != active_fams.end() && "Restored agent should have my_test_family active!");
+		assert(std::find(active_skills.begin(), active_skills.end(), "my_test_skill") != active_skills.end() && "Restored agent should have my_test_skill active!");
+
+		std::filesystem::remove_all(temp_home);
+	}
 
 	// Clean up
 	registry.unregister_validator("test_tool");

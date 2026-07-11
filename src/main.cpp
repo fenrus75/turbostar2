@@ -93,6 +93,7 @@ int main(int argc, char **argv)
 
 	config_manager::get_instance().load();
 	statistics_manager::get_instance().load();
+	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
 	(void)agentlib::tool_registry::get_instance();
 	(void)command_registry::get_instance();

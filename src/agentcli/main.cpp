@@ -97,6 +97,7 @@ int main(int argc, char **argv)
 	ctx.is_family_active = [&](const std::string &family) { return test_agent->is_tool_family_active(family); };
 
 	(void)hex_highlighter_registry::get_instance();
+	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::subagent_manager::get_instance().initialize();

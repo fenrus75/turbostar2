@@ -12,8 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- bug: we do not keep track of which tool families were activated across agent exit / restart .. we may need to save the state
-
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
@@ -238,6 +236,7 @@
 # done items (move items here on completion)
 
 ## 11-07-2026
+- tool family/skill persistence: Added serialization and restoration of `active_skills` and `active_families` in `ai_agent::save_conversation` and `ai_agent::load_active_state` to preserve active tool families and skills across agent exit and restart. Added verification inside `unit_test_activate_tool_family`.
 - image manager persistence: Added `images::image_manager::get_instance().initialize();` to the startup sequences in `src/main.cpp` and `src/agentcli/main.cpp` to correctly reload the saved VFS metadata from `mappings.json` on application startup.
 - block copy/move cursor position: Fixed `copy_selection()` and `move_selection()` in `src/document_selection.cpp` to reset the cursor position to the top of the newly copied or moved selection rather than leaving it at the bottom.
 - build system: Fixed deploy target in `meson.build` to copy the `turbostar` binary as `turbostar.new` and then move it atomically to replace `turbostar`. This avoids "Text file busy" errors when building the project while E2E tests are running.
