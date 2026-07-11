@@ -26,7 +26,7 @@ public:
     /**
      * @brief Takes a vector of lines representing ONE table and returns the aligned version.
      */
-    static std::vector<std::string> align_table_block(const std::vector<std::string>& lines, const align_options& opts = {});
+    static std::vector<std::string> align_table_block(const std::vector<std::string>& lines, const align_options& opts = {}, int min_width = 0, int max_width = 0);
 
     /**
      * @brief Heuristic to detect if a line is part of a markdown table.
@@ -51,7 +51,7 @@ size_t display_width(const std::string& s);
 /**
  * @brief Detects and aligns all markdown tables in a block of text.
  */
-std::string align_all_tables(const std::string& text, bool framed = false);
+std::string align_all_tables(const std::string& text, bool framed = false, int min_width = 0, int max_width = 0);
 
 } // namespace markdown_utils
 

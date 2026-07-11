@@ -97,7 +97,7 @@ size_t display_width(const std::string &s)
 	return utf8::display_width(s);
 }
 
-std::string align_all_tables(const std::string &text, bool framed)
+std::string align_all_tables(const std::string &text, bool framed, int min_width, int max_width)
 {
 	std::vector<std::string> lines;
 	std::stringstream ss(text);
@@ -125,7 +125,7 @@ std::string align_all_tables(const std::string &text, bool framed)
 
 		align_options opts;
 		opts.use_utf8_frames = framed;
-		auto aligned = table_aligner::align_table_block(table_block, opts);
+		auto aligned = table_aligner::align_table_block(table_block, opts, min_width, max_width);
 
 		processed_lines.erase(processed_lines.begin() + it->start_line, processed_lines.begin() + it->end_line + 1);
 		processed_lines.insert(processed_lines.begin() + it->start_line, aligned.begin(), aligned.end());
@@ -141,7 +141,7 @@ std::string align_all_tables(const std::string &text, bool framed)
 	return result;
 }
 
-std::vector<std::string> table_aligner::align_table_block(const std::vector<std::string> &lines, const align_options &opts)
+std::vector<std::string> table_aligner::align_table_block(const std::vector<std::string> &lines, const align_options &opts, int min_width, int max_width)
 {
 	if (lines.empty())
 		return {};
@@ -164,6 +164,40 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 
 		for (size_t i = 0; i < tokens.size(); ++i) {
 			col_widths[i] = std::max(col_widths[i], display_width(tokens[i]));
+		}
+	}
+
+	// Adjust column widths based on min_width and max_width
+	if (!col_widths.empty()) {
+		size_t N = col_widths.size();
+		size_t framing_chars = (opts.use_outer_pipes || opts.use_utf8_frames) ? 2 : 0;
+		size_t separators_chars = N - 1;
+		size_t padding_chars = N * 2 * opts.padding;
+		size_t content_chars = 0;
+		for (size_t w : col_widths) {
+			content_chars += w;
+		}
+		size_t current_width = framing_chars + separators_chars + padding_chars + content_chars;
+
+		if (min_width > 0 && current_width < static_cast<size_t>(min_width)) {
+			size_t needed = static_cast<size_t>(min_width) - current_width;
+			size_t extra_per_col = (needed + N - 1) / N; // Round up to add space evenly
+			std::vector<size_t> col_add(N, extra_per_col);
+			size_t new_width = current_width + N * extra_per_col;
+
+			if (max_width > 0 && new_width > static_cast<size_t>(max_width)) {
+				size_t overshoot = new_width - static_cast<size_t>(max_width);
+				for (int i = static_cast<int>(N) - 1; i >= 0 && overshoot > 0; --i) {
+					if (col_add[i] > 0) {
+						col_add[i]--;
+						overshoot--;
+					}
+				}
+			}
+
+			for (size_t i = 0; i < N; ++i) {
+				col_widths[i] += col_add[i];
+			}
 		}
 	}
 
