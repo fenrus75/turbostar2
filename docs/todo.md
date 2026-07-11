@@ -14,8 +14,6 @@
 
 - bug: we do not keep track of which tool families were activated across agent exit / restart .. we may need to save the state
 
-- bug: the image workspace is somehow not persistent
-
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
@@ -240,8 +238,10 @@
 # done items (move items here on completion)
 
 ## 11-07-2026
+- image manager persistence: Added `images::image_manager::get_instance().initialize();` to the startup sequences in `src/main.cpp` and `src/agentcli/main.cpp` to correctly reload the saved VFS metadata from `mappings.json` on application startup.
 - block copy/move cursor position: Fixed `copy_selection()` and `move_selection()` in `src/document_selection.cpp` to reset the cursor position to the top of the newly copied or moved selection rather than leaving it at the bottom.
 - build system: Fixed deploy target in `meson.build` to copy the `turbostar` binary as `turbostar.new` and then move it atomically to replace `turbostar`. This avoids "Text file busy" errors when building the project while E2E tests are running.
+
 
 
 - Image thumbnails for TUI dialog: Implemented dynamic true-color ncurses thumbnail rendering for the Image VFS Manager dialog. Created the `ui_thumbnail` element (inheriting from `ui_element`) using Unicode vertical half-block (`▄`) rendering. Created a thread-safe `dynamic_colors` utility utilizing standard 256-color cube mapping to match terminal color spaces accurately without changing palette state. The downsampling logic is decoupled via the `filter_registry` (`"image_thumbnail"` filter registered by the optional `image-basic` plugin), allowing graceful text-based fallback when the plugin is not loaded. Added a dedicated unit test target `test_ui_thumbnail`.

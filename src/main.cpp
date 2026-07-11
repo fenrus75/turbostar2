@@ -20,6 +20,7 @@
 #include "project_manager.h"
 #include "statistics_manager.h"
 #include "syntax_color_manager.h"
+#include "images/image_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -96,6 +97,7 @@ int main(int argc, char **argv)
 	(void)command_registry::get_instance();
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::subagent_manager::get_instance().initialize();
+	images::image_manager::get_instance().initialize();
 	plugin_loader::get_instance().load_all_plugins();
 
 	auto &logger = event_logger::get_instance();

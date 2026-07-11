@@ -17,6 +17,7 @@
 #include "../config_manager.h"
 #include "../pluginloader.h"
 #include "../hex/hex_highlighter_registry.h"
+#include "images/image_manager.h"
 
 using namespace agentlib;
 using json = nlohmann::json;
@@ -97,6 +98,7 @@ int main(int argc, char **argv)
 	(void)hex_highlighter_registry::get_instance();
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::subagent_manager::get_instance().initialize();
+	images::image_manager::get_instance().initialize();
 	plugin_loader::get_instance().load_all_plugins();
 	
 	std::filesystem::path workspace_root = project_dir.empty() ? std::filesystem::current_path() : std::filesystem::path(project_dir);
