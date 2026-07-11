@@ -522,23 +522,26 @@ int main()
 		line::global_tab_width = 8;
 	}
 
-	// Test 15: Read tab width from .clang-format
+	// Test 15: Read tab width and max line width from .clang-format
 	{
 		std::string temp_clang_format = ".clang-format_test_temp";
 		std::ofstream temp_file(temp_clang_format);
-		temp_file << "IndentWidth: 4\nTabWidth: 12\nUseTab: Always\n";
+		temp_file << "IndentWidth: 4\nTabWidth: 12\nColumnLimit: 100\nUseTab: Always\n";
 		temp_file.close();
 
 		config_manager::get_instance().set_tab_width(8);
+		config_manager::get_instance().set_max_line_width(80);
 		
 		std::filesystem::create_directory("temp_test_dir");
 		std::filesystem::rename(temp_clang_format, "temp_test_dir/.clang-format");
 
 		config_manager::get_instance().read_clang_format("temp_test_dir");
 		assert(config_manager::get_instance().get_tab_width() == 12);
+		assert(config_manager::get_instance().get_max_line_width() == 100);
 
 		std::filesystem::remove_all("temp_test_dir");
 		config_manager::get_instance().set_tab_width(8);
+		config_manager::get_instance().set_max_line_width(80);
 	}
 
 	// Test 16: Cursor position after copy_selection and move_selection

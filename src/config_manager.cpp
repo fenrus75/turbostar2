@@ -91,6 +91,11 @@ void config_manager::load_from_file(const std::string &path)
 				tab_width_ = std::stoi(value);
 			} catch (...) {
 			}
+		} else if (key == "max_line_width") {
+			try {
+				max_line_width_ = std::stoi(value);
+			} catch (...) {
+			}
 		} else if (key.starts_with("family.")) {
 			bool is_project = (path.find(".turbostar") == std::string::npos);
 			size_t dot1 = 7; // length of "family."
@@ -194,6 +199,7 @@ void config_manager::save_project(const std::string &target_path)
 	file << "run_target_mode=" << run_target_mode_ << "\n";
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
 	file << "tab_width=" << tab_width_ << "\n";
+	file << "max_line_width=" << max_line_width_ << "\n";
 
 	for (const auto &[task_id, model_id] : task_models_) {
 		if (!model_id.empty()) {
@@ -407,7 +413,14 @@ void config_manager::read_clang_format(const std::string &project_root)
 				}
 			} catch (...) {
 			}
-			break;
+		} else if (key == "ColumnLimit") {
+			try {
+				int limit = std::stoi(val);
+				if (limit > 0) {
+					set_max_line_width(limit);
+				}
+			} catch (...) {
+			}
 		}
 	}
 }

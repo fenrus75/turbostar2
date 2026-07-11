@@ -115,6 +115,15 @@ class config_manager
 	}
 	void set_tab_width(int width);
 
+	int get_max_line_width() const
+	{
+		return max_line_width_;
+	}
+	void set_max_line_width(int width)
+	{
+		max_line_width_ = width;
+	}
+
 	bool is_log_all_tool_calls() const
 	{
 		return log_all_tool_calls_;
@@ -197,6 +206,7 @@ class config_manager
 
 	bool force_ascii_{false};
 	int tab_width_{8};
+	int max_line_width_{80};
 
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};

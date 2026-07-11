@@ -12,6 +12,12 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- compatibility-with-joe bug: ctrl-K J (wrap paragraph) does not behave like joe does enough.
+	- need to document current behavior -- it seems file type dependent
+	- we need a fallback that wraps the current paragraph to <max width>, which defaults to 80
+	  but we should read .clang-format and if that has a different width, use that. 
+	  (we already read and parse .clang-format for the Tab width, we should just extend that existing parser!)
+
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
