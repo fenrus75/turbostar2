@@ -61,6 +61,8 @@ void project_manager::initialize()
 		}
 	}
 
+	initialized_ = true;
+
 	// Clean up previous runs' crash dumps on startup
 	crashdump_manager::get_instance().clear_all();
 

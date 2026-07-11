@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -29,6 +30,7 @@ class project_manager
 	 */
 	std::string get_project_root() const
 	{
+		assert(initialized_ && "project_manager must be initialized before calling get_project_root");
 		return project_root_;
 	}
 
@@ -51,6 +53,7 @@ class project_manager
 	 */
 	std::string get_project_instructions() const
 	{
+		assert(initialized_ && "project_manager must be initialized before calling get_project_instructions");
 		return instructions_;
 	}
 
@@ -59,6 +62,7 @@ class project_manager
 	 */
 	std::string get_clang_format() const
 	{
+		assert(initialized_ && "project_manager must be initialized before calling get_clang_format");
 		return clang_format_;
 	}
 
@@ -211,4 +215,5 @@ class project_manager
 	std::vector<std::pair<std::string, std::string>> mapped_dependencies_;
 
 	std::atomic<bool> is_exiting_{false};
+	std::atomic<bool> initialized_{false};
 };
