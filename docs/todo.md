@@ -12,6 +12,10 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- bug: we do not keep track of which tool families were activated across agent exit / restart .. we may need to save the state
+
+- bug: the image workspace is somehow not persistent
+
 - build system (meson.build); we copy the turbostar binary to the test directory, which means we cannot do this while tests are running.
     if instead we copy it as turbostar.new and then mv turbostar.new turbostar, we CAN do this.
     (mv will work over busy files while cp will not)
@@ -114,6 +118,8 @@
 	- english grammer/spelling/clarity
 
 	- markdown toolbox
+		- [x] to_markdown filter 
+		- [ ] markdown manipulators
 
 	- performance
 		- linux perf integration
@@ -144,10 +150,6 @@
 - Feature: MCP server: if the mcp server is in a directory that has a .git, can we check if there's an update upstream (github?)
       - we could build an auto-update feature!
 
-
-- feature: a "desired_format" optional argument to web_fetch that behind the scenes calls various format converters, example pdf to markdown
-	- alternative: a convert_file_format() tool call
-	- need to do pro/con between these options
 
 - SSH forwarded X11 sessions do not work well in our sandbox
 

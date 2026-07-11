@@ -28,11 +28,11 @@ The following Meson configuration options are used for the release validation bu
 | **Standard** | `meson setup --wipe build` |
 | **Release** | `meson setup --wipe --buildtype=release build_release` |
 | **Debug** | `meson setup --wipe --buildtype=debug build_debug` |
-| **ASAN/Gcov**| `meson setup --wipe -Denable-tests=true -Db_sanitize=address build_acov` |
-| **Gcov** | `meson setup --wipe -Denable-tests=true build_cov` |
-| **UBSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=undefined build_ubsan` |
-| **MSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=memory build_msan` (Requires instrumented system libs) |
-| **TSAN** | `meson setup --wipe -Denable-tests=true -Db_sanitize=thread build-tsan` |
+| **ASAN/Gcov**| `meson setup --wipe -Db_sanitize=address build_acov` |
+| **Gcov** | `meson setup --wipe build_cov` |
+| **UBSAN** | `meson setup --wipe -Db_sanitize=undefined build_ubsan` |
+| **MSAN** | `meson setup --wipe -Db_sanitize=memory build_msan` (Requires instrumented system libs) |
+| **TSAN** | `meson setup --wipe -Db_sanitize=thread build-tsan` |
 | **Clang Thread Safety** | `CXX=clang++ CC=clang meson setup --wipe build_clang` (Verifies compile-time thread safety analysis annotations) |
 | **GCC Static Analysis** | `meson setup --wipe -Denable-analyzer=true build_analyzer` (Runs GCC `-fanalyzer` static analysis checks; must compile using `ninja -j1`. **Note: run very rarely/infrequently due to long compilation times.**) |
 
@@ -51,9 +51,9 @@ The following Meson configuration options are used for the release validation bu
 
 - [ ] ASAN leak check (confirms the same with sanitizer instrumentation):
       ```
-      ASAN_OPTIONS=detect_leaks=1 sudo -E build_acov/turbostar --exit-immediately 2>&1 | grep -i "leak\|SUMMARY"
+      ASAN_OPTIONS=detect_leaks=1 build_acov/turbostar --exit-immediately 2>&1 | grep -i "leak\|SUMMARY"
       ```
-      Only the known 21-byte libpci leak is acceptable.
+      Only the known 21-byte libpci leak is acceptable. (Note: running with `sudo -E` is only required if the environment requires root privileges).
 
 ## Test coverage
 
