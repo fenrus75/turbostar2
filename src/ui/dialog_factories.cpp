@@ -2232,9 +2232,12 @@ class image_manager_dialog_impl : public dialog
 		}));
 
 		flow->add_child(std::move(btns));
+		auto flow_ptr = flow.get();
 		add_child(std::move(flow));
 
 		this->flow();
+		set_width(flow_ptr->width());
+		set_height(flow_ptr->height());
 
 		refresh_list();
 		populate_list();
