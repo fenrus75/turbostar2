@@ -1702,6 +1702,14 @@ if uv.found() or python.found()
     timeout: 60,
     suite: 'editor'
   )
+  test('e2e_image_manager', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_image_manager.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    suite: 'editor'
+  )
   test('e2e_menu_dialogs', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_menu_dialogs.py')],
     env: e2e_env,

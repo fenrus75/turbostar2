@@ -93,6 +93,7 @@ int main(int argc, char **argv)
 
 	config_manager::get_instance().load();
 	statistics_manager::get_instance().load();
+	project_manager::get_instance().initialize();
 	(void)agentlib::tool_registry::get_instance();
 	(void)command_registry::get_instance();
 	agentlib::skill_manager::get_instance().initialize();
@@ -216,8 +217,6 @@ int main(int argc, char **argv)
 	curs_set(0); // Hide the cursor for now
 
 	logger.log("UI initialized.");
-
-	project_manager::get_instance().initialize();
 
 	// Read project .clang-format if available to auto-detect tab width
 	std::string project_root = project_manager::get_instance().get_project_root();
