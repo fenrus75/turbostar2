@@ -16,24 +16,20 @@
 
 - bug: the image workspace is somehow not persistent
 
-- build system (meson.build); we copy the turbostar binary to the test directory, which means we cannot do this while tests are running.
-    if instead we copy it as turbostar.new and then mv turbostar.new turbostar, we CAN do this.
-    (mv will work over busy files while cp will not)
-
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- make an agent file for https://www.docling.ai for pdf to markdown conversion
+- feature: make an agent file for https://www.docling.ai for pdf to markdown conversion
 
-- make an image processing agent with detailed description for how the image:// namespace works
+- feature: make an image processing agent with detailed description for how the image:// namespace works
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
 - feature: subagent creation wizzard dialog
 
-- model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
+- feature: model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
    for specific tasks set up these aliases.
 	- base
 	- plan
@@ -43,25 +39,25 @@
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
-- become an A2A server for our agents
+- feature: become an A2A server for our agents
 
-- become a client to A2A
+- feature: become a client to A2A
 	we need to parse agent cards and hook them up to our subagent directory
 
-- build an A2A directory
+- feature: build an A2A directory
 	- maybe a .local style directory service? is there a protocol for autodiscovery?
 
-- have a turboserver mode where we are headless but only serve A2A requests?
+- feature: have a turboserver mode where we are headless but only serve A2A requests?
 
-- a /command action that activates a tool family (via menu?)
+- feature:a /command action that activates a tool family (via menu?)
 
-- a /command action for /clear of agent history -- basically a new connection
+- essential feature: a /command action for /clear of agent history -- basically a new connection
 
-- separate model name database of famous models for default properties
+- feature: separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
 	- https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/litellm_internal_staging/model_prices_and_context_window.json
 
-- separate model provider (server) database for easy population of model servers
+- feature: separate model provider (server) database for easy population of model servers
 	- need a smart combo box or radio box for "from database" vs "custom" so that it is easy to add either
 
 - feature: have a separate model option for "plan mode" phase
@@ -73,7 +69,7 @@
 	- fs_read_lines option to get per line perf data?
 	- not just the agent tool -- also in the editor!
 
-- code review enhancements
+- feature: code review enhancements
 	- we can provide upfront a set of static analysis data to the code review agent
 		- known compile / LCP warnings
 		- cyclic complexity scores?
@@ -85,11 +81,11 @@
 - feature: we should create a code review agent file in agents/
 	- the code review agent should have access to the security plugin tool namespace
 
-- the git_ family of tools should be in a git tool namespace, and this should be in the normal baseline tool set
+- feature: the git_ family of tools should be in a git tool namespace, and this should be in the normal baseline tool set
 
-- the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
+- bug: the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
-- interaction issue: when you copy a block, the cursor should be at the top of the new selection not the bottom
+- bug: interaction issue: when you copy a block, the cursor should be at the top of the new selection not the bottom
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
@@ -137,13 +133,13 @@
 
 
 
-- better integration for code coverage in the main editor
+- feature: better integration for code coverage in the main editor
 	- color coding in the left window decoration?
 	- or color in the editor window with a view mode with a toggle key
 
 - bug: The agent window text renderer silently truncates large blocks of concatenated system messages. Specifically, when multiple system messages merge into the same visual turn (e.g., initial system prompt + `/save` outputs or `/help` outputs), `wrap_text` or `markdown_utils::align_all_tables` deletes the text between the top few lines and the bottom few lines. This caused the E2E mouse scrolling test to fail because the chat history was artificially shortened.
 
-- since we have github:// and skills://
+- feature: since we have github:// and skills://
 	- we could add skills by just a git hub url somehow clever so no need for local storage
 	- useful for domain activated skills say in the x86 namespace
 
@@ -151,19 +147,20 @@
       - we could build an auto-update feature!
 
 
-- SSH forwarded X11 sessions do not work well in our sandbox
+- bug: SSH forwarded X11 sessions do not work well in our sandbox
 
 - bug: valgrind does not work in our sandbox
 
-- visual: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
+- visual bug: in the agent interaction, if the result is a markdown table wider than the window, we wrap the table which looks awkward
 	- need to just spill to the right instead?
 	- or cut down some wide columns to make things fit (replace super long fields with "....")
+	- our markdown table formatter needs a desired_width (which padds) and a max_width (which can truncate) set of parameters
 
-- sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
+- feature: sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
 
-- MCP support enhancements
+- feature: MCP support enhancements
 	- each tool will get a prefix to make sure they are unique
 	- each MCP should have its own "uv sandbox"
 	- permission model: need to have permission BEFORE executing anything from the project directory
@@ -244,7 +241,9 @@
 
 # done items (move items here on completion)
 
-## 09-07-2026
+## 11-07-2026
+- build system: Fixed deploy target in `meson.build` to copy the `turbostar` binary as `turbostar.new` and then move it atomically to replace `turbostar`. This avoids "Text file busy" errors when building the project while E2E tests are running.
+
 - Image thumbnails for TUI dialog: Implemented dynamic true-color ncurses thumbnail rendering for the Image VFS Manager dialog. Created the `ui_thumbnail` element (inheriting from `ui_element`) using Unicode vertical half-block (`▄`) rendering. Created a thread-safe `dynamic_colors` utility utilizing standard 256-color cube mapping to match terminal color spaces accurately without changing palette state. The downsampling logic is decoupled via the `filter_registry` (`"image_thumbnail"` filter registered by the optional `image-basic` plugin), allowing graceful text-based fallback when the plugin is not loaded. Added a dedicated unit test target `test_ui_thumbnail`.
 
 ## 04-07-2026
