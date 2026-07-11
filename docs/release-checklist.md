@@ -28,8 +28,8 @@ The following Meson configuration options are used for the release validation bu
 | **Standard** | `meson setup --wipe build` |
 | **Release** | `meson setup --wipe --buildtype=release build_release` |
 | **Debug** | `meson setup --wipe --buildtype=debug build_debug` |
-| **ASAN/Gcov**| `meson setup --wipe -Db_sanitize=address build_acov` |
-| **Gcov** | `meson setup --wipe build_cov` |
+| **ASAN/Gcov**| `meson setup --wipe -Db_sanitize=address -Db_coverage=true build_acov` |
+| **Gcov** | `meson setup --wipe -Db_coverage=true build_cov` |
 | **UBSAN** | `meson setup --wipe -Db_sanitize=undefined build_ubsan` |
 | **MSAN** | `meson setup --wipe -Db_sanitize=memory build_msan` (Requires instrumented system libs) |
 | **TSAN** | `meson setup --wipe -Db_sanitize=thread build-tsan` |
@@ -64,7 +64,7 @@ display/hardware paths that tests cannot reach.
 - [ ] Run the test suite to populate coverage data:
       `ninja -C build_acov test`
 - [ ] Run a live measurement to cover display and hardware paths:
-      `ASAN_OPTIONS=detect_leaks=0 sudo -E build_acov/turbostar --once --time=3`
+      `ASAN_OPTIONS=detect_leaks=0 build_acov/turbostar --once --time=3`
 - [ ] Capture the combined coverage snapshot:
       `bash scripts/coverage_report.sh <version-label> build_acov`
 - [ ] Review the report for any significant regressions vs. the previous release.

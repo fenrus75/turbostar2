@@ -19,7 +19,7 @@ Test coverage is integrated into our Meson build system. To run the analysis, yo
 
 1.  **Configure the coverage build:**
     ```bash
-    meson setup build-coverage -Denable-tests=true -Db_coverage=true
+    meson setup build-coverage -Db_coverage=true
     ```
     *Note: It is highly recommended to use a clean directory specifically for coverage to avoid polluting your development builds with heavy instrumentation.*
 
