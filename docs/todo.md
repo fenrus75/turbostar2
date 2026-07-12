@@ -12,6 +12,11 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+
+- feature: on startup "Oops you did something we did not think of" dialog
+	- copy-to-clipboard button
+	- if "gh" is present, file a github issue
+
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
@@ -230,6 +235,9 @@
 
 
 # done items (move items here on completion)
+
+## 12-07-2026
+- crash handler improvements: Implemented directory-backed empty file creation (`~/.cache/turbostar/crashes/crash_XXXXXX`) via `mkstemp` and `fs_utils::get_global_cache_dir()` at startup. The file descriptor is stored globally in `crash_fd` and unlinked on clean shutdown via `atexit`. When a crash occurs, output is written in parallel to both `stderr` and `crash_fd` (closing it before re-raising the signal). Added size-0 file pruning on startup. Extended the `test_fallback_crash` unit test and `turbostar_runner.py` cleanup to verify file creation/content and print stack traces automatically on E2E test failures.
 
 ## 11-07-2026
 - markdown table visual wrapping: Enhanced `markdown_utils` table aligner with `min_width` (even expansion) and `max_width` (widest-column shrinking with ellipsis truncation). Configured all agent interaction formatters (`llm_response`, `reasoning`, `system_message`, `tool_interaction`) to dynamically calculate and enforce maximum visual table widths before wrapping to prevent table formatting layout corruption in the TUI.

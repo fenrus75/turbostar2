@@ -444,6 +444,21 @@ class TurbostarRunner:
         if os.path.exists(default_file):
             os.remove(default_file)
 
+        # Check for crash files in the isolated HOME directory
+        if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):
+            import glob
+            crash_files = glob.glob(os.path.join(self.temp_home, '.cache', 'turbostar_test_cache_*', 'crashes', 'crash_*'))
+            for crash_file in crash_files:
+                if os.path.exists(crash_file) and os.path.getsize(crash_file) > 0:
+                    try:
+                        with open(crash_file, 'r') as f:
+                            crash_content = f.read()
+                        print(f"\n*** DETECTED CRASH IN TEST RUN: {crash_file} ***")
+                        print(crash_content)
+                        print("************************************************\n")
+                    except Exception as e:
+                        print(f"Error reading crash file {crash_file}: {e}")
+
         if not preserve_home:
             import shutil
             if hasattr(self, 'temp_home') and os.path.exists(self.temp_home):

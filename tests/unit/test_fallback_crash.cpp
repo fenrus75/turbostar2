@@ -6,6 +6,9 @@
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <filesystem>
+#include <fstream>
+#include <format>
 #include "../../src/crash_handler.h"
 
 int main(int argc, char **argv)
@@ -78,6 +81,37 @@ int main(int argc, char **argv)
 	assert(output.find("Caught signal: 11 (SIGSEGV - Segmentation Fault)") != std::string::npos);
 	assert(output.find("Stack trace:") != std::string::npos);
 	assert(output.find("main") != std::string::npos); // Should show main frame
+
+	// Verify that the crash file was written to
+	namespace fs = std::filesystem;
+	const char *home = std::getenv("HOME");
+	std::string home_dir = home ? std::string(home) : ".";
+	fs::path test_cache_dir = fs::path(home_dir) / ".cache" / std::format("turbostar_test_cache_{}", pid);
+	fs::path crash_dir = test_cache_dir / "crashes";
+
+	assert(fs::exists(crash_dir));
+	bool found_crash_file = false;
+	std::string crash_file_content;
+	for (auto &p : fs::directory_iterator(crash_dir)) {
+		if (p.is_regular_file() && p.path().filename().string().starts_with("crash_")) {
+			found_crash_file = true;
+			// Read the file content
+			std::ifstream f(p.path());
+			std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+			crash_file_content = content;
+			// File should not be empty
+			assert(fs::file_size(p.path()) > 0);
+			// Clean up the file
+			fs::remove(p.path());
+		}
+	}
+	assert(found_crash_file);
+	assert(crash_file_content.find("*** Turbostar Fallback Crash Catcher ***") != std::string::npos);
+	assert(crash_file_content.find("Caught signal: 11 (SIGSEGV - Segmentation Fault)") != std::string::npos);
+
+	// Clean up test cache directory
+	std::error_code ec;
+	fs::remove_all(test_cache_dir, ec);
 
 	std::cout << "test_fallback_crash passed successfully!" << std::endl;
 	return 0;

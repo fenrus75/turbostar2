@@ -1,10 +1,13 @@
 #define UNW_LOCAL_ONLY
 #include "crash_handler.h"
+#include "fs_utils.h"
 #include <libunwind.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <filesystem>
+#include <cstdlib>
 
 #if __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -14,6 +17,9 @@
 
 namespace crash_handler
 {
+
+int crash_fd = -1;
+static char crash_filepath[512] = "";
 
 static size_t safe_strlen(const char *s)
 {
@@ -84,6 +90,63 @@ static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
+static void safe_write(const char *msg)
+{
+	if (!msg) return;
+	size_t len = safe_strlen(msg);
+	write(STDERR_FILENO, msg, len);
+	if (crash_fd != -1) {
+		write(crash_fd, msg, len);
+	}
+}
+
+static void cleanup_crash_file()
+{
+	if (crash_fd != -1) {
+		close(crash_fd);
+		crash_fd = -1;
+	}
+	if (safe_strlen(crash_filepath) > 0) {
+		unlink(crash_filepath);
+		crash_filepath[0] = '\0';
+	}
+}
+
+static void setup_crash_file()
+{
+	namespace fs = std::filesystem;
+	try {
+		std::string cache_dir = fs_utils::get_global_cache_dir();
+		fs::path crash_dir = fs::path(cache_dir) / "crashes";
+
+		// 1. Scan directory for size 0 files and delete them
+		if (fs::exists(crash_dir)) {
+			for (auto &p : fs::directory_iterator(crash_dir)) {
+				if (p.is_regular_file() && fs::file_size(p.path()) == 0) {
+					fs::remove(p.path());
+				}
+			}
+		} else {
+			fs::create_directories(crash_dir);
+		}
+
+		// 2. Create temp file via mkstemp
+		std::string temp_template = (crash_dir / "crash_XXXXXX").string();
+		if (temp_template.size() < sizeof(crash_filepath)) {
+			strncpy(crash_filepath, temp_template.c_str(), sizeof(crash_filepath));
+			int fd = mkstemp(crash_filepath);
+			if (fd != -1) {
+				crash_fd = fd;
+				atexit(cleanup_crash_file);
+			} else {
+				crash_filepath[0] = '\0';
+			}
+		}
+	} catch (...) {
+		// Ignore any filesystem errors to avoid crashing during crash handler setup
+	}
+}
+
 static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 {
 	(void)info;
@@ -91,14 +154,14 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	// Reset terminal to sane state (disable mouse/bracketed paste, show cursor)
 	// We write directly to STDERR_FILENO to ensure the terminal is reset even if stdout is redirected.
 	const char *reset_seq = "\033[?1002l\033[?2004l\033[?25h\033[0m\n";
-	write(STDERR_FILENO, reset_seq, safe_strlen(reset_seq));
+	safe_write(reset_seq);
 
 	const char *msg_prefix = "\n*** Turbostar Fallback Crash Catcher ***\nCaught signal: ";
-	write(STDERR_FILENO, msg_prefix, safe_strlen(msg_prefix));
+	safe_write(msg_prefix);
 
 	char sig_buf[16];
 	safe_itoa(sig, sig_buf, sizeof(sig_buf));
-	write(STDERR_FILENO, sig_buf, safe_strlen(sig_buf));
+	safe_write(sig_buf);
 
 	const char *sig_name = " (Unknown)";
 	if (sig == SIGSEGV) {
@@ -112,8 +175,8 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	} else if (sig == SIGBUS) {
 		sig_name = " (SIGBUS - Bus Error)";
 	}
-	write(STDERR_FILENO, sig_name, safe_strlen(sig_name));
-	write(STDERR_FILENO, "\n\nStack trace:\n", 15);
+	safe_write(sig_name);
+	safe_write("\n\nStack trace:\n");
 
 	unw_cursor_t cursor;
 	if (unw_init_local(&cursor, reinterpret_cast<unw_context_t *>(ucontext)) == 0) {
@@ -121,20 +184,20 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		do {
 			unw_word_t ip;
 			if (unw_get_reg(&cursor, UNW_REG_IP, &ip) == 0) {
-				write(STDERR_FILENO, "  #", 3);
+				safe_write("  #");
 				char frame_num_str[16];
 				safe_itoa(frame, frame_num_str, sizeof(frame_num_str));
-				write(STDERR_FILENO, frame_num_str, safe_strlen(frame_num_str));
+				safe_write(frame_num_str);
 
-				write(STDERR_FILENO, " 0x", 3);
+				safe_write(" 0x");
 				char ip_str[32];
 				safe_hex_toa(ip, ip_str, sizeof(ip_str));
-				write(STDERR_FILENO, ip_str, safe_strlen(ip_str));
+				safe_write(ip_str);
 
 				char symbol[256];
 				unw_word_t offset;
 				if (unw_get_proc_name(&cursor, symbol, sizeof(symbol), &offset) == 0) {
-					write(STDERR_FILENO, " in ", 4);
+					safe_write(" in ");
 					const char *sym_to_write = symbol;
 #ifdef HAS_CXXABI
 					int status = 0;
@@ -143,19 +206,24 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 						sym_to_write = demangled;
 					}
 #endif
-					write(STDERR_FILENO, sym_to_write, safe_strlen(sym_to_write));
-					write(STDERR_FILENO, " + 0x", 5);
+					safe_write(sym_to_write);
+					safe_write(" + 0x");
 					char offset_str[32];
 					safe_hex_toa(offset, offset_str, sizeof(offset_str));
-					write(STDERR_FILENO, offset_str, safe_strlen(offset_str));
+					safe_write(offset_str);
 				}
-				write(STDERR_FILENO, "\n", 1);
+				safe_write("\n");
 			}
 			frame++;
 		} while (unw_step(&cursor) > 0 && frame < 128);
 	} else {
 		const char *err_msg = "  Failed to initialize stack unwinding via libunwind.\n";
-		write(STDERR_FILENO, err_msg, safe_strlen(err_msg));
+		safe_write(err_msg);
+	}
+
+	if (crash_fd != -1) {
+		close(crash_fd);
+		crash_fd = -1;
 	}
 
 	// Restore default handler and re-raise signal to cleanly terminate process
@@ -166,6 +234,8 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 
 void install_fallback_handler()
 {
+	setup_crash_file();
+
 	// Query current handler for SIGSEGV to check for a pre-existing custom handler
 	struct sigaction old_sa;
 	if (sigaction(SIGSEGV, nullptr, &old_sa) == 0) {
