@@ -12,12 +12,19 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- double click on some text should not just select it (it does) but also copy to clipboard
+
+- feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
+	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
+	   manipulation and that it does not impact the actual git project
+
+- feature: a tool in the image tool family to read an image from the image:// namespace and return it as a base64 data url
 
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- feature: make an agent file for https://www.docling.ai for pdf to markdown conversion
+- feature: make an agent file for https://www.docling.ai for pdf to markdown conversion  -- docling is HUGE! not for the faint of heart
 
 - feature: make an image processing agent with detailed description for how the image:// namespace works
 
