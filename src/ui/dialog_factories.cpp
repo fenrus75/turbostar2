@@ -1,4 +1,5 @@
 #include "ui/dialog_factories.h"
+#include "ansi.h"
 #include "input_history_manager.h"
 #include "codereview_manager.h"
 #include "images/image_manager.h"
@@ -251,6 +252,112 @@ std::unique_ptr<dialog> create_welcome_dialog()
 	dlg->set_height(flow_ptr->height());
 
 	dlg->set_focus_by_name("btn_ok");
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_crash_dialog(const std::string &crash_text, const std::string &crash_file_path)
+{
+	int width = 66;
+	int height = 15;
+
+	auto dlg = std::make_unique<dialog>("Oops, you did something we did not think of", width, height);
+	auto flow = std::make_unique<ui_vertical_flow>("crash_flow", 2, 2);
+
+	flow->add_child(std::make_unique<ui_text_label>("Turbostar crashed in a previous run.", true));
+	flow->add_child(std::make_unique<ui_text_label>("Please report this issue on GitHub to help us fix it.", true));
+	flow->add_child(std::make_unique<ui_text_label>("", true)); // Spacer
+
+	// Parse crash info for display
+	std::string signal_line = "";
+	std::string frame0 = "";
+	std::string frame1 = "";
+	std::stringstream ss(crash_text);
+	std::string line;
+	while (std::getline(ss, line)) {
+		while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) {
+			line.pop_back();
+		}
+		if (line.find("Caught signal:") != std::string::npos) {
+			signal_line = line;
+			size_t idx = signal_line.find("Caught signal:");
+			signal_line = signal_line.substr(idx);
+		} else if (line.find("  #0 ") != std::string::npos) {
+			size_t idx = line.find("  #0 ");
+			frame0 = line.substr(idx);
+		} else if (line.find("  #1 ") != std::string::npos) {
+			size_t idx = line.find("  #1 ");
+			frame1 = line.substr(idx);
+		}
+	}
+
+	if (!signal_line.empty()) {
+		flow->add_child(std::make_unique<ui_text_label>(signal_line, true));
+	}
+	if (!frame0.empty()) {
+		flow->add_child(std::make_unique<ui_text_label>(frame0, true));
+	}
+	if (!frame1.empty()) {
+		flow->add_child(std::make_unique<ui_text_label>(frame1, true));
+	}
+	flow->add_child(std::make_unique<ui_text_label>("", true)); // Spacer
+
+	// Buttons
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+
+	// 1. Copy button
+	btns->add_child(std::make_unique<ui_button>("btn_copy", "Copy Stack Trace", 'C', [d = dlg.get(), crash_text]() {
+		ansi::copy_to_clipboard(crash_text);
+		d->set_action(dialog_result::confirmed);
+	}));
+
+	// 2. Report on GitHub button (if /usr/bin/gh is present)
+	if (std::filesystem::exists("/usr/bin/gh")) {
+		btns->add_child(std::make_unique<ui_button>("btn_gh", "Report on GitHub", 'R', [d = dlg.get(), crash_text, signal_line]() {
+			std::string title = signal_line.empty() ? "Turbostar Crash Report" : signal_line;
+			for (char &c : title) {
+				if (c == '"' || c == '\'' || c == '\\' || c == '`') c = ' ';
+			}
+			std::string temp_body_path = "/tmp/turbostar_crash_body.txt";
+			std::ofstream out(temp_body_path);
+			if (out.is_open()) {
+				out << crash_text;
+				out.close();
+				std::string cmd = std::format("/usr/bin/gh issue create --title \"{}\" --body-file \"{}\" >/dev/null 2>&1", title, temp_body_path);
+				int ret = std::system(cmd.c_str());
+				(void)ret;
+				std::filesystem::remove(temp_body_path);
+			}
+			d->set_action(dialog_result::confirmed);
+		}));
+	}
+
+	// 3. Ignore button
+	btns->add_child(std::make_unique<ui_button>("btn_ignore", "Ignore", 'I', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+	}, true)); // press_on_esc = true
+
+	flow->add_child(std::move(btns));
+	dlg->add_child(std::move(flow));
+
+	// Move the file to crashes.old/ so we don't ask again
+	namespace fs = std::filesystem;
+	try {
+		fs::path src_path(crash_file_path);
+		fs::path cache_dir = fs::path(fs_utils::get_global_cache_dir());
+		fs::path old_dir = cache_dir / "crashes.old";
+		fs::create_directories(old_dir);
+		fs::path dst_path = old_dir / src_path.filename();
+		std::error_code ec;
+		fs::rename(src_path, dst_path, ec);
+		if (ec) {
+			fs::copy_file(src_path, dst_path, fs::copy_options::overwrite_existing, ec);
+			fs::remove(src_path, ec);
+		}
+	} catch (...) {}
+
+	dlg->flow();
+	dlg->set_focus_by_name("btn_ignore");
 	return dlg;
 }
 

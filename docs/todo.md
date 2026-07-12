@@ -13,10 +13,6 @@
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 
-- feature: on startup "Oops you did something we did not think of" dialog
-	- copy-to-clipboard button
-	- if "gh" is present, file a github issue
-
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
@@ -237,6 +233,7 @@
 # done items (move items here on completion)
 
 ## 12-07-2026
+- previous crash startup dialog: Implemented startup detection of non-empty crash files. Added a modal TUI dialog "Oops, you did something we did not think of" displaying the caught signal and top stack trace frames. Provided "Copy Stack Trace" and "Ignore" buttons (with ESC bound to Ignore). If `/usr/bin/gh` is present, added a "Report on GitHub" button that silently files an issue in the background. Moves the processed crash file to the `crashes.old` archive folder to prevent multiple prompts. Created `tests/e2e/test_crash_dialog.py` to cover all button actions, ESC key binding, and file archiving.
 - crash handler improvements: Implemented directory-backed empty file creation (`~/.cache/turbostar/crashes/crash_XXXXXX`) via `mkstemp` and `fs_utils::get_global_cache_dir()` at startup. The file descriptor is stored globally in `crash_fd` and unlinked on clean shutdown via `atexit`. When a crash occurs, output is written in parallel to both `stderr` and `crash_fd` (closing it before re-raising the signal). Added size-0 file pruning on startup. Extended the `test_fallback_crash` unit test and `turbostar_runner.py` cleanup to verify file creation/content and print stack traces automatically on E2E test failures.
 
 ## 11-07-2026

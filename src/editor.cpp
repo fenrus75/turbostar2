@@ -145,6 +145,30 @@ editor::editor(editor_options opts)
 			new_agent_window();
 		}
 	}
+
+	// Check for previous crash
+	std::string crash_text;
+	std::string crash_file_path;
+	try {
+		namespace fs = std::filesystem;
+		fs::path crash_dir = fs::path(fs_utils::get_global_cache_dir()) / "crashes";
+		if (fs::exists(crash_dir)) {
+			for (auto &p : fs::directory_iterator(crash_dir)) {
+				if (p.is_regular_file() && p.path().filename().string().starts_with("crash_") && fs::file_size(p.path()) > 0) {
+					crash_file_path = p.path().string();
+					std::ifstream f(p.path());
+					crash_text = std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+					break;
+				}
+			}
+		}
+	} catch (...) {}
+
+	if (!crash_text.empty()) {
+		active_dialog_ = create_crash_dialog(crash_text, crash_file_path);
+		active_dialog_mode_ = dialog_mode::crash_report;
+		set_focus(focus_target::dialog, "crash_report");
+	}
 }
 
 void editor::new_window(const std::string &filename)

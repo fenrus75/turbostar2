@@ -194,6 +194,7 @@ class editor : public agentlib::document_provider
 		model_server_list,
 		model_server_edit,
 		welcome,
+		crash_report,
 		run_settings,
 		mcp_config,
 		mcp_tools,
