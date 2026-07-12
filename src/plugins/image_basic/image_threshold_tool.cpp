@@ -7,8 +7,9 @@ namespace tools
 {
 
 image_threshold_tool::image_threshold_tool(image_threshold_args args)
-    : llm_tool_action("Thresholding image"), args_(std::move(args))
+    : llm_tool_action("Applying threshold to image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_threshold", "image_threshold(uri=" + args_.name + ")", args_.name);
 }
 
 bool image_threshold_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -44,15 +45,22 @@ std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		std::string threshold_type = args_.level.has_value() ? "standard" : "adaptive";
-		set_success(ctx, "Applied " + threshold_type + " thresholding to image");
-		return "Successfully applied " + threshold_type + " thresholding to image. New URI: " + new_uri;
+		set_success(ctx, "Applied threshold to image");
+		std::string result_msg = "Successfully applied threshold filter to image. New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
-		return "GraphicsMagick Error: " + std::string(e.what());
+		std::string result_msg = "GraphicsMagick Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 

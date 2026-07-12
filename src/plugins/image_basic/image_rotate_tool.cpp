@@ -9,6 +9,7 @@ namespace tools
 image_rotate_tool::image_rotate_tool(image_rotate_args args)
     : llm_tool_action("Rotating image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_rotate", "image_rotate(uri=" + args_.name + ")", args_.name);
 }
 
 bool image_rotate_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -38,15 +39,22 @@ std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest rotated image into VFS cache.";
 		}
 
-		set_success(ctx, "Rotated image by " + std::to_string(args_.degrees) + " degrees");
-		return "Successfully rotated image by " + std::to_string(args_.degrees) + " degrees. New URI: " + new_uri;
+		set_success(ctx, "Rotated image");
+		std::string result_msg = "Successfully rotated image. New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
-		return "GraphicsMagick Error: " + std::string(e.what());
+		std::string result_msg = "GraphicsMagick Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 

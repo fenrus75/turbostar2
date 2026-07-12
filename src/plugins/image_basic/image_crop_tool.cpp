@@ -9,6 +9,7 @@ namespace tools
 image_crop_tool::image_crop_tool(image_crop_args args)
     : llm_tool_action("Cropping image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_crop", "image_crop(uri=" + args_.name + ")", args_.name);
 }
 
 bool image_crop_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -47,15 +48,22 @@ std::string image_crop_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest cropped image into VFS cache.";
 		}
 
-		set_success(ctx, "Cropped image to " + std::to_string(args_.width) + "x" + std::to_string(args_.height));
-		return "Successfully cropped image to " + std::to_string(args_.width) + "x" + std::to_string(args_.height) + ". New URI: " + new_uri;
+		set_success(ctx, "Cropped image");
+		std::string result_msg = "Successfully cropped image. New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
-		return "GraphicsMagick Error: " + std::string(e.what());
+		std::string result_msg = "GraphicsMagick Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 

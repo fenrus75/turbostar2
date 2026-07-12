@@ -9,6 +9,7 @@ namespace tools
 image_resize_tool::image_resize_tool(image_resize_args args)
     : llm_tool_action("Resizing image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_resize", "image_resize(uri=" + args_.original_uri + ")", args_.original_uri);
 }
 
 bool image_resize_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -64,14 +65,21 @@ std::string image_resize_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		set_success(ctx, "Resized image to " + std::to_string(target_w) + "x" + std::to_string(target_h));
-		return "Successfully resized image to " + std::to_string(target_w) + "x" + std::to_string(target_h) + ". New URI: " + new_uri;
+		std::string result_msg = "Successfully resized image to " + std::to_string(target_w) + "x" + std::to_string(target_h) + ". New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
-		return "GraphicsMagick Error: " + std::string(e.what());
+		std::string result_msg = "GraphicsMagick Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 

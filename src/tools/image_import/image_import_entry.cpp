@@ -83,6 +83,7 @@ static std::string clean_alias_name(const std::string &uri)
 image_import_tool::image_import_tool(image_import_args args)
     : llm_tool_action("Importing image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_import", "image_import()", "");
 }
 
 bool image_import_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -101,8 +102,11 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 			set_failure(ctx, "Failed to ingest local image: " + *args_.filename);
 			return "Error: Failed to ingest local image into VFS database.";
 		}
-		set_success(ctx, "Imported image " + *args_.filename + " as " + args_.output);
-		return "Successfully imported local image as VFS URI: " + new_uri;
+		set_success(ctx, "Imported image");
+		std::string result_msg = "Successfully imported image. New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 
 	if (args_.URL.has_value()) {
@@ -138,7 +142,9 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 		if (rule != 'A') {
 			if (!ctx.queue) {
 				set_failure(ctx, "No event queue to prompt for network access");
-				return "Error: No event queue available to prompt for network permission.";
+				std::string result_msg = "Error: No event queue available to prompt for network permission.";
+				interaction_->set_result(result_msg);
+				return result_msg;
 			}
 
 			auto promise = std::make_shared<std::promise<std::string>>();
@@ -163,29 +169,38 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 				response = future.get();
 			} catch (const std::exception &e) {
 				set_failure(ctx, e.what());
-				return std::string("Error: Failed to get user response - ") + e.what();
+				std::string result_msg = "Error: " + std::string(e.what());
+				interaction_->set_result(result_msg);
+				return result_msg;
 			}
 
 			if (response == "Deny") {
 				set_failure(ctx, "Permission denied");
-				return "Error: Permission denied by user for this request.";
+				std::string result_msg = "Error: Permission denied by user for this request.";
+				interaction_->set_result(result_msg);
+				return result_msg;
 			} else if (response == "Deny Always") {
 				std::ofstream out(domains_file, std::ios::app);
 				out << "D:" << domain << "\n";
 				set_failure(ctx, "Permission denied (domain blacklisted)");
-				return "Error: Permission denied by user (Blacklisted).";
+				std::string result_msg = "Error: Permission denied by user (Blacklisted).";
+				interaction_->set_result(result_msg);
+				return result_msg;
 			} else if (response == "Always") {
 				std::ofstream out(domains_file, std::ios::app);
 				out << "A:" << domain << "\n";
 			} else if (response != "Once") {
 				set_failure(ctx, "Unknown user response");
-				return "Error: Unknown response from user.";
+				std::string result_msg = "Error: Unknown response from user.";
+				interaction_->set_result(result_msg);
+				return result_msg;
 			}
 		}
 
 		std::string downloaded_data = perform_http_get(*args_.URL);
 		if (downloaded_data.starts_with("Error:") || downloaded_data.starts_with("curl:")) {
 			set_failure(ctx, downloaded_data);
+			interaction_->set_result(downloaded_data);
 			return downloaded_data;
 		}
 
@@ -194,7 +209,9 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 		std::ofstream ofs(temp_out, std::ios::binary);
 		if (!ofs.is_open()) {
 			set_failure(ctx, "Failed to write downloaded data to temp file");
-			return "Error: Failed to save downloaded image to temporary location.";
+			std::string result_msg = "Error: Failed to save downloaded image to temporary location.";
+			interaction_->set_result(result_msg);
+			return result_msg;
 		}
 		ofs.write(downloaded_data.data(), downloaded_data.size());
 		ofs.close();
@@ -204,15 +221,22 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest VFS image from downloaded data");
-			return "Error: Failed to register downloaded image into VFS database.";
+			std::string result_msg = "Error: Failed to register downloaded image into VFS database.";
+			interaction_->set_result(result_msg);
+			return result_msg;
 		}
 
-		set_success(ctx, "Downloaded and imported " + *args_.URL + " as " + args_.output);
-		return "Successfully downloaded and imported VFS URI: " + new_uri;
+		set_success(ctx, "Imported image");
+		std::string result_msg = "Successfully downloaded and imported VFS URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 
 	set_failure(ctx, "No source specified");
-	return "Error: Missing source file or URL.";
+	std::string result_msg = "Error: Missing source file or URL.";
+	interaction_->set_result(result_msg);
+	return result_msg;
 }
 
 } // namespace tools

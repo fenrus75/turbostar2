@@ -1641,10 +1641,6 @@ void ai_agent::start_processing()
 
 						if (prep.tool) {
 							custom_interaction = prep.tool->get_interaction();
-							if (!custom_interaction && call.function.name.find("image_") != std::string::npos) {
-								custom_interaction = std::make_shared<interaction_image_tool>(
-								    call.function.name, call.function.name + "(" + arg_preview + ")");
-							}
 						}
 
 						if (!is_silent) {
@@ -1675,9 +1671,7 @@ void ai_agent::start_processing()
 							}
 						}
 
-						if (auto image_inter = std::dynamic_pointer_cast<interaction_image_tool>(custom_interaction)) {
-							image_inter->set_result(tool_result);
-						}
+
 					}
 
 					std::string result_preview = tool_result;

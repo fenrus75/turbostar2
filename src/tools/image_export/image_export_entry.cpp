@@ -9,6 +9,7 @@ namespace tools
 image_export_tool::image_export_tool(image_export_args args)
     : llm_tool_action("Exporting image"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_export", "image_export(uri=" + args_.name + ")", args_.name);
 }
 
 bool image_export_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -40,12 +41,15 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 
 		std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing);
 
-		set_success(ctx, "Exported " + args_.name + " to " + args_.original_filename);
-		return "Successfully exported VFS image " + args_.name + " to workspace file: " + args_.original_filename;
-
+		set_success(ctx, "Exported image");
+		std::string result_msg = "Successfully exported image to " + args_.original_filename;
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 

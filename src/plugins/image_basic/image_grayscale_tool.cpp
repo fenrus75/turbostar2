@@ -9,6 +9,7 @@ namespace tools
 image_grayscale_tool::image_grayscale_tool(image_grayscale_args args)
     : llm_tool_action("Converting image to grayscale"), args_(std::move(args))
 {
+    interaction_ = std::make_shared<agentlib::interaction_image_tool>("image_grayscale", "image_grayscale(uri=" + args_.name + ")", args_.name);
 }
 
 bool image_grayscale_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -39,14 +40,21 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		set_success(ctx, "Converted image to grayscale");
-		return "Successfully converted image to grayscale. New URI: " + new_uri;
+		std::string result_msg = "Successfully converted image to grayscale. New URI: " + new_uri;
+		interaction_->set_output_image(new_uri);
+		interaction_->set_result(result_msg);
+		return result_msg;
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
-		return "GraphicsMagick Error: " + std::string(e.what());
+		std::string result_msg = "GraphicsMagick Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return "Error: " + std::string(e.what());
+		std::string result_msg = "Error: " + std::string(e.what());
+		interaction_->set_result(result_msg);
+		return result_msg;
 	}
 }
 
