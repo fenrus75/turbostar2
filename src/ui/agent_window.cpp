@@ -809,7 +809,12 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				l.prefix = vert + " ";
 				l.prefix_color_pair = box_cp;
 
-				int content_len = utf8::display_width(line.text);
+				int content_len = 0;
+				if (line.text.starts_with("__THUMBNAIL__:")) {
+					content_len = inner_width;
+				} else {
+					content_len = utf8::display_width(line.text);
+				}
 				int pad_len = inner_width - content_len;
 				if (pad_len < 0)
 					pad_len = 0;
@@ -856,6 +861,10 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				line_it->custom_draw_fn(current_x, current_y, inner_width);
 				current_x += inner_width;
 			} else if (line_it->text.starts_with("__THUMBNAIL__:")) {
+				attron(COLOR_PAIR(line_it->color_pair));
+				mvprintw(current_y, current_x, "%s", std::string(inner_width, ' ').c_str());
+				attroff(COLOR_PAIR(line_it->color_pair));
+
 				std::string content = line_it->text.substr(14);
 				size_t colon = content.find(':');
 				if (colon != std::string::npos) {
