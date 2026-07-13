@@ -177,10 +177,12 @@ void openai_completion_connection::send_prompt(
 	auto active_tools = tool_registry::get_instance().get_active_tools(true, properties);
 	for (const auto &validator : active_tools) {
 		std::string desc = validator->get_description();
-		if (validator->is_pure()) {
-			desc += " [Read-Only: Safe for Plan Mode]";
-		} else if (validator->get_name() == "exit_plan_mode") {
-			desc += " [State-Modifying: Allowed in Plan Mode]";
+		if (validator->is_allowed_in_plan_mode_statically()) {
+			if (validator->is_pure()) {
+				desc += " [Read-Only: Safe for Plan Mode]";
+			} else {
+				desc += " [State-Modifying: Allowed in Plan Mode]";
+			}
 		} else {
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}

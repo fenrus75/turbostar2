@@ -36,8 +36,8 @@ def test_agent_mouse_copy():
                 print("LLM returned an error (likely no local LLM running). Skipping test.")
                 sys.exit(77)
             
-            # Check if Hello! is on screen and Agent is not thinking anymore
-            has_hello = any("Hello!" in line for line in runner.screen.display)
+            # Check if Hello! is on screen (excluding the user's prompt line) and Agent is not thinking anymore
+            has_hello = any("Hello!" in line and "Hello agent!" not in line for line in runner.screen.display)
             is_thinking = any("Thinking..." in line for line in runner.screen.display)
             if has_hello and not is_thinking:
                 found = True
@@ -52,7 +52,7 @@ def test_agent_mouse_copy():
         target_row = -1
         start_col = -1
         for idx, line in enumerate(runner.screen.display):
-            if "Hello!" in line:
+            if "Hello!" in line and "Hello agent!" not in line:
                 target_row = idx
                 start_col = line.find("Hello!")
                 break

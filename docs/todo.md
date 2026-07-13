@@ -12,13 +12,12 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- double click on some text should not just select it (it does) but also copy to clipboard
+
+- double click on a word should not just select it (it does not) but also copy to clipboard
 
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
 	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
 	   manipulation and that it does not impact the actual git project
-
-- feature: a tool in the image tool family to read an image from the image:// namespace and return it as a base64 data url
 
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
@@ -238,6 +237,10 @@
 
 
 # done items (move items here on completion)
+
+## 13-07-2026
+- plan mode tools permissions: Introduced `is_allowed_in_plan_mode_statically` to dynamically identify tools allowed in Plan Mode without hardcoding name checks. Overrode this for `exit_plan_mode` and `agent_add_todo`, unlocking them when the agent is planning.
+- test race condition fixes: Resolved a SIGSEGV in `unit_test_agent_create` caused by static destructors running while a detached subagent thread is active. Corrected a race condition in `e2e_agent_mouse_copy.py` where the test mistakenly matched the user's prompt text.
 
 ## 12-07-2026
 - previous crash startup dialog: Implemented startup detection of non-empty crash files. Added a modal TUI dialog "Oops, you did something we did not think of" displaying the caught signal and top stack trace frames. Provided "Copy Stack Trace" and "Ignore" buttons (with ESC bound to Ignore). If `/usr/bin/gh` is present, added a "Report on GitHub" button that silently files an issue in the background. Moves the processed crash file to the `crashes.old` archive folder to prevent multiple prompts. Created `tests/e2e/test_crash_dialog.py` to cover all button actions, ESC key binding, and file archiving.

@@ -61,6 +61,11 @@ public:
         return is_pure();
     }
 
+    // Indicates if the tool is generally allowed in plan mode, used for model descriptions.
+    virtual bool is_allowed_in_plan_mode_statically() const {
+        return is_pure();
+    }
+
     // Indicates if the tool can be executed by the given agent properties.
     // By default, summarizers are allowed no tools, while other roles can run any tool.
     virtual bool is_allowed_for_agent(const agent_properties &properties) const;

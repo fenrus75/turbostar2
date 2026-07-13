@@ -95,10 +95,12 @@ nlohmann::json tool_registry::get_tools_json(bool mutation_possible, const agent
 		}
 
 		std::string desc = validator->get_description();
-		if (validator->is_pure()) {
-			desc += " [Read-Only: Safe for Plan Mode]";
-		} else if (validator->get_name() == "exit_plan_mode") {
-			desc += " [State-Modifying: Allowed in Plan Mode]";
+		if (validator->is_allowed_in_plan_mode_statically()) {
+			if (validator->is_pure()) {
+				desc += " [Read-Only: Safe for Plan Mode]";
+			} else {
+				desc += " [State-Modifying: Allowed in Plan Mode]";
+			}
 		} else {
 			desc += " [State-Modifying: Blocked in Plan Mode]";
 		}
@@ -234,7 +236,7 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (ctx.active_agent && ctx.active_agent->is_planning() && name != "exit_plan_mode") {
+	if (ctx.active_agent && ctx.active_agent->is_planning()) {
 		if (!validator->is_allowed_in_plan_mode(args, ctx)) {
 			res.error_message =
 			    "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +

@@ -123,9 +123,8 @@ int main()
 		// Wait for sub1 to complete background task so we don't have race conditions on exit
 		auto subagents = agent->get_subagents();
 		assert(!subagents.empty());
-		subagents[0]->cancel_current_task();
-		subagents[0]->set_status(agent_status::dead);
-		subagents[0]->wait_until_idle();
+		subagents[0]->close();
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		// 8. Test merging of consecutive system context injections
 		{
