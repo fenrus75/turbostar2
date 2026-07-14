@@ -180,6 +180,28 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		std::string lib_path = fs_utils::get_turbocatch_lib_path();
 		cmd += "-p " + fs_utils::escape_shell_arg("Environment=LD_PRELOAD=" + lib_path) + " ";
 		cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_DUMP_DIR=" + dump_dir) + " ";
+
+		// Ensure the directory containing libturbocatch.so is accessible (at least read-only)
+		std::string lib_dir = std::filesystem::path(lib_path).parent_path().string();
+		bool is_inside_project = false;
+		if (!project_dir_.empty()) {
+			std::string abs_proj = std::filesystem::absolute(project_dir_).string();
+			std::string abs_lib = std::filesystem::absolute(lib_dir).string();
+			if (abs_proj.empty() || abs_proj.back() != '/') {
+				abs_proj += "/";
+			}
+			if (abs_lib.starts_with(abs_proj) || std::filesystem::absolute(lib_dir) == std::filesystem::absolute(project_dir_)) {
+				is_inside_project = true;
+			}
+		}
+
+		if (!is_inside_project) {
+			if (home_access_ == home_access_t::hidden) {
+				cmd += "-p BindReadOnlyPaths=" + fs_utils::escape_shell_arg(lib_dir) + " ";
+			} else {
+				cmd += "-p ReadOnlyPaths=" + fs_utils::escape_shell_arg(lib_dir) + " ";
+			}
+		}
 	}
 
 	for (const auto &p : extra_rw_paths_) {
