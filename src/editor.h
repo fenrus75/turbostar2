@@ -281,6 +281,13 @@ class editor : public agentlib::document_provider
 	std::chrono::steady_clock::time_point last_click_time_;
 	std::chrono::steady_clock::time_point last_mtime_check_time_;
 
+	// Double/Triple click detection for content area
+	int last_content_click_window_id_{-1};
+	int last_content_click_x_{-1};
+	int last_content_click_y_{-1};
+	std::chrono::steady_clock::time_point last_content_click_time_;
+	int content_click_count_{0};
+
 	std::unique_ptr<process_runner> current_build_process_;
 
 	// Latency tracking metrics for user-initiated interactive events

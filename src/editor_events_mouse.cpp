@@ -411,19 +411,34 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							activate_window(i);
 							set_focus(focus_target::window, "mouse_click");
 
-							// Forward mouse event to window local queue
-							w->get_window_queue().push(ev);
+							auto now = std::chrono::steady_clock::now();
+							editor_event target_ev = ev;
 
-							// Optional: Move cursor to clicked text
-							if (ev.mouse_y >= w->get_y() + 1 &&
-							    ev.mouse_y <= w->get_y() + w->get_height() - 2) {
-								auto doc = w->get_document();
-								if (doc) {
-									// int click_line_offset = ev.mouse_y - w->get_y() - 1;
-									// A simpler approach for now: just activate the window. Moving
-									// cursor accurately requires exposing the window's top_line_.
+							if (last_content_click_window_id_ == w->get_id() &&
+							    last_content_click_x_ == ev.mouse_x &&
+							    last_content_click_y_ == ev.mouse_y &&
+							    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_content_click_time_).count() <= 500) {
+								content_click_count_++;
+								if (content_click_count_ == 2) {
+									target_ev.type = event_type::mouse_double_click;
+									logger.log("Software double click detected in content area.");
+								} else if (content_click_count_ == 3) {
+									target_ev.type = event_type::mouse_triple_click;
+									logger.log("Software triple click detected in content area.");
+								} else {
+									content_click_count_ = 1;
 								}
+							} else {
+								content_click_count_ = 1;
 							}
+
+							last_content_click_window_id_ = w->get_id();
+							last_content_click_x_ = ev.mouse_x;
+							last_content_click_y_ = ev.mouse_y;
+							last_content_click_time_ = now;
+
+							// Forward mouse event to window local queue
+							w->get_window_queue().push(target_ev);
 
 							editor_event redraw_ev;
 							redraw_ev.type = event_type::redraw;

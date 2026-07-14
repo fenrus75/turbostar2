@@ -55,6 +55,8 @@ enum class event_type {
 	lsp_selection_range_result, ///< Notification that LSP selection range is available
 	lsp_diagnostics_result,	    ///< Notification that LSP diagnostics are available
 	mouse_click,		    ///< A mouse click event
+	mouse_double_click,	    ///< A mouse double click event
+	mouse_triple_click,	    ///< A mouse triple click event
 	mouse_scroll_up,	    ///< Mouse scroll up event
 	mouse_scroll_down,	    ///< Mouse scroll down event
 	mouse_release,		    ///< Mouse button release event

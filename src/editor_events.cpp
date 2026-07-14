@@ -129,6 +129,8 @@ void editor::dispatch(const editor_event &ev)
 	}
 	switch (ev.type) {
 		case event_type::mouse_click:
+		case event_type::mouse_double_click:
+		case event_type::mouse_triple_click:
 		case event_type::mouse_scroll_up:
 		case event_type::mouse_scroll_down:
 		case event_type::mouse_release:

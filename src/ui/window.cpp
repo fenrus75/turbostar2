@@ -329,6 +329,135 @@ bool window::process_events()
 				mouse_sel_end_line_ = click_row;
 				invalidate();
 			}
+		} else if (ev->type == event_type::mouse_double_click && doc_) {
+			int click_row = top_line_ + (ev->mouse_y - y_ - 1);
+			int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
+			click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+			click_col_display = std::max(0, click_col_display);
+
+			auto l = doc_->get_line(click_row);
+			if (l) {
+				int click_char = l->display_col_to_char_pos(click_col_display);
+				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+
+				// Get all UTF-8 characters of this line
+				std::vector<std::string> chars;
+				size_t offset = 0;
+				std::string uc;
+				while (l->next_utf8_character(offset, uc)) {
+					chars.push_back(uc);
+				}
+
+				if (click_char >= 0 && click_char < static_cast<int>(chars.size())) {
+					auto is_word_char = [](const std::string &u) -> bool {
+						if (u.empty()) return false;
+						if (u.length() > 1) return true; // UTF-8 multibyte characters
+						char c = u[0];
+						if (std::isspace(static_cast<unsigned char>(c))) return false;
+						if (c == '"' || c == '\'' || c == ';' || c == ',' || c == '.' ||
+						    c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
+						    c == '=' || c == '+' || c == '-' || c == '*' || c == '/' || c == '&' ||
+						    c == '|' || c == '^' || c == '%' || c == '<' || c == '>' || c == '!' || c == '?') {
+							return false;
+						}
+						return true;
+					};
+
+					std::string click_uc = chars[click_char];
+					bool is_click_word = is_word_char(click_uc);
+					bool is_click_space = (click_uc.length() == 1 && std::isspace(static_cast<unsigned char>(click_uc[0])));
+
+					int start_pos = click_char;
+					int end_pos = click_char;
+
+					// Expand left
+					while (start_pos > 0) {
+						std::string prev_uc = chars[start_pos - 1];
+						bool is_prev_word = is_word_char(prev_uc);
+						bool is_prev_space = (prev_uc.length() == 1 && std::isspace(static_cast<unsigned char>(prev_uc[0])));
+
+						if (is_click_word && is_prev_word) {
+							start_pos--;
+						} else if (is_click_space && is_prev_space) {
+							start_pos--;
+						} else if (!is_click_word && !is_click_space && prev_uc == click_uc) {
+							start_pos--;
+						} else {
+							break;
+						}
+					}
+					// Expand right
+					while (end_pos + 1 < static_cast<int>(chars.size())) {
+						std::string next_uc = chars[end_pos + 1];
+						bool is_next_word = is_word_char(next_uc);
+						bool is_next_space = (next_uc.length() == 1 && std::isspace(static_cast<unsigned char>(next_uc[0])));
+
+						if (is_click_word && is_next_word) {
+							end_pos++;
+						} else if (is_click_space && is_next_space) {
+							end_pos++;
+						} else if (!is_click_word && !is_click_space && next_uc == click_uc) {
+							end_pos++;
+						} else {
+							break;
+						}
+					}
+
+					is_mouse_selecting_ = true;
+					mouse_sel_start_char_ = start_pos;
+					mouse_sel_start_line_ = click_row;
+					mouse_sel_end_char_ = end_pos + 1;
+					mouse_sel_end_line_ = click_row;
+
+					std::string selected_text = get_mouse_selected_text();
+					if (!selected_text.empty()) {
+						ansi::copy_to_clipboard(selected_text);
+					}
+					invalidate();
+				}
+			}
+		} else if (ev->type == event_type::mouse_triple_click && doc_) {
+			int click_row = top_line_ + (ev->mouse_y - y_ - 1);
+			click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+
+			auto is_line_empty = [&](int row) -> bool {
+				auto line_obj = doc_->get_line(row);
+				if (!line_obj) return true;
+				std::string text = line_obj->get_text();
+				for (char ch : text) {
+					if (!std::isspace(static_cast<unsigned char>(ch))) {
+						return false;
+					}
+				}
+				return true;
+			};
+
+			int start_row = click_row;
+			int end_row = click_row;
+			if (!is_line_empty(click_row)) {
+				while (start_row > 0 && !is_line_empty(start_row - 1)) {
+					start_row--;
+				}
+				while (end_row + 1 < static_cast<int>(doc_->get_line_count()) && !is_line_empty(end_row + 1)) {
+					end_row++;
+				}
+			}
+
+			auto start_line_obj = doc_->get_line(start_row);
+			auto end_line_obj = doc_->get_line(end_row);
+			if (start_line_obj && end_line_obj) {
+				is_mouse_selecting_ = true;
+				mouse_sel_start_char_ = 0;
+				mouse_sel_start_line_ = start_row;
+				mouse_sel_end_char_ = end_line_obj->length_in_chars();
+				mouse_sel_end_line_ = end_row;
+
+				std::string selected_text = get_mouse_selected_text();
+				if (!selected_text.empty()) {
+					ansi::copy_to_clipboard(selected_text);
+				}
+				invalidate();
+			}
 		} else if (ev->type == event_type::mouse_drag && doc_) {
 			if (is_mouse_selecting_) {
 				int click_row = top_line_ + (ev->mouse_y - y_ - 1);
