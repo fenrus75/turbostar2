@@ -13,9 +13,6 @@
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 
-- feature(interaction): double click on a word should not just select it (it does not) but also copy to clipboard
-	- ideally it should work like a shell-in-a-terminal does
-	- tripple click would be the whole paragraph
 
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
 	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
@@ -252,6 +249,7 @@
 # done items (move items here on completion)
 
 ## 14-07-2026
+- double and triple click copy: Implemented software double-click word selection and triple-click paragraph selection (consecutive non-blank lines). Automatically copies selected text to the clipboard via OSC 52 sequences, similar to shell terminals. Added tests/e2e/test_double_click_copy.py covering both actions.
 - plugins dialog spacing: Fixed the Help->Plugins dialog's spacing issues by adding an optional spacer parameter to create_message_dialog, allowing compact single-spaced paragraph rendering. Cleaned up trailing and nested empty line labels in editor_events_ui.cpp.
 
 ## 13-07-2026
