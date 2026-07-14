@@ -14,7 +14,6 @@ class agent_center_window : public window
 	~agent_center_window() override = default;
 
 	void draw_content(bool cursor_only = false) const override;
-	void draw_border() const override;
 	bool process_events() override;
 	void set_cursor_position() const override;
 	std::string get_displayed_title() const override;

@@ -32,10 +32,6 @@ void agent_center_window::draw_content(bool cursor_only) const
 	grid_->draw(x_, y_);
 }
 
-void agent_center_window::draw_border() const
-{
-	window::draw_border();
-}
 
 bool agent_center_window::process_events()
 {
