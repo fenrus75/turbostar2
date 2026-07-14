@@ -30,12 +30,12 @@ const std::vector<interaction_line> &agent_interaction::render(int width, backgr
 			cached_lines_.clear();
 
 			// Single line box drawing characters
-			const std::string top_left = "┌";  // U+250C
+			const std::string top_left = "╭";  // U+250C
 			const std::string horiz = "─";	   // U+2500
-			const std::string top_right = "┐"; // U+2510
+			const std::string top_right = "╮"; // U+2510
 			const std::string vert = "│";	   // U+2502
-			const std::string bot_left = "└";  // U+2514
-			const std::string bot_right = "┘"; // U+2518
+			const std::string bot_left = "╰";  // U+2514
+			const std::string bot_right = "╯"; // U+2518
 
 			std::string top_border = top_left;
 			int box_cp = get_color_pair(get_role(), bg);

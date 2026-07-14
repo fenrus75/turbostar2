@@ -13,7 +13,7 @@
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 
-- double click on a word should not just select it (it does not) but also copy to clipboard
+- feature: double click on a word should not just select it (it does not) but also copy to clipboard
 	- ideally it should work like a shell-in-a-terminal does
 	- tripple click would be the whole paragraph
 
@@ -26,6 +26,7 @@
 	- almost a line by line regexp, after some boilerplate headers / footers
 
 - feature: make an agent file for https://www.docling.ai for pdf to markdown conversion  -- docling is HUGE! not for the faint of heart
+	- postpone this
 
 - feature: make an image processing agent with detailed description for how the image:// namespace works
 

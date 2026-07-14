@@ -350,10 +350,10 @@ void ui_utils::draw_border(int x, int y, int width, int height, border_style sty
 	const char *rs = "│";
 	const char *ts = "─";
 	const char *bs = "─";
-	const char *tl = "┌";
-	const char *tr = "┐";
-	const char *bl = "└";
-	const char *br = "┘";
+	const char *tl = "╭";
+	const char *tr = "╮";
+	const char *bl = "╰";
+	const char *br = "╯";
 
 	if (style == border_style::double_line) {
 		ls = "║";
