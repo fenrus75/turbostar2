@@ -179,12 +179,15 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		if (plugins.empty()) {
 			lines.push_back("No plugins loaded.");
 		} else {
-			for (const auto &p : plugins) {
+			for (size_t idx = 0; idx < plugins.size(); ++idx) {
+				const auto &p = plugins[idx];
 				lines.push_back(p.name + " (" + p.filename + ")");
 				if (!p.description.empty()) {
 					lines.push_back("  " + p.description);
 				}
-				lines.push_back("");
+				if (idx + 1 < plugins.size()) {
+					lines.push_back("");
+				}
 			}
 		}
 		active_dialog_ = create_message_dialog("Loaded Plugins", lines);

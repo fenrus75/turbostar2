@@ -135,7 +135,7 @@ std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std:
 }
 
 
-std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines)
+std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines, int spacer)
 {
 	int width = 40;
 	for (const auto &line : lines) {
@@ -145,7 +145,7 @@ std::unique_ptr<dialog> create_message_dialog(const std::string &title, const st
 	}
 	auto dlg = std::make_unique<dialog>(title, width, 10);
 
-	auto flow = std::make_unique<ui_vertical_flow>("message_flow", 3, 2);
+	auto flow = std::make_unique<ui_vertical_flow>("message_flow", 3, 2, spacer);
 
 	for (const auto &line : lines) {
 		auto label = std::make_unique<ui_text_label>(line, true);
