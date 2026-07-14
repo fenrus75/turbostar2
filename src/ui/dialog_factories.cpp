@@ -211,8 +211,9 @@ class welcome_dialog_impl : public dialog
 std::unique_ptr<dialog> create_welcome_dialog()
 {
 	std::vector<std::string> lines = {
-		std::format("Version {}", TURBOSTAR_VERSION),
-		"Copyright (c) 2026 by Arjan van de Ven"
+		std::format("Version {}", TURBOSTAR_VERSION), 
+		""
+
 	};
 
 	int flow_width = 38;
