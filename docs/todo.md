@@ -13,7 +13,7 @@
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 
-- feature: double click on a word should not just select it (it does not) but also copy to clipboard
+- feature(interaction): double click on a word should not just select it (it does not) but also copy to clipboard
 	- ideally it should work like a shell-in-a-terminal does
 	- tripple click would be the whole paragraph
 
@@ -250,6 +250,9 @@
 
 
 # done items (move items here on completion)
+
+## 14-07-2026
+- plugins dialog spacing: Fixed the Help->Plugins dialog's spacing issues by adding an optional spacer parameter to create_message_dialog, allowing compact single-spaced paragraph rendering. Cleaned up trailing and nested empty line labels in editor_events_ui.cpp.
 
 ## 13-07-2026
 - about dialog simplification: Replaced the basic text-based Help->About dialog box with the animated welcome dialog, simplifying the dialog flow and reusing the animated logo.
