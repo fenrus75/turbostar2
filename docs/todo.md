@@ -12,8 +12,13 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- bug: the directory where libturbocatch.so is needs to be accessible in the command_runner, at least read only
+
+- bug: the agent window's right scrollbar does not have a "thumb" indicating and controlling where the scroll is
 
 - double click on a word should not just select it (it does not) but also copy to clipboard
+	- ideally it should work like a shell-in-a-terminal does
+	- tripple click would be the whole paragraph
 
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
 	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
@@ -39,6 +44,16 @@
 	- review
 	- code
 	- image
+
+- feature: when the LLM responds including a ```cpp ... ``` quote, we may want to syntax highlight the quoted part
+   using the c++ highlighter (likewise for python)
+	- complication: our agent window is line based in terms of properties, not character based!
+
+- feature: in LLM response, instead of doing **Bold** like that, actual show it as bold?
+	- need to be careful with text wrapping and line lengths or the dialog box will draw incorrectly
+
+
+- subtle bug: being in plan mode is not persistent across editor exit / restart
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
