@@ -1031,7 +1031,13 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 						}
 					}
 
-					int cp = in_selection ? 8 : line_it->color_pair;
+					int cp = line_it->color_pair;
+					if (in_selection) {
+						cp = 8;
+					} else if (!line_it->char_color_pairs.empty() && char_idx < static_cast<int>(line_it->char_color_pairs.size())) {
+						cp = line_it->char_color_pairs[char_idx];
+					}
+
 					attron(COLOR_PAIR(cp));
 					mvprintw(current_y, current_x, "%s", utf8_char.c_str());
 					attroff(COLOR_PAIR(cp));

@@ -29,6 +29,7 @@ struct interaction_line {
     std::string suffix = "";
     int suffix_color_pair = 0;
     std::function<void(int x, int y, int width)> custom_draw_fn = nullptr;
+    std::vector<int> char_color_pairs = {};
 };
 
 class agent_interaction {
