@@ -166,10 +166,9 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::about) {
 		logger.log("Dispatching about event.");
-		std::vector<std::string> about_lines = {"TurboStar Editor",   "Version 0.1.0",	 "", "A nostalgia inspired TUI editor", "",
-							"Copyright (c) 2026", "Arjan van de Ven"};
-		active_dialog_ = create_message_dialog("About TurboStar", about_lines);
-		set_focus(focus_target::dialog, "menu_about");
+		active_dialog_ = create_welcome_dialog();
+		active_dialog_mode_ = dialog_mode::welcome;
+		set_focus(focus_target::dialog, "welcome");
 		return;
 	}
 
