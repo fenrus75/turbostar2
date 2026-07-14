@@ -120,6 +120,8 @@ int main()
 		
 		agent->add_active_tool_family("my_test_family");
 		agent->add_active_skill("my_test_skill");
+		agent->set_planning(true, 5);
+		agent->set_plan_file("docs/my_test_plan.md");
 		
 		agent->save_active_state();
 
@@ -133,6 +135,9 @@ int main()
 
 		assert(std::find(active_fams.begin(), active_fams.end(), "my_test_family") != active_fams.end() && "Restored agent should have my_test_family active!");
 		assert(std::find(active_skills.begin(), active_skills.end(), "my_test_skill") != active_skills.end() && "Restored agent should have my_test_skill active!");
+		assert(agent2->is_planning() && "Restored agent should be in plan mode!");
+		assert(agent2->get_planning_start_index() == 5 && "Restored agent planning start index should be 5!");
+		assert(agent2->get_plan_file() == "docs/my_test_plan.md" && "Restored agent plan file should be docs/my_test_plan.md!");
 
 		std::filesystem::remove_all(temp_home);
 	}
