@@ -12,8 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-
-
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
 	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
 	   manipulation and that it does not impact the actual git project
@@ -47,8 +45,6 @@
 - feature: in LLM response, instead of doing **Bold** like that, actual show it as bold?
 	- need to be careful with text wrapping and line lengths or the dialog box will draw incorrectly
 
-
-- subtle bug: being in plan mode is not persistent across editor exit / restart
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
@@ -249,6 +245,7 @@
 # done items (move items here on completion)
 
 ## 14-07-2026
+- plan mode persistence: Fixed the plan mode persistence bug across editor exit/restart by serializing is_planning, planning_start_index, and plan_file variables in save_conversation and restoring them in load_active_state. Added unit test coverage to test_activate_tool_family.cpp.
 - double and triple click copy: Implemented software double-click word selection and triple-click paragraph selection (consecutive non-blank lines). Automatically copies selected text to the clipboard via OSC 52 sequences, similar to shell terminals. Added tests/e2e/test_double_click_copy.py covering both actions.
 - plugins dialog spacing: Fixed the Help->Plugins dialog's spacing issues by adding an optional spacer parameter to create_message_dialog, allowing compact single-spaced paragraph rendering. Cleaned up trailing and nested empty line labels in editor_events_ui.cpp.
 
