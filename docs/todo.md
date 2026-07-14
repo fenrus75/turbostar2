@@ -252,6 +252,7 @@
 # done items (move items here on completion)
 
 ## 13-07-2026
+- about dialog simplification: Replaced the basic text-based Help->About dialog box with the animated welcome dialog, simplifying the dialog flow and reusing the animated logo.
 - command runner libturbocatch access: Mounted the parent directory of `libturbocatch.so` read-only inside the sandbox when it resides outside the project workspace.
 - agent window scrollbar: Added a vertical scrollbar thumb block (`█`) and scrollbar mouse click interaction handling to the agent window and base window class.
 - plan mode tools permissions: Introduced `is_allowed_in_plan_mode_statically` to dynamically identify tools allowed in Plan Mode without hardcoding name checks. Overrode this for `exit_plan_mode` and `agent_add_todo`, unlocking them when the agent is planning.
