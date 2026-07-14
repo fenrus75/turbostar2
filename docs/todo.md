@@ -12,9 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- bug: the directory where libturbocatch.so is needs to be accessible in the command_runner, at least read only
-
-- bug: the agent window's right scrollbar does not have a "thumb" indicating and controlling where the scroll is
 
 - double click on a word should not just select it (it does not) but also copy to clipboard
 	- ideally it should work like a shell-in-a-terminal does
@@ -254,6 +251,8 @@
 # done items (move items here on completion)
 
 ## 13-07-2026
+- command runner libturbocatch access: Mounted the parent directory of `libturbocatch.so` read-only inside the sandbox when it resides outside the project workspace.
+- agent window scrollbar: Added a vertical scrollbar thumb block (`█`) and scrollbar mouse click interaction handling to the agent window and base window class.
 - plan mode tools permissions: Introduced `is_allowed_in_plan_mode_statically` to dynamically identify tools allowed in Plan Mode without hardcoding name checks. Overrode this for `exit_plan_mode` and `agent_add_todo`, unlocking them when the agent is planning.
 - test race condition fixes: Resolved a SIGSEGV in `unit_test_agent_create` caused by static destructors running while a detached subagent thread is active. Corrected a race condition in `e2e_agent_mouse_copy.py` where the test mistakenly matched the user's prompt text.
 
