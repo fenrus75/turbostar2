@@ -33,6 +33,10 @@ class agent_window : public window
 	void draw_border() const override;
 	int get_history_viewport_height() const;
 
+	int get_scroll_total_lines() const override;
+	int get_scroll_top_line() const override;
+	int get_scroll_content_height() const override;
+
 	void set_sidebar_expanded(bool expanded)
 	{
 		sidebar_expanded_ = expanded;

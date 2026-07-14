@@ -836,6 +836,19 @@ void window::draw_border() const
 	mvaddstr(y_ + height_ - 2, x_ + width_ - 1, "▼");
 	mvaddstr(y_ + height_ - 1, x_ + 1, "◄");
 	mvaddstr(y_ + height_ - 1, x_ + width_ - 2, "►");
+
+	// Draw vertical scrollbar thumb
+	int total_lines = get_scroll_total_lines();
+	int top_line = get_scroll_top_line();
+	int content_h = get_scroll_content_height();
+	int track_h = height_ - 4;
+	if (total_lines > content_h && track_h > 0) {
+		int max_top = total_lines - content_h;
+		double ratio = static_cast<double>(top_line) / max_top;
+		int thumb_pos = static_cast<int>(ratio * (track_h - 1) + 0.5);
+		thumb_pos = std::clamp(thumb_pos, 0, track_h - 1);
+		mvaddstr(y_ + 2 + thumb_pos, x_ + width_ - 1, "█");
+	}
 	attroff(COLOR_PAIR(4));
 }
 
@@ -928,4 +941,19 @@ std::string window::get_mouse_selected_text() const
 		}
 	}
 	return result;
+}
+
+int window::get_scroll_total_lines() const
+{
+	return doc_ ? static_cast<int>(doc_->get_line_count()) : 0;
+}
+
+int window::get_scroll_top_line() const
+{
+	return doc_ ? top_line_ : 0;
+}
+
+int window::get_scroll_content_height() const
+{
+	return get_content_height();
 }

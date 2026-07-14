@@ -485,6 +485,31 @@ bool agent_window::process_events()
 			}
 			needs_render = true;
 		} else if (ev->type == event_type::mouse_click) {
+			// Clicked on right scrollbar?
+			if (ev->mouse_x == x_ + width_ - 1 && ev->mouse_y >= y_ + 1 && ev->mouse_y <= y_ + height_ - 2) {
+				if (max_scroll_offset_ > 0) {
+					if (ev->mouse_y == y_ + 1) {
+						// Click ▲
+						scroll_offset_ = std::min(max_scroll_offset_, scroll_offset_ + 1);
+					} else if (ev->mouse_y == y_ + height_ - 2) {
+						// Click ▼
+						scroll_offset_ = std::max(0, scroll_offset_ - 1);
+					} else {
+						// Click track
+						int track_h = height_ - 4;
+						if (track_h > 1) {
+							double ratio = static_cast<double>(ev->mouse_y - (y_ + 2)) / (track_h - 1);
+							// Note: ratio 0.0 is top (max_scroll_offset_), 1.0 is bottom (0)
+							scroll_offset_ = static_cast<int>((1.0 - ratio) * max_scroll_offset_);
+							scroll_offset_ = std::clamp(scroll_offset_, 0, max_scroll_offset_);
+						}
+					}
+					invalidate();
+					needs_render = true;
+					continue;
+				}
+			}
+
 			// Clicked on scroll to bottom/follow indicator?
 			int max_width = show_sidebar ? (divider_x - 1) : (width_ - 2);
 			if (scroll_offset_ > 0) {
@@ -1335,4 +1360,19 @@ std::vector<std::shared_ptr<agentlib::ai_agent>> agent_window::get_active_subage
 		}
 	}
 	return active;
+}
+
+int agent_window::get_scroll_total_lines() const
+{
+	return max_scroll_offset_ + get_scroll_content_height();
+}
+
+int agent_window::get_scroll_top_line() const
+{
+	return max_scroll_offset_ - scroll_offset_;
+}
+
+int agent_window::get_scroll_content_height() const
+{
+	return std::max(1, height_ - 4);
 }

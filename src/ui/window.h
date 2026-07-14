@@ -178,6 +178,10 @@ class window
 		return height_ - 2;
 	}
 
+	virtual int get_scroll_total_lines() const;
+	virtual int get_scroll_top_line() const;
+	virtual int get_scroll_content_height() const;
+
 	event_queue &get_window_queue()
 	{
 		return window_queue_;
