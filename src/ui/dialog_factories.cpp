@@ -2326,8 +2326,16 @@ class image_manager_dialog_impl : public dialog
 
 		right_col->add_child(std::make_unique<ui_text_label>(""));
 
-		// Dynamic color thumbnail widget: width 20, height 5 (meaning 10 pixel rows)
-		auto thumb = std::make_unique<ui_thumbnail>("thumbnail", 0, 0, 20, 5);
+		// Dynamic color thumbnail widget: width 20, height 5 (scaled up if terminal is large)
+		int thumb_w = 20;
+		int thumb_h = 5;
+		int max_y = 0, max_x = 0;
+		getmaxyx(stdscr, max_y, max_x);
+		if (max_y >= 32) {
+			thumb_w = 29;
+			thumb_h = 8;
+		}
+		auto thumb = std::make_unique<ui_thumbnail>("thumbnail", 0, 0, thumb_w, thumb_h);
 		thumb_ = thumb.get();
 		right_col->add_child(std::move(thumb));
 
