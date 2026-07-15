@@ -2292,11 +2292,11 @@ class image_manager_dialog_impl : public dialog
 			save_selected();
 		};
 
-		auto flow = std::make_unique<ui_vertical_flow>("main_flow", 2, 1);
+		auto flow = std::make_unique<ui_vertical_flow>("main_flow", 2, 1, 0);
 
 		auto top_section = std::make_unique<ui_horizontal_flow>("top_section", 0, 0);
 
-		auto left_col = std::make_unique<ui_vertical_flow>("left_col", 0, 0);
+		auto left_col = std::make_unique<ui_vertical_flow>("left_col", 0, 0, 0);
 		left_col->add_child(std::make_unique<ui_text_label>("VFS Images:"));
 
 		auto lb = std::make_unique<ui_listbox>("image_list", 40, 9, on_selection_changed, on_submit);
@@ -2305,7 +2305,7 @@ class image_manager_dialog_impl : public dialog
 
 		top_section->add_child(std::move(left_col));
 
-		auto right_col = std::make_unique<ui_vertical_flow>("right_col", 0, 0);
+		auto right_col = std::make_unique<ui_vertical_flow>("right_col", 0, 0, 0);
 		right_col->add_child(std::make_unique<ui_text_label>("Image Info:"));
 
 		auto lbl_alias = std::make_unique<ui_text_label>("Alias: -");

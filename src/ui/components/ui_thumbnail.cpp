@@ -25,7 +25,7 @@ void ui_thumbnail::set_image_path(const std::string &image_path)
 void ui_thumbnail::clear_image()
 {
 	image_path_.clear();
-	pixels_.clear();
+	cells_.clear();
 	grid_width_ = 0;
 	grid_height_ = 0;
 	has_data_ = false;
@@ -38,7 +38,7 @@ bool ui_thumbnail::handle_event(const editor_event & /*ev*/, int /*abs_x*/, int 
 
 void ui_thumbnail::fetch_thumbnail_data()
 {
-	pixels_.clear();
+	cells_.clear();
 	grid_width_ = 0;
 	grid_height_ = 0;
 	has_data_ = false;
@@ -73,12 +73,10 @@ void ui_thumbnail::fetch_thumbnail_data()
 		return;
 	}
 
-	// The half-block character rendering means 1 character row = 2 pixel rows.
-	// So we downsample to:
-	// - Width of the thumbnail = width_ (columns)
-	// - Height of the thumbnail = height_ * 2 (rows of pixels)
+	// The 2x2 quadrant rendering maps each character cell to a 2x2 grid of subpixels.
+	// We pass the display cell dimensions directly to the downsampling filter.
 	int req_width = width_;
-	int req_height = height_ * 2;
+	int req_height = height_;
 
 	nlohmann::json input_json = {
 		{"path", physical_path},
@@ -97,18 +95,22 @@ void ui_thumbnail::fetch_thumbnail_data()
 		grid_width_ = out["width"].get<int>();
 		grid_height_ = out["height"].get<int>();
 		
-		auto raw_pixels = out["pixels"];
-		for (const auto &item : raw_pixels) {
-			thumbnail_pixel pix;
-			pix.r = item[0].get<int>();
-			pix.g = item[1].get<int>();
-			pix.b = item[2].get<int>();
-			pixels_.push_back(pix);
+		auto raw_cells = out["cells"];
+		for (const auto &item : raw_cells) {
+			thumbnail_cell cell;
+			cell.fg_r = item[0][0].get<int>();
+			cell.fg_g = item[0][1].get<int>();
+			cell.fg_b = item[0][2].get<int>();
+			cell.bg_r = item[1][0].get<int>();
+			cell.bg_g = item[1][1].get<int>();
+			cell.bg_b = item[1][2].get<int>();
+			cell.ch = item[2].get<std::string>();
+			cells_.push_back(cell);
 		}
 		has_data_ = true;
 	} catch (const std::exception &e) {
 		// Parsing failed
-		pixels_.clear();
+		cells_.clear();
 		grid_width_ = 0;
 		grid_height_ = 0;
 		has_data_ = false;
@@ -117,7 +119,7 @@ void ui_thumbnail::fetch_thumbnail_data()
 
 void ui_thumbnail::draw(int abs_x, int abs_y) const
 {
-	if (!has_data_ || pixels_.empty() || grid_width_ <= 0 || grid_height_ <= 0) {
+	if (!has_data_ || cells_.empty() || grid_width_ <= 0 || grid_height_ <= 0) {
 		// Draw a clean placeholder box
 		for (int r = 0; r < height_; ++r) {
 			for (int c = 0; c < width_; ++c) {
@@ -141,30 +143,36 @@ void ui_thumbnail::draw(int abs_x, int abs_y) const
 		return;
 	}
 
-	// Draw color thumbnail
+	// Draw high-resolution quadrant thumbnail
 	for (int y = 0; y < height_; ++y) {
 		for (int x = 0; x < width_; ++x) {
-			int top_pixel_y = 2 * y;
-			int bottom_pixel_y = 2 * y + 1;
-
-			thumbnail_pixel top_pix{0, 0, 0};
-			thumbnail_pixel bottom_pix{0, 0, 0};
-
-			if (x < grid_width_ && top_pixel_y < grid_height_) {
-				top_pix = pixels_[top_pixel_y * grid_width_ + x];
-			}
-			if (x < grid_width_ && bottom_pixel_y < grid_height_) {
-				bottom_pix = pixels_[bottom_pixel_y * grid_width_ + x];
+			thumbnail_cell cell;
+			if (x < grid_width_ && y < grid_height_) {
+				size_t idx = y * grid_width_ + x;
+				if (idx < cells_.size()) {
+					cell = cells_[idx];
+				}
 			}
 
-			int fg_col = dynamic_colors::dynamic_get_color(bottom_pix.r, bottom_pix.g, bottom_pix.b);
-			int bg_col = dynamic_colors::dynamic_get_color(top_pix.r, top_pix.g, top_pix.b);
+			int fg_col = dynamic_colors::dynamic_get_color(cell.fg_r, cell.fg_g, cell.fg_b);
+			int bg_col = dynamic_colors::dynamic_get_color(cell.bg_r, cell.bg_g, cell.bg_b);
 
 			int pair_idx = dynamic_colors::dynamic_alloc_pair(fg_col, bg_col);
 
-			attr_set(A_NORMAL, pair_idx, NULL);
-			mvaddstr(abs_y + y, abs_x + x, "▄");
-			attroff(COLOR_PAIR(pair_idx));
+			wchar_t wc = L' ';
+			if (cell.ch == " ") wc = L' ';
+			else if (cell.ch == "▘") wc = 0x2598;
+			else if (cell.ch == "▝") wc = 0x259D;
+			else if (cell.ch == "▖") wc = 0x2596;
+			else if (cell.ch == "▗") wc = 0x2597;
+			else if (cell.ch == "▀") wc = 0x2580;
+			else if (cell.ch == "▌") wc = 0x258C;
+			else if (cell.ch == "▚") wc = 0x259A;
+
+			cchar_t wch;
+			wchar_t wstr[2] = { wc, 0 };
+			setcchar(&wch, wstr, A_NORMAL, pair_idx, NULL);
+			mvadd_wch(abs_y + y, abs_x + x, &wch);
 		}
 	}
 }

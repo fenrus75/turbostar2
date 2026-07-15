@@ -215,11 +215,11 @@ int main()
 		nlohmann::json parsed_res = nlohmann::json::parse(filter_res);
 		assert(parsed_res.contains("width"));
 		assert(parsed_res.contains("height"));
-		assert(parsed_res.contains("pixels"));
+		assert(parsed_res.contains("cells"));
 		assert(parsed_res["width"] == 10);
 		assert(parsed_res["height"] == 10);
-		assert(parsed_res["pixels"].is_array());
-		assert(parsed_res["pixels"].size() == 100);
+		assert(parsed_res["cells"].is_array());
+		assert(parsed_res["cells"].size() == 100);
 	}
 
 	std::cout << "All basic image operation tests passed successfully!" << std::endl;

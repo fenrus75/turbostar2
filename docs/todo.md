@@ -22,8 +22,6 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- feature: make an agent file for https://www.docling.ai for pdf to markdown conversion  -- docling is HUGE! not for the faint of heart
-	- postpone this
 
 - feature: make an image processing agent with detailed description for how the image:// namespace works
 
@@ -181,7 +179,10 @@
 
 # mid term items
 
-- wayland virtual server so that gui apps can be debugger cleverly 
+- wayland virtual server so that gui apps can be debugged cleverly 
+
+- feature: make an agent file for https://www.docling.ai for pdf to markdown conversion  -- docling is HUGE! not for the faint of heart
+	- postpone this
 
 
 - find a security scan tool for javascript/nodejs -- semgrep is a start
@@ -247,6 +248,7 @@
 # done items (move items here on completion)
 
 ## 15-07-2026
+- Image VFS Manager dialog sizing fix: Compacted the vertical flows inside the Image VFS Manager dialog by setting their spacers to 0, reducing the dialog's height from 24 to 15. This prevents the dialog from exceeding the terminal height (24 lines) and having its top title bar containing "Image VFS Manager" clipped off-screen. Also converted thumbnail character rendering to use wide ncurses APIs (cchar_t and mvadd_wch) to prevent screen alignment corruption. Resolved the e2e_image_manager E2E test failure.
 - TUI dialog button hotkeys: Relaxed the hotkey matching logic in ui_button to allow plain/positive character codes to trigger buttons globally within dialogs. Safe isolation with text input fields is maintained by ensuring that focused text editors get the first opportunity to consume keys. Added test_button_hotkeys unit test covering focused vs non-focused scenarios.
 - JSON syntax highlighter: Implemented a custom json_highlighter that parses syntactic delimiters (braces, brackets, colons, commas), key strings vs value strings, booleans, null, numbers, and single line comments, applying distinct retro ncurses colors. Added unit_json_highlighter test verifying key/value/number/punctuation highlighting.
 - color dialog dangling pointer fix: Resolved a segmentation fault in the Syntax Highlight Colors dialog triggered when selecting custom colors. Fixed the dangling stack reference in the color picker's callback by capturing the listbox pointer via a value-captured std::shared_ptr holder. Added a dedicated unit test `test_syntax_colors_dialog` verifying color selection without crashes.
