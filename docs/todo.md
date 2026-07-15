@@ -12,6 +12,13 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- interaction bug: dialog boxes with buttons: keypresses for keys that have highlighters in buttons should select that button
+
+- simple feature: json highlighter
+	- different color for json syntaxtic elements vs payload content
+
+- fs_replace_content improvement: tabs vs spaces seems to confuse the agent
+
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
 	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
 	   manipulation and that it does not impact the actual git project
@@ -245,7 +252,8 @@
 # done items (move items here on completion)
 
 ## 15-07-2026
-- code block syntax highlighting: Implemented ncurses-level C/C++ syntax highlighting for ```c ... ``` and ```cpp ... ``` code blocks in LLM responses inside the agent window. Integrates cpp_highlighter and maps individual character attributes to color pairs while maintaining background consistency. Added unit_test_agent_highlight covering keyword/comment highlighting.
+- color dialog dangling pointer fix: Resolved a segmentation fault in the Syntax Highlight Colors dialog triggered when selecting custom colors. Fixed the dangling stack reference in the color picker's callback by capturing the listbox pointer via a value-captured std::shared_ptr holder. Added a dedicated unit test `test_syntax_colors_dialog` verifying color selection without crashes.
+- generalized code block syntax highlighting: Generalized chat code block syntax highlighting to support C/C++, Python, HTML, Markdown, and Verilog. Replaced the hardcoded extension mapping with dynamic `supports_language` queries against `highlighter_registry`. Extended `test_agent_highlight` to verify Python keyword/comment highlighting.
 
 ## 14-07-2026
 - plan mode persistence: Fixed the plan mode persistence bug across editor exit/restart by serializing is_planning, planning_start_index, and plan_file variables in save_conversation and restoring them in load_active_state. Added unit test coverage to test_activate_tool_family.cpp.
