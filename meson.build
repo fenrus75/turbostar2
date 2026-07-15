@@ -1042,6 +1042,12 @@ test_syntax_colors_dialog = executable('test_syntax_colors_dialog',
   include_directories: inc)
 test('unit_syntax_colors_dialog', test_syntax_colors_dialog, suite: 'editor')
 
+test_button_hotkeys = executable('test_button_hotkeys',
+  'tests/unit/test_button_hotkeys.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_button_hotkeys', test_button_hotkeys, suite: 'editor')
+
 test_ui_thumbnail = executable('test_ui_thumbnail',
   'tests/unit/test_ui_thumbnail.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
