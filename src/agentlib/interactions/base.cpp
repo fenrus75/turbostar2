@@ -144,8 +144,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	bool in_code_block = false;
 	bool is_cpp_code_block = false;
 
-	int base_color = (color_pair >= 50 && color_pair < 80) ? (color_pair / 10) * 10 : 50;
-	int code_color = base_color + 6;
+	int code_color = 3;
 
 	while (std::getline(ss, line)) {
 		if (!line.empty() && line.back() == '\r')

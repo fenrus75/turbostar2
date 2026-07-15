@@ -59,7 +59,7 @@ int main()
 				assert(line.char_color_pairs[2] == kw_cp); // 't'
 				
 				// ' ' and 'main' and '(' should be normal (or whatever color_pair defaults to in code blocks)
-				int code_default_cp = 56; // 50 (base) + 6
+				int code_default_cp = 3;
 				assert(line.char_color_pairs[3] == code_default_cp); // ' '
 			}
 		} else {

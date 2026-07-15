@@ -844,6 +844,14 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				if (pad_len < 0)
 					pad_len = 0;
 
+				if (l.color_pair == 3 && pad_len > 0) {
+					l.text.append(pad_len, ' ');
+					if (!l.char_color_pairs.empty()) {
+						l.char_color_pairs.resize(l.char_color_pairs.size() + pad_len, 3);
+					}
+					pad_len = 0;
+				}
+
 				l.suffix = std::string(pad_len, ' ') + " " + vert;
 				l.suffix_color_pair = box_cp;
 				box_lines.push_back(l);
