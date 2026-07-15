@@ -28,6 +28,8 @@
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
+- feature: subpixel (see ~/git/thumbnail2) precision for thumbnails
+
 - feature: subagent creation wizzard dialog
 
 - feature: model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
@@ -38,9 +40,7 @@
 	- code
 	- image
 
-- feature: when the LLM responds including a ```cpp ... ``` quote, we may want to syntax highlight the quoted part
-   using the c++ highlighter (likewise for python)
-	- complication: our agent window is line based in terms of properties, not character based!
+
 
 - feature: in LLM response, instead of doing **Bold** like that, actual show it as bold?
 	- need to be careful with text wrapping and line lengths or the dialog box will draw incorrectly
@@ -243,6 +243,9 @@
 
 
 # done items (move items here on completion)
+
+## 15-07-2026
+- code block syntax highlighting: Implemented ncurses-level C/C++ syntax highlighting for ```c ... ``` and ```cpp ... ``` code blocks in LLM responses inside the agent window. Integrates cpp_highlighter and maps individual character attributes to color pairs while maintaining background consistency. Added unit_test_agent_highlight covering keyword/comment highlighting.
 
 ## 14-07-2026
 - plan mode persistence: Fixed the plan mode persistence bug across editor exit/restart by serializing is_planning, planning_start_index, and plan_file variables in save_conversation and restoring them in load_active_state. Added unit test coverage to test_activate_tool_family.cpp.
