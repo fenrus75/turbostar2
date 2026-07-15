@@ -73,6 +73,53 @@ int main()
 	assert(found_keyword && "C++ keywords should be highlighted");
 	assert(found_normal && "Normal text outside code blocks should not have character colors");
 
+	// 2. Test Python code block highlighting
+	{
+		std::string py_text =
+			"Python code:\n"
+			"```python\n"
+			"def my_func():\n"
+			"    # This is a python comment\n"
+			"    return 42\n"
+			"```";
+
+		interaction_llm_response py_response(py_text);
+		auto py_lines = py_response.render(80, background_mode::light_blue);
+
+		bool found_py_comment = false;
+		bool found_py_keyword = false;
+
+		for (const auto &line : py_lines) {
+			std::cout << "Py Line: [" << line.text << "], color_pair=" << line.color_pair << std::endl;
+			if (!line.char_color_pairs.empty()) {
+				std::cout << "  Char colors: ";
+				for (size_t i = 0; i < line.char_color_pairs.size(); ++i) {
+					std::cout << line.char_color_pairs[i] << " ";
+				}
+				std::cout << std::endl;
+
+				// Verify python comment
+				if (line.text.find("# This is a python comment") != std::string::npos) {
+					found_py_comment = true;
+					int comment_cp = syntax_color_manager::get_instance().get_color_pair(syntax_attribute::comment);
+					assert(line.char_color_pairs[8] == comment_cp);
+				}
+
+				// Verify python keyword 'def'
+				if (line.text.find("def my_func():") != std::string::npos) {
+					found_py_keyword = true;
+					int kw_cp = syntax_color_manager::get_instance().get_color_pair(syntax_attribute::keyword);
+					assert(line.char_color_pairs[0] == kw_cp); // 'd'
+					assert(line.char_color_pairs[1] == kw_cp); // 'e'
+					assert(line.char_color_pairs[2] == kw_cp); // 'f'
+				}
+			}
+		}
+
+		assert(found_py_comment && "Python comments should be highlighted");
+		assert(found_py_keyword && "Python keywords should be highlighted");
+	}
+
 	std::cout << "test_agent_highlight passed successfully!" << std::endl;
 	return 0;
 }

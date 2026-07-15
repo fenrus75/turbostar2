@@ -3,7 +3,7 @@
 #include <sstream>
 #include "../../markdown_utils.h"
 #include "../../utf8.h"
-#include "highlighter/cpp_highlighter.h"
+#include "highlighter/highlighter_registry.h"
 #include "syntax_color_manager.h"
 #include "line.h"
 
@@ -142,7 +142,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	std::string line;
 	bool first = true;
 	bool in_code_block = false;
-	bool is_cpp_code_block = false;
+	std::shared_ptr<syntax_highlighter> active_highlighter = nullptr;
 
 	int code_color = 3;
 
@@ -160,13 +160,26 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 				for (char &ch : lang) {
 					ch = std::tolower(static_cast<unsigned char>(ch));
 				}
+				std::string ext = "";
 				if (lang == "c" || lang == "cpp" || lang == "c++" || lang == "cc" || lang == "h" || lang == "hpp" || lang == "cxx") {
-					is_cpp_code_block = true;
+					ext = ".cpp";
+				} else if (lang == "python" || lang == "py") {
+					ext = ".py";
+				} else if (lang == "html" || lang == "htm") {
+					ext = ".html";
+				} else if (lang == "markdown" || lang == "md") {
+					ext = ".md";
+				} else if (lang == "verilog" || lang == "v") {
+					ext = ".v";
+				}
+
+				if (!ext.empty()) {
+					active_highlighter = highlighter_registry::get_instance().get_highlighter_for_file("dummy" + ext);
 				} else {
-					is_cpp_code_block = false;
+					active_highlighter = nullptr;
 				}
 			} else {
-				is_cpp_code_block = false;
+				active_highlighter = nullptr;
 			}
 		}
 
@@ -176,10 +189,9 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		}
 
 		std::vector<syntax_attribute> line_attrs;
-		if (in_code_block && is_cpp_code_block && !line.starts_with("```")) {
+		if (in_code_block && active_highlighter && !line.starts_with("```")) {
 			auto temp_line = std::make_shared<::line>(line);
-			static cpp_highlighter cpp_hl;
-			cpp_hl.highlight(temp_line);
+			active_highlighter->highlight(temp_line);
 			std::string out_text;
 			temp_line->get_content(out_text, line_attrs);
 		}
@@ -233,7 +245,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			new_line_item.text = current_prefix + line.substr(byte_idx, chunk_byte_len);
 			new_line_item.color_pair = current_color;
 
-			if (in_code_block && is_cpp_code_block && !line.starts_with("```") && !line_attrs.empty()) {
+			if (in_code_block && active_highlighter && !line.starts_with("```") && !line_attrs.empty()) {
 				size_t prefix_len = utf8::length(current_prefix);
 				new_line_item.char_color_pairs.resize(prefix_len, current_color);
 
