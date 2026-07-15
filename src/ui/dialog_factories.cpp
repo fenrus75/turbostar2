@@ -1,3 +1,11 @@
+/* IMPORTANT:
+ * Standard pattern for dialog boxes is to set their size automatically after a ->flow call:
+ *	dlg->flow();
+ *	dlg->set_width(flow_ptr->width());
+ *	dlg->set_height(flow_ptr->height());
+ */
+
+
 #include "ui/dialog_factories.h"
 #include "ansi.h"
 #include "input_history_manager.h"
@@ -2217,9 +2225,10 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 	}
 	auto [init_fg, init_bg] = syntax_color_manager::get_instance().get_color(attrs[0]);
 
-	ui_listbox *listbox_ptr = nullptr;
+	auto listbox_holder = std::make_shared<ui_listbox*>(nullptr);
 
-	auto picker = std::make_unique<ui_color_picker>("color_picker", 26, 1, init_fg, init_bg, 7, [&listbox_ptr](uint8_t fg, uint8_t bg) {
+	auto picker = std::make_unique<ui_color_picker>("color_picker", 26, 1, init_fg, init_bg, 7, [listbox_holder](uint8_t fg, uint8_t bg) {
+		ui_listbox *listbox_ptr = *listbox_holder;
 		if (listbox_ptr) {
 			int idx = listbox_ptr->get_selected_index();
 			if (idx >= 0 && idx < static_cast<int>(attrs.size())) {
@@ -2235,7 +2244,8 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 			picker_raw->set_selected_colors(fg, bg);
 		}
 	}, nullptr);
-	listbox_ptr = listbox.get();
+	*listbox_holder = listbox.get();
+	ui_listbox *listbox_ptr = listbox.get();
 
 	listbox->set_items(item_names);
 	listbox->set_selected_index(0);
