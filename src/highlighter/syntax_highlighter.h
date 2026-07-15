@@ -15,6 +15,7 @@
 | python_highlighter   | src/python_highlighter.h    |
 | verilog_highlighter  | src/verilog_highlighter.h   |
 | html_highlighter     | src/html_highlighter.h      |
+| json_highlighter     | src/highlighter/json_highlighter.h |
 
 */
 

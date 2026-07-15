@@ -32,6 +32,7 @@ core_sources = files(
   'highlighter/markdown_highlighter.cpp',
   'highlighter/verilog_highlighter.cpp',
   'highlighter/html_highlighter.cpp',
+  'highlighter/json_highlighter.cpp',
   'highlighter/highlighter_registry.cpp',
   'hex/elf.cpp',
   'hex/png.cpp',

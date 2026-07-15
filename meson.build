@@ -1109,6 +1109,12 @@ test_html_highlighter = executable('test_html_highlighter',
   include_directories: 'src')
 test('unit_html_highlighter', test_html_highlighter, suite: 'editor')
 
+test_json_highlighter = executable('test_json_highlighter',
+  ['tests/unit/test_json_highlighter.cpp', 'src/highlighter/json_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  dependencies : [re2_dep],
+  include_directories: 'src')
+test('unit_json_highlighter', test_json_highlighter, suite: 'editor')
+
 
 
 test_markdown_utils = executable('test_markdown_utils',
