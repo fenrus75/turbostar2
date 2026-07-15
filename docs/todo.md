@@ -12,8 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- interaction bug: dialog boxes with buttons: keypresses for keys that have highlighters in buttons should select that button
-
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
@@ -249,6 +247,7 @@
 # done items (move items here on completion)
 
 ## 15-07-2026
+- TUI dialog button hotkeys: Relaxed the hotkey matching logic in ui_button to allow plain/positive character codes to trigger buttons globally within dialogs. Safe isolation with text input fields is maintained by ensuring that focused text editors get the first opportunity to consume keys. Added test_button_hotkeys unit test covering focused vs non-focused scenarios.
 - JSON syntax highlighter: Implemented a custom json_highlighter that parses syntactic delimiters (braces, brackets, colons, commas), key strings vs value strings, booleans, null, numbers, and single line comments, applying distinct retro ncurses colors. Added unit_json_highlighter test verifying key/value/number/punctuation highlighting.
 - color dialog dangling pointer fix: Resolved a segmentation fault in the Syntax Highlight Colors dialog triggered when selecting custom colors. Fixed the dangling stack reference in the color picker's callback by capturing the listbox pointer via a value-captured std::shared_ptr holder. Added a dedicated unit test `test_syntax_colors_dialog` verifying color selection without crashes.
 - generalized code block syntax highlighting: Generalized chat code block syntax highlighting to support C/C++, Python, HTML, Markdown, and Verilog. Replaced the hardcoded extension mapping with dynamic `supports_language` queries against `highlighter_registry`. Extended `test_agent_highlight` to verify Python keyword/comment highlighting.
