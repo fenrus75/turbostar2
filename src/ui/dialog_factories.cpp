@@ -346,6 +346,7 @@ std::unique_ptr<dialog> create_crash_dialog(const std::string &crash_text, const
 		d->set_action(dialog_result::cancelled);
 	}, true)); // press_on_esc = true
 
+	auto flow_ptr = flow.get();
 	flow->add_child(std::move(btns));
 	dlg->add_child(std::move(flow));
 
@@ -366,6 +367,8 @@ std::unique_ptr<dialog> create_crash_dialog(const std::string &crash_text, const
 	} catch (...) {}
 
 	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
 	dlg->set_focus_by_name("btn_ignore");
 	return dlg;
 }
