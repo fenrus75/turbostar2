@@ -209,7 +209,7 @@ libturbostar_ui = static_library('turbostar_ui',
   dependencies : [ncurses, thread_dep, nlohmann_json_dep, lsp_dep, magic_dep])
 
 # Expose dependencies for easy linking
-core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep])
+core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep, ncurses])
 agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep, openssl_dep, yaml_cpp_dep])
 tools_dep = declare_dependency(link_whole : libtools, dependencies : [zlib_dep, magic_dep])
 ui_dep = declare_dependency(link_whole : libturbostar_ui, dependencies : [magic_dep])

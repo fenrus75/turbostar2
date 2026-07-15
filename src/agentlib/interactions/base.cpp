@@ -3,6 +3,9 @@
 #include <sstream>
 #include "../../markdown_utils.h"
 #include "../../utf8.h"
+#include "highlighter/cpp_highlighter.h"
+#include "syntax_color_manager.h"
+#include "line.h"
 
 namespace agentlib
 {
@@ -139,6 +142,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	std::string line;
 	bool first = true;
 	bool in_code_block = false;
+	bool is_cpp_code_block = false;
 
 	int base_color = (color_pair >= 50 && color_pair < 80) ? (color_pair / 10) * 10 : 50;
 	int code_color = base_color + 6;
@@ -149,11 +153,36 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 
 		if (line.starts_with("```")) {
 			in_code_block = !in_code_block;
+			if (in_code_block) {
+				std::string lang = line.substr(3);
+				while (!lang.empty() && std::isspace(static_cast<unsigned char>(lang.back()))) {
+					lang.pop_back();
+				}
+				for (char &ch : lang) {
+					ch = std::tolower(static_cast<unsigned char>(ch));
+				}
+				if (lang == "c" || lang == "cpp" || lang == "c++" || lang == "cc" || lang == "h" || lang == "hpp" || lang == "cxx") {
+					is_cpp_code_block = true;
+				} else {
+					is_cpp_code_block = false;
+				}
+			} else {
+				is_cpp_code_block = false;
+			}
 		}
 
 		int current_color = in_code_block ? code_color : color_pair;
 		if (!in_code_block && line.starts_with("```")) {
 			current_color = code_color; // Color the closing backticks as code too
+		}
+
+		std::vector<syntax_attribute> line_attrs;
+		if (in_code_block && is_cpp_code_block && !line.starts_with("```")) {
+			auto temp_line = std::make_shared<::line>(line);
+			static cpp_highlighter cpp_hl;
+			cpp_hl.highlight(temp_line);
+			std::string out_text;
+			temp_line->get_content(out_text, line_attrs);
 		}
 
 		std::string current_prefix = first ? prefix : std::string(prefix_utf8_len, ' ');
@@ -201,7 +230,31 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			if (chunk_byte_len == 0)
 				break; // Safety net
 
-			lines.push_back({current_prefix + line.substr(byte_idx, chunk_byte_len), current_color});
+			interaction_line new_line_item;
+			new_line_item.text = current_prefix + line.substr(byte_idx, chunk_byte_len);
+			new_line_item.color_pair = current_color;
+
+			if (in_code_block && is_cpp_code_block && !line.starts_with("```") && !line_attrs.empty()) {
+				size_t prefix_len = utf8::length(current_prefix);
+				new_line_item.char_color_pairs.resize(prefix_len, current_color);
+
+				size_t start_char_pos = utf8::byte_to_char_pos(line, byte_idx);
+				for (int idx = 0; idx < chars_consumed; ++idx) {
+					size_t original_pos = start_char_pos + idx;
+					int cp = current_color;
+					if (original_pos < line_attrs.size()) {
+						syntax_attribute attr = line_attrs[original_pos];
+						if (attr == syntax_attribute::normal) {
+							cp = current_color;
+						} else {
+							cp = syntax_color_manager::get_instance().get_color_pair(attr);
+						}
+					}
+					new_line_item.char_color_pairs.push_back(cp);
+				}
+			}
+
+			lines.push_back(new_line_item);
 
 			byte_idx += chunk_byte_len;
 

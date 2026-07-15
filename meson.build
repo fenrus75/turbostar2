@@ -230,7 +230,13 @@ test_tool_infrastructure = executable('test_tool_infrastructure',
   ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/statistics_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
   dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep],
   include_directories: 'src')
-test('unit_tool_infrastructure', test_tool_infrastructure, suite: 'agent')
+test('unit_test_tool_infrastructure', test_tool_infrastructure, suite: 'agent')
+
+test_agent_highlight = executable('test_agent_highlight',
+  ['tests/unit/test_agent_highlight.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_agent_highlight', test_agent_highlight, suite: 'agent')
 
 test_tools = executable('test_tools',
   ['tests/unit/test_tools.cpp',
@@ -955,8 +961,8 @@ test_file_security = executable('test_file_security',
   include_directories: 'src')
 test('unit_file_security', test_file_security, suite: 'agent')
 test_fs_replace_lines = executable('test_fs_replace_lines',
-  ['tests/unit/test_fs_replace_lines.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/statistics_manager.cpp'],
-  dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep],
+  ['tests/unit/test_fs_replace_lines.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_entry.cpp', 'src/tools/fs_replace_lines/fs_replace_lines_security.cpp'],
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
 
@@ -1157,14 +1163,14 @@ test_sqlite_validation = executable('test_sqlite_validation',
 test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent')
 
 test_crashdump_clear = executable('test_crashdump_clear',
-  ['tests/unit/test_crashdump_clear.cpp', 'src/crashdump_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/base.cpp', 'src/markdown_utils.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
+  ['tests/unit/test_crashdump_clear.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, dl_dep],
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')
 
 test_pop_todo = executable('test_pop_todo',
-  ['tests/unit/test_pop_todo.cpp', 'src/agentlib/ai_agent.cpp', 'src/agentlib/agent_animation.cpp', 'src/mcp/mcp_server.cpp', 'src/mcp/mcp_manager.cpp', 'src/agentlib/compaction_engine.cpp', 'src/agentlib/data/turn.cpp', 'src/agentlib/data/system_turn.cpp', 'src/agentlib/data/user_turn.cpp', 'src/agentlib/data/model_response_turn.cpp', 'src/agentlib/data/tool_execution_turn.cpp', 'src/agentlib/data/error_turn.cpp', 'src/agentlib/data/transaction.cpp', 'src/agentlib/data/episode.cpp', 'src/agentlib/data/conversation.cpp', 'src/agentlib/data/turn_registry.cpp', 'src/agentlib/context_dnn.cpp', 'src/agentlib/llm_client.cpp', 'src/agentlib/protocols/connection_factory.cpp', 'src/agentlib/protocols/openai_completion_connection.cpp', 'src/agentlib/protocols/openai_response_connection.cpp', 'src/agentlib/protocols/gemini_connection.cpp', 'src/agentlib/protocols/claude_connection.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/subagent_manager.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/interactions/action.cpp', 'src/agentlib/interactions/image_tool.cpp', 'src/agentlib/interactions/base.cpp', 'src/agentlib/interactions/reasoning.cpp', 'src/agentlib/interactions/llm_response.cpp', 'src/agentlib/interactions/user_message.cpp', 'src/agentlib/interactions/system_message.cpp', 'src/agentlib/interactions/terminal.cpp', 'src/agentlib/interactions/tool_interaction.cpp', 'src/markdown_utils.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/agentlib/copilot_manager.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp', 'src/images/image_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep, openssl_dep],
+  ['tests/unit/test_pop_todo.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep, openssl_dep, dl_dep],
   include_directories: 'src')
 test('unit_pop_todo', test_pop_todo, suite: 'agent')
 
