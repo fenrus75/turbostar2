@@ -69,7 +69,7 @@ bool ui_button::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 		if (hotkey_ != '\0' &&
 		    (ev.key_code == -hotkey_ || ev.key_code == -tolower(hotkey_) || ev.key_code == -toupper(hotkey_) ||
-		     (has_focus_ && (ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))))) {
+		     ev.key_code == hotkey_ || ev.key_code == tolower(hotkey_) || ev.key_code == toupper(hotkey_))) {
 			set_pressed(true);
 			if (on_click_)
 				on_click_();
