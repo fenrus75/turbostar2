@@ -14,9 +14,6 @@
 
 - interaction bug: dialog boxes with buttons: keypresses for keys that have highlighters in buttons should select that button
 
-- simple feature: json highlighter
-	- different color for json syntaxtic elements vs payload content
-
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
@@ -252,6 +249,7 @@
 # done items (move items here on completion)
 
 ## 15-07-2026
+- JSON syntax highlighter: Implemented a custom json_highlighter that parses syntactic delimiters (braces, brackets, colons, commas), key strings vs value strings, booleans, null, numbers, and single line comments, applying distinct retro ncurses colors. Added unit_json_highlighter test verifying key/value/number/punctuation highlighting.
 - color dialog dangling pointer fix: Resolved a segmentation fault in the Syntax Highlight Colors dialog triggered when selecting custom colors. Fixed the dangling stack reference in the color picker's callback by capturing the listbox pointer via a value-captured std::shared_ptr holder. Added a dedicated unit test `test_syntax_colors_dialog` verifying color selection without crashes.
 - generalized code block syntax highlighting: Generalized chat code block syntax highlighting to support C/C++, Python, HTML, Markdown, and Verilog. Replaced the hardcoded extension mapping with dynamic `supports_language` queries against `highlighter_registry`. Extended `test_agent_highlight` to verify Python keyword/comment highlighting.
 
@@ -259,84 +257,3 @@
 - plan mode persistence: Fixed the plan mode persistence bug across editor exit/restart by serializing is_planning, planning_start_index, and plan_file variables in save_conversation and restoring them in load_active_state. Added unit test coverage to test_activate_tool_family.cpp.
 - double and triple click copy: Implemented software double-click word selection and triple-click paragraph selection (consecutive non-blank lines). Automatically copies selected text to the clipboard via OSC 52 sequences, similar to shell terminals. Added tests/e2e/test_double_click_copy.py covering both actions.
 - plugins dialog spacing: Fixed the Help->Plugins dialog's spacing issues by adding an optional spacer parameter to create_message_dialog, allowing compact single-spaced paragraph rendering. Cleaned up trailing and nested empty line labels in editor_events_ui.cpp.
-
-## 13-07-2026
-- about dialog simplification: Replaced the basic text-based Help->About dialog box with the animated welcome dialog, simplifying the dialog flow and reusing the animated logo.
-- command runner libturbocatch access: Mounted the parent directory of `libturbocatch.so` read-only inside the sandbox when it resides outside the project workspace.
-- agent window scrollbar: Added a vertical scrollbar thumb block (`█`) and scrollbar mouse click interaction handling to the agent window and base window class.
-- plan mode tools permissions: Introduced `is_allowed_in_plan_mode_statically` to dynamically identify tools allowed in Plan Mode without hardcoding name checks. Overrode this for `exit_plan_mode` and `agent_add_todo`, unlocking them when the agent is planning.
-- test race condition fixes: Resolved a SIGSEGV in `unit_test_agent_create` caused by static destructors running while a detached subagent thread is active. Corrected a race condition in `e2e_agent_mouse_copy.py` where the test mistakenly matched the user's prompt text.
-
-## 12-07-2026
-- previous crash startup dialog: Implemented startup detection of non-empty crash files. Added a modal TUI dialog "Oops, you did something we did not think of" displaying the caught signal and top stack trace frames. Provided "Copy Stack Trace" and "Ignore" buttons (with ESC bound to Ignore). If `/usr/bin/gh` is present, added a "Report on GitHub" button that silently files an issue in the background. Moves the processed crash file to the `crashes.old` archive folder to prevent multiple prompts. Created `tests/e2e/test_crash_dialog.py` to cover all button actions, ESC key binding, and file archiving.
-- crash handler improvements: Implemented directory-backed empty file creation (`~/.cache/turbostar/crashes/crash_XXXXXX`) via `mkstemp` and `fs_utils::get_global_cache_dir()` at startup. The file descriptor is stored globally in `crash_fd` and unlinked on clean shutdown via `atexit`. When a crash occurs, output is written in parallel to both `stderr` and `crash_fd` (closing it before re-raising the signal). Added size-0 file pruning on startup. Extended the `test_fallback_crash` unit test and `turbostar_runner.py` cleanup to verify file creation/content and print stack traces automatically on E2E test failures.
-
-## 11-07-2026
-- markdown table visual wrapping: Enhanced `markdown_utils` table aligner with `min_width` (even expansion) and `max_width` (widest-column shrinking with ellipsis truncation). Configured all agent interaction formatters (`llm_response`, `reasoning`, `system_message`, `tool_interaction`) to dynamically calculate and enforce maximum visual table widths before wrapping to prevent table formatting layout corruption in the TUI.
-- tool family/skill persistence: Added serialization and restoration of `active_skills` and `active_families` in `ai_agent::save_conversation` and `ai_agent::load_active_state` to preserve active tool families and skills across agent exit and restart. Added verification inside `unit_test_activate_tool_family`.
-- image manager persistence: Added `images::image_manager::get_instance().initialize();` to the startup sequences in `src/main.cpp` and `src/agentcli/main.cpp` to correctly reload the saved VFS metadata from `mappings.json` on application startup.
-- block copy/move cursor position: Fixed `copy_selection()` and `move_selection()` in `src/document_selection.cpp` to reset the cursor position to the top of the newly copied or moved selection rather than leaving it at the bottom.
-- build system: Fixed deploy target in `meson.build` to copy the `turbostar` binary as `turbostar.new` and then move it atomically to replace `turbostar`. This avoids "Text file busy" errors when building the project while E2E tests are running.
-
-
-
-- Image thumbnails for TUI dialog: Implemented dynamic true-color ncurses thumbnail rendering for the Image VFS Manager dialog. Created the `ui_thumbnail` element (inheriting from `ui_element`) using Unicode vertical half-block (`▄`) rendering. Created a thread-safe `dynamic_colors` utility utilizing standard 256-color cube mapping to match terminal color spaces accurately without changing palette state. The downsampling logic is decoupled via the `filter_registry` (`"image_thumbnail"` filter registered by the optional `image-basic` plugin), allowing graceful text-based fallback when the plugin is not loaded. Added a dedicated unit test target `test_ui_thumbnail`.
-
-## 04-07-2026
-- Dynamic skill plugins: Implemented support for "hidden" (invisible) skills by adding a visibility toggle, enabling plugins to register skills silently without polluting the user/agent enumeration. Added `ai_agent::activate_skill` for centralized, consistent programmatic skill activation that automatically formats and injects instructions into the agent's interaction history as a system message. Added `register_skill` overloads in `skill_manager` supporting dynamic registration of both simple single-string skills and complex multi-file skills mapped to string maps.
-- Input history file path: Fixed a bug where `.turbostar_input_history.json` was incorrectly written to the project's repository root instead of the project-specific cache root (`~/.cache/turbostar/projects/...`), avoiding repository pollution. Added a dedicated unit test `test_input_history` to verify correct file path creation.
-- Matt Pocock Skills plugin: Implemented a new dynamic shared module plugin (`mattpocock`) registering a hidden `grill-me` skill and binding it to the new `/grill-me` slash command, using Matt Pocock's industry-leading productivity instructions.
-- libturbocatch installation: Configured `libturbocatch.so` to install to `$prefix/libexec/turbostar/` in `meson.build` and implemented robust path lookup prioritizing `TURBOSTAR_TURBOCATCH_DIR` environment variables, `TURBOCATCH_DIR` compilation macros, build root fallbacks, and system search paths. Added the build-root environment variable to unit tests and E2E runs.
-- `apply_text_filter` agent tool: Implemented a new generic agent tool allowing the LLM/Agent to apply registered text processing or format conversion filters (e.g. `strip_utf8`, `strip_ansi`, `html_to_markdown`, `markdown_align_tables`) to any input text. Supports returning the converted string directly or saving it directly to a safe workspace file. Includes robust Stage 1 JSON validation, filter name enumeration on error, and a comprehensive unit test suite.
-- Image capability core infrastructure: Designed and implemented the C++ core `images://` virtual file system (`image_manager` singleton) under `src/images/` to support content-deduplicated image caching (stored by SHA-256 in the project cache directory) and logically separated VFS addressable views (`by-sha256/`, `by-file-id/`, `by-name/`). Added modern OpenSSL 3.0 EVP-based file hashing, native PNG/JPEG dimensional metadata extraction, MIME detection, and dynamic plugin helper APIs (temp path generation and ingestion). Created a comprehensive unit test suite `test_image_manager`.
-- Multimodal VFS Integration & Interception: Glued the `images://` VFS into connection protocols (OpenAI Completions/Response, Claude, Gemini) to translate URIs into base64 multimodal blocks. Added automatic post-response interception in the editor's main agent processing to extract, decode, cache, and replace raw inline base64 images with clean VFS URIs in conversation history.
-- Image Manager TUI Dialog: Implemented a Turbo Pascal style dialog (`create_image_manager_dialog()`) for managing the `images://` VFS. Renders a scrollable list of VFS images with a dynamic metadata pane, thumbnail preview space, and interactive modal actions for Importing (via file selector), Saving (exporting to real files), and Deleting cached VFS entries. Accessible via the main menu bar under `Agent -> Image VFS Manager...`.
-- Image Basic Operations Plugin: Implemented the `image-basic` shared module plugin, dynamically registering the `image` tool family and the `image_resize`, `image_crop`, `image_rotate`, `image_mirror`, `image_grayscale`, and `image_threshold` tools. Uses GraphicsMagick++ to scale images, crop selection rectangles, rotate, mirror, convert to grayscale, and apply standard/adaptive threshold binarization (ideal for OCR prep). All tools support an optional `output` parameter to redirect modified outputs to a new image alias, or default to updating the target alias in-place. Declared GraphicsMagick++ as an optional dependency so the plugin is dynamically built only when the library is detected on the system.
-- Image Import and Export Tools: Implemented `image_import` and `image_export` as built-in tools in the application core to ensure basic VFS operations are always functional even without GraphicsMagick++. `image_import` loads local files or downloads web URLs (using curl and sandboxed domain verification) into the virtual VFS, and `image_export` writes cached images back out to workspace files. Both tools feature robust bare-name normalization (allowing `my-image.png` alongside full `images://by-name/my-image.png` paths).
-
-## 03-07-2026
-- Central filter registry: Implemented a decoupled `filter_registry` singleton allowing dynamic plugins and host code to register thread-safe content processing filters (e.g., `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`, `strip_ansi`, `strip_utf8`). Enhanced the `web_fetch` tool with an optional `filter` argument to lookup and apply filters before returning or saving results.
-- Web fetch file saving: Added `output_path` parameter to the `web_fetch` tool allowing agents to download and save fetched HTTP/HTTPS content directly to a workspace file, complying with standard file write permission rules.
-- HTML links, images, tables, and text extraction: Implemented an optional `html` plugin with the `html_extract_tables`, `html_list_links`, `html_list_images`, and `html_extract_text` tools using `lexbor`, supporting active heading hierarchies (H1 to H3), table captions, list formatting, bold/italic toggles (Option C), pipe escaping/sanitization, aligned markdown table outputs, and parameter/size validation.
-- Hexinspect tool migration: Moved and renamed the `hex_inspect_range` tool to `hexinspect` under the `hexedit` plugin family, updated all references, unit tests, and traffic playbacks, and fixed host symbol linkage for plugins.
-- Editor: Add a section about our built-in hex editor, using the screenshot in `docs/hexeditor.png`.
-- HTML syntax highlighter: Implemented a state-machine based C++ syntax highlighter for HTML (`html_highlighter`), added unit tests, and registered it in the editor.
-- Hex editor split: Refactored and split file format highlighters into dedicated classes under `src/hex/`.
-- JPEG/JFIF support: Added APP0 headers, SOF0/SOF2 frame dimensions, and entropy scan segment parsing for JPEG/JFIF files to the hex highlighter.
-- Hex disassembler: Shortened long hexadecimal address/offset/immediate representations in disassembler outputs by stripping leading zeros.
-- Hex editor plugin: Implemented `hexedit` shared module plugin registering the `hexedit` tool family with `hexdump` and `hexwrite` tools, complete with file format metadata annotation integration and a dedicated unit test suite.
-
-## 02-07-2026
-- implemented a dynamic C++ /command registry (`agent_command` and `command_registry` singleton) for agent slash commands, removing over 500 lines of duplicate hardcoded switches from `agent_window.cpp` and making slash commands extensible for plugins.
-- implemented input history for text input boxes and multiline prompt edits, persistent per project.
-- implemented ^K R shortcut inside ui_multiline_edit to prompt for and read/insert external file contents.
-- implemented F5 key shortcut to pop up a multiline prompt in a full editor window named `*Prompt*` with real-time bidirectional synchronization.
-- implemented command line option `--force-ascii` and tristate file type check (`ASCII`, `MAYBE`, `BINARY`) to prompt the user when opening files with null bytes.
-- implemented timeout parameters for shell command, python, testing, and compile tool execution, and added a default 60s timeout for git commands via `execute_command_sync`.
-- extended the `fs_grep_files` tool to perform an LSP symbol search on regular word queries, returning their definition locations formatted with "is defined in" at the top of the output.
-
-## 28-06-2026
-- implemented an HTML verifier tool (security_verify_html) for the securityagent plugin using "tidy" (if tidy exists).
-- implemented syntax highlighting colors configuration manager and dynamic colors.json persistence, and created an interactive side-by-side color picker dialog in the editor options menu.
-- agent skills
-- updated AI page with a default agent integration screenshot and introduction section.
-- updated AI page virtual context paging section with the runs-testsuite screenshot, and added a dedicated section describing the integrated agent undo history.
-- added Claude-style agent definitions and dynamic subagents card to the Standards & Extensibility grid on the AI page.
-
-## 27-06-2026
-- integrated the screenshot of the Crash Catcher and Manager interface (screenshot-crash-manager.png) into the website.
-- merged the Crash Catcher and Core View Manager website sections under a single combined section with one unified screenshot, making `screenshot-core-view-manager.png` obsolete.
-- fixed the core dump details viewer screen (crashdump_window) to use the yellow-on-blue color scheme and restored active ncurses color attributes after the listbox draws.
-- updated the website's compile/debug section to focus on "Developer Native: Compile, Run & Debug" showing that applications can be executed directly within the editor.
-- enhanced the semgrep tool in the securityagent plugin to support scanning HTML files using a custom command line with '--config auto' and '--include="*.html"'.
-- integrated markdown_utils::align_all_tables in crashdump_window to pretty-print and align markdown tables in crash reports automatically.
-- implemented the webpage image overlay (lightbox) feature in JS/CSS so that clicking screenshot links shows a smooth zoomed-in modal in the current tab instead of opening in a new tab.
-- integrated yaml-cpp to parse SKILL.md headers fully and conformantly instead of using manual line scanning.
-
-## 10-07-2026
-- fixed word deletion boundary checking so that parenthesis and bracket characters (`(`, `)`, `[`, `]`, `{`, `}`) and other punctuation (`.`, `'`) are treated as word boundaries. This prevents the Ctrl-W command (`delete_word_forward`) from eating parentheses blocks.
-- Find and replace: Fixed search-and-replace so that the editor now supports both individual prompted replacements and global "Change all" operations. Implemented `replace_current` and `replace_all` in `document`, and wired them to the Replace dialog box and the interactive status bar prompt (`Replace? (Y)es / (N)o / (A)ll / (Q)uit`). Added unit test coverage in `tests/unit/test_document.cpp` and a full E2E test suite in `tests/e2e/test_replace.py`.
-- Test suite performance optimization: Analyzed test durations from the meson execution logs and identified two slow unit tests: `unit_test_security_scan_semgrep` (14s) and `unit_test_fs_compile_file` (3.2s). Optimized them by mocking their expensive command-line invocations when running inside the test suite (`TURBOSTAR_IN_TESTSUITE` set), reducing their execution times to milliseconds and saving 17+ seconds.
-- Groff-to-Markdown filter: Hooked up the existing `troff2md` parser to the central `filter_registry` infrastructure under the name `"troff_to_markdown"`. Dynamically registered the filter during application startup in `editor::editor` constructor and added comprehensive unit test coverage inside `tests/unit/test_tools.cpp`.
-- Read .clang-format on startup: Added parsing of project-level `.clang-format` config files on startup in `main.cpp` to auto-detect and configure the visual tab width parameter (`TabWidth`). Added Test 15 to `tests/unit/test_document.cpp` verifying the parsing and layout logic.
-- Image thumbnail interactions: Added support for rendering interactive color TUI thumbnails of modified images directly inside the agent chat window for all image manipulation toolcalls. Extended the rendering pipeline with a custom drawing callback pattern to keep dependencies fully decoupled.
