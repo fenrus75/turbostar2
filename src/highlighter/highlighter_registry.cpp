@@ -46,3 +46,13 @@ std::shared_ptr<syntax_highlighter> highlighter_registry::get_highlighter_for_fi
 	// Fallback
 	return std::make_shared<default_highlighter>();
 }
+
+std::shared_ptr<syntax_highlighter> highlighter_registry::get_highlighter_for_language(const std::string &lang) const
+{
+	for (const auto &hl : highlighters_) {
+		if (hl->supports_language(lang)) {
+			return hl;
+		}
+	}
+	return nullptr;
+}

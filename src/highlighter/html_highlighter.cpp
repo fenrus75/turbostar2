@@ -16,6 +16,11 @@ bool html_highlighter::supports_file(const std::string &filename) const
 	return ext == ".html" || ext == ".htm";
 }
 
+bool html_highlighter::supports_language(const std::string &lang) const
+{
+	return lang == "html" || lang == "htm";
+}
+
 void html_highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();

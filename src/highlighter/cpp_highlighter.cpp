@@ -12,6 +12,11 @@ bool cpp_highlighter::supports_file(const std::string &filename) const
 	return ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc" || ext == ".cxx";
 }
 
+bool cpp_highlighter::supports_language(const std::string &lang) const
+{
+	return lang == "c" || lang == "cpp" || lang == "c++" || lang == "cc" || lang == "h" || lang == "hpp" || lang == "cxx";
+}
+
 void cpp_highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();

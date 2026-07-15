@@ -12,6 +12,11 @@ bool python_highlighter::supports_file(const std::string &filename) const
 	return ext == ".py" || ext == ".pyw";
 }
 
+bool python_highlighter::supports_language(const std::string &lang) const
+{
+	return lang == "python" || lang == "py";
+}
+
 void python_highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();

@@ -12,6 +12,11 @@ bool verilog_highlighter::supports_file(const std::string &filename) const
 	return ext == ".v" || ext == ".sv" || ext == ".vh" || ext == ".svh";
 }
 
+bool verilog_highlighter::supports_language(const std::string &lang) const
+{
+	return lang == "verilog" || lang == "v";
+}
+
 void verilog_highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();

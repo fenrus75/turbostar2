@@ -32,6 +32,14 @@ class syntax_highlighter
 	virtual bool supports_file(const std::string &filename) const = 0;
 
 	/**
+	 * @brief Returns true if this highlighter supports the given Markdown language identifier (e.g., "cpp", "python").
+	 */
+	virtual bool supports_language(const std::string & /*lang*/) const
+	{
+		return false;
+	}
+
+	/**
 	 * @brief Processes a single line and applies syntax attributes.
 	 */
 	virtual void highlight(std::shared_ptr<line> l) = 0;

@@ -18,6 +18,11 @@ class highlighter_registry
 	 */
 	std::shared_ptr<syntax_highlighter> get_highlighter_for_file(const std::string &filename) const;
 
+	/**
+	 * @brief Returns the first highlighter that supports the Markdown language identifier, or nullptr.
+	 */
+	std::shared_ptr<syntax_highlighter> get_highlighter_for_language(const std::string &lang) const;
+
       private:
 	highlighter_registry();
 	~highlighter_registry() = default;

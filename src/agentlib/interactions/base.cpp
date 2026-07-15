@@ -160,24 +160,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 				for (char &ch : lang) {
 					ch = std::tolower(static_cast<unsigned char>(ch));
 				}
-				std::string ext = "";
-				if (lang == "c" || lang == "cpp" || lang == "c++" || lang == "cc" || lang == "h" || lang == "hpp" || lang == "cxx") {
-					ext = ".cpp";
-				} else if (lang == "python" || lang == "py") {
-					ext = ".py";
-				} else if (lang == "html" || lang == "htm") {
-					ext = ".html";
-				} else if (lang == "markdown" || lang == "md") {
-					ext = ".md";
-				} else if (lang == "verilog" || lang == "v") {
-					ext = ".v";
-				}
-
-				if (!ext.empty()) {
-					active_highlighter = highlighter_registry::get_instance().get_highlighter_for_file("dummy" + ext);
-				} else {
-					active_highlighter = nullptr;
-				}
+				active_highlighter = highlighter_registry::get_instance().get_highlighter_for_language(lang);
 			} else {
 				active_highlighter = nullptr;
 			}

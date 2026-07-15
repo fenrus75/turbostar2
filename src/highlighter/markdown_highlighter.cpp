@@ -17,6 +17,11 @@ bool markdown_highlighter::supports_file(const std::string &filename) const
 	return ext == ".md" || ext == ".markdown";
 }
 
+bool markdown_highlighter::supports_language(const std::string &lang) const
+{
+	return lang == "markdown" || lang == "md";
+}
+
 void markdown_highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();
