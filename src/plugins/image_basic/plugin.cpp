@@ -32,10 +32,14 @@ static std::string generate_image_thumbnail_json(const std::string &input_json_s
 		double dX = img_cols / (1.0 * req_width);
 		double dY = img_rows / (1.0 * req_height);
 
-		if (dX > dY)
-			dY = dX;
+		// Account for 2:1 character cell aspect ratio. Since subpixels are 2x as tall
+		// as they are wide, we need dY = 2 * dX to render with correct 1:1 physical aspect ratio.
+		double dY_adj = dY / 2.0;
+		if (dX > dY_adj)
+			dY_adj = dX;
 		else
-			dX = dY;
+			dX = dY_adj;
+		dY = 2.0 * dY_adj;
 
 		struct temp_pixel_data {
 			double R = 0.0, G = 0.0, B = 0.0;

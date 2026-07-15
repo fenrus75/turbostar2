@@ -28,8 +28,6 @@
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
-- feature: subpixel (see ~/git/thumbnail2) precision for thumbnails
-
 - feature: subagent creation wizzard dialog
 
 - feature: model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
