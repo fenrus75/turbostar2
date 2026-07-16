@@ -18,6 +18,13 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
+- improvements: image tool family schemas, descriptions, and guidance based on `image-review.md`
+	- fix URI scheme mismatch: use `images://` instead of `image://` everywhere
+	- document `by-sha256` subpath meaning (content-addressed storage based on SHA-256 hash)
+	- define "alias" terminology vs VFS URI clearly in descriptions
+	- clarify parameter details: specify that `name` accepts alias or VFS URI, `output` registers a new alias, and `filename` in import/export is relative to the project root
+	- add a step-by-step chained usage example in the tool family guidance string (import -> edit -> export)
+
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
