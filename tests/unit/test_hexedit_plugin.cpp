@@ -64,7 +64,7 @@ void test_hexwrite_tool()
 		tools::hexwrite_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.offset = 0;
+		args.start_offset = 0;
 		args.hex_data = "7f 45 4c 46";
 
 		tools::hexwrite_tool tool(args);
@@ -86,7 +86,7 @@ void test_hexwrite_tool()
 		tools::hexwrite_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.offset = 8;
+		args.start_offset = 8;
 		args.hex_data = "0xaa, 0xbb";
 
 		tools::hexwrite_tool tool(args);

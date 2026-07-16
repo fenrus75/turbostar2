@@ -100,19 +100,19 @@ std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 	size_t current_size = file.tellg();
 
 	// Pad with zero bytes if offset is beyond current file size
-	if (args_.offset > current_size) {
+	if (args_.start_offset > current_size) {
 		file.seekp(current_size);
-		size_t pad_size = args_.offset - current_size;
+		size_t pad_size = args_.start_offset - current_size;
 		std::vector<char> pad(pad_size, 0);
 		file.write(pad.data(), pad_size);
 	}
 
 	// Write the hex data at target offset (overwrite mode)
-	file.seekp(args_.offset);
+	file.seekp(args_.start_offset);
 	file.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 	file.close();
 
-	std::string success_msg = std::format("Successfully wrote {} bytes to {} at offset {}.", bytes.size(), args_.requested_path, args_.offset);
+	std::string success_msg = std::format("Successfully wrote {} bytes to {} at offset {}.", bytes.size(), args_.requested_path, args_.start_offset);
 	set_success(ctx, success_msg);
 	return success_msg;
 }

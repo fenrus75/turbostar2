@@ -10,7 +10,7 @@ namespace tools
 struct hexwrite_args {
 	std::string requested_path;
 	std::string safe_path;
-	size_t offset{0};
+	size_t start_offset{0};
 	std::string hex_data;
 };
 
