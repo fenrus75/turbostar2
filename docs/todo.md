@@ -14,16 +14,13 @@
 
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
-- feature: have a per-tool-family string that activate_tool_family tool uses to "teach" the LLM about the capabilities of the new tools
-	- the "image" tool family should explain about the image:// namespace, that this is a scratch namespace for the LLM to use for image
-	   manipulation and that it does not impact the actual git project
-
 - feature: a markdown_to_html filter 
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
 
 - feature: make an image processing agent with detailed description for how the image:// namespace works
+	- alternatively this should be in the tool family "activate_tool_family" response string
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -244,6 +241,9 @@
 
 
 # done items (move items here on completion)
+
+## 16-07-2026
+- Tool family capability guidance: Added support for registering an optional guidance string for tool families in the `tool_registry`. When an LLM activates a tool family using `activate_tool_family`, this guidance string is returned to teach the LLM about the capabilities and usage guidelines (e.g. explaining the `image://` virtual scratch namespace for the `image` tool family). Added unit test coverage in `test_activate_tool_family.cpp`.
 
 ## 15-07-2026
 - Image VFS Manager dialog sizing fix: Compacted the vertical flows inside the Image VFS Manager dialog by setting their spacers to 0, reducing the dialog's height from 24 to 15. This prevents the dialog from exceeding the terminal height (24 lines) and having its top title bar containing "Image VFS Manager" clipped off-screen. Also converted thumbnail character rendering to use wide ncurses APIs (cchar_t and mvadd_wch) to prevent screen alignment corruption. Resolved the e2e_image_manager E2E test failure.

@@ -243,7 +243,11 @@ void plugin_run(void)
 	register_image_mirror();
 	register_image_grayscale();
 	register_image_threshold();
-	agentlib::tool_registry::get_instance().register_tool_family("image", "Activate when performing image manipulation or editing");
+	agentlib::tool_registry::get_instance().register_tool_family(
+		"image",
+		"Activate when performing image manipulation or editing",
+		"The 'image://' namespace represents a virtual scratch space for temporary image files created or edited by tools. You can read, write, crop, filter, or export these files using the image tool family. These virtual image paths do not correspond directly to real files in your git workspace and will not affect the git project unless exported."
+	);
 	agentlib::filter_registry::get_instance().register_filter("image_thumbnail", generate_image_thumbnail_json, {"image"});
 }
 

@@ -50,18 +50,20 @@ class tool_registry
 	std::string execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
 
 	// Used to register and query activation reasons for tool families
-	void register_tool_family(const std::string &name, const std::string &reason);
+	void register_tool_family(const std::string &name, const std::string &reason, const std::string &guidance = "");
 	void unregister_tool_family(const std::string &name);
 	std::string get_tool_family_reason(const std::string &name) const;
+	std::string get_tool_family_guidance(const std::string &name) const;
 	bool has_tool_family(const std::string &name) const;
 
       private:
 	tool_registry() = default;
 	std::map<std::string, validator_factory> validator_factories_;
 	std::map<std::string, std::string> family_reasons_;
+	std::map<std::string, std::string> family_guidances_;
 
 	/*
-	 * mutex_ protects the validator_factories_ map and family_reasons_ map.
+	 * mutex_ protects the validator_factories_ map, family_reasons_ map, and family_guidances_ map.
 	 *
 	 * Locking Rules:
 	 * - Held briefly during tool/family registration, unregistration, tool list querying,

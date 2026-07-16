@@ -1,4 +1,5 @@
 #include <sstream>
+#include "agentlib/tool_registry.h"
 #include "../../agentlib/ai_agent.h"
 #include "activate_tool_family.h"
 
@@ -23,6 +24,12 @@ std::string activate_tool_family_tool::execute(agentlib::tool_context &ctx)
 	std::stringstream ss;
 	ss << "Tool family '" << args_.name << "' has been successfully activated.\n";
 	ss << "All tools belonging to this family are now available in your context.";
+
+	std::string guidance = agentlib::tool_registry::get_instance().get_tool_family_guidance(args_.name);
+	if (!guidance.empty()) {
+		ss << "\n\nGuidance for using the '" << args_.name << "' tool family:\n" << guidance;
+	}
+
 	return ss.str();
 }
 

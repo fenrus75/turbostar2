@@ -48,12 +48,15 @@ int main()
 	// Initialize tool registry and context
 	tool_registry &registry = tool_registry::get_instance();
 
-	// Test family reason registration
+	// Test family reason and guidance registration
 	assert(registry.get_tool_family_reason("my_test_family").empty());
-	registry.register_tool_family("my_test_family", "reason for my test family");
+	assert(registry.get_tool_family_guidance("my_test_family").empty());
+	registry.register_tool_family("my_test_family", "reason for my test family", "guidance for my test family");
 	assert(registry.get_tool_family_reason("my_test_family") == "reason for my test family");
+	assert(registry.get_tool_family_guidance("my_test_family") == "guidance for my test family");
 	registry.unregister_tool_family("my_test_family");
 	assert(registry.get_tool_family_reason("my_test_family").empty());
+	assert(registry.get_tool_family_guidance("my_test_family").empty());
 
 	// Register our mock tool so "my_test_family" is registered
 	registry.register_validator([]() { return std::make_unique<test_tool_validator>(); });
@@ -76,9 +79,11 @@ int main()
 		return true;
 	};
 
+	registry.register_tool_family("my_test_family", "reason for my test family", "guidance for my test family");
 	std::string execute_result = registry.execute_tool("activate_tool_family", valid_args.dump(), ctx);
 	std::cout << "Execution Result:\n" << execute_result << "\n";
 	assert(execute_result.find("Tool family 'my_test_family' has been successfully activated") != std::string::npos);
+	assert(execute_result.find("guidance for my test family") != std::string::npos);
 
 	// 3. Test validation of malicious/malformed inputs
 	// A. Missing required fields
