@@ -111,6 +111,31 @@ int main()
 		assert(result.find("Successfully imported") != std::string::npos);
 	}
 
+	// Export logo.jpg as a PNG file and verify format conversion
+	std::filesystem::path converted_img = proj_root / "converted.png";
+	if (std::filesystem::exists(converted_img)) {
+		std::filesystem::remove(converted_img);
+	}
+	{
+		nlohmann::json args = {{"name", "logo.jpg"}, {"filename", "converted.png"}};
+		std::string result = registry.execute_tool("image_export", args.dump(), ctx);
+		assert(result.find("Successfully exported") != std::string::npos);
+	}
+	assert(std::filesystem::exists(converted_img));
+	{
+		std::string img_header = read_file(converted_img).substr(0, 4);
+		// If GraphicsMagick is compiled in, it should have converted the file format to PNG
+#ifdef HAS_GRAPHICSMAGICK
+		assert(img_header == "\x89PNG");
+#else
+		// If not compiled with GraphicsMagick, it falls back to raw copy, so it remains JPEG format
+		assert(img_header[0] == '\xff' && img_header[1] == '\xd8' && img_header[2] == '\xff');
+#endif
+	}
+	if (std::filesystem::exists(converted_img)) {
+		std::filesystem::remove(converted_img);
+	}
+
 	// 6. Test image_resize
 	{
 		nlohmann::json args = {{"name", "logo.jpg"}, {"newX", 100}, {"newY", 100}, {"output", "logo_resized.jpg"}};

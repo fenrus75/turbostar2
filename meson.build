@@ -64,6 +64,9 @@ if lexbor_dep.found()
 endif
 
 graphicsmagick_dep = dependency('GraphicsMagick++', required : false)
+if graphicsmagick_dep.found()
+  add_project_arguments('-DHAS_GRAPHICSMAGICK', language : 'cpp')
+endif
 
 
 lsp_fw = subproject('lsp-framework')

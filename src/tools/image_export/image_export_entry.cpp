@@ -3,6 +3,10 @@
 #include "images/image_manager.h"
 #include "image_export.h"
 
+#ifdef HAS_GRAPHICSMAGICK
+#include <Magick++.h>
+#endif
+
 namespace tools
 {
 
@@ -39,7 +43,17 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 		std::filesystem::path dest_path(args_.safe_path);
 		std::filesystem::create_directories(dest_path.parent_path());
 
+#ifdef HAS_GRAPHICSMAGICK
+		try {
+			Magick::InitializeMagick(nullptr);
+			Magick::Image img(src_path);
+			img.write(dest_path.string());
+		} catch (...) {
+			std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing);
+		}
+#else
 		std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing);
+#endif
 
 		set_success(ctx, "Exported image");
 		std::string result_msg = "Successfully exported image to " + args_.original_filename;

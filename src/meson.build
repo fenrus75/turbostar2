@@ -199,10 +199,15 @@ libagentlib = static_library('agentlib',
   include_directories : inc,
   dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep, openssl_dep, yaml_cpp_dep])
 
+tools_deps = [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
+if graphicsmagick_dep.found()
+  tools_deps += [graphicsmagick_dep]
+endif
+
 libtools = static_library('tools',
   tools_sources,
   include_directories : inc,
-  dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep])
+  dependencies : tools_deps)
 
 libturbostar_ui = static_library('turbostar_ui',
   ui_sources + [help_text_h, default_movie_h, fs_compile_project_movie_h, run_shell_command_movie_h, run_python_movie_h, turbostar_movie_h],
@@ -212,7 +217,7 @@ libturbostar_ui = static_library('turbostar_ui',
 # Expose dependencies for easy linking
 core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep, ncurses])
 agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [curl_dep, openssl_dep, yaml_cpp_dep])
-tools_dep = declare_dependency(link_whole : libtools, dependencies : [zlib_dep, magic_dep])
+tools_dep = declare_dependency(link_whole : libtools, dependencies : tools_deps)
 ui_dep = declare_dependency(link_whole : libturbostar_ui, dependencies : [magic_dep])
 
 subdir('plugins')

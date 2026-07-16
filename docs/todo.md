@@ -240,6 +240,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Image export format conversion: Updated `image_export` tool to load and save the image via GraphicsMagick when exporting. This ensures that the file format is automatically converted on-the-fly to match the file extension of the target filename (e.g. converting a JPEG VFS image to a PNG file). Included a try-catch fallback to raw file copy to handle non-image files gracefully (e.g. dummy test files). Added a unit test in `test_image_tools.cpp`.
 - Hexedit tool parameter unification: Renamed the parameter `offset` in the `hexwrite` tool schema and implementation to `start_offset`, unifying it with `hexdump` and `hexinspect`. Updated all related source code files and unit tests.
 - Image tool family description & schema enhancements: Resolved all issues from `image-review.md`. Unified URI scheme to `images://` (plural), explained `by-sha256` content-addressed subpaths, clearly defined "alias" vs "VFS URI" in all tool descriptions, clarified that `filename` is relative to project root in `image_import` and `image_export`, and added a detailed chained example to the image family registration metadata.
 - Agent window thumbnail rendering fix: Updated `agent_window`'s `__THUMBNAIL__:` handling to parse and cache the new cell-based quadrant JSON format instead of the old raw pixel arrays. Integrated wide-character ncurses rendering to display these quadrant cells cleanly in the agent interaction logs.
