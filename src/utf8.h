@@ -65,4 +65,9 @@ std::vector<std::string> wrap_string(const std::string &prefix, const std::strin
  */
 std::string detect_mime(std::string_view buffer);
 
+/**
+ * @brief Removes ANSI escape codes (CSI sequences) from a string.
+ */
+std::string sanitize_terminal_output(std::string_view input);
+
 } // namespace utf8

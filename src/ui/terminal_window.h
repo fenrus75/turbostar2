@@ -58,8 +58,10 @@ class terminal_window : public ::window
 	int64_t get_milliseconds_since_last_modification() const;
 	bool is_recording() const { return emulator_.is_recording(); }
 	void set_recording(bool val) { emulator_.set_recording(val); }
-	const std::vector<std::string> &get_recorded_data() const { return emulator_.get_recorded_data(); }
+	std::vector<std::string> get_recorded_data() const;
 	void reset_last_modified() { emulator_.reset_last_modified(); }
+	void set_sanitize_recorded_data(bool val) { sanitize_recorded_data_ = val; }
+	bool get_sanitize_recorded_data() const { return sanitize_recorded_data_; }
 
       protected:
 	void draw_content(bool cursor_only = false) const override;
@@ -80,6 +82,8 @@ class terminal_window : public ::window
 	pid_t pid_{-1};
 	bool is_alive_{false};
 	bool capture_input_{true};
+
+	bool sanitize_recorded_data_{false};
 
 	std::unique_ptr<build_log_parser> parser_;
 	int line_count_{0};

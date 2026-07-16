@@ -272,4 +272,37 @@ std::string detect_mime(std::string_view buffer)
 	return mime_type;
 }
 
+std::string sanitize_terminal_output(std::string_view input)
+{
+	std::string output;
+	output.reserve(input.length());
+	size_t i = 0;
+	while (i < input.length()) {
+		if (input[i] == '\x1b') {
+			if (i + 1 < input.length() && input[i + 1] == '[') {
+				size_t j = i + 2;
+				while (j < input.length()) {
+					char c = input[j];
+					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+						i = j + 1;
+						break;
+					}
+					j++;
+				}
+				if (j == input.length()) {
+					output += ' ';
+					i++;
+				}
+			} else {
+				output += ' ';
+				i++;
+			}
+		} else {
+			output += input[i];
+			i++;
+		}
+	}
+	return output;
+}
+
 } // namespace utf8

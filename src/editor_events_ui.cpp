@@ -799,6 +799,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		app_tw->set_display_priority(10);
 		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
+		gdb_tw->set_sanitize_recorded_data(true);
 		app_tw->link_window(gdb_tw.get());
 
 		// Generate a unique FIFO path in the project root directory (since /tmp is isolated in the sandbox)

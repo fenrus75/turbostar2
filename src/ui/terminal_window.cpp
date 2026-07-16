@@ -15,6 +15,7 @@
 #include "../event_logger.h"
 #include "build_error_manager.h"
 #include "gcc_log_parser.h"
+#include "../utf8.h"
 
 #include <map>
 #include <utility>
@@ -564,6 +565,20 @@ terminal_window::screenshot_data terminal_window::get_screenshot() const
 int64_t terminal_window::get_milliseconds_since_last_modification() const
 {
 	return emulator_.get_milliseconds_since_last_modification();
+}
+
+std::vector<std::string> terminal_window::get_recorded_data() const
+{
+	auto raw = emulator_.get_recorded_data();
+	if (sanitize_recorded_data_) {
+		std::vector<std::string> sanitized;
+		sanitized.reserve(raw.size());
+		for (const auto &s : raw) {
+			sanitized.push_back(utf8::sanitize_terminal_output(s));
+		}
+		return sanitized;
+	}
+	return raw;
 }
 
 void terminal_window::on_resize(int width, int height)
