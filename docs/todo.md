@@ -239,6 +239,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Unified ANSI stripping: Replaced the static `strip_ansi` implementation inside `filter_registry.cpp` with the shared `utf8::sanitize_terminal_output` function, eliminating code duplication and ensuring consistency.
 - Troff code block formatting suppression: Modified `troff2md` to inspect the existing `fill_depth` counter (which tracks active code blocks/no-fill regions) and suppress markdown bold (`**`) and italic (`*`) markup generation when `fill_depth > 0`. Fixed `test_tools.cpp` to run against the real `troff2md` translation filter instead of a hardcoded mock, and added a test case verifying code block suppression behavior.
 - Debugger terminal output sanitization: Relocated `sanitize_terminal_output` to a shared helper in the `utf8` namespace. Added `sanitize_recorded_data_` property and setter to `terminal_window` and enabled it automatically for GDB debugger split windows. This ensures GDB recording output is sanitized and simplified (ANSI escape codes stripped) while application stdout output is recorded verbatim.
 - Write to run output recording: Added an optional `output` boolean parameter to `agent_write_to_run`. When set to true, it starts recording raw stream output written to the terminal emulator, resets the modification timestamp immediately on write to prevent premature pre-settled status, waits for terminal output to settle, and returns the accumulated captured terminal writes directly in the tool response.
