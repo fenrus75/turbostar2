@@ -19,10 +19,6 @@
 	- goal: save a round trip
 	- context: see agent_get_run_screenshot for how to do screenshots
 
-- feature: give agent_get_run_screenshot a "settle" boolean argument, that, when set, waits upto 3 seconds
-	for the screen content to stabilize (no changes for 250 msec) before taking the screenshot
-	- goal: more reliable stable screenshots for the agent
-
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: a markdown_to_html filter 
@@ -248,6 +244,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Screenshot settle optimization: Added an optional `settle` boolean parameter to the `agent_get_run_screenshot` tool. When enabled, the tool queries `get_run_last_modified_age()` to wait up to 3 seconds for the terminal's screen activity to stabilize (requiring no screen updates for at least 250 ms) before capturing, ensuring highly stable and complete visual snapshots.
 - Terminal emulator modification tracking: Added std::chrono-based last modified timestamp tracking to `ansi_terminal_emulator` (`src/ui/ansi_terminal_emulator.cpp`/`h`). Declared a new public helper `get_milliseconds_since_last_modification()` to allow caller checking of terminal activity/settle times.
 - Image composition tool: Added the `image_compose(main_image, small_image, x, y, [output])` tool to the `image_basic` dynamic plugin. This tool overlays/composes the small image onto the main image at the specified pixel coordinates using GraphicsMagick composite operations, allowing agents to dynamically construct compound layouts or overlays. Added `unit_image_tools` test coverage.
 - GDB automatic pending breakpoints: Appended `-ex "set breakpoint pending on"` to the GDB startup command in `editor_events_ui.cpp`. This configures GDB to automatically make breakpoints pending on future shared library loads instead of prompting the user, preventing LLM agents from getting stuck on interactive confirmation questions.

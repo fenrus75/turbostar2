@@ -55,6 +55,7 @@ class terminal_window : public ::window
 		bool cursor_visible = false;
 	};
 	screenshot_data get_screenshot() const;
+	int64_t get_milliseconds_since_last_modification() const;
 
       protected:
 	void draw_content(bool cursor_only = false) const override;

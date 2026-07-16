@@ -924,6 +924,14 @@ agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
 	return res;
 }
 
+int64_t editor::get_run_last_modified_age(int run_id)
+{
+	auto *tw = find_terminal_window(run_id);
+	if (!tw)
+		return -1;
+	return tw->get_milliseconds_since_last_modification();
+}
+
 bool editor::terminate_run(int run_id)
 {
 	if (!is_main_thread()) {

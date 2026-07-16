@@ -12,8 +12,9 @@ namespace tools
  */
 struct agent_get_run_screenshot_raw_args {
 	int run_id{-1};
+	bool settle{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_run_screenshot_raw_args, run_id);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_run_screenshot_raw_args, run_id, settle);
 
 /**
  * @brief Validator for the agent_get_run_screenshot tool.
@@ -40,7 +41,8 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}}}},
+		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}},
+		      {"settle", {{"type", "boolean"}, {"description", "Optional. If true, waits up to 3 seconds for the screen content to settle (no changes for 250 ms) before taking the screenshot."}}}}},
 		    {"required", nlohmann::json::array({"run_id"})}};
 	}
 
@@ -68,7 +70,7 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &args) const override
 	{
 		agent_get_run_screenshot_raw_args raw = args.get<agent_get_run_screenshot_raw_args>();
-		return std::make_unique<agent_get_run_screenshot_tool>(agent_get_run_screenshot_args{raw.run_id});
+		return std::make_unique<agent_get_run_screenshot_tool>(agent_get_run_screenshot_args{raw.run_id, raw.settle});
 	}
 };
 

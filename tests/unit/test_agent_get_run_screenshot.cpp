@@ -24,6 +24,10 @@ public:
 		}
 		return {};
 	}
+
+	int64_t get_run_last_modified_age(int run_id) override {
+		return 500; // Simulated age of 500ms (already settled)
+	}
 };
 
 int main()
@@ -87,6 +91,12 @@ int main()
 			assert(direct_err.find("provider") != std::string::npos);
 
 			ctx.doc_provider = &provider;
+		}
+
+		// 6. Success case with settle
+		{
+			std::string result = registry.execute_tool("agent_get_run_screenshot", "{\"run_id\": 42, \"settle\": true}", ctx);
+			assert(result.find("line1") != std::string::npos);
 		}
 
 		std::cout << "agent_get_run_screenshot tool verified successfully!" << std::endl;

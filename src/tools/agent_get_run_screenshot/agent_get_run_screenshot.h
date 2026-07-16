@@ -9,6 +9,7 @@ namespace tools
 
 struct agent_get_run_screenshot_args {
 	int run_id{-1};
+	bool settle{false};
 };
 
 class agent_get_run_screenshot_tool : public agentlib::llm_tool_action

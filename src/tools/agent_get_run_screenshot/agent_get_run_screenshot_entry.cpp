@@ -3,6 +3,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <chrono>
+#include <thread>
 
 namespace tools
 {
@@ -35,6 +37,21 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 	if (args_.run_id < 0) {
 		set_failure(ctx, "Error: run_id must be non-negative");
 		return "Error: run_id must be non-negative";
+	}
+
+	if (args_.settle) {
+		auto start_time = std::chrono::steady_clock::now();
+		while (true) {
+			int64_t age = ctx.doc_provider->get_run_last_modified_age(args_.run_id);
+			if (age >= 250) {
+				break;
+			}
+			auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
+			if (elapsed_ms >= 3000) {
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		}
 	}
 
 	agentlib::run_screenshot_data snap = ctx.doc_provider->get_run_screenshot(args_.run_id);

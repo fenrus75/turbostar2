@@ -93,6 +93,7 @@ class editor : public agentlib::document_provider
 	agentlib::start_app_result start_app(const std::string &args, bool use_debugger) override;
 	bool write_to_run(int run_id, const std::string &data) override;
 	agentlib::run_screenshot_data get_run_screenshot(int run_id) override;
+	int64_t get_run_last_modified_age(int run_id) override;
 	bool terminate_run(int run_id) override;
 	ui::terminal_window *find_terminal_window(int run_id);
 

@@ -561,6 +561,11 @@ terminal_window::screenshot_data terminal_window::get_screenshot() const
 	return data;
 }
 
+int64_t terminal_window::get_milliseconds_since_last_modification() const
+{
+	return emulator_.get_milliseconds_since_last_modification();
+}
+
 void terminal_window::on_resize(int width, int height)
 {
 	emulator_.resize(width - 2, height - 2);
