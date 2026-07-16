@@ -21,7 +21,8 @@ class git_add_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_add"; }
     std::string get_description() const override { return "Stages specific files or directories for the next commit (git add <paths>)."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},

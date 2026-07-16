@@ -35,6 +35,7 @@ public:
 		return "View the commit-level git blame history of a file, consolidated into contiguous ranges of lines with commit summary and date. Grounding code is provided for the start line of each range to assist the agent.";
 	}
 
+    std::string get_family() const override { return "git"; }
 	nlohmann::json get_parameters_schema() const override;
 
 protected:

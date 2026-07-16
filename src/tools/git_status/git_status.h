@@ -17,7 +17,8 @@ class git_status_validator : public agentlib::zero_argument_tool_validator {
 public:
     std::string get_name() const override { return "git_status"; }
     std::string get_description() const override { return "Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files)."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     bool is_pure() const override { return true; }
 
 protected:

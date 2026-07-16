@@ -17,7 +17,8 @@ class git_log_validator : public agentlib::zero_argument_tool_validator {
 public:
     std::string get_name() const override { return "git_log"; }
     std::string get_description() const override { return "View the last 10 commit messages in the repository (git log -n 10 --oneline)."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     bool is_pure() const override { return true; }
 
 protected:

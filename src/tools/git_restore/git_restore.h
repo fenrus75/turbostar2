@@ -20,7 +20,8 @@ class git_restore_validator : public agentlib::single_file_tool_validator {
 public:
     std::string get_name() const override { return "git_restore"; }
     std::string get_description() const override { return "Discard uncommitted local changes to a file or directory (git checkout/restore <path>). Does not affect staged files."; }
-    std::string get_parameter_name() const override { return "path"; }
+
+    std::string get_family() const override { return "git"; }    std::string get_parameter_name() const override { return "path"; }
     std::string get_parameter_description() const override { return "The path to the file or directory to restore, relative to the project root."; }
 
     agentlib::access_type get_required_permission() const override { return agentlib::access_type::write; }

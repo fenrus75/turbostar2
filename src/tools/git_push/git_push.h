@@ -20,7 +20,8 @@ class git_push_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_push"; }
     std::string get_description() const override { return "Push the current branch to the remote repository. Note: force pushing requires explicit user approval."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},

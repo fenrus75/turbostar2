@@ -20,7 +20,8 @@ class git_diff_from_branch_validator : public agentlib::single_string_tool_valid
 public:
     std::string get_name() const override { return "git_diff_from_branch"; }
     std::string get_description() const override { return "Compare the current working tree against another branch (git diff <branch>). Returns raw patch output."; }
-    std::string get_parameter_name() const override { return "branch_name"; }
+
+    std::string get_family() const override { return "git"; }    std::string get_parameter_name() const override { return "branch_name"; }
     std::string get_parameter_description() const override { return "The name of the branch to compare against."; }
 
     bool is_pure() const override { return true; }

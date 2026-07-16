@@ -57,7 +57,7 @@ class tool_registry
 	bool has_tool_family(const std::string &name) const;
 
       private:
-	tool_registry() = default;
+	tool_registry();
 	std::map<std::string, validator_factory> validator_factories_;
 	std::map<std::string, std::string> family_reasons_;
 	std::map<std::string, std::string> family_guidances_;

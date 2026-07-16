@@ -17,7 +17,8 @@ class git_branch_list_validator : public agentlib::zero_argument_tool_validator 
 public:
     std::string get_name() const override { return "git_branch_list"; }
     std::string get_description() const override { return "List all git branches in the repository as a Markdown table, indicating the currently active branch."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     bool is_pure() const override { return true; }
 
 protected:

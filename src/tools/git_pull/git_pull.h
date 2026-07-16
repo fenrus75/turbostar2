@@ -17,7 +17,8 @@ class git_pull_validator : public agentlib::zero_argument_tool_validator {
 public:
     std::string get_name() const override { return "git_pull"; }
     std::string get_description() const override { return "Synchronize the current branch with the remote (git pull)."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     bool is_pure() const override { return false; }
 
 protected:

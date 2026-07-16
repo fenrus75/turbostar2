@@ -3483,6 +3483,9 @@ void ai_agent::set_role(agent_role r)
 		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "base") == properties_.active_families.end()) {
 			properties_.active_families.insert(properties_.active_families.begin(), "base");
 		}
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "git") == properties_.active_families.end()) {
+			properties_.active_families.push_back("git");
+		}
 	}
 }
 

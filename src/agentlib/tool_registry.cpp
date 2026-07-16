@@ -6,6 +6,21 @@
 namespace agentlib
 {
 
+tool_registry::tool_registry()
+{
+	register_tool_family(
+		"git",
+		"Activate when performing git operations (add, commit, status, diff, log, branch, pull, push, restore)",
+		"The 'git' tool family contains tools to interact with Git version control.\n\n"
+		"Key Tools:\n"
+		"- git_status: Inspect files changed in the workspace.\n"
+		"- git_diff_unstaged / git_diff_staged: Inspect file diffs.\n"
+		"- git_add: Stage changes.\n"
+		"- git_commit: Commit staged changes.\n"
+		"- git_blame: View commit-level line history."
+	);
+}
+
 tool_registry &tool_registry::get_instance()
 {
 	static tool_registry instance;

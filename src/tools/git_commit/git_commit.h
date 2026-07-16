@@ -20,7 +20,8 @@ class git_commit_validator : public agentlib::single_string_tool_validator {
 public:
     std::string get_name() const override { return "git_commit"; }
     std::string get_description() const override { return "Commit the currently staged changes with the provided commit message."; }
-    std::string get_parameter_name() const override { return "message"; }
+
+    std::string get_family() const override { return "git"; }    std::string get_parameter_name() const override { return "message"; }
     std::string get_parameter_description() const override { return "The commit message. Should follow conventional commit format if applicable."; }
 
     bool is_pure() const override { return false; }

@@ -45,7 +45,7 @@ void test_subagent_manager_basic()
 	auto self_opt = manager.find_subagent_by_name("self");
 	assert(self_opt.has_value());
 	assert(self_opt->read_only == false);
-	assert(self_opt->tool_families.size() == 3);
+	assert(self_opt->tool_families.size() == 4);
 
 	// 2. Create custom global agent file to scan (verifying camelCase and snake_case properties)
 	std::filesystem::path agents_dir = temp_home / ".agents";

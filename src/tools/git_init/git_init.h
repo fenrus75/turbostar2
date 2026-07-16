@@ -17,7 +17,8 @@ class git_init_validator : public agentlib::zero_argument_tool_validator {
 public:
     std::string get_name() const override { return "git_init"; }
     std::string get_description() const override { return "Initialize a new Git repository in the current project root. Fails if a .git directory already exists."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     bool is_pure() const override { return false; }
 
 protected:

@@ -21,7 +21,8 @@ class git_unstage_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_unstage"; }
     std::string get_description() const override { return "Unstage files that have been added to the Git index (git reset HEAD <paths>). Does not discard local file changes."; }
-    
+
+    std::string get_family() const override { return "git"; }    
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},

@@ -21,7 +21,8 @@ class git_branch_create_validator : public agentlib::single_string_tool_validato
 public:
     std::string get_name() const override { return "git_branch_create"; }
     std::string get_description() const override { return "Create a new git branch from the current HEAD."; }
-    std::string get_parameter_name() const override { return "branch_name"; }
+
+    std::string get_family() const override { return "git"; }    std::string get_parameter_name() const override { return "branch_name"; }
     std::string get_parameter_description() const override { return "The name of the new branch to create."; }
 
     bool is_pure() const override { return false; }
