@@ -24,12 +24,12 @@ class image_threshold_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"name", {{"type", "string"}, {"description", "The name alias or VFS URI of the image."}}},
+		     {{"name", {{"type", "string"}, {"description", "The developer-assigned name alias (e.g. 'logo') or the full VFS URI (e.g. 'images://by-sha256/<hash>') of the source image."}}},
 		      {"level", {{"type", "number"}, {"description", "Optional standard threshold level (typically 0.0 to 1.0 or pixel value). If specified, standard thresholding is used."}}},
 		      {"windowWidth", {{"type", "integer"}, {"description", "Optional neighborhood width for adaptive thresholding. Default is 16."}}},
 		      {"windowHeight", {{"type", "integer"}, {"description", "Optional neighborhood height for adaptive thresholding. Default is 16."}}},
 		      {"offset", {{"type", "number"}, {"description", "Optional localized offset constant for adaptive thresholding. Default is 0.0."}}},
-		      {"output", {{"type", "string"}, {"description", "Optional new alias name or VFS URI to save the binarized image as."}}}}},
+		      {"output", {{"type", "string"}, {"description", "Optional. A new friendly alias name (e.g. 'logo_binarized') to assign to the resulting binarized image in the VFS. Subsequent tools can reference the image using this alias. If omitted, the source image is modified in-place."}}}}},
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 

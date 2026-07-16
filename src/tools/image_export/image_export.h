@@ -39,7 +39,7 @@ class image_export_validator : public agentlib::tool_validator
 	std::string get_name() const override { return "image_export"; }
 	std::string get_description() const override
 	{
-		return "Exports an image from the virtual image VFS database (image://) as a real file in the project workspace.";
+		return "Exports an image from the virtual image VFS database (images://) as a real file in the project workspace.";
 	}
 	std::string get_family() const override { return "image"; }
 	nlohmann::json get_parameters_schema() const override;

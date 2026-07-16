@@ -11,9 +11,9 @@ nlohmann::json image_import_validator::get_parameters_schema() const
 	return {
 	    {"type", "object"},
 	    {"properties",
-	     {{"filename", {{"type", "string"}, {"description", "Optional. Path to a local image file relative to the project root."}}},
-	      {"URL", {{"type", "string"}, {"description", "Optional. HTTP/HTTPS URL of the image to download."}}},
-	      {"output", {{"type", "string"}, {"description", "The alias name to assign to the imported image (e.g. 'logo.png')."}}}}},
+	     {{"filename", {{"type", "string"}, {"description", "Optional. Path to a local image file to import. Must be relative to the project root (e.g. 'logo.jpg')."}}},
+	      {"URL", {{"type", "string"}, {"description", "Optional. HTTP/HTTPS URL of the remote image to download and import."}}},
+	      {"output", {{"type", "string"}, {"description", "A friendly alias name to assign to the imported image in the VFS (e.g. 'logo'). Subsequent tools can reference the image using this alias."}}}}},
 	    {"required", nlohmann::json::array({"output"})}};
 }
 

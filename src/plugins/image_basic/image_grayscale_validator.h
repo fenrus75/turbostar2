@@ -24,8 +24,8 @@ class image_grayscale_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"name", {{"type", "string"}, {"description", "The name alias or VFS URI of the image."}}},
-		      {"output", {{"type", "string"}, {"description", "Optional new alias name or VFS URI to save the grayscale image as."}}}}},
+		     {{"name", {{"type", "string"}, {"description", "The developer-assigned name alias (e.g. 'logo') or the full VFS URI (e.g. 'images://by-sha256/<hash>') of the source image."}}},
+		      {"output", {{"type", "string"}, {"description", "Optional. A new friendly alias name (e.g. 'logo_gray') to assign to the resulting grayscale image in the VFS. Subsequent tools can reference the image using this alias. If omitted, the source image is modified in-place."}}}}},
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 

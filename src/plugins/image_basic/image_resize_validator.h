@@ -24,11 +24,11 @@ class image_resize_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"name", {{"type", "string"}, {"description", "The name alias or VFS URI of the image (e.g. 'images://by-name/image.png' or 'image.png')."}}},
+		     {{"name", {{"type", "string"}, {"description", "The developer-assigned name alias (e.g. 'logo') or the full VFS URI (e.g. 'images://by-sha256/<hash>') of the source image."}}},
 		      {"newX", {{"type", "integer"}, {"description", "Optional new width in pixels."}}},
 		      {"newY", {{"type", "integer"}, {"description", "Optional new height in pixels."}}},
 		      {"ratio", {{"type", "number"}, {"description", "Optional scaling ratio (e.g. 0.5 to shrink to 50%)."}}},
-		      {"output", {{"type", "string"}, {"description", "Optional new alias name or VFS URI to save the resized image as."}}}}},
+		      {"output", {{"type", "string"}, {"description", "Optional. A new friendly alias name (e.g. 'logo_resized') to assign to the resulting resized image in the VFS. Subsequent tools can reference the image using this alias. If omitted, the source image is modified in-place."}}}}},
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 

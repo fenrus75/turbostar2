@@ -18,12 +18,6 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-- improvements: image tool family schemas, descriptions, and guidance based on `image-review.md`
-	- fix URI scheme mismatch: use `images://` instead of `image://` everywhere
-	- document `by-sha256` subpath meaning (content-addressed storage based on SHA-256 hash)
-	- define "alias" terminology vs VFS URI clearly in descriptions
-	- clarify parameter details: specify that `name` accepts alias or VFS URI, `output` registers a new alias, and `filename` in import/export is relative to the project root
-	- add a step-by-step chained usage example in the tool family guidance string (import -> edit -> export)
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -246,6 +240,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Image tool family description & schema enhancements: Resolved all issues from `image-review.md`. Unified URI scheme to `images://` (plural), explained `by-sha256` content-addressed subpaths, clearly defined "alias" vs "VFS URI" in all tool descriptions, clarified that `filename` is relative to project root in `image_import` and `image_export`, and added a detailed chained example to the image family registration metadata.
 - Agent window thumbnail rendering fix: Updated `agent_window`'s `__THUMBNAIL__:` handling to parse and cache the new cell-based quadrant JSON format instead of the old raw pixel arrays. Integrated wide-character ncurses rendering to display these quadrant cells cleanly in the agent interaction logs.
 - Tool family capability guidance: Added support for registering an optional guidance string for tool families in the `tool_registry`. When an LLM activates a tool family using `activate_tool_family`, this guidance string is returned to teach the LLM about the capabilities and usage guidelines (e.g. explaining the `image://` virtual scratch namespace for the `image` tool family). Added unit test coverage in `test_activate_tool_family.cpp`.
 

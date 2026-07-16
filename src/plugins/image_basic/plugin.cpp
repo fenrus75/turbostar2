@@ -246,7 +246,19 @@ void plugin_run(void)
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"image",
 		"Activate when performing image manipulation or editing",
-		"The 'image://' namespace represents a virtual scratch space for temporary image files created or edited by tools. You can read, write, crop, filter, or export these files using the image tool family. These virtual image paths do not correspond directly to real files in your git workspace and will not affect the git project unless exported."
+		"The 'images://' namespace represents a virtual scratch space for temporary image files created or edited by tools. These virtual image paths do not correspond directly to real files in your git workspace and will not affect the git project unless exported.\n\n"
+		"Key Concepts:\n"
+		"- VFS URI: Content-addressed paths like 'images://by-sha256/<hash>' uniquely identify images by their SHA-256 hash.\n"
+		"- Alias: A friendly label (e.g. 'logo') mapped to a VFS URI. You can assign aliases when importing or editing, allowing you to reference images by simple names.\n\n"
+		"Workflow Chaining Example:\n"
+		"1. Import a local image (path relative to project root) and assign the alias 'logo':\n"
+		"   image_import(filename: 'logo.jpg', output: 'logo')\n"
+		"   => Returns: 'images://by-sha256/<hash>'\n"
+		"2. Convert the imported image to grayscale, saving the result under the new alias 'logo_gray':\n"
+		"   image_grayscale(name: 'logo', output: 'logo_gray')\n"
+		"   => Returns: 'images://by-sha256/<new-hash>'\n"
+		"3. Export the edited image to a local file path relative to the project root (overwriting is permitted):\n"
+		"   image_export(name: 'logo_gray', filename: 'output/logo_gray.png')"
 	);
 	agentlib::filter_registry::get_instance().register_filter("image_thumbnail", generate_image_thumbnail_json, {"image"});
 }

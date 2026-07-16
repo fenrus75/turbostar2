@@ -11,8 +11,8 @@ nlohmann::json image_export_validator::get_parameters_schema() const
 	return {
 	    {"type", "object"},
 	    {"properties",
-	     {{"name", {{"type", "string"}, {"description", "The name alias or VFS URI of the image to export."}}},
-	      {"filename", {{"type", "string"}, {"description", "The destination path relative to the project root where the file will be saved."}}}}},
+	     {{"name", {{"type", "string"}, {"description", "The developer-assigned name alias (e.g. 'logo') or the full VFS URI (e.g. 'images://by-sha256/<hash>') of the image to export."}}},
+	      {"filename", {{"type", "string"}, {"description", "The destination path relative to the project root (e.g. 'output/logo_gray.png') where the image file will be saved. Overwriting the original input file is permitted."}}}}},
 	    {"required", nlohmann::json::array({"name", "filename"})}};
 }
 
