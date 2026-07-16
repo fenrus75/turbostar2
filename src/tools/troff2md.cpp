@@ -80,15 +80,17 @@ static std::vector<std::string> tokenize(const std::string& input) {
     return tokens;
 }
 
-static std::string alternating_filter(const std::string& content, const std::string& style1, const std::string& style2) {
+static std::string alternating_filter(const std::string& content, const std::string& style1, const std::string& style2, ParserState& state) {
     std::vector<std::string> tokens = tokenize(content);
     std::string result;
     for (size_t i = 0; i < tokens.size(); ++i) {
         const std::string& style = (i % 2 == 0) ? style1 : style2;
         std::string word = remove_quotes(tokens[i]);
-        if (style == "B") {
+        if (state.fill_depth > 0) {
+            result += word;
+        } else if (style == "B" || style == "**") {
             result += "**" + word + "**";
-        } else if (style == "I") {
+        } else if (style == "I" || style == "*") {
             result += "*" + word + "*";
         } else {
             result += word;
@@ -110,7 +112,7 @@ static std::string process_escapes(const std::string& input, ParserState& state)
         }
     }
 
-    if (has_text && !state.current_inline_style.empty()) {
+    if (has_text && !state.current_inline_style.empty() && state.fill_depth == 0) {
         result += state.current_inline_style;
     }
 
@@ -120,7 +122,9 @@ static std::string process_escapes(const std::string& input, ParserState& state)
             if (next == 'f' && i + 2 < input.length()) {
                 char font = input[i+2];
                 i += 2;
-                if (font == 'B' || font == '3') {
+                if (state.fill_depth > 0) {
+                    state.current_inline_style = "";
+                } else if (font == 'B' || font == '3') {
                     if (has_text && !state.current_inline_style.empty()) result += state.current_inline_style;
                     state.current_inline_style = "**";
                     if (has_text) result += "**";
@@ -162,7 +166,7 @@ static std::string process_escapes(const std::string& input, ParserState& state)
             result += input[i];
         }
     }
-    if (has_text && !state.current_inline_style.empty()) {
+    if (has_text && !state.current_inline_style.empty() && state.fill_depth == 0) {
         result += state.current_inline_style;
     }
     if (has_newline) {
@@ -191,21 +195,27 @@ static std::string ss_filter(const std::string& content, ParserState& /*state*/)
     return "\n## " + remove_quotes(content) + '\n';
 }
 
-static std::string b_filter(const std::string& content, ParserState& /*state*/) {
+static std::string b_filter(const std::string& content, ParserState& state) {
+    if (state.fill_depth > 0) {
+        return remove_quotes(content) + " ";
+    }
     return "**" + remove_quotes(content) + "** ";
 }
 
-static std::string i_filter(const std::string& content, ParserState& /*state*/) {
+static std::string i_filter(const std::string& content, ParserState& state) {
+    if (state.fill_depth > 0) {
+        return remove_quotes(content) + " ";
+    }
     return "*" + remove_quotes(content) + "* ";
 }
 
-static std::string br_filter(const std::string& content, ParserState& /*state*/) { return alternating_filter(content, "B", "R"); }
-static std::string bi_filter(const std::string& content, ParserState& /*state*/) { return alternating_filter(content, "B", "I"); }
-static std::string ir_filter(const std::string& content, ParserState& /*state*/) { return alternating_filter(content, "I", "R"); }
-static std::string ri_filter(const std::string& content, ParserState& /*state*/) { return alternating_filter(content, "R", "I"); }
-static std::string rb_filter(const std::string& content, ParserState& /*state*/) { return alternating_filter(content, "R", "B"); }
-static std::string ib_filter(const std::string& content, ParserState& /*state*/) {
-    return alternating_filter(content, "*", "**");
+static std::string br_filter(const std::string& content, ParserState& state) { return alternating_filter(content, "B", "R", state); }
+static std::string bi_filter(const std::string& content, ParserState& state) { return alternating_filter(content, "B", "I", state); }
+static std::string ir_filter(const std::string& content, ParserState& state) { return alternating_filter(content, "I", "R", state); }
+static std::string ri_filter(const std::string& content, ParserState& state) { return alternating_filter(content, "R", "I", state); }
+static std::string rb_filter(const std::string& content, ParserState& state) { return alternating_filter(content, "R", "B", state); }
+static std::string ib_filter(const std::string& content, ParserState& state) {
+    return alternating_filter(content, "*", "**", state);
 }
 
 static std::string p_filter(const std::string& /*content*/, ParserState& /*state*/) {
@@ -236,6 +246,7 @@ static std::string tq_filter(const std::string& /*content*/, ParserState& state)
 }
 
 static std::string nf_filter(const std::string& /*content*/, ParserState& state) {
+    state.current_inline_style = "";
     if (state.fill_depth++ == 0) {
         return "```c\n";
     }

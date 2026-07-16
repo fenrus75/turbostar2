@@ -20,11 +20,10 @@ int main()
 	// Initialize managers
 	project_manager::get_instance().initialize();
 
+extern std::string troff2md(std::string troff_content);
+
 	filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
-		if (input.find(".SH Header") != std::string::npos) {
-			return std::string("# Header\n**bold text.**\n");
-		}
-		return input;
+		return troff2md(input);
 	});
 
 	tool_registry &registry = tool_registry::get_instance();
@@ -553,12 +552,27 @@ int main()
 		{
 			std::string result_troff = registry.execute_tool(
 				"apply_text_filter",
-				"{\"text\": \".SH Header\\nSome .B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}",
+				"{\"text\": \".SH Header\\nSome\\n.B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}",
 				ctx
 			);
 			std::cout << "Troff result:\n" << result_troff << std::endl;
 			assert(result_troff.find("# Header") != std::string::npos);
 			assert(result_troff.find("**bold text.**") != std::string::npos);
+		}
+
+		// Test 6: troff_to_markdown filter with code blocks suppressing bold/italic
+		{
+			std::string result_troff = registry.execute_tool(
+				"apply_text_filter",
+				"{\"text\": \".nf\\nSome .B \\\"bold text\\\" and \\\\fBfont bold\\\\fR\\n.fi\", \"filter\": \"troff_to_markdown\"}",
+				ctx
+			);
+			std::cout << "Troff code block result:\n" << result_troff << std::endl;
+			assert(result_troff.find("```c") != std::string::npos);
+			assert(result_troff.find("bold text") != std::string::npos);
+			assert(result_troff.find("**bold text**") == std::string::npos);
+			assert(result_troff.find("font bold") != std::string::npos);
+			assert(result_troff.find("**font bold**") == std::string::npos);
 		}
 	}
 
