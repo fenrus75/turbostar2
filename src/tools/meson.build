@@ -184,9 +184,5 @@ tools_sources = files(
   'get_code_review_item/get_code_review_item_entry.cpp',
   'get_code_review_item/get_code_review_item_security.cpp',
   'perform_code_review/perform_code_review_entry.cpp',
-  'perform_code_review/perform_code_review_security.cpp',
-  'image_import/image_import_entry.cpp',
-  'image_import/image_import_security.cpp',
-  'image_export/image_export_entry.cpp',
-  'image_export/image_export_security.cpp'
+  'perform_code_review/perform_code_review_security.cpp'
 )

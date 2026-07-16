@@ -234,9 +234,15 @@ void register_image_grayscale(void);
 void unregister_image_grayscale(void);
 void register_image_threshold(void);
 void unregister_image_threshold(void);
+void register_image_import(void);
+void unregister_image_import(void);
+void register_image_export(void);
+void unregister_image_export(void);
 
 void plugin_run(void)
 {
+	register_image_import();
+	register_image_export();
 	register_image_resize();
 	register_image_crop();
 	register_image_rotate();
@@ -266,6 +272,8 @@ void plugin_run(void)
 
 void plugin_unload(void)
 {
+	unregister_image_import();
+	unregister_image_export();
 	unregister_image_resize();
 	unregister_image_crop();
 	unregister_image_rotate();

@@ -89,6 +89,16 @@ std::unique_ptr<agentlib::llm_tool> image_import_validator::create_tool_impl(con
 	return std::make_unique<image_import_tool>(parsed_args_);
 }
 
-REGISTER_TOOL(image_import_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_image_import(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::image_import_validator>(); });
+}
+
+void unregister_image_import(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("image_import");
+}
+}
