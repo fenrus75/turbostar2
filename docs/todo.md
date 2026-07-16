@@ -18,10 +18,6 @@
 	- should be straightforward structural conversion
 	- almost a line by line regexp, after some boilerplate headers / footers
 
-
-- feature: make an image processing agent with detailed description for how the image:// namespace works
-	- alternatively this should be in the tool family "activate_tool_family" response string
-
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
 
@@ -243,6 +239,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Agent window thumbnail rendering fix: Updated `agent_window`'s `__THUMBNAIL__:` handling to parse and cache the new cell-based quadrant JSON format instead of the old raw pixel arrays. Integrated wide-character ncurses rendering to display these quadrant cells cleanly in the agent interaction logs.
 - Tool family capability guidance: Added support for registering an optional guidance string for tool families in the `tool_registry`. When an LLM activates a tool family using `activate_tool_family`, this guidance string is returned to teach the LLM about the capabilities and usage guidelines (e.g. explaining the `image://` virtual scratch namespace for the `image` tool family). Added unit test coverage in `test_activate_tool_family.cpp`.
 
 ## 15-07-2026

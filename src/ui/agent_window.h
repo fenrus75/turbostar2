@@ -7,10 +7,12 @@
 #include <map>
 #include <vector>
 
+#include "ui/components/ui_thumbnail.h"
+
 struct cached_thumbnail {
 	int width = 0;
 	int height = 0;
-	std::vector<std::vector<int>> pixels;
+	std::vector<thumbnail_cell> cells;
 };
 
 class agent_window : public window

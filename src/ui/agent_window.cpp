@@ -928,14 +928,14 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 
 						cached_thumbnail cached;
 						cached.width = thumb_w;
-						cached.height = thumb_h * 2;
+						cached.height = thumb_h;
 
 						auto &registry = agentlib::filter_registry::get_instance();
 						if (!physical_path.empty() && registry.has_filter("image_thumbnail")) {
 							nlohmann::json input_json = {
 								{"path", physical_path},
 								{"width", thumb_w},
-								{"height", thumb_h * 2}
+								{"height", thumb_h}
 							};
 							bool success = false;
 							std::string result_str = registry.apply_filter("image_thumbnail", input_json.dump(), success);
@@ -944,19 +944,20 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 									nlohmann::json out = nlohmann::json::parse(result_str);
 									int grid_w = out["width"].get<int>();
 									int grid_h = out["height"].get<int>();
-									auto raw_pixels = out["pixels"];
+									cached.width = grid_w;
+									cached.height = grid_h;
+									auto raw_cells = out["cells"];
 									
-									cached.pixels.resize(grid_h, std::vector<int>(grid_w * 3, 0));
-									int idx = 0;
-									for (const auto &item_px : raw_pixels) {
-										int px = idx % grid_w;
-										int py = idx / grid_w;
-										if (py < grid_h && px < grid_w) {
-											cached.pixels[py][px * 3 + 0] = item_px[0].get<int>();
-											cached.pixels[py][px * 3 + 1] = item_px[1].get<int>();
-											cached.pixels[py][px * 3 + 2] = item_px[2].get<int>();
-										}
-										idx++;
+									for (const auto &item : raw_cells) {
+										thumbnail_cell cell;
+										cell.fg_r = item[0][0].get<int>();
+										cell.fg_g = item[0][1].get<int>();
+										cell.fg_b = item[0][2].get<int>();
+										cell.bg_r = item[1][0].get<int>();
+										cell.bg_g = item[1][1].get<int>();
+										cell.bg_b = item[1][2].get<int>();
+										cell.ch = item[2].get<std::string>();
+										cached.cells.push_back(cell);
 									}
 								} catch (...) {}
 							}
@@ -966,40 +967,42 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 					}
 
 					const auto &cached = it->second;
-					if (cached.pixels.empty()) {
+					if (cached.cells.empty()) {
 						std::string ph = " [No Preview] ";
 						if (r == thumb_h / 2) {
 							mvaddstr(current_y, current_x + left_pad + (thumb_w - (int)ph.length()) / 2, ph.c_str());
 						}
 					} else {
-						int top_y = r * 2;
-						int bot_y = r * 2 + 1;
 						int draw_x = current_x + left_pad;
+						int grid_w = cached.width;
 
 						for (int col = 0; col < thumb_w; ++col) {
-							int top_r = 0, top_g = 0, top_b = 0;
-							int bot_r = 0, bot_g = 0, bot_b = 0;
-							if (col < (int)cached.pixels[0].size() / 3) {
-								if (top_y < (int)cached.pixels.size()) {
-									top_r = cached.pixels[top_y][col * 3 + 0];
-									top_g = cached.pixels[top_y][col * 3 + 1];
-									top_b = cached.pixels[top_y][col * 3 + 2];
-								}
-								if (bot_y < (int)cached.pixels.size()) {
-									bot_r = cached.pixels[bot_y][col * 3 + 0];
-									bot_g = cached.pixels[bot_y][col * 3 + 1];
-									bot_b = cached.pixels[bot_y][col * 3 + 2];
-								}
+							thumbnail_cell cell;
+							size_t idx = r * grid_w + col;
+							if (idx < cached.cells.size()) {
+								cell = cached.cells[idx];
 							}
 
-							int fg = dynamic_colors::dynamic_get_color(bot_r, bot_g, bot_b);
-							int bg = dynamic_colors::dynamic_get_color(top_r, top_g, top_b);
-							int cp = dynamic_colors::dynamic_alloc_pair(fg, bg);
+							int fg_col = dynamic_colors::dynamic_get_color(cell.fg_r, cell.fg_g, cell.fg_b);
+							int bg_col = dynamic_colors::dynamic_get_color(cell.bg_r, cell.bg_g, cell.bg_b);
 
-							attr_set(A_NORMAL, cp, NULL);
-							mvaddstr(current_y, draw_x + col, "▄");
+							int pair_idx = dynamic_colors::dynamic_alloc_pair(fg_col, bg_col);
+
+							wchar_t wc = L' ';
+							if (cell.ch == " ") wc = L' ';
+							else if (cell.ch == "▘") wc = 0x2598;
+							else if (cell.ch == "▝") wc = 0x259D;
+							else if (cell.ch == "▖") wc = 0x2596;
+							else if (cell.ch == "▗") wc = 0x2597;
+							else if (cell.ch == "▀") wc = 0x2580;
+							else if (cell.ch == "▌") wc = 0x258C;
+							else if (cell.ch == "▚") wc = 0x259A;
+
+							cchar_t wch;
+							wchar_t wstr[2] = { wc, 0 };
+							setcchar(&wch, wstr, A_NORMAL, pair_idx, NULL);
+							mvadd_wch(current_y, draw_x + col, &wch);
 						}
-						attr_set(A_NORMAL, 0, NULL);
 					}
 				}
 				current_x += inner_width;
