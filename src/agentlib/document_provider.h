@@ -62,6 +62,8 @@ public:
     virtual bool write_to_run(int /*run_id*/, const std::string& /*data*/) { return false; }
     virtual run_screenshot_data get_run_screenshot(int /*run_id*/) { return {}; }
     virtual int64_t get_run_last_modified_age(int /*run_id*/) { return -1; }
+    virtual void set_run_recording(int /*run_id*/, bool /*recording*/) {}
+    virtual std::vector<std::string> get_run_recorded_data(int /*run_id*/) { return {}; }
     virtual bool terminate_run(int /*run_id*/) { return false; }
 };
 

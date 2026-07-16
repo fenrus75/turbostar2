@@ -14,11 +14,6 @@
 
 - feature: parse meson.build to find the application name for "run" if none has been configured
 
-- feature: give agent_write_to_run() an optional "screenshot" boolean argument, that does the write,
-    then waits a bit of time and waits for the screen content to settle (no changes for 250 msec), then takes a screenshot and returns this
-	- goal: save a round trip
-	- context: see agent_get_run_screenshot for how to do screenshots
-
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: a markdown_to_html filter 
@@ -244,6 +239,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Write to run output recording: Added an optional `output` boolean parameter to `agent_write_to_run`. When set to true, it starts recording raw stream output written to the terminal emulator, resets the modification timestamp immediately on write to prevent premature pre-settled status, waits for terminal output to settle, and returns the accumulated captured terminal writes directly in the tool response.
 - Screenshot settle optimization: Added an optional `settle` boolean parameter to the `agent_get_run_screenshot` tool. When enabled, the tool queries `get_run_last_modified_age()` to wait up to 3 seconds for the terminal's screen activity to stabilize (requiring no screen updates for at least 250 ms) before capturing, ensuring highly stable and complete visual snapshots.
 - Terminal emulator modification tracking: Added std::chrono-based last modified timestamp tracking to `ansi_terminal_emulator` (`src/ui/ansi_terminal_emulator.cpp`/`h`). Declared a new public helper `get_milliseconds_since_last_modification()` to allow caller checking of terminal activity/settle times.
 - Image composition tool: Added the `image_compose(main_image, small_image, x, y, [output])` tool to the `image_basic` dynamic plugin. This tool overlays/composes the small image onto the main image at the specified pixel coordinates using GraphicsMagick composite operations, allowing agents to dynamically construct compound layouts or overlays. Added `unit_image_tools` test coverage.

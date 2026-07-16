@@ -24,7 +24,20 @@ public:
 		return false;
 	}
 
+	int64_t get_run_last_modified_age(int run_id) override {
+		return 500; // Simulated age of 500ms (already settled)
+	}
+
+	void set_run_recording(int run_id, bool recording) override {
+		is_recording = recording;
+	}
+
+	std::vector<std::string> get_run_recorded_data(int run_id) override {
+		return {"simulated", " recorded", " output"};
+	}
+
 	std::string last_written_data;
+	bool is_recording = false;
 };
 
 int main()
@@ -93,6 +106,16 @@ int main()
 			auto prep = registry.prepare_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
+			ctx.doc_provider = &mock;
+		}
+
+		// 7. Success case with output=true
+		{
+			ctx.doc_provider = &mock;
+			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"output\": true}", ctx);
+			std::cout << "Success with output path result: " << res << std::endl;
+			assert(res == "simulated recorded output");
+			assert(mock.is_recording == false);
 		}
 
 		std::cout << "agent_write_to_run tool verified successfully!" << std::endl;

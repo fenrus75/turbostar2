@@ -906,6 +906,7 @@ bool editor::write_to_run(int run_id, const std::string &data)
 	int fd = tw->get_pty_master_fd();
 	if (fd < 0 || !tw->is_alive())
 		return false;
+	tw->reset_last_modified();
 	ssize_t w = write(fd, data.data(), data.size());
 	return (w == static_cast<ssize_t>(data.size()));
 }
@@ -930,6 +931,23 @@ int64_t editor::get_run_last_modified_age(int run_id)
 	if (!tw)
 		return -1;
 	return tw->get_milliseconds_since_last_modification();
+}
+
+void editor::set_run_recording(int run_id, bool recording)
+{
+	auto *tw = find_terminal_window(run_id);
+	if (tw) {
+		tw->set_recording(recording);
+	}
+}
+
+std::vector<std::string> editor::get_run_recorded_data(int run_id)
+{
+	auto *tw = find_terminal_window(run_id);
+	if (tw) {
+		return tw->get_recorded_data();
+	}
+	return {};
 }
 
 bool editor::terminate_run(int run_id)

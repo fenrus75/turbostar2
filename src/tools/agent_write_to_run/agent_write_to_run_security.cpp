@@ -11,8 +11,9 @@ namespace tools
 struct agent_write_to_run_raw_args {
 	int run_id{-1};
 	std::string data;
+	bool output{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(agent_write_to_run_raw_args, run_id, data);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_write_to_run_raw_args, run_id, data, output);
 
 class agent_write_to_run_validator : public agentlib::tool_validator
 {
@@ -37,7 +38,8 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 		    {"type", "object"},
 		    {"properties",
 		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}},
-		      {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}}}},
+		      {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}},
+		      {"output", {{"type", "boolean"}, {"description", "Optional. If true, starts recording stdout output, writes data, waits up to 3 seconds for the screen to settle, and returns the newly recorded output."}}}}},
 		    {"required", nlohmann::json::array({"run_id", "data"})}};
 	}
 
@@ -57,6 +59,7 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 			}
 			args_.run_id = raw.run_id;
 			args_.data = fs_utils::unescape_string(raw.data);
+			args_.output = raw.output;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

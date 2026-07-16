@@ -44,6 +44,9 @@ void ansi_terminal_emulator::write(const std::string &bytes)
 {
 	if (!bytes.empty()) {
 		update_last_modified();
+		if (recording_) {
+			recorded_data_.push_back(bytes);
+		}
 	}
 	for (char c : bytes) {
 		process_char(c);
@@ -395,6 +398,11 @@ void ansi_terminal_emulator::clear_line_part(int y, int start_x, int end_x)
 void ansi_terminal_emulator::update_last_modified()
 {
 	last_modified_ = std::chrono::steady_clock::now();
+}
+
+void ansi_terminal_emulator::reset_last_modified()
+{
+	update_last_modified();
 }
 
 } // namespace ui

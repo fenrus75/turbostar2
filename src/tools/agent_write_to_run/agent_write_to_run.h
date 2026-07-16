@@ -10,6 +10,7 @@ namespace tools
 struct agent_write_to_run_args {
 	int run_id{-1};
 	std::string data;
+	bool output{false};
 };
 
 class agent_write_to_run_tool : public agentlib::llm_tool_action

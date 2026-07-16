@@ -56,6 +56,10 @@ class terminal_window : public ::window
 	};
 	screenshot_data get_screenshot() const;
 	int64_t get_milliseconds_since_last_modification() const;
+	bool is_recording() const { return emulator_.is_recording(); }
+	void set_recording(bool val) { emulator_.set_recording(val); }
+	const std::vector<std::string> &get_recorded_data() const { return emulator_.get_recorded_data(); }
+	void reset_last_modified() { emulator_.reset_last_modified(); }
 
       protected:
 	void draw_content(bool cursor_only = false) const override;

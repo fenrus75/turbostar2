@@ -73,6 +73,17 @@ class ansi_terminal_emulator
 		return static_cast<int64_t>(diff.count());
 	}
 
+	bool is_recording() const { return recording_; }
+	void set_recording(bool val)
+	{
+		recording_ = val;
+		if (recording_) {
+			recorded_data_.clear();
+		}
+	}
+	const std::vector<std::string> &get_recorded_data() const { return recorded_data_; }
+	void reset_last_modified();
+
       private:
 	void process_char(char c);
 	void handle_csi_command(char cmd);
@@ -105,6 +116,9 @@ class ansi_terminal_emulator
 	bool csi_private_{false};
 	bool mouse_reporting_{false};
 	bool mouse_sgr_{false};
+
+	bool recording_{false};
+	std::vector<std::string> recorded_data_;
 
 	std::chrono::steady_clock::time_point last_modified_;
 };
