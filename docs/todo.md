@@ -48,7 +48,6 @@
 - feature: in LLM response, instead of doing **Bold** like that, actual show it as bold?
 	- need to be careful with text wrapping and line lengths or the dialog box will draw incorrectly
 
-
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
 - feature: become an A2A server for our agents
@@ -92,8 +91,6 @@
 
 - feature: we should create a code review agent file in agents/
 	- the code review agent should have access to the security plugin tool namespace
-
-- feature: the git_ family of tools should be in a git tool namespace, and this should be in the normal baseline tool set
 
 - bug: the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
 
@@ -251,6 +248,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Image composition tool: Added the `image_compose(main_image, small_image, x, y, [output])` tool to the `image_basic` dynamic plugin. This tool overlays/composes the small image onto the main image at the specified pixel coordinates using GraphicsMagick composite operations, allowing agents to dynamically construct compound layouts or overlays. Added `unit_image_tools` test coverage.
 - GDB automatic pending breakpoints: Appended `-ex "set breakpoint pending on"` to the GDB startup command in `editor_events_ui.cpp`. This configures GDB to automatically make breakpoints pending on future shared library loads instead of prompting the user, preventing LLM agents from getting stuck on interactive confirmation questions.
 - Tool families website documentation: Added a new split-screen detail section and summary card to `docs/ai.html` explaining how the Tool Families feature manages context/prompt bloat and helps agents dynamically activate workspace capability groups (like `git` or `image`) on demand.
 - Git tool family unification: Created a dedicated `"git"` tool family for the 16 `git_*` version control tools. This prevents git schemas from bloating the prompt context of specialized subagents (like read-only searchers, planners, or security auditors) that do not require version control. Pre-registered the `"git"` family in `tool_registry`, configured the parent/developer agent and the `self` subagent clone to activate `"git"` by default, and updated related unit tests.

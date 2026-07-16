@@ -1,0 +1,35 @@
+#pragma once
+
+#include <string>
+#include <optional>
+#include "agentlib/llm_tool_action.h"
+#include "agentlib/interactions/image_tool.h"
+
+namespace tools
+{
+
+struct image_compose_args {
+	std::string main_image;
+	std::string safe_path_main;
+	std::string small_image;
+	std::string safe_path_small;
+	int x = 0;
+	int y = 0;
+	std::optional<std::string> output;
+};
+
+class image_compose_tool : public agentlib::llm_tool_action
+{
+      public:
+	explicit image_compose_tool(image_compose_args args);
+
+	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
+	std::string execute(agentlib::tool_context &ctx) override;
+	std::shared_ptr<agentlib::agent_interaction> get_interaction() const override { return interaction_; }
+
+      private:
+	image_compose_args args_;
+	std::shared_ptr<agentlib::interaction_image_tool> interaction_;
+};
+
+} // namespace tools

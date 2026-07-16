@@ -238,6 +238,8 @@ void register_image_import(void);
 void unregister_image_import(void);
 void register_image_export(void);
 void unregister_image_export(void);
+void register_image_compose(void);
+void unregister_image_compose(void);
 
 void plugin_run(void)
 {
@@ -249,6 +251,7 @@ void plugin_run(void)
 	register_image_mirror();
 	register_image_grayscale();
 	register_image_threshold();
+	register_image_compose();
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"image",
 		"Activate when performing image manipulation or editing",
@@ -280,6 +283,7 @@ void plugin_unload(void)
 	unregister_image_mirror();
 	unregister_image_grayscale();
 	unregister_image_threshold();
+	unregister_image_compose();
 	agentlib::tool_registry::get_instance().unregister_tool_family("image");
 	agentlib::filter_registry::get_instance().unregister_filter("image_thumbnail");
 }

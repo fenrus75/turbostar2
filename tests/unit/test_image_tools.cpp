@@ -227,7 +227,28 @@ int main()
 		std::filesystem::remove(out_file);
 	}
 
-	// 12. Test image_thumbnail output filter
+	// 12. Test image_compose
+	{
+		nlohmann::json args = {
+			{"main_image", "logo.jpg"},
+			{"small_image", "logo.jpg"},
+			{"x", 10},
+			{"y", 10},
+			{"output", "logo_composed.jpg"}
+		};
+		std::string result = registry.execute_tool("image_compose", args.dump(), ctx);
+		std::cout << "Compose result: " << result << std::endl;
+		assert(result.find("Successfully composed") != std::string::npos);
+
+		std::filesystem::path out_file = proj_root / "logo_composed.jpg";
+		nlohmann::json export_args = {{"name", "logo_composed.jpg"}, {"filename", "logo_composed.jpg"}};
+		registry.execute_tool("image_export", export_args.dump(), ctx);
+		assert(std::filesystem::exists(out_file));
+		assert(std::filesystem::file_size(out_file) > 0);
+		std::filesystem::remove(out_file);
+	}
+
+	// 13. Test image_thumbnail output filter
 	{
 		assert(filter_registry::get_instance().has_filter("image_thumbnail"));
 
