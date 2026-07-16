@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <chrono>
 
 namespace ui
 {
@@ -65,12 +66,20 @@ class ansi_terminal_emulator
 
 	void clear_all();
 
+	int64_t get_milliseconds_since_last_modification() const
+	{
+		auto now = std::chrono::steady_clock::now();
+		auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_modified_);
+		return static_cast<int64_t>(diff.count());
+	}
+
       private:
 	void process_char(char c);
 	void handle_csi_command(char cmd);
 	void handle_sgr();
 	void scroll_up();
 	void clear_line_part(int y, int start_x, int end_x);
+	void update_last_modified();
 
 	int width_;
 	int height_;
@@ -96,6 +105,8 @@ class ansi_terminal_emulator
 	bool csi_private_{false};
 	bool mouse_reporting_{false};
 	bool mouse_sgr_{false};
+
+	std::chrono::steady_clock::time_point last_modified_;
 };
 
 } // namespace ui

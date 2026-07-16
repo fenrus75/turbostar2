@@ -9,11 +9,13 @@ namespace ui
 
 ansi_terminal_emulator::ansi_terminal_emulator(int width, int height) : width_(width), height_(height)
 {
+	update_last_modified();
 	resize(width, height);
 }
 
 void ansi_terminal_emulator::resize(int width, int height)
 {
+	update_last_modified();
 	width_ = std::max(1, width);
 	height_ = std::max(1, height);
 
@@ -28,6 +30,7 @@ void ansi_terminal_emulator::resize(int width, int height)
 
 void ansi_terminal_emulator::clear_all()
 {
+	update_last_modified();
 	terminal_cell blank = current_style_;
 	blank.glyph = " ";
 	for (int y = 0; y < height_; ++y) {
@@ -39,6 +42,9 @@ void ansi_terminal_emulator::clear_all()
 
 void ansi_terminal_emulator::write(const std::string &bytes)
 {
+	if (!bytes.empty()) {
+		update_last_modified();
+	}
 	for (char c : bytes) {
 		process_char(c);
 	}
@@ -384,6 +390,11 @@ void ansi_terminal_emulator::clear_line_part(int y, int start_x, int end_x)
 	for (int x = s; x <= e; ++x) {
 		grid_[y][x] = blank;
 	}
+}
+
+void ansi_terminal_emulator::update_last_modified()
+{
+	last_modified_ = std::chrono::steady_clock::now();
 }
 
 } // namespace ui
