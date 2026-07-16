@@ -12,6 +12,18 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: parse meson.build to find the application name for "run" if none has been configured
+
+- feature: give agent_write_to_run() an optional "screenshot" boolean argument, that does the write,
+    then waits a bit of time and waits for the screen content to settle (no changes for 250 msec), then takes a screenshot and returns this
+	- goal: save a round trip
+
+- feature: give agent_get_run_screenshot a "settle" boolean argument, that, when set, waits upto 3 seconds
+	for the screen content to stabilize (no changes for 250 msec) before taking the screenshot
+	- goal: more reliable stable screenshots for the agent
+
+- feature: when running gdb, make it so that gdb does not ask for "future load" for breakpoints as this kind of always happens
+
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: a markdown_to_html filter 
@@ -240,6 +252,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Tool families website documentation: Added a new split-screen detail section and summary card to `docs/ai.html` explaining how the Tool Families feature manages context/prompt bloat and helps agents dynamically activate workspace capability groups (like `git` or `image`) on demand.
 - Git tool family unification: Created a dedicated `"git"` tool family for the 16 `git_*` version control tools. This prevents git schemas from bloating the prompt context of specialized subagents (like read-only searchers, planners, or security auditors) that do not require version control. Pre-registered the `"git"` family in `tool_registry`, configured the parent/developer agent and the `self` subagent clone to activate `"git"` by default, and updated related unit tests.
 - Image tools relocation: Relocated `image_import` and `image_export` tools from the core `libtools` target to the dynamic `image_basic` plugin module. This isolates the heavy GraphicsMagick dependency entirely within the dynamic plugin, preventing the core application from linking against it. Converted their static registrations to explicit, lifecycle-managed functions.
 - Image export format conversion: Updated `image_export` tool to load and save the image via GraphicsMagick when exporting. This ensures that the file format is automatically converted on-the-fly to match the file extension of the target filename (e.g. converting a JPEG VFS image to a PNG file). Included a try-catch fallback to raw file copy to handle non-image files gracefully (e.g. dummy test files). Added a unit test in `test_image_tools.cpp`.

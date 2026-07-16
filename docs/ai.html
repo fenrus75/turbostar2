@@ -90,8 +90,40 @@
       </div>
     </section>
 
+    <!-- Visual Feature: Tool Families -->
+    <section class="detail-split" id="tool-families">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Modular Tool Families</h2>
+        <p class="detail-text">
+          Avoid LLM context bloat and model distraction. Instead of overloading agents with every tool in the universe, Turbostar groups capabilities into dynamically activated <strong>Tool Families</strong>.
+        </p>
+        <ul class="detail-list">
+          <li><strong>On-Demand Activation:</strong> Agents activate specific families (such as <code>git</code>, <code>image</code>, <code>x86</code>, or <code>hexedit</code>) dynamically at runtime only when needed, minimizing prompt token consumption.</li>
+          <li><strong>Specialized Subagents:</strong> Subagents are configured to load only a subset of families, protecting them from schema noise and ensuring high-focus task execution.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-tool-families">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --tool-families</div>
+          </div>
+          <div class="terminal-content" style="background: var(--bg-secondary);">
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Agent activates tool family dynamically:</span>
+<span class="keyword">activate_tool_family</span>(name: <span class="string">"image"</span>)
+<span class="literal">=> Success:</span> Image tool family activated.
+   Registered tools available:
+   - image_import
+   - image_resize
+   - image_crop
+   - image_export
+   Context overhead minimized: loaded 6 tools instead of 40+.</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Visual Feature 3: In-Editor Code Review -->
-    <section class="detail-split" id="code-review">
+    <section class="detail-split reverse" id="code-review">
       <div class="detail-info">
         <h2 class="detail-subtitle">In-Editor Code Review &amp; Edits</h2>
         <p class="detail-text">
@@ -117,7 +149,7 @@
     </section>
 
     <!-- Visual Feature 4: Compiler Context Optimization -->
-    <section class="detail-split reverse" id="compile-optimization">
+    <section class="detail-split" id="compile-optimization">
       <div class="detail-info">
         <h2 class="detail-subtitle">Compiler Context Optimization</h2>
         <p class="detail-text">
@@ -149,7 +181,7 @@
     </section>
 
     <!-- Visual Feature 5: Interactive Agent-Driven Debugging -->
-    <section class="detail-split" id="agent-debugging">
+    <section class="detail-split reverse" id="agent-debugging">
       <div class="detail-info">
         <h2 class="detail-subtitle">Interactive Agent-Driven Debugging</h2>
         <p class="detail-text">
@@ -175,7 +207,7 @@
     </section>
 
     <!-- Visual Feature 6: Agent Command Center -->
-    <section class="detail-split reverse" id="command-center-section">
+    <section class="detail-split" id="command-center-section">
       <div class="detail-info">
         <h2 class="detail-subtitle">Agent Command Center</h2>
         <p class="detail-text">
@@ -201,7 +233,7 @@
     </section>
 
     <!-- Visual Feature 7: Integrated Undo History -->
-    <section class="detail-split" id="undo-history">
+    <section class="detail-split reverse" id="undo-history">
       <div class="detail-info">
         <h2 class="detail-subtitle">Integrated Undo History</h2>
         <p class="detail-text">
@@ -307,6 +339,11 @@
         <article class="card" id="card-claude-subagents">
           <h3 class="card-title">Claude-Style Subagents</h3>
           <p class="card-desc">Define helper subagents using standard Markdown profiles with YAML frontmatter, dynamically specifying tool namespaces, permissions, and visual animations.</p>
+        </article>
+
+        <article class="card" id="card-tool-families">
+          <h3 class="card-title">Dynamic Tool Families</h3>
+          <p class="card-desc">Group agent helper tools into modular namespace families (e.g. <code>git</code>, <code>image</code>, <code>hexedit</code>) that can be activated dynamically on-demand, reducing prompt clutter.</p>
         </article>
       </div>
     </section>
