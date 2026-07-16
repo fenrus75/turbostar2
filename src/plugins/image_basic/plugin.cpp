@@ -258,7 +258,8 @@ void plugin_run(void)
 		"   image_grayscale(name: 'logo', output: 'logo_gray')\n"
 		"   => Returns: 'images://by-sha256/<new-hash>'\n"
 		"3. Export the edited image to a local file path relative to the project root (overwriting is permitted):\n"
-		"   image_export(name: 'logo_gray', filename: 'output/logo_gray.png')"
+		"   image_export(name: 'logo_gray', filename: 'output/logo_gray.png')\n\n"
+		"Note: The 'name' parameter in all edit/export tools accepts either the friendly alias name (e.g. 'logo') or the full VFS URI (e.g. 'images://by-sha256/<hash>')."
 	);
 	agentlib::filter_registry::get_instance().register_filter("image_thumbnail", generate_image_thumbnail_json, {"image"});
 }
