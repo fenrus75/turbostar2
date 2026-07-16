@@ -40,7 +40,7 @@ class image_import_validator : public agentlib::tool_validator
 	std::string get_name() const override { return "image_import"; }
 	std::string get_description() const override
 	{
-		return "Imports an image from a local file or a web URL into the virtual VFS image database (images://).";
+		return "Imports an image from a local file or a remote HTTP/HTTPS URL into the virtual VFS image database (images://).";
 	}
 	std::string get_family() const override { return "image"; }
 	nlohmann::json get_parameters_schema() const override;
