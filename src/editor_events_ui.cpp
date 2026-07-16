@@ -828,7 +828,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 
 		usleep(50000);
 
-		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
+		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set breakpoint pending on\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
 		if (config_manager::get_instance().get_gdb_auto_continue()) {
 			gdb_cmd += " -ex \"continue\"";
 		}

@@ -17,12 +17,11 @@
 - feature: give agent_write_to_run() an optional "screenshot" boolean argument, that does the write,
     then waits a bit of time and waits for the screen content to settle (no changes for 250 msec), then takes a screenshot and returns this
 	- goal: save a round trip
+	- context: see agent_get_run_screenshot for how to do screenshots
 
 - feature: give agent_get_run_screenshot a "settle" boolean argument, that, when set, waits upto 3 seconds
 	for the screen content to stabilize (no changes for 250 msec) before taking the screenshot
 	- goal: more reliable stable screenshots for the agent
-
-- feature: when running gdb, make it so that gdb does not ask for "future load" for breakpoints as this kind of always happens
 
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
@@ -252,6 +251,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- GDB automatic pending breakpoints: Appended `-ex "set breakpoint pending on"` to the GDB startup command in `editor_events_ui.cpp`. This configures GDB to automatically make breakpoints pending on future shared library loads instead of prompting the user, preventing LLM agents from getting stuck on interactive confirmation questions.
 - Tool families website documentation: Added a new split-screen detail section and summary card to `docs/ai.html` explaining how the Tool Families feature manages context/prompt bloat and helps agents dynamically activate workspace capability groups (like `git` or `image`) on demand.
 - Git tool family unification: Created a dedicated `"git"` tool family for the 16 `git_*` version control tools. This prevents git schemas from bloating the prompt context of specialized subagents (like read-only searchers, planners, or security auditors) that do not require version control. Pre-registered the `"git"` family in `tool_registry`, configured the parent/developer agent and the `self` subagent clone to activate `"git"` by default, and updated related unit tests.
 - Image tools relocation: Relocated `image_import` and `image_export` tools from the core `libtools` target to the dynamic `image_basic` plugin module. This isolates the heavy GraphicsMagick dependency entirely within the dynamic plugin, preventing the core application from linking against it. Converted their static registrations to explicit, lifecycle-managed functions.
