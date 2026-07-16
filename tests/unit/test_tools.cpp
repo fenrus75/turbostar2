@@ -507,6 +507,15 @@ extern std::string troff2md(std::string troff_content);
 		std::cout << "Result: " << result << std::endl;
 		assert(result == "Hello World");
 
+		// Test 1b: Simple filter execution with literal \x1b and \u001b
+		std::string result_literal = registry.execute_tool(
+			"apply_text_filter",
+			"{\"text\": \"\\\\x1b[32mThis is green text\\\\x1b[0m and \\\\u001b[31mred text\\\\u001b[0m\", \"filter\": \"strip_ansi\"}",
+			ctx
+		);
+		std::cout << "Result Literal: " << result_literal << std::endl;
+		assert(result_literal == "This is green text and red text");
+
 		// Test 2: Filter execution writing to output_path
 		std::string output_file = "test_filtered_out.txt";
 		std::string result_write = registry.execute_tool(

@@ -278,9 +278,22 @@ std::string sanitize_terminal_output(std::string_view input)
 	output.reserve(input.length());
 	size_t i = 0;
 	while (i < input.length()) {
+		bool is_esc = false;
+		size_t esc_len = 0;
 		if (input[i] == '\x1b') {
-			if (i + 1 < input.length() && input[i + 1] == '[') {
-				size_t j = i + 2;
+			is_esc = true;
+			esc_len = 1;
+		} else if (i + 3 < input.length() && input[i] == '\\' && input[i + 1] == 'x' && input[i + 2] == '1' && (input[i + 3] == 'b' || input[i + 3] == 'B')) {
+			is_esc = true;
+			esc_len = 4;
+		} else if (i + 5 < input.length() && input[i] == '\\' && input[i + 1] == 'u' && input[i + 2] == '0' && input[i + 3] == '0' && input[i + 4] == '1' && (input[i + 5] == 'b' || input[i + 5] == 'B')) {
+			is_esc = true;
+			esc_len = 6;
+		}
+
+		if (is_esc) {
+			if (i + esc_len < input.length() && input[i + esc_len] == '[') {
+				size_t j = i + esc_len + 1;
 				while (j < input.length()) {
 					char c = input[j];
 					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
@@ -291,11 +304,11 @@ std::string sanitize_terminal_output(std::string_view input)
 				}
 				if (j == input.length()) {
 					output += ' ';
-					i++;
+					i += esc_len;
 				}
 			} else {
 				output += ' ';
-				i++;
+				i += esc_len;
 			}
 		} else {
 			output += input[i];
