@@ -649,6 +649,15 @@ These tools allow the agent to interact with the project's Git repository.
     *   `offset` *(number, optional, default: 0.0)*: Local constant subtraction offset for adaptive thresholding.
     *   `output` *(string, optional)*: Optional new alias name or VFS URI to save the binarized image as.
 
+### `image_compose` (Family: `image`)
+*   **Description:** Composes (overlays) a small image onto a main destination image at the specified x, y coordinates. If output is specified, saves the composed result as a new image alias; otherwise, modifies the main image in place.
+*   **Arguments:**
+    *   `main_image` *(string, required)*: The name alias or VFS URI of the destination/main image.
+    *   `small_image` *(string, required)*: The name alias or VFS URI of the source/small image to overlay.
+    *   `x` *(integer, required)*: X coordinate offset to place the small image on the main image.
+    *   `y` *(integer, required)*: Y coordinate offset to place the small image on the main image.
+    *   `output` *(string, optional)*: Optional new friendly alias name or VFS URI to save the composed image as.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**

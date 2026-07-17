@@ -12,6 +12,10 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: list_tool_calls should have an option to also list parameters and their description
+
+- feature: list_tool_calls should have a "search" substring argument to search select tools
+
 - feature: our security review tool/agent should try to populate the proposed_fix field
 
 - feature: parse meson.build to find the application name for "run" if none has been configured
