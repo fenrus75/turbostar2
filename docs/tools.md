@@ -214,8 +214,10 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Arguments:** None.
 
 ### `list_tool_calls`
-*   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Use this to introspect your capabilities.
-*   **Arguments:** None.
+*   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Allows filtering and listing parameter schemas.
+*   **Arguments:**
+    *   `search` *(string, optional)*: Optional. A case-insensitive substring pattern to filter tools by name.
+    *   `show_details` *(boolean, optional)*: Optional. If true, outputs detailed information for each tool's parameters (types, descriptions, and required status). Default is false.
 
 ### `run_python`
 *   **Description:** Executes Python code in a sandboxed environment.
