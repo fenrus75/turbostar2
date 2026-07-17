@@ -163,10 +163,11 @@ std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 					}
 				}
 
-				// Extract final line number
+				// Extract final line number (second integer after hash in porcelain format)
 				std::stringstream line_ss(raw_line.substr(41));
+				int source_line = 0;
 				int result_line = 0;
-				if (line_ss >> result_line) {
+				if (line_ss >> source_line >> result_line) {
 					blame_line_info info;
 					info.line_num = result_line;
 					info.commit_hash = full_hash;

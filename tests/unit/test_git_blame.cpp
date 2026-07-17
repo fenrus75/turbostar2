@@ -96,7 +96,36 @@ int main()
 		assert(result.find("Line 3: initial text") != std::string::npos);
 	}
 
-	// 5. Test: argument validation error with invalid path
+	// 5. Test: shifted lines blame (Commit C)
+	{
+		// Modify by inserting a line at the top and commit it (Commit C)
+		{
+			std::ofstream out(test_file_path);
+			out << "Line 0: newly added line at top\n";
+			out << "Line 1: initial text\n";
+			out << "Line 2: modified text\n";
+			out << "Line 3: initial text\n";
+			out.close();
+		}
+		fs_utils::execute_command_sync(std::format("git add {}", test_file_name));
+		fs_utils::execute_command_sync("git commit -m \"Commit C: added line at top\"");
+
+		nlohmann::json args = {{"path", test_file_name}};
+		std::string result = registry.execute_tool("git_blame", args.dump(), ctx);
+		std::cout << "Shifted Blame Output:\n" << result << std::endl;
+
+		assert(!result.empty());
+		// Line 1 is Commit C
+		// Line 2 is Commit A
+		// Line 3 is Commit B
+		// Line 4 is Commit A
+		assert(result.find("1") != std::string::npos);
+		assert(result.find("2") != std::string::npos);
+		assert(result.find("3") != std::string::npos);
+		assert(result.find("4") != std::string::npos);
+	}
+
+	// 6. Test: argument validation error with invalid path
 	{
 		nlohmann::json args = {{"unexpected_path", "nonexistent.txt"}};
 		auto prep = registry.prepare_tool("git_blame", args.dump(), ctx);
