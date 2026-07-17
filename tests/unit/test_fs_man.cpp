@@ -9,6 +9,7 @@
 #include <zlib.h>
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/tools/fs_man/fs_man.h"
+#include "../../src/tools/fs_man/fs_man_search.h"
 
 namespace fs = std::filesystem;
 
@@ -160,6 +161,28 @@ int main() {
 		assert(error.find("separators") != std::string::npos);
 
 		std::cout << "Test 6 passed: traversal characters correctly rejected.\n";
+	}
+
+	// Test 7: fs_man_search on system man pages
+	{
+#ifdef _WIN32
+		_putenv_s("TURBOSTAR_MAN_DIR_OVERRIDE", "");
+#else
+		unsetenv("TURBOSTAR_MAN_DIR_OVERRIDE");
+#endif
+
+		tools::fs_man_search_validator validator;
+		nlohmann::json args = {{"query", "printf"}};
+		std::string error;
+		bool valid = validator.validate_args(args, ctx, error);
+		assert(valid);
+		auto tool = validator.create_tool(args);
+		assert(tool != nullptr);
+
+		std::string result = tool->execute(ctx);
+		assert(result.find("printf") != std::string::npos);
+		assert(result.find("| Page | Section |") != std::string::npos);
+		std::cout << "Test 7 passed: fs_man_search found matches on system man pages.\n";
 	}
 
 	// Cleanup temp dir
