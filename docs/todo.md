@@ -12,6 +12,8 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: our security review tool/agent should try to populate the proposed_fix field
+
 - feature: parse meson.build to find the application name for "run" if none has been configured
 
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
@@ -239,6 +241,7 @@
 # done items (move items here on completion)
 
 ## 16-07-2026
+- Code review severity filter enhancement: Upgraded the severity filter in `codereview_manager::list_code_review_items` to treat the target level as a lower bound threshold rather than an exact match (e.g. querying `"medium"` now returns medium, high, and critical issues). Clarified the schema parameter description for the `"severity"` argument in `list_code_review_items.h` to explicitly guide the agent on the accepted values and the "or more severe" filtering behavior. Added test coverage in both `test_codereview_manager.cpp` and `test_list_code_review_items.cpp` to verify correct filtering and prevent regressions.
 - Git Blame porcelain parsing fix: Fixed a bug in `git_blame_entry.cpp` where the tool was extracting the line number in the original commit (the first integer after the hash in `--porcelain` output) instead of the line number in the final/resulting file (the second integer). This discrepancy caused duplicate, missing, and incorrectly mapped lines in the final markdown table whenever line edits shifted line offsets. Added a new unit test case to `test_git_blame.cpp` that commits shifted lines and validates correct line blame attribution.
 - Crash address logging in turbocatch: Implemented an async-signal-safe pointer-to-hex string formatter `safe_ptoa()` in `crash_catcher.c` and updated `write_info()` to capture the faulting memory address from `info->si_addr` when a signal is caught. Querying `REG_ERR` from the CPU registers in `ucontext_t` when a `SIGSEGV` or `SIGBUS` occurs allows the catcher to identify and log whether the crash was a read or write operation (by appending `(read)` or `(write)` to the address). Added an `is_addr_valid` parameter check so that the `CrashAddress` line is only written for signals where memory address information is defined and valid (`SIGSEGV`, `SIGBUS`, `SIGFPE`, `SIGILL`), suppressing misleading stack garbage or default `0x0` values for assertion/abort signals (such as `SIGABRT`). It also captures `info->si_code` to explicitly output the crash type (`Type: SEGV_MAPERR` or `Type: SEGV_ACCERR`). Added unit test assertions to `test_assert_fail.cpp` verifying both the write access type and `SEGV_MAPERR` type.
 - Unified ANSI stripping: Replaced the static `strip_ansi` implementation inside `filter_registry.cpp` with the shared `utf8::sanitize_terminal_output` function. Upgraded the central stripper to detect and clean both raw ASCII 27 escape characters and literal string representations (such as `\x1b`/`\x1B` or `\u001b`/`\u001B` sequences) commonly output by LLMs and terminal logs. Added unit test assertions to verify correct stripping of literal escape strings.

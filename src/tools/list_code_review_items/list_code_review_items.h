@@ -40,7 +40,7 @@ public:
 				}},
 				{"severity", {
 					{"type", "string"},
-					{"description", "Optional severity filter (nit, low, medium, high, critical)."}
+					{"description", "Optional severity filter. Must be one of: nit, low, medium, high, critical. Specifying a level returns all items of that severity or more severe (e.g. 'medium' returns medium, high, and critical issues)."}
 				}},
 				{"include_resolved", {
 					{"type", "boolean"},

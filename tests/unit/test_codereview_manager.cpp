@@ -114,10 +114,13 @@ void test_codereview_manager_lifecycle()
 	assert(items.size() == 1);
 	assert(items[0].id == id2);
 
-	// List with severity filter
+	// List with severity filter (should return specified severity or more severe)
 	items = manager.list_code_review_items("", "nit", true);
-	assert(items.size() == 1);
-	assert(items[0].id == id2);
+	assert(items.size() == 2); // nit (id2) and medium (id1)
+
+	items = manager.list_code_review_items("", "medium", true);
+	assert(items.size() == 1); // medium (id1)
+	assert(items[0].id == id1);
 
 	// Test 10: Load from disk
 	// Create a new manager instance/load again to simulate restart

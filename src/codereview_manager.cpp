@@ -228,6 +228,16 @@ std::optional<review_item> codereview_manager::get_code_review_item(int id) cons
 	return std::nullopt;
 }
 
+static int severity_to_int(const std::string &sev)
+{
+	if (sev == "nit") return 0;
+	if (sev == "low") return 1;
+	if (sev == "medium") return 2;
+	if (sev == "high") return 3;
+	if (sev == "critical") return 4;
+	return -1;
+}
+
 std::vector<review_item> codereview_manager::list_code_review_items(const std::string &filename_filter, const std::string &severity_filter,
 								    bool include_resolved) const
 {
@@ -242,8 +252,18 @@ std::vector<review_item> codereview_manager::list_code_review_items(const std::s
 		if (!filename_filter.empty() && !item.filename.starts_with(filename_filter)) {
 			continue;
 		}
-		if (!severity_filter.empty() && item.severity != severity_filter) {
-			continue;
+		if (!severity_filter.empty()) {
+			int filter_val = severity_to_int(severity_filter);
+			int item_val = severity_to_int(item.severity);
+			if (filter_val != -1 && item_val != -1) {
+				if (item_val < filter_val) {
+					continue;
+				}
+			} else {
+				if (item.severity != severity_filter) {
+					continue;
+				}
+			}
 		}
 		res.push_back(item);
 	}

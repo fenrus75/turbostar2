@@ -91,6 +91,14 @@ void test_list_tool_execution()
 	assert(res_str.find("tests/test.cpp") != std::string::npos);
 	assert(res_str.find("src/") == std::string::npos);
 
+	// Test 6: Severity filter "high" (developer, returns high and critical)
+	args_json = "{\"severity\": \"high\"}";
+	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
+	std::cout << "Result severity high:\n" << res_str << std::endl;
+	assert(res_str.find("Null Deref") != std::string::npos);      // high
+	assert(res_str.find("Buffer Overflow") != std::string::npos);  // critical
+	assert(res_str.find("Leaked Memory") == std::string::npos);    // resolved/medium
+
 	// Cleanup
 	fs_utils::set_override_project_dir("");
 	std::filesystem::remove_all(temp_proj);
