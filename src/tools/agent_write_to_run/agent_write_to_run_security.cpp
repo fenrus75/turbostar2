@@ -39,7 +39,7 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 		    {"properties",
 		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}},
 		      {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}},
-		      {"output", {{"type", "boolean"}, {"description", "Optional. If true, starts recording stdout output, writes data, waits up to 3 seconds for the screen to settle, and returns the newly recorded output."}}}}},
+		      {"output", {{"type", "boolean"}, {"description", "Optional. If true, returns the new application output that results from this command. Highly recommended for gdb session."}}}}},
 		    {"required", nlohmann::json::array({"run_id", "data"})}};
 	}
 
