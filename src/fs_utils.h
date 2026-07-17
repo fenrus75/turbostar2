@@ -171,11 +171,6 @@ std::string base64_encode(std::span<const unsigned char> data);
 std::vector<unsigned char> base64_decode(std::string_view encoded);
 
 /**
- * @brief Detects the mime type of a file, using libmagic if available, or extension fallback.
- */
-std::string detect_mime_type(const std::string &path);
-
-/**
  * @brief Formats binary output as either a hex-spaced string or a base64 data URL.
  */
 std::string format_binary_output(std::span<const unsigned char> data, const std::string &format, const std::string &mime_type);

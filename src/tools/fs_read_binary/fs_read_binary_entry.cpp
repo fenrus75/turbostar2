@@ -8,7 +8,7 @@
 #include <vector>
 #include "fs_read_binary.h"
 #include "fs_utils.h"
-#include "tools/magic_compat.h"
+#include "mime.h"
 
 namespace tools
 {
@@ -47,7 +47,7 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 				return fs_utils::format_binary_output(
 				    std::span<const unsigned char>(reinterpret_cast<const unsigned char *>(view.data()) + start, len),
 				    args_.format,
-				    fs_utils::detect_mime_type(args_.safe_path));
+				    mime::detect_file_type(args_.safe_path));
 			}
 		}
 		return "Error: Virtual file not found or not mounted.";
@@ -102,7 +102,7 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 		return "Requested range is empty or past the end of the file.";
 	}
 
-	return fs_utils::format_binary_output(std::span<const unsigned char>(buffer.data(), bytes_read), args_.format, fs_utils::detect_mime_type(args_.safe_path));
+	return fs_utils::format_binary_output(std::span<const unsigned char>(buffer.data(), bytes_read), args_.format, mime::detect_file_type(args_.safe_path));
 }
 
 } // namespace tools

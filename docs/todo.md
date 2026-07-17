@@ -12,8 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- refactor: create a mime namespace and centralize various mime type detection helpers into a dedicated mime.cpp file
-
 - feature: list_tool_calls should have an option to also list parameters and their description
 
 - feature: list_tool_calls should have a "search" substring argument to search select tools
@@ -248,6 +246,7 @@
 
 ## 17-07-2026
 - `image_getdata` tool: Built a new tool inside the basic image operations plugin that retrieves the binary content of a VFS image (either via URI or alias) and returns it as a Base64-encoded Data URL. Relocated MIME type detection (`detect_mime_type`) and binary output formatting (`format_binary_output`) to the shared `fs_utils` utility module to eliminate duplication. Integrated buffer-based MIME detection (`utf8::detect_mime`) to determine the MIME type directly from the image data in memory, falling back to original extension parsing when needed. Added test coverage in `test_image_tools.cpp` and fully documented the tool in `docs/tools.md`.
+- MIME detection centralization: Created a unified `mime::` namespace in `src/mime.h` and `src/mime.cpp` to centralize all MIME and file type description logic. Replaced all separate inline detection logic and direct `magic_compat.h` libmagic invocations in `utf8.cpp`, `fs_utils.cpp`, `image_manager.cpp`, `fs_list_dir_entry.cpp`, and `hexinspect_tool.cpp` with delegations to the new central helpers. Added signature-based fallback detection for common formats and file existence checking to prevent non-existent files from returning error messages as MIME types. Updated `src/meson.build` and main `meson.build` to compile and link `mime.cpp` to all relevant targets.
 
 ## 16-07-2026
 - Code review severity filter enhancement: Upgraded the severity filter in `codereview_manager::list_code_review_items` to treat the target level as a lower bound threshold rather than an exact match (e.g. querying `"medium"` now returns medium, high, and critical issues). Clarified the schema parameter description for the `"severity"` argument in `list_code_review_items.h` to explicitly guide the agent on the accepted values and the "or more severe" filtering behavior. Added test coverage in both `test_codereview_manager.cpp` and `test_list_code_review_items.cpp` to verify correct filtering and prevent regressions.

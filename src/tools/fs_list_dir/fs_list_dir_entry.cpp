@@ -10,7 +10,7 @@
 #include "../../agentlib/document_provider.h"
 #include "../../agentlib/virtual_file_system.h"
 #include "../../fs_utils.h"
-#include "../magic_compat.h"
+#include "mime.h"
 #include "fs_list_dir.h"
 
 namespace tools
@@ -128,17 +128,6 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 	}
 	result.directory_name = rel_str;
 
-	magic_t magic = nullptr;
-	if (rich_metadata_) {
-		magic = magic_open(MAGIC_NONE);
-		if (magic) {
-			if (magic_load(magic, nullptr) != 0) {
-				magic_close(magic);
-				magic = nullptr;
-			}
-		}
-	}
-
 	try {
 		std::vector<std::filesystem::directory_entry> fs_entries;
 		for (const auto &entry : std::filesystem::directory_iterator(path)) {
@@ -210,9 +199,9 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 			meta.permissions += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 
 			// Inspect the file format and append libmagic details.
-			if (magic && entry.is_regular_file()) {
-				const char *desc = magic_file(magic, resolved_path.c_str());
-				if (desc) {
+			if (rich_metadata_ && entry.is_regular_file()) {
+				std::string desc = mime::detect_file_description(resolved_path);
+				if (desc != "Unknown file type") {
 					meta.details = desc;
 					std::replace(meta.details.begin(), meta.details.end(), '|', ',');
 				}
@@ -221,16 +210,9 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 			result.entries.push_back(meta);
 		}
 	} catch (const std::exception &e) {
-		if (magic) {
-			magic_close(magic);
-		}
 		result.success = false;
 		result.error_message = "Error reading directory: " + std::string(e.what());
 		return result;
-	}
-
-	if (magic) {
-		magic_close(magic);
 	}
 
 	result.success = true;

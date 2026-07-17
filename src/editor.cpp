@@ -27,7 +27,6 @@
 #include "line.h"
 #include "filter_registry.h"
 #include "tools/troff2md.h"
-#include "tools/magic_compat.h"
 #include "ui/agent_center_window.h"
 #include "ui/agent_window.h"
 #include "ui/code_review_window.h"

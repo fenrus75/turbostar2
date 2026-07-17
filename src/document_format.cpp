@@ -14,7 +14,6 @@
 #include "lsp_manager.h"
 #include "project_manager.h"
 #include "utf8.h"
-#include "tools/magic_compat.h"
 
 
 namespace fs = std::filesystem;

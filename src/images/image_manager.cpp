@@ -1,5 +1,6 @@
 #include "image_manager.h"
-#include "../fs_utils.h"
+#include "fs_utils.h"
+#include "mime.h"
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
 #include <filesystem>
@@ -128,32 +129,7 @@ static bool parse_jpeg_dimensions(const std::string &filepath, int &width, int &
 
 static std::string detect_mime_type(const std::string &filepath)
 {
-	std::ifstream file(filepath, std::ios::binary);
-	if (!file) return "image/octet-stream";
-
-	unsigned char sig[8] = {0};
-	file.read(reinterpret_cast<char*>(sig), 8);
-
-	if (sig[0] == 0x89 && sig[1] == 'P' && sig[2] == 'N' && sig[3] == 'G') {
-		return "image/png";
-	}
-	if (sig[0] == 0xff && sig[1] == 0xd8) {
-		return "image/jpeg";
-	}
-	if (sig[0] == 'G' && sig[1] == 'I' && sig[2] == 'F') {
-		return "image/gif";
-	}
-
-	std::filesystem::path p(filepath);
-	std::string ext = p.extension().string();
-	for (auto &c : ext) c = std::tolower(c);
-
-	if (ext == ".png") return "image/png";
-	if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
-	if (ext == ".gif") return "image/gif";
-	if (ext == ".webp") return "image/webp";
-
-	return "image/octet-stream";
+	return mime::detect_file_type(filepath);
 }
 
 image_manager &image_manager::get_instance()

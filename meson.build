@@ -185,7 +185,7 @@ test_event_logger = executable('test_event_logger',
 test('unit_event_logger', test_event_logger, suite: 'agent')
 
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
-  ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   include_directories: 'src')
 test('unit_ansi_terminal_emulator', test_ansi_terminal_emulator, suite: 'editor')
 
@@ -230,7 +230,7 @@ test_statistics_manager = executable('test_statistics_manager',
 test('unit_statistics_manager', test_statistics_manager, suite: 'editor')
 
 test_tool_infrastructure = executable('test_tool_infrastructure',
-  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/statistics_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_tool_infrastructure.cpp', 'src/agentlib/file_security_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/statistics_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep],
   include_directories: 'src')
 test('unit_test_tool_infrastructure', test_tool_infrastructure, suite: 'agent')
@@ -1076,7 +1076,7 @@ test_github_vfs = executable('test_github_vfs',
 test('unit_github_vfs', test_github_vfs, suite: 'agent')
 
 test_skill_manager = executable('test_skill_manager',
-  ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_skill_manager.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/event_logger.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [httplib_dep, thread_dep, nlohmann_json_dep, curl_dep, re2_dep, yaml_cpp_dep],
   include_directories: 'src')
 test('unit_skill_manager', test_skill_manager, suite: 'agent')
@@ -1089,37 +1089,37 @@ test('unit_subagent_manager', test_subagent_manager, suite: 'agent')
 
 
 test_python_highlighter = executable('test_python_highlighter',
-  ['tests/unit/test_python_highlighter.cpp', 'src/highlighter/python_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_python_highlighter.cpp', 'src/highlighter/python_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_python_highlighter', test_python_highlighter, suite: 'editor')
 
 test_verilog_highlighter = executable('test_verilog_highlighter',
-  ['tests/unit/test_verilog_highlighter.cpp', 'src/highlighter/verilog_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_verilog_highlighter.cpp', 'src/highlighter/verilog_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_verilog_highlighter', test_verilog_highlighter, suite: 'editor')
 
 test_cpp_highlighter = executable('test_cpp_highlighter',
-  ['tests/unit/test_cpp_highlighter.cpp', 'src/highlighter/cpp_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_cpp_highlighter.cpp', 'src/highlighter/cpp_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_cpp_highlighter', test_cpp_highlighter, suite: 'editor')
 
 test_markdown_highlighter = executable('test_markdown_highlighter',
-  ['tests/unit/test_markdown_highlighter.cpp', 'src/highlighter/markdown_highlighter.cpp', 'src/line.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_markdown_highlighter.cpp', 'src/highlighter/markdown_highlighter.cpp', 'src/line.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_markdown_highlighter', test_markdown_highlighter, suite: 'editor')
 
 test_html_highlighter = executable('test_html_highlighter',
-  ['tests/unit/test_html_highlighter.cpp', 'src/highlighter/html_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_html_highlighter.cpp', 'src/highlighter/html_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [],
   include_directories: 'src')
 test('unit_html_highlighter', test_html_highlighter, suite: 'editor')
 
 test_json_highlighter = executable('test_json_highlighter',
-  ['tests/unit/test_json_highlighter.cpp', 'src/highlighter/json_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_json_highlighter.cpp', 'src/highlighter/json_highlighter.cpp', 'src/line.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_json_highlighter', test_json_highlighter, suite: 'editor')
@@ -1127,13 +1127,13 @@ test('unit_json_highlighter', test_json_highlighter, suite: 'editor')
 
 
 test_markdown_utils = executable('test_markdown_utils',
-  ['tests/unit/test_markdown_utils.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_markdown_utils.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: 'src')
 test('unit_markdown_utils', test_markdown_utils, suite: 'editor')
 
 test_utf8 = executable('test_utf8',
-  ['tests/unit/test_utf8.cpp', 'src/utf8.cpp'],
+  ['tests/unit/test_utf8.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   dependencies : [],
   include_directories: 'src')
 test('unit_utf8', test_utf8, suite: 'editor')
@@ -1178,7 +1178,7 @@ test('unit_hex_highlighter', test_hex_highlighter, suite: 'editor')
 
 
 test_sqlite_validation = executable('test_sqlite_validation',
-  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/subagent_manager.cpp', 'src/agentlib/agent_animation.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
+  ['tests/unit/test_sqlite_validation.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/agentlib/tool_registry.cpp', 'src/filter_registry.cpp', 'src/agentlib/tool_validator.cpp', 'src/agentlib/skill_manager.cpp', 'src/agentlib/subagent_manager.cpp', 'src/agentlib/agent_animation.cpp', 'src/agentlib/virtual_file_system.cpp', 'src/agentlib/file_security_manager.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/markdown_utils.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/statistics_manager.cpp'],
   dependencies : [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep],
   include_directories: 'src')
 test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent')
@@ -1196,19 +1196,19 @@ test_pop_todo = executable('test_pop_todo',
 test('unit_pop_todo', test_pop_todo, suite: 'agent')
 
 test_httplib_transport = executable('test_httplib_transport',
-  ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
+  ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_httplib_transport', test_httplib_transport, suite: 'agent')
 
 test_copilot_models = executable('test_copilot_models',
-  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp'],
+  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_copilot_models', test_copilot_models, suite: 'agent')
 
 test_model_server = executable('test_model_server',
-  ['tests/unit/test_model_server.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/codereview_manager.cpp', 'src/agentlib/ai_model.cpp'],
+  ['tests/unit/test_model_server.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/agentlib/ai_model.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_model_server', test_model_server, suite: 'agent')

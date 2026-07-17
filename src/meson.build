@@ -12,6 +12,7 @@ core_sources = files(
   'document_format.cpp',
   'document_highlight.cpp',
   'fs_utils.cpp',
+  'mime.cpp',
   'config_manager.cpp',
   'statistics_manager.cpp',
   'codereview_manager.cpp',
@@ -192,7 +193,7 @@ libturbostar_core = static_library('turbostar_core',
   core_sources,
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
-  dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep])
+  dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep])
 
 libagentlib = static_library('agentlib',
   agentlib_sources + [research_agent_h, self_agent_h],

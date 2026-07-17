@@ -1,6 +1,6 @@
 #include "utf8.h"
 #include <wchar.h>
-#include "tools/magic_compat.h"
+#include "mime.h"
 
 namespace utf8
 {
@@ -258,18 +258,7 @@ std::vector<std::string> wrap_string(const std::string &prefix, const std::strin
 
 std::string detect_mime(std::string_view buffer)
 {
-	std::string mime_type = "";
-	magic_t magic = magic_open(MAGIC_MIME_TYPE);
-	if (magic) {
-		if (magic_load(magic, nullptr) == 0) {
-			const char *mime = magic_buffer(magic, buffer.data(), buffer.size());
-			if (mime) {
-				mime_type = mime;
-			}
-		}
-		magic_close(magic);
-	}
-	return mime_type;
+	return mime::detect_buffer_type(buffer);
 }
 
 std::string sanitize_terminal_output(std::string_view input)

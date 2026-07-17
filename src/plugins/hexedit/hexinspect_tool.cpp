@@ -6,7 +6,7 @@
 #include <vector>
 #include "hex/hex_highlighter.h"
 #include "hex/hex_highlighter_registry.h"
-#include "tools/magic_compat.h"
+#include "mime.h"
 
 namespace tools
 {
@@ -14,45 +14,19 @@ namespace tools
 namespace
 {
 // Helper to retrieve the file's MIME type using libmagic if available.
-std::string get_file_mime_type([[maybe_unused]] const std::string &path)
+std::string get_file_mime_type(const std::string &path)
 {
-#ifdef HAS_LIBMAGIC
-	magic_t magic = magic_open(MAGIC_MIME_TYPE);
-	if (!magic) {
-		return "unknown";
-	}
-	if (magic_load(magic, nullptr) != 0) {
-		magic_close(magic);
-		return "unknown";
-	}
-	const char *mime = magic_file(magic, path.c_str());
-	std::string res = mime ? mime : "unknown";
-	magic_close(magic);
-	return res;
-#else
-	return "unknown (libmagic disabled)";
-#endif
+	return mime::detect_file_type(path);
 }
 
 // Helper to retrieve the detailed file description using libmagic if available.
-std::string get_file_description([[maybe_unused]] const std::string &path)
+std::string get_file_description(const std::string &path)
 {
-#ifdef HAS_LIBMAGIC
-	magic_t magic = magic_open(MAGIC_NONE);
-	if (!magic) {
+	std::string desc = mime::detect_file_description(path);
+	if (desc == "Unknown file type") {
 		return "unknown";
 	}
-	if (magic_load(magic, nullptr) != 0) {
-		magic_close(magic);
-		return "unknown";
-	}
-	const char *desc = magic_file(magic, path.c_str());
-	std::string res = desc ? desc : "unknown";
-	magic_close(magic);
-	return res;
-#else
-	return "unknown (libmagic disabled)";
-#endif
+	return desc;
 }
 
 // Sanitizes text values for safe inclusion in a Markdown table (escaping pipe characters).
