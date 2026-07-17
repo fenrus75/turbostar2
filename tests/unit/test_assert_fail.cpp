@@ -36,6 +36,14 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
+	if (argc > 1 && std::string(argv[1]) == "child_segv") {
+		// Child process: trigger a segmentation fault
+		std::cout << "[Child] Running segfault..." << std::endl;
+		volatile int *ptr = nullptr;
+		*ptr = 42;
+		return 0;
+	}
+
 	std::cout << "[Parent] Initializing project manager..." << std::endl;
 	project_manager::get_instance().initialize();
 
@@ -162,6 +170,45 @@ int main(int argc, char **argv)
 		assert(report_content_p.find("perror 22") != std::string::npos);
 
 		fs::remove_all(crash_folder_p);
+	}
+
+	// Test 3: SIGSEGV turbocatch test for CrashAddress
+	{
+		std::cout << "\n[Parent] Testing SIGSEGV CrashAddress..." << std::endl;
+		pid_t pid_s = fork();
+		if (pid_s == 0) {
+			std::string new_preload = lib_path;
+			const char *old_preload = getenv("LD_PRELOAD");
+			if (old_preload && *old_preload) {
+				new_preload = std::string(old_preload) + ":" + lib_path;
+			}
+			setenv("LD_PRELOAD", new_preload.c_str(), 1);
+			setenv("TURBOSTAR_DUMP_DIR", test_dump_dir.string().c_str(), 1);
+
+			char *child_argv[] = {argv[0], (char *)"child_segv", nullptr};
+			execvp(argv[0], child_argv);
+			perror("execvp");
+			_exit(1);
+		}
+
+		int status_s = 0;
+		waitpid(pid_s, &status_s, 0);
+
+		std::string child_pid_str_s = std::to_string(pid_s);
+		fs::path crash_folder_s = test_dump_dir / ("crash_" + child_pid_str_s);
+		assert(fs::exists(crash_folder_s));
+
+		fs::path info_file_s = crash_folder_s / "info.txt";
+		assert(fs::exists(info_file_s));
+
+		std::ifstream in_s(info_file_s);
+		std::string content_s((std::istreambuf_iterator<char>(in_s)), std::istreambuf_iterator<char>());
+		std::cout << "[Parent] segfault info.txt content:\n" << content_s << std::endl;
+
+		assert(content_s.find("Signal: 11") != std::string::npos);
+		assert(content_s.find("CrashAddress: 0x0") != std::string::npos);
+
+		fs::remove_all(crash_folder_s);
 	}
 
 	std::cout << "test_assert_fail passed successfully!" << std::endl;

@@ -81,6 +81,41 @@ static void safe_strcat(char *dest, const char *src, int dest_size)
 	safe_strcpy(dest + len, src, dest_size - len);
 }
 
+// Async-signal-safe pointer to hex string
+static void safe_ptoa(void *ptr, char *buf, int buf_size)
+{
+	if (buf_size < 3)
+		return;
+	if (ptr == NULL) {
+		safe_strcpy(buf, "0x0", buf_size);
+		return;
+	}
+
+	unsigned long val = (unsigned long)ptr;
+	char temp[32];
+	int i = 0;
+
+	while (val > 0 && i < 31) {
+		unsigned long rem = val % 16;
+		if (rem < 10) {
+			temp[i++] = rem + '0';
+		} else {
+			temp[i++] = (rem - 10) + 'a';
+		}
+		val /= 16;
+	}
+
+	// Reverse and prepend 0x
+	int j = 0;
+	buf[j++] = '0';
+	buf[j++] = 'x';
+
+	while (i > 0 && j < buf_size - 1) {
+		buf[j++] = temp[--i];
+	}
+	buf[j] = '\0';
+}
+
 static void write_maps(const char *dir_path)
 {
 	char filepath[1024] = {0};
@@ -154,7 +189,7 @@ static void write_backtrace(const char *dir_path, ucontext_t *uc)
 	close(fd);
 }
 
-static void write_info(const char *dir_path, int sig)
+static void write_info(const char *dir_path, int sig, void *addr)
 {
 	char filepath[1024] = {0};
 	safe_strcpy(filepath, dir_path, sizeof(filepath));
@@ -164,10 +199,16 @@ static void write_info(const char *dir_path, int sig)
 	if (fd < 0)
 		return;
 
-	char buf[128] = "Signal: ";
+	char buf[256] = "Signal: ";
 	char sig_str[16];
 	safe_itoa(sig, sig_str, sizeof(sig_str));
 	safe_strcat(buf, sig_str, sizeof(buf));
+	safe_strcat(buf, "\n", sizeof(buf));
+
+	safe_strcat(buf, "CrashAddress: ", sizeof(buf));
+	char addr_str[32];
+	safe_ptoa(addr, addr_str, sizeof(addr_str));
+	safe_strcat(buf, addr_str, sizeof(buf));
 	safe_strcat(buf, "\n", sizeof(buf));
 
 	write(fd, buf, safe_strlen(buf));
@@ -204,7 +245,7 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	mkdir(crash_dir, 0755);
 
 	// Dump all the data
-	write_info(crash_dir, sig);
+	write_info(crash_dir, sig, info ? info->si_addr : NULL);
 	write_maps(crash_dir);
 	write_registers(crash_dir, uc);
 	write_backtrace(crash_dir, uc);
