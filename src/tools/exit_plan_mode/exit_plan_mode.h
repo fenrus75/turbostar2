@@ -28,7 +28,8 @@ class exit_plan_mode_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "exit_plan_mode"; }
     std::string get_description() const override { return "Exit Plan Mode and request user approval for the finalized plan. Upon approval, modifying tools will be unlocked."; }
-    bool is_pure() const override { return false; }
+    bool is_pure() const override { return true; }
+    bool is_silent_by_default() const override { return false; }
     bool is_allowed_in_plan_mode(const nlohmann::json& /*args*/, const agentlib::tool_context& /*ctx*/) const override { return true; }
     bool is_allowed_in_plan_mode_statically() const override { return true; }
     

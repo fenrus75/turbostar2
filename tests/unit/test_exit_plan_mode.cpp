@@ -35,6 +35,9 @@ int main()
 		assert(agent->is_planning() == true);
 		assert(agent->get_plan_file() == "test_plan_doc.md");
 
+		// Sync properties (mimicking the agent loop)
+		ctx.properties = agent->get_properties();
+
 		// 2. Exit plan mode with user approval
 		std::thread worker([&q]() {
 			bool open_file_received = false;

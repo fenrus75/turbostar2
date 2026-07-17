@@ -32,6 +32,7 @@ int main()
 		std::cout << "Result: " << result << std::endl;
 		assert(!result.empty());
 		assert(result.find("## Git Branches") != std::string::npos);
+		assert(result.find("Process exited with code") == std::string::npos);
 
 		// Get current branch name and assert it is marked active with checkmark
 		std::string current = fs_utils::execute_command_sync("git branch --show-current");
