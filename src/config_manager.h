@@ -142,10 +142,7 @@ class config_manager
 		shell_display_access_ = allow;
 	}
 
-	std::string get_main_executable() const
-	{
-		return main_executable_;
-	}
+	std::string get_main_executable() const;
 	void set_main_executable(const std::string &exe)
 	{
 		main_executable_ = exe;
@@ -221,7 +218,7 @@ class config_manager
 	bool log_all_tool_calls_{false};
 	bool shell_display_access_{false};
 
-	std::string main_executable_{""};
+	mutable std::string main_executable_{""};
 	std::string github_access_token_{""};
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
@@ -235,4 +232,7 @@ class config_manager
 	std::map<std::string, bool> project_tool_families_enabled_;
 	std::map<std::string, std::string> mcp_servers_when_to_activate_;
 	std::map<std::string, std::string> project_mcp_servers_when_to_activate_;
+
+private:
+	std::string auto_detect_main_executable() const;
 };

@@ -59,6 +59,7 @@ def test_run_menu_shading():
     import os
 
     # 1. Start with NO main executable configured (empty home)
+    os.environ['TURBOSTAR_NO_AUTO_DETECT'] = '1'
     temp_home = tempfile.mkdtemp(prefix="turbostar_test_menu_shading_")
     runner = TurbostarRunner()
     try:
@@ -81,6 +82,7 @@ def test_run_menu_shading():
         # Verify menu closed
         runner.assert_text_not_on_screen("Run Settings...", timeout=1.0)
     finally:
+        os.environ.pop('TURBOSTAR_NO_AUTO_DETECT', None)
         runner.cleanup()
         shutil.rmtree(temp_home, ignore_errors=True)
 

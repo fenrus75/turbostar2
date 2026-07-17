@@ -43,6 +43,14 @@ void test_candidate_detection()
 	(void)res;
 
 	project_manager &pm = project_manager::get_instance();
+	pm.initialize();
+
+	// Test config_manager auto-detection of main executable from meson.build
+	config_manager &cfg = config_manager::get_instance();
+	cfg.set_main_executable(""); // Clear any previous configuration
+	std::string detected = cfg.get_main_executable();
+	assert(detected == "candidate_a");
+
 	std::vector<std::string> candidates = pm.detect_executable_candidates();
 
 	// Restore original working directory

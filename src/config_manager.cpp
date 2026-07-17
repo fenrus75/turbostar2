@@ -3,7 +3,9 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <regex>
 #include "event_logger.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -423,4 +425,66 @@ void config_manager::read_clang_format(const std::string &project_root)
 			}
 		}
 	}
+}
+
+std::string config_manager::get_main_executable() const
+{
+	const char *no_detect = std::getenv("TURBOSTAR_NO_AUTO_DETECT");
+	if (no_detect && *no_detect) {
+		return main_executable_;
+	}
+	if (main_executable_.empty()) {
+		return auto_detect_main_executable();
+	}
+	return main_executable_;
+}
+
+std::string config_manager::auto_detect_main_executable() const
+{
+	std::string project_root = project_manager::get_instance().get_project_root();
+	if (project_root.empty()) {
+		return "";
+	}
+
+	fs::path meson_path = fs::path(project_root) / "meson.build";
+	if (!fs::exists(meson_path)) {
+		return "";
+	}
+
+	std::ifstream file(meson_path);
+	if (!file.is_open()) {
+		return "";
+	}
+
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	std::string content = buffer.str();
+
+	// Regex to match executable('target_name', ...) or executable("target_name", ...)
+	std::regex exec_rx(R"(executable\s*\(\s*['"]([^'"]+)['"])");
+	auto words_begin = std::sregex_iterator(content.begin(), content.end(), exec_rx);
+	auto words_end = std::sregex_iterator();
+
+	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+		std::smatch match = *i;
+		std::string name = match[1].str();
+		
+		// Skip test and utility helper targets
+		if (name.starts_with("test_") || name.find("test") != std::string::npos ||
+			name.starts_with("unit_") || name == "agentcli_record" ||
+			name == "agentcli_replay") {
+			continue;
+		}
+		
+		main_executable_ = name;
+		return main_executable_;
+	}
+
+	// Fallback to the first found executable target if all were test/helpers
+	if (words_begin != words_end) {
+		main_executable_ = (*words_begin)[1].str();
+		return main_executable_;
+	}
+
+	return "";
 }
