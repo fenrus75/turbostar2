@@ -31,6 +31,26 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
+	// 3. Test filtering with search parameter
+	{
+		std::string execute_result = registry.execute_tool("list_tool_calls", "{\"search\": \"list_tool_calls\"}", ctx);
+		std::cout << "Search Result:\n" << execute_result << "\n";
+		assert(!execute_result.empty());
+		assert(execute_result.find("list_tool_calls") != std::string::npos);
+		// Check that other unrelated tools are not present
+		assert(execute_result.find("git_blame") == std::string::npos);
+	}
+
+	// 4. Test detailed formatting with show_details parameter
+	{
+		std::string execute_result = registry.execute_tool("list_tool_calls", "{\"show_details\": true}", ctx);
+		std::cout << "Show Details Result:\n" << execute_result << "\n";
+		assert(!execute_result.empty());
+		assert(execute_result.find("### `list_tool_calls`") != std::string::npos);
+		assert(execute_result.find("* **Description:**") != std::string::npos);
+		assert(execute_result.find("* **Arguments:**") != std::string::npos);
+	}
+
 	std::cout << "list_tool_calls tests passed successfully.\n";
 	return 0;
 }

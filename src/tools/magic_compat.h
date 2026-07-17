@@ -1,5 +1,10 @@
 #pragma once
 
+
+/* 
+ * Important: Please use mime.h and the mime:: namespace helpers whenever possible
+ * even if it means extending the generic capabilities of our mime:: helpers.
+ */
 #ifdef HAS_LIBMAGIC
 #include <magic.h>
 #else
