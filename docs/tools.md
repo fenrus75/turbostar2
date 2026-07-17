@@ -512,6 +512,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
     *   `data` *(string, required)*: The raw string data or escape sequence to inject.
+    *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
 ### `agent_get_run_screenshot`
 *   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, and visibility status for a given run ID.
@@ -698,7 +699,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Lists all code review items as a compact Markdown table. Normal agents only see unresolved items; verifiers can also see resolved items by setting `include_resolved` to true.
 *   **Arguments:**
     *   `filename` *(string, optional)*: Optional filename prefix to filter items.
-    *   `severity` *(string, optional)*: Optional severity to filter items.
+    *   `severity` *(string, optional)*: Optional severity filter (one of: `nit`, `low`, `medium`, `high`, `critical`). Specifying a level returns all items of that severity or more severe.
     *   `include_resolved` *(boolean, optional)*: If true, lists resolved/verified items (restricted to verifiers).
 
 ### `get_code_review_item`
