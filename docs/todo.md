@@ -12,6 +12,23 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- urgent bug: exit_plan_mode seems to retain read only state -- maybe. need to make a testcase to confirm one way or the other!
+
+- urgent: "Auto-start the application on debugger startup" needs to default to false for the toolcall version!
+
+- feature: add search capability ("man -k") to fs_man tool family, as a new tool fs_man_search
+
+- 1. **Highlight Differences (Hex Diffing)**:
+   * *The Idea*: Add a companion tool `hexdiff` that takes two file paths, compares them, and highlights only the changed bytes along with
+	their structural roles. This would be incredibly useful for verifying binary patches or analyzing compiler optimization impacts.
+- 2. **Jump to Named Chunk/Symbol Offset**:
+   * *The Idea*: If `hexinspect` finds an ELF section (e.g., `.text` or `.rodata`) or a PNG chunk (e.g., `PLTE`), allow the agent to pass the
+	**name** of that structure as the `start_offset` in `hexdump` or `hexwrite` (e.g., `start_offset: ".text"`). The tool would internally
+	resolve the symbol/chunk offset and dump it, bypassing the need to calculate byte positions manually.
+- 3. **Interactive Byte Editor Interface**:
+	   * *The Idea*: A high-level visual representation of the hex edits in the editor UI (similar to how `flag_as_error` creates an overlay)
+	would help developers track what modifications the agent is proposing in binary formats.
+
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - feature: a markdown_to_html filter 

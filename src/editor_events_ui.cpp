@@ -72,7 +72,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::agent_start_app) {
-		auto res = start_app(ev.payload, ev.alt_pressed);
+		auto res = start_app(ev.payload, ev.alt_pressed, ev.auto_continue);
 		if (ev.generic_promise) {
 			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
 			prom->set_value(res);
@@ -738,7 +738,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 }
 
-agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger)
+agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger, bool auto_continue)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
@@ -747,6 +747,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		ev.type = event_type::agent_start_app;
 		ev.payload = args;
 		ev.alt_pressed = use_debugger;
+		ev.auto_continue = auto_continue;
 		ev.generic_promise = prom;
 		global_queue_.push(ev);
 		return fut.get();
@@ -830,7 +831,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		usleep(50000);
 
 		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set breakpoint pending on\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
-		if (config_manager::get_instance().get_gdb_auto_continue()) {
+		if (auto_continue && config_manager::get_instance().get_gdb_auto_continue()) {
 			gdb_cmd += " -ex \"continue\"";
 		}
 		gdb_cmd += " " + build_exe.string();

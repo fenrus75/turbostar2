@@ -58,7 +58,7 @@ public:
     virtual void save_all_documents() = 0;
 
     // Unified app execution and debugging agent APIs
-    virtual start_app_result start_app(const std::string& /*args*/, bool /*use_debugger*/) { return {-1, -1}; }
+    virtual start_app_result start_app(const std::string& /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true) { return {-1, -1}; }
     virtual bool write_to_run(int /*run_id*/, const std::string& /*data*/) { return false; }
     virtual run_screenshot_data get_run_screenshot(int /*run_id*/) { return {}; }
     virtual int64_t get_run_last_modified_age(int /*run_id*/) { return -1; }

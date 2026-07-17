@@ -34,9 +34,11 @@ int main()
 		std::string enter_res = registry.execute_tool("enter_plan_mode", "{\"plan_file\": \"test_plan_doc.md\"}", ctx);
 		assert(agent->is_planning() == true);
 		assert(agent->get_plan_file() == "test_plan_doc.md");
+		assert(agent->get_properties().read_only == true);
 
 		// Sync properties (mimicking the agent loop)
 		ctx.properties = agent->get_properties();
+		assert(ctx.properties.read_only == true);
 
 		// 2. Exit plan mode with user approval
 		std::thread worker([&q]() {
@@ -64,6 +66,7 @@ int main()
 		std::cout << "Exit response received: " << exit_res << std::endl;
 		assert(exit_res.find("test_plan_doc.md") != std::string::npos);
 		assert(agent->is_planning() == false);
+		assert(agent->get_properties().read_only == false);
 	}
 
 	return 0;
