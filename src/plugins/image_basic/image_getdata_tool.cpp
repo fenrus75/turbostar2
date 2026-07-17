@@ -2,6 +2,7 @@
 #include "agentlib/tool_context.h"
 #include "images/image_manager.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include <fstream>
 #include <vector>
 
@@ -43,8 +44,8 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-		std::string mime_type = fs_utils::detect_mime_type(src_path);
-		if (mime_type == "application/octet-stream" || mime_type == "text/plain") {
+		std::string mime_type = utf8::detect_mime(std::string_view(reinterpret_cast<const char *>(buffer.data()), buffer.size()));
+		if (mime_type.empty() || mime_type == "application/octet-stream" || mime_type == "text/plain") {
 			std::string fallback_mime = fs_utils::detect_mime_type(args_.filename);
 			if (fallback_mime != "application/octet-stream") {
 				mime_type = fallback_mime;
