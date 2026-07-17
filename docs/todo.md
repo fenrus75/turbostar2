@@ -12,11 +12,13 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- feature: add search capability ("man -k") to fs_man tool family, as a new tool fs_man_search
+- agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
    * *The Idea*: Add a companion tool `hexdiff` that takes two file paths, compares them, and highlights only the changed bytes along with
 	their structural roles. This would be incredibly useful for verifying binary patches or analyzing compiler optimization impacts.
+	- doing this right is slightly complicated, we would need the bsdiff algorithm and then expand the result in an agent
+	  friendly format
 - 2. **Jump to Named Chunk/Symbol Offset**:
    * *The Idea*: If `hexinspect` finds an ELF section (e.g., `.text` or `.rodata`) or a PNG chunk (e.g., `PLTE`), allow the agent to pass the
 	**name** of that structure as the `start_offset` in `hexdump` or `hexwrite` (e.g., `start_offset: ".text"`). The tool would internally
@@ -250,6 +252,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `fs_man_search` keyword lookup tool: Implemented a new search tool inside the `fs_man` tool family that performs keyword searches on manual pages (similar to `man -k` or `apropos`). Features robust argument validation to prevent shell injection, results sorting, deduplication, and formatting as a clean markdown table (capped at 50 results to conserve context). Added integration test coverage in `test_fs_man.cpp` and registered the tool in `src/tools/meson.build`.
 - Debugger auto-continue default fix: Modified `document_provider::start_app` and `editor::start_app` to accept an optional `auto_continue` boolean parameter (defaulting to `true`). Overrode the argument to `false` in `agent_start_app_entry.cpp` so that tool-based launches do not immediately run past initial breakpoints, while UI-based launches still respect user preferences.
 - `exit_plan_mode` read-only state transition verification: Added assertions to `test_exit_plan_mode.cpp` confirming that read-only state transitions cleanly on enter/exit plan mode, resolving the concern that `exit_plan_mode` could retain the read-only state.
 - `gemini_connection` role-alternation message grouping: Modified `gemini_connection.cpp` to automatically merge consecutive user/tool/assistant messages mapping to the same Gemini API role into a single grouped content object with multiple parts. This prevents "consecutive messages must alternate role" API errors during session restarts or when multiple pending tool calls are present in the history.
