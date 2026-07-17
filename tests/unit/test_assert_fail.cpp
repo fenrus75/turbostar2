@@ -206,7 +206,8 @@ int main(int argc, char **argv)
 		std::cout << "[Parent] segfault info.txt content:\n" << content_s << std::endl;
 
 		assert(content_s.find("Signal: 11") != std::string::npos);
-		assert(content_s.find("CrashAddress: 0x0") != std::string::npos);
+		assert(content_s.find("CrashAddress: 0x0 (write)") != std::string::npos);
+		assert(content_s.find("Type: SEGV_MAPERR") != std::string::npos);
 
 		fs::remove_all(crash_folder_s);
 	}

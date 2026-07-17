@@ -189,7 +189,7 @@ static void write_backtrace(const char *dir_path, ucontext_t *uc)
 	close(fd);
 }
 
-static void write_info(const char *dir_path, int sig, void *addr)
+static void write_info(const char *dir_path, int sig, void *addr, int is_write, int si_code)
 {
 	char filepath[1024] = {0};
 	safe_strcpy(filepath, dir_path, sizeof(filepath));
@@ -199,7 +199,7 @@ static void write_info(const char *dir_path, int sig, void *addr)
 	if (fd < 0)
 		return;
 
-	char buf[256] = "Signal: ";
+	char buf[384] = "Signal: ";
 	char sig_str[16];
 	safe_itoa(sig, sig_str, sizeof(sig_str));
 	safe_strcat(buf, sig_str, sizeof(buf));
@@ -209,7 +209,22 @@ static void write_info(const char *dir_path, int sig, void *addr)
 	char addr_str[32];
 	safe_ptoa(addr, addr_str, sizeof(addr_str));
 	safe_strcat(buf, addr_str, sizeof(buf));
+	if (sig == SIGSEGV || sig == SIGBUS) {
+		if (is_write) {
+			safe_strcat(buf, " (write)", sizeof(buf));
+		} else {
+			safe_strcat(buf, " (read)", sizeof(buf));
+		}
+	}
 	safe_strcat(buf, "\n", sizeof(buf));
+
+	if (sig == SIGSEGV) {
+		if (si_code == SEGV_MAPERR) {
+			safe_strcat(buf, "Type: SEGV_MAPERR\n", sizeof(buf));
+		} else if (si_code == SEGV_ACCERR) {
+			safe_strcat(buf, "Type: SEGV_ACCERR\n", sizeof(buf));
+		}
+	}
 
 	write(fd, buf, safe_strlen(buf));
 	close(fd);
@@ -217,8 +232,6 @@ static void write_info(const char *dir_path, int sig, void *addr)
 
 void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 {
-	(void)info; // Suppress unused parameter warning
-
 	// Prevent recursive crashing if our handler does something dumb
 	signal(sig, SIG_DFL);
 
@@ -228,6 +241,18 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	}
 
 	ucontext_t *uc = (ucontext_t *)ucontext;
+
+	int is_write = 0;
+	int si_code = 0;
+	if (info) {
+		si_code = info->si_code;
+		if (sig == SIGSEGV || sig == SIGBUS) {
+			unsigned long err_code = uc->uc_mcontext.gregs[REG_ERR];
+			if (err_code & 0x02) {
+				is_write = 1;
+			}
+		}
+	}
 
 	// Create a unique directory for this crash: dumps/<pid>
 	// We use PID because multiple sandboxed test processes might crash concurrently
@@ -245,7 +270,7 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	mkdir(crash_dir, 0755);
 
 	// Dump all the data
-	write_info(crash_dir, sig, info ? info->si_addr : NULL);
+	write_info(crash_dir, sig, info ? info->si_addr : NULL, is_write, si_code);
 	write_maps(crash_dir);
 	write_registers(crash_dir, uc);
 	write_backtrace(crash_dir, uc);
