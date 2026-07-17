@@ -168,7 +168,15 @@ void gemini_connection::send_prompt(
 	std::string system_instruction;
 
 	for (const auto &msg : normalized) {
-		nlohmann::json part = nlohmann::json::object();
+		if (msg.role == "system") {
+			if (!system_instruction.empty()) {
+				system_instruction += "\n\n";
+			}
+			system_instruction += msg.content;
+			continue;
+		}
+
+		nlohmann::json parts_array = nlohmann::json::array();
 
 		if (msg.role == "tool") {
 			nlohmann::json function_response = nlohmann::json::object();
@@ -178,10 +186,9 @@ void gemini_connection::send_prompt(
 			} catch (...) {
 				function_response["response"] = {{"result", msg.content}};
 			}
-			part["functionResponse"] = function_response;
+			parts_array.push_back({{"functionResponse", function_response}});
 		} else if (msg.role == "assistant") {
 			if (msg.tool_calls && !msg.tool_calls->empty()) {
-				nlohmann::json parts_array = nlohmann::json::array();
 				if (!msg.content.empty()) {
 					parts_array.push_back({{"text", msg.content}});
 				}
@@ -199,37 +206,29 @@ void gemini_connection::send_prompt(
 					}
 					parts_array.push_back(part_obj);
 				}
-				nlohmann::json content_obj = {{"role", "model"}, {"parts", parts_array}};
-				contents.push_back(content_obj);
-				continue;
 			} else {
-				part["text"] = msg.content;
+				parts_array.push_back({{"text", msg.content}});
 			}
 		} else {
 			if (msg.role == "user" && msg.content.find("images://") != std::string::npos) {
-				nlohmann::json parts_array = process_user_parts_gemini(msg.content);
-				contents.push_back({{"role", "user"}, {"parts", parts_array}});
-				continue;
+				parts_array = process_user_parts_gemini(msg.content);
 			} else {
-				part["text"] = msg.content;
+				parts_array.push_back({{"text", msg.content}});
 			}
 		}
 
 		std::string r = "user";
-		if (msg.role == "assistant")
+		if (msg.role == "assistant") {
 			r = "model";
-		else if (msg.role == "tool")
-			r = "function";
-
-		if (msg.role == "system") {
-			if (!system_instruction.empty()) {
-				system_instruction += "\n\n";
-			}
-			system_instruction += msg.content;
-			continue;
 		}
 
-		contents.push_back({{"role", r}, {"parts", nlohmann::json::array({part})}});
+		if (!contents.empty() && contents.back()["role"] == r) {
+			for (const auto &p : parts_array) {
+				contents.back()["parts"].push_back(p);
+			}
+		} else {
+			contents.push_back({{"role", r}, {"parts", parts_array}});
+		}
 	}
 
 	payload["contents"] = contents;
