@@ -6,6 +6,7 @@
 #include <mutex>
 #include <vector>
 #include <functional>
+#include <atomic>
 
 namespace httplib {
     class Client;
@@ -43,6 +44,7 @@ private:
      */
     std::mutex mutex_;
     std::function<std::string()> token_provider_;
+    std::atomic<bool> cancelled_{false};
 };
 
 std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::string &server_url, std::string &error_out, const std::string &api_key = "", const std::string &server_id = "", api_type type = api_type::openai);

@@ -101,24 +101,26 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 		}
 	}
 
-	cli_ = std::make_unique<httplib::Client>(host);
-	// Avoid 5-second AAAA DNS query timeouts on networks without IPv6 by defaulting to IPv4 (AF_INET),
-	// unless the host is explicitly an IPv6 literal.
-	if (host.find('[') != std::string::npos) {
-		cli_->set_address_family(AF_INET6);
-	} else {
-		cli_->set_address_family(AF_INET);
+	if (!host.empty()) {
+		cli_ = std::make_unique<httplib::Client>(host);
+		// Avoid 5-second AAAA DNS query timeouts on networks without IPv6 by defaulting to IPv4 (AF_INET),
+		// unless the host is explicitly an IPv6 literal.
+		if (host.find('[') != std::string::npos) {
+			cli_->set_address_family(AF_INET6);
+		} else {
+			cli_->set_address_family(AF_INET);
+		}
+		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+		if (in_testsuite && std::string(in_testsuite) == "1") {
+			cli_->set_connection_timeout(std::chrono::milliseconds(5000));
+			cli_->set_read_timeout(std::chrono::milliseconds(15000));
+		} else {
+			cli_->set_connection_timeout(std::chrono::seconds(5));
+			cli_->set_read_timeout(std::chrono::seconds(300));
+		}
+		cli_->set_follow_location(true);
+		cli_->enable_server_certificate_verification(false);
 	}
-	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
-	if (in_testsuite && std::string(in_testsuite) == "1") {
-		cli_->set_connection_timeout(std::chrono::milliseconds(5000));
-		cli_->set_read_timeout(std::chrono::milliseconds(15000));
-	} else {
-		cli_->set_connection_timeout(std::chrono::seconds(5));
-		cli_->set_read_timeout(std::chrono::seconds(300));
-	}
-	cli_->set_follow_location(true);
-	cli_->enable_server_certificate_verification(false);
 
 	// Optional proxy support via environment variables
 	const char *env_proxy = std::getenv("https_proxy");
@@ -155,10 +157,7 @@ httplib_transport::~httplib_transport() = default;
 
 void httplib_transport::cancel()
 {
-	// Note: We intentionally do not lock mutex_ here. post() and post_stream()
-	// hold mutex_ for the entire duration of their network requests.
-	// httplib::Client::stop() is thread-safe and designed to be called concurrently
-	// to interrupt blocking network calls.
+	cancelled_ = true;
 	if (cli_) {
 		cli_->stop();
 	}
@@ -166,6 +165,7 @@ void httplib_transport::cancel()
 
 transport_response httplib_transport::post(const std::string &path, const std::string &json_body)
 {
+	cancelled_ = false;
 	httplib::Result res;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -217,6 +217,7 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 bool httplib_transport::post_stream(const std::string &path, const std::string &json_body,
 				    std::function<bool(const char *data, size_t len, size_t off, size_t total)> callback)
 {
+	cancelled_ = false;
 	httplib::Result res;
 	std::string error_body;
 	std::string requested_path;
@@ -259,11 +260,17 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		}
 
 		req.response_handler = [&](const httplib::Response &response) {
+			if (cancelled_.load()) {
+				return false;
+			}
 			status_code = response.status;
 			return true;
 		};
 
 		req.content_receiver = [&](const char *data, size_t len, size_t off, size_t total) {
+			if (cancelled_.load()) {
+				return false;
+			}
 			if (status_code != 200) {
 				error_body.append(data, len);
 				return true;
