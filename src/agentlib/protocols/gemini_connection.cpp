@@ -12,6 +12,20 @@
 
 namespace agentlib {
 
+static void clean_gemini_schema(nlohmann::json &val)
+{
+	if (val.is_object()) {
+		val.erase("additionalProperties");
+		for (auto it = val.begin(); it != val.end(); ++it) {
+			clean_gemini_schema(*it);
+		}
+	} else if (val.is_array()) {
+		for (auto &item : val) {
+			clean_gemini_schema(item);
+		}
+	}
+}
+
 static nlohmann::json process_user_parts_gemini(const std::string &content)
 {
 	std::string remaining = content;
@@ -250,6 +264,7 @@ void gemini_connection::send_prompt(
 		}
 
 		nlohmann::json params = validator->get_parameters_schema();
+		clean_gemini_schema(params);
 		nlohmann::json func_decl = {{"name", tool_name}, {"description", desc}, {"parameters", params}};
 		tools_array.push_back(func_decl);
 	}
