@@ -268,6 +268,16 @@ int main()
 		assert(parsed_res["cells"].size() == 100);
 	}
 
+	// 14. Test image_getdata tool
+	{
+		std::cout << "Testing image_getdata..." << std::endl;
+		nlohmann::json getdata_args = {{"filename", "vfs_logo.png"}};
+		std::string result = registry.execute_tool("image_getdata", getdata_args.dump(), ctx);
+		std::cout << "image_getdata result: " << result.substr(0, 100) << "..." << std::endl;
+		assert(!result.empty());
+		assert(result.starts_with("data:image/png;base64,"));
+	}
+
 	std::cout << "All basic image operation tests passed successfully!" << std::endl;
 
 	// Cleanup

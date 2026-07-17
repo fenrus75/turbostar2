@@ -1,4 +1,5 @@
 #include "fs_utils.h"
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -13,6 +14,7 @@
 #include <unistd.h>
 #include "build_error_manager.h"
 #include "command_runner.h"
+#include "tools/magic_compat.h"
 #include "event_logger.h"
 #include "gcc_log_parser.h"
 #include "project_manager.h"
@@ -669,6 +671,72 @@ std::vector<unsigned char> base64_decode(std::string_view encoded)
 	}
 
 	return ret;
+}
+
+static std::string get_mime_by_extension(const std::string &path)
+{
+	size_t dot = path.find_last_of('.');
+	if (dot == std::string::npos) {
+		return "application/octet-stream";
+	}
+	std::string ext = path.substr(dot + 1);
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+	if (ext == "png") return "image/png";
+	if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
+	if (ext == "gif") return "image/gif";
+	if (ext == "webp") return "image/webp";
+	if (ext == "pdf") return "application/pdf";
+	if (ext == "txt") return "text/plain";
+	if (ext == "html" || ext == "htm") return "text/html";
+	if (ext == "css") return "text/css";
+	if (ext == "js") return "text/javascript";
+	if (ext == "json") return "application/json";
+	if (ext == "xml") return "application/xml";
+	if (ext == "zip") return "application/zip";
+	if (ext == "tar") return "application/x-tar";
+	if (ext == "gz") return "application/gzip";
+	if (ext == "mp3") return "audio/mpeg";
+	if (ext == "mp4") return "video/mp4";
+	if (ext == "wav") return "audio/wav";
+	if (ext == "ogg") return "audio/ogg";
+	return "application/octet-stream";
+}
+
+std::string detect_mime_type(const std::string &path)
+{
+#ifdef HAS_LIBMAGIC
+	if (path.find("://") == std::string::npos) {
+		magic_t magic = magic_open(MAGIC_MIME_TYPE);
+		if (magic) {
+			if (magic_load(magic, nullptr) == 0) {
+				const char *mime = magic_file(magic, path.c_str());
+				if (mime) {
+					std::string res(mime);
+					magic_close(magic);
+					return res;
+				}
+			}
+			magic_close(magic);
+		}
+	}
+#endif
+	return get_mime_by_extension(path);
+}
+
+std::string format_binary_output(std::span<const unsigned char> data, const std::string &format, const std::string &mime_type)
+{
+	if (format == "hex") {
+		std::string hex_str;
+		for (size_t i = 0; i < data.size(); ++i) {
+			if (i > 0) {
+				hex_str += " ";
+			}
+			hex_str += std::format("{:02x}", data[i]);
+		}
+		return hex_str;
+	}
+	return std::format("data:{};base64,{}", mime_type, base64_encode(data));
 }
 
 } // namespace fs_utils

@@ -658,6 +658,11 @@ These tools allow the agent to interact with the project's Git repository.
     *   `y` *(integer, required)*: Y coordinate offset to place the small image on the main image.
     *   `output` *(string, optional)*: Optional new friendly alias name or VFS URI to save the composed image as.
 
+### `image_getdata` (Family: `image`)
+*   **Description:** Retrieves the binary content of a VFS image, returned as a Base64-encoded Data URL entity.
+*   **Arguments:**
+    *   `filename` *(string, required)*: The friendly alias name or full VFS URI of the image.
+
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.
 *   **Arguments:**
