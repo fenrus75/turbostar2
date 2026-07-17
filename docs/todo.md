@@ -12,10 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- feature: list_tool_calls should have an option to also list parameters and their description
-
-- feature: list_tool_calls should have a "search" substring argument to search select tools
-
 - feature: parse meson.build to find the application name for "run" if none has been configured
 
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
@@ -243,6 +239,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `list_tool_calls` enhancements: Added `search` substring filtering (case-insensitive) and `show_details` parameter schema detailed output formatting. Added unit test cases to verify filtering and schema structures and updated `docs/tools.md` documentation.
 - `image_getdata` tool: Built a new tool inside the basic image operations plugin that retrieves the binary content of a VFS image (either via URI or alias) and returns it as a Base64-encoded Data URL. Relocated MIME type detection (`detect_mime_type`) and binary output formatting (`format_binary_output`) to the shared `fs_utils` utility module to eliminate duplication. Integrated buffer-based MIME detection (`utf8::detect_mime`) to determine the MIME type directly from the image data in memory, falling back to original extension parsing when needed. Added test coverage in `test_image_tools.cpp` and fully documented the tool in `docs/tools.md`.
 - MIME detection centralization: Created a unified `mime::` namespace in `src/mime.h` and `src/mime.cpp` to centralize all MIME and file type description logic. Replaced all separate inline detection logic and direct `magic_compat.h` libmagic invocations in `utf8.cpp`, `fs_utils.cpp`, `image_manager.cpp`, `fs_list_dir_entry.cpp`, and `hexinspect_tool.cpp` with delegations to the new central helpers. Added signature-based fallback detection for common formats and file existence checking to prevent non-existent files from returning error messages as MIME types. Updated `src/meson.build` and main `meson.build` to compile and link `mime.cpp` to all relevant targets.
 
