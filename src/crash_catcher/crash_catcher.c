@@ -189,7 +189,7 @@ static void write_backtrace(const char *dir_path, ucontext_t *uc)
 	close(fd);
 }
 
-static void write_info(const char *dir_path, int sig, void *addr, int is_write, int si_code)
+static void write_info(const char *dir_path, int sig, void *addr, int is_write, int si_code, int is_addr_valid)
 {
 	char filepath[1024] = {0};
 	safe_strcpy(filepath, dir_path, sizeof(filepath));
@@ -205,18 +205,20 @@ static void write_info(const char *dir_path, int sig, void *addr, int is_write, 
 	safe_strcat(buf, sig_str, sizeof(buf));
 	safe_strcat(buf, "\n", sizeof(buf));
 
-	safe_strcat(buf, "CrashAddress: ", sizeof(buf));
-	char addr_str[32];
-	safe_ptoa(addr, addr_str, sizeof(addr_str));
-	safe_strcat(buf, addr_str, sizeof(buf));
-	if (sig == SIGSEGV || sig == SIGBUS) {
-		if (is_write) {
-			safe_strcat(buf, " (write)", sizeof(buf));
-		} else {
-			safe_strcat(buf, " (read)", sizeof(buf));
+	if (is_addr_valid) {
+		safe_strcat(buf, "CrashAddress: ", sizeof(buf));
+		char addr_str[32];
+		safe_ptoa(addr, addr_str, sizeof(addr_str));
+		safe_strcat(buf, addr_str, sizeof(buf));
+		if (sig == SIGSEGV || sig == SIGBUS) {
+			if (is_write) {
+				safe_strcat(buf, " (write)", sizeof(buf));
+			} else {
+				safe_strcat(buf, " (read)", sizeof(buf));
+			}
 		}
+		safe_strcat(buf, "\n", sizeof(buf));
 	}
-	safe_strcat(buf, "\n", sizeof(buf));
 
 	if (sig == SIGSEGV) {
 		if (si_code == SEGV_MAPERR) {
@@ -244,8 +246,12 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 
 	int is_write = 0;
 	int si_code = 0;
+	int is_addr_valid = 0;
 	if (info) {
 		si_code = info->si_code;
+		if (sig == SIGSEGV || sig == SIGBUS || sig == SIGFPE || sig == SIGILL) {
+			is_addr_valid = 1;
+		}
 		if (sig == SIGSEGV || sig == SIGBUS) {
 			unsigned long err_code = uc->uc_mcontext.gregs[REG_ERR];
 			if (err_code & 0x02) {
@@ -270,7 +276,7 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	mkdir(crash_dir, 0755);
 
 	// Dump all the data
-	write_info(crash_dir, sig, info ? info->si_addr : NULL, is_write, si_code);
+	write_info(crash_dir, sig, info ? info->si_addr : NULL, is_write, si_code, is_addr_valid);
 	write_maps(crash_dir);
 	write_registers(crash_dir, uc);
 	write_backtrace(crash_dir, uc);
