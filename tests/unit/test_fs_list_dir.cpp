@@ -35,6 +35,15 @@ int main()
 			assert(res.find("main.cpp") != std::string::npos);
 		}
 
+		// 1b. Success case: list contents with limit and offset
+		{
+			std::string args = "{\"path\": \"" + project_root + "/src\", \"limit\": 2, \"offset\": 1}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+			std::cout << "Directory list pagination result: " << res << std::endl;
+			assert(res.find("Showing files 2 - ") != std::string::npos);
+			assert(res.find("out of") != std::string::npos);
+		}
+
 		// 2. Stage 2 validation failure: path is not a directory (e.g. a regular file)
 		{
 			std::string args = "{\"path\": \"" + project_root + "/src/main.cpp\"}";

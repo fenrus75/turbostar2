@@ -16,20 +16,20 @@
 namespace tools
 {
 
-fs_list_dir_tool::fs_list_dir_tool(std::string safe_path, bool rich_metadata)
-    : llm_tool_action("Listing directory " + safe_path), safe_path_(std::move(safe_path)), rich_metadata_(rich_metadata)
+fs_list_dir_tool::fs_list_dir_tool(fs_list_dir_args args)
+    : llm_tool_action("Listing directory " + args.path), args_(std::move(args))
 {
 }
 
 bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
-	if (safe_path_.find("://") != std::string::npos) {
+	if (args_.path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
 			// Check if there are any mounts with this prefix
-			auto listing = vfs->list_directory(safe_path_);
-			if (listing.empty() && !vfs->exists(safe_path_)) {
-				out_error = "Virtual directory not found or not mounted: " + safe_path_;
+			auto listing = vfs->list_directory(args_.path);
+			if (listing.empty() && !vfs->exists(args_.path)) {
+				out_error = "Virtual directory not found or not mounted: " + args_.path;
 				return false;
 			}
 			return true;
@@ -38,8 +38,8 @@ bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::
 		return false;
 	}
 
-	if (!std::filesystem::is_directory(safe_path_)) {
-		out_error = "Path is not a directory: " + safe_path_;
+	if (!std::filesystem::is_directory(args_.path)) {
+		out_error = "Path is not a directory: " + args_.path;
 		return false;
 	}
 	return true;
@@ -50,15 +50,15 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 	list_dir_result result;
 
 	// Route scanning based on VFS URI vs local disk path.
-	if (safe_path_.find("://") != std::string::npos) {
+	if (args_.path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (!vfs) {
 			set_failure(ctx, "VFS not available");
 			return "Error: VFS not available.";
 		}
-		result = scan_vfs(vfs, safe_path_);
+		result = scan_vfs(vfs, args_.path);
 	} else {
-		result = scan_local_disk(safe_path_, ctx);
+		result = scan_local_disk(args_.path, ctx);
 	}
 
 	if (!result.success) {
@@ -66,7 +66,24 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 		return result.error_message;
 	}
 
-	set_success(ctx, "Found " + std::to_string(result.entries.size()) + " items");
+	size_t total_items = result.entries.size();
+	
+	// Apply pagination slicing
+	int start = args_.offset;
+	int count = args_.limit;
+	
+	std::vector<dir_entry_metadata> sliced_entries;
+	if (start < static_cast<int>(total_items)) {
+		int end = std::min(start + count, static_cast<int>(total_items));
+		sliced_entries.assign(result.entries.begin() + start, result.entries.begin() + end);
+	}
+	
+	result.entries = std::move(sliced_entries);
+	result.offset = start;
+	result.limit = count;
+	result.total_items = total_items;
+
+	set_success(ctx, "Found " + std::to_string(total_items) + " items");
 	return format_entries_table(result);
 }
 
@@ -83,6 +100,9 @@ list_dir_result fs_list_dir_tool::scan_vfs(agentlib::virtual_file_system *vfs, c
 	result.directory_name = prefix;
 
 	auto entries = vfs->list_directory(prefix);
+	// Stable sort VFS entries for deterministic pagination
+	std::sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) { return a.uri < b.uri; });
+
 	for (const auto &entry : entries) {
 		std::string filename = entry.uri.substr(prefix.length());
 
@@ -198,8 +218,8 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 			meta.permissions += agent_can_write ? "W" : "-";
 			meta.permissions += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 
-			// Inspect the file format and append libmagic details.
-			if (rich_metadata_ && entry.is_regular_file()) {
+			// Inspect the file format and append file details.
+			if (args_.rich_metadata && entry.is_regular_file()) {
 				std::string desc = mime::detect_file_description(resolved_path);
 				if (desc != "Unknown file type") {
 					meta.details = desc;
@@ -223,13 +243,21 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result) const
 {
 	std::stringstream ss;
-	if (safe_path_.find("://") != std::string::npos) {
+	if (args_.path.find("://") != std::string::npos) {
 		ss << "# Virtual Directory " << result.directory_name << "\n\n";
 	} else {
 		ss << "# Directory " << result.directory_name << "\n\n";
 	}
 
-	if (rich_metadata_) {
+	int start_human = (result.total_items == 0) ? 0 : (result.offset + 1);
+	int end_human = result.offset + result.entries.size();
+	ss << "*Showing files " << start_human << " - " << end_human << " out of " << result.total_items << "*\n\n";
+
+	if (end_human < static_cast<int>(result.total_items)) {
+		ss << "*To view the next page, run `fs_list_dir` with offset=" << end_human << ".*\n\n";
+	}
+
+	if (args_.rich_metadata) {
 		ss << "| Filename | File Type | File Size (bytes) | File Size (lines) | Permissions | Details |\n";
 		ss << "| -------- | --------- | ----------------- | ----------------- | ----------- | ------- |\n";
 	} else {
@@ -239,7 +267,7 @@ std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result
 
 	for (const auto &meta : result.entries) {
 		std::string type_str(1, meta.type);
-		if (rich_metadata_) {
+		if (args_.rich_metadata) {
 			ss << "| " << meta.filename << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
 			   << meta.permissions << " | " << meta.details << " |\n";
 		} else {

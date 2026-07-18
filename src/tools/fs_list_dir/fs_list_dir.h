@@ -29,19 +29,28 @@ struct list_dir_result {
 	std::string error_message;
 	std::vector<dir_entry_metadata> entries;
 	std::string directory_name;
+	int offset = 0;
+	int limit = 100;
+	size_t total_items = 0;
+};
+
+struct fs_list_dir_args {
+	std::string path;
+	bool rich_metadata = false;
+	int limit = 100;
+	int offset = 0;
 };
 
 class fs_list_dir_tool : public agentlib::llm_tool_action
 {
       public:
-	explicit fs_list_dir_tool(std::string safe_path, bool rich_metadata = false);
+	explicit fs_list_dir_tool(fs_list_dir_args args);
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
 
       private:
-	std::string safe_path_;
-	bool rich_metadata_;
+	fs_list_dir_args args_;
 
 	list_dir_result scan_vfs(agentlib::virtual_file_system *vfs, const std::string &path) const;
 	list_dir_result scan_local_disk(const std::string &path, agentlib::tool_context &ctx) const;
@@ -71,8 +80,7 @@ class fs_list_dir_validator : public agentlib::tool_validator
 	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &args) const override;
 
       private:
-	mutable std::string resolved_path_;
-	mutable bool rich_metadata_{false};
+	mutable fs_list_dir_args args_;
 };
 
 } // namespace tools
