@@ -64,6 +64,12 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `name` *(string, required)*: The name of the function, library call, system call, or command to lookup (e.g., `'malloc'`, `'mmap'`, `'open'`, `'printf'`, `'pthread_create'`).
     *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"2"` for system calls, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
 
+### `fs_man_search`
+*   **Description:** Search system manual page names and descriptions for a keyword (similar to 'man -k' or 'apropos'). Returns matching commands, system calls, or library functions with their section numbers and descriptions in a markdown table.
+*   **Arguments:**
+    *   `query` *(string, required)*: The keyword or search phrase (e.g., `'socket'`, `'pthread'`, `'printf'`).
+    *   `section` *(string, optional)*: Optional section to filter results (e.g., `"1"` for commands, `"2"` for system calls, `"3"` for library functions).
+
 ---
 
 ## 2. File System Mutation
@@ -435,8 +441,9 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
 
 ### `git_log`
-*   **Description:** View the last 10 commit messages in the repository (git log -n 10 --oneline).
-*   **Arguments:** None.
+*   **Description:** View the last commit messages in the repository (git log -n <count> --oneline).
+*   **Arguments:**
+    *   `count` *(integer, optional)*: The number of commits to retrieve. Defaults to 10.
 
 ### `git_blame`
 *   **Description:** View the commit-level git blame history of a file, consolidated into contiguous ranges of lines with commit summary and date. Grounding code is provided for the start line of each range to assist the agent.
