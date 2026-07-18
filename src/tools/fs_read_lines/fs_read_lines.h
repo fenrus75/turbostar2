@@ -15,6 +15,7 @@ struct fs_read_lines_args {
     std::string requested_path;
     int start_line; // 1-based index
     int end_line;   // 1-based index
+    std::optional<int> tail;
     std::string safe_path; // Injected by Stage 1 validation
 };
 

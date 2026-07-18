@@ -434,6 +434,29 @@ extern std::string troff2md(std::string troff_content);
 			assert(res.find("46:") == std::string::npos);
 		}
 
+		{
+			std::ofstream out(temp_file_path);
+			out << "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n";
+		}
+
+		// Test tail success case (get last 3 lines)
+		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"tail\": 3}";
+			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+			assert(res.find("8: eight") != std::string::npos);
+			assert(res.find("9: nine") != std::string::npos);
+			assert(res.find("10: ten") != std::string::npos);
+			assert(res.find("7: seven") == std::string::npos);
+		}
+
+		// Test tail validation failure (mixing tail with start_line)
+		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"tail\": 3}";
+			auto prep = registry.prepare_tool("fs_read_lines", args, ctx);
+			assert(prep.tool == nullptr);
+			assert(!prep.error_message.empty());
+		}
+
 		std::filesystem::remove(temp_file_path);
 		std::filesystem::remove(temp_cpp_path);
 		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;

@@ -12,10 +12,11 @@ struct fs_read_lines_raw_args {
 	std::string path;
 	int start_line = -1;
 	int end_line = -1;
+	int tail = -1;
 };
 
 // Map JSON to the raw struct
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_lines_raw_args, path, start_line, end_line);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_lines_raw_args, path, start_line, end_line, tail);
 
 class fs_read_lines_validator : public agentlib::tool_validator
 {
@@ -45,10 +46,13 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		    {"properties",
 		     {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
 		      {"start_line",
-		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted."}}},
+		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with 'tail'."}}},
 		      {"end_line",
 		       {{"type", "integer"},
-			{"description", "The 1-based line number to end reading at (inclusive). This parameter is optional. If omitted, the tool reads all lines from start_line to the end of the file."}}}}},
+			{"description", "The 1-based line number to end reading at (inclusive). Optional. Mutually exclusive with 'tail'."}}},
+		      {"tail",
+		       {{"type", "integer"},
+			{"description", "Optional. The number of lines to read from the end of the file. Mutually exclusive with 'start_line' and 'end_line'."}}}}},
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 
@@ -73,14 +77,30 @@ class fs_read_lines_validator : public agentlib::tool_validator
 			// Populate the strict args for the tool
 			args_.requested_path = parsed.path;
 			args_.safe_path = canonical_path;
-			args_.start_line = (parsed.start_line == -1) ? 1 : parsed.start_line;
-			args_.end_line = (parsed.end_line == -1) ? 1000000 : parsed.end_line;
 
-			if (args_.start_line < 1)
+			if (parsed.tail != -1) {
+				if (parsed.start_line != -1 || parsed.end_line != -1) {
+					out_error = "'tail' parameter cannot be used together with 'start_line' or 'end_line'.";
+					return false;
+				}
+				if (parsed.tail <= 0) {
+					out_error = "'tail' parameter must be greater than 0.";
+					return false;
+				}
+				args_.tail = parsed.tail;
 				args_.start_line = 1;
-			if (args_.end_line < args_.start_line) {
-				out_error = "end_line cannot be less than start_line.";
-				return false;
+				args_.end_line = 1000000;
+			} else {
+				args_.tail = std::nullopt;
+				args_.start_line = (parsed.start_line == -1) ? 1 : parsed.start_line;
+				args_.end_line = (parsed.end_line == -1) ? 1000000 : parsed.end_line;
+
+				if (args_.start_line < 1)
+					args_.start_line = 1;
+				if (args_.end_line < args_.start_line) {
+					out_error = "end_line cannot be less than start_line.";
+					return false;
+				}
 			}
 
 			return true;
