@@ -21,11 +21,7 @@
 	their structural roles. This would be incredibly useful for verifying binary patches or analyzing compiler optimization impacts.
 	- doing this right is VERY complicated, we would need the bsdiff algorithm and then expand the result in an agent
 	  friendly format
-- 2. **Jump to Named Chunk/Symbol Offset**:
-   * *The Idea*: If `hexinspect` finds an ELF section (e.g., `.text` or `.rodata`) or a PNG chunk (e.g., `PLTE`), allow the agent to pass the
-	**name** of that structure as the `start_offset` in `hexdump` or `hexwrite` (e.g., `start_offset: ".text"`). The tool would internally
-	resolve the symbol/chunk offset and dump it, bypassing the need to calculate byte positions manually.
-   - refinement: rather than reusing start_offset, add an extra offset_by_name argument! this will cause less confusion for the agent
+
 - 3. **Interactive Byte Editor Interface**:
 	   * *The Idea*: A high-level visual representation of the hex edits in the editor UI (similar to how `flag_as_error` creates an overlay)
 	would help developers track what modifications the agent is proposing in binary formats.
@@ -255,6 +251,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- Named chunk and symbol offset resolution in hex tools: Added `offset_by_name` (optional string parameter) to `hexdump`, `hexwrite`, and `hexinspect` tool arguments. Highlighters (`elf_hex_highlighter`, `png_hex_highlighter`, and `jpeg_hex_highlighter`) implement `get_offset_by_name` to lookup target offsets by section/symbol/chunk name (e.g. `".text"`, `"PLTE"`, `"APP0"`) dynamically.
 - Out-of-process crash backtrace resolution: Created a standalone helper application `turbostar-crashprocess` (`src/crash_process.cpp`) that dynamically resolves virtual addresses in crash log files to function names, source filenames, and line numbers using `eu-addr2line` (with `--linux-process-map`) or standard `addr2line` as fallback. Configured `src/crash_handler.cpp` to use the async-signal-safe `fork()` + `execl()` + `waitpid()` sequence to execute this helper before cleanly terminating the crashed parent process.
 - Executable path crash logging: Added absolute path logging of the running executable using the async-signal-safe `readlink("/proc/self/exe")` system call to both `src/crash_handler.cpp` and `src/crash_catcher/crash_catcher.c`'s crash loggers, facilitating post-processing symbolication (e.g. `addr2line`).
 - Crash Catcher Enhancements Port: Ported the three recent enhancements from `turbocatch` (`src/crash_catcher/crash_catcher.c`) to Turbostar's internal crash logger (`src/crash_handler.cpp`). The logger now captures and prints `CrashAddress` (for SIGSEGV, SIGBUS, SIGFPE, and SIGILL), detects and logs read/write access types (using `uc->uc_mcontext.gregs[REG_ERR]`), and identifies specific SEGV failure types (`SEGV_MAPERR` / `SEGV_ACCERR`).
