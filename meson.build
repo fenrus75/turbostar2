@@ -1244,6 +1244,12 @@ test_run_config = executable('test_run_config',
   include_directories: inc)
 test('unit_run_config', test_run_config, suite: 'editor')
 
+test_session_manager = executable('test_session_manager',
+  'tests/unit/test_session_manager.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_session_manager', test_session_manager, suite: 'editor')
+
 test_tool_status = executable('test_tool_status',
   'tests/unit/test_tool_status.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

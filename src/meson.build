@@ -14,6 +14,7 @@ core_sources = files(
   'fs_utils.cpp',
   'mime.cpp',
   'config_manager.cpp',
+  'session_manager.cpp',
   'statistics_manager.cpp',
   'codereview_manager.cpp',
   'git_manager.cpp',

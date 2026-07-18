@@ -11,6 +11,7 @@
 #include "agentlib/command_registry.h"
 #include "ansi.h"
 #include "config_manager.h"
+#include "session_manager.h"
 #include "crash_handler.h"
 #include "editor.h"
 #include "event_logger.h"
@@ -233,6 +234,9 @@ int main(int argc, char **argv)
 			config_manager::get_instance().load_from_file(project_config_path);
 		}
 	}
+
+	// Load session state (e.g. search history, last search query)
+	session_manager::get_instance().load();
 
 	// Initialize and start MCP servers asynchronously in a background thread
 	agentlib::mcp_manager::get_instance().start_async(project_root);

@@ -88,10 +88,6 @@ void config_manager::load_from_file(const std::string &path)
 			run_target_mode_ = value;
 		} else if (key == "gdb_auto_continue") {
 			gdb_auto_continue_ = (value == "true" || value == "1");
-		} else if (key == "last_search_query") {
-			last_search_query_ = value;
-		} else if (key == "last_replace_query") {
-			last_replace_query_ = value;
 		} else if (key == "tab_width") {
 			try {
 				tab_width_ = std::stoi(value);
@@ -206,8 +202,6 @@ void config_manager::save_project(const std::string &target_path)
 	file << "gdb_auto_continue=" << (gdb_auto_continue_ ? "true" : "false") << "\n";
 	file << "tab_width=" << tab_width_ << "\n";
 	file << "max_line_width=" << max_line_width_ << "\n";
-	file << "last_search_query=" << last_search_query_ << "\n";
-	file << "last_replace_query=" << last_replace_query_ << "\n";
 
 	for (const auto &[task_id, model_id] : task_models_) {
 		if (!model_id.empty()) {
