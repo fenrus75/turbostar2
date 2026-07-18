@@ -104,6 +104,8 @@ editor::editor(editor_options opts)
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();
 	input_history_manager::get_instance().load();
+	current_search_.query = config_manager::get_instance().get_last_search_query();
+	current_search_.replacement = config_manager::get_instance().get_last_replace_query();
 	git_manager::get_instance().start(global_queue_);
 	bool lsp_allowed = !opts.no_lsp && config_manager::get_instance().is_lsp_enabled();
 	if (lsp_allowed) {
@@ -1746,4 +1748,16 @@ std::vector<std::shared_ptr<agentlib::ai_agent>> editor::get_all_active_agents()
 	}
 
 	return active_agents;
+}
+
+void editor::save_search_persistence()
+{
+	config_manager::get_instance().set_last_search_query(current_search_.query);
+	config_manager::get_instance().set_last_replace_query(current_search_.replacement);
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (!cache_root.empty()) {
+		config_manager::get_instance().save_project(cache_root);
+	} else {
+		config_manager::get_instance().save_global();
+	}
 }

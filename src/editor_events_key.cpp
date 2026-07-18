@@ -72,6 +72,7 @@ void editor::resolve_dialog(dialog_result res)
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
 			history_manager::get_instance().add_search(current_search_.query);
 			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
+			save_search_persistence();
 			if (doc && doc->find_next(current_search_)) {
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
@@ -82,6 +83,7 @@ void editor::resolve_dialog(dialog_result res)
 			history_manager::get_instance().add_search(current_search_.query);
 			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
 			input_history_manager::get_instance().add_entry("replace_query", current_search_.replacement);
+			save_search_persistence();
 
 			std::string dlg_res = active_dialog_->get_result();
 			if (dlg_res == "change_all") {
@@ -918,6 +920,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 				}
 
 				history_manager::get_instance().add_search(current_search_.query);
+				save_search_persistence();
 
 				if (is_replace) {
 					active_mode_ = input_mode::normal;

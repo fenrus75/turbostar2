@@ -100,6 +100,11 @@ class config_manager
 		paranoid_mode_ = paranoid;
 	}
 
+	std::string get_last_search_query() const { return last_search_query_; }
+	void set_last_search_query(const std::string &q) { last_search_query_ = q; }
+	std::string get_last_replace_query() const { return last_replace_query_; }
+	void set_last_replace_query(const std::string &q) { last_replace_query_ = q; }
+
 	bool is_force_ascii() const
 	{
 		return force_ascii_;
@@ -223,6 +228,8 @@ class config_manager
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
 	bool gdb_auto_continue_{true};
+	std::string last_search_query_{""};
+	std::string last_replace_query_{""};
 
 	std::map<std::string, bool> mcp_servers_enabled_;
 	std::map<std::string, bool> mcp_tools_enabled_;

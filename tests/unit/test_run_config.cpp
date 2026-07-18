@@ -234,6 +234,20 @@ void test_tool_families_config()
 	assert(cfg.get_mcp_server_when_to_activate("server_a", true) == "Activate when needing server A.");
 	assert(cfg.get_mcp_server_when_to_activate("server_b", false) == "Activate when needing server B.");
 
+	// Test 8: Save and load last search/replace query persistence
+	cfg.set_last_search_query("test_search_term");
+	cfg.set_last_replace_query("test_replace_term");
+	cfg.save_project(temp_proj.string());
+
+	// Clear memory state
+	cfg.set_last_search_query("");
+	cfg.set_last_replace_query("");
+
+	// Load from project file
+	cfg.load_from_file(proj_file.string());
+	assert(cfg.get_last_search_query() == "test_search_term");
+	assert(cfg.get_last_replace_query() == "test_replace_term");
+
 	// Clean up
 	if (!orig_home_str.empty()) {
 		setenv("HOME", orig_home_str.c_str(), 1);

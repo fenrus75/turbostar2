@@ -78,6 +78,11 @@ class editor : public agentlib::document_provider
 	void run();
 
 	/**
+	 * @brief Saves the current search parameters to the project config for persistence.
+	 */
+	void save_search_persistence();
+
+	/**
 	 * @brief Prints the interactive event response latency metrics to the console.
 	 */
 	void print_latency_report() const;
