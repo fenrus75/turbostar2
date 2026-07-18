@@ -8,6 +8,7 @@
 #include "hex/elf.h"
 #include "hex/png.h"
 #include "hex/jpeg.h"
+#include "hex/zip.h"
 
 // Helper to write values in little endian format to a vector
 void write_u16_le(std::vector<uint8_t> &data, size_t offset, uint16_t val)
@@ -425,6 +426,55 @@ void test_real_jpeg_file()
 	std::cout << "Real JPEG file test passed!" << std::endl;
 }
 
+void test_zip_highlighter()
+{
+	std::string path = "tests/my-test-package.zip";
+	std::ifstream file(path, std::ios::binary);
+	if (!file.is_open()) {
+		path = "../tests/my-test-package.zip";
+		file.open(path, std::ios::binary);
+	}
+	if (!file.is_open()) {
+		std::cout << "Skipping real ZIP file test (my-test-package.zip not found)" << std::endl;
+		return;
+	}
+
+	file.seekg(0, std::ios::end);
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> data(size);
+	file.read(reinterpret_cast<char *>(data.data()), size);
+	file.close();
+
+	zip_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+	bool success = hl.parse(data);
+	assert(success == true);
+
+	// Verify local files are parsed
+	const auto &files = hl.get_local_files();
+	assert(!files.empty());
+
+	// Verify we can find a file by name
+	auto offset_opt = hl.get_offset_by_name("setup.py");
+	assert(offset_opt.has_value());
+	assert(*offset_opt > 0);
+
+	// Verify get_info matches local file header
+	size_t setup_offset = *offset_opt;
+	highlight_info inf = hl.get_info(data, setup_offset);
+	assert(inf.type == hex_semantic_type::file_header);
+	assert(inf.description.find("setup.py") != std::string::npos);
+
+	// Test auto-detect registry
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<zip_hex_highlighter *>(detected.get()) != nullptr);
+	std::cout << "Real ZIP file test passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -432,6 +482,7 @@ int main()
 	test_png_highlighter();
 	test_jpeg_highlighter();
 	test_real_jpeg_file();
+	test_zip_highlighter();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }

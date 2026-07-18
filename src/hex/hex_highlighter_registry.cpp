@@ -2,6 +2,7 @@
 #include "hex/elf.h"
 #include "hex/png.h"
 #include "hex/jpeg.h"
+#include "hex/zip.h"
 
 hex_highlighter_registry &hex_highlighter_registry::get_instance()
 {
@@ -17,6 +18,8 @@ hex_highlighter_registry::hex_highlighter_registry()
 	highlighters_.push_back(std::make_shared<png_hex_highlighter>());
 	// Register JPEG highlighter
 	highlighters_.push_back(std::make_shared<jpeg_hex_highlighter>());
+	// Register ZIP highlighter
+	highlighters_.push_back(std::make_shared<zip_hex_highlighter>());
 }
 
 std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(const std::vector<uint8_t> &data) const

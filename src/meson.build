@@ -38,6 +38,7 @@ core_sources = files(
   'hex/elf.cpp',
   'hex/png.cpp',
   'hex/jpeg.cpp',
+  'hex/zip.cpp',
   'hex/hex_highlighter_registry.cpp',
   'history_manager.cpp',
   'input_history_manager.cpp',
