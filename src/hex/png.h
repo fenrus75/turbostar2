@@ -14,6 +14,7 @@ class png_hex_highlighter : public hex_highlighter
 	bool parse(const std::vector<uint8_t> &data) override;
 	highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const override;
 	size_t get_next_symbol_offset(size_t current_offset) const override;
+	std::optional<size_t> get_offset_by_name(const std::string &name) const override;
 
       private:
 	struct parsed_chunk {

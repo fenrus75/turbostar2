@@ -4,6 +4,7 @@
 #include <format>
 #include <fstream>
 #include <vector>
+#include "hex/hex_highlighter_registry.h"
 
 namespace tools
 {
@@ -73,6 +74,40 @@ std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No data provided to write.";
 	}
 
+	size_t start = args_.start_offset;
+	if (!args_.offset_by_name.empty()) {
+		std::ifstream infile(args_.safe_path, std::ios::binary);
+		if (infile.is_open()) {
+			infile.seekg(0, std::ios::end);
+			std::streamsize file_size = infile.tellg();
+			infile.seekg(0, std::ios::beg);
+
+			std::vector<uint8_t> file_bytes(file_size);
+			if (file_size > 0 && infile.read(reinterpret_cast<char *>(file_bytes.data()), file_size)) {
+				auto highlighter = hex_highlighter_registry::get_instance().detect_highlighter(file_bytes);
+				if (highlighter && highlighter->parse(file_bytes)) {
+					auto resolved_offset = highlighter->get_offset_by_name(args_.offset_by_name);
+					if (resolved_offset) {
+						start = *resolved_offset;
+					} else {
+						infile.close();
+						set_failure(ctx, "Could not resolve named chunk or symbol: " + args_.offset_by_name);
+						return "Error: Could not resolve named chunk or symbol: " + args_.offset_by_name;
+					}
+				} else {
+					infile.close();
+					set_failure(ctx, "File format not supported for offset resolution by name.");
+					return "Error: Cannot resolve offset by name for this file format (no highlighter).";
+				}
+			} else if (file_size == 0) {
+				infile.close();
+				set_failure(ctx, "File is empty; cannot resolve offset by name.");
+				return "Error: File is empty; cannot resolve offset by name.";
+			}
+			infile.close();
+		}
+	}
+
 	// Create file if it does not exist
 	if (!std::filesystem::exists(args_.safe_path)) {
 		// Make sure parent directories exist
@@ -100,19 +135,19 @@ std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 	size_t current_size = file.tellg();
 
 	// Pad with zero bytes if offset is beyond current file size
-	if (args_.start_offset > current_size) {
+	if (start > current_size) {
 		file.seekp(current_size);
-		size_t pad_size = args_.start_offset - current_size;
+		size_t pad_size = start - current_size;
 		std::vector<char> pad(pad_size, 0);
 		file.write(pad.data(), pad_size);
 	}
 
 	// Write the hex data at target offset (overwrite mode)
-	file.seekp(args_.start_offset);
+	file.seekp(start);
 	file.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 	file.close();
 
-	std::string success_msg = std::format("Successfully wrote {} bytes to {} at offset {}.", bytes.size(), args_.requested_path, args_.start_offset);
+	std::string success_msg = std::format("Successfully wrote {} bytes to {} at offset {}.", bytes.size(), args_.requested_path, start);
 	set_success(ctx, success_msg);
 	return success_msg;
 }

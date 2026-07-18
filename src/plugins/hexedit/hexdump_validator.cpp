@@ -9,9 +9,10 @@ struct hexdump_raw_args {
 	std::string path;
 	size_t start_offset{0};
 	size_t size{0};
+	std::string offset_by_name;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(hexdump_raw_args, path, start_offset, size);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(hexdump_raw_args, path, start_offset, size, offset_by_name);
 
 std::string hexdump_validator::get_description() const
 {
@@ -27,7 +28,8 @@ nlohmann::json hexdump_validator::get_parameters_schema() const
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the file relative to the project root."}}},
 	      {"start_offset", {{"type", "integer"}, {"minimum", 0}, {"description", "Byte offset from which to start reading. Defaults to 0."}}},
-	      {"size", {{"type", "integer"}, {"minimum", 1}, {"description", "Number of bytes to read."}}}}},
+	      {"size", {{"type", "integer"}, {"minimum", 1}, {"description", "Number of bytes to read."}}},
+	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve start_offset automatically."}}}}},
 	    {"required", nlohmann::json::array({"path", "size"})}};
 }
 
@@ -54,6 +56,7 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 		args_.safe_path = canonical_path;
 		args_.start_offset = parsed.start_offset;
 		args_.size = parsed.size;
+		args_.offset_by_name = parsed.offset_by_name;
 
 		return true;
 	} catch (const std::exception &e) {

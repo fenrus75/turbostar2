@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 enum class hex_semantic_type {
 	normal,
@@ -52,4 +53,7 @@ class hex_highlighter
 
 	// Query the next symbol boundary offset after the current_offset
 	virtual size_t get_next_symbol_offset(size_t current_offset) const { return current_offset; }
+
+	// Query offset by name (e.g. section name like ".text", symbol name, or chunk name like "PLTE")
+	virtual std::optional<size_t> get_offset_by_name(const std::string &/*name*/) const { return std::nullopt; }
 };

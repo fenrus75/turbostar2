@@ -12,6 +12,7 @@ struct hexinspect_args {
 	std::string safe_path;
 	size_t start_offset{0};
 	size_t size{0};
+	std::string offset_by_name;
 };
 
 class hexinspect_tool : public agentlib::llm_tool_action

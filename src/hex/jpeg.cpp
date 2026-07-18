@@ -205,3 +205,16 @@ size_t jpeg_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	}
 	return current_offset;
 }
+
+std::optional<size_t> jpeg_hex_highlighter::get_offset_by_name(const std::string &name) const
+{
+	if (!parsed_successfully_) {
+		return std::nullopt;
+	}
+	for (const auto &marker : markers_) {
+		if (marker.name == name) {
+			return marker.offset;
+		}
+	}
+	return std::nullopt;
+}

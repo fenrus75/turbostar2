@@ -127,3 +127,16 @@ size_t png_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	}
 	return current_offset;
 }
+
+std::optional<size_t> png_hex_highlighter::get_offset_by_name(const std::string &name) const
+{
+	if (!parsed_successfully_) {
+		return std::nullopt;
+	}
+	for (const auto &chunk : chunks_) {
+		if (chunk.type == name) {
+			return chunk.offset;
+		}
+	}
+	return std::nullopt;
+}

@@ -90,6 +90,15 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	size_t start = args_.start_offset;
+	if (!args_.offset_by_name.empty()) {
+		auto resolved_offset = highlighter->get_offset_by_name(args_.offset_by_name);
+		if (!resolved_offset) {
+			set_failure(ctx, "Could not find offset for name: " + args_.offset_by_name);
+			return "Error: Could not resolve named chunk or symbol: " + args_.offset_by_name;
+		}
+		start = *resolved_offset;
+	}
+
 	if (start >= bytes.size()) {
 		set_failure(ctx, "start_offset is out of bounds.");
 		return "Error: start_offset is out of bounds.";

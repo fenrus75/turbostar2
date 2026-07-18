@@ -12,6 +12,7 @@ struct hexwrite_args {
 	std::string safe_path;
 	size_t start_offset{0};
 	std::string hex_data;
+	std::string offset_by_name;
 };
 
 class hexwrite_tool : public agentlib::llm_tool_action

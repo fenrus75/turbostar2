@@ -12,6 +12,8 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- save the last search (and replace?) in the per project config so that after a restart of the editor, Ctrl-L continues the search
+
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:

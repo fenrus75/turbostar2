@@ -1036,3 +1036,23 @@ size_t elf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	}
 	return current_offset;
 }
+
+std::optional<size_t> elf_hex_highlighter::get_offset_by_name(const std::string &name) const
+{
+	if (!parsed_successfully_) {
+		return std::nullopt;
+	}
+	// First search sections
+	for (const auto &sec : sections_) {
+		if (sec.name == name) {
+			return sec.offset;
+		}
+	}
+	// Next search symbols
+	for (const auto &sym : symbols_) {
+		if (sym.name == name) {
+			return sym.offset;
+		}
+	}
+	return std::nullopt;
+}
