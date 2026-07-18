@@ -13,6 +13,8 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the directory, relative to the project root.
     *   `rich_metadata` *(boolean, optional)*: If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, ELF architectures).
+    *   `limit` *(integer, optional)*: Maximum number of files to return in the list. Defaults to 100.
+    *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.
 
 ### `fs_read_lines`
 *   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
