@@ -253,6 +253,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `git_log` count configuration: Refactored `git_log` tool to inherit from `tool_validator` instead of `zero_argument_tool_validator` to accept an optional `count` parameter (defaulting to 10), allowing agents and users to view arbitrary commit counts. Updated `test_git_log.cpp` to verify.
 - `fs_man_search` keyword lookup tool: Implemented a new search tool inside the `fs_man` tool family that performs keyword searches on manual pages (similar to `man -k` or `apropos`). Features robust argument validation to prevent shell injection, results sorting, deduplication, and formatting as a clean markdown table (capped at 50 results to conserve context). Added integration test coverage in `test_fs_man.cpp` and registered the tool in `src/tools/meson.build`.
 - Debugger auto-continue default fix: Modified `document_provider::start_app` and `editor::start_app` to accept an optional `auto_continue` boolean parameter (defaulting to `true`). Overrode the argument to `false` in `agent_start_app_entry.cpp` so that tool-based launches do not immediately run past initial breakpoints, while UI-based launches still respect user preferences.
 - `exit_plan_mode` read-only state transition verification: Added assertions to `test_exit_plan_mode.cpp` confirming that read-only state transitions cleanly on enter/exit plan mode, resolving the concern that `exit_plan_mode` could retain the read-only state.
