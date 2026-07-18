@@ -253,6 +253,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `fs_list_dir` pagination and limit: Added optional `limit` (defaulting to 100) and `offset` (defaulting to 0) parameters to `fs_list_dir` to support systematic paginated traversal of large directories. Formatted a human-readable summary line (e.g. `*Showing files 100 - 150 out of <total>*`) in `fs_list_dir_entry.cpp` along with next-page command recommendations. Updated `test_fs_list_dir.cpp` to verify.
 - `run_python` HTTP timeout configuration: Prepended `UV_HTTP_TIMEOUT=300` to the python execution command prefix in `run_python_entry.cpp` to prevent dependency installations from hanging indefinitely in offline or sandboxed environments.
 - `fs_compile_summary` total summary row: Updated `fs_compile_summary_entry.cpp` to sum compiler errors, compiler warnings, LSP errors, and LSP warnings across all files and append a bolded `Total` row at the bottom of the table. Updated `test_fs_compile_summary.cpp` to verify.
 - `fs_compile_project` clean & timeout parameter documentation: The backend implementation of `fs_compile_project` already supported `clean` (for forcing rebuilds) and `timeout` parameter args, but they were missing from the validator description and documentation. Added them to `tools.md` and updated `test_fs_compile_project.cpp` to verify.
