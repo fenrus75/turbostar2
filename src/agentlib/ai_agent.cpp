@@ -390,7 +390,7 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 	if (model_->get_api_type() == api_type::copilot) {
 		http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
 	}
-	client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
+	client_ = std::make_shared<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 
 	summary_thread_ = std::thread(&ai_agent::summary_worker_loop, this);
 }
@@ -670,8 +670,13 @@ void ai_agent::wait_until_idle()
 
 void ai_agent::cancel_current_task()
 {
-	if (client_) {
-		client_->cancel();
+	std::shared_ptr<llm_client> local_client;
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		local_client = client_;
+	}
+	if (local_client) {
+		local_client->cancel();
 	}
 	{
 		std::lock_guard<std::mutex> lock(background_transport_mutex_);
@@ -1240,6 +1245,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		return;
 
 	{
+		std::lock_guard<std::mutex> convo_lock(conversation_mutex_);
 		std::lock_guard lock(state_mutex_);
 		model_ = std::move(model);
 		if (conversation_) {
@@ -1249,7 +1255,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 		if (model_->get_api_type() == api_type::copilot) {
 			http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
 		}
-		client_ = std::make_unique<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
+		client_ = std::make_shared<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
 
 	add_interaction(
@@ -1383,8 +1389,15 @@ void ai_agent::start_processing()
 			auto props = self->get_properties();
 			props.active_families = self->get_active_tool_families();
 
-			self->client_->send_chat_stream(
-			    convo,
+			std::shared_ptr<llm_client> local_client;
+			{
+				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+				local_client = self->client_;
+			}
+
+			if (local_client) {
+				local_client->send_chat_stream(
+				    convo,
 			    [&](const chat_delta &delta) {
 				    if (self->is_closed_)
 					    return;
@@ -1462,6 +1475,7 @@ void ai_agent::start_processing()
 				    }
 			    },
 			    &registry, previous_response_id, props);
+			}
 
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -2955,10 +2969,12 @@ void ai_agent::evaluate_compaction()
 		active_tokens_.store(current_active_tokens);
 
 		if (current_active_tokens > upper_bound) {
+			std::shared_ptr<llm_client> local_client;
 			std::string prev_id;
 			{
 				std::lock_guard<std::mutex> lock(conversation_mutex_);
 				prev_id = last_response_id_;
+				local_client = client_;
 			}
 			if (!prev_id.empty()) {
 				event_logger::get_instance().log(
@@ -2966,7 +2982,10 @@ void ai_agent::evaluate_compaction()
 						"Triggering Responses API compaction on server.",
 						current_active_tokens, upper_bound));
 				std::string error_msg;
-				std::string compacted_id = client_->compact_response(prev_id, &error_msg);
+				std::string compacted_id;
+				if (local_client) {
+					compacted_id = local_client->compact_response(prev_id, &error_msg);
+				}
 				if (!compacted_id.empty()) {
 					std::lock_guard<std::mutex> lock(conversation_mutex_);
 					last_response_id_ = compacted_id;
@@ -3082,15 +3101,20 @@ void ai_agent::force_compaction()
 		return;
 
 	if (!is_mutation_possible()) {
+		std::shared_ptr<llm_client> local_client;
 		std::string prev_id;
 		{
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
 			prev_id = last_response_id_;
+			local_client = client_;
 		}
 		if (!prev_id.empty()) {
 			event_logger::get_instance().log("Forcing Responses API compaction on server.");
 			std::string error_msg;
-			std::string compacted_id = client_->compact_response(prev_id, &error_msg);
+			std::string compacted_id;
+			if (local_client) {
+				compacted_id = local_client->compact_response(prev_id, &error_msg);
+			}
 			if (!compacted_id.empty()) {
 				std::lock_guard<std::mutex> lock(conversation_mutex_);
 				last_response_id_ = compacted_id;

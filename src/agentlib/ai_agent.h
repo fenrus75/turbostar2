@@ -341,7 +341,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::shared_ptr<Conversation> conversation_;
 	std::string last_response_id_;
 	std::map<std::string, episode_index_entry> episode_index_;
-	std::unique_ptr<llm_client> client_;
+	std::shared_ptr<llm_client> client_;
 	std::shared_ptr<llm_transport> background_transport_;
 
 	/*
