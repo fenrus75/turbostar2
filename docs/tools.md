@@ -41,7 +41,8 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Search for a regular expression within a file and return matching lines as a Markdown table.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
-    *   `pattern` *(string, required)*: The C++ `std::regex` pattern to search for (e.g., `'function.*foo'`).
+    *   `pattern` *(string, required)*: The RE2 regular expression pattern to search for (e.g., `'function.*foo'`).
+    *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex matching. Defaults to false.
 
 ### `fs_file_size`
 *   **Description:** Get the size of a file in bytes.
