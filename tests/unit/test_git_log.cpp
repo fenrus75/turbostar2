@@ -33,6 +33,14 @@ int main()
 		assert(result.find("Process exited with code 0") != std::string::npos);
 	}
 
+	// 1b. Success case: retrieve git log with explicit count
+	{
+		std::string result = registry.execute_tool("git_log", "{\"count\": 2}", ctx);
+		std::cout << "Result (count=2):\n" << result << std::endl;
+		assert(!result.empty());
+		assert(result.find("Process exited with code 0") != std::string::npos);
+	}
+
 	// 2. Validation failure: unexpected arguments (should fail validation as per review recommendations)
 	{
 		nlohmann::json args = {{"unexpected_arg", 123}};
