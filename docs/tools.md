@@ -20,8 +20,9 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
-    *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted.
-    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted.
+    *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
+    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail`.
+    *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
 
 ### `fs_grep_files`
 *   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
