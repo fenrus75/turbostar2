@@ -309,7 +309,12 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 				execl(helper_path, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
 			}
 
-			// Fallback if not found locally
+			// Try the configured install path defined by Meson
+#ifdef TURBOSTAR_CRASHPROCESS_PATH
+			execl(TURBOSTAR_CRASHPROCESS_PATH, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
+#endif
+
+			// Fallback if not found locally or at the install path
 			execlp("turbostar-crashprocess", "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
 			_exit(1);
 		} else if (helper_pid > 0) {
