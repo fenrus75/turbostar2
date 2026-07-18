@@ -3,6 +3,7 @@
 #include "fs_utils.h"
 #include <libunwind.h>
 #include <signal.h>
+#include <ucontext.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -149,7 +150,24 @@ static void setup_crash_file()
 
 static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 {
-	(void)info;
+	int is_write = 0;
+	int si_code = 0;
+	int is_addr_valid = 0;
+	if (info) {
+		si_code = info->si_code;
+		if (sig == SIGSEGV || sig == SIGBUS || sig == SIGFPE || sig == SIGILL) {
+			is_addr_valid = 1;
+		}
+		if (sig == SIGSEGV || sig == SIGBUS) {
+			ucontext_t *uc = reinterpret_cast<ucontext_t *>(ucontext);
+			if (uc) {
+				unsigned long err_code = uc->uc_mcontext.gregs[REG_ERR];
+				if (err_code & 0x02) {
+					is_write = 1;
+				}
+			}
+		}
+	}
 
 	// Reset terminal to sane state (disable mouse/bracketed paste, show cursor)
 	// We write directly to STDERR_FILENO to ensure the terminal is reset even if stdout is redirected.
@@ -176,7 +194,32 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		sig_name = " (SIGBUS - Bus Error)";
 	}
 	safe_write(sig_name);
-	safe_write("\n\nStack trace:\n");
+	safe_write("\n");
+
+	if (is_addr_valid && info) {
+		safe_write("CrashAddress: 0x");
+		char addr_str[32];
+		safe_hex_toa(reinterpret_cast<unsigned long>(info->si_addr), addr_str, sizeof(addr_str));
+		safe_write(addr_str);
+		if (sig == SIGSEGV || sig == SIGBUS) {
+			if (is_write) {
+				safe_write(" (write)");
+			} else {
+				safe_write(" (read)");
+			}
+		}
+		safe_write("\n");
+	}
+
+	if (sig == SIGSEGV) {
+		if (si_code == SEGV_MAPERR) {
+			safe_write("Type: SEGV_MAPERR\n");
+		} else if (si_code == SEGV_ACCERR) {
+			safe_write("Type: SEGV_ACCERR\n");
+		}
+	}
+
+	safe_write("\nStack trace:\n");
 
 	unw_cursor_t cursor;
 	if (unw_init_local(&cursor, reinterpret_cast<unw_context_t *>(ucontext)) == 0) {
