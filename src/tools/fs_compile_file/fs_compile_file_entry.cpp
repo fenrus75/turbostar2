@@ -47,7 +47,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (std::getenv("TURBOSTAR_IN_TESTSUITE")) {
-		std::string formatted_injection = "```bash\n$ " + cmd + "\nMock compile output\n```";
+		std::string formatted_injection = "NOTE: Single-file compilation only checks syntax and does not link or build the project binary. To update the executable, use fs_compile_project.\n\n```bash\n$ " + cmd + "\nMock compile output\n```";
 		if (async_enabled) {
 			std::weak_ptr<agentlib::ai_agent> weak_agent;
 			if (ctx.active_agent) {
@@ -103,7 +103,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 				output = "\n...[output truncated due to length]...\n" + output;
 			}
 
-			std::string formatted_injection = "```bash\n$ " + cmd + "\n" + output + "\n```";
+			std::string formatted_injection = "NOTE: Single-file compilation only checks syntax and does not link or build the project binary. To update the executable, use fs_compile_project.\n\n```bash\n$ " + cmd + "\n" + output + "\n```";
 
 			if (auto agent = weak_agent.lock()) {
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
@@ -142,7 +142,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return "```bash\n$ " + cmd + "\n" + output + "\n```";
+	return "NOTE: Single-file compilation only checks syntax and does not link or build the project binary. To update the executable, use fs_compile_project.\n\n```bash\n$ " + cmd + "\n" + output + "\n```";
 }
 
 } // namespace tools

@@ -34,6 +34,7 @@ int main()
 			std::string res = registry.execute_tool("fs_compile_file", args, ctx);
 			std::cout << "Compile file sync result: " << res << std::endl;
 			assert(!res.empty());
+			assert(res.find("Single-file compilation only checks syntax") != std::string::npos);
 		}
 
 		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
