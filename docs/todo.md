@@ -17,7 +17,7 @@
 - 1. **Highlight Differences (Hex Diffing)**:
    * *The Idea*: Add a companion tool `hexdiff` that takes two file paths, compares them, and highlights only the changed bytes along with
 	their structural roles. This would be incredibly useful for verifying binary patches or analyzing compiler optimization impacts.
-	- doing this right is slightly complicated, we would need the bsdiff algorithm and then expand the result in an agent
+	- doing this right is VERY complicated, we would need the bsdiff algorithm and then expand the result in an agent
 	  friendly format
 - 2. **Jump to Named Chunk/Symbol Offset**:
    * *The Idea*: If `hexinspect` finds an ELF section (e.g., `.text` or `.rodata`) or a PNG chunk (e.g., `PLTE`), allow the agent to pass the
