@@ -23,6 +23,7 @@
    * *The Idea*: If `hexinspect` finds an ELF section (e.g., `.text` or `.rodata`) or a PNG chunk (e.g., `PLTE`), allow the agent to pass the
 	**name** of that structure as the `start_offset` in `hexdump` or `hexwrite` (e.g., `start_offset: ".text"`). The tool would internally
 	resolve the symbol/chunk offset and dump it, bypassing the need to calculate byte positions manually.
+   - refinement: rather than reusing start_offset, add an extra offset_by_name argument! this will cause less confusion for the agent
 - 3. **Interactive Byte Editor Interface**:
 	   * *The Idea*: A high-level visual representation of the hex edits in the editor UI (similar to how `flag_as_error` creates an overlay)
 	would help developers track what modifications the agent is proposing in binary formats.

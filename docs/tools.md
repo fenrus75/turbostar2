@@ -26,7 +26,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
-    *   `dir_path` *(string, optional)*: Restrict search to a specific directory path relative to project root. Defaults to the document root if omitted.
+    *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.
     *   `max_results` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
 
 ### `fs_read_binary`
