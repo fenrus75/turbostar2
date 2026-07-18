@@ -45,6 +45,14 @@ int main()
 			assert(!res.empty());
 		}
 
+		// 1b. Success case: compile project with clean=true (sync)
+		{
+			std::string args = "{\"clean\": true, \"async\": false}";
+			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
+			std::cout << "Compile project sync result (clean=true): " << res << std::endl;
+			assert(!res.empty());
+		}
+
 		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
 			std::string args = "{\"clean\": false, \"async\": false, \"unexpected_arg\": 123}";
