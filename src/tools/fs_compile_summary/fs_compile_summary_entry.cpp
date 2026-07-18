@@ -111,10 +111,22 @@ std::string fs_compile_summary_tool::execute(agentlib::tool_context &ctx)
 	ss << "| File | Compiler Errors | Compiler Warnings | LSP Errors | LSP Warnings |\n";
 	ss << "| ---- | --------------- | ----------------- | ---------- | ------------ |\n";
 
+	int total_compiler_errors = 0;
+	int total_compiler_warnings = 0;
+	int total_lsp_errors = 0;
+	int total_lsp_warnings = 0;
+
 	for (const auto &[file, stats] : workspace_stats) {
 		ss << "| `" << file << "` | " << stats.compiler_errors << " | " << stats.compiler_warnings << " | " << stats.lsp_errors
 		   << " | " << stats.lsp_warnings << " |\n";
+		total_compiler_errors += stats.compiler_errors;
+		total_compiler_warnings += stats.compiler_warnings;
+		total_lsp_errors += stats.lsp_errors;
+		total_lsp_warnings += stats.lsp_warnings;
 	}
+
+	ss << "| **Total** | **" << total_compiler_errors << "** | **" << total_compiler_warnings << "** | **" << total_lsp_errors
+	   << "** | **" << total_lsp_warnings << "** |\n";
 
 	return ss.str();
 }

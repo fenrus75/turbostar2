@@ -55,6 +55,7 @@ int main()
 			assert(!res.empty());
 			assert(res.find("src/main.cpp") != std::string::npos);
 			assert(res.find("| Compiler Errors |") != std::string::npos);
+			assert(res.find("| **Total** | **1** | **1** | **0** | **0** |") != std::string::npos);
 		}
 
 		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
