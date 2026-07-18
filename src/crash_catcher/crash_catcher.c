@@ -199,7 +199,7 @@ static void write_info(const char *dir_path, int sig, void *addr, int is_write, 
 	if (fd < 0)
 		return;
 
-	char buf[384] = "Signal: ";
+	char buf[1024] = "Signal: ";
 	char sig_str[16];
 	safe_itoa(sig, sig_str, sizeof(sig_str));
 	safe_strcat(buf, sig_str, sizeof(buf));
@@ -226,6 +226,15 @@ static void write_info(const char *dir_path, int sig, void *addr, int is_write, 
 		} else if (si_code == SEGV_ACCERR) {
 			safe_strcat(buf, "Type: SEGV_ACCERR\n", sizeof(buf));
 		}
+	}
+
+	char exe_path[512];
+	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+	if (len > 0) {
+		exe_path[len] = '\0';
+		safe_strcat(buf, "Executable: ", sizeof(buf));
+		safe_strcat(buf, exe_path, sizeof(buf));
+		safe_strcat(buf, "\n", sizeof(buf));
 	}
 
 	write(fd, buf, safe_strlen(buf));

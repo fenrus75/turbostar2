@@ -219,6 +219,15 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		}
 	}
 
+	char exe_path[512];
+	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+	if (len > 0) {
+		exe_path[len] = '\0';
+		safe_write("Executable: ");
+		safe_write(exe_path);
+		safe_write("\n");
+	}
+
 	safe_write("\nStack trace:\n");
 
 	unw_cursor_t cursor;
