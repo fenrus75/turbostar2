@@ -253,6 +253,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `fs_compile_summary` total summary row: Updated `fs_compile_summary_entry.cpp` to sum compiler errors, compiler warnings, LSP errors, and LSP warnings across all files and append a bolded `Total` row at the bottom of the table. Updated `test_fs_compile_summary.cpp` to verify.
 - `fs_compile_project` clean & timeout parameter documentation: The backend implementation of `fs_compile_project` already supported `clean` (for forcing rebuilds) and `timeout` parameter args, but they were missing from the validator description and documentation. Added them to `tools.md` and updated `test_fs_compile_project.cpp` to verify.
 - `fs_compile_file` single-file compile clarification: Prepended a note to the compilation output explaining that single-file compilation only checks syntax/errors and does not rebuild/link the project executable. Updated `test_fs_compile_file.cpp` to verify.
 - `fs_regexp_lines` case insensitivity: Added a `case_insensitive` boolean parameter (defaulting to false) to `fs_regexp_lines` and configured RE2 options in `fs_regexp_lines_entry.cpp` to respect it. Corrected the tool documentation in `tools.md` to mention RE2 instead of `std::regex`. Updated `test_fs_regexp_lines.cpp` to verify.
