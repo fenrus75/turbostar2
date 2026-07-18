@@ -24,6 +24,12 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail`.
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
 
+### `fs_read_symbol`
+*   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Uses the LSP server to locate the exact symbol boundaries and returns the code chunk with line numbers.
+*   **Arguments:**
+    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
+
 ### `fs_grep_files`
 *   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
