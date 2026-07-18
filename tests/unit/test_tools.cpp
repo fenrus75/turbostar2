@@ -471,7 +471,10 @@ extern std::string troff2md(std::string troff_content);
 		std::string temp_file = "test_fs_read_symbol_heuristics.cpp";
 		{
 			std::ofstream out(temp_file_path);
-			out << "int my_unit_test_function(int x, int y) {\n"
+			out << "int _my_unit_test_function(int x, int y) {\n"
+			    << "    return x + y;\n"
+			    << "}\n"
+			    << "int my_unit_test_function(int x, int y) {\n"
 			    << "    return x * y;\n"
 			    << "}\n";
 		}
@@ -490,8 +493,8 @@ extern std::string troff2md(std::string troff_content);
 			std::cout << "fs_read_symbol result:\n" << res << std::endl;
 
 			assert(res.find("my_unit_test_function") != std::string::npos);
-			assert(res.find("1: int my_unit_test_function") != std::string::npos);
-			assert(res.find("2:     return x * y;") != std::string::npos);
+			assert(res.find("4: int my_unit_test_function") != std::string::npos);
+			assert(res.find("5:     return x * y;") != std::string::npos);
 		}
 
 		project_manager::get_instance().lsp_stop();

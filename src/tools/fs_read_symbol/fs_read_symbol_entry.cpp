@@ -24,7 +24,7 @@ void find_symbols_recursive(const lsp_manager::symbol_node &node, const std::str
 
 	if (node.name == target_name || 
 	    current_scope == target_name || 
-	    (current_scope.length() > target_name.length() && 
+	    (current_scope.length() >= target_name.length() + sep.length() && 
 	     current_scope.substr(current_scope.length() - target_name.length() - sep.length()) == sep + target_name)) {
 		matches.push_back(node);
 	}
