@@ -6,6 +6,7 @@
 #include <ucontext.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <filesystem>
 #include <cstdlib>
@@ -276,6 +277,44 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	if (crash_fd != -1) {
 		close(crash_fd);
 		crash_fd = -1;
+	}
+
+	if (safe_strlen(crash_filepath) > 0) {
+		pid_t parent_pid = getpid();
+		pid_t helper_pid = fork();
+		if (helper_pid == 0) {
+			char pid_str[32];
+			safe_itoa(parent_pid, pid_str, sizeof(pid_str));
+
+			// Resolve helper binary absolute path relative to current running executable
+			char exe_dir[512];
+			ssize_t len = readlink("/proc/self/exe", exe_dir, sizeof(exe_dir) - 1);
+			if (len > 0) {
+				exe_dir[len] = '\0';
+				char *last_slash = nullptr;
+				for (int i = 0; i < len; ++i) {
+					if (exe_dir[i] == '/') {
+						last_slash = &exe_dir[i];
+					}
+				}
+				if (last_slash) {
+					*(last_slash + 1) = '\0';
+				}
+
+				char helper_path[1024];
+				helper_path[0] = '\0';
+				strncpy(helper_path, exe_dir, sizeof(helper_path) - 1);
+				strncat(helper_path, "turbostar-crashprocess", sizeof(helper_path) - strlen(helper_path) - 1);
+
+				execl(helper_path, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
+			}
+
+			// Fallback if not found locally
+			execlp("turbostar-crashprocess", "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
+			_exit(1);
+		} else if (helper_pid > 0) {
+			waitpid(helper_pid, nullptr, 0);
+		}
 	}
 
 	// Restore default handler and re-raise signal to cleanly terminate process

@@ -134,6 +134,11 @@ turbostar_exe = executable('turbostar',
   export_dynamic: true,
   install : true)
 
+turbostar_crashprocess_exe = executable('turbostar-crashprocess',
+  'src/crash_process.cpp',
+  include_directories: inc,
+  install : true)
+
 install_symlink('turboagent',
   install_dir: 'bin',
   pointing_to: 'turbostar'
