@@ -15,6 +15,11 @@ namespace tools
 namespace
 {
 
+bool is_whitespace_only(const std::string &str)
+{
+	return std::all_of(str.begin(), str.end(), [](unsigned char c) { return std::isspace(c); });
+}
+
 void find_symbols_recursive(const lsp_manager::symbol_node &node, const std::string &parent_scope,
 			    const std::string &target_name, std::vector<lsp_manager::symbol_node> &matches,
 			    bool is_python)
@@ -179,11 +184,39 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 
 	for (size_t i = 0; i < matches.size(); ++i) {
 		const auto &match = matches[i];
-		// Expand the range by 2 lines on either side
-		int start = std::max(1, match.range.start_y + 1 - 2);
-		int end = std::min(static_cast<int>(total_lines), match.range.end_y + 1 + 2);
+		int match_start = match.range.start_y + 1;
+		int match_end = match.range.end_y + 1;
 
-		auto lines = read_lines(args_.safe_path, start, end, ctx);
+		int expanded_start = std::max(1, match_start - 2);
+		int expanded_end = std::min(static_cast<int>(total_lines), match_end + 2);
+
+		auto raw_lines = read_lines(args_.safe_path, expanded_start, expanded_end, ctx);
+
+		int offset = match_start - expanded_start;
+		int symbol_len = match_end - match_start;
+
+		int keep_prev = 0;
+		if (offset >= 1 && !is_whitespace_only(raw_lines[offset - 1])) {
+			keep_prev = 1;
+			if (offset >= 2 && !is_whitespace_only(raw_lines[offset - 2])) {
+				keep_prev = 2;
+			}
+		}
+
+		int symbol_end_idx = offset + symbol_len;
+		int keep_next = 0;
+		if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 1 && !is_whitespace_only(raw_lines[symbol_end_idx + 1])) {
+			keep_next = 1;
+			if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 2 && !is_whitespace_only(raw_lines[symbol_end_idx + 2])) {
+				keep_next = 2;
+			}
+		}
+
+		int start = match_start - keep_prev;
+		int end = match_end + keep_next;
+
+		// Slice target lines from raw_lines
+		std::vector<std::string> lines(raw_lines.begin() + (offset - keep_prev), raw_lines.begin() + (symbol_end_idx + keep_next + 1));
 
 		size_t max_backticks = count_max_consecutive_backticks(lines);
 		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
