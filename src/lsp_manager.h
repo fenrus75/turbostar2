@@ -51,6 +51,15 @@ class lsp_manager
 	};
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query);
 
+	struct symbol_node {
+		std::string name;
+		int kind;
+		text_range range;
+		text_range selection_range;
+		std::vector<symbol_node> children;
+	};
+	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath);
+
 	struct call_hierarchy_item {
 		std::string name;
 		int kind;

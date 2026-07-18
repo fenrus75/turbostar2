@@ -2,6 +2,8 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <thread>
+#include <chrono>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/compaction_engine.h"
 #include "../../src/agentlib/tool_registry.h"
@@ -460,6 +462,41 @@ extern std::string troff2md(std::string troff_content);
 		std::filesystem::remove(temp_file_path);
 		std::filesystem::remove(temp_cpp_path);
 		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;
+	}
+
+	std::cout << "\nTesting fs_read_symbol..." << std::endl;
+	{
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path temp_file_path = std::filesystem::path(proj_root) / "test_fs_read_symbol_heuristics.cpp";
+		std::string temp_file = "test_fs_read_symbol_heuristics.cpp";
+		{
+			std::ofstream out(temp_file_path);
+			out << "int my_unit_test_function(int x, int y) {\n"
+			    << "    return x * y;\n"
+			    << "}\n";
+		}
+
+		ctx.fs_security.add_allowed_root(".", access_type::read);
+
+		event_queue dummy_queue;
+		project_manager::get_instance().lsp_start(dummy_queue);
+
+		// Wait a bit for clangd to spawn/initialize
+		std::this_thread::sleep_for(std::chrono::milliseconds(800));
+
+		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"symbol_name\": \"my_unit_test_function\"}";
+			std::string res = registry.execute_tool("fs_read_symbol", args, ctx);
+			std::cout << "fs_read_symbol result:\n" << res << std::endl;
+
+			assert(res.find("my_unit_test_function") != std::string::npos);
+			assert(res.find("1: int my_unit_test_function") != std::string::npos);
+			assert(res.find("2:     return x * y;") != std::string::npos);
+		}
+
+		project_manager::get_instance().lsp_stop();
+		std::filesystem::remove(temp_file_path);
+		std::cout << "fs_read_symbol verified successfully!" << std::endl;
 	}
 
 	std::cout << "\nTesting ai_agent::coalesce_tool_calls..." << std::endl;

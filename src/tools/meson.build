@@ -113,6 +113,8 @@ tools_sources = files(
   'git_push/git_push_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
   'fs_read_lines/fs_read_lines_security.cpp',
+  'fs_read_symbol/fs_read_symbol_entry.cpp',
+  'fs_read_symbol/fs_read_symbol_security.cpp',
   'fs_read_binary/fs_read_binary_entry.cpp',
   'fs_read_binary/fs_read_binary_security.cpp',
   'ask_user/ask_user_entry.cpp',

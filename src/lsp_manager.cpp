@@ -836,3 +836,94 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 	}
 	return {};
 }
+
+std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const std::string &filepath)
+{
+	auto server = get_server_for_file(filepath);
+	if (!server)
+		return {};
+
+	auto promise = std::make_shared<std::promise<std::vector<symbol_node>>>();
+	auto future = promise->get_future();
+
+	try {
+		auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+
+		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
+		    std::move(params),
+		    [promise](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+			    std::vector<symbol_node> out;
+			    try {
+				    if (!res.isNull()) {
+					    const auto &val = res.value();
+					    if (std::holds_alternative<lsp::Array<lsp::DocumentSymbol>>(val)) {
+						    const auto &arr = std::get<lsp::Array<lsp::DocumentSymbol>>(val);
+						    auto convert_symbol = [](auto &self, const lsp::DocumentSymbol &sym) -> symbol_node {
+							    symbol_node node;
+							    node.name = sym.name;
+							    node.kind = static_cast<int>(sym.kind);
+							    node.range = {
+								    static_cast<int>(sym.range.start.line),
+								    static_cast<int>(sym.range.start.character),
+								    static_cast<int>(sym.range.end.line),
+								    static_cast<int>(sym.range.end.character)
+							    };
+							    node.selection_range = {
+								    static_cast<int>(sym.selectionRange.start.line),
+								    static_cast<int>(sym.selectionRange.start.character),
+								    static_cast<int>(sym.selectionRange.end.line),
+								    static_cast<int>(sym.selectionRange.end.character)
+							    };
+							    if (sym.children && !sym.children->empty()) {
+								    for (const auto &child : *sym.children) {
+									    node.children.push_back(self(self, child));
+								    }
+							    }
+							    return node;
+						    };
+
+						    for (const auto &sym : arr) {
+							    out.push_back(convert_symbol(convert_symbol, sym));
+						    }
+					    } else if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(val)) {
+						    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(val);
+						    for (const auto &sym : arr) {
+							    symbol_node node;
+							    node.name = sym.name;
+							    node.kind = static_cast<int>(sym.kind);
+							    node.range = {
+								    static_cast<int>(sym.location.range.start.line),
+								    static_cast<int>(sym.location.range.start.character),
+								    static_cast<int>(sym.location.range.end.line),
+								    static_cast<int>(sym.location.range.end.character)
+							    };
+							    node.selection_range = node.range;
+							    out.push_back(node);
+						    }
+					    }
+				    }
+				    promise->set_value(out);
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception in query_document_symbols lambda");
+				    promise->set_value({});
+			    }
+		    },
+		    [promise](const lsp::ResponseError &err) {
+			    event_logger::get_instance().log("LSP: document symbol query error: {}", err.message());
+			    try {
+				    promise->set_value({});
+			    } catch (...) {}
+		    });
+	} catch (...) {
+		event_logger::get_instance().log("LSP: Caught unknown exception in query_document_symbols");
+		try {
+			promise->set_value({});
+		} catch (...) {}
+	}
+
+	if (future.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+		return future.get();
+	}
+	return {};
+}

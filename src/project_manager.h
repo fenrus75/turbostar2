@@ -112,6 +112,7 @@ class project_manager
 	std::vector<lsp_manager::location_info> lsp_query_definition(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::symbol_info> lsp_query_workspace_symbols(const std::string &query);
+	std::vector<lsp_manager::symbol_node> lsp_query_document_symbols(const std::string &filepath);
 	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
 											int character);
 	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
