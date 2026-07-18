@@ -226,7 +226,9 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		if (matches.size() > 1) {
 			ss << "### Match " << (i + 1) << ": Symbol '" << match.name << "'\n";
 		}
-		ss << "Code for lines " << start << " - " << end << " of " << args_.requested_path
+		ss << "StartLine: " << match_start << "\n"
+		   << "EndLine: " << match_end << "\n"
+		   << "Code for lines " << start << " - " << end << " of " << args_.requested_path
 		   << " (total " << total_lines << " lines):\n"
 		   << fence << lang << "\n";
 		int current_line = start;

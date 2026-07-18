@@ -493,6 +493,8 @@ extern std::string troff2md(std::string troff_content);
 			std::cout << "fs_read_symbol result:\n" << res << std::endl;
 
 			assert(res.find("my_unit_test_function") != std::string::npos);
+			assert(res.find("StartLine: 4") != std::string::npos);
+			assert(res.find("EndLine: 6") != std::string::npos);
 			assert(res.find("4: int my_unit_test_function") != std::string::npos);
 			assert(res.find("5:     return x * y;") != std::string::npos);
 		}
