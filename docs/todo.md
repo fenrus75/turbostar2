@@ -253,6 +253,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- `fs_read_symbol` LSP precise symbol reading: Added a new `fs_read_symbol` tool accepting `path` and `symbol_name` parameters. The backend queries the running editor's `lsp_manager` for `textDocument/documentSymbol`, resolves nested/namespace/class scopes recursively, expands the symbol range by 2 lines on either side to prevent braces/signature truncation, reads the lines, and formats the output identically to `fs_read_lines`. Added integration tests to `test_tools.cpp` that spawn clangd end-to-end to verify lookup correctness.
 - `fs_read_lines` tail reading: Added an optional `tail` parameter (integer) to `fs_read_lines` to read the last N lines of a file directly, eliminating off-by-one errors and extra roundtrips. Validated mutual exclusivity with `start_line` and `end_line` parameters. Updated `test_tools.cpp` to verify.
 - `fs_list_dir` pagination and limit: Added optional `limit` (defaulting to 100) and `offset` (defaulting to 0) parameters to `fs_list_dir` to support systematic paginated traversal of large directories. Formatted a human-readable summary line (e.g. `*Showing files 100 - 150 out of <total>*`) in `fs_list_dir_entry.cpp` along with next-page command recommendations. Updated `test_fs_list_dir.cpp` to verify.
 - `run_python` HTTP timeout configuration: Prepended `UV_HTTP_TIMEOUT=300` to the python execution command prefix in `run_python_entry.cpp` to prevent dependency installations from hanging indefinitely in offline or sandboxed environments.
