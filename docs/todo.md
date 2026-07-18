@@ -12,7 +12,7 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- save the last search (and replace?) in the per project config so that after a restart of the editor, Ctrl-L continues the search
+
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
@@ -251,6 +251,7 @@
 # done items (move items here on completion)
 
 ## 17-07-2026
+- Persistent search/replace query: Added `last_search_query` and `last_replace_query` serialization to the per-project and global configuration files via `config_manager`. When searches are executed or replaced inside the editor (via dialogs or Vim-style `/` inputs), the query fields are saved automatically. At editor startup, `editor::current_search_` is initialized from these properties, allowing continuous search with Ctrl-L across editor restarts. Added configuration unit test coverages in `tests/unit/test_run_config.cpp`.
 - ZIP file format introspection support: Created `zip_hex_highlighter` (`src/hex/zip.cpp` & `src/hex/zip.h`) to parse ZIP archives. It uses a robust Central-Directory-First parsing pass with a sequential scan fallback to identify local file headers, compressed data sections, central directories, and EOCD, and integrates with the `offset_by_name` parameter to resolve archived filenames to their raw offsets. Added unit test coverages in `tests/unit/test_hex_highlighter.cpp` using a relocated copy of `my-test-package.zip` inside `tests/`.
 - Named chunk and symbol offset resolution in hex tools: Added `offset_by_name` (optional string parameter) to `hexdump`, `hexwrite`, and `hexinspect` tool arguments. Highlighters (`elf_hex_highlighter`, `png_hex_highlighter`, and `jpeg_hex_highlighter`) implement `get_offset_by_name` to lookup target offsets by section/symbol/chunk name (e.g. `".text"`, `"PLTE"`, `"APP0"`) dynamically.
 - Out-of-process crash backtrace resolution: Created a standalone helper application `turbostar-crashprocess` (`src/crash_process.cpp`) that dynamically resolves virtual addresses in crash log files to function names, source filenames, and line numbers using `eu-addr2line` (with `--linux-process-map`) or standard `addr2line` as fallback. Configured `src/crash_handler.cpp` to use the async-signal-safe `fork()` + `execl()` + `waitpid()` sequence to execute this helper before cleanly terminating the crashed parent process.
