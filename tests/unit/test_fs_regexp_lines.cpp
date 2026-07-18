@@ -37,6 +37,23 @@ int main()
 			assert(res.find("shines") != std::string::npos);
 		}
 
+		// 1b. Success case: find matches for "SUN" case-insensitively
+		{
+			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"SUN.*\", \"case_insensitive\": true}";
+			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
+			std::cout << "Regex search case-insensitive result: " << res << std::endl;
+			assert(res.find("| Line Number | Content |") != std::string::npos);
+			assert(res.find("shines") != std::string::npos);
+		}
+
+		// 1c. Case-sensitive matching of "SUN" (should find nothing)
+		{
+			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"SUN.*\", \"case_insensitive\": false}";
+			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
+			std::cout << "Regex search case-sensitive result (SUN): " << res << std::endl;
+			assert(res.find("shines") == std::string::npos);
+		}
+
 		// 2. Stage 2 validation failure: invalid RE2 regex pattern (e.g. unmatched parenthesis)
 		{
 			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"(unmatched\"}";

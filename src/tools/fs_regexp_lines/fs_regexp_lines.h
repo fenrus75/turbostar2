@@ -10,6 +10,7 @@ struct fs_regexp_lines_args {
     std::string path;
     std::string pattern;
     std::string safe_path;
+    bool case_insensitive{false};
 };
 
 class fs_regexp_lines_tool : public agentlib::llm_tool {

@@ -9,9 +9,10 @@ namespace tools
 struct fs_regexp_lines_raw_args {
 	std::string path;
 	std::string pattern;
+	bool case_insensitive{false};
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_regexp_lines_raw_args, path, pattern);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_regexp_lines_raw_args, path, pattern, case_insensitive);
 
 class fs_regexp_lines_validator : public agentlib::tool_validator
 {
@@ -36,7 +37,9 @@ class fs_regexp_lines_validator : public agentlib::tool_validator
 			{"properties",
 			 {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
 			  {"pattern",
-			   {{"type", "string"}, {"description", "The C++ std::regex pattern to search for (e.g., 'function.*foo')."}}}}},
+			   {{"type", "string"}, {"description", "The RE2 regular expression pattern to search for (e.g., 'function.*foo')."}}},
+			  {"case_insensitive",
+			   {{"type", "boolean"}, {"description", "Set to true to ignore case during regex matching. Defaults to false."}, {"default", false}}}}},
 			{"required", nlohmann::json::array({"path", "pattern"})}};
 	}
 
@@ -59,6 +62,7 @@ class fs_regexp_lines_validator : public agentlib::tool_validator
 			args_.path = parsed.path;
 			args_.pattern = parsed.pattern;
 			args_.safe_path = canonical_path;
+			args_.case_insensitive = parsed.case_insensitive;
 
 			return true;
 		} catch (const std::exception &e) {

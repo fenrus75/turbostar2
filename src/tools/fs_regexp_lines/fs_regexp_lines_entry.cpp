@@ -18,7 +18,11 @@ fs_regexp_lines_tool::fs_regexp_lines_tool(fs_regexp_lines_args args) : args_(st
 
 bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
-	compiled_regex_ = std::make_unique<re2::RE2>(args_.pattern);
+	re2::RE2::Options options;
+	if (args_.case_insensitive) {
+		options.set_case_sensitive(false);
+	}
+	compiled_regex_ = std::make_unique<re2::RE2>(args_.pattern, options);
 	if (!compiled_regex_->ok()) {
 		out_error = "Invalid regular expression: " + compiled_regex_->error();
 		return false;
