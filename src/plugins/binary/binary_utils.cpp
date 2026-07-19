@@ -1,5 +1,6 @@
 #include "binary_utils.h"
 #include "fs_utils.h"
+#include "mime.h"
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -236,6 +237,33 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
     throw std::runtime_error("Unsupported or unavailable decompression format: " + fmt);
 }
 
+static bool is_valid_utf8(const std::vector<uint8_t>& data) {
+	size_t i = 0;
+	while (i < data.size()) {
+		uint8_t c = data[i];
+		if (c == 0) {
+			return false; // Null bytes are not treated as plain text
+		}
+		if (c < 0x80) {
+			i++;
+			continue;
+		}
+		size_t len = 0;
+		if ((c & 0xE0) == 0xC0) len = 2;
+		else if ((c & 0xF0) == 0xE0) len = 3;
+		else if ((c & 0xF8) == 0xF0) len = 4;
+		else return false;
+
+		if (i + len > data.size()) return false;
+
+		for (size_t j = 1; j < len; j++) {
+			if ((data[i + j] & 0xC0) != 0x80) return false;
+		}
+		i += len;
+	}
+	return true;
+}
+
 std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file) {
     if (!output_file.empty()) {
         std::string path = fs_utils::safe_absolute(output_file).string();
@@ -246,19 +274,16 @@ std::string format_binary_output(const std::vector<uint8_t>& data, const std::st
     }
 
     if (output_format == "text") {
-        // Try UTF-8 validation (simple heuristic)
-        bool is_valid = true;
-        for (uint8_t b : data) {
-            if (b == 0) { is_valid = false; break; }
-        }
-        if (is_valid) {
+        if (is_valid_utf8(data)) {
             return std::string(data.begin(), data.end());
         } else {
-            return "[Binary data] Hex preview:\n" + fs_utils::format_binary_output(data, "hex", "application/octet-stream");
+            std::string mime_type = mime::detect_buffer_type(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()));
+            return fs_utils::format_binary_output(data, "base64", mime_type);
         }
     }
     
-    return fs_utils::format_binary_output(data, output_format, "application/octet-stream");
+    std::string mime_type = mime::detect_buffer_type(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()));
+    return fs_utils::format_binary_output(data, output_format, mime_type);
 }
 
 } // namespace binary_utils

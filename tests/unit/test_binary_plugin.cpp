@@ -50,11 +50,46 @@ void test_resolve_input_data_hex() {
     std::cout << "test_resolve_input_data_hex passed!" << std::endl;
 }
 
+void test_format_binary_output_base64_fallback() {
+    // Valid text string
+    std::vector<uint8_t> valid_text = {'H', 'e', 'l', 'l', 'o'};
+    std::string text_out = binary_utils::format_binary_output(valid_text, "text", "");
+    assert(text_out == "Hello");
+
+    // Invalid UTF-8 bytes (non-ASCII, invalid lead byte)
+    std::vector<uint8_t> invalid_utf8 = {0xFF, 0x00, 0x12};
+    std::string binary_out = binary_utils::format_binary_output(invalid_utf8, "text", "");
+    assert(binary_out.find("data:application/octet-stream;base64,") == 0);
+    // Base64 of {0xFF, 0x00, 0x12} is "/wAS"
+    assert(binary_out == "data:application/octet-stream;base64,/wAS");
+
+    std::cout << "test_format_binary_output_base64_fallback passed!" << std::endl;
+}
+
+void test_format_binary_output_mime_detection() {
+    // Mock PNG signature + IHDR chunk (33 bytes)
+    std::vector<uint8_t> png_data = {
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // Signature
+        0x00, 0x00, 0x00, 0x0d,                         // IHDR Length
+        'I', 'H', 'D', 'R',                             // IHDR Type
+        0x00, 0x00, 0x00, 0x0a,                         // Width (10)
+        0x00, 0x00, 0x00, 0x05,                         // Height (5)
+        0x08, 0x02, 0x00, 0x00, 0x00,                   // Extra
+        0x00, 0x00, 0x00, 0x00                          // CRC
+    };
+    std::string out = binary_utils::format_binary_output(png_data, "base64", "");
+    std::cout << "MIME output: " << out << std::endl;
+    assert(out.find("data:image/png;base64,") == 0);
+    std::cout << "test_format_binary_output_mime_detection passed!" << std::endl;
+}
+
 int main() {
     test_watchdog::setup_watchdog(30);
     test_compress_decompress_all();
     test_resolve_input_data_base64();
     test_resolve_input_data_hex();
+    test_format_binary_output_base64_fallback();
+    test_format_binary_output_mime_detection();
     std::cout << "All binary plugin unit tests passed!" << std::endl;
     return 0;
 }
