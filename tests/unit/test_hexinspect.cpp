@@ -160,19 +160,71 @@ int main()
 	// 8. Test real TAR file inspection and offset_by_name symbol resolution using tests/testtar.tar
 	{
 		std::string tar_path = "tests/testtar.tar";
-		// Inspect real TAR header
+		// Inspect real TAR header and verify the overview summary table is present
 		{
 			std::string args = "{\"path\": \"" + tar_path + "\", \"start_offset\": 0, \"size\": 16}";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR Header: src/main.cpp") != std::string::npos);
+			assert(res.find("### Archive Contents (TAR)") != std::string::npos);
+			assert(res.find("| `src/main.cpp` | `0x0` | `0x200` |") != std::string::npos);
 		}
 
-		// Inspect real TAR data offset resolved by name
+		// Inspect real TAR data offset resolved by name and verify the summary table is NOT present
 		{
 			std::string args = "{\"path\": \"" + tar_path + "\", \"offset_by_name\": \"src/main.cpp\", \"size\": 16}";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR File Data: src/main.cpp") != std::string::npos);
+			assert(res.find("### Archive Contents (TAR)") == std::string::npos);
 		}
+
+		// Inspect real TAR at non-zero start_offset and verify the summary table is NOT present
+		{
+			std::string args = "{\"path\": \"" + tar_path + "\", \"start_offset\": 512, \"size\": 16}";
+			std::string res = registry.execute_tool("hexinspect", args, ctx);
+			assert(res.find("### Archive Contents (TAR)") == std::string::npos);
+		}
+	}
+
+	// 9. Test large archive summary table pagination & VFS tmp file writing
+	{
+		std::string large_tar_path = "tests/unit/mock_large_tar.tar";
+		std::string full_large_path = project_root + "/" + large_tar_path;
+
+		std::ofstream ofs_large(full_large_path, std::ios::binary);
+		assert(ofs_large.is_open());
+
+		for (int i = 0; i < 45; ++i) {
+			std::vector<uint8_t> block(512, 0);
+			std::string name = std::format("file_{}.txt", i);
+			std::strcpy(reinterpret_cast<char*>(block.data()), name.c_str());
+			std::memcpy(block.data() + 257, "ustar", 5);
+			ofs_large.write(reinterpret_cast<const char *>(block.data()), block.size());
+		}
+		ofs_large.close();
+
+		std::string args = "{\"path\": \"" + large_tar_path + "\", \"start_offset\": 0, \"size\": 16}";
+		std::string res = registry.execute_tool("hexinspect", args, ctx);
+
+		// Verify it contains the preview table and a note about the tmp file
+		assert(res.find("### Archive Contents (TAR)") != std::string::npos);
+		assert(res.find("Archive content summary was too large for direct inclusion") != std::string::npos);
+		assert(res.find("tmp://archive_contents_mock_large_tar.tar.md") != std::string::npos);
+
+		// Verify the first entry is in the preview, but not the last
+		assert(res.find("`file_0.txt`") != std::string::npos);
+		assert(res.find("`file_44.txt`") == std::string::npos);
+
+		// Verify the file was written to the VFS and contains the full list
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/archive_contents_mock_large_tar.tar.md";
+		assert(std::filesystem::exists(tmp_physical_path));
+		
+		std::ifstream ifs_tmp(tmp_physical_path);
+		std::string tmp_content((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
+		assert(tmp_content.find("`file_44.txt`") != std::string::npos);
+		ifs_tmp.close();
+
+		std::filesystem::remove(full_large_path);
+		std::filesystem::remove(tmp_physical_path);
 	}
 
 	// Clean up mock file

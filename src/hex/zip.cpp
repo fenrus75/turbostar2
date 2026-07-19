@@ -222,3 +222,21 @@ std::optional<size_t> zip_hex_highlighter::get_offset_by_name(const std::string 
 	}
 	return std::nullopt;
 }
+
+std::string zip_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_ || local_files_.empty()) {
+		return "";
+	}
+
+	std::string summary = "### Archive Contents (ZIP)\n\n"
+	                      "| Filename | Header Offset | Data Offset | Compressed Size | Uncompressed Size |\n"
+	                      "| :--- | :---: | :---: | :---: | :---: |\n";
+
+	for (const auto &lf : local_files_) {
+		summary += std::format("| `{}` | `0x{:X}` | `0x{:X}` | `{}` | `{}` |\n",
+		                       lf.filename, lf.lfh_offset, lf.data_offset, lf.compressed_size, lf.uncompressed_size);
+	}
+	summary += "\n";
+	return summary;
+}

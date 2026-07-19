@@ -59,4 +59,7 @@ class hex_highlighter
 
 	// Query offset by name (e.g. section name like ".text", symbol name, or chunk name like "PLTE")
 	virtual std::optional<size_t> get_offset_by_name(const std::string &/*name*/) const { return std::nullopt; }
+
+	// Get a high-level overview of the entire parsed structure (e.g. archive content lists)
+	virtual std::string get_structure_summary() const { return ""; }
 };

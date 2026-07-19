@@ -186,3 +186,21 @@ std::optional<size_t> tar_hex_highlighter::get_offset_by_name(const std::string 
 	}
 	return std::nullopt;
 }
+
+std::string tar_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_ || files_.empty()) {
+		return "";
+	}
+
+	std::string summary = "### Archive Contents (TAR)\n\n"
+	                      "| Filename | Header Offset | Data Offset | File Size (Bytes) |\n"
+	                      "| :--- | :---: | :---: | :---: |\n";
+
+	for (const auto &file : files_) {
+		summary += std::format("| `{}` | `0x{:X}` | `0x{:X}` | `{}` |\n",
+		                       file.filename, file.header_offset, file.data_offset, file.size);
+	}
+	summary += "\n";
+	return summary;
+}

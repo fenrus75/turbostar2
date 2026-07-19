@@ -124,6 +124,50 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 	result += "| --- | --- |\n";
 	result += std::format("| **MIME Type** | {} |\n", sanitize_for_table(mime_type));
 	result += std::format("| **Description** | {} |\n\n", sanitize_for_table(description));
+
+	if (args_.start_offset == 0 && args_.offset_by_name.empty()) {
+		std::string structure_summary = highlighter->get_structure_summary();
+		if (!structure_summary.empty()) {
+			size_t line_count = 0;
+			for (char c : structure_summary) {
+				if (c == '\n') {
+					line_count++;
+				}
+			}
+
+			// If the table is relatively small, include it directly.
+			// Otherwise, write it to a tmp:// file and include a preview.
+			if (line_count <= 40) {
+				result += structure_summary;
+			} else {
+				std::string filename = std::filesystem::path(args_.requested_path).filename().string();
+				std::string tmp_uri = "tmp://archive_contents_" + filename + ".md";
+
+				if (vfs) {
+					vfs->write_file(tmp_uri, structure_summary.data(), structure_summary.size());
+				}
+
+				// Preview the first 15 lines of the table (header + first few entries)
+				std::string preview;
+				size_t current_line = 0;
+				size_t pos = 0;
+				while (current_line < 15 && pos < structure_summary.size()) {
+					size_t next_nl = structure_summary.find('\n', pos);
+					if (next_nl == std::string::npos) {
+						preview += structure_summary.substr(pos);
+						break;
+					}
+					preview += structure_summary.substr(pos, next_nl - pos + 1);
+					pos = next_nl + 1;
+					current_line++;
+				}
+
+				result += preview;
+				result += std::format("\n*Archive content summary was too large for direct inclusion ({} lines), but the complete listing has been written to {}*\n\n", line_count, tmp_uri);
+			}
+		}
+	}
+
 	result += "### Structure Details\n";
 
 	size_t offset = start;

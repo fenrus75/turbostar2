@@ -31,6 +31,7 @@ class zip_hex_highlighter : public hex_highlighter
 	highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const override;
 	size_t get_next_symbol_offset(size_t current_offset) const override;
 	std::optional<size_t> get_offset_by_name(const std::string &name) const override;
+	std::string get_structure_summary() const override;
 
 	const std::vector<parsed_local_file> &get_local_files() const { return local_files_; }
 	const std::vector<parsed_cd_entry> &get_cd_entries() const { return cd_entries_; }
