@@ -46,6 +46,8 @@
 
 
 
+- feature: new project welcome screen with some key settings
+
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
 - feature: become an A2A server for our agents
@@ -244,6 +246,9 @@
 
 
 # done items (move items here on completion)
+
+## 19-07-2026
+- PDF hex highlighter: Implemented `pdf_hex_highlighter` to parse and highlight PDF structures (objects, streams, cross-reference tables, and trailers) using a linear scanner approach robust to incremental updates and malformed offsets. Registered the highlighter in `hex_highlighter_registry` and hooked it into the build system. Added `test_pdf_highlighter` using a real PDF testcase (`shared-mime-info-spec.pdf`).
 
 ## 18-07-2026
 - Editor window wide-character rendering fix: Fixed wide UTF-8 character cursor positioning and rendering in `src/ui/window.cpp` and `src/line.cpp`. Updated `char_to_display_col` in `src/line.cpp` to correctly resolve multi-byte character columns via `utf8::display_width` instead of hardcoding 1 column. Refactored the window line rendering loops in `src/ui/window.cpp` to map character layout widths dynamically, printing regular wide characters once at their display starting cells to eliminate overlapping duplicate rendering bugs. Corrected display assertions in `tests/unit/test_line.cpp`.
