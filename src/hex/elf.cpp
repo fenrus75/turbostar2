@@ -1056,3 +1056,41 @@ std::optional<size_t> elf_hex_highlighter::get_offset_by_name(const std::string 
 	}
 	return std::nullopt;
 }
+
+std::string elf_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_) {
+		return "";
+	}
+
+	std::string summary = "### ELF Structure Overview\n\n";
+	summary += std::format("- **Class**: {}\n", header_.is_64 ? "ELF64" : "ELF32");
+	summary += std::format("- **Endianness**: {}\n", header_.is_lsb ? "LSB (Little Endian)" : "MSB (Big Endian)");
+	summary += std::format("- **Entry Point**: 0x{:X}\n", header_.e_entry);
+	summary += std::format("- **Section Header Table Offset**: 0x{:X} ({} entries)\n", header_.e_shoff, header_.e_shnum);
+	summary += std::format("- **Program Header Table Offset**: 0x{:X} ({} entries)\n\n", header_.e_phoff, header_.e_phnum);
+
+	if (!sections_.empty()) {
+		summary += "#### ELF Sections\n\n";
+		summary += "| Index | Name | Type | Offset | Size (Bytes) |\n";
+		summary += "| :---: | :--- | :---: | :---: | :---: |\n";
+		for (const auto &sec : sections_) {
+			summary += std::format("| `{}` | `{}` | `0x{:X}` | `0x{:X}` | `{}` |\n",
+			                       sec.index, sec.name, sec.type_val, sec.offset, sec.size);
+		}
+		summary += "\n";
+	}
+
+	if (!symbols_.empty()) {
+		summary += "#### ELF Symbols\n\n";
+		summary += "| Name | Offset | Size (Bytes) |\n";
+		summary += "| :--- | :---: | :---: |\n";
+		for (const auto &sym : symbols_) {
+			summary += std::format("| `{}` | `0x{:X}` | `{}` |\n",
+			                       sym.name, sym.offset, sym.size);
+		}
+		summary += "\n";
+	}
+
+	return summary;
+}

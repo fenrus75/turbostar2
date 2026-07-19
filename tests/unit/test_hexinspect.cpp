@@ -68,6 +68,9 @@ int main()
 
 	// 3. Test successful execution on ELF Magic and file header
 	{
+		virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 0, \"size\": 16}";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		std::cout << "hexinspect result:\n" << res << "\n";
@@ -82,6 +85,20 @@ int main()
 		assert(res.find("libmagic disabled") != std::string::npos);
 #endif
 		assert(res.find("ELF Magic") != std::string::npos || res.find("e_ident") != std::string::npos);
+
+		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
+		assert(res.find("Structure summary has been written to tmp://inspected_structure_") != std::string::npos);
+		
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_mock_elf_hexinspect.bin.md";
+		assert(std::filesystem::exists(tmp_physical_path));
+
+		std::ifstream ifs_tmp(tmp_physical_path);
+		std::string tmp_content((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
+		assert(tmp_content.find("### ELF Structure Overview") != std::string::npos);
+		assert(tmp_content.find("#### ELF Sections") != std::string::npos);
+		assert(tmp_content.find("`shstrtab`") != std::string::npos);
+		ifs_tmp.close();
+		std::filesystem::remove(tmp_physical_path);
 	}
 
 	// 4. Test validation of empty path
@@ -224,6 +241,31 @@ int main()
 		ifs_tmp.close();
 
 		std::filesystem::remove(full_large_path);
+		std::filesystem::remove(tmp_physical_path);
+	}
+
+	// 10. Test PDF structure summary and VFS write (prefer_summary_in_tmp_only == true)
+	{
+		virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
+		std::string pdf_path = "tests/shared-mime-info-spec.pdf";
+		std::string args = "{\"path\": \"" + pdf_path + "\", \"start_offset\": 0, \"size\": 16}";
+		std::string res = registry.execute_tool("hexinspect", args, ctx);
+
+		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
+		assert(res.find("Structure summary has been written to tmp://inspected_structure_shared-mime-info-spec.pdf.md") != std::string::npos);
+		assert(res.find("### PDF Structural Overview") == std::string::npos); // Bypassed inline preview
+
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_shared-mime-info-spec.pdf.md";
+		assert(std::filesystem::exists(tmp_physical_path));
+
+		std::ifstream ifs_tmp(tmp_physical_path);
+		std::string tmp_content((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
+		assert(tmp_content.find("### PDF Structural Overview") != std::string::npos);
+		assert(tmp_content.find("#### PDF Objects") != std::string::npos);
+		assert(tmp_content.find("Cross-Reference (XRef) Tables") != std::string::npos);
+		ifs_tmp.close();
 		std::filesystem::remove(tmp_physical_path);
 	}
 

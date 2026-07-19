@@ -218,3 +218,21 @@ std::optional<size_t> jpeg_hex_highlighter::get_offset_by_name(const std::string
 	}
 	return std::nullopt;
 }
+
+std::string jpeg_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_ || markers_.empty()) {
+		return "";
+	}
+
+	std::string summary = "### JPEG Structural Overview\n\n";
+	summary += "#### JPEG Markers\n\n";
+	summary += "| Marker Name | Marker Code | Offset | Payload Size (Bytes) |\n";
+	summary += "| :--- | :---: | :---: | :---: |\n";
+	for (const auto &marker : markers_) {
+		summary += std::format("| `{}` | `0x{:02X}` | `0x{:X}` | `{}` |\n",
+		                       marker.name, marker.marker_code, marker.offset, marker.length);
+	}
+	summary += "\n";
+	return summary;
+}

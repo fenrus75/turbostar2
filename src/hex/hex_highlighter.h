@@ -62,4 +62,7 @@ class hex_highlighter
 
 	// Get a high-level overview of the entire parsed structure (e.g. archive content lists)
 	virtual std::string get_structure_summary() const { return ""; }
+
+	// Determine if the structural summary should be written directly to a tmp:// file rather than showing directly.
+	virtual bool prefer_summary_in_tmp_only() const { return false; }
 };

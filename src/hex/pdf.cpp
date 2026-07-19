@@ -68,6 +68,21 @@ bool pdf_hex_highlighter::parse(const std::vector<uint8_t> &data) {
 			if (start < i) {
 				current_obj = pdf_object{};
 				current_obj.offset = start;
+				
+				std::string raw_id;
+				for (size_t k = start; k < i; ++k) {
+					if (is_whitespace(data[k])) {
+						if (!raw_id.empty() && raw_id.back() != ' ') {
+							raw_id += ' ';
+						}
+					} else {
+						raw_id += (char)data[k];
+					}
+				}
+				while (!raw_id.empty() && raw_id.back() == ' ') {
+					raw_id.pop_back();
+				}
+				current_obj.id = raw_id;
 				in_obj = true;
 			}
 		}
@@ -219,6 +234,55 @@ size_t pdf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 
 std::optional<size_t> pdf_hex_highlighter::get_offset_by_name(const std::string &name) const
 {
-	(void)name;
+	if (!parsed_successfully_) {
+		return std::nullopt;
+	}
+	for (const auto &obj : objects_) {
+		if (obj.id == name || obj.id + " obj" == name) {
+			return obj.offset;
+		}
+	}
 	return std::nullopt;
+}
+
+std::string pdf_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_) {
+		return "";
+	}
+
+	std::string summary = "### PDF Structural Overview\n\n";
+
+	if (!objects_.empty()) {
+		summary += "#### PDF Objects\n\n";
+		summary += "| Object ID | Offset | Size (Bytes) | Stream Offset | Stream Size (Bytes) |\n";
+		summary += "| :---: | :---: | :---: | :---: | :---: |\n";
+		for (const auto &obj : objects_) {
+			summary += std::format("| `{}` | `0x{:X}` | `{}` | `0x{:X}` | `{}` |\n",
+			                       obj.id, obj.offset, obj.size, obj.stream_offset, obj.stream_size);
+		}
+		summary += "\n";
+	}
+
+	if (!xrefs_.empty()) {
+		summary += "#### Cross-Reference (XRef) Tables\n\n";
+		summary += "| Index | Offset | Size (Bytes) |\n";
+		summary += "| :---: | :---: | :---: |\n";
+		for (size_t i = 0; i < xrefs_.size(); ++i) {
+			summary += std::format("| `{}` | `0x{:X}` | `{}` |\n", i + 1, xrefs_[i].offset, xrefs_[i].size);
+		}
+		summary += "\n";
+	}
+
+	if (!trailers_.empty()) {
+		summary += "#### Trailers\n\n";
+		summary += "| Index | Offset | Size (Bytes) |\n";
+		summary += "| :---: | :---: | :---: |\n";
+		for (size_t i = 0; i < trailers_.size(); ++i) {
+			summary += std::format("| `{}` | `0x{:X}` | `{}` |\n", i + 1, trailers_[i].offset, trailers_[i].size);
+		}
+		summary += "\n";
+	}
+
+	return summary;
 }

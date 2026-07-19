@@ -140,3 +140,21 @@ std::optional<size_t> png_hex_highlighter::get_offset_by_name(const std::string 
 	}
 	return std::nullopt;
 }
+
+std::string png_hex_highlighter::get_structure_summary() const
+{
+	if (!parsed_successfully_ || chunks_.empty()) {
+		return "";
+	}
+
+	std::string summary = "### PNG Structural Overview\n\n";
+	summary += "#### PNG Chunks\n\n";
+	summary += "| Type | Offset | Data Size (Bytes) | Total Chunk Size (Bytes) |\n";
+	summary += "| :---: | :---: | :---: | :---: |\n";
+	for (const auto &chunk : chunks_) {
+		summary += std::format("| `{}` | `0x{:X}` | `{}` | `{}` |\n",
+		                       chunk.type, chunk.offset, chunk.length, chunk.length + 12);
+	}
+	summary += "\n";
+	return summary;
+}
