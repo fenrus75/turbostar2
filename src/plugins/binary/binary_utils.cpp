@@ -42,7 +42,7 @@ static std::vector<uint8_t> read_file(const std::string& path, size_t offset, lo
     return data;
 }
 
-std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t offset, long long length) {
+std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t offset, long long length, agentlib::virtual_file_system* vfs) {
     if (input_data.starts_with("data:")) {
         size_t comma = input_data.find(',');
         if (comma != std::string::npos) {
@@ -54,8 +54,22 @@ std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t of
             return std::vector<uint8_t>(decoded.begin() + offset, decoded.begin() + offset + actual_len);
         }
     }
+
+    // Try VFS if it's a URI
+    if (vfs && input_data.find("://") != std::string::npos) {
+        if (vfs->exists(input_data)) {
+            auto handle = vfs->read_file(input_data);
+            if (handle) {
+                auto view = (*handle)->view();
+                if (length < 0) length = view.size() - offset;
+                if (offset >= view.size() || length <= 0) return {};
+                size_t actual_len = std::min((size_t)length, view.size() - offset);
+                return std::vector<uint8_t>(view.begin() + offset, view.begin() + offset + actual_len);
+            }
+        }
+    }
     
-    // Check if it's a file
+    // Check if it's a file on local disk
     try {
         if (std::filesystem::exists(fs_utils::safe_absolute(input_data))) {
             return read_file(fs_utils::safe_absolute(input_data).string(), offset, length);

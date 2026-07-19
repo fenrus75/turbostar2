@@ -16,7 +16,7 @@ bool data_compress_tool::validate_runtime(const agentlib::tool_context &ctx, std
 std::string data_compress_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		std::vector<uint8_t> raw_data = binary_utils::resolve_input_data(args_.input_data, 0, -1);
+		std::vector<uint8_t> raw_data = binary_utils::resolve_input_data(args_.input_data, 0, -1, ctx.fs_security.get_vfs());
 		if (raw_data.empty()) {
             set_failure(ctx, "Empty input data.");
 			return "Error: could not resolve or read input data (result was empty).";
