@@ -1,6 +1,8 @@
 #include "virtual_file_system.h"
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <cstring>
 #include <curl/curl.h>
 #include <fcntl.h>
@@ -208,6 +210,9 @@ virtual_file_system::virtual_file_system()
 
 	auto github_prov = std::make_shared<github_vfs_provider>();
 	register_provider("github", github_prov);
+
+	auto file_prov = std::make_shared<file_vfs_provider>();
+	register_provider("file", file_prov);
 }
 
 bool virtual_file_system::mount_file(const std::string &uri, const std::string &disk_path)
@@ -642,6 +647,98 @@ void github_vfs_provider::update_lru(const std::string &key) const
 		file_lru_.erase(it);
 	}
 	file_lru_.push_back(key);
+}
+
+// -------------------------------------------------------------------------
+// file_vfs_provider Implementation
+// -------------------------------------------------------------------------
+
+std::string file_vfs_provider::parse_uri(const std::string &uri) const
+{
+	if (!uri.starts_with("file://")) {
+		return "";
+	}
+	std::string path = uri.substr(7);
+	if (path.starts_with("localhost/")) {
+		path = path.substr(9);
+	}
+	return path;
+}
+
+bool file_vfs_provider::exists(const std::string &uri) const
+{
+	std::string path = parse_uri(uri);
+	if (path.empty()) return false;
+	std::error_code ec;
+	return std::filesystem::exists(path, ec);
+}
+
+std::optional<vfs_file_handle> file_vfs_provider::read_file(const std::string &uri)
+{
+	std::string path = parse_uri(uri);
+	if (path.empty()) return std::nullopt;
+
+	std::ifstream ifs(path, std::ios::binary);
+	if (!ifs) return std::nullopt;
+
+	std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	return std::make_shared<string_content_buffer>(std::move(content));
+}
+
+std::optional<vfs_file_info> file_vfs_provider::get_file_info(const std::string &uri) const
+{
+	std::string path = parse_uri(uri);
+	if (path.empty()) return std::nullopt;
+
+	std::error_code ec;
+	if (!std::filesystem::exists(path, ec)) return std::nullopt;
+
+	size_t size = std::filesystem::file_size(path, ec);
+	if (ec) size = 0;
+
+	char type = 'F';
+	if (std::filesystem::is_directory(path, ec)) {
+		type = 'D';
+	}
+
+	size_t lines = 0;
+	if (type == 'F' && size > 0) {
+		std::ifstream ifs(path, std::ios::binary);
+		if (ifs) {
+			std::string line;
+			while (std::getline(ifs, line)) {
+				lines++;
+			}
+		}
+	}
+
+	return vfs_file_info{uri, size, type, lines};
+}
+
+std::vector<vfs_file_info> file_vfs_provider::list_directory(const std::string &prefix) const
+{
+	std::string path = parse_uri(prefix);
+	if (path.empty()) return {};
+
+	std::vector<vfs_file_info> results;
+	std::error_code ec;
+	if (!std::filesystem::is_directory(path, ec)) return {};
+
+	for (const auto &entry : std::filesystem::directory_iterator(path, ec)) {
+		std::string entry_path = entry.path().string();
+		std::string item_uri = "file://" + entry_path;
+
+		size_t size = 0;
+		char type = 'F';
+		if (entry.is_directory(ec)) {
+			type = 'D';
+		} else {
+			size = entry.file_size(ec);
+		}
+
+		results.push_back({item_uri, size, type, 0});
+	}
+	return results;
 }
 
 } // namespace agentlib

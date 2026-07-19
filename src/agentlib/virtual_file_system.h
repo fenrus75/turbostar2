@@ -161,6 +161,21 @@ class github_vfs_provider : public vfs_provider
 	mutable std::mutex mutex_;
 };
 
+class file_vfs_provider : public vfs_provider
+{
+      public:
+	file_vfs_provider() = default;
+	~file_vfs_provider() override = default;
+
+	bool exists(const std::string &uri) const override;
+	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
+
+      private:
+	std::string parse_uri(const std::string &uri) const;
+};
+
 /**
  * @brief Memory-Mapped Virtual File System coordinating scheme-specific providers.
  */

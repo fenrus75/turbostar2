@@ -106,12 +106,62 @@ void test_line_count()
 	assert(info3->size_in_lines == 2);
 }
 
+void test_file_provider()
+{
+	virtual_file_system vfs;
+
+	// Create a temp file on disk
+	std::filesystem::path temp_dir = std::filesystem::absolute("test_vfs_file_provider_dir");
+	std::filesystem::create_directory(temp_dir);
+
+	std::filesystem::path temp_file = temp_dir / "test_file.txt";
+	std::string content = "Local file VFS content test!";
+	{
+		std::ofstream out(temp_file);
+		out << content;
+	}
+
+	std::string file_uri = "file://" + temp_file.string();
+	std::string dir_uri = "file://" + temp_dir.string();
+
+	// Test exists
+	assert(vfs.exists(file_uri));
+	assert(vfs.exists(dir_uri));
+	assert(!vfs.exists(file_uri + "_nonexistent"));
+
+	// Test read_file
+	auto handle_opt = vfs.read_file(file_uri);
+	assert(handle_opt.has_value());
+	assert((*handle_opt)->view() == content);
+
+	// Test get_file_info
+	auto info_opt = vfs.get_file_info(file_uri);
+	assert(info_opt.has_value());
+	assert(info_opt->size == content.size());
+	assert(info_opt->type == 'F');
+
+	auto dir_info_opt = vfs.get_file_info(dir_uri);
+	assert(dir_info_opt.has_value());
+	assert(dir_info_opt->type == 'D');
+
+	// Test list_directory
+	auto list = vfs.list_directory(dir_uri);
+	assert(list.size() == 1);
+	assert(list[0].uri == file_uri);
+	assert(list[0].size == content.size());
+	assert(list[0].type == 'F');
+
+	// Clean up
+	std::filesystem::remove_all(temp_dir);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_basic_mount_and_read();
 	test_directory_listing();
 	test_line_count();
+	test_file_provider();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }
