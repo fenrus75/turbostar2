@@ -186,6 +186,22 @@ void test_format_binary_output_images_vfs() {
     std::cout << "test_format_binary_output_images_vfs passed!" << std::endl;
 }
 
+void test_decompress_none_passthrough() {
+    std::string data = "Plain text data - do not compress or modify!";
+    std::vector<uint8_t> input(data.begin(), data.end());
+
+    std::vector<uint8_t> out_none = binary_utils::decompress_data(input, "none");
+    assert(out_none == input);
+
+    std::vector<uint8_t> out_pass = binary_utils::decompress_data(input, "passthrough");
+    assert(out_pass == input);
+
+    std::vector<uint8_t> out_uncomp = binary_utils::decompress_data(input, "uncompressed");
+    assert(out_uncomp == input);
+
+    std::cout << "test_decompress_none_passthrough passed!" << std::endl;
+}
+
 int main() {
     test_watchdog::setup_watchdog(30);
     project_manager::get_instance().initialize();
@@ -200,6 +216,7 @@ int main() {
     test_run_length_decode();
     test_lzw_decode();
     test_format_binary_output_images_vfs();
+    test_decompress_none_passthrough();
     std::cout << "All binary plugin unit tests passed!" << std::endl;
     return 0;
 }

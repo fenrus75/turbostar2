@@ -440,6 +440,9 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
     if (fmt == "ascii85") {
         return ascii85_decode(input);
     }
+    if (fmt == "none" || fmt == "passthrough" || fmt == "uncompressed") {
+        return input;
+    }
 
     throw std::runtime_error("Unsupported or unavailable decompression format: " + fmt);
 }
