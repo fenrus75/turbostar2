@@ -97,9 +97,43 @@ size_t display_width(const std::string &s)
 	return utf8::display_width(s);
 }
 
+static size_t formatted_display_width(const std::string &s)
+{
+	size_t total_width = 0;
+	bool is_inline_code = false;
+
+	size_t i = 0;
+	while (i < s.length()) {
+		if (!is_inline_code && i + 1 < s.length() &&
+		    (s.substr(i, 2) == "**" || s.substr(i, 2) == "__")) {
+			i += 2;
+			continue;
+		}
+		if (!is_inline_code && (s[i] == '*' || s[i] == '_')) {
+			i += 1;
+			continue;
+		}
+		if (s[i] == '`') {
+			is_inline_code = !is_inline_code;
+			i += 1;
+			continue;
+		}
+
+		unsigned char c = static_cast<unsigned char>(s[i]);
+		size_t clen = utf8::char_len(c);
+		if (i + clen > s.length()) {
+			clen = s.length() - i;
+		}
+		std::string_view glyph(s.data() + i, clen);
+		total_width += utf8::display_width(glyph);
+		i += clen;
+	}
+	return total_width;
+}
+
 static std::string truncate_cell(const std::string &content, size_t target_width)
 {
-	size_t disp_w = utf8::display_width(content);
+	size_t disp_w = formatted_display_width(content);
 	if (disp_w <= target_width) {
 		return content;
 	}
@@ -203,7 +237,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 		}
 
 		for (size_t i = 0; i < tokens.size(); ++i) {
-			col_widths[i] = std::max(col_widths[i], display_width(tokens[i]));
+			col_widths[i] = std::max(col_widths[i], formatted_display_width(tokens[i]));
 		}
 	}
 
@@ -310,7 +344,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 					std::string cell = (i < row.size()) ? row[i] : "";
 					cell = truncate_cell(cell, col_widths[i]);
 					aligned_line += cell;
-					size_t cell_len = display_width(cell);
+					size_t cell_len = formatted_display_width(cell);
 					if (col_widths[i] > cell_len) {
 						aligned_line += std::string(col_widths[i] - cell_len, ' ');
 					}
@@ -339,7 +373,7 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 					cell = truncate_cell(cell, col_widths[i]);
 					aligned_line += cell;
 
-					size_t cell_len = display_width(cell);
+					size_t cell_len = formatted_display_width(cell);
 					if (col_widths[i] > cell_len) {
 						aligned_line += std::string(col_widths[i] - cell_len, ' ');
 					}

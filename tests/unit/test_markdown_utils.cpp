@@ -114,6 +114,28 @@ void test_align_table_min_max_width()
 	assert(aligned3[3] == "| Bob   | Designer           |");
 }
 
+void test_align_table_formatted()
+{
+	std::vector<std::string> table = {
+		"| Tool | Status |",
+		"|---|---|",
+		"| **image** | ✅ Active |",
+		"| `fs_read` | ✅ Active |"
+	};
+
+	auto aligned = table_aligner::align_table_block(table);
+
+	// "**image**" formatted visual width is 5.
+	// "`fs_read`" formatted visual width is 7.
+	// Max col 1 width is 7.
+	// Status "✅ Active" visual width is 9 (2 emoji + 7 text).
+	assert(aligned.size() == 4);
+	assert(aligned[0] == "| Tool    | Status    |");
+	assert(aligned[1] == "|---------|-----------|");
+	assert(aligned[2] == "| **image**   | ✅ Active |");
+	assert(aligned[3] == "| `fs_read` | ✅ Active |");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -124,6 +146,7 @@ int main()
 	test_align_table_block();
 	test_align_table_utf8();
 	test_align_table_min_max_width();
+	test_align_table_formatted();
 
 	std::cout << "markdown_utils unit tests passed!\n";
 	return 0;
