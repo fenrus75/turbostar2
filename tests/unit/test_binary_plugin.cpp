@@ -83,6 +83,83 @@ void test_format_binary_output_mime_detection() {
     std::cout << "test_format_binary_output_mime_detection passed!" << std::endl;
 }
 
+void test_ascii85_decode() {
+    // ASCII85 encoding of "Hello World"
+    std::string encoded = "<~87cURD]i,\"Ebo7~>";
+    std::vector<uint8_t> input(encoded.begin(), encoded.end());
+    std::vector<uint8_t> decoded = binary_utils::decompress_data(input, "ascii85");
+    std::string result(decoded.begin(), decoded.end());
+    std::cout << "ASCII85 decoded: " << result << std::endl;
+    assert(result == "Hello World");
+
+    // Auto-detect format from "<~"
+    std::vector<uint8_t> decoded_auto = binary_utils::decompress_data(input, "auto");
+    std::string result_auto(decoded_auto.begin(), decoded_auto.end());
+    assert(result_auto == "Hello World");
+
+    // 'z' sequence (four zero bytes)
+    std::string encoded_z = "<~z~>";
+    std::vector<uint8_t> input_z(encoded_z.begin(), encoded_z.end());
+    std::vector<uint8_t> decoded_z = binary_utils::decompress_data(input_z, "ascii85");
+    assert(decoded_z.size() == 4);
+    assert(decoded_z[0] == 0 && decoded_z[1] == 0 && decoded_z[2] == 0 && decoded_z[3] == 0);
+
+    std::cout << "test_ascii85_decode passed!" << std::endl;
+}
+
+void test_run_length_decode() {
+    // 3 reps of 'A' (254), 2 literal bytes 'B', 'C' (1), EOD (128)
+    std::vector<uint8_t> input = {254, 'A', 1, 'B', 'C', 128};
+    std::vector<uint8_t> decoded = binary_utils::decompress_data(input, "pdfrunlength");
+    std::string result(decoded.begin(), decoded.end());
+    assert(result == "AAABC");
+
+    // Test alias "runlength"
+    std::vector<uint8_t> decoded_alias = binary_utils::decompress_data(input, "runlength");
+    std::string result_alias(decoded_alias.begin(), decoded_alias.end());
+    assert(result_alias == "AAABC");
+
+    std::cout << "test_run_length_decode passed!" << std::endl;
+}
+
+void test_lzw_decode() {
+    auto pack_lzw = [](const std::vector<uint32_t>& codes) {
+        std::vector<uint8_t> output;
+        uint32_t current_byte = 0;
+        size_t bits_in_byte = 0;
+        for (uint32_t code : codes) {
+            for (int i = 8; i >= 0; --i) {
+                uint32_t bit = (code >> i) & 1;
+                current_byte = (current_byte << 1) | bit;
+                bits_in_byte++;
+                if (bits_in_byte == 8) {
+                    output.push_back(static_cast<uint8_t>(current_byte));
+                    current_byte = 0;
+                    bits_in_byte = 0;
+                }
+            }
+        }
+        if (bits_in_byte > 0) {
+            current_byte <<= (8 - bits_in_byte);
+            output.push_back(static_cast<uint8_t>(current_byte));
+        }
+        return output;
+    };
+
+    // LZW sequence for "AAAAA": 256 (clear), 65 ('A'), 258 ("AA"), 258 ("AA"), 257 (EOD)
+    std::vector<uint8_t> input = pack_lzw({256, 65, 258, 258, 257});
+    std::vector<uint8_t> decoded = binary_utils::decompress_data(input, "pdflzw");
+    std::string result(decoded.begin(), decoded.end());
+    assert(result == "AAAAA");
+
+    // Test alias "lzw"
+    std::vector<uint8_t> decoded_alias = binary_utils::decompress_data(input, "lzw");
+    std::string result_alias(decoded_alias.begin(), decoded_alias.end());
+    assert(result_alias == "AAAAA");
+
+    std::cout << "test_lzw_decode passed!" << std::endl;
+}
+
 int main() {
     test_watchdog::setup_watchdog(30);
     test_compress_decompress_all();
@@ -90,6 +167,9 @@ int main() {
     test_resolve_input_data_hex();
     test_format_binary_output_base64_fallback();
     test_format_binary_output_mime_detection();
+    test_ascii85_decode();
+    test_run_length_decode();
+    test_lzw_decode();
     std::cout << "All binary plugin unit tests passed!" << std::endl;
     return 0;
 }
