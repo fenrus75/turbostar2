@@ -12,7 +12,7 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-
+- the utf8 wide-character fix we did to the agentlib window also needs to be done to the normal editor window -- it has the same bug!
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
@@ -47,9 +47,6 @@
 	- image
 
 
-
-- feature: in LLM response, instead of doing **Bold** like that, actual show it as bold?
-	- need to be careful with text wrapping and line lengths or the dialog box will draw incorrectly
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
@@ -249,6 +246,9 @@
 
 
 # done items (move items here on completion)
+
+## 18-07-2026
+- Markdown inline formatting rendering in agent window: Implemented a robust state-machine parser in `wrap_text` to parse inline Markdown delimiters (`**`, `__`, `*`, `_`, `` ` ``). Consumed formatting tags into logical style attributes (`ATTR_BOLD` / `ATTR_UNDERLINE`) bound to individual characters, avoiding raw delimiter character count overhead in visual wrapping width calculations. Modified `agent_window` character drawing to map logical layout formatting onto ncurses attribute layers (`A_BOLD`, `A_UNDERLINE`). Retained original delimiter rendering intact inside fenced code blocks and inline code statements.
 
 ## 17-07-2026
 - Persistent search/replace query & Configuration/Session Split: Implemented search query persistence across editor restarts. Refactored the architecture by splitting transient session state (such as last search and replace query terms) into a new `session_manager` using JSON serialization (`session.json`), while keeping declarative user preferences inside `config_manager` (`config.ini`). Created the C++ class `session_manager` (`src/session_manager.cpp` & `src/session_manager.h`) to handle loading and saving of the JSON configuration files (with project-level and global-fallback pathing). Added dedicated session unit test target `test_session_manager` (`tests/unit/test_session_manager.cpp`).

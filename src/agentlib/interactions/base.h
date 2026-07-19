@@ -9,6 +9,16 @@
 
 namespace agentlib {
 
+// Bitwise formatting attributes
+constexpr int ATTR_BOLD = 1 << 0;
+constexpr int ATTR_UNDERLINE = 1 << 1;
+
+struct rich_char {
+    std::string ch;
+    int color_pair = 0;
+    int attr = 0;
+};
+
 enum class interaction_type {
     system_message,
     user_message,
@@ -30,6 +40,19 @@ struct interaction_line {
     int suffix_color_pair = 0;
     std::function<void(int x, int y, int width)> custom_draw_fn = nullptr;
     std::vector<int> char_color_pairs = {};
+    std::vector<int> char_attrs = {};
+    int attrs = 0;
+
+    void set_glyphs(const std::vector<rich_char>& glyphs) {
+        text.clear();
+        char_color_pairs.clear();
+        char_attrs.clear();
+        for (const auto& gc : glyphs) {
+            text += gc.ch;
+            char_color_pairs.push_back(gc.color_pair);
+            char_attrs.push_back(gc.attr);
+        }
+    }
 };
 
 class agent_interaction {

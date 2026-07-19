@@ -139,21 +139,21 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 	}
 
 	std::stringstream ss(full_text);
-	std::string line;
+	std::string line_str;
 	bool first = true;
 	bool in_code_block = false;
 	std::shared_ptr<syntax_highlighter> active_highlighter = nullptr;
 
 	int code_color = 3;
 
-	while (std::getline(ss, line)) {
-		if (!line.empty() && line.back() == '\r')
-			line.pop_back();
+	while (std::getline(ss, line_str)) {
+		if (!line_str.empty() && line_str.back() == '\r')
+			line_str.pop_back();
 
-		if (line.starts_with("```")) {
+		if (line_str.starts_with("```")) {
 			in_code_block = !in_code_block;
 			if (in_code_block) {
-				std::string lang = line.substr(3);
+				std::string lang = line_str.substr(3);
 				while (!lang.empty() && std::isspace(static_cast<unsigned char>(lang.back()))) {
 					lang.pop_back();
 				}
@@ -167,103 +167,173 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		}
 
 		int current_color = in_code_block ? code_color : color_pair;
-		if (!in_code_block && line.starts_with("```")) {
+		if (!in_code_block && line_str.starts_with("```")) {
 			current_color = code_color; // Color the closing backticks as code too
 		}
 
 		std::vector<syntax_attribute> line_attrs;
-		if (in_code_block && active_highlighter && !line.starts_with("```")) {
-			auto temp_line = std::make_shared<::line>(line);
+		if (in_code_block && active_highlighter && !line_str.starts_with("```")) {
+			auto temp_line = std::make_shared<::line>(line_str);
 			active_highlighter->highlight(temp_line);
 			std::string out_text;
 			temp_line->get_content(out_text, line_attrs);
 		}
 
+		std::vector<rich_char> line_glyphs;
+		if (in_code_block || line_str.starts_with("```")) {
+			size_t byte_idx = 0;
+			while (byte_idx < line_str.length()) {
+				unsigned char c = static_cast<unsigned char>(line_str[byte_idx]);
+				size_t char_bytes = utf8::char_len(c);
+				if (byte_idx + char_bytes > line_str.length()) {
+					char_bytes = line_str.length() - byte_idx;
+				}
+				rich_char rc;
+				rc.ch = line_str.substr(byte_idx, char_bytes);
+				rc.color_pair = current_color;
+				rc.attr = 0;
+				line_glyphs.push_back(rc);
+				byte_idx += char_bytes;
+			}
+		} else {
+			bool is_bold = false;
+			bool is_italic = false;
+			bool is_inline_code = false;
+
+			size_t byte_idx = 0;
+			while (byte_idx < line_str.length()) {
+				if (!is_inline_code && byte_idx + 1 < line_str.length() &&
+				    (line_str.substr(byte_idx, 2) == "**" || line_str.substr(byte_idx, 2) == "__")) {
+					is_bold = !is_bold;
+					byte_idx += 2;
+					continue;
+				}
+
+				if (!is_inline_code && (line_str[byte_idx] == '*' || line_str[byte_idx] == '_')) {
+					is_italic = !is_italic;
+					byte_idx += 1;
+					continue;
+				}
+
+				if (line_str[byte_idx] == '`') {
+					is_inline_code = !is_inline_code;
+					byte_idx += 1;
+					continue;
+				}
+
+				unsigned char c = static_cast<unsigned char>(line_str[byte_idx]);
+				size_t char_bytes = utf8::char_len(c);
+				if (byte_idx + char_bytes > line_str.length()) {
+					char_bytes = line_str.length() - byte_idx;
+				}
+
+				rich_char rc;
+				rc.ch = line_str.substr(byte_idx, char_bytes);
+				rc.color_pair = is_inline_code ? code_color : color_pair;
+				rc.attr = 0;
+				if (is_bold) rc.attr |= ATTR_BOLD;
+				if (is_italic) rc.attr |= ATTR_UNDERLINE;
+
+				line_glyphs.push_back(rc);
+				byte_idx += char_bytes;
+			}
+		}
+
 		std::string current_prefix = first ? prefix : std::string(prefix_utf8_len, ' ');
 		int available_width = width - prefix_utf8_len;
 
-		if (line.empty()) {
-			lines.push_back({current_prefix, current_color});
+		if (line_glyphs.empty()) {
+			interaction_line new_line_item;
+			new_line_item.text = current_prefix;
+			new_line_item.color_pair = current_color;
+			lines.push_back(new_line_item);
 			first = false;
 			continue;
 		}
 
-		size_t byte_idx = 0;
-		while (byte_idx < line.length()) {
-			// Find how many bytes we can consume to fit within available_width characters
-			size_t chunk_byte_len = 0;
-			int chars_consumed = 0;
+		size_t glyph_idx = 0;
+		while (glyph_idx < line_glyphs.size()) {
+			size_t chunk_len = 0;
 			int display_width_consumed = 0;
-			size_t last_space_byte_idx = std::string::npos;
-			size_t last_space_chars = 0;
+			size_t last_space_idx = std::string::npos;
+			size_t last_space_display_w = 0;
 
-			size_t peek_idx = byte_idx;
-			while (peek_idx < line.length() && display_width_consumed < available_width) {
-				unsigned char c = static_cast<unsigned char>(line[peek_idx]);
-				size_t char_bytes = utf8::char_len(c);
-
-				if (peek_idx + char_bytes > line.length()) {
-					char_bytes = line.length() - peek_idx; // Malformed UTF-8 fallback
-				}
-
-				std::string_view glyph(line.data() + peek_idx, char_bytes);
-				int glyph_w = static_cast<int>(utf8::display_width(glyph));
+			size_t peek_idx = glyph_idx;
+			while (peek_idx < line_glyphs.size() && display_width_consumed < available_width) {
+				const auto &rg = line_glyphs[peek_idx];
+				int glyph_w = static_cast<int>(utf8::display_width(rg.ch));
 
 				if (display_width_consumed + glyph_w > available_width) {
 					break;
 				}
 
-				if (c == ' ' || c == '\t') {
-					last_space_byte_idx = peek_idx;
-					last_space_chars = chars_consumed;
+				if (rg.ch == " " || rg.ch == "\t") {
+					last_space_idx = peek_idx;
+					last_space_display_w = display_width_consumed;
 				}
 
-				peek_idx += char_bytes;
-				chars_consumed++;
+				peek_idx++;
 				display_width_consumed += glyph_w;
-				chunk_byte_len += char_bytes;
+				chunk_len++;
 			}
 
-			// If we hit the width limit, but the line continues, try to break at the last space
-			if (peek_idx < line.length() && last_space_byte_idx != std::string::npos && last_space_byte_idx > byte_idx) {
-				chunk_byte_len = last_space_byte_idx - byte_idx;
-				chars_consumed = last_space_chars;
+			if (peek_idx < line_glyphs.size() && last_space_idx != std::string::npos && last_space_idx > glyph_idx) {
+				chunk_len = last_space_idx - glyph_idx;
+				display_width_consumed = last_space_display_w;
 			}
 
-			if (chunk_byte_len == 0)
+			if (chunk_len == 0)
 				break; // Safety net
 
-			interaction_line new_line_item;
-			new_line_item.text = current_prefix + line.substr(byte_idx, chunk_byte_len);
-			new_line_item.color_pair = current_color;
+			std::vector<rich_char> wrapped_glyphs;
 
-			if (in_code_block && active_highlighter && !line.starts_with("```") && !line_attrs.empty()) {
-				size_t prefix_len = utf8::length(current_prefix);
-				new_line_item.char_color_pairs.resize(prefix_len, current_color);
+			size_t prefix_byte_off = 0;
+			std::string prefix_char;
+			while (utf8::next_character(current_prefix, prefix_byte_off, prefix_char)) {
+				rich_char rc;
+				rc.ch = prefix_char;
+				rc.color_pair = current_color;
+				rc.attr = 0;
+				wrapped_glyphs.push_back(rc);
+			}
 
-				size_t start_char_pos = utf8::byte_to_char_pos(line, byte_idx);
-				for (int idx = 0; idx < chars_consumed; ++idx) {
-					size_t original_pos = start_char_pos + idx;
-					int cp = current_color;
+			for (size_t k = 0; k < chunk_len; ++k) {
+				size_t original_pos = glyph_idx + k;
+				rich_char rc = line_glyphs[original_pos];
+
+				if (in_code_block && active_highlighter && !line_str.starts_with("```") && !line_attrs.empty()) {
 					if (original_pos < line_attrs.size()) {
 						syntax_attribute attr = line_attrs[original_pos];
-						if (attr == syntax_attribute::normal) {
-							cp = current_color;
-						} else {
-							cp = syntax_color_manager::get_instance().get_color_pair(attr);
+						if (attr != syntax_attribute::normal) {
+							rc.color_pair = syntax_color_manager::get_instance().get_color_pair(attr);
 						}
 					}
-					new_line_item.char_color_pairs.push_back(cp);
 				}
+				wrapped_glyphs.push_back(rc);
+			}
+
+			interaction_line new_line_item;
+			new_line_item.set_glyphs(wrapped_glyphs);
+			new_line_item.color_pair = current_color;
+
+			bool has_custom = false;
+			for (const auto &wg : wrapped_glyphs) {
+				if (wg.color_pair != current_color || wg.attr != 0) {
+					has_custom = true;
+					break;
+				}
+			}
+			if (!has_custom) {
+				new_line_item.char_color_pairs.clear();
+				new_line_item.char_attrs.clear();
 			}
 
 			lines.push_back(new_line_item);
 
-			byte_idx += chunk_byte_len;
+			glyph_idx += chunk_len;
 
-			// Skip trailing spaces for the next wrapped line
-			while (byte_idx < line.length() && (line[byte_idx] == ' ' || line[byte_idx] == '\t')) {
-				byte_idx++;
+			while (glyph_idx < line_glyphs.size() && (line_glyphs[glyph_idx].ch == " " || line_glyphs[glyph_idx].ch == "\t")) {
+				glyph_idx++;
 			}
 
 			current_prefix = std::string(prefix_utf8_len, ' ');

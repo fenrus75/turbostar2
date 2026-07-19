@@ -1043,15 +1043,23 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 					}
 
 					int cp = line_it->color_pair;
+					int attr = 0;
 					if (in_selection) {
 						cp = 8;
-					} else if (!line_it->char_color_pairs.empty() && char_idx < static_cast<int>(line_it->char_color_pairs.size())) {
-						cp = line_it->char_color_pairs[char_idx];
+					} else {
+						if (!line_it->char_color_pairs.empty() && char_idx < static_cast<int>(line_it->char_color_pairs.size())) {
+							cp = line_it->char_color_pairs[char_idx];
+						}
+						if (!line_it->char_attrs.empty() && char_idx < static_cast<int>(line_it->char_attrs.size())) {
+							int logical_attr = line_it->char_attrs[char_idx];
+							if (logical_attr & agentlib::ATTR_BOLD) attr |= A_BOLD;
+							if (logical_attr & agentlib::ATTR_UNDERLINE) attr |= A_UNDERLINE;
+						}
 					}
 
-					attron(COLOR_PAIR(cp));
+					attron(COLOR_PAIR(cp) | attr);
 					mvprintw(current_y, current_x, "%s", utf8_char.c_str());
-					attroff(COLOR_PAIR(cp));
+					attroff(COLOR_PAIR(cp) | attr);
 					
 					int c_w = utf8::display_width(utf8_char);
 					current_x += c_w;
