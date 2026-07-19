@@ -102,7 +102,10 @@ std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t of
 }
 
 std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std::string& format) {
-    if (format == "zlib" || format == "gzip") {
+    std::string fmt = format;
+    if (fmt == "deflate") fmt = "zlib";
+
+    if (fmt == "zlib" || fmt == "gzip") {
         z_stream zs;
         memset(&zs, 0, sizeof(zs));
         int windowBits = format == "gzip" ? 15 + 16 : 15;
@@ -129,7 +132,7 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
         return result;
     }
 #ifdef HAS_LIBZSTD
-    if (format == "zstd") {
+    if (fmt == "zstd") {
         size_t bound = ZSTD_compressBound(input.size());
         std::vector<uint8_t> result(bound);
         size_t csize = ZSTD_compress(result.data(), bound, input.data(), input.size(), 3);
@@ -145,6 +148,8 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
 
 std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const std::string& format) {
     std::string fmt = format;
+    if (fmt == "deflate") fmt = "zlib";
+    
     if (fmt == "auto") {
         if (input.size() >= 2 && input[0] == 0x1F && input[1] == 0x8B) fmt = "gzip";
         else if (input.size() >= 2 && input[0] == 0x78) fmt = "zlib";

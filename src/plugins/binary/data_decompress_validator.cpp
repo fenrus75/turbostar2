@@ -12,7 +12,7 @@ nlohmann::json data_decompress_validator::get_parameters_schema() const {
 	    {"type", "object"},
 	    {"properties",
 	     {{"input_data", {{"type", "string"}, {"description", "The input data to decompress."}}},
-	      {"format", {{"type", "string"}, {"description", "Compression format."}, {"enum", {"auto", "zstd", "gzip", "zlib", "xz", "bzip2", "lz4"}}, {"default", "auto"}}},
+	      {"format", {{"type", "string"}, {"description", "Compression format. 'deflate' is an alias for 'zlib'."}, {"enum", {"auto", "zstd", "gzip", "zlib", "deflate", "xz", "bzip2", "lz4"}}, {"default", "auto"}}},
 	      {"output_format", {{"type", "string"}, {"description", "Return format."}, {"enum", {"hex", "base64", "text"}}, {"default", "text"}}},
 	      {"output_file", {{"type", "string"}, {"description", "Optional file to write output."}}},
 	      {"offset", {{"type", "integer"}, {"description", "Byte offset to start reading from."}, {"default", 0}}},

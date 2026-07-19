@@ -12,7 +12,7 @@ nlohmann::json data_compress_validator::get_parameters_schema() const {
 	    {"type", "object"},
 	    {"properties",
 	     {{"input_data", {{"type", "string"}, {"description", "The input data to compress."}}},
-	      {"format", {{"type", "string"}, {"description", "Format to use."}, {"enum", {"zstd", "gzip", "zlib", "xz", "bzip2", "lz4"}}, {"default", "zstd"}}},
+	      {"format", {{"type", "string"}, {"description", "Format to use. 'deflate' is an alias for 'zlib'."}, {"enum", {"zstd", "gzip", "zlib", "deflate", "xz", "bzip2", "lz4"}}, {"default", "zstd"}}},
 	      {"output_format", {{"type", "string"}, {"description", "Return format."}, {"enum", {"hex", "base64", "text"}}, {"default", "hex"}}},
 	      {"output_file", {{"type", "string"}, {"description", "Optional file to write output."}}}}},
 	    {"required", nlohmann::json::array({"input_data"})}};
