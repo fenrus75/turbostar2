@@ -179,8 +179,7 @@
 - PDF Stream Extractor Helper (`pdf_extract_stream`):
   - *The Idea*: Add a higher-level tool or option that locates a PDF object by its ID (e.g. `1 0 obj`), parses the PDF XREF table, extracts its `/Length`, `/Filter`, and stream offsets, and automatically decompresses it, rather than requiring manual hexdump offset checks.
 
-- Support for Common PDF Filters:
-  - *The Idea*: Expand `data_decompress` to support PDF filters like `/LZWDecode`, `/ASCII85Decode`, and `/RunLengthDecode` to make it a complete PDF stream analyzer.
+
 
 
 # mid term items
@@ -254,6 +253,7 @@
 # done items (move items here on completion)
 
 ## 19-07-2026
+- PDF decompression filters: Extended `data_decompress` (under `src/plugins/binary/binary_utils.cpp` and `data_decompress_validator.cpp`) to support `/LZWDecode` (with early change support as `"pdflzw"` or `"lzw"`), `/ASCII85Decode` (as `"ascii85"`), and `/RunLengthDecode` (as `"pdfrunlength"` or `"runlength"`). Implemented auto-detection of ASCII85 format via `<~` magic header. Added comprehensive unit tests in `test_binary_plugin.cpp`.
 - Tool multi-family support: Implemented support for registering a single tool under multiple families using a `|`-separated family string (e.g. `"binary|hexedit"`). Updated `tool_validator` and `tool_registry` to split family strings and allow execution when any of the tool's families are active. Added unit test coverages in `test_activate_tool_family.cpp` to verify.
 - Binary compression plugin: Implemented a new `binary` tool family featuring `data_compress` and `data_decompress` tools. Features auto-detection of zlib, gzip, zstd, xz, bzip2, and lz4. Supports files, base64, hex, and data URIs seamlessly, and allows precise byte-range extraction (offset/length) to dynamically unpack nested streams.
 - PDF hex highlighter: Implemented `pdf_hex_highlighter` to parse and highlight PDF structures (objects, streams, cross-reference tables, and trailers) using a linear scanner approach robust to incremental updates and malformed offsets. Registered the highlighter in `hex_highlighter_registry` and hooked it into the build system. Added `test_pdf_highlighter` using a real PDF testcase (`shared-mime-info-spec.pdf`).
