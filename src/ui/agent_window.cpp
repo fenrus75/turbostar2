@@ -51,6 +51,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "| :--- | :--- |\n"
 	    "| `skills://` | Access custom tools, metadata, and specialized rule catalogs configured for the agent. |\n"
 	    "| `agent://` | Read internal session data, completion reports, and local agent workspace files. |\n"
+	    "| `tmp://` | Access the sandboxed scratch directory for storing temporary files, diagnostic dumps, and intermediate run data. |\n"
 	    "| `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., "
 	    "github://username/project/). |\n\n"
 	    "*** CRITICAL DIRECTIVE: PLAN MODE ***\n"
