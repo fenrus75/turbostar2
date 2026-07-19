@@ -1,4 +1,5 @@
 #include "hex/pdf.h"
+#include "mime.h"
 #include <algorithm>
 #include <cstring>
 #include <format>
@@ -25,6 +26,11 @@ bool pdf_hex_highlighter::parse(const std::vector<uint8_t> &data) {
 	if (!can_handle(data)) {
 		return false;
 	}
+
+	// Query MIME type and description using central helpers
+	std::string_view view(reinterpret_cast<const char*>(data.data()), data.size());
+	mime_type_ = mime::detect_buffer_type(view);
+	description_ = mime::detect_buffer_description(view);
 
 	size_t offset = 0;
 	while (offset < data.size() && data[offset] != '\n' && data[offset] != '\r') {
@@ -252,6 +258,13 @@ std::string pdf_hex_highlighter::get_structure_summary() const
 	}
 
 	std::string summary = "### PDF Structural Overview\n\n";
+
+	// Add Metadata Table
+	summary += "#### File Metadata\n\n";
+	summary += "| Property | Value |\n";
+	summary += "| --- | --- |\n";
+	summary += std::format("| **MIME Type** | {} |\n", mime_type_);
+	summary += std::format("| **Description** | {} |\n\n", description_);
 
 	if (!objects_.empty()) {
 		summary += "#### PDF Objects\n\n";

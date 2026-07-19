@@ -298,6 +298,14 @@ void test_png_highlighter()
 	assert(hl.get_next_symbol_offset(8) == 33);   // next chunk (IEND) starts at 33
 	assert(hl.get_next_symbol_offset(33) == 33);  // no more chunks
 
+	// Test get_structure_summary metadata integration
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### PNG Structural Overview") != std::string::npos);
+	assert(summary.find("MIME Type") != std::string::npos);
+	assert(summary.find("image/png") != std::string::npos);
+	assert(summary.find("100 x 200") != std::string::npos);
+	assert(summary.find("RGB") != std::string::npos);
+
 	// Test auto-detect registry
 	auto &reg = hex_highlighter_registry::get_instance();
 	auto detected = reg.detect_highlighter(data);
@@ -419,6 +427,12 @@ void test_real_jpeg_file()
 	assert(hl.can_handle(data) == true);
 	bool success = hl.parse(data);
 	assert(success == true);
+
+	// Test get_structure_summary metadata integration
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### JPEG Structural Overview") != std::string::npos);
+	assert(summary.find("MIME Type") != std::string::npos);
+	assert(summary.find("image/jpeg") != std::string::npos);
 
 	auto &reg = hex_highlighter_registry::get_instance();
 	auto detected = reg.detect_highlighter(data);

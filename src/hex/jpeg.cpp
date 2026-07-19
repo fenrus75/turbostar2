@@ -1,4 +1,5 @@
 #include "hex/jpeg.h"
+#include "mime.h"
 #include <format>
 
 namespace
@@ -33,9 +34,17 @@ bool jpeg_hex_highlighter::parse(const std::vector<uint8_t> &data)
 {
 	parsed_successfully_ = false;
 	markers_.clear();
+	has_sof_ = false;
+	width_ = 0;
+	height_ = 0;
 
 	if (!can_handle(data))
 		return false;
+
+	// Query MIME type and description using central helpers
+	std::string_view view(reinterpret_cast<const char*>(data.data()), data.size());
+	mime_type_ = mime::detect_buffer_type(view);
+	description_ = mime::detect_buffer_description(view);
 
 	// Add SOI
 	parsed_marker soi;
@@ -87,6 +96,15 @@ bool jpeg_hex_highlighter::parse(const std::vector<uint8_t> &data)
 		uint16_t length_val = (data[offset] << 8) | data[offset + 1];
 		pm.length = (offset - marker_start) + length_val;
 		markers_.push_back(pm);
+
+		if ((marker_code == 0xC0 || marker_code == 0xC2) && pm.length >= 10 && pm.offset + 10 <= data.size()) {
+			size_t data_start = pm.offset + 4;
+			precision_ = data[data_start];
+			height_ = (data[data_start + 1] << 8) | data[data_start + 2];
+			width_ = (data[data_start + 3] << 8) | data[data_start + 4];
+			components_ = data[data_start + 5];
+			has_sof_ = true;
+		}
 		
 		offset += length_val;
 		
@@ -226,6 +244,20 @@ std::string jpeg_hex_highlighter::get_structure_summary() const
 	}
 
 	std::string summary = "### JPEG Structural Overview\n\n";
+
+	// Add Metadata Table
+	summary += "#### File Metadata\n\n";
+	summary += "| Property | Value |\n";
+	summary += "| --- | --- |\n";
+	summary += std::format("| **MIME Type** | {} |\n", mime_type_);
+	summary += std::format("| **Description** | {} |\n", description_);
+	if (has_sof_) {
+		summary += std::format("| **Dimensions** | {} x {} |\n", width_, height_);
+		summary += std::format("| **Precision** | {} bits/component |\n", precision_);
+		summary += std::format("| **Number of Components** | {} |\n", components_);
+	}
+	summary += "\n";
+
 	summary += "#### JPEG Markers\n\n";
 	summary += "| Marker Name | Marker Code | Offset | Payload Size (Bytes) |\n";
 	summary += "| :--- | :---: | :---: | :---: |\n";

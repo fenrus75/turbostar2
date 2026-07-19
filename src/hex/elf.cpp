@@ -1,4 +1,5 @@
 #include "hex/elf.h"
+#include "mime.h"
 #include <algorithm>
 #include <format>
 
@@ -342,6 +343,11 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 
 	if (!can_handle(data))
 		return false;
+
+	// Query MIME type and description using central helpers
+	std::string_view view(reinterpret_cast<const char*>(data.data()), data.size());
+	mime_type_ = mime::detect_buffer_type(view);
+	description_ = mime::detect_buffer_description(view);
 
 	uint8_t elf_class = data[4];
 	if (elf_class != 1 && elf_class != 2)
@@ -1064,6 +1070,15 @@ std::string elf_hex_highlighter::get_structure_summary() const
 	}
 
 	std::string summary = "### ELF Structure Overview\n\n";
+
+	// Add Metadata Table
+	summary += "#### File Metadata\n\n";
+	summary += "| Property | Value |\n";
+	summary += "| --- | --- |\n";
+	summary += std::format("| **MIME Type** | {} |\n", mime_type_);
+	summary += std::format("| **Description** | {} |\n\n", description_);
+
+	summary += "#### ELF Header Properties\n\n";
 	summary += std::format("- **Class**: {}\n", header_.is_64 ? "ELF64" : "ELF32");
 	summary += std::format("- **Endianness**: {}\n", header_.is_lsb ? "LSB (Little Endian)" : "MSB (Big Endian)");
 	summary += std::format("- **Entry Point**: 0x{:X}\n", header_.e_entry);

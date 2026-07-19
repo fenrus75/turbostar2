@@ -43,4 +43,6 @@ class pdf_hex_highlighter : public hex_highlighter
 	std::vector<pdf_trailer> trailers_;
 	size_t header_size_{0};
 	bool parsed_successfully_{false};
+	std::string mime_type_;
+	std::string description_;
 };

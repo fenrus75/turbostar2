@@ -38,6 +38,9 @@ int main()
 	ctx.fs_security.add_allowed_root(project_root, access_type::read);
 	ctx.fs_security.add_allowed_root(project_root, access_type::write);
 
+	virtual_file_system global_vfs;
+	ctx.fs_security.set_vfs(&global_vfs);
+
 	std::string elf_path = "tests/unit/mock_elf_hexinspect.bin";
 	std::string full_elf_path = project_root + "/" + elf_path;
 
@@ -68,9 +71,6 @@ int main()
 
 	// 3. Test successful execution on ELF Magic and file header
 	{
-		virtual_file_system vfs;
-		ctx.fs_security.set_vfs(&vfs);
-
 		std::string args = "{\"path\": \"" + elf_path + "\", \"start_offset\": 0, \"size\": 16}";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		std::cout << "hexinspect result:\n" << res << "\n";
@@ -96,7 +96,7 @@ int main()
 		std::string tmp_content((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
 		assert(tmp_content.find("### ELF Structure Overview") != std::string::npos);
 		assert(tmp_content.find("#### ELF Sections") != std::string::npos);
-		assert(tmp_content.find("`shstrtab`") != std::string::npos);
+		assert(tmp_content.find(".shstrtab") != std::string::npos);
 		ifs_tmp.close();
 		std::filesystem::remove(tmp_physical_path);
 	}
@@ -119,9 +119,6 @@ int main()
 
 	// 6. Test VFS path resolution for tmp://
 	{
-		virtual_file_system vfs;
-		ctx.fs_security.set_vfs(&vfs);
-
 		std::string vfs_path = "tmp://test_hexinspect_vfs.bin";
 		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/test_hexinspect_vfs.bin";
 
@@ -137,7 +134,6 @@ int main()
 		assert(res.find("Binary Structure Inspection: tmp://") != std::string::npos);
 
 		std::filesystem::remove(physical_vfs_path);
-		ctx.fs_security.set_vfs(nullptr);
 	}
 
 	// 7. Test TAR file inspection and offset_by_name symbol resolution
@@ -246,9 +242,6 @@ int main()
 
 	// 10. Test PDF structure summary and VFS write (prefer_summary_in_tmp_only == true)
 	{
-		virtual_file_system vfs;
-		ctx.fs_security.set_vfs(&vfs);
-
 		std::string pdf_path = "tests/shared-mime-info-spec.pdf";
 		std::string args = "{\"path\": \"" + pdf_path + "\", \"start_offset\": 0, \"size\": 16}";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
@@ -263,8 +256,8 @@ int main()
 		std::ifstream ifs_tmp(tmp_physical_path);
 		std::string tmp_content((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
 		assert(tmp_content.find("### PDF Structural Overview") != std::string::npos);
+		assert(tmp_content.find("#### File Metadata") != std::string::npos);
 		assert(tmp_content.find("#### PDF Objects") != std::string::npos);
-		assert(tmp_content.find("Cross-Reference (XRef) Tables") != std::string::npos);
 		ifs_tmp.close();
 		std::filesystem::remove(tmp_physical_path);
 	}

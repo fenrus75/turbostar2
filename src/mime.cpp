@@ -124,4 +124,23 @@ std::string detect_file_description([[maybe_unused]] const std::string &path)
 	return "Unknown file type";
 }
 
+std::string detect_buffer_description([[maybe_unused]] std::string_view buffer)
+{
+#ifdef HAS_LIBMAGIC
+	magic_t magic = magic_open(MAGIC_NONE);
+	if (magic) {
+		if (magic_load(magic, nullptr) == 0) {
+			const char *desc = magic_buffer(magic, buffer.data(), buffer.size());
+			if (desc) {
+				std::string res(desc);
+				magic_close(magic);
+				return res;
+			}
+		}
+		magic_close(magic);
+	}
+#endif
+	return "Unknown file type";
+}
+
 } // namespace mime

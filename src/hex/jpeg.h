@@ -28,4 +28,11 @@ class jpeg_hex_highlighter : public hex_highlighter
       private:
 	std::vector<parsed_marker> markers_;
 	bool parsed_successfully_{false};
+	std::string mime_type_;
+	std::string description_;
+	uint32_t width_{0};
+	uint32_t height_{0};
+	uint8_t precision_{0};
+	uint8_t components_{0};
+	bool has_sof_{false};
 };

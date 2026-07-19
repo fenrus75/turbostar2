@@ -27,4 +27,14 @@ class png_hex_highlighter : public hex_highlighter
 
 	std::vector<parsed_chunk> chunks_;
 	bool parsed_successfully_{false};
+	std::string mime_type_;
+	std::string description_;
+	uint32_t width_{0};
+	uint32_t height_{0};
+	uint8_t bit_depth_{0};
+	uint8_t color_type_{0};
+	uint8_t compression_{0};
+	uint8_t filter_{0};
+	uint8_t interlace_{0};
+	bool has_ihdr_{false};
 };

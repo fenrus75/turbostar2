@@ -19,6 +19,12 @@ std::string detect_file_type(const std::string &path);
 std::string detect_buffer_type(std::string_view buffer);
 
 /**
+ * @brief Detects a human-readable description of the file type from a raw memory buffer.
+ * Uses libmagic (via magic_buffer with MAGIC_NONE) if available.
+ */
+std::string detect_buffer_description(std::string_view buffer);
+
+/**
  * @brief Looks up a MIME type by file extension (case-insensitive).
  */
 std::string from_extension(const std::string &filename_or_ext);

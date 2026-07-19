@@ -56,4 +56,6 @@ class elf_hex_highlighter : public hex_highlighter
 	std::vector<parsed_section> sections_;
 	std::vector<parsed_symbol> symbols_;
 	bool parsed_successfully_{false};
+	std::string mime_type_;
+	std::string description_;
 };
