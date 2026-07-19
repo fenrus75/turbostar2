@@ -5,19 +5,33 @@
 #include <vector>
 #include "plugins/binary/binary_utils.h"
 
-void test_compress_decompress_zlib() {
-    std::string original = "Hello World! This is a test string to be compressed and decompressed.";
+void test_compress_decompress_roundtrip(const std::string &format) {
+    std::string original = "Hello World! This is a test string to be compressed and decompressed with " + format + ". Let's make sure it roundtrips successfully!";
     std::vector<uint8_t> input(original.begin(), original.end());
 
-    std::vector<uint8_t> compressed = binary_utils::compress_data(input, "zlib");
+    std::vector<uint8_t> compressed = binary_utils::compress_data(input, format);
     assert(!compressed.empty());
     assert(compressed != input);
 
-    std::vector<uint8_t> decompressed = binary_utils::decompress_data(compressed, "zlib");
+    std::vector<uint8_t> decompressed = binary_utils::decompress_data(compressed, format);
     std::string result(decompressed.begin(), decompressed.end());
     assert(result == original);
+
+    // Test auto-detection during decompression
+    std::vector<uint8_t> decompressed_auto = binary_utils::decompress_data(compressed, "auto");
+    std::string result_auto(decompressed_auto.begin(), decompressed_auto.end());
+    assert(result_auto == original);
     
-    std::cout << "test_compress_decompress_zlib passed!" << std::endl;
+    std::cout << "test_compress_decompress_roundtrip (" << format << ") passed!" << std::endl;
+}
+
+void test_compress_decompress_all() {
+    test_compress_decompress_roundtrip("zlib");
+    test_compress_decompress_roundtrip("deflate");
+    test_compress_decompress_roundtrip("gzip");
+#ifdef HAS_LIBZSTD
+    test_compress_decompress_roundtrip("zstd");
+#endif
 }
 
 void test_resolve_input_data_base64() {
@@ -38,7 +52,7 @@ void test_resolve_input_data_hex() {
 
 int main() {
     test_watchdog::setup_watchdog(30);
-    test_compress_decompress_zlib();
+    test_compress_decompress_all();
     test_resolve_input_data_base64();
     test_resolve_input_data_hex();
     std::cout << "All binary plugin unit tests passed!" << std::endl;
