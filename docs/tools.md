@@ -753,3 +753,25 @@ These tools allow the agent to interact with the project's Git repository.
     *   `files` *(array of strings, required)*: List of file paths relative to the project root to perform security code review on.
     *   `instructions` *(string, optional)*: Optional custom instructions or specific focus areas for the security agent.
     *   `result_file` *(string, optional)*: Optional file path relative to project root where the final markdown findings will be written.
+
+---
+
+## 12. Binary Compression Tools
+
+### `data_compress` (Family: `binary`)
+*   **Description:** Compresses data into various formats (zstd, gzip, zlib, deflate, xz, bzip2, lz4) and returns it as text, hex, base64, or writes to a file.
+*   **Arguments:**
+    *   `input_data` *(string, required)*: The input raw data to compress.
+    *   `format` *(string, optional)*: Compression format (one of: `zstd`, `gzip`, `zlib`, `deflate`, `xz`, `bzip2`, `lz4`). Defaults to `zstd`.
+    *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `text`.
+    *   `output_file` *(string, optional)*: Optional file path (or virtual URI like `tmp://file.bin`) to write the output instead of returning it.
+
+### `data_decompress` (Family: `binary`)
+*   **Description:** Extracts and decompresses data from various sources (files, data URLs, hex/base64/ascii85 strings, or virtual URIs). Supports offset/length ranges to extract nested streams.
+*   **Arguments:**
+    *   `input_data` *(string, required)*: The input raw/encoded data or path to the file to decompress.
+    *   `format` *(string, optional)*: Compression format (one of: `auto`, `zstd`, `gzip`, `zlib`, `deflate`, `xz`, `bzip2`, `lz4`, `pdflzw`, `lzw`, `pdfrunlength`, `runlength`, `ascii85`, `none`). Defaults to `auto`.
+    *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `text`.
+    *   `output_file` *(string, optional)*: Optional file path (or virtual URI like `tmp://file.bin`) to write the output instead of returning it.
+    *   `offset` *(integer, optional)*: Byte offset to start reading from. Defaults to 0.
+    *   `length` *(integer, optional)*: Maximum number of bytes to read. Defaults to -1 (read all).
