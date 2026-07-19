@@ -49,6 +49,22 @@ thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 zlib_dep = dependency('zlib', required : true)
+liblzma_dep = dependency('liblzma', required : false)
+if liblzma_dep.found()
+  add_project_arguments('-DHAS_LIBLZMA', language : 'cpp')
+endif
+libzstd_dep = dependency('libzstd', required : false)
+if libzstd_dep.found()
+  add_project_arguments('-DHAS_LIBZSTD', language : 'cpp')
+endif
+bzip2_dep = dependency('bzip2', required : false)
+if bzip2_dep.found()
+  add_project_arguments('-DHAS_BZIP2', language : 'cpp')
+endif
+liblz4_dep = dependency('liblz4', required : false)
+if liblz4_dep.found()
+  add_project_arguments('-DHAS_LIBLZ4', language : 'cpp')
+endif
 yaml_cpp_dep = dependency('yaml-cpp', required : true)
 enable_libmagic = get_option('enable-libmagic')
 magic_dep = dependency('', required : false)
@@ -215,6 +231,15 @@ test_hexedit_plugin = executable('test_hexedit_plugin',
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)
 test('unit_hexedit_plugin', test_hexedit_plugin, suite: 'plugins')
+
+test_binary_plugin = executable('test_binary_plugin',
+  ['tests/unit/test_binary_plugin.cpp',
+   'src/plugins/binary/data_compress_tool.cpp',
+   'src/plugins/binary/data_decompress_tool.cpp',
+   'src/plugins/binary/binary_utils.cpp'],
+  dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zlib_dep, liblzma_dep, libzstd_dep, bzip2_dep, liblz4_dep],
+  include_directories: inc)
+test('unit_binary_plugin', test_binary_plugin, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',

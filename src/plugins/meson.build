@@ -128,3 +128,16 @@ if graphicsmagick_dep.found()
   )
 endif
 
+binary_plugin = shared_module('binary',
+  ['binary/plugin.cpp',
+   'binary/data_compress_tool.cpp',
+   'binary/data_compress_validator.cpp',
+   'binary/data_decompress_tool.cpp',
+   'binary/data_decompress_validator.cpp',
+   'binary/binary_utils.cpp'],
+  dependencies: [nlohmann_json_dep, curl_dep, zlib_dep, liblzma_dep, libzstd_dep, bzip2_dep, liblz4_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
