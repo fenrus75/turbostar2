@@ -688,18 +688,24 @@ extern std::string troff2md(std::string troff_content);
 		std::filesystem::remove(target_file);
 
 		// Test tmp:// VFS scheme
-		std::string tmp_uri = "tmp://test_fs_write_tmp.txt";
+		std::string tmp_uri = "tmp://000_test_fs_write_tmp.txt";
 		std::string tmp_args = "{\"path\": \"" + tmp_uri + "\", \"content\": \"Temporary VFS write!\", \"append\": false}";
 		std::string tmp_res = registry.execute_tool("fs_write_file", tmp_args, ctx);
 		assert(tmp_res.find("Successfully wrote") != std::string::npos);
 
 		// Verify on-disk file in temp dir
-		std::string expected_tmp_file = fs_utils::get_project_tmp_dir() + "/test_fs_write_tmp.txt";
+		std::string expected_tmp_file = fs_utils::get_project_tmp_dir() + "/000_test_fs_write_tmp.txt";
 		assert(std::filesystem::exists(expected_tmp_file));
 		std::ifstream ifs_tmp(expected_tmp_file);
 		std::string content_tmp((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
 		assert(content_tmp == "Temporary VFS write!");
 		ifs_tmp.close();
+
+		// Test tmp:// directory listing
+		std::string list_args = "{\"path\": \"tmp://\", \"rich_metadata\": false}";
+		std::string list_res = registry.execute_tool("fs_list_dir", list_args, ctx);
+		assert(list_res.find("000_test_fs_write_tmp.txt") != std::string::npos);
+
 		std::filesystem::remove(expected_tmp_file);
 
 		// Test images:// VFS path tool execution

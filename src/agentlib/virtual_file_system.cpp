@@ -759,7 +759,17 @@ std::vector<vfs_file_info> file_vfs_provider::list_directory(const std::string &
 
 	for (const auto &entry : std::filesystem::directory_iterator(path, ec)) {
 		std::string entry_path = entry.path().string();
-		std::string item_uri = scheme_ + "://" + entry_path;
+		std::string item_uri;
+		if (scheme_ == "file") {
+			item_uri = scheme_ + "://" + entry_path;
+		} else {
+			std::filesystem::path rel = std::filesystem::relative(entry.path(), root_dir_, ec);
+			if (ec) {
+				item_uri = scheme_ + "://" + entry_path;
+			} else {
+				item_uri = scheme_ + "://" + rel.string();
+			}
+		}
 
 		size_t size = 0;
 		char type = 'F';
