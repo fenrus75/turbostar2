@@ -283,7 +283,7 @@ void openai_response_connection::send_prompt(
 		payload["tool_choice"] = "auto";
 	}
 
-	std::string body = payload.dump();
+	std::string body = payload.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 	std::string endpoint = "/v1/responses";
 
 	std::string line_buffer;
@@ -413,7 +413,7 @@ std::string openai_response_connection::compact_response(const std::string& prev
 	}
 	nlohmann::json body = {{"model", model_id_}, {"previous_response_id", previous_response_id}};
 	std::string endpoint = "/v1/responses/compact";
-	auto res = transport_->post(endpoint, body.dump());
+	auto res = transport_->post(endpoint, body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 	if (res.status_code == 200) {
 		try {
 			auto json_res = nlohmann::json::parse(res.body);

@@ -279,7 +279,7 @@ void claude_connection::send_prompt(
 		payload["tools"] = tools_array;
 	}
 
-	std::string body = payload.dump();
+	std::string body = payload.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 	std::string endpoint = "/v1/messages";
 
 	std::string line_buffer;

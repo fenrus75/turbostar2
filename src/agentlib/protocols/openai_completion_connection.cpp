@@ -210,7 +210,7 @@ void openai_completion_connection::send_prompt(
 		payload["tool_choice"] = "auto";
 	}
 
-	std::string body = payload.dump();
+	std::string body = payload.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 	std::string endpoint = "/v1/chat/completions";
 	if (type_ == api_type::copilot) {
 		endpoint = "/chat/completions";

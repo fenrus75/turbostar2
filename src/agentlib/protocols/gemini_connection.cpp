@@ -272,7 +272,7 @@ void gemini_connection::send_prompt(
 		payload["tools"] = nlohmann::json::array({{{"functionDeclarations", tools_array}}});
 	}
 
-	std::string body = payload.dump();
+	std::string body = payload.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 	std::string endpoint = "/v1beta/models/" + model_id_ + ":streamGenerateContent?alt=sse";
 
 	std::string line_buffer;
@@ -328,7 +328,7 @@ void gemini_connection::send_prompt(
 										tc.type = "function";
 										tc.function.name = fc.value("name", "");
 										if (fc.contains("args")) {
-											tc.function.arguments = fc["args"].dump();
+											tc.function.arguments = fc["args"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 										}
 										if (part.contains("thoughtSignature")) {
 											tc.signature = part["thoughtSignature"].get<std::string>();
