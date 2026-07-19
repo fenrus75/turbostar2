@@ -35,6 +35,7 @@ namespace agentlib {
 | image_threshold_validator | src/plugins/image_basic/image_threshold_validator.h |
 | image_import_validator | src/tools/image_import/image_import.h |
 | image_export_validator | src/tools/image_export/image_export.h |
+| fs_purge_tmp_validator | src/tools/fs_purge_tmp/fs_purge_tmp.h |
 */
 class tool_validator {
 public:

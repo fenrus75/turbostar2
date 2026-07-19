@@ -293,7 +293,9 @@ test_tools = executable('test_tools',
    'src/tools/fs_write_file/fs_write_file_entry.cpp',
    'src/tools/fs_write_file/fs_write_file_security.cpp',
    'src/tools/fs_list_dir/fs_list_dir_entry.cpp',
-   'src/tools/fs_list_dir/fs_list_dir_security.cpp'],
+   'src/tools/fs_list_dir/fs_list_dir_security.cpp',
+   'src/tools/fs_purge_tmp/fs_purge_tmp_entry.cpp',
+   'src/tools/fs_purge_tmp/fs_purge_tmp_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_tools', test_tools, suite: 'agent')

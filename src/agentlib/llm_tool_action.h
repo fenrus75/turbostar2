@@ -25,6 +25,7 @@ namespace agentlib {
 | image_threshold_tool | src/plugins/image_basic/image_threshold_tool.h |
 | image_import_tool | src/tools/image_import/image_import.h |
 | image_export_tool | src/tools/image_export/image_export.h |
+| fs_purge_tmp_tool | src/tools/fs_purge_tmp/fs_purge_tmp.h |
 */
 class llm_tool_action : public llm_tool {
 public:

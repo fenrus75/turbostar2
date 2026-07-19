@@ -708,6 +708,30 @@ extern std::string troff2md(std::string troff_content);
 
 		std::filesystem::remove(expected_tmp_file);
 
+		// Test fs_purge_tmp tool
+		std::string purge_file1 = "tmp://test_unique_purge_task_1.txt";
+		std::string purge_file2 = "tmp://test_keep_task_2.txt";
+		std::string purge_file3 = "tmp://test_unique_purge_task_3.txt";
+
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file1 + "\", \"content\": \"purge me!\", \"append\": false}", ctx);
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file2 + "\", \"content\": \"keep me!\", \"append\": false}", ctx);
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file3 + "\", \"content\": \"purge me!\", \"append\": false}", ctx);
+
+		assert(vfs.exists(purge_file1));
+		assert(vfs.exists(purge_file2));
+		assert(vfs.exists(purge_file3));
+
+		// Purge with substring "unique_purge_task"
+		std::string purge_res1 = registry.execute_tool("fs_purge_tmp", "{\"substring\": \"unique_purge_task\"}", ctx);
+		assert(purge_res1.find("Successfully purged 2 files") != std::string::npos);
+		assert(!vfs.exists(purge_file1));
+		assert(vfs.exists(purge_file2));
+		assert(!vfs.exists(purge_file3));
+
+		// Purge everything remaining
+		std::string purge_res2 = registry.execute_tool("fs_purge_tmp", "{}", ctx);
+		assert(!vfs.exists(purge_file2));
+
 		// Test images:// VFS path tool execution
 		images::image_manager::get_instance().initialize();
 		std::string dummy_img_content = "VFS image mock text content";

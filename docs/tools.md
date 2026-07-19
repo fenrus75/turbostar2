@@ -117,6 +117,11 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the directory to create, relative to the project root.
 
+### `fs_purge_tmp`
+*   **Description:** Purges (deletes) files and directories in the virtual `tmp://` scratch space. If a substring is provided, only deletes files/directories whose names contain the substring.
+*   **Arguments:**
+    *   `substring` *(string, optional)*: Only delete files containing this substring in their name/path.
+
 ---
 
 ## 3. Compilation & Diagnostics

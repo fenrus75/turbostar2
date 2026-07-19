@@ -188,5 +188,7 @@ tools_sources = files(
   'get_code_review_item/get_code_review_item_entry.cpp',
   'get_code_review_item/get_code_review_item_security.cpp',
   'perform_code_review/perform_code_review_entry.cpp',
-  'perform_code_review/perform_code_review_security.cpp'
+  'perform_code_review/perform_code_review_security.cpp',
+  'fs_purge_tmp/fs_purge_tmp_entry.cpp',
+  'fs_purge_tmp/fs_purge_tmp_security.cpp'
 )
