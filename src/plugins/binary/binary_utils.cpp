@@ -124,7 +124,7 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
         memset(&zs, 0, sizeof(zs));
         int windowBits = format == "gzip" ? 15 + 16 : 15;
         if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, windowBits, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
-            throw std::runtime_error("deflateInit2 failed");
+            throw std::runtime_error("deflateInit2 failed - invalid format?");
         }
         zs.next_in = (Bytef*)input.data();
         zs.avail_in = input.size();
@@ -141,7 +141,7 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
         } while (ret == Z_OK);
         deflateEnd(&zs);
         if (ret != Z_STREAM_END) {
-            throw std::runtime_error("deflate failed");
+            throw std::runtime_error("deflate failed - invalid format?");
         }
         return result;
     }
@@ -151,7 +151,7 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
         std::vector<uint8_t> result(bound);
         size_t csize = ZSTD_compress(result.data(), bound, input.data(), input.size(), 3);
         if (ZSTD_isError(csize)) {
-            throw std::runtime_error("ZSTD_compress failed");
+            throw std::runtime_error("ZSTD_compress failed - invalid format?");
         }
         result.resize(csize);
         return result;
@@ -180,7 +180,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         int windowBits = fmt == "gzip" ? 15 + 16 : 15;
         // fallback logic for zlib: sometimes PDFs lack header, we might need windowBits = -15
         if (inflateInit2(&zs, windowBits) != Z_OK) {
-            throw std::runtime_error("inflateInit2 failed");
+            throw std::runtime_error("inflateInit2 failed - invalid format?");
         }
         zs.next_in = (Bytef*)input.data();
         zs.avail_in = input.size();
@@ -217,7 +217,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
                 }
             }
             if (result.empty()) {
-                throw std::runtime_error("inflate failed");
+                throw std::runtime_error("inflate failed - invalid format?");
             }
         }
         return result;
@@ -229,7 +229,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) throw std::runtime_error("Original size unknown");
         std::vector<uint8_t> result(rSize);
         size_t dSize = ZSTD_decompress(result.data(), rSize, input.data(), input.size());
-        if (ZSTD_isError(dSize)) throw std::runtime_error("ZSTD_decompress failed");
+        if (ZSTD_isError(dSize)) throw std::runtime_error("ZSTD_decompress failed - invalid format?");
         return result;
     }
 #endif
