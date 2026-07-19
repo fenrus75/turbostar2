@@ -13,7 +13,7 @@ public:
 	bool is_pure() const override { return false; }
 	std::string get_name() const override { return "data_compress"; }
 	std::string get_description() const override;
-	std::string get_family() const override { return "binary"; }
+	std::string get_family() const override { return "binary|hexedit"; }
 	nlohmann::json get_parameters_schema() const override;
 
 protected:
