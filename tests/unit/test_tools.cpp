@@ -13,6 +13,7 @@
 #include "../../src/event_queue.h"
 #include "../../src/git_manager.h"
 #include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 #include "tools/agent_add_todo/agent_add_todo.h"
 #include "filter_registry.h"
 
@@ -685,6 +686,21 @@ extern std::string troff2md(std::string troff_content);
 		ifs2.close();
 
 		std::filesystem::remove(target_file);
+
+		// Test tmp:// VFS scheme
+		std::string tmp_uri = "tmp://test_fs_write_tmp.txt";
+		std::string tmp_args = "{\"path\": \"" + tmp_uri + "\", \"content\": \"Temporary VFS write!\", \"append\": false}";
+		std::string tmp_res = registry.execute_tool("fs_write_file", tmp_args, ctx);
+		assert(tmp_res.find("Successfully wrote") != std::string::npos);
+
+		// Verify on-disk file in temp dir
+		std::string expected_tmp_file = fs_utils::get_project_tmp_dir() + "/test_fs_write_tmp.txt";
+		assert(std::filesystem::exists(expected_tmp_file));
+		std::ifstream ifs_tmp(expected_tmp_file);
+		std::string content_tmp((std::istreambuf_iterator<char>(ifs_tmp)), std::istreambuf_iterator<char>());
+		assert(content_tmp == "Temporary VFS write!");
+		ifs_tmp.close();
+		std::filesystem::remove(expected_tmp_file);
 
 		// Test images:// VFS path tool execution
 		images::image_manager::get_instance().initialize();

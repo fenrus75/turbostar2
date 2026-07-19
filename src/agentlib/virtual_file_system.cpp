@@ -216,6 +216,9 @@ virtual_file_system::virtual_file_system()
 	auto file_prov = std::make_shared<file_vfs_provider>();
 	register_provider("file", file_prov);
 
+	auto tmp_prov = std::make_shared<file_vfs_provider>("tmp", fs_utils::get_project_tmp_dir());
+	register_provider("tmp", tmp_prov);
+
 	auto images_prov = std::make_shared<images_vfs_provider>();
 	register_provider("images", images_prov);
 }
@@ -678,14 +681,21 @@ void github_vfs_provider::update_lru(const std::string &key) const
 
 std::string file_vfs_provider::parse_uri(const std::string &uri) const
 {
-	if (!uri.starts_with("file://")) {
+	std::string prefix = scheme_ + "://";
+	if (!uri.starts_with(prefix)) {
 		return "";
 	}
-	std::string path = uri.substr(7);
-	if (path.starts_with("localhost/")) {
+	std::string path = uri.substr(prefix.size());
+	if (scheme_ == "file" && path.starts_with("localhost/")) {
 		path = path.substr(9);
 	}
-	return path;
+
+	std::filesystem::path p(path);
+	if (p.is_relative()) {
+		std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
+		p = std::filesystem::absolute(base_dir) / p;
+	}
+	return std::filesystem::weakly_canonical(p).string();
 }
 
 bool file_vfs_provider::exists(const std::string &uri) const
@@ -749,7 +759,7 @@ std::vector<vfs_file_info> file_vfs_provider::list_directory(const std::string &
 
 	for (const auto &entry : std::filesystem::directory_iterator(path, ec)) {
 		std::string entry_path = entry.path().string();
-		std::string item_uri = "file://" + entry_path;
+		std::string item_uri = scheme_ + "://" + entry_path;
 
 		size_t size = 0;
 		char type = 'F';
@@ -772,7 +782,8 @@ std::optional<vfs_write_handle> file_vfs_provider::create_file(const std::string
 	}
 
 	std::filesystem::path target = std::filesystem::weakly_canonical(raw_path);
-	std::filesystem::path project_root = std::filesystem::canonical(fs_utils::get_project_dir());
+	std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
+	std::filesystem::path project_root = std::filesystem::canonical(base_dir);
 
 	std::string target_str = target.string();
 	std::string root_str = project_root.string();

@@ -230,7 +230,10 @@ class github_vfs_provider : public vfs_provider
 class file_vfs_provider : public vfs_provider
 {
       public:
-	file_vfs_provider() = default;
+	explicit file_vfs_provider(std::string scheme = "file", std::string root_dir = "")
+	    : scheme_(std::move(scheme)), root_dir_(std::move(root_dir))
+	{
+	}
 	~file_vfs_provider() override = default;
 
 	bool exists(const std::string &uri) const override;
@@ -240,6 +243,8 @@ class file_vfs_provider : public vfs_provider
 	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
 
       private:
+	std::string scheme_;
+	std::string root_dir_;
 	std::string parse_uri(const std::string &uri) const;
 };
 
