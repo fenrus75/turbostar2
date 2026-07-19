@@ -701,160 +701,307 @@ void window::draw_content(bool cursor_only) const
 			int char_width = 1;
 			if (utf8_char == "\t") {
 				char_width = line::global_tab_width - (start_col % line::global_tab_width);
+			} else {
+				char_width = std::max(1, static_cast<int>(utf8::display_width(utf8_char)));
 			}
 
 			int end_col = start_col + char_width;
 			current_display_col = end_col;
 
-			// Check if any part of character is within horizontal viewport
-			for (int col = start_col; col < end_col; ++col) {
-				if (col >= left_column_ && col < left_column_ + width_ - 2) {
-					int screen_x_offset = col - left_column_;
-					move(y_ + i, x_ + 1 + screen_x_offset);
+			// Check if character overlaps the viewport
+			bool overlaps_viewport = (end_col > left_column_ && start_col < left_column_ + width_ - 2);
+			if (overlaps_viewport) {
+				if (utf8_char == "\t") {
+					for (int col = start_col; col < end_col; ++col) {
+						if (col >= left_column_ && col < left_column_ + width_ - 2) {
+							int screen_x_offset = col - left_column_;
+							move(y_ + i, x_ + 1 + screen_x_offset);
 
-					bool in_block_selection = false;
-					if (has_sel) {
-						if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
-							in_block_selection = true;
-						} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
-							in_block_selection = (static_cast<int>(char_idx) >= sel_start_x &&
-									      static_cast<int>(char_idx) < sel_end_x);
-						} else if (doc_line_idx == sel_start_y) {
-							in_block_selection = (static_cast<int>(char_idx) >= sel_start_x);
-						} else if (doc_line_idx == sel_end_y) {
-							in_block_selection = (static_cast<int>(char_idx) < sel_end_x);
-						}
-					}
-
-					bool in_mouse_selection = false;
-					if (has_mouse_sel) {
-						if (doc_line_idx > mouse_start_l && doc_line_idx < mouse_end_l) {
-							in_mouse_selection = true;
-						} else if (doc_line_idx == mouse_start_l && doc_line_idx == mouse_end_l) {
-							in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c &&
-									      static_cast<int>(char_idx) < mouse_end_c);
-						} else if (doc_line_idx == mouse_start_l) {
-							in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c);
-						} else if (doc_line_idx == mouse_end_l) {
-							in_mouse_selection = (static_cast<int>(char_idx) < mouse_end_c);
-						}
-					}
-
-					bool in_selection = (in_block_selection != in_mouse_selection);
-
-					bool is_match = false;
-					if (match_pos) {
-						if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
-						    (doc_line_idx == doc_->get_cursor_y() &&
-						     static_cast<int>(char_idx) == doc_->get_cursor_x())) {
-							is_match = true;
-						}
-					}
-
-					bool is_lsp_highlight = false;
-					if (doc_) {
-						for (const auto &hl : doc_->get_lsp_highlights()) {
-							if (doc_line_idx > hl.start_y && doc_line_idx < hl.end_y) {
-								is_lsp_highlight = true;
-								break;
-							} else if (doc_line_idx == hl.start_y && doc_line_idx == hl.end_y) {
-								if (static_cast<int>(char_idx) >= hl.start_x &&
-								    static_cast<int>(char_idx) < hl.end_x) {
-									is_lsp_highlight = true;
-									break;
+							bool in_block_selection = false;
+							if (has_sel) {
+								if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
+									in_block_selection = true;
+								} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
+									in_block_selection = (static_cast<int>(char_idx) >= sel_start_x &&
+											      static_cast<int>(char_idx) < sel_end_x);
+								} else if (doc_line_idx == sel_start_y) {
+									in_block_selection = (static_cast<int>(char_idx) >= sel_start_x);
+								} else if (doc_line_idx == sel_end_y) {
+									in_block_selection = (static_cast<int>(char_idx) < sel_end_x);
 								}
-							} else if (doc_line_idx == hl.start_y) {
-								if (static_cast<int>(char_idx) >= hl.start_x) {
-									is_lsp_highlight = true;
-									break;
+							}
+
+							bool in_mouse_selection = false;
+							if (has_mouse_sel) {
+								if (doc_line_idx > mouse_start_l && doc_line_idx < mouse_end_l) {
+									in_mouse_selection = true;
+								} else if (doc_line_idx == mouse_start_l && doc_line_idx == mouse_end_l) {
+									in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c &&
+											      static_cast<int>(char_idx) < mouse_end_c);
+								} else if (doc_line_idx == mouse_start_l) {
+									in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c);
+								} else if (doc_line_idx == mouse_end_l) {
+									in_mouse_selection = (static_cast<int>(char_idx) < mouse_end_c);
 								}
-							} else if (doc_line_idx == hl.end_y) {
-								if (static_cast<int>(char_idx) < hl.end_x) {
+							}
+
+							bool in_selection = (in_block_selection != in_mouse_selection);
+
+							bool is_match = false;
+							if (match_pos) {
+								if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
+								    (doc_line_idx == doc_->get_cursor_y() &&
+								     static_cast<int>(char_idx) == doc_->get_cursor_x())) {
+									is_match = true;
+								}
+							}
+
+							bool is_lsp_highlight = false;
+							if (doc_) {
+								for (const auto &hl : doc_->get_lsp_highlights()) {
+									if (doc_line_idx > hl.start_y && doc_line_idx < hl.end_y) {
+										is_lsp_highlight = true;
+										break;
+									} else if (doc_line_idx == hl.start_y && doc_line_idx == hl.end_y) {
+										if (static_cast<int>(char_idx) >= hl.start_x &&
+										    static_cast<int>(char_idx) < hl.end_x) {
+											is_lsp_highlight = true;
+											break;
+										}
+									} else if (doc_line_idx == hl.start_y) {
+										if (static_cast<int>(char_idx) >= hl.start_x) {
+											is_lsp_highlight = true;
+											break;
+										}
+									} else if (doc_line_idx == hl.end_y) {
+										if (static_cast<int>(char_idx) < hl.end_x) {
+											is_lsp_highlight = true;
+											break;
+										}
+									}
+								}
+							}
+
+							int diagnostic_severity = 0;
+							if (doc_) {
+								for (const auto &diag : doc_->get_lsp_diagnostics()) {
+									if (doc_line_idx > diag.range.start_y && doc_line_idx < diag.range.end_y) {
+										diagnostic_severity = diag.severity;
+										break;
+									} else if (doc_line_idx == diag.range.start_y && doc_line_idx == diag.range.end_y) {
+										if (static_cast<int>(char_idx) >= diag.range.start_x &&
+										    static_cast<int>(char_idx) < diag.range.end_x) {
+											diagnostic_severity = diag.severity;
+											break;
+										}
+									} else if (doc_line_idx == diag.range.start_y) {
+										if (static_cast<int>(char_idx) >= diag.range.start_x) {
+											diagnostic_severity = diag.severity;
+											break;
+										}
+									} else if (doc_line_idx == diag.range.end_y) {
+										if (static_cast<int>(char_idx) < diag.range.end_x) {
+											diagnostic_severity = diag.severity;
+											break;
+										}
+									}
+								}
+							}
+
+							syntax_attribute attr = syntax_attribute::normal;
+							if (char_idx < line_attrs.size()) {
+								attr = line_attrs[char_idx];
+							}
+							int pair = line_bg_pair;
+							if (is_match) {
+								pair = 13; // Bright Yellow on Cyan
+							} else if (in_selection) {
+								pair = 8;
+								if (attr == syntax_attribute::keyword)
+									pair = 13;
+							} else {
+								if (doc_ && has_build_err) {
+									auto build_err =
+									    build_error_manager::get_instance().find_error_at(filename, doc_line_idx);
+									if (build_err) {
+										if (build_err->end_column == 0 ||
+										    (static_cast<int>(char_idx) >= build_err->column &&
+										     static_cast<int>(char_idx) < build_err->end_column)) {
+											pair = build_err->is_warning ? 28 : 27;
+										}
+									}
+								} else if (doc_ && has_code_review) {
+									bool is_warn = (line_review.severity == "nit" || line_review.severity == "low");
+									pair = is_warn ? 28 : 27;
+								}
+							}
+
+							if (pair == line_bg_pair && line_bg_pair == background_color_pair_) {
+								if (diagnostic_severity == 1) {
+									pair = 27;
+								} else if (diagnostic_severity == 2) {
+									pair = 28;
+								} else if (is_lsp_highlight) {
+									pair = 25;
+									if (attr == syntax_attribute::keyword)
+										pair = 26;
+								} else {
+									pair = syntax_color_manager::get_instance().get_color_pair(attr);
+								}
+							}
+
+							if (pair != last_attr_pair) {
+								attrset(COLOR_PAIR(pair));
+								last_attr_pair = pair;
+							}
+
+							addch(' ');
+						}
+					}
+				} else {
+					int print_col = start_col;
+					if (print_col >= left_column_ && print_col < left_column_ + width_ - 2) {
+						int screen_x_offset = print_col - left_column_;
+						move(y_ + i, x_ + 1 + screen_x_offset);
+
+						bool in_block_selection = false;
+						if (has_sel) {
+							if (doc_line_idx > sel_start_y && doc_line_idx < sel_end_y) {
+								in_block_selection = true;
+							} else if (doc_line_idx == sel_start_y && doc_line_idx == sel_end_y) {
+								in_block_selection = (static_cast<int>(char_idx) >= sel_start_x &&
+										      static_cast<int>(char_idx) < sel_end_x);
+							} else if (doc_line_idx == sel_start_y) {
+								in_block_selection = (static_cast<int>(char_idx) >= sel_start_x);
+							} else if (doc_line_idx == sel_end_y) {
+								in_block_selection = (static_cast<int>(char_idx) < sel_end_x);
+							}
+						}
+
+						bool in_mouse_selection = false;
+						if (has_mouse_sel) {
+							if (doc_line_idx > mouse_start_l && doc_line_idx < mouse_end_l) {
+								in_mouse_selection = true;
+							} else if (doc_line_idx == mouse_start_l && doc_line_idx == mouse_end_l) {
+								in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c &&
+										      static_cast<int>(char_idx) < mouse_end_c);
+							} else if (doc_line_idx == mouse_start_l) {
+								in_mouse_selection = (static_cast<int>(char_idx) >= mouse_start_c);
+							} else if (doc_line_idx == mouse_end_l) {
+								in_mouse_selection = (static_cast<int>(char_idx) < mouse_end_c);
+							}
+						}
+
+						bool in_selection = (in_block_selection != in_mouse_selection);
+
+						bool is_match = false;
+						if (match_pos) {
+							if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
+							    (doc_line_idx == doc_->get_cursor_y() &&
+							     static_cast<int>(char_idx) == doc_->get_cursor_x())) {
+								is_match = true;
+							}
+						}
+
+						bool is_lsp_highlight = false;
+						if (doc_) {
+							for (const auto &hl : doc_->get_lsp_highlights()) {
+								if (doc_line_idx > hl.start_y && doc_line_idx < hl.end_y) {
 									is_lsp_highlight = true;
 									break;
+								} else if (doc_line_idx == hl.start_y && doc_line_idx == hl.end_y) {
+									if (static_cast<int>(char_idx) >= hl.start_x &&
+									    static_cast<int>(char_idx) < hl.end_x) {
+										is_lsp_highlight = true;
+										break;
+									}
+								} else if (doc_line_idx == hl.start_y) {
+									if (static_cast<int>(char_idx) >= hl.start_x) {
+										is_lsp_highlight = true;
+										break;
+									}
+								} else if (doc_line_idx == hl.end_y) {
+									if (static_cast<int>(char_idx) < hl.end_x) {
+										is_lsp_highlight = true;
+										break;
+									}
 								}
 							}
 						}
-					}
 
-					int diagnostic_severity = 0;
-					if (doc_) {
-						for (const auto &diag : doc_->get_lsp_diagnostics()) {
-							if (doc_line_idx > diag.range.start_y && doc_line_idx < diag.range.end_y) {
-								diagnostic_severity = diag.severity;
-								break;
-							} else if (doc_line_idx == diag.range.start_y && doc_line_idx == diag.range.end_y) {
-								if (static_cast<int>(char_idx) >= diag.range.start_x &&
-								    static_cast<int>(char_idx) < diag.range.end_x) {
+						int diagnostic_severity = 0;
+						if (doc_) {
+							for (const auto &diag : doc_->get_lsp_diagnostics()) {
+								if (doc_line_idx > diag.range.start_y && doc_line_idx < diag.range.end_y) {
 									diagnostic_severity = diag.severity;
 									break;
-								}
-							} else if (doc_line_idx == diag.range.start_y) {
-								if (static_cast<int>(char_idx) >= diag.range.start_x) {
-									diagnostic_severity = diag.severity;
-									break;
-								}
-							} else if (doc_line_idx == diag.range.end_y) {
-								if (static_cast<int>(char_idx) < diag.range.end_x) {
-									diagnostic_severity = diag.severity;
-									break;
+								} else if (doc_line_idx == diag.range.start_y && doc_line_idx == diag.range.end_y) {
+									if (static_cast<int>(char_idx) >= diag.range.start_x &&
+									    static_cast<int>(char_idx) < diag.range.end_x) {
+										diagnostic_severity = diag.severity;
+										break;
+									}
+								} else if (doc_line_idx == diag.range.start_y) {
+									if (static_cast<int>(char_idx) >= diag.range.start_x) {
+										diagnostic_severity = diag.severity;
+										break;
+									}
+								} else if (doc_line_idx == diag.range.end_y) {
+									if (static_cast<int>(char_idx) < diag.range.end_x) {
+										diagnostic_severity = diag.severity;
+										break;
+									}
 								}
 							}
 						}
-					}
 
-					syntax_attribute attr = syntax_attribute::normal;
-					if (char_idx < line_attrs.size()) {
-						attr = line_attrs[char_idx];
-					}
-					int pair = line_bg_pair;
-					if (is_match) {
-						pair = 13; // Bright Yellow on Cyan
-					} else if (in_selection) {
-						pair = 8;
-						if (attr == syntax_attribute::keyword)
-							pair = 13;
-					} else {
-						// Build error/warning might be active for this line as a sub-line highlight.
-						if (doc_ && has_build_err) {
-							auto build_err =
-							    build_error_manager::get_instance().find_error_at(filename, doc_line_idx);
-							if (build_err) {
-								if (build_err->end_column == 0 ||
-								    (static_cast<int>(char_idx) >= build_err->column &&
-								     static_cast<int>(char_idx) < build_err->end_column)) {
-									pair = build_err->is_warning ? 28 : 27;
-								}
-							}
-						} else if (doc_ && has_code_review) {
-							bool is_warn = (line_review.severity == "nit" || line_review.severity == "low");
-							pair = is_warn ? 28 : 27;
+						syntax_attribute attr = syntax_attribute::normal;
+						if (char_idx < line_attrs.size()) {
+							attr = line_attrs[char_idx];
 						}
-					}
-
-					// If no build error override happened, fallback to standard diagnostics/highlights
-					if (pair == line_bg_pair && line_bg_pair == background_color_pair_) {
-						if (diagnostic_severity == 1) {	       // Error
-							pair = 27;		       // White on Red
-						} else if (diagnostic_severity == 2) { // Warning
-							pair = 28;		       // Black on Yellow
-						} else if (is_lsp_highlight) {
-							pair = 25; // Normal on Magenta
+						int pair = line_bg_pair;
+						if (is_match) {
+							pair = 13; // Bright Yellow on Cyan
+						} else if (in_selection) {
+							pair = 8;
 							if (attr == syntax_attribute::keyword)
-								pair = 26; // Keyword on Magenta
+								pair = 13;
 						} else {
-							pair = syntax_color_manager::get_instance().get_color_pair(attr);
+							if (doc_ && has_build_err) {
+								auto build_err =
+								    build_error_manager::get_instance().find_error_at(filename, doc_line_idx);
+								if (build_err) {
+									if (build_err->end_column == 0 ||
+									    (static_cast<int>(char_idx) >= build_err->column &&
+									     static_cast<int>(char_idx) < build_err->end_column)) {
+										pair = build_err->is_warning ? 28 : 27;
+									}
+								}
+							} else if (doc_ && has_code_review) {
+								bool is_warn = (line_review.severity == "nit" || line_review.severity == "low");
+								pair = is_warn ? 28 : 27;
+							}
 						}
-					}
 
-					if (pair != last_attr_pair) {
-						attrset(COLOR_PAIR(pair));
-						last_attr_pair = pair;
-					}
+						if (pair == line_bg_pair && line_bg_pair == background_color_pair_) {
+							if (diagnostic_severity == 1) {
+								pair = 27;
+							} else if (diagnostic_severity == 2) {
+								pair = 28;
+							} else if (is_lsp_highlight) {
+								pair = 25;
+								if (attr == syntax_attribute::keyword)
+									pair = 26;
+							} else {
+								pair = syntax_color_manager::get_instance().get_color_pair(attr);
+							}
+						}
 
-					if (utf8_char == "\t") {
-						addch(' ');
-					} else {
+						if (pair != last_attr_pair) {
+							attrset(COLOR_PAIR(pair));
+							last_attr_pair = pair;
+						}
+
 						addstr(utf8_char.c_str());
 					}
 				}

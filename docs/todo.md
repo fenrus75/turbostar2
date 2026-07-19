@@ -12,8 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- the utf8 wide-character fix we did to the agentlib window also needs to be done to the normal editor window -- it has the same bug!
-
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -248,6 +246,7 @@
 # done items (move items here on completion)
 
 ## 18-07-2026
+- Editor window wide-character rendering fix: Fixed wide UTF-8 character cursor positioning and rendering in `src/ui/window.cpp` and `src/line.cpp`. Updated `char_to_display_col` in `src/line.cpp` to correctly resolve multi-byte character columns via `utf8::display_width` instead of hardcoding 1 column. Refactored the window line rendering loops in `src/ui/window.cpp` to map character layout widths dynamically, printing regular wide characters once at their display starting cells to eliminate overlapping duplicate rendering bugs. Corrected display assertions in `tests/unit/test_line.cpp`.
 - Markdown inline formatting rendering in agent window: Implemented a robust state-machine parser in `wrap_text` to parse inline Markdown delimiters (`**`, `__`, `*`, `_`, `` ` ``). Consumed formatting tags into logical style attributes (`ATTR_BOLD` / `ATTR_UNDERLINE`) bound to individual characters, avoiding raw delimiter character count overhead in visual wrapping width calculations. Modified `agent_window` character drawing to map logical layout formatting onto ncurses attribute layers (`A_BOLD`, `A_UNDERLINE`). Retained original delimiter rendering intact inside fenced code blocks and inline code statements.
 
 ## 17-07-2026

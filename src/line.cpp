@@ -171,8 +171,13 @@ int line::char_to_display_col(int char_pos) const
 	size_t byte_offset = 0;
 
 	while (current_char < char_pos && byte_offset < text_.length()) {
-		unsigned char c = byte_at(static_cast<int>(byte_offset));
+		unsigned char c = byte_at_unlocked(static_cast<int>(byte_offset));
 		size_t char_bytes = utf8::char_len(c);
+		if (byte_offset + char_bytes > text_.length()) {
+			char_bytes = text_.length() - byte_offset;
+		}
+
+		std::string_view glyph(text_.data() + byte_offset, char_bytes);
 
 		if (c < 0x80) {
 			if (c == '\t') {
@@ -181,7 +186,7 @@ int line::char_to_display_col(int char_pos) const
 				col += 1;
 			}
 		} else {
-			col += 1; // Multi-byte characters display as 1 cell wide for now
+			col += static_cast<int>(utf8::display_width(glyph));
 		}
 
 		byte_offset += char_bytes;
