@@ -197,21 +197,18 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			}
 		} else {
 			bool is_bold = false;
-			bool is_italic = false;
 			bool is_inline_code = false;
 
 			size_t byte_idx = 0;
 			while (byte_idx < line_str.length()) {
-				if (!is_inline_code && byte_idx + 1 < line_str.length() &&
-				    (line_str.substr(byte_idx, 2) == "**" || line_str.substr(byte_idx, 2) == "__")) {
-					is_bold = !is_bold;
-					byte_idx += 2;
-					continue;
+				if (line_str[byte_idx] == '|' && (byte_idx == 0 || line_str[byte_idx - 1] != '\\')) {
+					is_bold = false;
+					is_inline_code = false;
 				}
 
-				if (!is_inline_code && (line_str[byte_idx] == '*' || line_str[byte_idx] == '_')) {
-					is_italic = !is_italic;
-					byte_idx += 1;
+				if (!is_inline_code && byte_idx + 1 < line_str.length() && line_str.substr(byte_idx, 2) == "**") {
+					is_bold = !is_bold;
+					byte_idx += 2;
 					continue;
 				}
 
@@ -232,7 +229,6 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 				rc.color_pair = is_inline_code ? code_color : color_pair;
 				rc.attr = 0;
 				if (is_bold) rc.attr |= ATTR_BOLD;
-				if (is_italic) rc.attr |= ATTR_UNDERLINE;
 
 				line_glyphs.push_back(rc);
 				byte_idx += char_bytes;

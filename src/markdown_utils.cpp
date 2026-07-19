@@ -104,13 +104,8 @@ static size_t formatted_display_width(const std::string &s)
 
 	size_t i = 0;
 	while (i < s.length()) {
-		if (!is_inline_code && i + 1 < s.length() &&
-		    (s.substr(i, 2) == "**" || s.substr(i, 2) == "__")) {
+		if (!is_inline_code && i + 1 < s.length() && s.substr(i, 2) == "**") {
 			i += 2;
-			continue;
-		}
-		if (!is_inline_code && (s[i] == '*' || s[i] == '_')) {
-			i += 1;
 			continue;
 		}
 		if (s[i] == '`') {
