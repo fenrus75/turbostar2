@@ -41,6 +41,7 @@ core_sources = files(
   'hex/jpeg.cpp',
   'hex/zip.cpp',
   'hex/pdf.cpp',
+  'hex/tar.cpp',
   'hex/hex_highlighter_registry.cpp',
   'history_manager.cpp',
   'input_history_manager.cpp',

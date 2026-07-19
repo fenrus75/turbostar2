@@ -123,6 +123,58 @@ int main()
 		ctx.fs_security.set_vfs(nullptr);
 	}
 
+	// 7. Test TAR file inspection and offset_by_name symbol resolution
+	{
+		std::string tar_path = "tests/unit/mock_tar_hexinspect.tar";
+		std::string full_tar_path = project_root + "/" + tar_path;
+
+		// Create mock tar bytes
+		std::vector<uint8_t> tar_bytes(512 * 3, 0);
+		std::strcpy(reinterpret_cast<char*>(tar_bytes.data()), "test_file.txt");
+		std::strcpy(reinterpret_cast<char*>(tar_bytes.data() + 124), "00000000013");
+		std::memcpy(tar_bytes.data() + 257, "ustar", 5);
+		std::memcpy(tar_bytes.data() + 512, "Hello Tar!\n", 11);
+
+		std::ofstream ofs_tar(full_tar_path, std::ios::binary);
+		assert(ofs_tar.is_open());
+		ofs_tar.write(reinterpret_cast<const char *>(tar_bytes.data()), tar_bytes.size());
+		ofs_tar.close();
+
+		// Inspect TAR Header
+		{
+			std::string args = "{\"path\": \"" + tar_path + "\", \"start_offset\": 0, \"size\": 16}";
+			std::string res = registry.execute_tool("hexinspect", args, ctx);
+			assert(res.find("TAR Header: test_file.txt") != std::string::npos);
+		}
+
+		// Inspect TAR data offset resolved by name
+		{
+			std::string args = "{\"path\": \"" + tar_path + "\", \"offset_by_name\": \"test_file.txt\", \"size\": 16}";
+			std::string res = registry.execute_tool("hexinspect", args, ctx);
+			assert(res.find("TAR File Data: test_file.txt") != std::string::npos);
+		}
+
+		std::filesystem::remove(full_tar_path);
+	}
+
+	// 8. Test real TAR file inspection and offset_by_name symbol resolution using tests/testtar.tar
+	{
+		std::string tar_path = "tests/testtar.tar";
+		// Inspect real TAR header
+		{
+			std::string args = "{\"path\": \"" + tar_path + "\", \"start_offset\": 0, \"size\": 16}";
+			std::string res = registry.execute_tool("hexinspect", args, ctx);
+			assert(res.find("TAR Header: src/main.cpp") != std::string::npos);
+		}
+
+		// Inspect real TAR data offset resolved by name
+		{
+			std::string args = "{\"path\": \"" + tar_path + "\", \"offset_by_name\": \"src/main.cpp\", \"size\": 16}";
+			std::string res = registry.execute_tool("hexinspect", args, ctx);
+			assert(res.find("TAR File Data: src/main.cpp") != std::string::npos);
+		}
+	}
+
 	// Clean up mock file
 	std::filesystem::remove(full_elf_path);
 

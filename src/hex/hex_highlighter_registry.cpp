@@ -4,6 +4,7 @@
 #include "hex/jpeg.h"
 #include "hex/zip.h"
 #include "hex/pdf.h"
+#include "hex/tar.h"
 
 hex_highlighter_registry &hex_highlighter_registry::get_instance()
 {
@@ -23,6 +24,8 @@ hex_highlighter_registry::hex_highlighter_registry()
 	highlighters_.push_back(std::make_shared<zip_hex_highlighter>());
 	// Register PDF highlighter
 	highlighters_.push_back(std::make_shared<pdf_hex_highlighter>());
+	// Register TAR highlighter
+	highlighters_.push_back(std::make_shared<tar_hex_highlighter>());
 }
 
 std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(const std::vector<uint8_t> &data) const
