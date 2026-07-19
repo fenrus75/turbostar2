@@ -46,6 +46,11 @@ bool next_character(std::string_view s, size_t &byte_offset, std::string &out_ch
 std::string sanitize(std::string_view s);
 
 /**
+ * @brief Returns true if s is a valid UTF-8 string, containing no null bytes or invalid UTF-8 sequences.
+ */
+bool is_valid_utf8(std::string_view s);
+
+/**
  * @brief Returns a trimmed copy of the string (removing leading and trailing whitespace).
  */
 std::string trim(std::string_view s);

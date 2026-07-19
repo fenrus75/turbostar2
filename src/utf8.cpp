@@ -159,6 +159,36 @@ std::string sanitize(std::string_view s)
 	return res;
 }
 
+bool is_valid_utf8(std::string_view s)
+{
+	size_t i = 0;
+	while (i < s.length()) {
+		unsigned char c = static_cast<unsigned char>(s[i]);
+		if (c == 0) {
+			return false; // Null bytes are not treated as plain text
+		}
+		if (c < 0x80) {
+			i++;
+			continue;
+		}
+		size_t len = char_len(c);
+		if (len == 1) {
+			return false; // Invalid lead byte
+		}
+		if (i + len > s.length()) {
+			return false; // Truncated UTF-8 character
+		}
+		for (size_t j = 1; j < len; ++j) {
+			unsigned char next_c = static_cast<unsigned char>(s[i + j]);
+			if ((next_c & 0xC0) != 0x80) {
+				return false; // Invalid continuation byte
+			}
+		}
+		i += len;
+	}
+	return true;
+}
+
 std::string trim(std::string_view s)
 {
 	auto first = s.find_first_not_of(" \t\r\n");
