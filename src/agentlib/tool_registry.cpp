@@ -6,6 +6,21 @@
 namespace agentlib
 {
 
+namespace
+{
+static std::vector<std::string> split_families(const std::string &s)
+{
+	std::vector<std::string> res;
+	size_t start = 0, end;
+	while ((end = s.find('|', start)) != std::string::npos) {
+		res.push_back(s.substr(start, end - start));
+		start = end + 1;
+	}
+	res.push_back(s.substr(start));
+	return res;
+}
+} // namespace
+
 tool_registry::tool_registry()
 {
 	register_tool_family(
@@ -198,9 +213,11 @@ std::vector<std::string> tool_registry::get_all_registered_families() const
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (validator) {
-			std::string family = validator->get_family();
-			if (std::find(families.begin(), families.end(), family) == families.end()) {
-				families.push_back(family);
+			std::string family_str = validator->get_family();
+			for (const auto &fam : split_families(family_str)) {
+				if (std::find(families.begin(), families.end(), fam) == families.end()) {
+					families.push_back(fam);
+				}
 			}
 		}
 	}
@@ -236,12 +253,18 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	// Create a transient validator instance for this execution to ensure thread-safe state!
 	auto validator = factory();
 
-	std::string family = validator->get_family();
-	if (ctx.is_family_active && !ctx.is_family_active(family)) {
-		res.error_message = "Security Violation: Tool family '" + family +
+	std::string family_str = validator->get_family();
+	bool any_active = false;
+	for (const auto &fam : split_families(family_str)) {
+		if (!ctx.is_family_active || ctx.is_family_active(fam)) {
+			any_active = true;
+			break;
+		}
+	}
+	if (!any_active) {
+		res.error_message = "Security Violation: Tool family '" + family_str +
 				    "' is not active. "
-				    "You must call activate_tool_family(\"" +
-				    family + "\") first to use this tool.";
+				    "You must call activate_tool_family() first to use this tool.";
 		return res;
 	}
 

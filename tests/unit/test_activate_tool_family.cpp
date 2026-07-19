@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
@@ -25,6 +26,37 @@ class test_tool_validator : public tool_validator
 	std::string get_family() const override
 	{
 		return "my_test_family";
+	}
+	nlohmann::json get_parameters_schema() const override
+	{
+		return {{"type", "object"}};
+	}
+
+      protected:
+	bool validate_args_impl(const nlohmann::json &, const tool_context &, std::string &) const override
+	{
+		return true;
+	}
+	std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json &) const override
+	{
+		return nullptr;
+	}
+};
+
+class multi_test_tool_validator : public tool_validator
+{
+      public:
+	std::string get_name() const override
+	{
+		return "test_tool_multi";
+	}
+	std::string get_description() const override
+	{
+		return "multi-family test tool description";
+	}
+	std::string get_family() const override
+	{
+		return "familyA|familyB";
 	}
 	nlohmann::json get_parameters_schema() const override
 	{
@@ -107,6 +139,43 @@ int main()
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("not found") != std::string::npos);
+
+	// 3E. Test multi-family tool validation
+	registry.register_validator([]() { return std::make_unique<multi_test_tool_validator>(); });
+
+	// Assert get_all_registered_families returns both familyA and familyB
+	{
+		auto all_fams = registry.get_all_registered_families();
+		assert(std::find(all_fams.begin(), all_fams.end(), "familyA") != all_fams.end());
+		assert(std::find(all_fams.begin(), all_fams.end(), "familyB") != all_fams.end());
+	}
+
+	// Test case: neither family active -> prep fails
+	{
+		std::set<std::string> active_fams_test;
+		ctx.is_family_active = [&](const std::string &fam) {
+			return active_fams_test.contains(fam);
+		};
+		ctx.properties.active_families.push_back("familyA");
+		ctx.properties.active_families.push_back("familyB");
+
+		prep = registry.prepare_tool("test_tool_multi", "{}", ctx);
+		assert(prep.tool == nullptr && "Should fail if neither family is active");
+		assert(prep.error_message.find("Security Violation: Tool family 'familyA|familyB' is not active") != std::string::npos);
+
+		// Test case: familyA active -> prep succeeds (proceeds to instantiate tool)
+		active_fams_test.insert("familyA");
+		prep = registry.prepare_tool("test_tool_multi", "{}", ctx);
+		assert(prep.error_message.find("Failed to instantiate tool") != std::string::npos);
+
+		// Test case: only familyB active -> prep succeeds (proceeds to instantiate tool)
+		active_fams_test.clear();
+		active_fams_test.insert("familyB");
+		prep = registry.prepare_tool("test_tool_multi", "{}", ctx);
+		assert(prep.error_message.find("Failed to instantiate tool") != std::string::npos);
+	}
+
+	registry.unregister_validator("test_tool_multi");
 
 	// 4. Test active tool family and skill persistence
 	{
