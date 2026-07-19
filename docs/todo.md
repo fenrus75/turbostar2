@@ -176,6 +176,12 @@
 
 - Feature: Implement Input Coalescing and Refresh Throttling in the main editor loop (described in docs/refresh-throttling-proposal.md) to reduce terminal redraw overhead and input latency under fast repeat keys or paste streams.
 
+- PDF Stream Extractor Helper (`pdf_extract_stream`):
+  - *The Idea*: Add a higher-level tool or option that locates a PDF object by its ID (e.g. `1 0 obj`), parses the PDF XREF table, extracts its `/Length`, `/Filter`, and stream offsets, and automatically decompresses it, rather than requiring manual hexdump offset checks.
+
+- Support for Common PDF Filters:
+  - *The Idea*: Expand `data_decompress` to support PDF filters like `/LZWDecode`, `/ASCII85Decode`, and `/RunLengthDecode` to make it a complete PDF stream analyzer.
+
 
 # mid term items
 
