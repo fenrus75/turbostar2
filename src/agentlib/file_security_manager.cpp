@@ -124,8 +124,14 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 
 	if (requested_path.find("://") != std::string::npos) {
 		if (requested_perm == access_type::write) {
-			out_error = "Virtual files are read-only.";
-			return false;
+			size_t scheme_pos = requested_path.find("://");
+			std::string scheme = requested_path.substr(0, scheme_pos);
+			if (scheme != "images" && scheme != "file") {
+				out_error = "Virtual scheme \"" + scheme + "\" is read-only.";
+				return false;
+			}
+			out_resolved_path = requested_path;
+			return true;
 		}
 		if (vfs_ && (vfs_->exists(requested_path) || !vfs_->list_directory(requested_path).empty())) {
 			out_resolved_path = requested_path;

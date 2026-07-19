@@ -43,6 +43,49 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 	auto custom_interaction = std::dynamic_pointer_cast<agentlib::interaction_action>(interaction_);
 
 	try {
+		bool is_vfs = args_.safe_path.find("://") != std::string::npos;
+		if (is_vfs) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (!vfs) {
+				if (custom_interaction)
+					custom_interaction->set_status(agentlib::interaction_action::status::failure,
+								       "Error: VFS is not initialized in security context.");
+				if (ctx.trigger_ui_update)
+					ctx.trigger_ui_update();
+				return "Error: VFS is not initialized in security context.";
+			}
+
+			std::string final_content = args_.content;
+			if (args_.append) {
+				auto reader_opt = vfs->read_file(args_.safe_path);
+				std::string existing;
+				if (reader_opt.has_value()) {
+					existing = std::string((*reader_opt)->view());
+				}
+				if (!existing.empty() && existing.back() != '\n') {
+					existing += "\n";
+				}
+				final_content = existing + args_.content;
+			}
+
+			std::string desc = vfs->write_file(args_.safe_path, final_content.data(), final_content.size());
+			if (desc.empty()) {
+				if (custom_interaction)
+					custom_interaction->set_status(agentlib::interaction_action::status::failure,
+								       "Error writing to VFS path.");
+				if (ctx.trigger_ui_update)
+					ctx.trigger_ui_update();
+				return "Error writing to VFS path: " + args_.path;
+			}
+
+			if (custom_interaction)
+				custom_interaction->set_status(agentlib::interaction_action::status::success);
+			if (ctx.trigger_ui_update)
+				ctx.trigger_ui_update();
+
+			return desc;
+		}
+
 		bool file_exists = std::filesystem::exists(args_.safe_path);
 		bool inject_newline = false;
 

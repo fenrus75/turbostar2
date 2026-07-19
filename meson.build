@@ -289,7 +289,9 @@ test_tools = executable('test_tools',
    'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
    'src/tools/fs_read_lines/fs_read_lines_security.cpp',
    'src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
-   'src/tools/fs_read_symbol/fs_read_symbol_security.cpp'],
+   'src/tools/fs_read_symbol/fs_read_symbol_security.cpp',
+   'src/tools/fs_write_file/fs_write_file_entry.cpp',
+   'src/tools/fs_write_file/fs_write_file_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_tools', test_tools, suite: 'agent')

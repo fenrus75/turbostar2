@@ -7,6 +7,8 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/compaction_engine.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/virtual_file_system.h"
+#include "../../src/images/image_manager.h"
 #include "../../src/config_manager.h"
 #include "../../src/event_queue.h"
 #include "../../src/git_manager.h"
@@ -648,6 +650,55 @@ extern std::string troff2md(std::string troff_content);
 			assert(result_troff.find("font bold") != std::string::npos);
 			assert(result_troff.find("**font bold**") == std::string::npos);
 		}
+	}
+
+	std::cout << "\nTesting fs_write_file VFS integration..." << std::endl;
+	{
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::string target_file = proj_root + "/test_fs_write_vfs.txt";
+		std::string target_uri = "file://" + target_file;
+
+		// Initialize virtual file system and attach to security manager
+		virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
+		// Write via tool execution
+		std::string args = "{\"path\": \"" + target_uri + "\", \"content\": \"VFS tool write!\", \"append\": false}";
+		std::string res = registry.execute_tool("fs_write_file", args, ctx);
+		assert(res.find("Successfully wrote") != std::string::npos);
+
+		// Verify on-disk file was created
+		assert(std::filesystem::exists(target_file));
+		std::ifstream ifs(target_file);
+		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(content == "VFS tool write!");
+		ifs.close();
+
+		// Append via tool execution
+		std::string append_args = "{\"path\": \"" + target_uri + "\", \"content\": \"Appended.\", \"append\": true}";
+		std::string append_res = registry.execute_tool("fs_write_file", append_args, ctx);
+		assert(append_res.find("Successfully wrote") != std::string::npos);
+
+		std::ifstream ifs2(target_file);
+		std::string content2((std::istreambuf_iterator<char>(ifs2)), std::istreambuf_iterator<char>());
+		assert(content2 == "VFS tool write!\nAppended.");
+		ifs2.close();
+
+		std::filesystem::remove(target_file);
+
+		// Test images:// VFS path tool execution
+		images::image_manager::get_instance().initialize();
+		std::string dummy_img_content = "VFS image mock text content";
+
+		std::string image_uri = "images://by-name/tool-test-image.png";
+		std::string img_args = "{\"path\": \"" + image_uri + "\", \"content\": \"" + dummy_img_content + "\", \"append\": false}";
+		std::string img_res = registry.execute_tool("fs_write_file", img_args, ctx);
+		assert(img_res.find("Successfully decompressed and ingested image") != std::string::npos);
+		assert(vfs.exists(image_uri));
+
+		// Cleanup
+		images::image_manager::get_instance().delete_image(image_uri);
+		ctx.fs_security.set_vfs(nullptr);
 	}
 
 	std::cout << "\nAll test tools verified!" << std::endl;
