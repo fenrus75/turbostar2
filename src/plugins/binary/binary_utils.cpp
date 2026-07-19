@@ -162,6 +162,202 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
     throw std::runtime_error("Unsupported or unavailable compression format: " + format);
 }
 
+static std::vector<uint8_t> ascii85_decode(const std::vector<uint8_t>& input) {
+	std::vector<uint8_t> output;
+	size_t start = (input.size() >= 2 && input[0] == '<' && input[1] == '~') ? 2 : 0;
+	size_t end = (input.size() >= 2 && input[input.size() - 2] == '~' && input[input.size() - 1] == '>') ? input.size() - 2 : input.size();
+
+	std::vector<uint8_t> clean;
+	clean.reserve(end - start);
+	for (size_t i = start; i < end; ++i) {
+		uint8_t c = input[i];
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\0') {
+			continue;
+		}
+		clean.push_back(c);
+	}
+
+	size_t i = 0;
+	while (i < clean.size()) {
+		if (clean[i] == 'z') {
+			output.insert(output.end(), 4, 0);
+			i++;
+			continue;
+		}
+		uint8_t block[5] = {84, 84, 84, 84, 84}; // pad with 'u' (value 84)
+		size_t count = 0;
+		while (count < 5 && i < clean.size()) {
+			uint8_t c = clean[i++];
+			if (c >= 33 && c <= 117) {
+				block[count++] = c - 33;
+			} else if (c == 'z') {
+				throw std::runtime_error("ASCII85Decode: 'z' found inside a block");
+			} else {
+				throw std::runtime_error("ASCII85Decode: invalid character in stream");
+			}
+		}
+		if (count == 0) {
+			break;
+		}
+		if (count == 1) {
+			throw std::runtime_error("ASCII85Decode: invalid block size of 1");
+		}
+
+		uint64_t sum = 0;
+		for (size_t p = 0; p < 5; ++p) {
+			sum = sum * 85 + block[p];
+		}
+		if (sum > 0xFFFFFFFF) {
+			throw std::runtime_error("ASCII85Decode: block value overflow");
+		}
+
+		uint32_t val = static_cast<uint32_t>(sum);
+		uint8_t bytes[4] = {
+			static_cast<uint8_t>((val >> 24) & 0xFF),
+			static_cast<uint8_t>((val >> 16) & 0xFF),
+			static_cast<uint8_t>((val >> 8) & 0xFF),
+			static_cast<uint8_t>(val & 0xFF)
+		};
+		output.insert(output.end(), bytes, bytes + ((count == 5) ? 4 : count - 1));
+	}
+	return output;
+}
+
+static std::vector<uint8_t> run_length_decode(const std::vector<uint8_t>& input) {
+	std::vector<uint8_t> output;
+	size_t i = 0;
+	while (i < input.size()) {
+		uint8_t header = input[i++];
+		if (header == 128) {
+			break;
+		} else if (header < 128) {
+			size_t count = header + 1;
+			if (i + count > input.size()) {
+				throw std::runtime_error("RunLengthDecode: unexpected EOF reading literal bytes");
+			}
+			output.insert(output.end(), input.begin() + i, input.begin() + i + count);
+			i += count;
+		} else {
+			size_t count = 257 - header;
+			if (i >= input.size()) {
+				throw std::runtime_error("RunLengthDecode: unexpected EOF reading repeated byte");
+			}
+			uint8_t val = input[i++];
+			output.insert(output.end(), count, val);
+		}
+	}
+	return output;
+}
+
+class LZWBitReader {
+	const std::vector<uint8_t>& data_;
+	size_t byte_idx_ = 0;
+	size_t bit_idx_ = 0;
+
+public:
+	LZWBitReader(const std::vector<uint8_t>& data) : data_(data) {}
+
+	uint32_t read_bits(size_t bits) {
+		uint32_t val = 0;
+		size_t bits_needed = bits;
+		while (bits_needed > 0) {
+			if (byte_idx_ >= data_.size()) {
+				return 257; // End of Data
+			}
+			size_t bits_available = 8 - bit_idx_;
+			size_t bits_to_take = std::min(bits_needed, bits_available);
+			
+			uint8_t current_byte = data_[byte_idx_];
+			uint8_t mask = (1 << bits_to_take) - 1;
+			uint8_t shift = bits_available - bits_to_take;
+			uint32_t bits_val = (current_byte >> shift) & mask;
+			
+			val = (val << bits_to_take) | bits_val;
+			
+			bits_needed -= bits_to_take;
+			bit_idx_ += bits_to_take;
+			if (bit_idx_ == 8) {
+				byte_idx_++;
+				bit_idx_ = 0;
+			}
+		}
+		return val;
+	}
+};
+
+static std::vector<uint8_t> lzw_decode(const std::vector<uint8_t>& input, int early_change = 1) {
+	std::vector<uint8_t> output;
+	if (input.empty()) return output;
+
+	LZWBitReader reader(input);
+	
+	std::vector<std::vector<uint8_t>> table(4096);
+	auto reset_table = [&]() {
+		for (int i = 0; i < 256; ++i) {
+			table[i] = { static_cast<uint8_t>(i) };
+		}
+	};
+	
+	reset_table();
+	size_t code_size = 9;
+	size_t next_code = 258;
+	
+	uint32_t old_code = reader.read_bits(code_size);
+	if (old_code == 257) return output;
+	if (old_code == 256) {
+		reset_table();
+		next_code = 258;
+		code_size = 9;
+		old_code = reader.read_bits(code_size);
+		if (old_code == 257) return output;
+	}
+	
+	output.insert(output.end(), table[old_code].begin(), table[old_code].end());
+	
+	while (true) {
+		uint32_t code = reader.read_bits(code_size);
+		if (code == 257) {
+			break;
+		}
+		if (code == 256) {
+			reset_table();
+			next_code = 258;
+			code_size = 9;
+			old_code = reader.read_bits(code_size);
+			if (old_code == 257) break;
+			output.insert(output.end(), table[old_code].begin(), table[old_code].end());
+			continue;
+		}
+		
+		std::vector<uint8_t> sequence;
+		if (code < next_code) {
+			sequence = table[code];
+		} else if (code == next_code) {
+			sequence = table[old_code];
+			sequence.push_back(table[old_code][0]);
+		} else {
+			throw std::runtime_error("LZWDecode: invalid code sequence");
+		}
+		
+		output.insert(output.end(), sequence.begin(), sequence.end());
+		
+		if (next_code < 4096) {
+			std::vector<uint8_t> new_seq = table[old_code];
+			new_seq.push_back(sequence[0]);
+			table[next_code++] = new_seq;
+		}
+		
+		size_t limit = (1 << code_size) - (early_change ? 1 : 0);
+		if (next_code >= limit && code_size < 12) {
+			code_size++;
+		}
+		
+		old_code = code;
+	}
+	
+	return output;
+}
+
 std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const std::string& format) {
     std::string fmt = format;
     if (fmt == "deflate") fmt = "zlib";
@@ -173,6 +369,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         else if (input.size() >= 6 && input[0] == 0xFD && input[1] == '7' && input[2] == 'z' && input[3] == 'X' && input[4] == 'Z' && input[5] == 0x00) fmt = "xz";
         else if (input.size() >= 3 && input[0] == 'B' && input[1] == 'Z' && input[2] == 'h') fmt = "bzip2";
         else if (input.size() >= 4 && input[0] == 0x04 && input[1] == 0x22 && input[2] == 0x4D && input[3] == 0x18) fmt = "lz4";
+        else if (input.size() >= 2 && input[0] == '<' && input[1] == '~') fmt = "ascii85";
         else throw std::runtime_error("Could not auto-detect format from magic bytes");
     }
 
@@ -180,7 +377,6 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         z_stream zs;
         memset(&zs, 0, sizeof(zs));
         int windowBits = fmt == "gzip" ? 15 + 16 : 15;
-        // fallback logic for zlib: sometimes PDFs lack header, we might need windowBits = -15
         if (inflateInit2(&zs, windowBits) != Z_OK) {
             throw std::runtime_error("inflateInit2 failed - invalid format?");
         }
@@ -198,9 +394,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
             }
         } while (ret == Z_OK);
         inflateEnd(&zs);
-        // We accept Z_STREAM_END or Z_BUF_ERROR if we got some output
         if (ret != Z_STREAM_END && result.empty()) {
-            // try raw deflate for zlib
             if (fmt == "zlib") {
                 memset(&zs, 0, sizeof(zs));
                 if (inflateInit2(&zs, -15) == Z_OK) {
@@ -235,6 +429,17 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         return result;
     }
 #endif
+
+    if (fmt == "pdflzw" || fmt == "lzw") {
+        return lzw_decode(input, 1);
+    }
+    if (fmt == "pdfrunlength" || fmt == "runlength") {
+        return run_length_decode(input);
+    }
+    if (fmt == "ascii85") {
+        return ascii85_decode(input);
+    }
+
     throw std::runtime_error("Unsupported or unavailable decompression format: " + fmt);
 }
 
