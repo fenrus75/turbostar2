@@ -193,16 +193,24 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 			// Find how many bytes we can consume to fit within available_width characters
 			size_t chunk_byte_len = 0;
 			int chars_consumed = 0;
+			int display_width_consumed = 0;
 			size_t last_space_byte_idx = std::string::npos;
 			size_t last_space_chars = 0;
 
 			size_t peek_idx = byte_idx;
-			while (peek_idx < line.length() && chars_consumed < available_width) {
+			while (peek_idx < line.length() && display_width_consumed < available_width) {
 				unsigned char c = static_cast<unsigned char>(line[peek_idx]);
 				size_t char_bytes = utf8::char_len(c);
 
 				if (peek_idx + char_bytes > line.length()) {
 					char_bytes = line.length() - peek_idx; // Malformed UTF-8 fallback
+				}
+
+				std::string_view glyph(line.data() + peek_idx, char_bytes);
+				int glyph_w = static_cast<int>(utf8::display_width(glyph));
+
+				if (display_width_consumed + glyph_w > available_width) {
+					break;
 				}
 
 				if (c == ' ' || c == '\t') {
@@ -212,6 +220,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 
 				peek_idx += char_bytes;
 				chars_consumed++;
+				display_width_consumed += glyph_w;
 				chunk_byte_len += char_bytes;
 			}
 

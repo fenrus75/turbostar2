@@ -1024,21 +1024,21 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				std::string utf8_char;
 				utf8_char.reserve(4);
 
-				for (int char_idx = 0; char_idx < text_len; ++char_idx) {
-					if (!utf8::next_character(line_it->text, byte_off, utf8_char))
-						break;
+				int char_idx = 0;
+				int col_idx = 0;
 
+				while (utf8::next_character(line_it->text, byte_off, utf8_char)) {
 					bool in_selection = false;
 					if (has_mouse_sel) {
 						int line_viewport_y = current_y - (y_ + 1);
 						if (line_viewport_y > mouse_start_l && line_viewport_y < mouse_end_l) {
 							in_selection = true;
 						} else if (line_viewport_y == mouse_start_l && line_viewport_y == mouse_end_l) {
-							in_selection = (char_idx >= mouse_start_c && char_idx < mouse_end_c);
+							in_selection = (col_idx >= mouse_start_c && col_idx < mouse_end_c);
 						} else if (line_viewport_y == mouse_start_l) {
-							in_selection = (char_idx >= mouse_start_c);
+							in_selection = (col_idx >= mouse_start_c);
 						} else if (line_viewport_y == mouse_end_l) {
-							in_selection = (char_idx < mouse_end_c);
+							in_selection = (col_idx < mouse_end_c);
 						}
 					}
 
@@ -1052,7 +1052,11 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 					attron(COLOR_PAIR(cp));
 					mvprintw(current_y, current_x, "%s", utf8_char.c_str());
 					attroff(COLOR_PAIR(cp));
-					current_x += 1;
+					
+					int c_w = utf8::display_width(utf8_char);
+					current_x += c_w;
+					col_idx += c_w;
+					char_idx++;
 				}
 			}
 
@@ -1285,9 +1289,18 @@ std::string agent_window::get_mouse_selected_text() const
 		to_c = std::clamp(to_c, 0, len);
 
 		if (from_c < to_c) {
-			size_t from_byte = utf8::char_to_byte_offset(line.text, from_c);
-			size_t to_byte = utf8::char_to_byte_offset(line.text, to_c);
-			result += line.text.substr(from_byte, to_byte - from_byte);
+			size_t from_byte = 0, to_byte = 0, curr_byte = 0;
+			int curr_col = 0;
+			std::string utf8_char;
+			while (utf8::next_character(line.text, curr_byte, utf8_char)) {
+				int w = utf8::display_width(utf8_char);
+				if (curr_col < from_c) from_byte = curr_byte;
+				if (curr_col < to_c) to_byte = curr_byte;
+				curr_col += w;
+			}
+			if (from_byte < to_byte) {
+				result += line.text.substr(from_byte, to_byte - from_byte);
+			}
 		}
 
 		if (l < end_l) {
