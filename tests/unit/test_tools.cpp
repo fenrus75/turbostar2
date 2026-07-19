@@ -732,6 +732,22 @@ extern std::string troff2md(std::string troff_content);
 		std::string purge_res2 = registry.execute_tool("fs_purge_tmp", "{}", ctx);
 		assert(!vfs.exists(purge_file2));
 
+		// Test fs_mkdir in tmp://
+		std::string vfs_dir = "tmp://nested_test_dir/sub_dir";
+		std::string mkdir_args = "{\"path\": \"" + vfs_dir + "\"}";
+		std::string mkdir_res = registry.execute_tool("fs_mkdir", mkdir_args, ctx);
+		assert(mkdir_res.find("Successfully created directory in virtual file system") != std::string::npos);
+
+		std::string vfs_file = vfs_dir + "/test_file.txt";
+		std::string write_args = "{\"path\": \"" + vfs_file + "\", \"content\": \"VFS nested file content\", \"append\": false}";
+		std::string write_res = registry.execute_tool("fs_write_file", write_args, ctx);
+		assert(write_res.find("Successfully wrote") != std::string::npos);
+		assert(vfs.exists(vfs_file));
+
+		// Cleanup via purge
+		registry.execute_tool("fs_purge_tmp", "{}", ctx);
+		assert(!vfs.exists(vfs_file));
+
 		// Test images:// VFS path tool execution
 		images::image_manager::get_instance().initialize();
 		std::string dummy_img_content = "VFS image mock text content";

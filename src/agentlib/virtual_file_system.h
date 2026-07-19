@@ -154,6 +154,11 @@ class vfs_provider
 		}
 		return (*handle)->close();
 	}
+
+	virtual bool create_directory(const std::string &uri)
+	{
+		return false;
+	}
 };
 
 class memory_vfs_provider : public vfs_provider
@@ -241,6 +246,7 @@ class file_vfs_provider : public vfs_provider
 	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
 	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
+	bool create_directory(const std::string &uri) override;
 
       private:
 	std::string scheme_;
@@ -285,6 +291,7 @@ class virtual_file_system
 
 	std::optional<vfs_write_handle> create_file(const std::string &uri);
 	std::string write_file(const std::string &uri, const void *data, size_t size);
+	bool create_directory(const std::string &uri);
 
 	void register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider);
 

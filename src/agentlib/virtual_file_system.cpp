@@ -299,6 +299,15 @@ std::string virtual_file_system::write_file(const std::string &uri, const void *
 	return "";
 }
 
+bool virtual_file_system::create_directory(const std::string &uri)
+{
+	auto provider = get_provider_for_uri(uri);
+	if (provider) {
+		return provider->create_directory(uri);
+	}
+	return false;
+}
+
 // -------------------------------------------------------------------------
 // github_vfs_provider Implementation
 // -------------------------------------------------------------------------
@@ -834,6 +843,32 @@ std::optional<vfs_write_handle> file_vfs_provider::create_file(const std::string
 	};
 
 	return std::make_unique<file_vfs_writer>(target);
+}
+
+bool file_vfs_provider::create_directory(const std::string &uri)
+{
+	std::string raw_path = parse_uri(uri);
+	if (raw_path.empty()) {
+		return false;
+	}
+
+	std::filesystem::path target = std::filesystem::weakly_canonical(raw_path);
+	std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
+	std::filesystem::path project_root = std::filesystem::canonical(base_dir);
+
+	std::string target_str = target.string();
+	std::string root_str = project_root.string();
+	if (!root_str.ends_with(std::filesystem::path::preferred_separator)) {
+		root_str += std::filesystem::path::preferred_separator;
+	}
+
+	if (target_str != project_root.string() && !target_str.starts_with(root_str)) {
+		return false; // Block: Directory traversal escape hack detected
+	}
+
+	std::error_code ec;
+	std::filesystem::create_directories(target, ec);
+	return !ec;
 }
 
 // -------------------------------------------------------------------------

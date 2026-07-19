@@ -113,9 +113,9 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
     *   `append` *(boolean, optional)*: Set to true to safely append `content` to the end of an existing file. Defaults to false. Mutually exclusive with `force_overwrite`.
 
 ### `fs_mkdir`
-*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p).
+*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports directory paths relative to the project root, or virtual paths (e.g., `tmp://nested/dir`).
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the directory to create, relative to the project root.
+    *   `path` *(string, required)*: The path to the directory to create, relative to the project root or virtual domain.
 
 ### `fs_purge_tmp`
 *   **Description:** Purges (deletes) files and directories in the virtual `tmp://` scratch space. If a substring is provided, only deletes files/directories whose names contain the substring.

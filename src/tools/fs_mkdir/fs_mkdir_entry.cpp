@@ -9,11 +9,15 @@ fs_mkdir_tool::fs_mkdir_tool(std::string safe_path) : llm_tool_action("Creating 
 {
 }
 
-bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
+bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	if (safe_path_.find("://") != std::string::npos) {
-		out_error = "Cannot create directories in virtual file system.";
-		return false;
+		auto vfs = ctx.fs_security.get_vfs();
+		if (!vfs) {
+			out_error = "Virtual file system not available.";
+			return false;
+		}
+		return true;
 	}
 	return true;
 }
@@ -21,8 +25,18 @@ bool fs_mkdir_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std
 std::string fs_mkdir_tool::execute(agentlib::tool_context &ctx)
 {
 	if (safe_path_.find("://") != std::string::npos) {
-		set_failure(ctx, "VFS not writable");
-		return "Error: Cannot create directories in virtual file system.";
+		auto vfs = ctx.fs_security.get_vfs();
+		if (!vfs) {
+			set_failure(ctx, "VFS not available");
+			return "Error: Virtual file system not available.";
+		}
+		if (vfs->create_directory(safe_path_)) {
+			set_success(ctx, "VFS directory created");
+			return "Successfully created directory in virtual file system: " + safe_path_;
+		} else {
+			set_failure(ctx, "Failed to create VFS directory");
+			return "Error: Failed to create directory in virtual file system: " + safe_path_;
+		}
 	}
 
 	try {
