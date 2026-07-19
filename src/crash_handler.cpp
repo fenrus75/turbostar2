@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include <cstdlib>
+#include <exception>
 
 #if __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -147,6 +148,28 @@ static void setup_crash_file()
 	} catch (...) {
 		// Ignore any filesystem errors to avoid crashing during crash handler setup
 	}
+}
+
+static void fallback_terminate_handler()
+{
+	std::string exc_info = "Unknown uncaught exception";
+	std::exception_ptr exc_ptr = std::current_exception();
+	if (exc_ptr) {
+		try {
+			std::rethrow_exception(exc_ptr);
+		} catch (const std::exception &e) {
+			exc_info = std::string("Uncaught std::exception: ") + e.what();
+		} catch (...) {
+			exc_info = "Uncaught unknown exception type";
+		}
+	}
+
+	if (crash_fd != -1) {
+		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n";
+		write(crash_fd, msg.c_str(), msg.length());
+	}
+
+	std::abort();
 }
 
 static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
@@ -331,6 +354,9 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 void install_fallback_handler()
 {
 	setup_crash_file();
+
+	// Install custom terminate handler to capture uncaught C++ exceptions before standard abort.
+	std::set_terminate(fallback_terminate_handler);
 
 	// Query current handler for SIGSEGV to check for a pre-existing custom handler
 	struct sigaction old_sa;

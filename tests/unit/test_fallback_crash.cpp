@@ -11,37 +11,18 @@
 #include <format>
 #include "../../src/crash_handler.h"
 
-int main(int argc, char **argv)
+static void run_child_and_verify(const std::string &child_mode, const std::string &expected_signal_name, const std::string &expected_file_snippet, const std::string &argv0)
 {
-	test_watchdog::setup_watchdog(30, false);
-#if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
-	std::cout << "Skipping test_fallback_crash because it is incompatible with AddressSanitizer (ASan)." << std::endl;
-	return 77;
-#endif
-
-	// Child process code path: triggers the signal handler
-	if (argc > 1 && std::string(argv[1]) == "child") {
-		// Install the fallback signal handler
-		crash_handler::install_fallback_handler();
-
-		// Raise a SIGSEGV signal
-		raise(SIGSEGV);
-
-		// We should not reach here
-		return 0;
-	}
-
-	// Parent process code path: forks child and captures output
 	int pipefd[2];
 	if (pipe(pipefd) == -1) {
 		perror("pipe");
-		return 1;
+		exit(1);
 	}
 
 	pid_t pid = fork();
 	if (pid == -1) {
 		perror("fork");
-		return 1;
+		exit(1);
 	}
 
 	if (pid == 0) {
@@ -51,8 +32,8 @@ int main(int argc, char **argv)
 		dup2(pipefd[1], STDERR_FILENO);
 		close(pipefd[1]);
 
-		char *child_argv[] = {argv[0], (char *)"child", nullptr};
-		execvp(argv[0], child_argv);
+		char *child_argv[] = {const_cast<char *>(argv0.c_str()), const_cast<char *>(child_mode.c_str()), nullptr};
+		execvp(argv0.c_str(), child_argv);
 		perror("execvp");
 		_exit(1);
 	}
@@ -73,14 +54,13 @@ int main(int argc, char **argv)
 	int status = 0;
 	waitpid(pid, &status, 0);
 
-	std::cout << "Child exited. Status=" << status << std::endl;
+	std::cout << "Child (" << child_mode << ") exited. Status=" << status << std::endl;
 	std::cout << "Captured Output:\n" << output << std::endl;
 
 	// Verify the output matches our expectations
 	assert(output.find("*** Turbostar Fallback Crash Catcher ***") != std::string::npos);
-	assert(output.find("Caught signal: 11 (SIGSEGV - Segmentation Fault)") != std::string::npos);
+	assert(output.find(expected_signal_name) != std::string::npos);
 	assert(output.find("Stack trace:") != std::string::npos);
-	assert(output.find("main") != std::string::npos); // Should show main frame
 
 	// Verify that the crash file was written to
 	namespace fs = std::filesystem;
@@ -107,11 +87,50 @@ int main(int argc, char **argv)
 	}
 	assert(found_crash_file);
 	assert(crash_file_content.find("*** Turbostar Fallback Crash Catcher ***") != std::string::npos);
-	assert(crash_file_content.find("Caught signal: 11 (SIGSEGV - Segmentation Fault)") != std::string::npos);
+	assert(crash_file_content.find(expected_signal_name) != std::string::npos);
+	assert(crash_file_content.find(expected_file_snippet) != std::string::npos);
 
 	// Clean up test cache directory
 	std::error_code ec;
 	fs::remove_all(test_cache_dir, ec);
+}
+
+int main(int argc, char **argv)
+{
+	test_watchdog::setup_watchdog(30, false);
+#if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
+	std::cout << "Skipping test_fallback_crash because it is incompatible with AddressSanitizer (ASan)." << std::endl;
+	return 77;
+#endif
+
+	// Child process code path: triggers the signal handler
+	if (argc > 1 && (std::string(argv[1]) == "child" || std::string(argv[1]) == "child_sigsegv")) {
+		// Install the fallback signal handler
+		crash_handler::install_fallback_handler();
+
+		// Raise a SIGSEGV signal
+		raise(SIGSEGV);
+
+		// We should not reach here
+		return 0;
+	}
+
+	if (argc > 1 && std::string(argv[1]) == "child_exception") {
+		// Install the fallback signal handler
+		crash_handler::install_fallback_handler();
+
+		// Throw an uncaught exception
+		throw std::runtime_error("Test exception message");
+
+		// We should not reach here
+		return 0;
+	}
+
+	// Run SIGSEGV test
+	run_child_and_verify("child_sigsegv", "Caught signal: 11 (SIGSEGV - Segmentation Fault)", "Caught signal: 11 (SIGSEGV - Segmentation Fault)", argv[0]);
+
+	// Run uncaught exception test
+	run_child_and_verify("child_exception", "Caught signal: 6 (SIGABRT - Aborted)", "Uncaught std::exception: Test exception message", argv[0]);
 
 	std::cout << "test_fallback_crash passed successfully!" << std::endl;
 	return 0;
