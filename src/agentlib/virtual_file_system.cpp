@@ -308,6 +308,30 @@ bool virtual_file_system::create_directory(const std::string &uri)
 	return false;
 }
 
+bool virtual_file_system::is_local_path_available(const std::string &uri) const
+{
+	if (uri.find("://") == std::string::npos) {
+		return true;
+	}
+	auto provider = get_provider_for_uri(uri);
+	if (provider) {
+		return provider->is_local_path_available(uri);
+	}
+	return false;
+}
+
+std::string virtual_file_system::get_local_path(const std::string &uri) const
+{
+	if (uri.find("://") == std::string::npos) {
+		return uri;
+	}
+	auto provider = get_provider_for_uri(uri);
+	if (provider) {
+		return provider->get_local_path(uri);
+	}
+	return "";
+}
+
 // -------------------------------------------------------------------------
 // github_vfs_provider Implementation
 // -------------------------------------------------------------------------
@@ -871,6 +895,16 @@ bool file_vfs_provider::create_directory(const std::string &uri)
 	return !ec;
 }
 
+bool file_vfs_provider::is_local_path_available(const std::string &uri) const
+{
+	return !parse_uri(uri).empty();
+}
+
+std::string file_vfs_provider::get_local_path(const std::string &uri) const
+{
+	return parse_uri(uri);
+}
+
 // -------------------------------------------------------------------------
 // images_vfs_provider Implementation
 // -------------------------------------------------------------------------
@@ -959,6 +993,16 @@ std::optional<vfs_write_handle> images_vfs_provider::create_file(const std::stri
 	}
 
 	return std::make_unique<image_vfs_writer>(temp_path, alias);
+}
+
+bool images_vfs_provider::is_local_path_available(const std::string &uri) const
+{
+	return !images::image_manager::get_instance().resolve_uri(uri).empty();
+}
+
+std::string images_vfs_provider::get_local_path(const std::string &uri) const
+{
+	return images::image_manager::get_instance().resolve_uri(uri);
 }
 
 } // namespace agentlib

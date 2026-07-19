@@ -78,6 +78,11 @@ bool hexdump_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std:
 
 std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 {
+	auto vfs = ctx.fs_security.get_vfs();
+	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
+		args_.safe_path = vfs->get_local_path(args_.safe_path);
+	}
+
 	if (!std::filesystem::exists(args_.safe_path)) {
 		set_failure(ctx, "File does not exist.");
 		return "Error: File does not exist.";

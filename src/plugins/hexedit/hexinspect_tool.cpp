@@ -49,6 +49,11 @@ bool hexinspect_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, s
 
 std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 {
+	auto vfs = ctx.fs_security.get_vfs();
+	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
+		args_.safe_path = vfs->get_local_path(args_.safe_path);
+	}
+
 	std::ifstream file(args_.safe_path, std::ios::binary);
 	if (!file.is_open()) {
 		set_failure(ctx, "Failed to open file.");

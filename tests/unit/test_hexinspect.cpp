@@ -6,6 +6,8 @@
 #include "agentlib/tool_registry.h"
 #include "agentlib/command_registry.h"
 #include "agentlib/skill_manager.h"
+#include "agentlib/virtual_file_system.h"
+#include "fs_utils.h"
 #include "pluginloader.h"
 #include "project_manager.h"
 #include "elf_test_helper.h"
@@ -96,6 +98,29 @@ int main()
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		assert(res.find("Error:") != std::string::npos);
 		assert(res.find("out of bounds") != std::string::npos);
+	}
+
+	// 6. Test VFS path resolution for tmp://
+	{
+		virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
+		std::string vfs_path = "tmp://test_hexinspect_vfs.bin";
+		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/test_hexinspect_vfs.bin";
+
+		std::ofstream ofs_vfs(physical_vfs_path, std::ios::binary);
+		assert(ofs_vfs.is_open());
+		ofs_vfs.write(reinterpret_cast<const char *>(elf_bytes.data()), elf_bytes.size());
+		ofs_vfs.close();
+
+		std::string args = "{\"path\": \"" + vfs_path + "\", \"start_offset\": 0, \"size\": 16}";
+		std::string res = registry.execute_tool("hexinspect", args, ctx);
+		assert(!res.empty());
+		assert(res.find("Error:") == std::string::npos);
+		assert(res.find("Binary Structure Inspection: tmp://") != std::string::npos);
+
+		std::filesystem::remove(physical_vfs_path);
+		ctx.fs_security.set_vfs(nullptr);
 	}
 
 	// Clean up mock file

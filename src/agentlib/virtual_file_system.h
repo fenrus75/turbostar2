@@ -131,7 +131,7 @@ class vfs_provider
 	 * @param uri The VFS URI to create.
 	 * @return vfs_write_handle if supported/successful, std::nullopt otherwise.
 	 */
-	virtual std::optional<vfs_write_handle> create_file(const std::string &uri)
+	virtual std::optional<vfs_write_handle> create_file(const std::string &)
 	{
 		return std::nullopt; // Default: write unsupported
 	}
@@ -155,9 +155,19 @@ class vfs_provider
 		return (*handle)->close();
 	}
 
-	virtual bool create_directory(const std::string &uri)
+	virtual bool create_directory(const std::string &)
 	{
 		return false;
+	}
+
+	virtual bool is_local_path_available(const std::string &) const
+	{
+		return false;
+	}
+
+	virtual std::string get_local_path(const std::string &) const
+	{
+		return "";
 	}
 };
 
@@ -247,6 +257,8 @@ class file_vfs_provider : public vfs_provider
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
 	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
 	bool create_directory(const std::string &uri) override;
+	bool is_local_path_available(const std::string &uri) const override;
+	std::string get_local_path(const std::string &uri) const override;
 
       private:
 	std::string scheme_;
@@ -265,6 +277,8 @@ class images_vfs_provider : public vfs_provider
 	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
 	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
+	bool is_local_path_available(const std::string &uri) const override;
+	std::string get_local_path(const std::string &uri) const override;
 };
 
 /**
@@ -292,6 +306,8 @@ class virtual_file_system
 	std::optional<vfs_write_handle> create_file(const std::string &uri);
 	std::string write_file(const std::string &uri, const void *data, size_t size);
 	bool create_directory(const std::string &uri);
+	bool is_local_path_available(const std::string &uri) const;
+	std::string get_local_path(const std::string &uri) const;
 
 	void register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider);
 

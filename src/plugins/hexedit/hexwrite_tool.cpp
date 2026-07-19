@@ -62,6 +62,11 @@ bool hexwrite_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std
 
 std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 {
+	auto vfs = ctx.fs_security.get_vfs();
+	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
+		args_.safe_path = vfs->get_local_path(args_.safe_path);
+	}
+
 	std::string error;
 	std::vector<uint8_t> bytes = parse_hex_string(args_.hex_data, error);
 	if (!error.empty()) {
