@@ -35,6 +35,7 @@ struct highlight_info {
 | png_hex_highlighter | src/hex/png.h   |
 | jpeg_hex_highlighter| src/hex/jpeg.h  |
 | zip_hex_highlighter | src/hex/zip.h   |
+| pdf_hex_highlighter | src/hex/pdf.h   |
 
 */
 

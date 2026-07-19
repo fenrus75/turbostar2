@@ -9,6 +9,7 @@
 #include "hex/png.h"
 #include "hex/jpeg.h"
 #include "hex/zip.h"
+#include "hex/pdf.h"
 
 // Helper to write values in little endian format to a vector
 void write_u16_le(std::vector<uint8_t> &data, size_t offset, uint16_t val)
@@ -475,6 +476,39 @@ void test_zip_highlighter()
 	std::cout << "Real ZIP file test passed!" << std::endl;
 }
 
+void test_pdf_highlighter()
+{
+	std::string path = "tests/shared-mime-info-spec.pdf";
+	std::ifstream file(path, std::ios::binary);
+	if (!file.is_open()) {
+		path = "../tests/shared-mime-info-spec.pdf";
+		file.open(path, std::ios::binary);
+	}
+	if (!file.is_open()) {
+		std::cout << "Skipping real PDF file test (shared-mime-info-spec.pdf not found)" << std::endl;
+		return;
+	}
+
+	file.seekg(0, std::ios::end);
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> data(size);
+	file.read(reinterpret_cast<char *>(data.data()), size);
+	file.close();
+
+	pdf_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+	bool success = hl.parse(data);
+	assert(success == true);
+
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<pdf_hex_highlighter *>(detected.get()) != nullptr);
+	std::cout << "Real PDF file test passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -483,6 +517,7 @@ int main()
 	test_jpeg_highlighter();
 	test_real_jpeg_file();
 	test_zip_highlighter();
+	test_pdf_highlighter();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }
