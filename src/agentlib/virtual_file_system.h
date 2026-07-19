@@ -78,6 +78,43 @@ class string_content_buffer : public vfs_content_buffer
 };
 
 /**
+ * @brief RAII or handle-based interface for writing virtual files.
+ */
+class vfs_writer
+{
+      public:
+	virtual ~vfs_writer() = default;
+
+	/**
+	 * @brief Write binary data chunk to the virtual file.
+	 * @return true on success, false on error.
+	 */
+	virtual bool write(const void *data, size_t size) = 0;
+
+	/**
+	 * @brief Finalize and commit the write transaction.
+	 * @return A human-readable success description with the final URI
+	 *         or empty string on failure.
+	 */
+	virtual std::string close() = 0;
+};
+
+using vfs_write_handle = std::unique_ptr<vfs_writer>;
+
+/*
+
+# subclasses of vfs_provider
+
+| subclass            | filename                           |
+| ------------------- | ---------------------------------- |
+| memory_vfs_provider | src/agentlib/virtual_file_system.h |
+| github_vfs_provider | src/agentlib/virtual_file_system.h |
+| file_vfs_provider   | src/agentlib/virtual_file_system.h |
+| images_vfs_provider | src/agentlib/virtual_file_system.h |
+
+*/
+
+/**
  * @brief Base class for scheme-specific virtual filesystem providers (e.g. github://)
  */
 class vfs_provider
@@ -88,6 +125,35 @@ class vfs_provider
 	virtual std::optional<vfs_file_handle> read_file(const std::string &uri) = 0;
 	virtual std::optional<vfs_file_info> get_file_info(const std::string &uri) const = 0;
 	virtual std::vector<vfs_file_info> list_directory(const std::string &prefix) const = 0;
+
+	/**
+	 * @brief Create a virtual file for streaming writes.
+	 * @param uri The VFS URI to create.
+	 * @return vfs_write_handle if supported/successful, std::nullopt otherwise.
+	 */
+	virtual std::optional<vfs_write_handle> create_file(const std::string &uri)
+	{
+		return std::nullopt; // Default: write unsupported
+	}
+
+	/**
+	 * @brief Write the entire file contents in one go.
+	 * @param uri The VFS URI to create.
+	 * @param data Pointer to the memory buffer.
+	 * @param size Size of the buffer in bytes.
+	 * @return A success description containing the final URI, or empty string on failure.
+	 */
+	virtual std::string write_file(const std::string &uri, const void *data, size_t size)
+	{
+		auto handle = create_file(uri);
+		if (!handle) {
+			return "";
+		}
+		if (!(*handle)->write(data, size)) {
+			return "";
+		}
+		return (*handle)->close();
+	}
 };
 
 class memory_vfs_provider : public vfs_provider
@@ -171,9 +237,23 @@ class file_vfs_provider : public vfs_provider
 	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
 	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
+	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
 
       private:
 	std::string parse_uri(const std::string &uri) const;
+};
+
+class images_vfs_provider : public vfs_provider
+{
+      public:
+	images_vfs_provider() = default;
+	~images_vfs_provider() override = default;
+
+	bool exists(const std::string &uri) const override;
+	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
+	std::optional<vfs_write_handle> create_file(const std::string &uri) override;
 };
 
 /**
@@ -197,6 +277,9 @@ class virtual_file_system
 	std::optional<vfs_file_handle> read_file(const std::string &uri);
 	std::optional<vfs_file_info> get_file_info(const std::string &uri) const;
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const;
+
+	std::optional<vfs_write_handle> create_file(const std::string &uri);
+	std::string write_file(const std::string &uri, const void *data, size_t size);
 
 	void register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider);
 

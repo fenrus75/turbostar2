@@ -3,7 +3,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include "../../src/agentlib/virtual_file_system.h"
+#include <cstring>
+#include "agentlib/virtual_file_system.h"
+#include "project_manager.h"
+#include "images/image_manager.h"
+#include "fs_utils.h"
 
 using namespace agentlib;
 
@@ -155,13 +159,113 @@ void test_file_provider()
 	std::filesystem::remove_all(temp_dir);
 }
 
+void test_file_vfs_write()
+{
+	virtual_file_system vfs;
+
+	// Determine workspace directory (project dir)
+	std::string proj_dir = fs_utils::get_project_dir();
+	assert(!proj_dir.empty());
+
+	// 1. Write inside workspace using stream (create_file)
+	std::string target_file_path = proj_dir + "/test_vfs_write_stream.txt";
+	std::string target_uri = "file://" + target_file_path;
+	
+	auto writer_opt = vfs.create_file(target_uri);
+	if (!writer_opt.has_value()) {
+		std::cerr << "Failed to create write stream for target: " << target_uri << "\n";
+	}
+	assert(writer_opt.has_value());
+	auto writer = std::move(*writer_opt);
+	
+	std::string chunk1 = "Hello ";
+	std::string chunk2 = "VFS Write!";
+	assert(writer->write(chunk1.data(), chunk1.size()));
+	assert(writer->write(chunk2.data(), chunk2.size()));
+	std::string result_desc = writer->close();
+	assert(!result_desc.empty());
+	assert(std::filesystem::exists(target_file_path));
+
+	// Verify content
+	auto reader_opt = vfs.read_file(target_uri);
+	assert(reader_opt.has_value());
+	assert((*reader_opt)->view() == "Hello VFS Write!");
+
+	std::filesystem::remove(target_file_path);
+
+	// 2. Write inside workspace using single-step helper (write_file)
+	std::string target_file_path2 = proj_dir + "/test_vfs_write_shortcut.txt";
+	std::string target_uri2 = "file://" + target_file_path2;
+	std::string blob = "Shortcut Write!";
+	std::string shortcut_desc = vfs.write_file(target_uri2, blob.data(), blob.size());
+	assert(!shortcut_desc.empty());
+	assert(std::filesystem::exists(target_file_path2));
+
+	auto reader_opt2 = vfs.read_file(target_uri2);
+	assert(reader_opt2.has_value());
+	assert((*reader_opt2)->view() == blob);
+
+	std::filesystem::remove(target_file_path2);
+
+	// 3. Attempt write outside workspace (should fail/block)
+	std::string bad_file_path = "/tmp/should_fail_vfs_write.txt";
+	std::string bad_uri = "file://" + bad_file_path;
+	auto bad_writer_opt = vfs.create_file(bad_uri);
+	assert(!bad_writer_opt.has_value());
+}
+
+void test_images_vfs_write()
+{
+	virtual_file_system vfs;
+
+	// Ingest a dummy image file content via VFS
+	// Using a valid 1x1 PNG pixel representation
+	static const unsigned char tiny_png[] = {
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+		0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+		0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+		0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+		0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
+	};
+
+	std::string image_uri = "images://by-name/vfs-test-image.png";
+
+	// Write the image via write_file VFS method
+	std::string desc = vfs.write_file(image_uri, tiny_png, sizeof(tiny_png));
+	assert(!desc.empty());
+
+	// Verify image exists in VFS
+	assert(vfs.exists(image_uri));
+
+	// Verify we can read it back
+	auto handle_opt = vfs.read_file(image_uri);
+	assert(handle_opt.has_value());
+	std::string_view read_view = (*handle_opt)->view();
+	assert(read_view.size() == sizeof(tiny_png));
+	assert(std::memcmp(read_view.data(), tiny_png, sizeof(tiny_png)) == 0);
+
+	// Retrieve file info
+	auto info_opt = vfs.get_file_info(image_uri);
+	assert(info_opt.has_value());
+	assert(info_opt->size == sizeof(tiny_png));
+
+	// Cleanup
+	images::image_manager::get_instance().delete_image(image_uri);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	project_manager::get_instance().initialize();
+	images::image_manager::get_instance().initialize();
+
 	test_basic_mount_and_read();
 	test_directory_listing();
 	test_line_count();
 	test_file_provider();
+	test_file_vfs_write();
+	test_images_vfs_write();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }

@@ -1,4 +1,6 @@
 #include "virtual_file_system.h"
+#include "images/image_manager.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -213,6 +215,9 @@ virtual_file_system::virtual_file_system()
 
 	auto file_prov = std::make_shared<file_vfs_provider>();
 	register_provider("file", file_prov);
+
+	auto images_prov = std::make_shared<images_vfs_provider>();
+	register_provider("images", images_prov);
 }
 
 bool virtual_file_system::mount_file(const std::string &uri, const std::string &disk_path)
@@ -271,6 +276,24 @@ std::vector<vfs_file_info> virtual_file_system::list_directory(const std::string
 void virtual_file_system::register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider)
 {
 	providers_[scheme] = provider;
+}
+
+std::optional<vfs_write_handle> virtual_file_system::create_file(const std::string &uri)
+{
+	auto provider = get_provider_for_uri(uri);
+	if (provider) {
+		return provider->create_file(uri);
+	}
+	return std::nullopt;
+}
+
+std::string virtual_file_system::write_file(const std::string &uri, const void *data, size_t size)
+{
+	auto provider = get_provider_for_uri(uri);
+	if (provider) {
+		return provider->write_file(uri, data, size);
+	}
+	return "";
 }
 
 // -------------------------------------------------------------------------
@@ -739,6 +762,147 @@ std::vector<vfs_file_info> file_vfs_provider::list_directory(const std::string &
 		results.push_back({item_uri, size, type, 0});
 	}
 	return results;
+}
+
+std::optional<vfs_write_handle> file_vfs_provider::create_file(const std::string &uri)
+{
+	std::string raw_path = parse_uri(uri);
+	if (raw_path.empty()) {
+		return std::nullopt;
+	}
+
+	std::filesystem::path target = std::filesystem::weakly_canonical(raw_path);
+	std::filesystem::path project_root = std::filesystem::canonical(fs_utils::get_project_dir());
+
+	std::string target_str = target.string();
+	std::string root_str = project_root.string();
+	if (!root_str.ends_with(std::filesystem::path::preferred_separator)) {
+		root_str += std::filesystem::path::preferred_separator;
+	}
+
+	if (target_str != project_root.string() && !target_str.starts_with(root_str)) {
+		return std::nullopt; // Block: Directory traversal escape hack detected
+	}
+
+	class file_vfs_writer : public vfs_writer
+	{
+		std::filesystem::path path_;
+		std::ofstream ofs_;
+
+	      public:
+		explicit file_vfs_writer(std::filesystem::path path)
+		    : path_(std::move(path)), ofs_(path_, std::ios::binary)
+		{
+		}
+
+		bool write(const void *data, size_t size) override
+		{
+			if (!ofs_.is_open()) return false;
+			ofs_.write(static_cast<const char *>(data), size);
+			return !ofs_.bad();
+		}
+
+		std::string close() override
+		{
+			ofs_.close();
+			if (ofs_.fail()) {
+				return "";
+			}
+			return "Successfully wrote file to " + path_.string();
+		}
+	};
+
+	return std::make_unique<file_vfs_writer>(target);
+}
+
+// -------------------------------------------------------------------------
+// images_vfs_provider Implementation
+// -------------------------------------------------------------------------
+
+bool images_vfs_provider::exists(const std::string &uri) const
+{
+	images::image_metadata meta;
+	return images::image_manager::get_instance().get_metadata(uri, meta);
+}
+
+std::optional<vfs_file_handle> images_vfs_provider::read_file(const std::string &uri)
+{
+	std::string resolved = images::image_manager::get_instance().resolve_uri(uri);
+	if (resolved.empty()) {
+		return std::nullopt;
+	}
+
+	std::ifstream ifs(resolved, std::ios::binary);
+	if (!ifs) {
+		return std::nullopt;
+	}
+	std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	return std::make_shared<string_content_buffer>(std::move(content));
+}
+
+std::optional<vfs_file_info> images_vfs_provider::get_file_info(const std::string &uri) const
+{
+	images::image_metadata meta;
+	if (!images::image_manager::get_instance().get_metadata(uri, meta)) {
+		return std::nullopt;
+	}
+	return vfs_file_info{uri, meta.size_bytes, 'F', 0};
+}
+
+std::vector<vfs_file_info> images_vfs_provider::list_directory(const std::string &prefix) const
+{
+	std::vector<vfs_file_info> results;
+	auto mappings = images::image_manager::get_instance().get_all_mappings();
+	for (const auto &meta : mappings) {
+		for (const auto &name : meta.names) {
+			std::string item_uri = "images://" + name;
+			if (item_uri.starts_with(prefix)) {
+				results.push_back({item_uri, meta.size_bytes, 'F', 0});
+			}
+		}
+	}
+	return results;
+}
+
+std::optional<vfs_write_handle> images_vfs_provider::create_file(const std::string &uri)
+{
+	class image_vfs_writer : public vfs_writer
+	{
+		std::string temp_path_;
+		std::string alias_;
+		std::ofstream ofs_;
+
+	      public:
+		image_vfs_writer(std::string temp_path, std::string alias)
+		    : temp_path_(temp_path), alias_(alias), ofs_(temp_path, std::ios::binary)
+		{
+		}
+
+		bool write(const void *data, size_t size) override
+		{
+			if (!ofs_.is_open()) return false;
+			ofs_.write(static_cast<const char *>(data), size);
+			return !ofs_.bad();
+		}
+
+		std::string close() override
+		{
+			ofs_.close();
+			std::string new_uri = images::image_manager::get_instance().ingest_image(temp_path_, alias_);
+			if (new_uri.empty()) {
+				return "";
+			}
+			return "Successfully decompressed and ingested image into VFS database. URI: " + new_uri;
+		}
+	};
+
+	std::string temp_path = images::image_manager::get_instance().get_temp_image_path();
+	std::string alias = uri.substr(9);
+	if (alias.starts_with("by-name/")) {
+		alias = alias.substr(8);
+	}
+
+	return std::make_unique<image_vfs_writer>(temp_path, alias);
 }
 
 } // namespace agentlib
