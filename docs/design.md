@@ -237,6 +237,7 @@ To support modular and context-efficient tool management, tools are organized in
 - **The `"base"` Family**: All built-in tools default to the `"base"` family (via `tool_validator::get_family()`). This family contains core file editing and navigation tools that are always enabled and present in the agent's context.
 - **MCP Tool Families**: MCP tools dynamically belong to their parent MCP server's name family (e.g., family name `server_name_`). This treats each MCP server as its own tool family by definition, allowing servers to be enabled/disabled as a unit.
 - **Persistence**: Configuration settings for enabling/disabling tool families are stored in `config.ini` files using the `family.<family_name>.enabled` key, separating global (system) and project-local configurations.
+- **Multi-Family Tools**: A tool can register under multiple families by returning a `|`-separated string from `tool_validator::get_family()` (e.g., `"binary|hexedit"`). The tool is available if *any* of its registered families are active.
 
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
