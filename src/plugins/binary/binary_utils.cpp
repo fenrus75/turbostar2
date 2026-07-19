@@ -2,6 +2,7 @@
 #include "fs_utils.h"
 #include "mime.h"
 #include "utf8.h"
+#include "images/image_manager.h"
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -445,6 +446,24 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
 
 std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file) {
     if (!output_file.empty()) {
+        if (output_file.starts_with("images://")) {
+            std::string temp_out = images::image_manager::get_instance().get_temp_image_path();
+            std::ofstream ofs(temp_out, std::ios::binary);
+            if (!ofs.is_open()) throw std::runtime_error("Could not write to temp image path: " + temp_out);
+            ofs.write(reinterpret_cast<const char*>(data.data()), data.size());
+            ofs.close();
+
+            std::string alias = output_file.substr(9);
+            if (alias.starts_with("by-name/")) {
+                alias = alias.substr(8);
+            }
+            std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, alias);
+            if (new_uri.empty()) {
+                throw std::runtime_error("Failed to ingest decompressed image into VFS database");
+            }
+            return "Successfully decompressed and ingested image into VFS database. URI: " + new_uri;
+        }
+
         std::string path = fs_utils::safe_absolute(output_file).string();
         std::ofstream ofs(path, std::ios::binary);
         if (!ofs.is_open()) throw std::runtime_error("Could not write to output file: " + path);

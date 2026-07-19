@@ -3,7 +3,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <filesystem>
 #include "plugins/binary/binary_utils.h"
+#include "project_manager.h"
+#include "images/image_manager.h"
 
 void test_compress_decompress_roundtrip(const std::string &format) {
     std::string original = "Hello World! This is a test string to be compressed and decompressed with " + format + ". Let's make sure it roundtrips successfully!";
@@ -160,8 +163,34 @@ void test_lzw_decode() {
     std::cout << "test_lzw_decode passed!" << std::endl;
 }
 
+void test_format_binary_output_images_vfs() {
+    std::vector<uint8_t> png_data = {
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x0d,
+        'I', 'H', 'D', 'R',
+        0x00, 0x00, 0x00, 0x0a,
+        0x00, 0x00, 0x00, 0x05,
+        0x08, 0x02, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00
+    };
+    
+    std::string out = binary_utils::format_binary_output(png_data, "text", "images://by-name/decompressed-test.png");
+    std::cout << "Images VFS output: " << out << std::endl;
+    assert(out.find("Successfully decompressed and ingested image into VFS database. URI: images://by-sha256/") == 0);
+    
+    std::string resolved = images::image_manager::get_instance().resolve_uri("images://by-name/decompressed-test.png");
+    assert(!resolved.empty());
+    assert(std::filesystem::exists(resolved));
+    
+    images::image_manager::get_instance().delete_image("images://by-name/decompressed-test.png");
+    std::cout << "test_format_binary_output_images_vfs passed!" << std::endl;
+}
+
 int main() {
     test_watchdog::setup_watchdog(30);
+    project_manager::get_instance().initialize();
+    images::image_manager::get_instance().initialize();
+
     test_compress_decompress_all();
     test_resolve_input_data_base64();
     test_resolve_input_data_hex();
@@ -170,6 +199,7 @@ int main() {
     test_ascii85_decode();
     test_run_length_decode();
     test_lzw_decode();
+    test_format_binary_output_images_vfs();
     std::cout << "All binary plugin unit tests passed!" << std::endl;
     return 0;
 }
