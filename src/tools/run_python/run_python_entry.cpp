@@ -43,6 +43,10 @@ bool run_python_tool::validate_runtime(const agentlib::tool_context &ctx, std::s
 		if (!ctx.fs_security.validate_access(*args_.file_path, agentlib::access_type::read, resolved_path, out_error)) {
 			return false;
 		}
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs && vfs->is_local_path_available(resolved_path)) {
+			resolved_path = vfs->get_local_path(resolved_path);
+		}
 		if (!std::filesystem::exists(resolved_path)) {
 			out_error = "File does not exist: " + resolved_path;
 			return false;
@@ -77,6 +81,10 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		std::string error;
 		if (!ctx.fs_security.validate_access(*args_.file_path, agentlib::access_type::read, resolved_path, error)) {
 			return "Error: " + error;
+		}
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs && vfs->is_local_path_available(resolved_path)) {
+			resolved_path = vfs->get_local_path(resolved_path);
 		}
 		bandit_target_path = resolved_path;
 	}
@@ -123,6 +131,15 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		if (std::filesystem::exists(uv_cache)) {
 			runner.add_extra_rw_path(uv_cache);
 		}
+	}
+
+	// Allow access to the virtual tmp:// scratch directory on disk
+	runner.add_extra_rw_path(fs_utils::get_project_tmp_dir());
+
+	// Allow access to the directory containing the resolved script path, in case it is in another VFS domain like images://
+	if (!args_.code && !bandit_target_path.empty()) {
+		std::filesystem::path p(bandit_target_path);
+		runner.add_extra_rw_path(p.parent_path().string());
 	}
 
 	std::string script_path;

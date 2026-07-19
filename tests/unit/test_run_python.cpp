@@ -6,6 +6,8 @@
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/virtual_file_system.h"
+#include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
 
 using namespace agentlib;
@@ -114,6 +116,24 @@ int main()
 		assert(result.find("Security Validation Failed") != std::string::npos);
 
 		std::filesystem::remove(script_path);
+	}
+
+	// 10. Test VFS path execution (tmp://)
+	{
+		virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
+		std::string vfs_path = "tmp://test_run_python_vfs.py";
+		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/test_run_python_vfs.py";
+		write_file(std::filesystem::path(physical_vfs_path), "print('Hello from VFS tmp script file!')\n");
+
+		nlohmann::json args = {{"file_path", vfs_path}};
+		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
+		std::cout << "VFS Result: " << result << std::endl;
+		assert(result.find("Hello from VFS tmp script file!") != std::string::npos);
+
+		std::filesystem::remove(physical_vfs_path);
+		ctx.fs_security.set_vfs(nullptr);
 	}
 
 	std::cout << "run_python tests passed successfully.\n";
