@@ -179,6 +179,8 @@
 
 # mid term items
 
+- feature: tool multi-family support: consider how we can make a tool part of multiple tool families. It could be useful to also have decompress/compress available in the `hexedit` namespace in addition to the `binary` namespace.
+
 - wayland virtual server so that gui apps can be debugged cleverly 
 
 - feature: make an agent file for https://www.docling.ai for pdf to markdown conversion  -- docling is HUGE! not for the faint of heart
@@ -248,6 +250,7 @@
 # done items (move items here on completion)
 
 ## 19-07-2026
+- Binary compression plugin: Implemented a new `binary` tool family featuring `data_compress` and `data_decompress` tools. Features auto-detection of zlib, gzip, zstd, xz, bzip2, and lz4. Supports files, base64, hex, and data URIs seamlessly, and allows precise byte-range extraction (offset/length) to dynamically unpack nested streams.
 - PDF hex highlighter: Implemented `pdf_hex_highlighter` to parse and highlight PDF structures (objects, streams, cross-reference tables, and trailers) using a linear scanner approach robust to incremental updates and malformed offsets. Registered the highlighter in `hex_highlighter_registry` and hooked it into the build system. Added `test_pdf_highlighter` using a real PDF testcase (`shared-mime-info-spec.pdf`).
 
 ## 18-07-2026
