@@ -530,18 +530,12 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			// Detect and normalize tool call sequences (reorder tool responses and abort pending tool calls).
 			auto flat_convo = get_conversation_unlocked();
 			std::vector<message> normalized_convo;
-			std::map<std::string, message> tool_responses;
+			std::vector<bool> consumed(flat_convo.size(), false);
 
-			// 1. Extract all tool responses
-			for (const auto &msg : flat_convo) {
-				if (msg.role == "tool" && msg.tool_call_id) {
-					tool_responses[*msg.tool_call_id] = msg;
-				}
-			}
-
-			// 2. Reconstruct the conversation in the correct order
+			// Reconstruct the conversation in the correct order, matching tool calls to their responses sequentially
 			bool needs_update = false;
-			for (const auto &msg : flat_convo) {
+			for (size_t i = 0; i < flat_convo.size(); ++i) {
+				const auto &msg = flat_convo[i];
 				if (msg.role == "tool") {
 					continue;
 				}
@@ -550,11 +544,18 @@ bool ai_agent::load_active_state(bool fresh_agent)
 
 				if (msg.role == "assistant" && msg.tool_calls) {
 					for (const auto &tc : *msg.tool_calls) {
-						auto it = tool_responses.find(tc.id);
-						if (it != tool_responses.end()) {
-							normalized_convo.push_back(it->second);
-							tool_responses.erase(it);
-						} else {
+						// Find the first unconsumed tool response for this tool_call_id that appears after this assistant message
+						bool found = false;
+						for (size_t j = i + 1; j < flat_convo.size(); ++j) {
+							if (!consumed[j] && flat_convo[j].role == "tool" && flat_convo[j].tool_call_id && *flat_convo[j].tool_call_id == tc.id) {
+								normalized_convo.push_back(flat_convo[j]);
+								consumed[j] = true;
+								found = true;
+								break;
+							}
+						}
+
+						if (!found) {
 							// Pending tool call with no response: Create an abort message
 							message abort_msg;
 							abort_msg.role = "tool";
@@ -570,9 +571,15 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				}
 			}
 
-			// 3. Discard any orphan tool responses
-			if (!tool_responses.empty()) {
-				event_logger::get_instance().log("Discarded " + std::to_string(tool_responses.size()) +
+			// Discard any orphan (unconsumed) tool responses
+			size_t unconsumed_count = 0;
+			for (size_t i = 0; i < flat_convo.size(); ++i) {
+				if (flat_convo[i].role == "tool" && !consumed[i]) {
+					unconsumed_count++;
+				}
+			}
+			if (unconsumed_count > 0) {
+				event_logger::get_instance().log("Discarded " + std::to_string(unconsumed_count) +
 					" orphaned tool response(s) with no matching assistant tool call in active context.");
 				needs_update = true;
 			}

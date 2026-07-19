@@ -1,0 +1,11 @@
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "textDocument/documentSymbol",
+  "params": {
+    "textDocument": {
+      "uri": "file:///home/arjan/git/turbostar2/src/editor.cpp"
+    }
+  }
+}

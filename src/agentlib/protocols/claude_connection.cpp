@@ -92,15 +92,10 @@ void claude_connection::sync_history(Conversation& /*convo*/) {
 
 static std::vector<message> normalize_history(const std::vector<message>& conversation) {
 	std::vector<message> normalized_convo;
-	std::map<std::string, message> tool_responses;
+	std::vector<bool> consumed(conversation.size(), false);
 
-	for (const auto& msg : conversation) {
-		if (msg.role == "tool" && msg.tool_call_id) {
-			tool_responses[*msg.tool_call_id] = msg;
-		}
-	}
-
-	for (const auto& msg : conversation) {
+	for (size_t i = 0; i < conversation.size(); ++i) {
+		const auto& msg = conversation[i];
 		if (msg.role == "tool") {
 			continue;
 		}
@@ -109,11 +104,17 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 
 		if (msg.role == "assistant" && msg.tool_calls) {
 			for (const auto& tc : *msg.tool_calls) {
-				auto it = tool_responses.find(tc.id);
-				if (it != tool_responses.end()) {
-					normalized_convo.push_back(it->second);
-					tool_responses.erase(it);
-				} else {
+				bool found = false;
+				for (size_t j = i + 1; j < conversation.size(); ++j) {
+					if (!consumed[j] && conversation[j].role == "tool" && conversation[j].tool_call_id && *conversation[j].tool_call_id == tc.id) {
+						normalized_convo.push_back(conversation[j]);
+						consumed[j] = true;
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
 					message abort_msg;
 					abort_msg.role = "tool";
 					abort_msg.tool_call_id = tc.id;

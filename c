@@ -1,0 +1,1 @@
+(printf "Content-Length: %s\r\n\r\n" "$(wc -c < request.json | tr -d ' ')"; cat request.json) | clangd --compile-commands-dir=build/

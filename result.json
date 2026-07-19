@@ -1,0 +1,65 @@
+Starting clangd...
+Sending 'initialize' request...
+Server initialized successfully.
+Sending 'textDocument/didOpen' for: main.cpp
+Sending 'textDocument/documentSymbol' request...
+
+Document Symbols Response:
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "detail": "void (char *)",
+      "kind": 12,
+      "name": "foo",
+      "range": {
+        "end": {
+          "character": 1,
+          "line": 10
+        },
+        "start": {
+          "character": 0,
+          "line": 4
+        }
+      },
+      "selectionRange": {
+        "end": {
+          "character": 8,
+          "line": 4
+        },
+        "start": {
+          "character": 5,
+          "line": 4
+        }
+      }
+    },
+    {
+      "detail": "int (int, char **)",
+      "kind": 12,
+      "name": "main",
+      "range": {
+        "end": {
+          "character": 1,
+          "line": 17
+        },
+        "start": {
+          "character": 0,
+          "line": 11
+        }
+      },
+      "selectionRange": {
+        "end": {
+          "character": 8,
+          "line": 11
+        },
+        "start": {
+          "character": 4,
+          "line": 11
+        }
+      }
+    }
+  ]
+}
+
+Shutting down clangd...
