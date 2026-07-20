@@ -7,6 +7,7 @@
 #include "plugins/binary/binary_utils.h"
 #include "project_manager.h"
 #include "images/image_manager.h"
+#include <fstream>
 
 void test_compress_decompress_roundtrip(const std::string &format) {
     std::string original = "Hello World! This is a test string to be compressed and decompressed with " + format + ". Let's make sure it roundtrips successfully!";
@@ -202,6 +203,114 @@ void test_decompress_none_passthrough() {
     std::cout << "test_decompress_none_passthrough passed!" << std::endl;
 }
 
+void test_resolve_input_file() {
+    std::string project_root = project_manager::get_instance().get_project_root();
+    std::string path = project_root + "/tests/unit/mock_binary_input_file.bin";
+    std::string content = "Decompress this file payload!";
+    std::ofstream ofs(path, std::ios::binary);
+    assert(ofs.is_open());
+    ofs.write(content.data(), content.size());
+    ofs.close();
+
+    // Verify resolve_input_file reads local file
+    std::vector<uint8_t> resolved = binary_utils::resolve_input_file(path, 0, -1);
+    std::string result(resolved.begin(), resolved.end());
+    assert(result == content);
+
+    // Verify slicing (offset and length)
+    std::vector<uint8_t> resolved_sliced = binary_utils::resolve_input_file(path, 11, 4);
+    std::string result_sliced(resolved_sliced.begin(), resolved_sliced.end());
+    assert(result_sliced == "this");
+
+    // Verify it throws on missing file
+    bool threw_missing = false;
+    try {
+        binary_utils::resolve_input_file(project_root + "/tests/unit/non_existent_file.bin");
+    } catch (const std::exception&) {
+        threw_missing = true;
+    }
+    assert(threw_missing);
+
+    // Verify it throws on hex string
+    bool threw_hex = false;
+    try {
+        binary_utils::resolve_input_file("48656c6c6f");
+    } catch (const std::exception&) {
+        threw_hex = true;
+    }
+    assert(threw_hex);
+
+    std::filesystem::remove(path);
+    std::cout << "test_resolve_input_file passed!" << std::endl;
+}
+
+#include "plugins/binary/data_decompress_validator.h"
+
+void test_decompress_tool_interface() {
+    std::string project_root = project_manager::get_instance().get_project_root();
+    std::string path = project_root + "/tests/unit/mock_decompress_tool_input.bin";
+    std::string content = "Verify tool interface works!";
+    
+    // Compress the data using zlib
+    std::vector<uint8_t> input(content.begin(), content.end());
+    std::vector<uint8_t> compressed = binary_utils::compress_data(input, "zlib");
+    
+    // Write compressed data to file
+    std::ofstream ofs(path, std::ios::binary);
+    assert(ofs.is_open());
+    ofs.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
+    ofs.close();
+
+    // 1. Test validation and execution with input_file
+    {
+        tools::data_decompress_validator val;
+        nlohmann::json args = {
+            {"input_file", path},
+            {"format", "zlib"},
+            {"output_format", "text"}
+        };
+        std::string err;
+        agentlib::tool_context ctx;
+        assert(val.validate_args(args, ctx, err));
+        
+        auto tool = val.create_tool(args);
+        assert(tool != nullptr);
+        
+        std::string result = tool->execute(ctx);
+        assert(result == content);
+    }
+
+    // 2. Test validation failure when both are specified
+    {
+        tools::data_decompress_validator val;
+        nlohmann::json args = {
+            {"input_file", path},
+            {"input_data", "some data"},
+            {"format", "zlib"}
+        };
+        std::string err;
+        agentlib::tool_context ctx;
+        assert(!val.validate_args(args, ctx, err));
+        assert(err.find("mutually exclusive") != std::string::npos);
+    }
+
+    // 3. Test validation failure when neither is specified
+    {
+        tools::data_decompress_validator val;
+        nlohmann::json args = {
+            {"format", "zlib"}
+        };
+        std::string err;
+        agentlib::tool_context ctx;
+        assert(!val.validate_args(args, ctx, err));
+        assert(err.find("Exactly one of") != std::string::npos);
+    }
+
+    // Clean up
+    std::filesystem::remove(path);
+    std::cout << "test_decompress_tool_interface passed!" << std::endl;
+}
+
 int main() {
     test_watchdog::setup_watchdog(30);
     project_manager::get_instance().initialize();
@@ -210,6 +319,8 @@ int main() {
     test_compress_decompress_all();
     test_resolve_input_data_base64();
     test_resolve_input_data_hex();
+    test_resolve_input_file();
+    test_decompress_tool_interface();
     test_format_binary_output_base64_fallback();
     test_format_binary_output_mime_detection();
     test_ascii85_decode();

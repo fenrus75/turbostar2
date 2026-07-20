@@ -14,6 +14,9 @@ namespace binary_utils {
 // offset and length can be used to slice the data
 std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t offset = 0, long long length = -1, agentlib::virtual_file_system* vfs = nullptr);
 
+// Resolves input_file (path or VFS uri) into raw bytes
+std::vector<uint8_t> resolve_input_file(const std::string& input_file, size_t offset = 0, long long length = -1, agentlib::virtual_file_system* vfs = nullptr);
+
 // Compresses data using the specified format ("zlib", "gzip", "zstd", "xz", "bzip2", "lz4")
 std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std::string& format);
 

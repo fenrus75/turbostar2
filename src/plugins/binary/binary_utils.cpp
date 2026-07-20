@@ -118,6 +118,31 @@ std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t of
     return std::vector<uint8_t>(result.begin() + offset, result.begin() + offset + actual_len);
 }
 
+std::vector<uint8_t> resolve_input_file(const std::string& input_file, size_t offset, long long length, agentlib::virtual_file_system* vfs) {
+    // Try VFS if it's a URI
+    if (vfs && input_file.find("://") != std::string::npos) {
+        if (vfs->exists(input_file)) {
+            auto handle = vfs->read_file(input_file);
+            if (handle) {
+                auto view = (*handle)->view();
+                if (length < 0) length = view.size() - offset;
+                if (offset >= view.size() || length <= 0) return {};
+                size_t actual_len = std::min((size_t)length, view.size() - offset);
+                return std::vector<uint8_t>(view.begin() + offset, view.begin() + offset + actual_len);
+            }
+        }
+    }
+
+    // Check if it's a file on local disk
+    try {
+        if (std::filesystem::exists(fs_utils::safe_absolute(input_file))) {
+            return read_file(fs_utils::safe_absolute(input_file).string(), offset, length);
+        }
+    } catch (...) {}
+
+    throw std::runtime_error("Could not find or read input file: " + input_file);
+}
+
 std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std::string& format) {
     std::string fmt = format;
     if (fmt == "deflate") fmt = "zlib";

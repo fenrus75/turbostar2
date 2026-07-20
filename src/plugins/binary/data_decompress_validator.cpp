@@ -11,26 +11,34 @@ nlohmann::json data_decompress_validator::get_parameters_schema() const {
 	return {
 	    {"type", "object"},
 	    {"properties",
-	     {{"input_data", {{"type", "string"}, {"description", "The input data to decompress."}}},
+	     {{"input_data", {{"type", "string"}, {"description", "The input data (base64, hex, data URL, or literal text) to decompress. Mutually exclusive with 'input_file'."}}},
+	      {"input_file", {{"type", "string"}, {"description", "Optional path or VFS URI of the file to decompress. Mutually exclusive with 'input_data'."}}},
 	      {"format", {{"type", "string"}, {"description", "Compression format. 'deflate' is an alias for 'zlib', 'none' bypasses decompression (just copy/passthrough)."}, {"enum", {"auto", "zstd", "gzip", "zlib", "deflate", "xz", "bzip2", "lz4", "pdflzw", "lzw", "pdfrunlength", "runlength", "ascii85", "none"}}, {"default", "auto"}}},
 	      {"output_format", {{"type", "string"}, {"description", "Return format."}, {"enum", {"hex", "base64", "text"}}, {"default", "text"}}},
 	      {"output_file", {{"type", "string"}, {"description", "Optional file to write output."}}},
 	      {"offset", {{"type", "integer"}, {"description", "Byte offset to start reading from."}, {"default", 0}}},
 	      {"length", {{"type", "integer"}, {"description", "Maximum number of bytes to read."}, {"default", -1}}}}},
-	    {"required", nlohmann::json::array({"input_data"})}};
+	    {"required", nlohmann::json::array()}};
 }
 
 bool data_decompress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const {
 	try {
 		args_.input_data = raw_json.value("input_data", "");
+		args_.input_file = raw_json.value("input_file", "");
 		args_.format = raw_json.value("format", "auto");
 		args_.output_format = raw_json.value("output_format", "text");
 		args_.output_file = raw_json.value("output_file", "");
 		args_.offset = raw_json.value("offset", 0);
 		args_.length = raw_json.value("length", -1);
 		
-		if (args_.input_data.empty()) {
-			out_error = "input_data cannot be empty.";
+		bool has_data = !args_.input_data.empty();
+		bool has_file = !args_.input_file.empty();
+		if (!has_data && !has_file) {
+			out_error = "Exactly one of 'input_data' or 'input_file' must be specified.";
+			return false;
+		}
+		if (has_data && has_file) {
+			out_error = "Parameters 'input_data' and 'input_file' are mutually exclusive.";
 			return false;
 		}
 		
