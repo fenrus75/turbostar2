@@ -534,7 +534,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
 
 ### `agent_debug_coredump`
-*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON with `gdb_run_id`.
+*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing the `gdb_run_id` and detailed interactive `instructions` (which guide command inputs and warn to call `agent_terminate_run` when finished).
 *   **Arguments:**
     *   `crash_id` *(string, required)*: The unique crash ID from the crash database to debug.
 

@@ -2,10 +2,11 @@
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
-#include "../../src/event_queue.h"
+#include <nlohmann/json.hpp>
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "project_manager.h"
+#include "event_queue.h"
 
 using namespace agentlib;
 
@@ -15,6 +16,9 @@ public:
 	std::unique_ptr<document_snapshot> get_open_document(const std::string&) const override { return nullptr; }
 	bool apply_live_edits(const std::string&, const std::string&) override { return false; }
 	void save_all_documents() override {}
+	start_app_result start_coredump_gdb(const std::string& /*crash_id*/) override {
+		return {42, 42};
+	}
 };
 
 int main()
@@ -38,10 +42,19 @@ int main()
 
 	std::cout << "Testing agent_debug_coredump..." << std::endl;
 	{
-		// 1. Success case with normal crash_id
-		auto prep = registry.prepare_tool("agent_debug_coredump", "{\"crash_id\": \"12345\"}", ctx);
-		assert(prep.tool != nullptr);
-		assert(prep.error_message.empty());
+		// 1. Success case with normal crash_id and check for GDB instructions
+		{
+			auto prep = registry.prepare_tool("agent_debug_coredump", "{\"crash_id\": \"12345\"}", ctx);
+			assert(prep.tool != nullptr);
+			assert(prep.error_message.empty());
+
+			std::string res = registry.execute_tool("agent_debug_coredump", "{\"crash_id\": \"12345\"}", ctx);
+			std::cout << "Debug coredump execution result: " << res << std::endl;
+			nlohmann::json res_json = nlohmann::json::parse(res);
+			assert(res_json.contains("gdb_run_id"));
+			assert(res_json.contains("instructions"));
+			assert(res_json["instructions"].get<std::string>().find("agent_terminate_run") != std::string::npos);
+		}
 
 		// 2. Reject empty crash_id
 		{

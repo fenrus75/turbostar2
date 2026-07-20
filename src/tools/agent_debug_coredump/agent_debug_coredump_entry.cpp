@@ -1,5 +1,6 @@
 #include "agent_debug_coredump.h"
 #include <nlohmann/json.hpp>
+#include <format>
 
 namespace tools
 {
@@ -27,9 +28,10 @@ std::string agent_debug_coredump_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	nlohmann::json output = {
-	    {"gdb_run_id", res.gdb_run_id}};
+	    {"gdb_run_id", res.gdb_run_id},
+	    {"instructions", std::format("Coredump GDB session started successfully. Use 'agent_write_to_run' with run_id {} to send GDB commands (e.g. 'bt', 'info registers'). IMPORTANT: You MUST call 'agent_terminate_run' with run_id {} once you are finished debugging to clean up resources and close the debugger window.", res.gdb_run_id, res.gdb_run_id)}};
 
-	set_success(ctx, "Started coredump debugger for crash_id " + args_.crash_id);
+	set_success(ctx, std::format("Started coredump debugger for crash_id {}", args_.crash_id));
 	return output.dump();
 }
 
