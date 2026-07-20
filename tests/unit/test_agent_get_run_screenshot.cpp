@@ -25,7 +25,7 @@ public:
 		return {};
 	}
 
-	int64_t get_run_last_modified_age(int run_id) override {
+	int64_t get_run_last_modified_age(int) override {
 		return 500; // Simulated age of 500ms (already settled)
 	}
 };

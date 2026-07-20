@@ -8,7 +8,7 @@ data_compress_tool::data_compress_tool(data_compress_args args)
 {
 }
 
-bool data_compress_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+bool data_compress_tool::validate_runtime(const agentlib::tool_context &, std::string &) const
 {
 	return true;
 }

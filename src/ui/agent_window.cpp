@@ -1019,8 +1019,6 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 						std::swap(mouse_start_c, mouse_end_c);
 					}
 				}
-
-				int text_len = utf8::display_width(line_it->text);
 				size_t byte_off = 0;
 				std::string utf8_char;
 				utf8_char.reserve(4);

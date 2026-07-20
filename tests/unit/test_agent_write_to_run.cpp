@@ -2,10 +2,10 @@
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
-#include "../../src/event_queue.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "project_manager.h"
+#include "event_queue.h"
 
 using namespace agentlib;
 
@@ -24,15 +24,15 @@ public:
 		return false;
 	}
 
-	int64_t get_run_last_modified_age(int run_id) override {
+	int64_t get_run_last_modified_age(int) override {
 		return 500; // Simulated age of 500ms (already settled)
 	}
 
-	void set_run_recording(int run_id, bool recording) override {
+	void set_run_recording(int, bool recording) override {
 		is_recording = recording;
 	}
 
-	std::vector<std::string> get_run_recorded_data(int run_id) override {
+	std::vector<std::string> get_run_recorded_data(int) override {
 		return {"simulated", " recorded", " output"};
 	}
 

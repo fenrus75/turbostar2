@@ -54,9 +54,12 @@ int main()
 		static void use_some_stack(int depth) {
 			if (depth <= 0) return;
 			volatile double arr[50];
+			double sum = 0.0;
 			for (int i = 0; i < 50; ++i) {
 				arr[i] = 12.34 + i;
+				sum += arr[i];
 			}
+			(void)sum;
 			use_some_stack(depth - 1);
 		}
 	};

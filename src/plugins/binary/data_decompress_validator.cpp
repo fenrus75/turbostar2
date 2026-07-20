@@ -21,7 +21,7 @@ nlohmann::json data_decompress_validator::get_parameters_schema() const {
 	    {"required", nlohmann::json::array()}};
 }
 
-bool data_decompress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const {
+bool data_decompress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &, std::string &out_error) const {
 	try {
 		args_.input_data = raw_json.value("input_data", "");
 		args_.input_file = raw_json.value("input_file", "");

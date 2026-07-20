@@ -8,7 +8,7 @@ data_decompress_tool::data_decompress_tool(data_decompress_args args)
 {
 }
 
-bool data_decompress_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+bool data_decompress_tool::validate_runtime(const agentlib::tool_context &, std::string &) const
 {
 	return true;
 }
