@@ -33,7 +33,8 @@ void plugin_run(void)
 		"- hexwrite: Modifies specific byte ranges in a file by writing a sequence of raw hex values. (offset is optional and defaults to 0; overwrite mode).\n"
 		"- hexinspect: Performs structure-aware pattern or offset inspections. (start_offset defaults to 0; size defaults to 256 and has a maximum limit of 4096).\n\n"
 		"Constraints & Memory Limits:\n"
-		"- The tools support files up to a maximum size of 50 MB. Larger files are rejected for safety and performance reasons."
+		"- The tools support files up to a maximum size of 50 MB. Larger files are rejected for safety and performance reasons.\n\n"
+		"Usage recommendation: Start by performing a hexinspect on a new file before using hexdump and others to get more details.\n"
 	);
 }
 
