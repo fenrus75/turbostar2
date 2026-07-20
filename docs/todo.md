@@ -253,7 +253,9 @@
 # done items (move items here on completion)
 
 ## 20-07-2026
+- `fs_replace_content` and `fs_replace_lines` VFS Support: Extended the line-replacement tools to support editing files hosted on local VFS providers (such as `tmp://` and `images://`). The tools inspect `is_local_path_available()` on the virtual file system to obtain the underlying absolute physical filepath using `get_local_path()` before performing read/write streaming operations.
 - `fs_regexp_lines` VFS Support: Added full Virtual File System (VFS) URI support to the `fs_regexp_lines` tool, enabling agents to execute regular expression searches directly against virtual file buffers (e.g., `tmp://`). Integrated binary file detection for virtual files and updated the unit tests (`test_fs_regexp_lines.cpp`) to verify VFS regex match execution.
+- VFS Audit & Support Analysis: Performed a comprehensive manual/agentic audit on all 20 `fs_*` tools, producing a structured analysis table and documentation mapping VFS URL capability across file traversal, compile-commands, and diagnostic modules. Documented findings in [fs_tools_vfs_analysis.md](file:///home/arjan/.gemini/antigravity-cli/brain/7bb29e59-e896-4a70-af36-5c3cd2f180f1/fs_tools_vfs_analysis.md).
 
 ## 19-07-2026
 - `data_decompress` Tool `input_file` Parameter: Added an optional, dedicated `input_file` parameter (accepting local file paths and VFS URIs) to the `data_decompress` schema to resolve ambiguity caused by overloading `input_data`. Enforced mutual exclusivity validation between `input_data` and `input_file`. Added comprehensive test coverage to `test_binary_plugin.cpp` verifying local file extraction, slicing (offset/length), validation errors, and execution.
