@@ -1,7 +1,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "crashdump_get_info.h"
 
 namespace tools

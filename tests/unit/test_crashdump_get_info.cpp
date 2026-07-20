@@ -3,11 +3,11 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/crashdump_manager.h"
-#include "../../src/fs_utils.h"
-#include "../../src/project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 
 using namespace agentlib;
 namespace fs = std::filesystem;
@@ -37,6 +37,10 @@ int main()
 		std::ofstream ofs(crash_path / "report.md");
 		ofs << "Mock crash dump backtrace detail\n";
 	}
+	{
+		std::ofstream ofs(crash_path / "core");
+		ofs << "mock core dump bytes\n";
+	}
 
 	// Populate the manager
 	crashdump_manager::get_instance().refresh("dummy_hash");
@@ -54,11 +58,13 @@ int main()
 
 	std::cout << "Testing crashdump_get_info..." << std::endl;
 	{
-		// 1. Success case: retrieve detailed info of crash_test123
+		// 1. Success case: retrieve detailed info of crash_test123 and verify coredump instruction is present
 		{
 			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"test123\"}", ctx);
 			std::cout << "Crash info result: " << res << std::endl;
 			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
+			assert(res.find("agent_debug_coredump") != std::string::npos);
+			assert(res.find("test123") != std::string::npos);
 		}
 
 		// 2. Execution failure case: nonexistent crash_id
