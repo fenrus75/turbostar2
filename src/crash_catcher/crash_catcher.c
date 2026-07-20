@@ -9,7 +9,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ucontext.h>
-#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/prctl.h>
+#ifndef PR_SET_PTRACER
+#define PR_SET_PTRACER 0x59616d61
+#endif
 
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
@@ -290,8 +294,42 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	write_registers(crash_dir, uc);
 	write_backtrace(crash_dir, uc);
 
-	// Exit immediately. Do not attempt to return to corrupted state.
-	_exit(128 + sig);
+	// Try to capture a core dump via gcore using a child process
+	pid_t child_pid = fork();
+	if (child_pid == 0) {
+		// In the child process:
+		// Call gcore: gcore -o <crash_dir>/core <parent_pid>
+		char core_out_file[1024] = {0};
+		safe_strcpy(core_out_file, crash_dir, sizeof(core_out_file));
+		safe_strcat(core_out_file, "/core", sizeof(core_out_file));
+
+		char parent_pid_str[32];
+		safe_itoa(pid, parent_pid_str, sizeof(parent_pid_str));
+
+		// Redirect stdout and stderr to /dev/null to keep it clean
+		int dev_null = open("/dev/null", O_WRONLY);
+		if (dev_null >= 0) {
+			dup2(dev_null, STDOUT_FILENO);
+			dup2(dev_null, STDERR_FILENO);
+			close(dev_null);
+		}
+
+		execlp("gcore", "gcore", "-o", core_out_file, parent_pid_str, (char *)NULL);
+		_exit(1); // Exit if execlp fails
+	} else if (child_pid > 0) {
+		// In the parent process:
+		// Allow child to ptrace parent (for gcore attachment)
+		prctl(PR_SET_PTRACER, child_pid, 0, 0, 0);
+
+		// Wait for the gcore process to finish
+		int status = 0;
+		waitpid(child_pid, &status, 0);
+	}
+
+	// Restore default handler and re-raise signal to cleanly terminate process.
+	// This triggers standard system core dump (coredumpctl) and correctly exposes the signal termination to GDB.
+	signal(sig, SIG_DFL);
+	kill(pid, sig);
 }
 
 void turbocatch_init(void)

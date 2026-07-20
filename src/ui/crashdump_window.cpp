@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cstring>
 #include <filesystem>
+namespace fs = std::filesystem;
 #include <ncurses.h>
 #include "project_manager.h"
 #include "fs_utils.h"
@@ -127,6 +128,7 @@ void crashdump_window::draw_border() const
 	// Draw "Go to Source" button on the bottom border
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 	if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
+		const auto &dump = current_dumps_[selected_idx];
 		int btn_x = 2; // relative to window
 		attrset(COLOR_PAIR(is_active() ? 5 : 38));
 		mvaddstr(y_ + height_ - 1, x_ + btn_x, "[");
@@ -134,6 +136,16 @@ void crashdump_window::draw_border() const
 		addstr("Go to Source");
 		attrset(COLOR_PAIR(is_active() ? 5 : 38));
 		addstr("]");
+
+		if (has_coredump(dump.crash_id)) {
+			int btn2_x = 18;
+			attrset(COLOR_PAIR(is_active() ? 5 : 38));
+			mvaddstr(y_ + height_ - 1, x_ + btn2_x, "[");
+			attrset(COLOR_PAIR(10));
+			addstr("Debug Coredump");
+			attrset(COLOR_PAIR(is_active() ? 5 : 38));
+			addstr("]");
+		}
 	}
 }
 
@@ -160,6 +172,9 @@ bool crashdump_window::process_events()
 			} else if (key == 's' || key == 'S' || key == 'g' || key == 'G') {
 				go_to_source();
 				needs_render = true;
+			} else if (key == 'd' || key == 'D') {
+				debug_coredump();
+				needs_render = true;
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}
@@ -171,6 +186,9 @@ bool crashdump_window::process_events()
 				if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
 					if (click_x >= 2 && click_x < 16) {
 						go_to_source();
+						needs_render = true;
+					} else if (click_x >= 18 && click_x < 34) {
+						debug_coredump();
 						needs_render = true;
 					}
 				}
@@ -329,4 +347,33 @@ bool crashdump_window::update_viewport() const
 	bool changed = (detail_scroll_offset_ != last_detail_scroll_offset_);
 	last_detail_scroll_offset_ = detail_scroll_offset_;
 	return changed;
+}
+
+bool crashdump_window::has_coredump(const std::string &crash_id) const
+{
+	fs::path dump_dir = fs::path(fs_utils::get_project_dump_dir()) / ("crash_" + crash_id);
+	if (!fs::exists(dump_dir))
+		return false;
+	for (const auto &entry : fs::directory_iterator(dump_dir)) {
+		std::string filename = entry.path().filename().string();
+		if (filename.starts_with("core")) {
+			return true;
+		}
+	}
+	static bool has_coredumpctl = (std::system("which coredumpctl >/dev/null 2>&1") == 0);
+	return has_coredumpctl;
+}
+
+void crashdump_window::debug_coredump()
+{
+	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
+	if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
+		const auto &dump = current_dumps_[selected_idx];
+		if (has_coredump(dump.crash_id)) {
+			editor_event debug_ev;
+			debug_ev.type = event_type::agent_start_coredump_gdb;
+			debug_ev.payload = dump.crash_id;
+			global_queue_.push(debug_ev);
+		}
+	}
 }

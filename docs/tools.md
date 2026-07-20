@@ -533,6 +533,11 @@ These tools allow the agent to interact with the project's Git repository.
     *   `args` *(string, optional)*: Command line arguments to pass to the application.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
 
+### `agent_debug_coredump`
+*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON with `gdb_run_id`.
+*   **Arguments:**
+    *   `crash_id` *(string, required)*: The unique crash ID from the crash database to debug.
+
 ### `agent_write_to_run`
 *   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream.
 *   **Arguments:**

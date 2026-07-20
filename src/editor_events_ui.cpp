@@ -80,6 +80,15 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::agent_start_coredump_gdb) {
+		auto res = start_coredump_gdb(ev.payload);
+		if (ev.generic_promise) {
+			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
+			prom->set_value(res);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::force_quit) {
 		logger.log("Dispatching force_quit event.");
 
@@ -1004,3 +1013,131 @@ bool editor::terminate_run(int run_id)
 	update_window_layout();
 	return true;
 }
+
+static std::string get_executable_for_crash(const std::string &crash_id)
+{
+	fs::path dump_dir = fs::path(fs_utils::get_project_dump_dir()) / ("crash_" + crash_id);
+	fs::path info_path = dump_dir / "info.txt";
+	std::ifstream in(info_path);
+	if (in) {
+		std::string line;
+		constexpr std::string_view exe_prefix = "Executable: ";
+		while (std::getline(in, line)) {
+			if (line.starts_with(exe_prefix)) {
+				return line.substr(exe_prefix.length());
+			}
+		}
+	}
+	return "";
+}
+
+static std::string get_coredump_path_for_crash(const std::string &crash_id)
+{
+	fs::path dump_dir = fs::path(fs_utils::get_project_dump_dir()) / ("crash_" + crash_id);
+	if (!fs::exists(dump_dir))
+		return "";
+	for (const auto &entry : fs::directory_iterator(dump_dir)) {
+		std::string filename = entry.path().filename().string();
+		if (filename.starts_with("core")) {
+			return entry.path().string();
+		}
+	}
+	return "";
+}
+
+static bool extract_system_coredump(const std::string &crash_id)
+{
+	fs::path dump_dir = fs::path(fs_utils::get_project_dump_dir()) / ("crash_" + crash_id);
+	if (!fs::exists(dump_dir))
+		return false;
+
+	fs::path out_path = dump_dir / ("core." + crash_id);
+
+	std::string cmd = std::format("coredumpctl --user dump {} -o {}", crash_id, fs_utils::escape_shell_arg(out_path.string()));
+	int exit_code = std::system(cmd.c_str());
+	if (exit_code == 0 && fs::exists(out_path) && fs::file_size(out_path) > 0) {
+		return true;
+	}
+	return false;
+}
+
+agentlib::start_app_result editor::start_coredump_gdb(const std::string &crash_id)
+{
+	if (!is_main_thread()) {
+		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
+		auto fut = prom->get_future();
+		editor_event ev;
+		ev.type = event_type::agent_start_coredump_gdb;
+		ev.payload = crash_id;
+		ev.generic_promise = prom;
+		global_queue_.push(ev);
+		return fut.get();
+	}
+
+	auto &logger = event_logger::get_instance();
+	logger.log("start_coredump_gdb called with crash_id: '" + crash_id + "'");
+
+	std::string exe = get_executable_for_crash(crash_id);
+	if (exe.empty()) {
+		logger.log("start_coredump_gdb failed: no executable found in crash info.");
+		return {-1, -1};
+	}
+
+	std::string core_path = get_coredump_path_for_crash(crash_id);
+	if (core_path.empty()) {
+		logger.log("Coredump not found locally, attempting coredumpctl fallback...");
+		if (extract_system_coredump(crash_id)) {
+			core_path = get_coredump_path_for_crash(crash_id);
+		}
+	}
+
+	if (core_path.empty()) {
+		logger.log("start_coredump_gdb failed: coredump not found.");
+		return {-1, -1};
+	}
+
+	for (auto it = windows_.begin(); it != windows_.end();) {
+		if ((*it)->get_title() == "Coredump Debugger (GDB)" || (*it)->get_title() == "Debugger (GDB)") {
+			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+				tw->stop_process();
+			}
+			it = windows_.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	int run_id = 2000 + static_cast<int>(windows_.size());
+	auto gdb_tw = std::make_unique<ui::terminal_window>(run_id, 0, 1, COLS, LINES - 2, "Coredump Debugger (GDB)");
+	gdb_tw->set_display_priority(10);
+	gdb_tw->set_sanitize_recorded_data(true);
+
+	std::string gdb_cmd = std::format("exec gdb -q -ex \"set pagination off\" {} {}", 
+		fs_utils::escape_shell_arg(exe), 
+		fs_utils::escape_shell_arg(core_path));
+
+	logger.log("Starting coredump gdb: " + gdb_cmd);
+	if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
+		logger.log("Failed to start GDB coredump debugger.");
+		return {-1, -1};
+	}
+
+	agentlib::start_app_result result;
+	result.app_run_id = -1;
+	result.gdb_run_id = run_id;
+
+	ui::terminal_window *gdb_tw_ptr = gdb_tw.get();
+	windows_.push_back(std::move(gdb_tw));
+	update_window_layout();
+
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		if (windows_[i].get() == gdb_tw_ptr) {
+			activate_window(i);
+			break;
+		}
+	}
+	set_focus(focus_target::window, "start_coredump_gdb");
+
+	return result;
+}
+

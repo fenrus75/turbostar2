@@ -87,6 +87,7 @@ enum class event_type {
 	copilot_connect,	    ///< Request to show Copilot connection dialog
 	terminate_run,		    ///< Request to terminate a run
 	agent_start_app,	    ///< Request to start app from agent
+	agent_start_coredump_gdb,   ///< Request to start coredump gdb from agent
 	task_models_config,	    ///< Request to show task-to-model mapping configuration dialog
 	open_codereview_viewer,	    ///< Request to open the code review viewer window
 	codereview_action,	    ///< Request to show a code review edit/comment/state dialog

@@ -23,6 +23,8 @@ class crashdump_window : public window
       private:
 	void populate_listbox();
 	void go_to_source();
+	void debug_coredump();
+	bool has_coredump(const std::string &crash_id) const;
 	std::optional<std::pair<std::string, int>> get_crash_location(const crashdump_info &dump) const;
 
 	event_queue &global_queue_;
