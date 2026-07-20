@@ -252,6 +252,9 @@
 
 # done items (move items here on completion)
 
+## 20-07-2026
+- `fs_regexp_lines` VFS Support: Added full Virtual File System (VFS) URI support to the `fs_regexp_lines` tool, enabling agents to execute regular expression searches directly against virtual file buffers (e.g., `tmp://`). Integrated binary file detection for virtual files and updated the unit tests (`test_fs_regexp_lines.cpp`) to verify VFS regex match execution.
+
 ## 19-07-2026
 - `data_decompress` Tool `input_file` Parameter: Added an optional, dedicated `input_file` parameter (accepting local file paths and VFS URIs) to the `data_decompress` schema to resolve ambiguity caused by overloading `input_data`. Enforced mutual exclusivity validation between `input_data` and `input_file`. Added comprehensive test coverage to `test_binary_plugin.cpp` verifying local file extraction, slicing (offset/length), validation errors, and execution.
 - Main System Prompt VFS Documentation: Added `tmp://` to the Virtual Filesystem (VFS) reference table inside the agent's main system prompt in `agent_window.cpp` so that LLM agents are explicitly aware of the sandboxed scratch space for diagnostic dumps, intermediate files, and summaries.
