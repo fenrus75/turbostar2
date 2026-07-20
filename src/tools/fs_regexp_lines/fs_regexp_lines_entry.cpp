@@ -84,7 +84,67 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// 2. Fallback to direct disk access
+	// 2. Try VFS if it's a URI
+	if (args_.safe_path.find("://") != std::string::npos) {
+		auto* vfs = ctx.fs_security.get_vfs();
+		if (!vfs || !vfs->exists(args_.safe_path)) {
+			return "Error: Virtual file or directory not found or not mounted.";
+		}
+
+		auto view_opt = vfs->read_file(args_.safe_path);
+		if (!view_opt) {
+			return "Error: Could not open virtual file for reading.";
+		}
+
+		std::string_view view = view_opt.value()->view();
+
+		if (view.size() > 50 * 1024 * 1024) {
+			return "Error: File is too large (>50MB) to read directly.";
+		}
+
+		// Binary check
+		size_t check_len = std::min<size_t>(view.size(), 4096);
+		for (size_t i = 0; i < check_len; ++i) {
+			unsigned char b = static_cast<unsigned char>(view[i]);
+			if (b == 0 || (b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) || b == 127) {
+				return "Error: File appears to be binary. Cannot run regex on binary data.";
+			}
+		}
+
+		size_t current_line = 1;
+		size_t start_pos = 0;
+
+		while (start_pos < view.length()) {
+			size_t end_pos = view.find('\n', start_pos);
+			std::string_view line_view =
+			    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
+
+			std::string line(line_view);
+			if (!line.empty() && line.back() == '\r') {
+				line.pop_back();
+			}
+
+			if (re2::RE2::PartialMatch(line, *compiled_regex_)) {
+				ss << format_line(current_line, line);
+				match_count++;
+				if (match_count >= MAX_MATCHES)
+					break;
+			}
+
+			start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
+			current_line++;
+		}
+
+		if (match_count == 0)
+			return "No matches found.";
+		if (match_count >= MAX_MATCHES)
+			ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
+
+		std::string final_output = "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
+		return final_output;
+	}
+
+	// 3. Fallback to direct disk access
 	struct stat sb;
 	if (stat(args_.safe_path.c_str(), &sb) == -1) {
 		return "Error: File does not exist or cannot be accessed.";

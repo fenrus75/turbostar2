@@ -3,6 +3,7 @@
 #include <iostream>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/virtual_file_system.h"
 #include "../../src/project_manager.h"
 
 using namespace agentlib;
@@ -90,6 +91,25 @@ int main()
 			auto prep = registry.prepare_tool("fs_regexp_lines", "{\"path\": \"/etc/passwd\", \"pattern\": \"root\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
+		}
+
+		// 7. VFS Success Case: search in a virtual tmp:// file
+		{
+			auto global_vfs = std::make_shared<virtual_file_system>();
+			auto mem_prov = std::make_shared<memory_vfs_provider>();
+			mem_prov->mount_buffer("tmp://mock_vfs_file.txt", "line 1: hello\nline 2: world\nline 3: hello world\n");
+			global_vfs->register_provider("tmp", mem_prov);
+			ctx.fs_security.set_vfs(global_vfs.get());
+
+			std::string args = "{\"path\": \"tmp://mock_vfs_file.txt\", \"pattern\": \"hello.*\"}";
+			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
+			std::cout << "VFS regex search result: " << res << std::endl;
+			assert(res.find("| Line Number | Content |") != std::string::npos);
+			assert(res.find("line 1: hello") != std::string::npos);
+			assert(res.find("line 3: hello world") != std::string::npos);
+			assert(res.find("line 2: world") == std::string::npos);
+
+			ctx.fs_security.set_vfs(nullptr);
 		}
 
 		std::cout << "fs_regexp_lines tool verified successfully!" << std::endl;
