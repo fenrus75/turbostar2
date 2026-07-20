@@ -5,7 +5,9 @@
 #include <filesystem>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/virtual_file_system.h"
 #include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 
@@ -105,6 +107,35 @@ int main()
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 			assert(prep.error_message.find("cannot contain '..' directory traversal") != std::string::npos);
+		}
+
+		// 7. VFS Success case: replacement in a local VFS file (tmp://)
+		{
+			auto global_vfs = std::make_shared<virtual_file_system>();
+			auto tmp_prov = std::make_shared<file_vfs_provider>("tmp", fs_utils::get_project_tmp_dir());
+			global_vfs->register_provider("tmp", tmp_prov);
+			ctx.fs_security.set_vfs(global_vfs.get());
+
+			// Write standard file via local system under tmp dir
+			std::string physical_tmp_file = fs_utils::get_project_tmp_dir() + "/test_replace_vfs.txt";
+			std::ofstream out(physical_tmp_file);
+			out << "line 1\ntarget block\nline 3\n";
+			out.close();
+
+			std::string args = "{\"path\": \"tmp://test_replace_vfs.txt\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
+			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
+			std::cout << "VFS replacement result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+
+			// Read back physical file to verify
+			std::ifstream in(physical_tmp_file, std::ios::binary);
+			std::stringstream buffer;
+			buffer << in.rdbuf();
+			assert(buffer.str() == "line 1\nsubstituted block\nline 3\n");
+			in.close();
+
+			std::filesystem::remove(physical_tmp_file);
+			ctx.fs_security.set_vfs(nullptr);
 		}
 
 		// Clean up

@@ -134,17 +134,23 @@ std::shared_ptr<agentlib::agent_interaction> fs_replace_lines_tool::get_interact
 	return interaction_;
 }
 
-bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
+bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
+	std::string path_to_use = args_.safe_path;
+	auto* vfs = ctx.fs_security.get_vfs();
+	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
+		path_to_use = vfs->get_local_path(args_.safe_path);
+	}
+
 	// 1. Existence Check
-	if (!std::filesystem::exists(args_.safe_path)) {
+	if (!std::filesystem::exists(path_to_use)) {
 		out_error = "Error: File does not exist. fs_replace_lines can only edit existing files.";
 		return false;
 	}
 
 	// 2. Read file content
 	std::vector<std::string> lines;
-	std::ifstream in(args_.safe_path);
+	std::ifstream in(path_to_use);
 	if (!in.is_open()) {
 		out_error = "Error: Could not open file for reading during verification.";
 		return false;
@@ -402,10 +408,16 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 
 std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context &ctx)
 {
+	std::string path_to_use = args_.safe_path;
+	auto* vfs = ctx.fs_security.get_vfs();
+	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
+		path_to_use = vfs->get_local_path(args_.safe_path);
+	}
+
 	std::vector<std::string> lines;
 
 	// 1. Read file into memory (we know it's valid from validate_runtime)
-	std::ifstream in(args_.safe_path);
+	std::ifstream in(path_to_use);
 	if (!in.is_open()) {
 		return "Error: Could not open file for reading during execution.";
 	}
@@ -471,7 +483,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 
 	// 4. Write back to disk
-	std::ofstream out(args_.safe_path, std::ios::binary);
+	std::ofstream out(path_to_use, std::ios::binary);
 	if (!out.is_open()) {
 		return "Error: Could not open file for writing.";
 	}

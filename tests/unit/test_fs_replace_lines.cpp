@@ -7,7 +7,9 @@
 #include <vector>
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/agentlib/virtual_file_system.h"
 #include "../../src/tools/fs_replace_lines/fs_replace_lines.h"
+#include "../../src/fs_utils.h"
 
 void create_dummy_file(const std::string &path)
 {
@@ -255,6 +257,44 @@ int main()
 		std::getline(in, line);
 		assert(line == "Line C");
 		in.close();
+	}
+
+	// Test VFS replace_lines support (tmp://)
+	{
+		auto global_vfs = std::make_shared<agentlib::virtual_file_system>();
+		auto tmp_prov = std::make_shared<agentlib::file_vfs_provider>("tmp", fs_utils::get_project_tmp_dir());
+		global_vfs->register_provider("tmp", tmp_prov);
+		ctx.fs_security.set_vfs(global_vfs.get());
+
+		std::string physical_tmp_file = fs_utils::get_project_tmp_dir() + "/test_replace_lines_vfs.txt";
+		std::ofstream out(physical_tmp_file);
+		out << "Line X\nLine Y\nLine Z\n";
+		out.close();
+
+		nlohmann::json vfs_args = {
+		    {"path", "tmp://test_replace_lines_vfs.txt"},
+		    {"edits", nlohmann::json::array({
+			{{"line_number", 2}, {"type", "replace"}, {"original_text", "Line Y"}, {"replace_with", "Replaced Line Y"}}
+		    })}
+		};
+
+		std::string vfs_res = registry.execute_tool("fs_replace_lines", vfs_args.dump(), ctx);
+		std::cout << "VFS replace_lines result: " << vfs_res << "\n";
+		assert(vfs_res.find("Successfully applied") != std::string::npos);
+
+		// Verify change
+		std::ifstream in(physical_tmp_file);
+		std::string line;
+		std::getline(in, line);
+		assert(line == "Line X");
+		std::getline(in, line);
+		assert(line == "Replaced Line Y");
+		std::getline(in, line);
+		assert(line == "Line Z");
+		in.close();
+
+		std::remove(physical_tmp_file.c_str());
+		ctx.fs_security.set_vfs(nullptr);
 	}
 
 	std::remove(test_file.c_str());
