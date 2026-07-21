@@ -158,10 +158,10 @@
 
 - bug: valgrind does not work in our sandbox
 
-
 - feature: sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
   write in the tool security system and sandbox system so that the agent does not need to clobber the actual
   project directory with small python or other scripts it makes to do things
+
 
 - feature: MCP support enhancements
 	- each tool will get a prefix to make sure they are unique
@@ -255,6 +255,8 @@
 - `agent_get_run_screenshot` Crash & Status Awareness: Upgraded `agent_get_run_screenshot` and `run_screenshot_data` to include `is_alive` (indicating if the target application process is still running or ended) and `crash_notification` (containing formatted crash dumps and debugging guidance if a crash occurred). Updated unit tests in `test_agent_get_run_screenshot.cpp` and updated `docs/tools.md`.
 - `crashdump_list` Cookie Column: Extended `crashdump_manager` (`to_markdown_row` and `get_markdown_table`) to display `Cookie` in crash dump tables (`| Crash ID | Timestamp | Executable | Signal | Cookie |`), linking crash dumps directly to `run_<id>` process execution handles. Updated unit tests in `test_crashdump_list.cpp`.
 - `crashdump_list` Limit Parameter: Added a `limit` integer parameter (defaulting to 20, returning the most recent ones) to `crashdump_list` to prevent context window bloat as crash history accumulates over time. Updated `crashdump_manager::get_markdown_table` and tests.
+- `statistics_manager` Auto-load & Agent Tool Call Tracking Fix: Fixed a bug where `statistics.json` in `~/.cache/turbostar/` was not recording tool call usage during agent runs because `ai_agent::start_processing` invoked tool execution directly without notifying `statistics_manager`. Implemented lazy auto-loading in `statistics_manager` (`increment_stat`, `get_stat`, `get_all_stats`) to ensure existing statistics are loaded before any writes to prevent data loss. Updated `ai_agent.cpp` and `test_statistics_manager.cpp`.
+
 
 
 ## 20-07-2026

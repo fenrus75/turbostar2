@@ -16,6 +16,7 @@
 #include "../fs_utils.h"
 #include "../mcp/mcp_manager.h"
 #include "../project_manager.h"
+#include "../statistics_manager.h"
 #include "images/image_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
@@ -1696,6 +1697,8 @@ void ai_agent::start_processing()
 						} else {
 							try {
 								self->update_last_activity_time();
+								statistics_manager::get_instance().increment_stat(
+								    std::format("toolcall:{}", call.function.name));
 								tool_result = prep.tool->execute(ctx);
 								self->update_last_activity_time();
 							} catch (const std::exception &e) {

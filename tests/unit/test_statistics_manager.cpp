@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include "../../src/statistics_manager.h"
 
@@ -66,9 +67,39 @@ void test_statistics_manager()
 	std::cout << "statistics_manager unit tests passed!\n";
 }
 
+void test_autoload_preserves_data()
+{
+	std::string test_dir = "/tmp/turbostar_test_stats_autoload";
+	fs::create_directories(test_dir + "/.cache/turbostar");
+	setenv("HOME", test_dir.c_str(), 1);
+
+	// Write pre-existing statistics.json to disk directly
+	std::string stats_file = test_dir + "/.cache/turbostar/statistics.json";
+	{
+		std::ofstream ofs(stats_file);
+		ofs << "{\n  \"preexisting_stat\": 42\n}\n";
+	}
+
+	auto &sm = statistics_manager::get_instance();
+	sm.load();
+	sm.increment_stat("newly_added_stat", 1);
+
+	// Assert that pre-existing stat was NOT wiped out
+	assert(sm.get_stat("preexisting_stat") == 42);
+	assert(sm.get_stat("newly_added_stat") == 1);
+
+	// Clean up
+	unsetenv("HOME");
+	try {
+		fs::remove_all(test_dir);
+	} catch (...) {}
+	std::cout << "test_autoload_preserves_data passed!\n";
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_statistics_manager();
+	test_autoload_preserves_data();
 	return 0;
 }

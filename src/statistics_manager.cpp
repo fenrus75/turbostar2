@@ -14,6 +14,9 @@ statistics_manager &statistics_manager::get_instance()
 void statistics_manager::increment_stat(const std::string &key, int amount)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (!loaded_) {
+		load_unlocked();
+	}
 	stats_[key] += amount;
 
 	// Automatically persist the updated metrics to ensure that usage telemetry
@@ -24,6 +27,9 @@ void statistics_manager::increment_stat(const std::string &key, int amount)
 int statistics_manager::get_stat(const std::string &key) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (!loaded_) {
+		const_cast<statistics_manager *>(this)->load_unlocked();
+	}
 	auto it = stats_.find(key);
 	if (it != stats_.end()) {
 		return it->second;
@@ -34,12 +40,22 @@ int statistics_manager::get_stat(const std::string &key) const
 std::map<std::string, int> statistics_manager::get_all_stats() const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (!loaded_) {
+		const_cast<statistics_manager *>(this)->load_unlocked();
+	}
 	return stats_;
 }
 
 void statistics_manager::load()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	load_unlocked();
+}
+
+void statistics_manager::load_unlocked()
+{
+	loaded_ = true;
+	stats_.clear();
 	std::string filepath = get_stats_file_path();
 	if (!std::filesystem::exists(filepath)) {
 		return;

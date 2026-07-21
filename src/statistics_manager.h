@@ -47,6 +47,7 @@ class statistics_manager
       private:
 	statistics_manager() = default;
 	std::string get_stats_file_path() const;
+	void load_unlocked();
 	void save_unlocked() const;
 
 	/*
@@ -59,5 +60,6 @@ class statistics_manager
 	 * - No nested locking of other class-level mutexes is performed while holding mutex_.
 	 */
 	mutable std::mutex mutex_;
+	mutable bool loaded_{false};
 	std::map<std::string, int> stats_;
 };
