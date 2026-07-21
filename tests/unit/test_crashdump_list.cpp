@@ -27,7 +27,7 @@ int main()
 
 	{
 		std::ofstream ofs(crash_path / "info.txt");
-		ofs << "Signal: 11\n";
+		ofs << "Signal: 11\nCrashCookie: run_99\n";
 	}
 	{
 		std::ofstream ofs(crash_path / "maps.txt");
@@ -55,7 +55,9 @@ int main()
 			std::string res = registry.execute_tool("crashdump_list", "{}", ctx);
 			std::cout << "Crash list result: " << res << std::endl;
 			assert(res.find("| Crash ID |") != std::string::npos);
+			assert(res.find("| Cookie |") != std::string::npos);
 			assert(res.find("test123") != std::string::npos);
+			assert(res.find("run_99") != std::string::npos);
 		}
 
 		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)

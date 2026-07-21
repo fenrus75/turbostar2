@@ -14,7 +14,8 @@ namespace fs = std::filesystem;
 std::string crashdump_info::to_markdown_row() const
 {
 	std::ostringstream oss;
-	oss << "| " << crash_id << " | " << timestamp << " | `" << executable << "` | " << signal << " |";
+	std::string cookie_str = crash_cookie.empty() ? "-" : crash_cookie;
+	oss << "| " << crash_id << " | " << timestamp << " | `" << executable << "` | " << signal << " | " << cookie_str << " |";
 	return oss.str();
 }
 
@@ -335,7 +336,7 @@ std::string crashdump_manager::refresh(const std::string & /*project_hash*/)
 
 		if (!found_new) {
 			new_dumps_report =
-			    "### New Crashdumps Detected\n| Crash ID | Timestamp | Executable | Signal |\n|---|---|---|---|\n";
+			    "### New Crashdumps Detected\n| Crash ID | Timestamp | Executable | Signal | Cookie |\n|---|---|---|---|---|\n";
 			found_new = true;
 		}
 		new_dumps_report += info.to_markdown_row() + "\n";
@@ -373,8 +374,8 @@ std::string crashdump_manager::get_markdown_table() const
 	}
 
 	std::ostringstream oss;
-	oss << "| Crash ID | Timestamp | Executable | Signal |\n";
-	oss << "|---|---|---|---|\n";
+	oss << "| Crash ID | Timestamp | Executable | Signal | Cookie |\n";
+	oss << "|---|---|---|---|---|\n";
 	for (const auto &dump : crashdumps_) {
 		oss << dump.to_markdown_row() << "\n";
 	}

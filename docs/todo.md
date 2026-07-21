@@ -253,6 +253,7 @@
 ## 21-07-2026
 - Application Crash Notifications & `agent_wait_for_app`: Added crash cookie tracking (`TURBOSTAR_CRASH_COOKIE=run_<id>`) to `crash_catcher.c`, `command_runner`, and `terminal_window`. Implemented `agent_wait_for_app` tool to allow agents to wait for process termination, crash, or settled state (500ms output silence). Enhanced `agent_start_app` (with `wait_for_time`) and `agent_terminate_run` to automatically detect application crashes and return detailed `crash_notification` text to guide the LLM agent toward investigation. Added unit tests in `test_agent_wait_for_app.cpp` and updated `docs/tools.md`.
 - `agent_get_run_screenshot` Crash & Status Awareness: Upgraded `agent_get_run_screenshot` and `run_screenshot_data` to include `is_alive` (indicating if the target application process is still running or ended) and `crash_notification` (containing formatted crash dumps and debugging guidance if a crash occurred). Updated unit tests in `test_agent_get_run_screenshot.cpp` and updated `docs/tools.md`.
+- `crashdump_list` Cookie Column: Extended `crashdump_manager` (`to_markdown_row` and `get_markdown_table`) to display `Cookie` in crash dump tables (`| Crash ID | Timestamp | Executable | Signal | Cookie |`), linking crash dumps directly to `run_<id>` process execution handles. Updated unit tests in `test_crashdump_list.cpp`.
 
 
 ## 20-07-2026
