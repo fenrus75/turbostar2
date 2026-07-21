@@ -206,8 +206,34 @@
       </div>
     </section>
 
-    <!-- Visual Feature 6: Agent Command Center -->
-    <section class="detail-split" id="command-center-section">
+    <!-- Visual Feature 6: Autonomous Crash Notifications & GDB Core Dump Debugging -->
+    <section class="detail-split" id="crash-debugging">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Autonomous Crash Notifications &amp; Core Dump Inspection</h2>
+        <p class="detail-text">
+          When an application under test crashes, Turbostar's runtime environment captures the failure using <code>libturbocatch</code> and tagged crash cookies (<code>run_&lt;id&gt;</code>). The AI agent receives automatic crash alerts and can autonomously spawn interactive GDB sessions to inspect post-mortem core dumps.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Automated Crash Cookie Tracking:</strong> Execution tools (<code>agent_start_app</code>, <code>agent_wait_for_app</code>, <code>agent_terminate_run</code>, <code>agent_get_run_screenshot</code>) detect crashes instantly and pass crash notifications containing Crash IDs directly into the agent's context.</li>
+          <li><strong>Interactive GDB Core Dump Sessions:</strong> Using <code>agent_debug_coredump</code> and <code>agent_write_to_run</code>, the agent interactively executes GDB commands (<code>backtrace</code>, <code>print</code>, <code>info registers</code>) against core dumps to diagnose root causes without human intervention.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-agent-gdb-svg">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --agent-gdb-coredump</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./gdb.svg" target="_blank">
+              <img src="./gdb.svg" alt="AI agent interactively debugging a crash with GDB and coredumps in Turbostar">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 7: Agent Command Center -->
+    <section class="detail-split reverse" id="command-center-section">
       <div class="detail-info">
         <h2 class="detail-subtitle">Agent Command Center</h2>
         <p class="detail-text">
@@ -232,8 +258,8 @@
       </div>
     </section>
 
-    <!-- Visual Feature 7: Integrated Undo History -->
-    <section class="detail-split reverse" id="undo-history">
+    <!-- Visual Feature 8: Integrated Undo History -->
+    <section class="detail-split" id="undo-history">
       <div class="detail-info">
         <h2 class="detail-subtitle">Integrated Undo History</h2>
         <p class="detail-text">

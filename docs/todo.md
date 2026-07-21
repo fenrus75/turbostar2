@@ -256,6 +256,8 @@
 - `crashdump_list` Cookie Column: Extended `crashdump_manager` (`to_markdown_row` and `get_markdown_table`) to display `Cookie` in crash dump tables (`| Crash ID | Timestamp | Executable | Signal | Cookie |`), linking crash dumps directly to `run_<id>` process execution handles. Updated unit tests in `test_crashdump_list.cpp`.
 - `crashdump_list` Limit Parameter: Added a `limit` integer parameter (defaulting to 20, returning the most recent ones) to `crashdump_list` to prevent context window bloat as crash history accumulates over time. Updated `crashdump_manager::get_markdown_table` and tests.
 - `statistics_manager` Auto-load & Agent Tool Call Tracking Fix: Fixed a bug where `statistics.json` in `~/.cache/turbostar/` was not recording tool call usage during agent runs because `ai_agent::start_processing` invoked tool execution directly without notifying `statistics_manager`. Implemented lazy auto-loading in `statistics_manager` (`increment_stat`, `get_stat`, `get_all_stats`) to ensure existing statistics are loaded before any writes to prevent data loss. Updated `ai_agent.cpp` and `test_statistics_manager.cpp`.
+- AI Web Page GDB Core Dump Section: Added a dedicated feature section in `docs/ai.html` (`#crash-debugging`) showcasing automated crash notifications, crash cookie tracking (`run_<id>`), and autonomous GDB core dump inspection with `docs/gdb.svg`. Checked HTML validation via `website_validate_ai`.
+
 
 
 
