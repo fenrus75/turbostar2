@@ -554,9 +554,10 @@ These tools allow the agent to interact with the project's Git repository.
     *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
 ### `agent_get_run_screenshot`
-*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, and visibility status for a given run ID.
+*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (`is_alive`), and optional `crash_notification` for a given run ID.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before capturing screenshot.
 
 ### `agent_terminate_run`
 *   **Description:** Terminates/stops a running process and closes its window based on its run ID.

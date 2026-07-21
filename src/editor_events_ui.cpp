@@ -927,14 +927,23 @@ bool editor::write_to_run(int run_id, const std::string &data)
 agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
 {
 	auto *tw = find_terminal_window(run_id);
-	if (!tw)
-		return {};
-	auto snap = tw->get_screenshot();
 	agentlib::run_screenshot_data res;
-	res.grid = snap.grid;
-	res.cursor_x = snap.cursor_x;
-	res.cursor_y = snap.cursor_y;
-	res.cursor_visible = snap.cursor_visible;
+	if (tw) {
+		auto snap = tw->get_screenshot();
+		res.grid = snap.grid;
+		res.cursor_x = snap.cursor_x;
+		res.cursor_y = snap.cursor_y;
+		res.cursor_visible = snap.cursor_visible;
+		res.is_alive = tw->is_alive();
+	} else {
+		res.is_alive = false;
+	}
+
+	crashdump_manager::get_instance().refresh("");
+	auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+	if (!dumps.empty()) {
+		res.crash_notification = crashdump_manager::format_crash_notification(dumps);
+	}
 	return res;
 }
 

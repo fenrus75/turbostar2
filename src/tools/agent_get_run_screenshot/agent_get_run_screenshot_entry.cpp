@@ -56,8 +56,15 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 
 	agentlib::run_screenshot_data snap = ctx.doc_provider->get_run_screenshot(args_.run_id);
 	if (snap.grid.empty()) {
+		std::string err_msg = "Error: Run not found.";
+		if (!snap.is_alive) {
+			err_msg = "Error: Run ID not found or application process already ended.";
+		}
+		if (!snap.crash_notification.empty()) {
+			err_msg += snap.crash_notification;
+		}
 		set_failure(ctx, std::format("Run ID {} not found or empty screen.", args_.run_id));
-		return "Error: Run not found.";
+		return err_msg;
 	}
 
 	try {
@@ -65,7 +72,12 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 		    {"grid", snap.grid},
 		    {"cursor_x", snap.cursor_x},
 		    {"cursor_y", snap.cursor_y},
-		    {"cursor_visible", snap.cursor_visible}};
+		    {"cursor_visible", snap.cursor_visible},
+		    {"is_alive", snap.is_alive}};
+
+		if (!snap.crash_notification.empty()) {
+			snap_json["crash_notification"] = snap.crash_notification;
+		}
 
 		set_success(ctx, std::format("Captured screenshot of run_id {}", args_.run_id));
 		return snap_json.dump();

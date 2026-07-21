@@ -15,6 +15,8 @@ struct run_screenshot_data {
 	int cursor_x = 0;
 	int cursor_y = 0;
 	bool cursor_visible = false;
+	bool is_alive = true;
+	std::string crash_notification;
 };
 
 struct wait_for_app_result {

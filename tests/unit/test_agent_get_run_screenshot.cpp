@@ -20,7 +20,10 @@ public:
 
 	run_screenshot_data get_run_screenshot(int run_id) override {
 		if (run_id == 42) {
-			return {{"line1", "line2"}, 10, 5, true};
+			return {{"line1", "line2"}, 10, 5, true, true, ""};
+		}
+		if (run_id == 43) {
+			return {{"line1", "line2"}, 0, 0, false, false, "CRASH DETECTED"};
 		}
 		return {};
 	}
@@ -57,7 +60,15 @@ int main()
 		std::cout << "Result:\n" << result << std::endl;
 		assert(result.find("line1") != std::string::npos);
 		assert(result.find("cursor_x") != std::string::npos);
+		assert(result.find("is_alive") != std::string::npos);
 		assert(result.find("10") != std::string::npos);
+
+		// 1b. Crash notification case
+		{
+			std::string res_crash = registry.execute_tool("agent_get_run_screenshot", "{\"run_id\": 43}", ctx);
+			assert(res_crash.find("CRASH DETECTED") != std::string::npos);
+			assert(res_crash.find("\"is_alive\":false") != std::string::npos);
+		}
 
 		// 2. Failure: Run ID not found
 		result = registry.execute_tool("agent_get_run_screenshot", "{\"run_id\": 999}", ctx);
