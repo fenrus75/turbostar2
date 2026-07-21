@@ -250,7 +250,9 @@
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
 
-# done items (move items here on completion)
+## 21-07-2026
+- Application Crash Notifications & `agent_wait_for_app`: Added crash cookie tracking (`TURBOSTAR_CRASH_COOKIE=run_<id>`) to `crash_catcher.c`, `command_runner`, and `terminal_window`. Implemented `agent_wait_for_app` tool to allow agents to wait for process termination, crash, or settled state (500ms output silence). Enhanced `agent_start_app` (with `wait_for_time`) and `agent_terminate_run` to automatically detect application crashes and return detailed `crash_notification` text to guide the LLM agent toward investigation. Added unit tests in `test_agent_wait_for_app.cpp` and updated `docs/tools.md`.
+
 
 ## 20-07-2026
 - Interactive Instructions in agent_debug_coredump: Updated `agent_debug_coredump` to return a detailed `instructions` text block along with `gdb_run_id`, explaining how to send commands with `agent_write_to_run` and warning the agent to terminate the session using `agent_terminate_run` when finished. Documented in `docs/tools.md` and added unit test coverage.

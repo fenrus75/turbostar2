@@ -814,6 +814,14 @@ test_agent_terminate_run = executable('test_agent_terminate_run',
   include_directories: inc)
 test('unit_test_agent_terminate_run', test_agent_terminate_run, suite: 'agent')
 
+test_agent_wait_for_app = executable('test_agent_wait_for_app',
+  ['tests/unit/test_agent_wait_for_app.cpp',
+   'src/tools/agent_wait_for_app/agent_wait_for_app_entry.cpp',
+   'src/tools/agent_wait_for_app/agent_wait_for_app_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_agent_wait_for_app', test_agent_wait_for_app, suite: 'agent')
+
 test_agent_todo_status = executable('test_agent_todo_status',
   ['tests/unit/test_agent_todo_status.cpp',
    'src/tools/agent_todo_status/agent_todo_status_entry.cpp',

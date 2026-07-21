@@ -10,8 +10,9 @@ namespace tools
 struct agent_start_app_raw_args {
 	std::string args;
 	bool debugger{false};
+	int wait_for_time{0};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_start_app_raw_args, args, debugger);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_start_app_raw_args, args, debugger, wait_for_time);
 
 class agent_start_app_validator : public agentlib::tool_validator
 {
@@ -40,7 +41,12 @@ class agent_start_app_validator : public agentlib::tool_validator
 		       {{"type", "boolean"},
 			{"description",
 			 "If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false."},
-			{"default", false}}}}}};
+			{"default", false}}},
+		      {"wait_for_time",
+		       {{"type", "integer"},
+			{"description",
+			 "Optional time in seconds to wait for the application to finish after starting. Defaults to 0 (async execution)."},
+			{"default", 0}}}}}};
 	}
 
       protected:
@@ -57,8 +63,13 @@ class agent_start_app_validator : public agentlib::tool_validator
 					return false;
 				}
 			}
+			if (raw.wait_for_time < 0) {
+				out_error = "Validation Error: wait_for_time must be non-negative.";
+				return false;
+			}
 			args_.args = raw.args;
 			args_.debugger = raw.debugger;
+			args_.wait_for_time = raw.wait_for_time;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

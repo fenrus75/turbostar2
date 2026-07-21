@@ -274,18 +274,25 @@ std::string crashdump_manager::refresh(const std::string & /*project_hash*/)
 		crashdump_info info;
 		info.crash_id = crash_id;
 
-		// Extract signal from info.txt if it exists
+		// Extract signal and crash cookie from info.txt if it exists
 		fs::path info_path = entry.path() / "info.txt";
 		std::ifstream info_in(info_path);
 		std::string sig_str = "Unknown";
+		std::string cookie_str = "";
 		if (info_in) {
 			std::string line;
 			constexpr std::string_view sig_prefix = "Signal: ";
-			if (std::getline(info_in, line) && line.starts_with(sig_prefix)) {
-				sig_str = line.substr(sig_prefix.length());
+			constexpr std::string_view cookie_prefix = "CrashCookie: ";
+			while (std::getline(info_in, line)) {
+				if (line.starts_with(sig_prefix)) {
+					sig_str = line.substr(sig_prefix.length());
+				} else if (line.starts_with(cookie_prefix)) {
+					cookie_str = line.substr(cookie_prefix.length());
+				}
 			}
 		}
 		info.signal = sig_str;
+		info.crash_cookie = cookie_str;
 
 		// Extract executable name from maps
 		std::string exe_name = "App";
@@ -342,6 +349,23 @@ const std::vector<crashdump_info> &crashdump_manager::get_crashdumps() const
 	return crashdumps_;
 }
 
+std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_cookie(const std::string &cookie) const
+{
+	std::vector<crashdump_info> res;
+	for (const auto &c : crashdumps_) {
+		if (c.crash_cookie == cookie || (!cookie.empty() && c.crash_cookie.starts_with(cookie))) {
+			res.push_back(c);
+		}
+	}
+	return res;
+}
+
+std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_run(int run_id) const
+{
+	std::string cookie_prefix = "run_" + std::to_string(run_id);
+	return get_crashdumps_for_cookie(cookie_prefix);
+}
+
 std::string crashdump_manager::get_markdown_table() const
 {
 	if (crashdumps_.empty()) {
@@ -370,4 +394,38 @@ void crashdump_manager::clear_all()
 		fs::remove_all(dump_dir, ec);
 		fs::create_directories(dump_dir, ec);
 	}
+}
+
+std::string crashdump_manager::format_crash_notification(const std::vector<crashdump_info> &dumps)
+{
+	if (dumps.empty())
+		return "";
+
+	if (dumps.size() == 1) {
+		return std::format(
+		    "\n\nCRASH DETECTED: Application crashed (Crash ID: {}). Please use 'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
+		    dumps[0].crash_id, dumps[0].crash_id);
+	}
+
+	std::string ids;
+	for (size_t i = 0; i < dumps.size(); ++i) {
+		if (i > 0)
+			ids += ", ";
+		ids += dumps[i].crash_id;
+	}
+	return std::format(
+	    "\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}). Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
+	    dumps.size(), ids);
+}
+
+std::string crashdump_manager::format_crash_notification(size_t crash_count)
+{
+	if (crash_count == 0)
+		return "";
+	if (crash_count == 1) {
+		return "\n\nCRASH DETECTED: 1 new crash occurred during execution. Please use 'crashdump_list' and 'crashdump_get_info' to investigate.";
+	}
+	return std::format(
+	    "\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
+	    crash_count);
 }

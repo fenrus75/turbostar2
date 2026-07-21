@@ -180,6 +180,9 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		std::string lib_path = fs_utils::get_turbocatch_lib_path();
 		cmd += "-p " + fs_utils::escape_shell_arg("Environment=LD_PRELOAD=" + lib_path) + " ";
 		cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_DUMP_DIR=" + dump_dir) + " ";
+		if (!crash_cookie_.empty()) {
+			cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_CRASH_COOKIE=" + crash_cookie_) + " ";
+		}
 
 		// Ensure the directory containing libturbocatch.so is accessible (at least read-only)
 		std::string lib_dir = std::filesystem::path(lib_path).parent_path().string();

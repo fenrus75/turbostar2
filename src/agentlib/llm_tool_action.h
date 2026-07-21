@@ -26,6 +26,7 @@ namespace agentlib {
 | image_import_tool | src/tools/image_import/image_import.h |
 | image_export_tool | src/tools/image_export/image_export.h |
 | fs_purge_tmp_tool | src/tools/fs_purge_tmp/fs_purge_tmp.h |
+| agent_wait_for_app_tool | src/tools/agent_wait_for_app/agent_wait_for_app.h |
 */
 class llm_tool_action : public llm_tool {
 public:

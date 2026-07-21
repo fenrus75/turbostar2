@@ -21,6 +21,7 @@
 // Pre-allocated static buffers to avoid malloc in signal handler
 static char dump_dir_base[1024] = {0};
 static int dump_dir_len = 0;
+static char crash_cookie[512] = {0};
 
 // Async-signal-safe string length
 static size_t safe_strlen(const char *s)
@@ -241,6 +242,12 @@ static void write_info(const char *dir_path, int sig, void *addr, int is_write, 
 		safe_strcat(buf, "\n", sizeof(buf));
 	}
 
+	if (crash_cookie[0] != '\0') {
+		safe_strcat(buf, "CrashCookie: ", sizeof(buf));
+		safe_strcat(buf, crash_cookie, sizeof(buf));
+		safe_strcat(buf, "\n", sizeof(buf));
+	}
+
 	write(fd, buf, safe_strlen(buf));
 	close(fd);
 }
@@ -334,6 +341,11 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 
 void turbocatch_init(void)
 {
+	const char *cookie = getenv("TURBOSTAR_CRASH_COOKIE");
+	if (cookie) {
+		safe_strcpy(crash_cookie, cookie, sizeof(crash_cookie));
+	}
+
 	// Read the target directory from the environment
 	const char *env_dir = getenv("TURBOSTAR_DUMP_DIR");
 	if (env_dir) {

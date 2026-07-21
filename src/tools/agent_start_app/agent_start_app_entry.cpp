@@ -30,8 +30,20 @@ std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
 	    {"app_run_id", res.app_run_id},
 	    {"gdb_run_id", res.gdb_run_id >= 0 ? nlohmann::json(res.gdb_run_id) : nlohmann::json(nullptr)}};
 
-	set_success(ctx, "Started run_id " + std::to_string(res.app_run_id));
-	return output.dump();
+	if (args_.wait_for_time > 0) {
+		agentlib::wait_for_app_result wait_res = ctx.doc_provider->wait_for_app(res.app_run_id, "ended", args_.wait_for_time);
+		output["status"] = wait_res.status;
+		output["is_alive"] = wait_res.is_alive;
+		output["age_ms"] = wait_res.age_ms;
+		if (!wait_res.crash_notification.empty()) {
+			output["crash_notification"] = wait_res.crash_notification;
+		}
+		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id) + " (status: " + wait_res.status + ")");
+	} else {
+		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id));
+	}
+
+	return output.dump(2);
 }
 
 } // namespace tools

@@ -95,6 +95,7 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	runner.apply_build_profile();
 	runner.set_use_pty(true);
 	runner.set_enable_crash_catcher(enable_crash_catcher);
+	runner.set_crash_cookie("run_" + std::to_string(id_));
 	if (enable_network) {
 		runner.set_network_access(true);
 	}

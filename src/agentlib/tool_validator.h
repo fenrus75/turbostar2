@@ -36,6 +36,7 @@ namespace agentlib {
 | image_import_validator | src/tools/image_import/image_import.h |
 | image_export_validator | src/tools/image_export/image_export.h |
 | fs_purge_tmp_validator | src/tools/fs_purge_tmp/fs_purge_tmp.h |
+| agent_wait_for_app_validator | src/tools/agent_wait_for_app/agent_wait_for_app_security.cpp |
 */
 class tool_validator {
 public:

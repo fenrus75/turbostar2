@@ -57,6 +57,17 @@ int main()
 			assert(!prep_injection.error_message.empty());
 		}
 
+		// 3. Test wait_for_time validation
+		{
+			auto prep_wait = registry.prepare_tool("agent_start_app", "{\"args\": \"\", \"wait_for_time\": 5}", ctx);
+			assert(prep_wait.tool != nullptr);
+			assert(prep_wait.error_message.empty());
+
+			auto prep_invalid_wait = registry.prepare_tool("agent_start_app", "{\"args\": \"\", \"wait_for_time\": -1}", ctx);
+			assert(prep_invalid_wait.tool == nullptr);
+			assert(!prep_invalid_wait.error_message.empty());
+		}
+
 		std::cout << "agent_start_app tool verified successfully!" << std::endl;
 	}
 

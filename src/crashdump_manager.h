@@ -10,6 +10,7 @@ struct crashdump_info {
     std::string timestamp;
     std::string executable;
     std::string signal;
+    std::string crash_cookie;
     std::string raw_info;
 
     std::string to_markdown_row() const;
@@ -22,10 +23,17 @@ public:
     // Returns a markdown formatted string of newly discovered crashdumps, or empty string if none.
     std::string refresh(const std::string& project_hash);
     const std::vector<crashdump_info>& get_crashdumps() const;
+    std::vector<crashdump_info> get_crashdumps_for_cookie(const std::string& cookie) const;
+    std::vector<crashdump_info> get_crashdumps_for_run(int run_id) const;
     std::string get_markdown_table() const;
     
     // Deletes all crash dumps from the disk and clears internal state
     void clear_all();
+
+    // Formats a consistent crash notification message for LLM tools
+    static std::string format_crash_notification(const std::vector<crashdump_info>& dumps);
+    static std::string format_crash_notification(size_t crash_count);
+
 
 private:
     crashdump_manager() = default;

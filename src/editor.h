@@ -103,6 +103,7 @@ class editor : public agentlib::document_provider
 	void set_run_recording(int run_id, bool recording) override;
 	std::vector<std::string> get_run_recorded_data(int run_id) override;
 	bool terminate_run(int run_id) override;
+	agentlib::wait_for_app_result wait_for_app(int run_id, const std::string &type, int timeout_sec) override;
 	ui::terminal_window *find_terminal_window(int run_id);
 
 	// agentlib::document_provider implementation

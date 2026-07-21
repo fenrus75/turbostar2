@@ -17,6 +17,13 @@ struct run_screenshot_data {
 	bool cursor_visible = false;
 };
 
+struct wait_for_app_result {
+	std::string status; // "settled", "ended", "timeout", "not_found"
+	int64_t age_ms = 0;
+	bool is_alive = false;
+	std::string crash_notification;
+};
+
 // An abstract snapshot of a document's state.
 // Implementations of this should be thread-safe copies of the editor's live state.
 struct diagnostic_snapshot {
@@ -39,6 +46,15 @@ public:
 };
 
 // Interface for the tool framework to query the core editor
+/*
+
+# subclasses of document_provider
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| editor       | src/editor.h                                         |
+
+*/
 class document_provider {
 public:
     virtual ~document_provider() = default;
@@ -66,6 +82,7 @@ public:
     virtual void set_run_recording(int /*run_id*/, bool /*recording*/) {}
     virtual std::vector<std::string> get_run_recorded_data(int /*run_id*/) { return {}; }
     virtual bool terminate_run(int /*run_id*/) { return false; }
+    virtual wait_for_app_result wait_for_app(int /*run_id*/, const std::string& /*type*/, int /*timeout_sec*/) { return {"not_found", 0, false, ""}; }
 };
 
 } // namespace agentlib

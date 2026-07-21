@@ -532,6 +532,14 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `args` *(string, optional)*: Command line arguments to pass to the application.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
+    *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution).
+
+### `agent_wait_for_app`
+*   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, `is_alive`, `age_ms`, and optional `crash_notification`.
+*   **Arguments:**
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `type` *(string, optional)*: The wait condition: `'ended'` (default) waits for process termination or crash, `'settled'` waits for either termination or 500ms of no output.
+    *   `timeout_sec` *(integer, optional)*: Maximum time in seconds to wait before returning status `'timeout'`. Defaults to 30.
 
 ### `agent_debug_coredump`
 *   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing the `gdb_run_id` and detailed interactive `instructions` (which guide command inputs and warn to call `agent_terminate_run` when finished).

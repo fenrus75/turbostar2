@@ -169,6 +169,8 @@ tools_sources = files(
   'agent_get_run_screenshot/agent_get_run_screenshot_security.cpp',
   'agent_terminate_run/agent_terminate_run_entry.cpp',
   'agent_terminate_run/agent_terminate_run_security.cpp',
+  'agent_wait_for_app/agent_wait_for_app_entry.cpp',
+  'agent_wait_for_app/agent_wait_for_app_security.cpp',
   'activate_tool_family/activate_tool_family_entry.cpp',
   'activate_tool_family/activate_tool_family_security.cpp',
 

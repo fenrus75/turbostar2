@@ -20,6 +20,7 @@
 #include "codereview_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
+#include "crashdump_manager.h"
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -28,6 +29,7 @@
 #include "lsp_manager.h"
 #include "pluginloader.h"
 #include "project_manager.h"
+#include "session_manager.h"
 #include "ui/agent_window.h"
 #include "ui/code_review_window.h"
 #include "ui/dialog_factories.h"
@@ -1012,6 +1014,67 @@ bool editor::terminate_run(int run_id)
 
 	update_window_layout();
 	return true;
+}
+
+agentlib::wait_for_app_result editor::wait_for_app(int run_id, const std::string &type, int timeout_sec)
+{
+	agentlib::wait_for_app_result res;
+	res.status = "not_found";
+
+	auto start = std::chrono::steady_clock::now();
+	auto max_dur = std::chrono::seconds(timeout_sec);
+
+	while (true) {
+		auto now = std::chrono::steady_clock::now();
+		if (now - start >= max_dur) {
+			res.status = "timeout";
+			res.age_ms = get_run_last_modified_age(run_id);
+			auto *tw = find_terminal_window(run_id);
+			if (tw) {
+				res.is_alive = tw->is_alive();
+			}
+			break;
+		}
+
+		// Refresh crash dumps and check if any crashdump matches this run_id
+		crashdump_manager::get_instance().refresh("");
+		auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+		if (!dumps.empty()) {
+			res.status = "ended";
+			res.age_ms = get_run_last_modified_age(run_id);
+			res.is_alive = false;
+			res.crash_notification = crashdump_manager::format_crash_notification(dumps);
+			break;
+		}
+
+		auto *tw = find_terminal_window(run_id);
+		if (!tw) {
+			res.status = "not_found";
+			break;
+		}
+
+		res.is_alive = tw->is_alive();
+		res.age_ms = tw->get_milliseconds_since_last_modification();
+
+		if (!res.is_alive) {
+			res.status = "ended";
+			crashdump_manager::get_instance().refresh("");
+			auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+			if (!dumps.empty()) {
+				res.crash_notification = crashdump_manager::format_crash_notification(dumps);
+			}
+			break;
+		}
+
+		if (type == "settled" && res.age_ms >= 500) {
+			res.status = "settled";
+			break;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	}
+
+	return res;
 }
 
 static std::string get_executable_for_crash(const std::string &crash_id)
