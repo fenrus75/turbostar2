@@ -367,17 +367,25 @@ std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_run(int run_id
 	return get_crashdumps_for_cookie(cookie_prefix);
 }
 
-std::string crashdump_manager::get_markdown_table() const
+std::string crashdump_manager::get_markdown_table(size_t limit) const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
+
 	if (crashdumps_.empty()) {
 		return "No crash dumps found.";
 	}
 
 	std::ostringstream oss;
+	size_t start_idx = 0;
+	if (limit > 0 && crashdumps_.size() > limit) {
+		start_idx = crashdumps_.size() - limit;
+		oss << std::format("*(Showing the {} most recent crash dumps out of {} total)*\n\n", limit, crashdumps_.size());
+	}
+
 	oss << "| Crash ID | Timestamp | Executable | Signal | Cookie |\n";
 	oss << "|---|---|---|---|---|\n";
-	for (const auto &dump : crashdumps_) {
-		oss << dump.to_markdown_row() << "\n";
+	for (size_t i = start_idx; i < crashdumps_.size(); ++i) {
+		oss << crashdumps_[i].to_markdown_row() << "\n";
 	}
 	return oss.str();
 }

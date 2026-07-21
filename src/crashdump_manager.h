@@ -25,7 +25,7 @@ public:
     const std::vector<crashdump_info>& get_crashdumps() const;
     std::vector<crashdump_info> get_crashdumps_for_cookie(const std::string& cookie) const;
     std::vector<crashdump_info> get_crashdumps_for_run(int run_id) const;
-    std::string get_markdown_table() const;
+    std::string get_markdown_table(size_t limit = 20) const;
     
     // Deletes all crash dumps from the disk and clears internal state
     void clear_all();
@@ -49,5 +49,5 @@ private:
      * - Held briefly when refreshing crash dumps, querying list, formatting tables,
      *   or clearing dumps.
      */
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 };

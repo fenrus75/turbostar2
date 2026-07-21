@@ -11,7 +11,7 @@ bool crashdump_list_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string crashdump_list_tool::execute(agentlib::tool_context & /*ctx*/)
 {
-	return crashdump_manager::get_instance().get_markdown_table();
+	return crashdump_manager::get_instance().get_markdown_table(args_.limit);
 }
 
 } // namespace tools

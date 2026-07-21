@@ -60,10 +60,27 @@ int main()
 			assert(res.find("run_99") != std::string::npos);
 		}
 
-		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
+		// 2. Success case: list with custom limit
 		{
-			auto prep = registry.prepare_tool("crashdump_list", "{\"unexpected_arg\": 1}", ctx);
-			assert(prep.tool == nullptr); // This will fail initially as expected
+			std::string res = registry.execute_tool("crashdump_list", "{\"limit\": 5}", ctx);
+			assert(res.find("test123") != std::string::npos);
+		}
+
+		// 3. Stage 1 validation failure: reject invalid limit (<= 0)
+		{
+			auto prep = registry.prepare_tool("crashdump_list", "{\"limit\": 0}", ctx);
+			assert(prep.tool == nullptr);
+			assert(!prep.error_message.empty());
+
+			auto prep_neg = registry.prepare_tool("crashdump_list", "{\"limit\": -5}", ctx);
+			assert(prep_neg.tool == nullptr);
+			assert(!prep_neg.error_message.empty());
+		}
+
+		// 4. Stage 1 validation failure: reject unexpected properties
+		{
+			auto prep = registry.prepare_tool("crashdump_list", "{\"limit\": 20, \"unexpected_arg\": 1}", ctx);
+			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
