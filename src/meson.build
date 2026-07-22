@@ -25,6 +25,7 @@ core_sources = files(
   'gcc_log_parser.cpp',
   'build_error_manager.cpp',
   'crashdump_manager.cpp',
+  'address_lookup.cpp',
   'process_runner.cpp',
   'markdown_utils.cpp',
   'command_runner.cpp',

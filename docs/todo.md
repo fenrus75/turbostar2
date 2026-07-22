@@ -12,6 +12,8 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- refactor: investigate std::ostringstream usages to see if std::format is a better/simpler solution
+
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -247,6 +249,9 @@
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
+
+## 22-07-2026
+- Standalone `address_lookup` Component (`src/address_lookup.h/cpp`): Created a centralized, standalone address translation module (`turbostar::address_lookup`) to convert raw memory addresses into function names, file paths, and line numbers. Implemented high-performance batch address deduplication, secure absolute binary checks (`/usr/bin/eu-addr2line` and `/usr/bin/addr2line`), and maps parsing (`parse_maps`). Refactored `src/crash_process.cpp` and `src/crashdump_manager.cpp` to use `address_lookup`, updated build files (`src/meson.build`, `meson.build`), and added unit tests in `tests/unit/test_address_lookup.cpp`.
 
 ## 21-07-2026
 - Application Crash Notifications & `agent_wait_for_app`: Added crash cookie tracking (`TURBOSTAR_CRASH_COOKIE=run_<id>`) to `crash_catcher.c`, `command_runner`, and `terminal_window`. Implemented `agent_wait_for_app` tool to allow agents to wait for process termination, crash, or settled state (500ms output silence). Enhanced `agent_start_app` (with `wait_for_time`) and `agent_terminate_run` to automatically detect application crashes and return detailed `crash_notification` text to guide the LLM agent toward investigation. Added unit tests in `test_agent_wait_for_app.cpp` and updated `docs/tools.md`.

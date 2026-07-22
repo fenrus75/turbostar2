@@ -1,6 +1,8 @@
 #include "crashdump_manager.h"
+#include "address_lookup.h"
 #include <cstdlib>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -13,10 +15,8 @@ namespace fs = std::filesystem;
 
 std::string crashdump_info::to_markdown_row() const
 {
-	std::ostringstream oss;
 	std::string cookie_str = crash_cookie.empty() ? "-" : crash_cookie;
-	oss << "| " << crash_id << " | " << timestamp << " | `" << executable << "` | " << signal << " | " << cookie_str << " |";
-	return oss.str();
+	return std::format("| {} | {} | `{}` | {} | {} |", crash_id, timestamp, executable, signal, cookie_str);
 }
 
 crashdump_manager &crashdump_manager::get_instance()
@@ -145,93 +145,49 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 
 	std::ifstream stack_in(stack_path, std::ios::binary);
 	if (stack_in) {
-		uint64_t ip;
+		uint64_t ip_addr;
+		std::vector<uintptr_t> raw_ips;
+		while (stack_in.read(reinterpret_cast<char *>(&ip_addr), sizeof(ip_addr))) {
+			raw_ips.push_back(static_cast<uintptr_t>(ip_addr));
+		}
+		stack_in.close();
+
+		auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path);
 		int frame = 0;
-		while (stack_in.read(reinterpret_cast<char *>(&ip), sizeof(ip))) {
-			bool found = false;
-			auto it = std::lower_bound(maps.begin(), maps.end(), ip,
-						   [](const memory_map &m, uint64_t addr) { return m.end <= addr; });
+		static std::string project_root = project_manager::get_instance().get_project_root();
+		std::string prefix = project_root;
+		if (!prefix.empty() && prefix.back() != '/') {
+			prefix += "/";
+		}
 
-			if (it != maps.end() && ip >= it->start && ip < it->end) {
-				const auto &m = *it;
-				uint64_t rel_addr = ip - m.start + m.offset;
-				if (frame > 0 && rel_addr > 0) {
-					rel_addr--;
-				}
-				std::string func_name = "??";
-				std::string location = "??";
-
-				if (!m.path.empty() && m.path[0] == '/') {
-					std::ostringstream cmd;
-					const char *tool = check_eu_addr2line_installed() ? "eu-addr2line" : "addr2line";
-					cmd << tool << " -C -f -e " << fs_utils::escape_shell_arg(m.path) << " " << std::hex << rel_addr;
-					event_logger::get_instance().log("Running addr2line command: {}", cmd.str());
-
-					std::string output;
-					FILE *pipe = popen(cmd.str().c_str(), "r");
-					if (pipe) {
-						char buffer[128];
-						while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-							output += buffer;
-						}
-						pclose(pipe);
-					}
-
-					std::istringstream addr_out(output);
-					std::string f_line, l_line;
-					if (std::getline(addr_out, f_line) && std::getline(addr_out, l_line)) {
-						func_name = f_line;
-						location = l_line;
-					} else {
-						location = m.path;
-					}
-				} else {
-					location = m.path.empty() ? "[unknown]" : m.path;
-				}
-
-				if (func_name == "__libc_start_main" || func_name == "__libc_start_call_main" ||
-				    func_name == "__libc_start_main_impl" || func_name == "_start") {
-					break;
-				}
-
-				// Normalize and strip project root from location if present
-				static std::string project_root = project_manager::get_instance().get_project_root();
-				std::string prefix = project_root;
-				if (!prefix.empty() && prefix.back() != '/') {
-					prefix += "/";
-				}
-
-				size_t colon_pos = location.find_last_of(':');
-				if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
-					std::string file_part = location.substr(0, colon_pos);
-					std::string line_part = location.substr(colon_pos);
-
-					fs::path p(file_part);
-					if (!p.is_absolute()) {
-						p = fs::path(project_root) / p;
-					}
-					file_part = p.lexically_normal().string();
-
-					if (file_part.starts_with(prefix)) {
-						file_part = file_part.substr(prefix.length());
-					}
-					location = file_part + line_part;
-				} else if (location.starts_with(prefix)) {
-					location = location.substr(prefix.length());
-				}
-
-				auto fmt = report.flags();
-				report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `" << func_name << "` | "
-				       << location << " |\n";
-				report.flags(fmt);
-				found = true;
+		for (size_t i = 0; i < raw_ips.size(); ++i) {
+			const auto &res = resolved[i];
+			if (res.function_name == "__libc_start_main" || res.function_name == "__libc_start_call_main" ||
+			    res.function_name == "__libc_start_main_impl" || res.function_name == "_start") {
+				break;
 			}
-			if (!found) {
-				auto fmt = report.flags();
-				report << "| " << std::dec << frame << " | `0x" << std::hex << ip << "` | `??` | [unmapped] |\n";
-				report.flags(fmt);
+
+			std::string location = res.location;
+			size_t colon_pos = location.find_last_of(':');
+			if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
+				std::string file_part = location.substr(0, colon_pos);
+				std::string line_part = location.substr(colon_pos);
+
+				fs::path p(file_part);
+				if (!p.is_absolute()) {
+					p = fs::path(project_root) / p;
+				}
+				file_part = p.lexically_normal().string();
+
+				if (file_part.starts_with(prefix)) {
+					file_part = file_part.substr(prefix.length());
+				}
+				location = file_part + line_part;
+			} else if (location.starts_with(prefix)) {
+				location = location.substr(prefix.length());
 			}
-			frame++;
+
+			report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame++, raw_ips[i], res.function_name, location);
 		}
 	}
 
