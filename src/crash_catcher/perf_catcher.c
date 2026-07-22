@@ -116,9 +116,23 @@ void turboperf_init(void)
 
 	int fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	if (fd < 0) {
-		// Fallback to software CPU clock sampling for virtualized environments/VMs/containers
+		// Fallback 1: Hardware cycles with period sampling
+		pe.freq = 0;
+		pe.sample_period = 100000;
+		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
+	}
+	if (fd < 0) {
+		// Fallback 2: Software CPU clock frequency sampling
 		pe.type = PERF_TYPE_SOFTWARE;
 		pe.config = PERF_COUNT_SW_CPU_CLOCK;
+		pe.freq = 1;
+		pe.sample_freq = 1000;
+		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
+	}
+	if (fd < 0) {
+		// Fallback 3: Software CPU clock period sampling
+		pe.freq = 0;
+		pe.sample_period = 1000000; // 1 ms
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {

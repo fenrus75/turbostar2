@@ -1,5 +1,6 @@
 #include "perf_manager.h"
 #include "address_lookup.h"
+#include "event_logger.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -22,8 +23,20 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 						      bool cleanup_raw_files)
 {
 	perf_profile_report report;
+	auto &logger = event_logger::get_instance();
+	logger.log(std::format("perf_manager: Beginning parse_and_resolve for perf_dir='{}' (target_pid={})", perf_dir, target_pid));
+
 	if (perf_dir.empty() || !fs::exists(perf_dir)) {
+		logger.log(std::format("perf_manager: Directory '{}' is empty or does not exist.", perf_dir));
 		return report;
+	}
+
+	// Log directory contents and file sizes for diagnostic visibility
+	std::error_code ec;
+	for (const auto &entry : fs::directory_iterator(perf_dir, ec)) {
+		std::string fname = entry.path().filename().string();
+		uint64_t fsize = entry.is_regular_file() ? entry.file_size() : 0;
+		logger.log(std::format("perf_manager: Found entry in perf_dir: '{}' ({} bytes)", fname, fsize));
 	}
 
 	fs::path samples_path;
@@ -36,7 +49,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	}
 
 	if (samples_path.empty() || !fs::exists(samples_path)) {
-		for (const auto &entry : fs::directory_iterator(perf_dir)) {
+		for (const auto &entry : fs::directory_iterator(perf_dir, ec)) {
 			std::string name = entry.path().filename().string();
 			if (name.starts_with("perf_samples_") && name.ends_with(".dat")) {
 				samples_path = entry.path();
@@ -46,9 +59,12 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		}
 	}
 
+	logger.log(std::format("perf_manager: Target samples_path='{}' (exists={}), maps_path='{}' (exists={})",
+			       samples_path.string(), fs::exists(samples_path), maps_path.string(), fs::exists(maps_path)));
+
 	if (samples_path.empty() || !fs::exists(samples_path)) {
+		logger.log("perf_manager: No valid perf_samples_*.dat file found.");
 		if (cleanup_raw_files) {
-			std::error_code ec;
 			if (!maps_path.empty() && fs::exists(maps_path)) {
 				fs::remove(maps_path, ec);
 			}
@@ -61,8 +77,12 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		unsigned long count;
 	};
 
+	uint64_t samples_file_size = fs::file_size(samples_path, ec);
+	logger.log(std::format("perf_manager: Reading samples binary file '{}' ({} bytes)", samples_path.string(), samples_file_size));
+
 	std::ifstream samples_in(samples_path, std::ios::binary);
 	if (!samples_in.is_open()) {
+		logger.log(std::format("perf_manager: Failed to open samples file '{}'", samples_path.string()));
 		return report;
 	}
 
@@ -78,9 +98,12 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	}
 	samples_in.close();
 
+	logger.log(std::format("perf_manager: Total raw samples aggregated: {} across {} unique instruction pointers",
+			       total_samples, ip_counts.size()));
+
 	if (total_samples == 0 || ip_counts.empty()) {
+		logger.log("perf_manager: Total samples count is 0.");
 		if (cleanup_raw_files) {
-			std::error_code ec;
 			fs::remove(samples_path, ec);
 			if (!maps_path.empty()) {
 				fs::remove(maps_path, ec);
@@ -186,6 +209,8 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	}
 
 	set_active_profile(report);
+	logger.log(std::format("perf_manager: Successfully resolved {} top functions and {} top lines across {} total samples.",
+			       report.top_functions.size(), report.top_lines.size(), report.total_samples));
 	return report;
 }
 

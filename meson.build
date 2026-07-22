@@ -287,7 +287,7 @@ test_perf_catcher = executable('test_perf_catcher',
 test('unit_perf_catcher', test_perf_catcher, suite: 'editor', depends: libturbocatch)
 
 test_perf_manager = executable('test_perf_manager',
-  ['tests/unit/test_perf_manager.cpp', 'src/perf_manager.cpp', 'src/address_lookup.cpp'],
+  ['tests/unit/test_perf_manager.cpp', 'src/perf_manager.cpp', 'src/address_lookup.cpp', 'src/event_logger.cpp'],
   dependencies : [nlohmann_json_dep, thread_dep],
   include_directories: 'src')
 test('unit_perf_manager', test_perf_manager, suite: 'editor', depends: libturbocatch)
