@@ -286,6 +286,12 @@ test_perf_catcher = executable('test_perf_catcher',
   include_directories: 'src')
 test('unit_perf_catcher', test_perf_catcher, suite: 'editor', depends: libturbocatch)
 
+test_perf_manager = executable('test_perf_manager',
+  ['tests/unit/test_perf_manager.cpp', 'src/perf_manager.cpp', 'src/address_lookup.cpp'],
+  dependencies : [nlohmann_json_dep, thread_dep],
+  include_directories: 'src')
+test('unit_perf_manager', test_perf_manager, suite: 'editor', depends: libturbocatch)
+
 test_agent_highlight = executable('test_agent_highlight',
   ['tests/unit/test_agent_highlight.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],

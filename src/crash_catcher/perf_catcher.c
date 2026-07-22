@@ -194,6 +194,7 @@ void turboperf_shutdown(void)
 
 	// 3. Drain sample ring buffer into in-memory direct-mapped cache
 	struct perf_event_mmap_page *header = (struct perf_event_mmap_page *)g_mmap_base;
+	__sync_synchronize();
 	uint64_t head = header->data_head;
 	uint64_t tail = header->data_tail;
 	unsigned char *data = (unsigned char *)g_mmap_base + header->data_offset;
