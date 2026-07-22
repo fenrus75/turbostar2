@@ -6,6 +6,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/perf_manager.h"
 
 using namespace agentlib;
 
@@ -93,6 +94,21 @@ int main()
 			ctx.doc_provider = &dummy;
 			std::string res = registry.execute_tool("agent_wait_for_app", R"({"run_id": 999})", ctx);
 			assert(res.find("not_found") != std::string::npos);
+		}
+
+		// 7. Execution case: profile notification when active profile exists
+		{
+			dummy_doc_provider_wait dummy;
+			ctx.doc_provider = &dummy;
+			turbostar::perf_profile_report report;
+			report.total_samples = 100;
+			turbostar::perf_manager::get_instance().set_active_profile(report);
+
+			std::string res = registry.execute_tool("agent_wait_for_app", R"({"run_id": 42})", ctx);
+			assert(res.find("profile_notification") != std::string::npos);
+			assert(res.find("Performance profile data is available") != std::string::npos);
+
+			turbostar::perf_manager::get_instance().clear_active_profile();
 		}
 
 		std::cout << "agent_wait_for_app tool verified successfully!" << std::endl;

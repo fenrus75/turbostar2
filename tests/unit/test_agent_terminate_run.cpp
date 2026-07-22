@@ -6,6 +6,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/perf_manager.h"
 
 using namespace agentlib;
 
@@ -62,6 +63,22 @@ int main()
 			bool val = prep.tool->validate_runtime(ctx, err);
 			assert(val);
 			assert(err.empty());
+		}
+
+		// 4. Test profile notification inclusion
+		{
+			dummy_doc_provider dummy;
+			ctx.doc_provider = &dummy;
+			turbostar::perf_profile_report report;
+			report.total_samples = 50;
+			turbostar::perf_manager::get_instance().set_active_profile(report);
+
+			auto prep = registry.prepare_tool("agent_terminate_run", "{\"run_id\": 1}", ctx);
+			assert(prep.tool != nullptr);
+			std::string res = prep.tool->execute(ctx);
+			assert(res.find("Performance profile data is available") != std::string::npos);
+
+			turbostar::perf_manager::get_instance().clear_active_profile();
 		}
 
 		std::cout << "agent_terminate_run tool verified successfully!" << std::endl;

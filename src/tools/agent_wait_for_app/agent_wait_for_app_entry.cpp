@@ -1,4 +1,6 @@
 #include "tools/agent_wait_for_app/agent_wait_for_app.h"
+#include "fs_utils.h"
+#include "perf_manager.h"
 #include <nlohmann/json.hpp>
 
 namespace tools
@@ -31,6 +33,15 @@ std::string agent_wait_for_app_tool::execute(agentlib::tool_context &ctx)
 
 	if (!res.crash_notification.empty()) {
 		out["crash_notification"] = res.crash_notification;
+	}
+
+	auto report = turbostar::perf_manager::get_instance().get_active_profile();
+	if (report.total_samples == 0) {
+		std::string perf_dir = fs_utils::get_project_perf_dir();
+		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, true);
+	}
+	if (report.total_samples > 0) {
+		out["profile_notification"] = "Performance profile data is available, use agent_get_profile_summary to retrieve this data.";
 	}
 
 	set_success(ctx, "wait_for_app completed with status: " + res.status);

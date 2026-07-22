@@ -845,7 +845,9 @@ test('unit_test_agent_status', test_agent_status, suite: 'agent')
 test_agent_terminate_run = executable('test_agent_terminate_run',
   ['tests/unit/test_agent_terminate_run.cpp',
    'src/tools/agent_terminate_run/agent_terminate_run_entry.cpp',
-   'src/tools/agent_terminate_run/agent_terminate_run_security.cpp'],
+   'src/tools/agent_terminate_run/agent_terminate_run_security.cpp',
+   'src/perf_manager.cpp',
+   'src/address_lookup.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_terminate_run', test_agent_terminate_run, suite: 'agent')
@@ -853,7 +855,9 @@ test('unit_test_agent_terminate_run', test_agent_terminate_run, suite: 'agent')
 test_agent_wait_for_app = executable('test_agent_wait_for_app',
   ['tests/unit/test_agent_wait_for_app.cpp',
    'src/tools/agent_wait_for_app/agent_wait_for_app_entry.cpp',
-   'src/tools/agent_wait_for_app/agent_wait_for_app_security.cpp'],
+   'src/tools/agent_wait_for_app/agent_wait_for_app_security.cpp',
+   'src/perf_manager.cpp',
+   'src/address_lookup.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_agent_wait_for_app', test_agent_wait_for_app, suite: 'agent')
