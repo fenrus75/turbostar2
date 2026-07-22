@@ -462,19 +462,27 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 					double global_pct = (report.total_samples > 0)
 								? (static_cast<double>(s.count) * 100.0 / report.total_samples)
 								: 0.0;
-					double func_pct = (target_total_samples > 0)
+					double target_pct = (target_total_samples > 0)
 							      ? (static_cast<double>(s.count) * 100.0 / target_total_samples)
 							      : 0.0;
 					entry["count"] = s.count;
 					entry["global_percentage"] = global_pct;
-					entry["function_percentage"] = func_pct;
+					if (!args_.file_path.empty()) {
+						entry["file_percentage"] = target_pct;
+					} else {
+						entry["function_percentage"] = target_pct;
+					}
 					if (!s.function_name.empty()) {
 						entry["function_name"] = s.function_name;
 					}
 				} else {
 					entry["count"] = 0;
 					entry["global_percentage"] = 0.0;
-					entry["function_percentage"] = 0.0;
+					if (!args_.file_path.empty()) {
+						entry["file_percentage"] = 0.0;
+					} else {
+						entry["function_percentage"] = 0.0;
+					}
 				}
 
 				if (samples_by_file.size() > 1) {

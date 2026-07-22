@@ -542,7 +542,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `limit` *(integer, optional)*: Maximum number of top functions and lines to return. Defaults to 10.
 
 ### `agent_get_profile_details`
-*   **Description:** Returns line-by-line performance profiling details with source code text, line numbers sorted ascending, ±2 context lines merged into continuous blocks, sample counts, global application cycle percentages (`global_percentage`), and local function cycle percentages (`function_percentage`) for a target source file or function name.
+*   **Description:** Returns line-by-line performance profiling details with source code text, line numbers sorted ascending, ±2 context lines merged into continuous blocks, sample counts, global application cycle percentages (`global_percentage`), and function/file cycle percentages (`function_percentage` when filtering by function, `file_percentage` when filtering by file) for a target source file or function name.
 *   **Arguments:**
     *   `file_path` *(string, optional)*: Source file path to filter line performance samples.
     *   `function_name` *(string, optional)*: Function name to filter line performance samples.

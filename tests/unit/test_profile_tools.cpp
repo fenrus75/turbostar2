@@ -68,7 +68,7 @@ int main()
 				found_line_42 = true;
 				assert(ls["count"] == 600);
 				assert(ls["global_percentage"] == 60.0);
-				assert(ls["function_percentage"] == 100.0);
+				assert(ls["file_percentage"] == 100.0);
 			}
 		}
 		assert(found_line_42);
