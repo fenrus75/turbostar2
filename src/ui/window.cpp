@@ -13,6 +13,7 @@
 #include "ui/ui_element.h"
 #include "utf8.h"
 #include "syntax_color_manager.h"
+#include "perf_manager.h"
 
 window::window(int id, int x, int y, int width, int height, const std::string &title)
     : x_(x), y_(y), width_(width), height_(height), restore_x_(x), restore_y_(y), restore_width_(width), restore_height_(height), id_(id),
@@ -1126,6 +1127,27 @@ void window::draw_border() const
 		mvaddstr(y_ + 2 + thumb_pos, x_ + width_ - 1, "█");
 	}
 	attroff(COLOR_PAIR(4));
+
+	// Overwrite left border for lines with performance samples
+	if (doc_ && !doc_->get_filename().empty()) {
+		std::string filename = doc_->get_filename();
+		int content_h = height_ - 2;
+		for (int i = 0; i < content_h; ++i) {
+			int doc_line = top_line_ + 1 + i;
+			double pct = turbostar::perf_manager::get_instance().get_line_profile_percentage(filename, doc_line);
+			if (pct >= 1.0) {
+				int pair = 5; // White on Blue (>= 1%)
+				if (pct >= 50.0) {
+					pair = 31; // Bright Red on Blue (>= 50%)
+				} else if (pct >= 10.0) {
+					pair = 21; // Bright Yellow on Blue (>= 10%)
+				}
+				attron(COLOR_PAIR(pair));
+				mvaddstr(y_ + 1 + i, x_, "┃");
+				attroff(COLOR_PAIR(pair));
+			}
+		}
+	}
 }
 
 int window::get_git_button_width() const

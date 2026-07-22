@@ -23,6 +23,7 @@
 #include "gcc_log_parser.h"
 #include "git_manager.h"
 #include "history_manager.h"
+#include "perf_manager.h"
 #include "project_manager.h"
 #include "utf8.h"
 #include "line.h"
@@ -1420,13 +1421,23 @@ void editor::render(bool cursor_only)
 		clear_status_message(status_priorities::INFO);
 	}
 
-	std::string combined_hover = get_active_status_message();
-
 	bool has_history = false;
 	auto active_doc = get_active_doc();
 	if (active_doc && active_doc->get_undo_count() > 0) {
 		has_history = true;
 	}
+
+	if (active_doc && !active_doc->get_filename().empty()) {
+		std::string perf_msg = turbostar::perf_manager::get_instance().get_line_profile_statusmsg(
+		    active_doc->get_filename(), cur_y + 1);
+		if (!perf_msg.empty()) {
+			set_status_message(perf_msg, status_priorities::HOVER);
+		} else if (diag_text.empty()) {
+			clear_status_message(status_priorities::HOVER);
+		}
+	}
+
+	std::string combined_hover = get_active_status_message();
 	bottom_status_.draw(status_help, combined_hover, cur_x, cur_y, has_history);
 
 	if (active_dialog_) {
