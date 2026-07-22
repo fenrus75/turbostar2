@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "perf_catcher.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/perf_event.h>
 #include <signal.h>
@@ -133,15 +134,27 @@ __attribute__((constructor)) void turboperf_init(void)
 		write(debug_fd, msg, safe_strlen(msg));
 	}
 
+	int err1 = 0, err2 = 0, err3 = 0, err4 = 0, err5 = 0;
 	int fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	if (fd < 0) {
+		err1 = errno;
 		// Fallback 1: Hardware cycles with period sampling
 		pe.freq = 0;
 		pe.sample_period = 100000;
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
-		// Fallback 2: Software CPU clock frequency sampling
+		err2 = errno;
+		// Fallback 2: Software task clock frequency sampling
+		pe.type = PERF_TYPE_SOFTWARE;
+		pe.config = PERF_COUNT_SW_TASK_CLOCK;
+		pe.freq = 1;
+		pe.sample_freq = 1000;
+		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
+	}
+	if (fd < 0) {
+		err3 = errno;
+		// Fallback 3: Software CPU clock frequency sampling
 		pe.type = PERF_TYPE_SOFTWARE;
 		pe.config = PERF_COUNT_SW_CPU_CLOCK;
 		pe.freq = 1;
@@ -149,14 +162,36 @@ __attribute__((constructor)) void turboperf_init(void)
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
-		// Fallback 3: Software CPU clock period sampling
+		err4 = errno;
+		// Fallback 4: Software CPU clock period sampling
+		pe.type = PERF_TYPE_SOFTWARE;
+		pe.config = PERF_COUNT_SW_CPU_CLOCK;
 		pe.freq = 0;
 		pe.sample_period = 1000000; // 1 ms
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
+		err5 = errno;
 		if (debug_fd >= 0) {
-			write(debug_fd, "sys_perf_event_open failed for all hardware and software configurations\n", 72);
+			char err_msg[256];
+			safe_strcpy(err_msg, "sys_perf_event_open failed. err1=", sizeof(err_msg));
+			char err_buf[16];
+			safe_itoa(err1, err_buf, sizeof(err_buf));
+			safe_strcat(err_msg, err_buf, sizeof(err_msg));
+			safe_strcat(err_msg, " err2=", sizeof(err_msg));
+			safe_itoa(err2, err_buf, sizeof(err_buf));
+			safe_strcat(err_msg, err_buf, sizeof(err_msg));
+			safe_strcat(err_msg, " err3=", sizeof(err_msg));
+			safe_itoa(err3, err_buf, sizeof(err_buf));
+			safe_strcat(err_msg, err_buf, sizeof(err_msg));
+			safe_strcat(err_msg, " err4=", sizeof(err_msg));
+			safe_itoa(err4, err_buf, sizeof(err_buf));
+			safe_strcat(err_msg, err_buf, sizeof(err_msg));
+			safe_strcat(err_msg, " err5=", sizeof(err_msg));
+			safe_itoa(err5, err_buf, sizeof(err_buf));
+			safe_strcat(err_msg, err_buf, sizeof(err_msg));
+			safe_strcat(err_msg, "\n", sizeof(err_msg));
+			write(debug_fd, err_msg, safe_strlen(err_msg));
 			close(debug_fd);
 		}
 		return;

@@ -37,6 +37,13 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		std::string fname = entry.path().filename().string();
 		uint64_t fsize = entry.is_regular_file() ? entry.file_size() : 0;
 		logger.log(std::format("perf_manager: Found entry in perf_dir: '{}' ({} bytes)", fname, fsize));
+		if (fname.starts_with("perf_debug_") && fname.ends_with(".txt")) {
+			std::ifstream dbg_in(entry.path());
+			if (dbg_in.is_open()) {
+				std::string dbg_content((std::istreambuf_iterator<char>(dbg_in)), std::istreambuf_iterator<char>());
+				logger.log(std::format("perf_manager: Content of '{}': {}", fname, dbg_content));
+			}
+		}
 	}
 
 	fs::path samples_path;
