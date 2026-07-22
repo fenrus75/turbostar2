@@ -287,6 +287,19 @@ class help_command : public agent_command
 	}
 };
 
+class clear_command : public agent_command
+{
+      public:
+	std::string get_name() const override { return "clear"; }
+	std::string get_description() const override { return "Clear conversation history and start a fresh context"; }
+	void execute(const context &ctx) override
+	{
+		if (ctx.agent) {
+			ctx.agent->clear_conversation();
+		}
+	}
+};
+
 } // namespace
 
 command_registry &command_registry::get_instance()
@@ -310,6 +323,7 @@ command_registry::command_registry()
 	register_command(std::make_unique<episode_command>());
 	register_command(std::make_unique<pageout_command>());
 	register_command(std::make_unique<pagein_command>());
+	register_command(std::make_unique<clear_command>());
 }
 
 void command_registry::register_command(std::unique_ptr<agent_command> cmd)

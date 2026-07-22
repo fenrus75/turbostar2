@@ -694,6 +694,60 @@ void ai_agent::cancel_current_task()
 	}
 }
 
+void ai_agent::clear_conversation()
+{
+	// Cancel any active background or streaming inference task before clearing
+	cancel_current_task();
+
+	{
+		std::lock_guard<std::mutex> lock(state_mutex_);
+		subagents_.clear();
+		todos_.clear();
+		save_todos_internal_unlocked();
+		is_planning_ = false;
+		{
+			std::lock_guard<std::mutex> plan_lock(planning_mutex_);
+			plan_file_.clear();
+		}
+		planning_start_index_ = 0;
+		status_ = agent_status::idle;
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(conversation_mutex_);
+		conversation_ = std::make_shared<Conversation>();
+		if (model_) {
+			conversation_->set_model(model_);
+		}
+		last_response_id_.clear();
+		episode_index_.clear();
+		active_tokens_.store(0);
+
+		if (!original_system_prompt_.empty()) {
+			auto sys_turn = std::make_shared<system_turn>("sys_init", original_system_prompt_, "initial_system_prompt");
+			auto tx = std::make_shared<Transaction>("tx_init", transaction_type::system_injection);
+			tx->add_turn(sys_turn);
+			auto ep = std::make_shared<Episode>("ep_init", "Initial Episode", "Initial conversation episode");
+			ep->add_transaction(tx);
+			conversation_->add_episode(ep);
+		}
+	}
+
+	update_system_prompt_with_families();
+
+	add_interaction(std::make_shared<interaction_system_message>(
+	    "Agent context cleared. Ready for new instructions."));
+
+	save_active_state();
+
+	if (global_queue_) {
+		editor_event ev;
+		ev.type = event_type::agent_tool_update;
+		ev.key_code = id_;
+		global_queue_->push(ev);
+	}
+}
+
 void ai_agent::add_todo(const std::string &task)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);

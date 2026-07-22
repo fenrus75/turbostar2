@@ -107,6 +107,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void remove_subagent(int id);
 	std::vector<std::shared_ptr<ai_agent>> get_subagents() const;
 
+	void clear_conversation();
+
 	void set_model(std::shared_ptr<ai_model> model);
 	std::shared_ptr<ai_model> get_model() const
 	{

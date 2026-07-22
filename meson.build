@@ -268,6 +268,12 @@ test_tool_infrastructure = executable('test_tool_infrastructure',
   include_directories: inc)
 test('unit_test_tool_infrastructure', test_tool_infrastructure, suite: 'agent')
 
+test_clear_command = executable('test_clear_command',
+  ['tests/unit/test_clear_command.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep],
+  include_directories: inc)
+test('unit_clear_command', test_clear_command, suite: 'agent')
+
 test_agent_highlight = executable('test_agent_highlight',
   ['tests/unit/test_agent_highlight.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],

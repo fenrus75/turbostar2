@@ -62,8 +62,6 @@
 
 - feature:a /command action that activates a tool family (via menu?)
 
-- essential feature: a /command action for /clear of agent history -- basically a new connection
-
 - feature: separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
 	- https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/litellm_internal_staging/model_prices_and_context_window.json
@@ -257,6 +255,7 @@
 - `crashdump_list` Limit Parameter: Added a `limit` integer parameter (defaulting to 20, returning the most recent ones) to `crashdump_list` to prevent context window bloat as crash history accumulates over time. Updated `crashdump_manager::get_markdown_table` and tests.
 - `statistics_manager` Auto-load & Agent Tool Call Tracking Fix: Fixed a bug where `statistics.json` in `~/.cache/turbostar/` was not recording tool call usage during agent runs because `ai_agent::start_processing` invoked tool execution directly without notifying `statistics_manager`. Implemented lazy auto-loading in `statistics_manager` (`increment_stat`, `get_stat`, `get_all_stats`) to ensure existing statistics are loaded before any writes to prevent data loss. Updated `ai_agent.cpp` and `test_statistics_manager.cpp`.
 - AI Web Page GDB Core Dump Section: Added a dedicated feature section in `docs/ai.html` (`#crash-debugging`) showcasing automated crash notifications, crash cookie tracking (`run_<id>`), and autonomous GDB core dump inspection with `docs/gdb.svg`. Checked HTML validation via `website_validate_ai`.
+- `/clear` Agent Window Command: Implemented `/clear` slash command and `ai_agent::clear_conversation()` to clear conversation history, reset active tokens/compaction state, terminate active subagents, and re-initialize the baseline system prompt while preserving active model configuration, tool families, and workspace bindings. Added UI status hint updates in `agent_window.cpp` and unit tests in `test_clear_command.cpp`.
 
 
 
