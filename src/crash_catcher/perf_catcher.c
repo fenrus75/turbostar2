@@ -114,6 +114,25 @@ __attribute__((constructor)) void turboperf_init(void)
 	pe.exclude_kernel = 1;
 	pe.exclude_hv = 1;
 
+	pid_t pid = getpid();
+	char pid_str[32];
+	safe_itoa(pid, pid_str, sizeof(pid_str));
+
+	char debug_path[1024] = {0};
+	safe_strcpy(debug_path, g_perf_dir, sizeof(debug_path));
+	safe_strcat(debug_path, "/perf_debug_", sizeof(debug_path));
+	safe_strcat(debug_path, pid_str, sizeof(debug_path));
+	safe_strcat(debug_path, ".txt", sizeof(debug_path));
+
+	int debug_fd = open(debug_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (debug_fd >= 0) {
+		char msg[256];
+		safe_strcpy(msg, "turboperf_init pid=", sizeof(msg));
+		safe_strcat(msg, pid_str, sizeof(msg));
+		safe_strcat(msg, "\n", sizeof(msg));
+		write(debug_fd, msg, safe_strlen(msg));
+	}
+
 	int fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	if (fd < 0) {
 		// Fallback 1: Hardware cycles with period sampling
@@ -136,6 +155,10 @@ __attribute__((constructor)) void turboperf_init(void)
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
+		if (debug_fd >= 0) {
+			write(debug_fd, "sys_perf_event_open failed for all hardware and software configurations\n", 72);
+			close(debug_fd);
+		}
 		return;
 	}
 	g_perf_fd = fd;
@@ -145,15 +168,41 @@ __attribute__((constructor)) void turboperf_init(void)
 		page_size = 4096;
 	}
 
-	size_t num_pages = 256; // 1 MB ring buffer
-	g_mmap_len = (1 + num_pages) * (size_t)page_size;
+	// Try mmap with power-of-two page sizes: 64 pages (256 KB), 16 pages (64 KB), 4 pages (16 KB)
+	size_t try_pages[] = {64, 16, 4};
+	g_mmap_base = MAP_FAILED;
 
-	g_mmap_base = mmap(NULL, g_mmap_len, PROT_READ | PROT_WRITE, MAP_SHARED, g_perf_fd, 0);
+	for (size_t i = 0; i < sizeof(try_pages) / sizeof(try_pages[0]); ++i) {
+		size_t num_pages = try_pages[i];
+		g_mmap_len = (1 + num_pages) * (size_t)page_size;
+		g_mmap_base = mmap(NULL, g_mmap_len, PROT_READ | PROT_WRITE, MAP_SHARED, g_perf_fd, 0);
+		if (g_mmap_base != MAP_FAILED) {
+			if (debug_fd >= 0) {
+				char msg[128];
+				safe_strcpy(msg, "mmap succeeded with pages=", sizeof(msg));
+				char pnum_str[32];
+				safe_itoa((long)num_pages, pnum_str, sizeof(pnum_str));
+				safe_strcat(msg, pnum_str, sizeof(msg));
+				safe_strcat(msg, "\n", sizeof(msg));
+				write(debug_fd, msg, safe_strlen(msg));
+			}
+			break;
+		}
+	}
+
 	if (g_mmap_base == MAP_FAILED) {
+		if (debug_fd >= 0) {
+			write(debug_fd, "mmap failed for all ring buffer page sizes\n", 43);
+			close(debug_fd);
+		}
 		close(g_perf_fd);
 		g_perf_fd = -1;
 		g_mmap_base = NULL;
 		return;
+	}
+
+	if (debug_fd >= 0) {
+		close(debug_fd);
 	}
 
 	memset(g_perf_cache, 0, sizeof(g_perf_cache));
