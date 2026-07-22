@@ -62,8 +62,27 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			std::string name = entry.path().filename().string();
 			if (name.starts_with("perf_samples_") && name.ends_with(".dat")) {
 				samples_path = entry.path();
-			} else if (name.starts_with("perf_maps_") && name.ends_with(".txt")) {
+			}
+		}
+	}
+
+	if (!samples_path.empty() && (maps_path.empty() || !fs::exists(maps_path))) {
+		std::string sname = samples_path.filename().string();
+		if (sname.starts_with("perf_samples_") && sname.ends_with(".dat")) {
+			std::string pid_part = sname.substr(13, sname.size() - 17);
+			fs::path candidate = fs::path(perf_dir) / std::format("perf_maps_{}.txt", pid_part);
+			if (fs::exists(candidate)) {
+				maps_path = candidate;
+			}
+		}
+	}
+
+	if (maps_path.empty() || !fs::exists(maps_path)) {
+		for (const auto &entry : fs::directory_iterator(perf_dir, ec)) {
+			std::string name = entry.path().filename().string();
+			if (name.starts_with("perf_maps_") && name.ends_with(".txt")) {
 				maps_path = entry.path();
+				break;
 			}
 		}
 	}
@@ -131,6 +150,14 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 
 	std::string maps_arg = maps_path.empty() ? "" : maps_path.string();
 	auto resolved_addrs = address_lookup::resolve_addresses(unique_ips, maps_arg);
+
+	logger.log(std::format("perf_manager: Resolved {} unique IPs using maps_arg='{}'. Sample resolution head:",
+			       resolved_addrs.size(), maps_arg));
+	for (size_t k = 0; k < std::min<size_t>(5, resolved_addrs.size()); ++k) {
+		logger.log(std::format("  [IP 0x{:x}] func='{}', file='{}', line={}",
+				       unique_ips[k], resolved_addrs[k].function_name, resolved_addrs[k].file_path,
+				       resolved_addrs[k].line_number));
+	}
 
 	struct func_acc {
 		std::string name;

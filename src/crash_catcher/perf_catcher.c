@@ -250,6 +250,27 @@ __attribute__((constructor)) void turboperf_init(void)
 	}
 
 	memset(g_perf_cache, 0, sizeof(g_perf_cache));
+
+	// Dump /proc/self/maps immediately at init so maps file is guaranteed to exist
+	char maps_out_path[1024] = {0};
+	safe_strcpy(maps_out_path, g_perf_dir, sizeof(maps_out_path));
+	safe_strcat(maps_out_path, "/perf_maps_", sizeof(maps_out_path));
+	safe_strcat(maps_out_path, pid_str, sizeof(maps_out_path));
+	safe_strcat(maps_out_path, ".txt", sizeof(maps_out_path));
+
+	int maps_in = open("/proc/self/maps", O_RDONLY);
+	if (maps_in >= 0) {
+		int maps_out = open(maps_out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (maps_out >= 0) {
+			char buf[1024];
+			ssize_t n;
+			while ((n = read(maps_in, buf, sizeof(buf))) > 0) {
+				write(maps_out, buf, (size_t)n);
+			}
+			close(maps_out);
+		}
+		close(maps_in);
+	}
 }
 
 __attribute__((destructor)) void turboperf_shutdown(void)
