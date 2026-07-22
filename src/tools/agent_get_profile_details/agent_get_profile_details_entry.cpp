@@ -131,27 +131,49 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 		return "";
 	}
 
+	std::vector<std::string> raw_paths = {file_path};
+
+	std::string norm = file_path;
+	while (norm.starts_with("../") || norm.starts_with("./")) {
+		if (norm.starts_with("../")) {
+			norm = norm.substr(3);
+		} else if (norm.starts_with("./")) {
+			norm = norm.substr(2);
+		}
+	}
+	if (norm != file_path) {
+		raw_paths.push_back(norm);
+	}
+
 	std::vector<std::string> candidates;
-	if (std::filesystem::path(file_path).is_absolute()) {
-		candidates.push_back(file_path);
-	} else {
-		std::string wdir = ctx.fs_security.get_working_directory();
-		if (!wdir.empty()) {
-			candidates.push_back((std::filesystem::path(wdir) / file_path).string());
+	std::string wdir = ctx.fs_security.get_working_directory();
+	std::string proj_root = project_manager::get_instance().get_project_root();
+	std::string proj_dir = fs_utils::get_project_dir();
+
+	for (const auto &rp : raw_paths) {
+		if (std::filesystem::path(rp).is_absolute()) {
+			candidates.push_back(rp);
+		} else {
+			if (!wdir.empty()) {
+				candidates.push_back((std::filesystem::path(wdir) / rp).string());
+			}
+			if (!proj_root.empty()) {
+				candidates.push_back((std::filesystem::path(proj_root) / rp).string());
+			}
+			if (!proj_dir.empty()) {
+				candidates.push_back((std::filesystem::path(proj_dir) / rp).string());
+			}
+			candidates.push_back(rp);
 		}
-		std::string proj_root = project_manager::get_instance().get_project_root();
-		if (!proj_root.empty()) {
-			candidates.push_back((std::filesystem::path(proj_root) / file_path).string());
-		}
-		std::string proj_dir = fs_utils::get_project_dir();
-		if (!proj_dir.empty()) {
-			candidates.push_back((std::filesystem::path(proj_dir) / file_path).string());
-		}
-		candidates.push_back(file_path);
 	}
 
 	for (const auto &cand : candidates) {
 		std::error_code ec;
+		std::filesystem::path p(cand);
+		std::filesystem::path norm_p = p.lexically_normal();
+		if (std::filesystem::exists(norm_p, ec) && !std::filesystem::is_directory(norm_p, ec)) {
+			return norm_p.string();
+		}
 		if (std::filesystem::exists(cand, ec) && !std::filesystem::is_directory(cand, ec)) {
 			return cand;
 		}
