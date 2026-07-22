@@ -1,5 +1,5 @@
 #include <filesystem>
-#include <sstream>
+#include <format>
 #include "../../fs_utils.h"
 #include "sqlite_list_db.h"
 
@@ -15,9 +15,7 @@ std::string sqlite_list_db_tool::execute(agentlib::tool_context & /*ctx*/)
 {
 	std::string db_dir = fs_utils::get_project_db_dir();
 
-	std::ostringstream oss;
-	oss << "| Database Name | Size (Bytes) |\n";
-	oss << "|---------------|--------------|\n";
+	std::string res = "| Database Name | Size (Bytes) |\n|---------------|--------------|\n";
 
 	bool found = false;
 	std::error_code ec;
@@ -25,7 +23,7 @@ std::string sqlite_list_db_tool::execute(agentlib::tool_context & /*ctx*/)
 		if (entry.is_regular_file() && entry.path().extension() == ".db") {
 			std::string name = entry.path().stem().string();
 			auto size = entry.file_size(ec);
-			oss << "| " << name << " | " << size << " |\n";
+			res += std::format("| {} | {} |\n", name, size);
 			found = true;
 		}
 	}
@@ -34,7 +32,7 @@ std::string sqlite_list_db_tool::execute(agentlib::tool_context & /*ctx*/)
 		return "No SQLite databases found for this project.";
 	}
 
-	return oss.str();
+	return res;
 }
 
 } // namespace tools

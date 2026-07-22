@@ -1,8 +1,7 @@
 #include "event_logger.h"
 #include <algorithm>
-#include <iomanip>
+#include <format>
 #include <iostream>
-#include <sstream>
 
 event_logger::event_logger() : start_time_(std::chrono::steady_clock::now())
 {
@@ -33,9 +32,7 @@ void event_logger::log(const std::string &message)
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
 
-	std::ostringstream ss;
-	ss << "[" << std::setw(6) << std::setfill('0') << ms << "ms] " << message;
-	std::string formatted_message = ss.str();
+	std::string formatted_message = std::format("[{:06d}ms] {}", ms, message);
 
 	events.push_back(formatted_message);
 	total_events_logged_++;

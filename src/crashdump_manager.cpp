@@ -331,19 +331,18 @@ std::string crashdump_manager::get_markdown_table(size_t limit) const
 		return "No crash dumps found.";
 	}
 
-	std::ostringstream oss;
+	std::string table;
 	size_t start_idx = 0;
 	if (limit > 0 && crashdumps_.size() > limit) {
 		start_idx = crashdumps_.size() - limit;
-		oss << std::format("*(Showing the {} most recent crash dumps out of {} total)*\n\n", limit, crashdumps_.size());
+		table += std::format("*(Showing the {} most recent crash dumps out of {} total)*\n\n", limit, crashdumps_.size());
 	}
 
-	oss << "| Crash ID | Timestamp | Executable | Signal | Cookie |\n";
-	oss << "|---|---|---|---|---|\n";
+	table += "| Crash ID | Timestamp | Executable | Signal | Cookie |\n|---|---|---|---|---|\n";
 	for (size_t i = start_idx; i < crashdumps_.size(); ++i) {
-		oss << crashdumps_[i].to_markdown_row() << "\n";
+		table += crashdumps_[i].to_markdown_row() + "\n";
 	}
-	return oss.str();
+	return table;
 }
 
 void crashdump_manager::clear_all()

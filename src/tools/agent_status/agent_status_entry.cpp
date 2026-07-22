@@ -1,4 +1,4 @@
-#include <sstream>
+#include <format>
 #include "../../agentlib/ai_agent.h"
 #include "agent_status.h"
 
@@ -31,19 +31,11 @@ std::string agent_status_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (!target_agent) {
-		return "Error: Could not find subagent with ID " + std::to_string(args_.id);
+		return std::format("Error: Could not find subagent with ID {}", args_.id);
 	}
 
-	std::ostringstream oss;
-	oss << "Agent ID: " << target_agent->get_id() << "\n";
-	oss << "Name: " << target_agent->get_name() << "\n";
-
 	std::string status_str = agentlib::agent_status_to_name(target_agent->get_status());
-	oss << "Status: " << status_str << "\n";
-
-	// We can expand this later with more details, like last error, tokens, etc.
-
-	return oss.str();
+	return std::format("Agent ID: {}\nName: {}\nStatus: {}\n", target_agent->get_id(), target_agent->get_name(), status_str);
 }
 
 } // namespace tools

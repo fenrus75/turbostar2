@@ -1,4 +1,4 @@
-#include <sstream>
+#include <format>
 #include "../../agentlib/ai_agent.h"
 #include "agent_list_todos.h"
 
@@ -22,18 +22,12 @@ std::string agent_list_todos_tool::execute(agentlib::tool_context &ctx)
 		return "No items in todo list.";
 	}
 
-	std::ostringstream oss;
-	size_t count = 0;
+	std::string res;
 	for (const auto &item : todos) {
-		if (item.completed) {
-			oss << "- [x] " << item.text << "\n";
-		} else {
-			oss << "- [ ] " << item.text << "\n";
-		}
-		count++;
+		res += std::format("- [{}] {}\n", item.completed ? "x" : " ", item.text);
 	}
-	set_success(ctx, std::to_string(count) + " todos");
-	return oss.str();
+	set_success(ctx, std::format("{} todos", todos.size()));
+	return res;
 }
 
 } // namespace tools

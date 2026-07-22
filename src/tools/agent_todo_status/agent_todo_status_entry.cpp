@@ -1,4 +1,4 @@
-#include <sstream>
+#include <format>
 #include "../../agentlib/ai_agent.h"
 #include "agent_todo_status.h"
 
@@ -31,25 +31,20 @@ std::string agent_todo_status_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (!target_agent) {
-		return "Error: Could not find subagent with ID " + std::to_string(args_.id);
+		return std::format("Error: Could not find subagent with ID {}", args_.id);
 	}
 
 	auto todos = target_agent->get_todos();
 	if (todos.empty()) {
-		return "No items in todo list for agent ID " + std::to_string(args_.id) + ".";
+		return std::format("No items in todo list for agent ID {}.", args_.id);
 	}
 
-	std::ostringstream oss;
-	oss << "Todo list for Agent ID " << target_agent->get_id() << " (" << target_agent->get_name() << "):\n";
+	std::string res = std::format("Todo list for Agent ID {} ({}):\n", target_agent->get_id(), target_agent->get_name());
 	for (const auto &item : todos) {
-		if (item.completed) {
-			oss << "- [x] " << item.text << "\n";
-		} else {
-			oss << "- [ ] " << item.text << "\n";
-		}
+		res += std::format("- [{}] {}\n", item.completed ? "x" : " ", item.text);
 	}
 
-	return oss.str();
+	return res;
 }
 
 } // namespace tools

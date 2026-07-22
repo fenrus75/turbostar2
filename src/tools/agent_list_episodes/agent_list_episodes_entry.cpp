@@ -1,5 +1,5 @@
-#include <sstream>
 #include <algorithm>
+#include <format>
 #include <vector>
 #include "../../agentlib/ai_agent.h"
 #include "agent_list_episodes.h"
@@ -40,20 +40,17 @@ std::string agent_list_episodes_tool::execute(agentlib::tool_context &ctx)
 		return "No archived episodes found.";
 	}
 
-	std::ostringstream oss;
-	oss << "| Episode | When to Resume |\n";
-	oss << "|---|---|\n";
-
+	std::string res = "| Episode | When to Resume |\n|---|---|\n";
 	for (const auto* mi : sorted) {
 		std::string hint = mi->reactivation_hint;
 		if (hint.empty()) {
 			hint = "(No reactivation hint available)";
 		}
-		oss << "| " << mi->id << " | " << hint << " |\n";
+		res += std::format("| {} | {} |\n", mi->id, hint);
 	}
 
-	set_success(ctx, std::to_string(sorted.size()) + " episodes");
-	return oss.str();
+	set_success(ctx, std::format("{} episodes", sorted.size()));
+	return res;
 }
 
 } // namespace tools
