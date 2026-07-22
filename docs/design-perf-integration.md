@@ -22,17 +22,20 @@ Profiling is performed from within the target application process via `libturboc
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Target Application Process (Launched with LD_PRELOAD=libturbocatch.so)       │
-│                                                                             │
-│   1. __attribute__((constructor))                                           │
-│      ├── Check environment: TURBOSTAR_PROFILE == "1"                        │
-│      └── If enabled: Call perf_event_open(pid=0, PERF_COUNT_HW_CPU_CYCLES)   │
-│                                                                             │
-│   2. Execution Sampling                                                     │
-│      └── Ring buffer samples aggregated into in-memory IP hit count map      │
-│                                                                             │
-│   3. __attribute__((destructor)) / atexit()                                 │
-│      └── Write aggregated IP histogram to tmp://perf_<pid>.json              │
+│ 1. TARGET PROCESS (LD_PRELOAD=libturbocatch.so - Pure C, Zero libstdc++)     │
+│    ├── __attribute__((constructor)): perf_event_open(pid=0)                 │
+│    ├── During Exit: Drain mmap ring through static direct-mapped C cache     │
+│    ├── On Cache Collision: Direct write(fd, &slot, sizeof(slot)) to disk      │
+│    └── Output: /tmp/turbostar_perf_samples_<pid>.dat & maps file            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. TURBOSTAR HOST / POST-PROCESSOR (C++23)                                   │
+│    ├── Reads raw sample dat & maps file from /tmp                           │
+│    ├── Merges partial counts via std::unordered_map                         │
+│    ├── Invokes turbostar::address_lookup::resolve_addresses(unique_ips)      │
+│    └── Cleans up raw /tmp files and renders UI / LLM Agent tools             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -43,13 +46,16 @@ By profiling self (`pid = 0`), `libturbocatch.so` operates under standard user p
 - **Disabled (Default)**: When `TURBOSTAR_PROFILE` is unset or `0`, `libturbocatch.so` skips `perf_event_open(2)` initialization. Overhead is **0% CPU / 0% Memory** (only crash signal handlers remain active).
 - **Enabled**: When `TURBOSTAR_PROFILE=1` (or `TURBOSTAR_PROFILE_HZ=1000`) is injected by `command_runner` or an agent tool call, profiling automatically engages for the run session.
 
-### 2.4 Ring Buffer Strategy (Zero-Thread Demand-Paged Virtual Memory)
-To eliminate background thread creation ("evil preload threads"), `fork()` synchronization hazards, and signal interruptions, `libturbocatch.so` leverages 64-bit Linux virtual address space demand-paging:
+### 2.4 Pure C Opportunistic Cache & Zero-Allocation Disk Flushing
+To keep `libturbocatch.so` written in **100% pure C** with zero `libstdc++.so` or `malloc` dependency:
 
-- **Large Virtual `mmap` Allocation**: `libturbocatch.so` maps a large power-of-two virtual memory ring buffer (e.g. 64 MB to 256 MB via `mmap(NULL, (1 + 2^n) * PAGE_SIZE, ...)`).
-- **Demand-Paged Physical RAM**: On 64-bit Linux, virtual address allocation consumes 0 MB of physical RAM up front. Physical RAM pages are committed by the kernel demand-pager only as the kernel PMU fills sample records.
-- **Zero Runtime Code Execution**: During execution, `libturbocatch.so` executes **zero code, zero locks, zero polling threads, and zero signal handlers**. The Linux kernel writes raw sample structs directly to the mapped memory ring.
-- **Single-Pass Exit Drain**: Upon target process termination or crash, `libturbocatch.so` inspects the kernel ring head pointer (`data_head`), performs a single fast linear pass over committed pages to build the IP histogram, and flushes `tmp://perf_<pid>.json`.
+- **Large Virtual `mmap` Allocation**: `libturbocatch.so` maps a 64 MB to 256 MB virtual memory ring buffer (`mmap(NULL, (1 + 2^n) * PAGE_SIZE, ...)`), consuming 0 MB of physical RAM up front via 64-bit Linux demand-paging.
+- **Zero Runtime Code Execution**: During execution, the kernel PMU writes raw sample structs directly into the ring buffer. Zero background threads or signal handlers are used.
+- **Static In-Preload Cache**: A static direct-mapped array `static struct sample_slot cache[2048];` is declared in BSS memory inside `libturbocatch.so`.
+- **Opportunistic Data Reduction**: When draining the ring buffer on process exit, `libturbocatch.so` maps IPs via `idx = (ip ^ (ip >> 12)) & 2047`.
+  - **Hit**: Increment counter in place (achieves ~95–99% reduction due to code locality).
+  - **Collision**: Write evicted slot directly to disk using `write(fd, &slot, sizeof(slot))` and update slot.
+- **Disk Outputs & Cleanup**: Output files are written to `/tmp/turbostar_perf_samples_<pid>.dat` and `/tmp/turbostar_perf_maps_<pid>.txt` using the exact same path resolution mechanism as crash dump files. Host Turbostar (C++) post-processes the raw files, resolves symbols via `turbostar::address_lookup`, saves the final profile result, and deletes the temporary `/tmp` raw files.
 
 ---
 
