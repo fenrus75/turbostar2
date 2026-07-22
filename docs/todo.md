@@ -80,13 +80,6 @@
 
 - feature: have a separate model option for "plan mode" phase
 
-- feature: similar to "run with gdb" we should have a "run with perf record" so that the agent can natively do performance analysis/get perf data
-	- need to check the sysfs to see if this is available, if not just hide it entirely
-	- perf stat summary?
-	- hot functions
-	- fs_read_lines option to get per line perf data?
-	- not just the agent tool -- also in the editor!
-
 - feature: code review enhancements
 	- we can provide upfront a set of static analysis data to the code review agent
 		- known compile / LCP warnings
@@ -130,10 +123,6 @@
 	- markdown toolbox
 		- [x] to_markdown filter 
 		- [ ] markdown manipulators
-
-	- performance
-		- linux perf integration
-		- intel performance skill integration
 
 	- homeassistent / home automation
 
