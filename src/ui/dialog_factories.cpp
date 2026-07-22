@@ -1510,7 +1510,14 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		cmd_lines.push_back(current_line);
 	}
 
-	auto dlg = std::make_unique<dialog>("Tool Status", 56, 20);
+	// Check /proc/sys/kernel/perf_event_paranoid
+	int perf_paranoid = -1;
+	std::ifstream perf_file("/proc/sys/kernel/perf_event_paranoid");
+	if (perf_file.is_open()) {
+		perf_file >> perf_paranoid;
+	}
+
+	auto dlg = std::make_unique<dialog>("Tool Status", 58, 22);
 
 	auto flow = std::make_unique<ui_vertical_flow>("tool_status_flow", 0, 0, 2, 2);
 
@@ -1527,6 +1534,16 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		}
 		status_flow->add_child(std::make_unique<ui_text_label>("  " + name_col + status_str));
 	}
+
+	if (perf_paranoid >= 0) {
+		std::string status_str = (perf_paranoid <= 1) ? std::format("☑ OK (val={})", perf_paranoid) : std::format("☐ Restricted (val={})", perf_paranoid);
+		std::string name_col = "perf_paranoid:";
+		if (name_col.length() < 15) {
+			name_col.append(15 - name_col.length(), ' ');
+		}
+		status_flow->add_child(std::make_unique<ui_text_label>("  " + name_col + status_str));
+	}
+
 	flow->add_child(std::move(status_flow));
 
 	if (!missing_packages.empty()) {
@@ -1541,6 +1558,14 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		flow->add_child(std::move(dep_flow));
 	} else {
 		flow->add_child(std::make_unique<ui_text_label>("All dependencies are installed!"));
+	}
+
+	if (perf_paranoid > 1) {
+		auto perf_flow = std::make_unique<ui_vertical_flow>("perf_flow", 0, 0, 0, 0, 0);
+		perf_flow->add_child(std::make_unique<ui_text_label>("perf_event_paranoid restricts CPU sampling."));
+		perf_flow->add_child(std::make_unique<ui_text_label>("To enable perf profiling, run:"));
+		perf_flow->add_child(std::make_unique<ui_text_label>("  sudo sysctl -w kernel.perf_event_paranoid=1"));
+		flow->add_child(std::move(perf_flow));
 	}
 
 	std::string ok_text = "OK";
