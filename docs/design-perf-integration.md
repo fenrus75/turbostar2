@@ -105,6 +105,31 @@ To keep line sample associations accurate as the user or LLM agent edits the doc
 - **Line Deletions (`on_line_deleted(filename, y)`)**: Samples on the deleted line (`line_number == y + 1`) are marked stale, while samples below shift up by -1 (`line_number--`).
 - **Validity Limit & Reset**: Each document tracks a `perf_modification_count`. After $\ge 20$ line modifications, the profile data for that document is marked invalid (`perf_valid = false`), gracefully hiding border highlights until a fresh profiling run is executed.
 
+### 4.2 "Go to Next Hotspot" Navigation (`F7` & Menu Item)
+
+To allow developers to quickly cycle through performance bottlenecks across open and closed files:
+
+#### Menu Item & Shortcut Binding
+- **Menu Location**: Added as the 4th item under the **Run** menu: `Go to next hotspot`
+- **Shortcut Binding**: Keyed to **`F7`** (and `event_type::go_to_next_hotspot`).
+- **Menu Item State**: Disabled / grayed-out when no active performance profile data exists or when `top_lines` is empty. Enabled as soon as profile data is parsed.
+
+#### Stepping Logic & Ranking
+1. **Ranked Cycle Order**: Navigation cycles through `active_report_.top_lines` in **descending order of CPU cycle percentage** (#1 hottest line $\rightarrow$ #2 $\rightarrow$ #3 $\rightarrow$ ...).
+2. **Cursor Location Matching**:
+   - **Cursor Not on Hotspot**: If the current active window cursor is NOT on a line matching any entry in `top_lines`, `F7` jumps directly to **Hotspot #1** (the global #1 bottleneck line).
+   - **Cursor on Hotspot #K**: If the cursor IS currently located on Hotspot #K in `top_lines`, `F7` advances to **Hotspot #(K + 1)**.
+   - **End-of-List Wrapping**: Stepping past the last hotspot wraps back to **Hotspot #1** and displays a status bar notification: `Hotspot wrap: back to #1 bottleneck`.
+
+#### Window Activation, File Opening & Column Positioning
+1. **File Window Activation**:
+   - If the target hotspot file is **already open** in an editor window, that window is brought into focus (`set_active(true)`).
+   - If the file is **NOT open**, it is automatically opened in a new editor window.
+2. **Cursor & View Placement**:
+   - The cursor moves to line `line_number - 1`.
+   - **Opportunistic Column Position**: If `addr2line` provided a column number (`column_number > 0`), the cursor moves to `column_number - 1`; otherwise it defaults to column `0`.
+   - **Auto-Centering**: The editor centers the window view vertically on the target line (`top_line_ = std::max(0, line_number - content_height / 2)`).
+
 ---
 
 ## 5. Future Considerations
