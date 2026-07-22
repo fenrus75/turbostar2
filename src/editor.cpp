@@ -446,6 +446,7 @@ void editor::update_window_menu()
 	top_menu_.set_item_disabled(event_type::run_program, config_manager::get_instance().get_main_executable().empty());
 	top_menu_.set_item_disabled(event_type::run_in_debugger, config_manager::get_instance().get_main_executable().empty());
 	top_menu_.set_item_disabled(event_type::run_profile, config_manager::get_instance().get_main_executable().empty());
+	top_menu_.set_item_disabled(event_type::go_to_next_hotspot, !turbostar::perf_manager::get_instance().go_to_hotspot_possible());
 }
 
 std::shared_ptr<document> editor::get_active_doc() const

@@ -773,6 +773,12 @@ void editor::dispatch_event_key(const editor_event &ev)
 			global_queue_.push(compile_ev);
 			return;
 		}
+		if (ev.key_code == KEY_F(7)) {
+			editor_event hs_ev;
+			hs_ev.type = event_type::go_to_next_hotspot;
+			global_queue_.push(hs_ev);
+			return;
+		}
 		if (ev.key_code == KEY_F(8)) {
 			editor_event test_ev;
 			test_ev.type = event_type::run_tests;

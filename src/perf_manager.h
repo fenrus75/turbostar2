@@ -13,6 +13,7 @@ namespace turbostar
 struct perf_line_sample {
 	std::string file_path;
 	int line_number{0};
+	int column_number{0};
 	std::string function_name;
 	uint64_t count{0};
 	double percentage{0.0};
@@ -60,6 +61,14 @@ class perf_manager : public document_listener
 
 	// Clear active profile report
 	void clear_active_profile();
+
+	// Returns true if an active performance profile is loaded and has hotspot line samples
+	bool go_to_hotspot_possible() const;
+
+	// Finds the next hotspot in active_report_.top_lines (descending CPU cycle percentage order).
+	// If current_file/current_line matches a hotspot in top_lines, returns the next hotspot.
+	// If not matched or at the end, returns top_lines[0] (the #1 global bottleneck).
+	bool get_next_hotspot(const std::string &current_file, int current_line, perf_line_sample &out_sample) const;
 
 	// Editor UI Query Interface: Returns percentage (0.0 to 100.0) of global samples for line_number in filename.
 	// Returns 0.0 if line has no samples or if file profile is invalid.

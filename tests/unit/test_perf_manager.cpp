@@ -63,11 +63,27 @@ int main()
 	perf_profile_report test_rep;
 	test_rep.total_samples = 1000;
 
-	perf_line_sample ls1{"test_file.cpp", 10, "foo_func()", 600, 60.0};
-	perf_line_sample ls2{"test_file.cpp", 20, "bar_func()", 100, 10.0};
+	perf_line_sample ls1{"test_file.cpp", 10, 5, "foo_func()", 600, 60.0};
+	perf_line_sample ls2{"test_file.cpp", 20, 12, "bar_func()", 100, 10.0};
 	test_rep.line_samples_by_file["test_file.cpp"] = {ls1, ls2};
+	test_rep.top_lines = {ls1, ls2};
 
 	perf_manager::get_instance().set_active_profile(test_rep);
+
+	assert(perf_manager::get_instance().go_to_hotspot_possible());
+
+	perf_line_sample next_hs;
+	// Not on a hotspot line -> jumps to #1 (ls1, line 10)
+	assert(perf_manager::get_instance().get_next_hotspot("other_file.cpp", 1, next_hs));
+	assert(next_hs.line_number == 10 && next_hs.column_number == 5);
+
+	// On Hotspot #1 (ls1, line 10) -> jumps to #2 (ls2, line 20)
+	assert(perf_manager::get_instance().get_next_hotspot("test_file.cpp", 10, next_hs));
+	assert(next_hs.line_number == 20 && next_hs.column_number == 12);
+
+	// On Hotspot #2 (ls2, line 20) -> wraps to #1 (ls1, line 10)
+	assert(perf_manager::get_instance().get_next_hotspot("test_file.cpp", 20, next_hs));
+	assert(next_hs.line_number == 10 && next_hs.column_number == 5);
 
 	// Verify initial queries
 	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 10) == 60.0);

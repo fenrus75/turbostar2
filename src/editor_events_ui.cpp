@@ -23,6 +23,7 @@
 #include "crashdump_manager.h"
 #include "editor.h"
 #include "event_logger.h"
+#include "perf_manager.h"
 #include "fs_utils.h"
 #include "help_text.h"
 #include "history_manager.h"
@@ -294,6 +295,68 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		logger.log("Dispatching run_profile event.");
 		std::string args = config_manager::get_instance().get_run_arguments();
 		start_app(args, false /*use_debugger*/, true /*auto_continue*/, true /*collect_performance*/);
+		return;
+	}
+
+	if (ev.type == event_type::go_to_next_hotspot) {
+		logger.log("Dispatching go_to_next_hotspot event.");
+		std::string cur_file;
+		int cur_line = 0;
+
+		auto active_doc = get_active_doc();
+		if (active_doc) {
+			cur_file = active_doc->get_filename();
+			cur_line = active_doc->get_cursor_y() + 1;
+		}
+
+		turbostar::perf_line_sample sample;
+		if (!turbostar::perf_manager::get_instance().get_next_hotspot(cur_file, cur_line, sample)) {
+			logger.log("go_to_next_hotspot ignored: no active profile hotspots available.");
+			return;
+		}
+
+		std::string target_file = sample.file_path;
+		if (target_file.empty()) {
+			return;
+		}
+
+		std::string project_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path full_path = std::filesystem::path(project_root) / target_file;
+		if (std::filesystem::exists(full_path)) {
+			target_file = full_path.string();
+		}
+
+		size_t win_idx = static_cast<size_t>(-1);
+		std::string norm_target = fs_utils::make_relative_to_project(target_file);
+		for (size_t i = 0; i < windows_.size(); ++i) {
+			auto doc = windows_[i]->get_document();
+			if (doc) {
+				std::string win_file = fs_utils::make_relative_to_project(doc->get_filename());
+				if (!win_file.empty() && (win_file == norm_target || doc->get_filename() == target_file)) {
+					win_idx = i;
+					break;
+				}
+			}
+		}
+
+		if (win_idx == static_cast<size_t>(-1)) {
+			new_window(target_file);
+			win_idx = windows_.size() - 1;
+		}
+
+		if (win_idx < windows_.size()) {
+			activate_window(win_idx);
+			auto doc = windows_[win_idx]->get_document();
+			if (doc) {
+				doc->move_to_top();
+				int target_col = sample.column_number > 0 ? sample.column_number - 1 : 0;
+				int target_line = std::max(0, sample.line_number - 1);
+				doc->move_cursor(target_col, target_line);
+			}
+			set_status_message(std::format("Hotspot: {:.1f}% ({}) at {}:{}", sample.percentage, sample.function_name,
+						       sample.file_path, sample.line_number),
+					   status_priorities::INFO);
+		}
 		return;
 	}
 

@@ -43,6 +43,7 @@ menu_bar::menu_bar()
 	     {{"Run", event_type::run_program, 'r', "Ctrl+F9", false},
 	      {"Run in Debugger", event_type::run_in_debugger, 'd', "Ctrl+Shift+F9", false},
 	      {"Run (Performance profile)", event_type::run_profile, 'p', "", false},
+	      {"Go to next hotspot", event_type::go_to_next_hotspot, 'h', "F7", false},
 	      {"Run Settings...", event_type::run_settings, 's', "", false}}},
 	    {"Options",
 	     'p',

@@ -82,6 +82,7 @@ enum class event_type {
 	run_settings,		    ///< Request to show run settings/options dialog
 	run_in_debugger,	    ///< Request to run the main program in debugger
 	run_profile,		    ///< Request to run the main program with performance profiling
+	go_to_next_hotspot,	    ///< Request to jump to the next performance hotspot line
 	tool_status,		    ///< Request to show the Tool status dialog
 	notify_undo_changed,	    ///< Notification that the undo stack has changed
 	mcp_config,		    ///< Request to show MCP configuration dialog

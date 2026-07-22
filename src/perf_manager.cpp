@@ -169,6 +169,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	struct line_acc {
 		std::string file_path;
 		int line_number{0};
+		int column_number{0};
 		uint64_t count{0};
 		std::unordered_map<std::string, uint64_t> func_counts;
 	};
@@ -216,6 +217,9 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			auto &l = line_map[line_key];
 			l.file_path = norm_file_path;
 			l.line_number = res.line_number;
+			if (res.column_number > 0) {
+				l.column_number = res.column_number;
+			}
 			l.count += count;
 			if (!res.function_name.empty() && res.function_name != "??") {
 				l.func_counts[res.function_name] += count;
@@ -278,6 +282,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 
 		perf_line_sample ls{.file_path = l.file_path,
 				    .line_number = l.line_number,
+				    .column_number = l.column_number,
 				    .function_name = top_func,
 				    .count = l.count,
 				    .percentage = pct};
@@ -326,6 +331,42 @@ void perf_manager::clear_active_profile()
 	std::lock_guard<std::mutex> lock(mutex_);
 	active_report_ = perf_profile_report{};
 	file_states_.clear();
+}
+
+bool perf_manager::go_to_hotspot_possible() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	return active_report_.total_samples > 0 && !active_report_.top_lines.empty();
+}
+
+bool perf_manager::get_next_hotspot(const std::string &current_file, int current_line, perf_line_sample &out_sample) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (active_report_.total_samples == 0 || active_report_.top_lines.empty()) {
+		return false;
+	}
+
+	std::string rel_path = current_file.empty() ? "" : fs_utils::make_relative_to_project(current_file);
+	size_t found_idx = active_report_.top_lines.size();
+
+	if (!rel_path.empty() && current_line > 0) {
+		for (size_t i = 0; i < active_report_.top_lines.size(); ++i) {
+			const auto &ls = active_report_.top_lines[i];
+			if (ls.line_number == current_line &&
+			    (ls.file_path == rel_path || ls.file_path == current_file)) {
+				found_idx = i;
+				break;
+			}
+		}
+	}
+
+	size_t target_idx = 0;
+	if (found_idx < active_report_.top_lines.size()) {
+		target_idx = (found_idx + 1) % active_report_.top_lines.size();
+	}
+
+	out_sample = active_report_.top_lines[target_idx];
+	return true;
 }
 
 bool perf_manager::is_file_profile_valid(const std::string &filename) const

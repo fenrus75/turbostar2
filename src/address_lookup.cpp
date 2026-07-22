@@ -253,10 +253,16 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 				if (is_line_col) {
 					current_res.file_path = cleaned_line.substr(0, prev_colon);
 					std::string line_part = cleaned_line.substr(prev_colon + 1, last_colon - prev_colon - 1);
+					std::string col_part = cleaned_line.substr(last_colon + 1);
 					try {
 						current_res.line_number = std::stoi(line_part);
 					} catch (...) {
 						current_res.line_number = 0;
+					}
+					try {
+						current_res.column_number = std::stoi(col_part);
+					} catch (...) {
+						current_res.column_number = 0;
 					}
 				} else {
 					current_res.file_path = cleaned_line.substr(0, last_colon);

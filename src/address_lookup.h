@@ -19,6 +19,7 @@ struct resolved_address {
 	std::string function_name{"??"};
 	std::string file_path{"??"};
 	int line_number{0};
+	int column_number{0};
 	std::string location{"??"};
 };
 
