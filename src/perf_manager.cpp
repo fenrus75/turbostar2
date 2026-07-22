@@ -152,20 +152,38 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		uint64_t count = ip_counts[ip];
 		const auto &res = resolved_addrs[i];
 
+		std::string norm_file_path = res.file_path;
+		if (!norm_file_path.empty() && norm_file_path != "??") {
+			size_t colon_idx = norm_file_path.rfind(':');
+			if (colon_idx != std::string::npos && colon_idx + 1 < norm_file_path.size()) {
+				bool all_digits = true;
+				for (size_t k = colon_idx + 1; k < norm_file_path.size(); ++k) {
+					if (!std::isdigit(static_cast<unsigned char>(norm_file_path[k]))) {
+						all_digits = false;
+						break;
+					}
+				}
+				if (all_digits) {
+					norm_file_path = norm_file_path.substr(0, colon_idx);
+				}
+			}
+			norm_file_path = std::filesystem::path(norm_file_path).lexically_normal().string();
+		}
+
 		if (!res.function_name.empty() && res.function_name != "??") {
 			auto &f = func_map[res.function_name];
 			f.name = res.function_name;
 			f.count += count;
 			if (f.file_path.empty()) {
-				f.file_path = res.file_path;
+				f.file_path = norm_file_path;
 				f.line_number = res.line_number;
 			}
 		}
 
-		if (!res.file_path.empty() && res.file_path != "??" && res.line_number > 0) {
-			std::string line_key = std::format("{}:{}", res.file_path, res.line_number);
+		if (!norm_file_path.empty() && norm_file_path != "??" && res.line_number > 0) {
+			std::string line_key = std::format("{}:{}", norm_file_path, res.line_number);
 			auto &l = line_map[line_key];
-			l.file_path = res.file_path;
+			l.file_path = norm_file_path;
 			l.line_number = res.line_number;
 			if (l.function_name.empty() && !res.function_name.empty() && res.function_name != "??") {
 				l.function_name = res.function_name;

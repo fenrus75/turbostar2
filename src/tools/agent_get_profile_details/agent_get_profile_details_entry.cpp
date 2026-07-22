@@ -126,15 +126,31 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 	return merged;
 }
 
-static std::string resolve_file_path(const std::string &file_path, const agentlib::tool_context &ctx)
+static std::string resolve_file_path(const std::string &input_path, const agentlib::tool_context &ctx)
 {
-	if (file_path.empty() || file_path == "??") {
+	if (input_path.empty() || input_path == "??") {
 		return "";
 	}
 
-	std::vector<std::string> raw_paths = {file_path};
+	std::string clean_path = input_path;
+	size_t colon_idx = clean_path.rfind(':');
+	if (colon_idx != std::string::npos && colon_idx + 1 < clean_path.size()) {
+		bool all_digits = true;
+		for (size_t k = colon_idx + 1; k < clean_path.size(); ++k) {
+			if (!std::isdigit(static_cast<unsigned char>(clean_path[k]))) {
+				all_digits = false;
+				break;
+			}
+		}
+		if (all_digits) {
+			clean_path = clean_path.substr(0, colon_idx);
+		}
+	}
 
-	std::string norm = file_path;
+	std::string norm_input = std::filesystem::path(clean_path).lexically_normal().string();
+	std::vector<std::string> raw_paths = {norm_input, clean_path};
+
+	std::string norm = norm_input;
 	while (norm.starts_with("../") || norm.starts_with("./")) {
 		if (norm.starts_with("../")) {
 			norm = norm.substr(3);
@@ -142,7 +158,7 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 			norm = norm.substr(2);
 		}
 	}
-	if (norm != file_path) {
+	if (norm != norm_input && norm != clean_path) {
 		raw_paths.push_back(norm);
 	}
 
@@ -212,7 +228,7 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 	}
 
 	// 2. Final fallback: Recursive scan of project root matching target filename
-	std::string target_fname = std::filesystem::path(file_path).filename().string();
+	std::string target_fname = std::filesystem::path(norm_input).filename().string();
 	if (!target_fname.empty() && target_fname != "??" && !proj_root.empty()) {
 		std::error_code ec;
 		for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_root, ec)) {
@@ -223,7 +239,7 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 		}
 	}
 
-	return file_path;
+	return norm_input;
 }
 
 static std::vector<std::string> read_file_lines(const std::string &resolved_path)
