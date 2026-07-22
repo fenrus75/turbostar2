@@ -226,21 +226,49 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 		} else if (state == 2) {
 			current_res.location = line;
 
-			size_t colon_pos = line.find_last_of(':');
-			if (colon_pos != std::string::npos) {
-				current_res.file_path = line.substr(0, colon_pos);
-				std::string line_part = line.substr(colon_pos + 1);
-				size_t space_pos = line_part.find(' ');
-				if (space_pos != std::string::npos) {
-					line_part = line_part.substr(0, space_pos);
+			std::string cleaned_line = line;
+			size_t space_pos = cleaned_line.find(' ');
+			if (space_pos != std::string::npos) {
+				cleaned_line = cleaned_line.substr(0, space_pos);
+			}
+
+			size_t last_colon = cleaned_line.find_last_of(':');
+			if (last_colon != std::string::npos) {
+				size_t prev_colon = (last_colon == 0) ? std::string::npos : cleaned_line.find_last_of(':', last_colon - 1);
+				
+				bool is_line_col = false;
+				if (prev_colon != std::string::npos) {
+					std::string mid_part = cleaned_line.substr(prev_colon + 1, last_colon - prev_colon - 1);
+					std::string end_part = cleaned_line.substr(last_colon + 1);
+					
+					auto is_digits = [](const std::string& s) {
+						return !s.empty() && std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isdigit(c); });
+					};
+					
+					if (is_digits(mid_part) && is_digits(end_part)) {
+						is_line_col = true;
+					}
 				}
-				try {
-					current_res.line_number = std::stoi(line_part);
-				} catch (...) {
-					current_res.line_number = 0;
+
+				if (is_line_col) {
+					current_res.file_path = cleaned_line.substr(0, prev_colon);
+					std::string line_part = cleaned_line.substr(prev_colon + 1, last_colon - prev_colon - 1);
+					try {
+						current_res.line_number = std::stoi(line_part);
+					} catch (...) {
+						current_res.line_number = 0;
+					}
+				} else {
+					current_res.file_path = cleaned_line.substr(0, last_colon);
+					std::string line_part = cleaned_line.substr(last_colon + 1);
+					try {
+						current_res.line_number = std::stoi(line_part);
+					} catch (...) {
+						current_res.line_number = 0;
+					}
 				}
 			} else {
-				current_res.file_path = line;
+				current_res.file_path = cleaned_line;
 				current_res.line_number = 0;
 			}
 			state = 3; // Finished primary frame for this address; skip any extra inlined outer frames
