@@ -1,6 +1,7 @@
 #include "perf_manager.h"
 #include "address_lookup.h"
 #include "event_logger.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -297,6 +298,145 @@ void perf_manager::clear_active_profile()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	active_report_ = perf_profile_report{};
+	file_states_.clear();
+}
+
+bool perf_manager::is_file_profile_valid(const std::string &filename) const
+{
+	if (filename.empty()) {
+		return false;
+	}
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	auto it = file_states_.find(rel_path);
+	if (it != file_states_.end()) {
+		return it->second.is_valid && it->second.edit_count < 20;
+	}
+	return true;
+}
+
+void perf_manager::invalidate_file(const std::string &filename)
+{
+	if (filename.empty()) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	file_states_[rel_path].is_valid = false;
+}
+
+double perf_manager::get_line_profile_percentage(const std::string &filename, int line_number) const
+{
+	if (filename.empty() || line_number <= 0) {
+		return 0.0;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (active_report_.total_samples == 0) {
+		return 0.0;
+	}
+
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	auto state_it = file_states_.find(rel_path);
+	if (state_it != file_states_.end() && (!state_it->second.is_valid || state_it->second.edit_count >= 20)) {
+		return 0.0;
+	}
+
+	auto it = active_report_.line_samples_by_file.find(rel_path);
+	if (it == active_report_.line_samples_by_file.end()) {
+		return 0.0;
+	}
+
+	for (const auto &ls : it->second) {
+		if (ls.line_number == line_number) {
+			return ls.percentage;
+		}
+	}
+	return 0.0;
+}
+
+std::string perf_manager::get_line_profile_statusmsg(const std::string &filename, int line_number) const
+{
+	if (filename.empty() || line_number <= 0) {
+		return "";
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (active_report_.total_samples == 0) {
+		return "";
+	}
+
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	auto state_it = file_states_.find(rel_path);
+	if (state_it != file_states_.end() && (!state_it->second.is_valid || state_it->second.edit_count >= 20)) {
+		return "";
+	}
+
+	auto it = active_report_.line_samples_by_file.find(rel_path);
+	if (it == active_report_.line_samples_by_file.end()) {
+		return "";
+	}
+
+	for (const auto &ls : it->second) {
+		if (ls.line_number == line_number && ls.count > 0) {
+			if (!ls.function_name.empty()) {
+				return std::format("Perf: {} samples ({:.1f}% global) [{}]", ls.count, ls.percentage, ls.function_name);
+			}
+			return std::format("Perf: {} samples ({:.1f}% global)", ls.count, ls.percentage);
+		}
+	}
+	return "";
+}
+
+void perf_manager::on_line_inserted(const std::string &filename, int y_zero_based)
+{
+	if (filename.empty()) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	auto &state = file_states_[rel_path];
+	state.edit_count++;
+	if (state.edit_count >= 20) {
+		state.is_valid = false;
+	}
+
+	int insert_line = y_zero_based + 1;
+	auto it = active_report_.line_samples_by_file.find(rel_path);
+	if (it != active_report_.line_samples_by_file.end()) {
+		for (auto &ls : it->second) {
+			if (ls.line_number >= insert_line) {
+				ls.line_number++;
+			}
+		}
+	}
+}
+
+void perf_manager::on_line_deleted(const std::string &filename, int y_zero_based)
+{
+	if (filename.empty()) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string rel_path = fs_utils::make_relative_to_project(filename);
+	auto &state = file_states_[rel_path];
+	state.edit_count++;
+	if (state.edit_count >= 20) {
+		state.is_valid = false;
+	}
+
+	int delete_line = y_zero_based + 1;
+	auto it = active_report_.line_samples_by_file.find(rel_path);
+	if (it != active_report_.line_samples_by_file.end()) {
+		auto &samples = it->second;
+		for (auto sample_it = samples.begin(); sample_it != samples.end();) {
+			if (sample_it->line_number == delete_line) {
+				sample_it = samples.erase(sample_it);
+			} else {
+				if (sample_it->line_number > delete_line) {
+					sample_it->line_number--;
+				}
+				++sample_it;
+			}
+		}
+	}
 }
 
 } // namespace turbostar

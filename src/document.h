@@ -20,6 +20,7 @@
 | subclass           | filename                     |
 | ------------------ | ---------------------------- |
 | codereview_manager | src/codereview_manager.h    |
+| perf_manager       | src/perf_manager.h           |
 
 */
 class document_listener {

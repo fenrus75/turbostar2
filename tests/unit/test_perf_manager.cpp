@@ -59,6 +59,46 @@ int main()
 	auto active = perf_manager::get_instance().get_active_profile();
 	assert(active.total_samples == 150);
 
+	// 2. Editor UI Query & Document Listener Interface Tests
+	perf_profile_report test_rep;
+	test_rep.total_samples = 1000;
+
+	perf_line_sample ls1{"test_file.cpp", 10, "foo_func()", 600, 60.0};
+	perf_line_sample ls2{"test_file.cpp", 20, "bar_func()", 100, 10.0};
+	test_rep.line_samples_by_file["test_file.cpp"] = {ls1, ls2};
+
+	perf_manager::get_instance().set_active_profile(test_rep);
+
+	// Verify initial queries
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 10) == 60.0);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 20) == 10.0);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 15) == 0.0);
+
+	std::string status10 = perf_manager::get_instance().get_line_profile_statusmsg("test_file.cpp", 10);
+	assert(status10.find("600 samples") != std::string::npos);
+	assert(status10.find("60.0%") != std::string::npos);
+	assert(status10.find("foo_func()") != std::string::npos);
+
+	assert(perf_manager::get_instance().get_line_profile_statusmsg("test_file.cpp", 15).empty());
+
+	// Verify line insertion at line 5 (0-indexed y = 4) -> line 10 becomes 11, line 20 becomes 21
+	perf_manager::get_instance().on_line_inserted("test_file.cpp", 4);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 11) == 60.0);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 21) == 10.0);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 10) == 0.0);
+
+	// Verify line deletion at line 21 (0-indexed y = 20) -> line 21 deleted
+	perf_manager::get_instance().on_line_deleted("test_file.cpp", 20);
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 21) == 0.0);
+
+	// Verify edit count invalidation threshold (18 more edits = 20 total)
+	for (int i = 0; i < 18; ++i) {
+		perf_manager::get_instance().on_line_inserted("test_file.cpp", 1);
+	}
+	assert(!perf_manager::get_instance().is_file_profile_valid("test_file.cpp"));
+	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 11) == 0.0);
+	assert(perf_manager::get_instance().get_line_profile_statusmsg("test_file.cpp", 11).empty());
+
 	perf_manager::get_instance().clear_active_profile();
 	assert(perf_manager::get_instance().get_active_profile().total_samples == 0);
 
