@@ -12,10 +12,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- refactor: Profile Details Scope Percentage Field Naming (`agent_get_profile_details`):
-  - *Problem*: When querying profile details filtered by `file_path` (e.g. `file_path="prime.cpp"`), the returned JSON contains a `function_percentage` field, which misleads LLM agents into interpreting it as a function-relative percentage rather than file-scope relative.
-  - *Fix*: Rename `function_percentage` to `file_percentage` (or `scope_percentage`) when filtering by file path, or provide `scope_percentage` consistently to clarify the percentage scope to the agent.
-
 - feature: Multi-Run Profile Comparison via `run_id` in Profiling Tools (`agent_get_profile_summary` & `agent_get_profile_details`):
   - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
   - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
@@ -259,6 +255,7 @@
 
 
 ## 22-07-2026
+- Profile Details File Percentage Field Naming (`agent_get_profile_details_entry.cpp` & `docs/tools.md`): Updated `agent_get_profile_details` to return `file_percentage` instead of `function_percentage` when line samples are filtered by `file_path`. Eliminates ambiguity for LLM agents when evaluating file-scope vs function-scope CPU cycle percentages.
 - LSP Symbol Range Tightening & Trailing Comment Trimming (`agent_get_profile_details_entry.cpp`): Implemented `tighten_symbol_bounds` to inspect source code lines backwards from LSP `end_line` and strip trailing comment-only or blank lines. Prevents function profile detail context snippets from bleeding into neighboring function headers or comments.
 - Parameter-Fuzzy Function Symbol Matching (`agent_get_profile_details_entry.cpp`): Implemented `match_symbol_string` to strip parameter lists `(...)` from query strings and candidate demangled symbols if exact substring matching fails. Allows `agent_get_profile_details` queries like `is_prime_vC()` to successfully match demangled C++ signatures like `is_prime_vC(int, double)`. Updated unit test in `test_profile_tools.cpp`.
 - Address-Anchored `addr2line` Output Parsing (`address_lookup.cpp`): Added `-a` (print address) flag to `eu-addr2line` and `addr2line` invocations and introduced `parse_addr2line_output()`. Anchors each result block by its hex address header (`0x...`), preventing indexing drift when `addr2line` outputs extra inlined outer frames or discriminator comments. Fixes bug where all top functions erroneously collapsed to line 14.
