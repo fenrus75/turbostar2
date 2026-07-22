@@ -262,6 +262,21 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 	char pid_str[32];
 	safe_itoa(pid, pid_str, sizeof(pid_str));
 
+	char debug_path[1024] = {0};
+	safe_strcpy(debug_path, g_perf_dir, sizeof(debug_path));
+	safe_strcat(debug_path, "/perf_debug_", sizeof(debug_path));
+	safe_strcat(debug_path, pid_str, sizeof(debug_path));
+	safe_strcat(debug_path, ".txt", sizeof(debug_path));
+
+	int debug_fd = open(debug_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	if (debug_fd >= 0) {
+		char msg[256];
+		safe_strcpy(msg, "turboperf_shutdown pid=", sizeof(msg));
+		safe_strcat(msg, pid_str, sizeof(msg));
+		safe_strcat(msg, "\n", sizeof(msg));
+		write(debug_fd, msg, safe_strlen(msg));
+	}
+
 	// 1. Copy /proc/self/maps to <TURBOSTAR_PERF_DIR>/perf_maps_<pid>.txt
 	char maps_out_path[1024] = {0};
 	safe_strcpy(maps_out_path, g_perf_dir, sizeof(maps_out_path));
@@ -269,6 +284,7 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 	safe_strcat(maps_out_path, pid_str, sizeof(maps_out_path));
 	safe_strcat(maps_out_path, ".txt", sizeof(maps_out_path));
 
+	size_t maps_bytes_written = 0;
 	int maps_in = open("/proc/self/maps", O_RDONLY);
 	if (maps_in >= 0) {
 		int maps_out = open(maps_out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -277,13 +293,28 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 			ssize_t n;
 			while ((n = read(maps_in, buf, sizeof(buf))) > 0) {
 				write(maps_out, buf, (size_t)n);
+				maps_bytes_written += (size_t)n;
 			}
 			close(maps_out);
 		}
 		close(maps_in);
 	}
 
+	if (debug_fd >= 0) {
+		char msg[256];
+		safe_strcpy(msg, "turboperf_shutdown maps_bytes=", sizeof(msg));
+		char b_str[32];
+		safe_itoa((long)maps_bytes_written, b_str, sizeof(b_str));
+		safe_strcat(msg, b_str, sizeof(msg));
+		safe_strcat(msg, "\n", sizeof(msg));
+		write(debug_fd, msg, safe_strlen(msg));
+	}
+
 	if (g_perf_fd < 0 || !g_mmap_base) {
+		if (debug_fd >= 0) {
+			write(debug_fd, "turboperf_shutdown: g_perf_fd < 0 or g_mmap_base is NULL, aborting sample drain\n", 80);
+			close(debug_fd);
+		}
 		return;
 	}
 
@@ -307,6 +338,10 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 	unsigned char *data = (unsigned char *)g_mmap_base + header->data_offset;
 	uint64_t data_size = header->data_size;
 
+	uint64_t raw_records_read = 0;
+	uint64_t slots_flushed = 0;
+	uint64_t total_samples_written = 0;
+
 	if (samples_fd >= 0 && data_size > 0) {
 		while (tail < head) {
 			struct perf_event_header *eh = (struct perf_event_header *)(data + (tail % data_size));
@@ -315,6 +350,7 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 			}
 
 			if (eh->type == PERF_RECORD_SAMPLE) {
+				raw_records_read++;
 				unsigned long ip = *(unsigned long *)((char *)eh + sizeof(struct perf_event_header));
 				size_t idx = (ip ^ (ip >> 12)) & (PERF_CACHE_SIZE - 1);
 				if (g_perf_cache[idx].ip == ip) {
@@ -322,6 +358,8 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 				} else {
 					if (g_perf_cache[idx].ip != 0 && g_perf_cache[idx].count > 0) {
 						write(samples_fd, &g_perf_cache[idx], sizeof(struct perf_sample_slot));
+						slots_flushed++;
+						total_samples_written += g_perf_cache[idx].count;
 					}
 					g_perf_cache[idx].ip = ip;
 					g_perf_cache[idx].count = 1;
@@ -334,9 +372,39 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 		for (size_t i = 0; i < PERF_CACHE_SIZE; ++i) {
 			if (g_perf_cache[i].ip != 0 && g_perf_cache[i].count > 0) {
 				write(samples_fd, &g_perf_cache[i], sizeof(struct perf_sample_slot));
+				slots_flushed++;
+				total_samples_written += g_perf_cache[i].count;
 			}
 		}
 		close(samples_fd);
+	}
+
+	if (debug_fd >= 0) {
+		char msg[512];
+		safe_strcpy(msg, "turboperf_shutdown ring_buffer head=", sizeof(msg));
+		char num_buf[32];
+		safe_itoa((long)head, num_buf, sizeof(num_buf));
+		safe_strcat(msg, num_buf, sizeof(msg));
+
+		safe_strcat(msg, " tail=", sizeof(msg));
+		safe_itoa((long)tail, num_buf, sizeof(num_buf));
+		safe_strcat(msg, num_buf, sizeof(msg));
+
+		safe_strcat(msg, " raw_records=", sizeof(msg));
+		safe_itoa((long)raw_records_read, num_buf, sizeof(num_buf));
+		safe_strcat(msg, num_buf, sizeof(msg));
+
+		safe_strcat(msg, " slots_flushed=", sizeof(msg));
+		safe_itoa((long)slots_flushed, num_buf, sizeof(num_buf));
+		safe_strcat(msg, num_buf, sizeof(msg));
+
+		safe_strcat(msg, " total_samples=", sizeof(msg));
+		safe_itoa((long)total_samples_written, num_buf, sizeof(num_buf));
+		safe_strcat(msg, num_buf, sizeof(msg));
+		safe_strcat(msg, "\n", sizeof(msg));
+
+		write(debug_fd, msg, safe_strlen(msg));
+		close(debug_fd);
 	}
 
 	munmap(g_mmap_base, g_mmap_len);
