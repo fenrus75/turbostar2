@@ -134,8 +134,8 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	struct func_acc {
 		std::string name;
 		uint64_t count{0};
-		std::map<int, uint64_t> line_counts;
 		std::unordered_map<std::string, uint64_t> file_counts;
+		std::unordered_map<std::string, std::map<int, uint64_t>> file_line_counts;
 	};
 
 	struct line_acc {
@@ -175,11 +175,11 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			auto &f = func_map[res.function_name];
 			f.name = res.function_name;
 			f.count += count;
-			if (res.line_number > 0) {
-				f.line_counts[res.line_number] += count;
-			}
 			if (!norm_file_path.empty() && norm_file_path != "??") {
 				f.file_counts[norm_file_path] += count;
+				if (res.line_number > 0) {
+					f.file_line_counts[norm_file_path][res.line_number] += count;
+				}
 			}
 		}
 
@@ -210,10 +210,15 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 
 		int top_line = 0;
 		uint64_t max_line_cnt = 0;
-		for (const auto &line_pair : f.line_counts) {
-			if (line_pair.second > max_line_cnt) {
-				max_line_cnt = line_pair.second;
-				top_line = line_pair.first;
+		if (!top_file.empty()) {
+			auto it = f.file_line_counts.find(top_file);
+			if (it != f.file_line_counts.end()) {
+				for (const auto &line_pair : it->second) {
+					if (line_pair.second > max_line_cnt) {
+						max_line_cnt = line_pair.second;
+						top_line = line_pair.first;
+					}
+				}
 			}
 		}
 
