@@ -12,6 +12,22 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: LSP AST Function Boundary Clamping in `agent_get_profile_details`:
+  - *Problem*: Line samples returned for a function (e.g. `is_prime_vA`) can include leading/trailing blank lines or comments (like `// Version B...`) that belong to neighboring functions when ±2 line context padding is applied or when LSP symbol ranges extend across comment blocks.
+  - *Fix*: Tighten function boundary trimming by stripping leading/trailing comment-only or blank lines at the edges of LSP function symbol ranges, or clamping context padding strictly to non-blank/code lines within the function symbol bounds.
+
+- refactor: Profile Details Scope Percentage Field Naming (`agent_get_profile_details`):
+  - *Problem*: When querying profile details filtered by `file_path` (e.g. `file_path="prime.cpp"`), the returned JSON contains a `function_percentage` field, which misleads LLM agents into interpreting it as a function-relative percentage rather than file-scope relative.
+  - *Fix*: Rename `function_percentage` to `file_percentage` (or `scope_percentage`) when filtering by file path, or provide `scope_percentage` consistently to clarify the percentage scope to the agent.
+
+- feature: Multi-Run Profile Comparison via `run_id` in Profiling Tools (`agent_get_profile_summary` & `agent_get_profile_details`):
+  - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
+  - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
+
+- feature: Improved Demangled Function Symbol Matching (`agent_get_profile_details`):
+  - *Problem*: Substring matching works when passing base names like `"is_prime_vA"`, but fails if an agent passes mismatched parameter signatures like `"is_prime_vA()"` when the demangled symbol is `"is_prime_vA(int)"`.
+  - *Fix*: Strip parameter lists `(...)` from both query string and candidate symbol names if initial substring matching yields no results, allowing fuzzy parameter matching.
+
 - refactor: investigate std::ostringstream usages to see if std::format is a better/simpler solution
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
