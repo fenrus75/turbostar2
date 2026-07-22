@@ -262,6 +262,38 @@ static std::vector<std::string> read_file_lines(const std::string &resolved_path
 	return lines;
 }
 
+static std::string make_relative_to_project(const std::string &path_str, const agentlib::tool_context &ctx)
+{
+	if (path_str.empty()) {
+		return path_str;
+	}
+
+	std::vector<std::string> roots;
+	std::string proj_root = project_manager::get_instance().get_project_root();
+	if (!proj_root.empty()) {
+		roots.push_back(proj_root);
+	}
+	std::string proj_dir = fs_utils::get_project_dir();
+	if (!proj_dir.empty()) {
+		roots.push_back(proj_dir);
+	}
+	std::string wdir = ctx.fs_security.get_working_directory();
+	if (!wdir.empty()) {
+		roots.push_back(wdir);
+	}
+
+	std::filesystem::path target_p(path_str);
+	for (const auto &root : roots) {
+		std::filesystem::path root_p(root);
+		std::error_code ec;
+		auto rel = std::filesystem::relative(target_p, root_p, ec);
+		if (!ec && !rel.empty() && !rel.string().starts_with("..")) {
+			return rel.string();
+		}
+	}
+	return path_str;
+}
+
 } // namespace
 
 bool agent_get_profile_details_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
@@ -353,6 +385,8 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		std::string resolved_path = resolve_file_path(file_path, ctx);
+		std::string rel_file_path = make_relative_to_project(resolved_path.empty() ? file_path : resolved_path, ctx);
+
 		auto file_lines = read_file_lines(resolved_path);
 		int total_lines = static_cast<int>(file_lines.size());
 
@@ -394,17 +428,25 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (samples_by_file.size() > 1) {
-					entry["file_path"] = file_path;
+					entry["file_path"] = rel_file_path;
 				}
 				line_samples.push_back(entry);
 			}
 		}
 	}
 
+	std::string display_file_path;
+	if (!primary_file_path.empty()) {
+		std::string resolved_primary = resolve_file_path(primary_file_path, ctx);
+		display_file_path = make_relative_to_project(resolved_primary.empty() ? primary_file_path : resolved_primary, ctx);
+	} else if (!args_.file_path.empty()) {
+		display_file_path = make_relative_to_project(args_.file_path, ctx);
+	}
+
 	nlohmann::json output = {
 	    {"total_samples", report.total_samples},
 	    {"target_samples", target_total_samples},
-	    {"file_path", primary_file_path.empty() ? (args_.file_path.empty() ? nullptr : nlohmann::json(args_.file_path)) : nlohmann::json(primary_file_path)},
+	    {"file_path", display_file_path.empty() ? nullptr : nlohmann::json(display_file_path)},
 	    {"function_name", args_.function_name.empty() ? nullptr : nlohmann::json(args_.function_name)},
 	    {"line_samples", line_samples},
 	};
