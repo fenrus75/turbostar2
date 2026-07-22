@@ -168,7 +168,7 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	// the caller explicitly opted into the LD_PRELOAD crash catcher.
 	// This breaks recursion loops where internal profiles (git rev-parse)
 	// bypass the sandbox but used to still call get_project_dump_dir().
-	if (!bypass_sandbox_ && enable_crash_catcher_) {
+	if (!bypass_sandbox_ && (enable_crash_catcher_ || !perf_dir_.empty())) {
 		std::string dump_dir = fs_utils::get_project_dump_dir();
 		if (home_access_ == home_access_t::hidden) {
 			cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(dump_dir) + " ";

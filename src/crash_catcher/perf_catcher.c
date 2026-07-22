@@ -92,7 +92,7 @@ static long sys_perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
-void turboperf_init(void)
+__attribute__((constructor)) void turboperf_init(void)
 {
 	const char *env_dir = getenv("TURBOSTAR_PERF_DIR");
 	if (!env_dir || env_dir[0] == '\0') {
@@ -159,7 +159,7 @@ void turboperf_init(void)
 	memset(g_perf_cache, 0, sizeof(g_perf_cache));
 }
 
-void turboperf_shutdown(void)
+__attribute__((destructor)) void turboperf_shutdown(void)
 {
 	if (g_perf_dir[0] == '\0') {
 		return;
