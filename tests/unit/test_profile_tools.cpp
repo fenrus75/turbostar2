@@ -89,6 +89,25 @@ int main()
 		std::cout << "agent_get_profile_details (function_name filter) verified successfully!" << std::endl;
 	}
 
+	// 3b. Test agent_get_profile_details by mismatched signature function name (e.g. test_func_c() matching test_func_c(int, double))
+	{
+		report.top_functions.push_back(
+			perf_function_sample{.function_name = "test_func_c(int, double)", .file_path = "src/math.cpp", .line_number = 88, .count = 200, .percentage = 20.0});
+		report.top_lines.push_back(
+			perf_line_sample{.file_path = "src/math.cpp", .line_number = 88, .function_name = "test_func_c(int, double)", .count = 200, .percentage = 20.0});
+		perf_manager::get_instance().set_active_profile(report);
+
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_c()\"}", ctx);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
+
+		std::string result = prep.tool->execute(ctx);
+		auto res_json = nlohmann::json::parse(result);
+		assert(res_json["target_samples"] == 200);
+		assert(!res_json["line_samples"].empty());
+		std::cout << "agent_get_profile_details (mismatched signature filter) verified successfully!" << std::endl;
+	}
+
 	// 4. Test agent_get_profile_details all
 	{
 		auto prep = registry.prepare_tool("agent_get_profile_details", "{}", ctx);

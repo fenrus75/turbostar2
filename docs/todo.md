@@ -24,10 +24,6 @@
   - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
   - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
 
-- feature: Improved Demangled Function Symbol Matching (`agent_get_profile_details`):
-  - *Problem*: Substring matching works when passing base names like `"is_prime_vA"`, but fails if an agent passes mismatched parameter signatures like `"is_prime_vA()"` when the demangled symbol is `"is_prime_vA(int)"`.
-  - *Fix*: Strip parameter lists `(...)` from both query string and candidate symbol names if initial substring matching yields no results, allowing fuzzy parameter matching.
-
 - refactor: investigate std::ostringstream usages to see if std::format is a better/simpler solution
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
@@ -267,6 +263,7 @@
 
 
 ## 22-07-2026
+- Parameter-Fuzzy Function Symbol Matching (`agent_get_profile_details_entry.cpp`): Implemented `match_symbol_string` to strip parameter lists `(...)` from query strings and candidate demangled symbols if exact substring matching fails. Allows `agent_get_profile_details` queries like `is_prime_vC()` to successfully match demangled C++ signatures like `is_prime_vC(int, double)`. Updated unit test in `test_profile_tools.cpp`.
 - Address-Anchored `addr2line` Output Parsing (`address_lookup.cpp`): Added `-a` (print address) flag to `eu-addr2line` and `addr2line` invocations and introduced `parse_addr2line_output()`. Anchors each result block by its hex address header (`0x...`), preventing indexing drift when `addr2line` outputs extra inlined outer frames or discriminator comments. Fixes bug where all top functions erroneously collapsed to line 14.
 - Hottest Line & Function Association Accuracy (`perf_manager.cpp`): Updated `perf_manager` sample aggregation: top function reports now select the most frequent (hottest) line number within each function (`f.line_counts`) rather than taking the arbitrary line number of the first sample encountered in memory order. Similarly, top line samples select the most frequent function name (`l.func_counts`). Fixes line/function mismatches where `is_prime_vA` reported an empty line outside the function.
 - Main Interactive Agent Lifecycle Fix & Status Transition Logging (`ai_agent.cpp`): Fixed bug where main interactive session agents transitioned to the terminal `agent_status::dead` state upon completing a turn if `final_result` was recorded. Scoped `dead` transitions strictly to subagents (`is_exit_implicitly_on_idle() || parent != nullptr`), ensuring main agents clear transient final results and return to `agent_status::idle` to accept subsequent user prompts. Added rich diagnostic logging to `ai_agent::set_status()` (`"Agent 1 status: thinking -> idle (parent_id=-1)"`).

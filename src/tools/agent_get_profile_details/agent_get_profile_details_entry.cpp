@@ -30,21 +30,52 @@ struct symbol_bounds {
 	int end_line{0};
 };
 
+static bool match_symbol_string(std::string_view target, std::string_view query)
+{
+	if (target.empty() || query.empty()) {
+		return false;
+	}
+	std::string t;
+	t.reserve(target.size());
+	for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+	std::string q;
+	q.reserve(query.size());
+	for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+
+	if (t.find(q) != std::string::npos || q.find(t) != std::string::npos) {
+		return true;
+	}
+
+	auto strip_params = [](const std::string &s) -> std::string {
+		size_t paren = s.find('(');
+		if (paren != std::string::npos) {
+			std::string base = s.substr(0, paren);
+			while (!base.empty() && std::isspace(static_cast<unsigned char>(base.back()))) {
+				base.pop_back();
+			}
+			return base;
+		}
+		return s;
+	};
+
+	std::string t_base = strip_params(t);
+	std::string q_base = strip_params(q);
+	if (!t_base.empty() && !q_base.empty()) {
+		if (t_base.find(q_base) != std::string::npos || q_base.find(t_base) != std::string::npos) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static bool find_matching_symbol(const lsp_manager::symbol_node &node, const std::string &target_name,
 				  int target_line, lsp_manager::symbol_node &out_match)
 {
-	auto match_string = [](std::string_view target, std::string_view query) -> bool {
-		if (target.empty() || query.empty()) return false;
-		std::string t, q;
-		for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		return t.find(q) != std::string::npos || q.find(t) != std::string::npos;
-	};
-
 	int start_l = node.range.start_y + 1;
 	int end_l = node.range.end_y + 1;
 
-	bool name_matches = !target_name.empty() && match_string(node.name, target_name);
+	bool name_matches = !target_name.empty() && match_symbol_string(node.name, target_name);
 	bool line_contains = (target_line > 0 && target_line >= start_l && target_line <= end_l);
 
 	if (name_matches || line_contains) {
@@ -314,37 +345,24 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		return nlohmann::json{{"total_samples", 0}, {"line_samples", nlohmann::json::array()}}.dump(2);
 	}
 
-	auto match_string = [](std::string_view target, std::string_view query) -> bool {
-		if (target.empty() || query.empty()) {
-			return false;
-		}
-		std::string t;
-		t.reserve(target.size());
-		for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		std::string q;
-		q.reserve(query.size());
-		for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		return t.find(q) != std::string::npos || q.find(t) != std::string::npos;
-	};
-
 	// 1. Filter raw line samples based on file_path or function_name
 	std::vector<turbostar::perf_line_sample> matched_samples;
 
 	if (!args_.file_path.empty()) {
 		for (const auto &l : report.top_lines) {
-			if (match_string(l.file_path, args_.file_path)) {
+			if (match_symbol_string(l.file_path, args_.file_path)) {
 				matched_samples.push_back(l);
 			}
 		}
 	} else if (!args_.function_name.empty()) {
 		for (const auto &l : report.top_lines) {
-			if (match_string(l.function_name, args_.function_name)) {
+			if (match_symbol_string(l.function_name, args_.function_name)) {
 				matched_samples.push_back(l);
 			}
 		}
 		if (matched_samples.empty()) {
 			for (const auto &f : report.top_functions) {
-				if (match_string(f.function_name, args_.function_name) && !f.file_path.empty()) {
+				if (match_symbol_string(f.function_name, args_.function_name) && !f.file_path.empty()) {
 					auto it = report.line_samples_by_file.find(f.file_path);
 					if (it != report.line_samples_by_file.end()) {
 						for (const auto &ls : it->second) {
