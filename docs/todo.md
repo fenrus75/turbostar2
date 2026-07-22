@@ -5,12 +5,17 @@
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
 - [ ] Screenshot of an inline agent running automated security scans via `bandit` on a C++/Python file
+- [ ] Screenshot of in-editor CPU performance profiling heatmap and F7 hotspot navigation for `docs/editor.html` (`docs/screenshot-perf-profiling.png`)
+- [ ] Screenshot of AI agent running CPU performance profiling summary & detail tools for `docs/ai.html` (`docs/screenshot-agent-performance-profile.png`)
 
 ## Webpage todo items (do not delete this header line)
 
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+
+- menu navigation bug: if a menu item is grayed out, the cursor-down key that would land you on the item still goes there just does not show it
+	- desired behavior: it should act as a "skip" and just go to the item below it
 
 - feature: Multi-Run Profile Comparison via `run_id` in Profiling Tools (`agent_get_profile_summary` & `agent_get_profile_details`):
   - *Problem*: Profiling tools currently only inspect the active/latest profiling report.

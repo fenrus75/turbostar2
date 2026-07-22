@@ -118,8 +118,36 @@
       </div>
     </section>
 
-    <!-- Visual Feature 4: Hex Editor -->
-    <section class="detail-split reverse" id="hex-editor">
+    <!-- Visual Feature 4: Performance Profiling -->
+    <section class="detail-split reverse" id="perf-profiling">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Zero-Dependency CPU Performance Profiling</h2>
+        <p class="detail-text">
+          Profile your C++ and systems applications in real-time with zero external tool dependencies. Turbostar interfaces directly with Linux <code>perf_event_open</code> hardware counters via <code>libturbocatch.so</code>, avoiding kernel mismatches or external binary requirements.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Dithered Density Border Heatmap:</strong> Visualizes CPU hotspots directly on the left window frame without shrinking text area, scaling from Light Shade <code>░</code> (Cyan &ge; 1%) and Medium Shade <code>▒</code> (Yellow &ge; 10%) to Solid Block <code>█</code> (Bright Red &ge; 50%).</li>
+          <li><strong>One-Key Hotspot Navigation (<code>F7</code>):</strong> Jump instantly to top CPU bottlenecks in rank order across open or closed files with automatic window activation, line centering, and column placement.</li>
+          <li><strong>Hover Status Bar Stats:</strong> Displays concise cycle percentage and sample counts (e.g. <code>Perf: 60.4% (3080 samples)</code>) whenever the cursor moves onto a profiled line.</li>
+          <li><strong>Edit-Resilient Line Tracking:</strong> Dynamic <code>document_listener</code> callbacks shift sample offsets smoothly as you edit until major modifications invalidate the snapshot.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-perf-profiling">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --profile</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-perf-profiling.png" target="_blank">
+              <img src="./screenshot-perf-profiling.png" alt="Turbostar Performance Profiling Heatmap and Hotspot Navigation Interface">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 5: Hex Editor -->
+    <section class="detail-split" id="hex-editor">
       <div class="detail-info">
         <h2 class="detail-subtitle">Integrated Hex Editor</h2>
         <p class="detail-text">

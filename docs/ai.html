@@ -284,6 +284,33 @@
       </div>
     </section>
 
+    <!-- Visual Feature 9: Autonomous Performance Profiling -->
+    <section class="detail-split reverse" id="perf-profiling-ai">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Autonomous CPU Cycle Profiling</h2>
+        <p class="detail-text">
+          Turbostar equips AI agents with dedicated tools (<code>agent_get_profile_summary</code>, <code>agent_get_profile_details</code>) to analyze CPU hardware performance profile runs autonomously.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Flat Hardware Cycle Tracking:</strong> Operates directly on Linux <code>PERF_COUNT_HW_CPU_CYCLES</code> hardware events parsed via <code>libturbocatch.so</code>.</li>
+          <li><strong>Automated Bottleneck Discovery:</strong> Agents query top functions and line-by-line cycle percentages, pinpointing optimization targets in C++ and Python codebases without manual intervention.</li>
+          <li><strong>Symbol Boundary Tightening:</strong> LSP symbol bounds are automatically tightened to exclude trailing comments or blank lines, presenting clean function context snippets to the model.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-perf-agent">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --agent-profile</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-agent-performance-profile.png" target="_blank">
+              <img src="./screenshot-agent-performance-profile.png" alt="Turbostar AI Agent CPU Performance Profiling Summary Interface">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Security Model -->
     <section class="page-header" id="security-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem;">
       <h2 class="detail-subtitle">Secure Tool Execution</h2>
