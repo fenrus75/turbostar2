@@ -1,4 +1,5 @@
 #include "agent_get_profile_details.h"
+#include "../../config_manager.h"
 #include "../../fs_utils.h"
 #include "../../lsp_manager.h"
 #include "../../perf_manager.h"
@@ -149,8 +150,26 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 	std::string proj_root = project_manager::get_instance().get_project_root();
 	std::string proj_dir = fs_utils::get_project_dir();
 	std::string wdir = ctx.fs_security.get_working_directory();
+	std::string cfg_build_dir = config_manager::get_instance().get_build_directory();
 
-	// 1. Build directory candidates (where DWARF ../ relative paths originate)
+	// 1. Prioritize configured build directory from config_manager
+	if (!cfg_build_dir.empty()) {
+		if (std::filesystem::path(cfg_build_dir).is_absolute()) {
+			base_dirs.push_back(cfg_build_dir);
+		} else {
+			if (!proj_root.empty()) {
+				base_dirs.push_back(std::filesystem::path(proj_root) / cfg_build_dir);
+			}
+			if (!proj_dir.empty()) {
+				base_dirs.push_back(std::filesystem::path(proj_dir) / cfg_build_dir);
+			}
+			if (!wdir.empty()) {
+				base_dirs.push_back(std::filesystem::path(wdir) / cfg_build_dir);
+			}
+		}
+	}
+
+	// 2. Fallback build directory candidates (where DWARF ../ relative paths originate)
 	if (!proj_root.empty()) {
 		base_dirs.push_back(std::filesystem::path(proj_root) / "build");
 		base_dirs.push_back(std::filesystem::path(proj_root) / "builddir");
