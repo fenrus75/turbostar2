@@ -255,6 +255,7 @@
 
 
 ## 22-07-2026
+- Centralized Project-Relative Path Formatting (`fs_utils.h/cpp`, `agent_get_profile_summary_entry.cpp` & `agent_get_profile_details_entry.cpp`): Added `fs_utils::make_relative_to_project` helper to strip project root prefixes consistently across all profiling tools and summary reports.
 - Profile Details File Percentage Field Naming (`agent_get_profile_details_entry.cpp` & `docs/tools.md`): Updated `agent_get_profile_details` to return `file_percentage` instead of `function_percentage` when line samples are filtered by `file_path`. Eliminates ambiguity for LLM agents when evaluating file-scope vs function-scope CPU cycle percentages.
 - LSP Symbol Range Tightening & Trailing Comment Trimming (`agent_get_profile_details_entry.cpp`): Implemented `tighten_symbol_bounds` to inspect source code lines backwards from LSP `end_line` and strip trailing comment-only or blank lines. Prevents function profile detail context snippets from bleeding into neighboring function headers or comments.
 - Parameter-Fuzzy Function Symbol Matching (`agent_get_profile_details_entry.cpp`): Implemented `match_symbol_string` to strip parameter lists `(...)` from query strings and candidate demangled symbols if exact substring matching fails. Allows `agent_get_profile_details` queries like `is_prime_vC()` to successfully match demangled C++ signatures like `is_prime_vC(int, double)`. Updated unit test in `test_profile_tools.cpp`.
