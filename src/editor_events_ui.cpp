@@ -290,6 +290,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::run_profile) {
+		logger.log("Dispatching run_profile event.");
+		std::string args = config_manager::get_instance().get_run_arguments();
+		start_app(args, false /*use_debugger*/, true /*auto_continue*/, true /*collect_performance*/);
+		return;
+	}
+
 	if (ev.type == event_type::run_program) {
 		logger.log("Dispatching run_program event.");
 		std::string exe = config_manager::get_instance().get_main_executable();

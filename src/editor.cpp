@@ -444,6 +444,7 @@ void editor::update_window_menu()
 	top_menu_.set_item_disabled(event_type::save_all, read_only);
 	top_menu_.set_item_disabled(event_type::run_program, config_manager::get_instance().get_main_executable().empty());
 	top_menu_.set_item_disabled(event_type::run_in_debugger, config_manager::get_instance().get_main_executable().empty());
+	top_menu_.set_item_disabled(event_type::run_profile, config_manager::get_instance().get_main_executable().empty());
 }
 
 std::shared_ptr<document> editor::get_active_doc() const

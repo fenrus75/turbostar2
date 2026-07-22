@@ -167,6 +167,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::run_program:
 		case event_type::run_settings:
 		case event_type::run_in_debugger:
+		case event_type::run_profile:
 		case event_type::terminate_run:
 		case event_type::agent_start_app:
 		case event_type::agent_start_coredump_gdb:
