@@ -145,23 +145,36 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 		raw_paths.push_back(norm);
 	}
 
-	std::vector<std::string> candidates;
-	std::string wdir = ctx.fs_security.get_working_directory();
+	std::vector<std::filesystem::path> base_dirs;
 	std::string proj_root = project_manager::get_instance().get_project_root();
 	std::string proj_dir = fs_utils::get_project_dir();
+	std::string wdir = ctx.fs_security.get_working_directory();
 
+	// 1. Build directory candidates (where DWARF ../ relative paths originate)
+	if (!proj_root.empty()) {
+		base_dirs.push_back(std::filesystem::path(proj_root) / "build");
+		base_dirs.push_back(std::filesystem::path(proj_root) / "builddir");
+		base_dirs.push_back(std::filesystem::path(proj_root) / "out");
+		base_dirs.push_back(std::filesystem::path(proj_root) / "cmake-build-debug");
+		base_dirs.push_back(std::filesystem::path(proj_root));
+	}
+	if (!proj_dir.empty()) {
+		base_dirs.push_back(std::filesystem::path(proj_dir) / "build");
+		base_dirs.push_back(std::filesystem::path(proj_dir) / "builddir");
+		base_dirs.push_back(std::filesystem::path(proj_dir));
+	}
+	if (!wdir.empty()) {
+		base_dirs.push_back(std::filesystem::path(wdir) / "build");
+		base_dirs.push_back(std::filesystem::path(wdir));
+	}
+
+	std::vector<std::string> candidates;
 	for (const auto &rp : raw_paths) {
 		if (std::filesystem::path(rp).is_absolute()) {
 			candidates.push_back(rp);
 		} else {
-			if (!wdir.empty()) {
-				candidates.push_back((std::filesystem::path(wdir) / rp).string());
-			}
-			if (!proj_root.empty()) {
-				candidates.push_back((std::filesystem::path(proj_root) / rp).string());
-			}
-			if (!proj_dir.empty()) {
-				candidates.push_back((std::filesystem::path(proj_dir) / rp).string());
+			for (const auto &bdir : base_dirs) {
+				candidates.push_back((bdir / rp).string());
 			}
 			candidates.push_back(rp);
 		}
@@ -178,6 +191,19 @@ static std::string resolve_file_path(const std::string &file_path, const agentli
 			return cand;
 		}
 	}
+
+	// 2. Final fallback: Recursive scan of project root matching target filename
+	std::string target_fname = std::filesystem::path(file_path).filename().string();
+	if (!target_fname.empty() && target_fname != "??" && !proj_root.empty()) {
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_root, ec)) {
+			if (ec) break;
+			if (entry.is_regular_file() && entry.path().filename().string() == target_fname) {
+				return entry.path().string();
+			}
+		}
+	}
+
 	return file_path;
 }
 
