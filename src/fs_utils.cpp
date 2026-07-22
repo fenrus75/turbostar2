@@ -49,6 +49,40 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p)
 	}
 }
 
+std::string make_relative_to_project(const std::string &path_str, const std::string &working_dir)
+{
+	if (path_str.empty()) {
+		return path_str;
+	}
+
+	std::vector<std::string> roots;
+	std::string proj_root = project_manager::get_instance().get_project_root();
+	if (!proj_root.empty()) {
+		roots.push_back(proj_root);
+	}
+	std::string proj_dir = get_project_dir();
+	if (!proj_dir.empty()) {
+		roots.push_back(proj_dir);
+	}
+	if (!working_dir.empty()) {
+		roots.push_back(working_dir);
+	}
+
+	std::filesystem::path target_p(path_str);
+	target_p = target_p.lexically_normal();
+
+	for (const auto &root : roots) {
+		std::filesystem::path root_p(root);
+		root_p = root_p.lexically_normal();
+		std::error_code ec;
+		auto rel = std::filesystem::relative(target_p, root_p, ec);
+		if (!ec && !rel.empty() && !rel.string().starts_with("..")) {
+			return rel.string();
+		}
+	}
+	return target_p.string();
+}
+
 bool is_binary_file(const std::string &filepath)
 {
 	if (filepath.empty()) {

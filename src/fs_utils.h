@@ -27,6 +27,11 @@ std::string get_project_dir();
 std::filesystem::path safe_absolute(const std::filesystem::path &p);
 
 /**
+ * @brief Makes an absolute path relative to the active project root or working directory.
+ */
+std::string make_relative_to_project(const std::string &path_str, const std::string &working_dir = "");
+
+/**
  * @brief Heuristically checks if a file is a binary file by scanning for a null byte in the first 4KB.
  */
 enum class file_type_t {

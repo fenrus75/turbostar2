@@ -28,12 +28,14 @@ std::string agent_get_profile_summary_tool::execute(agentlib::tool_context &ctx)
 	int count = 0;
 	int limit = args_.limit > 0 ? args_.limit : 10;
 
+	std::string wdir = ctx.fs_security.get_working_directory();
+
 	for (const auto &f : report.top_functions) {
 		if (count++ >= limit)
 			break;
 		funcs_json.push_back({
 		    {"function_name", f.function_name},
-		    {"file_path", f.file_path},
+		    {"file_path", fs_utils::make_relative_to_project(f.file_path, wdir)},
 		    {"line_number", f.line_number},
 		    {"count", f.count},
 		    {"percentage", f.percentage},
@@ -46,7 +48,7 @@ std::string agent_get_profile_summary_tool::execute(agentlib::tool_context &ctx)
 		if (count++ >= limit)
 			break;
 		lines_json.push_back({
-		    {"file_path", l.file_path},
+		    {"file_path", fs_utils::make_relative_to_project(l.file_path, wdir)},
 		    {"line_number", l.line_number},
 		    {"count", l.count},
 		    {"percentage", l.percentage},

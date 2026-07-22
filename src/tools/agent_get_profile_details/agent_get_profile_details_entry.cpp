@@ -326,34 +326,7 @@ static std::vector<std::string> read_file_lines(const std::string &resolved_path
 
 static std::string make_relative_to_project(const std::string &path_str, const agentlib::tool_context &ctx)
 {
-	if (path_str.empty()) {
-		return path_str;
-	}
-
-	std::vector<std::string> roots;
-	std::string proj_root = project_manager::get_instance().get_project_root();
-	if (!proj_root.empty()) {
-		roots.push_back(proj_root);
-	}
-	std::string proj_dir = fs_utils::get_project_dir();
-	if (!proj_dir.empty()) {
-		roots.push_back(proj_dir);
-	}
-	std::string wdir = ctx.fs_security.get_working_directory();
-	if (!wdir.empty()) {
-		roots.push_back(wdir);
-	}
-
-	std::filesystem::path target_p(path_str);
-	for (const auto &root : roots) {
-		std::filesystem::path root_p(root);
-		std::error_code ec;
-		auto rel = std::filesystem::relative(target_p, root_p, ec);
-		if (!ec && !rel.empty() && !rel.string().starts_with("..")) {
-			return rel.string();
-		}
-	}
-	return path_str;
+	return fs_utils::make_relative_to_project(path_str, ctx.fs_security.get_working_directory());
 }
 
 } // namespace
