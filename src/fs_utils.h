@@ -95,6 +95,12 @@ std::string get_project_history_dir(const std::string &agent_name = "main");
  */
 std::string get_project_dump_dir();
 /**
+ * @brief Returns a safe, project-specific directory for storing performance profile data.
+ * Resolves to ~/.cache/turbostar/projects/<hash>/perf/.
+ * @note Internally creates the directory if it does not exist. Callers do NOT need to call mkdir.
+ */
+std::string get_project_perf_dir();
+/**
  * @brief Returns the absolute path to libturbocatch.so.
  */
 std::string get_turbocatch_lib_path();

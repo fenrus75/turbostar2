@@ -11,6 +11,7 @@ struct agent_start_app_args {
 	std::string args;
 	bool debugger{false};
 	int wait_for_time{0};
+	bool collect_performance{false};
 };
 
 class agent_start_app_tool : public agentlib::llm_tool_action

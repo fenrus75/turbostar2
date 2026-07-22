@@ -11,8 +11,9 @@ struct agent_start_app_raw_args {
 	std::string args;
 	bool debugger{false};
 	int wait_for_time{0};
+	bool collect_performance{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_start_app_raw_args, args, debugger, wait_for_time);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_start_app_raw_args, args, debugger, wait_for_time, collect_performance);
 
 class agent_start_app_validator : public agentlib::tool_validator
 {
@@ -28,7 +29,7 @@ class agent_start_app_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with app_run_id and gdb_run_id. In GDB mode, the app starts paused, send 'continue' to gdb to start the application.";
+		return "Starts the main application executable, optionally under GDB debugging with split screen or performance sampling. Returns JSON with app_run_id and gdb_run_id. In GDB mode, the app starts paused, send 'continue' to gdb to start the application.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -46,7 +47,12 @@ class agent_start_app_validator : public agentlib::tool_validator
 		       {{"type", "integer"},
 			{"description",
 			 "Optional time in seconds to wait for the application to finish after starting. Defaults to 0 (async execution)."},
-			{"default", 0}}}}}};
+			{"default", 0}}},
+		      {"collect_performance",
+		       {{"type", "boolean"},
+			{"description",
+			 "If true, enables performance CPU cycle profiling sampling via LD_PRELOAD during execution."},
+			{"default", false}}}}}};
 	}
 
       protected:
@@ -70,6 +76,7 @@ class agent_start_app_validator : public agentlib::tool_validator
 			args_.args = raw.args;
 			args_.debugger = raw.debugger;
 			args_.wait_for_time = raw.wait_for_time;
+			args_.collect_performance = raw.collect_performance;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

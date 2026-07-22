@@ -32,6 +32,7 @@ public:
     void set_use_pty(bool use_pty) { use_pty_ = use_pty; }
     void set_enable_crash_catcher(bool enable) { enable_crash_catcher_ = enable; }
     void set_crash_cookie(const std::string& cookie) { crash_cookie_ = cookie; }
+    void set_perf_dir(const std::string& dir) { perf_dir_ = dir; }
     void set_timeout(int seconds) { timeout_seconds_ = seconds; }
     int get_timeout() const { return timeout_seconds_; }
     bool has_timed_out() const { return timed_out_; }
@@ -121,6 +122,7 @@ private:
     bool use_pty_{false};
     bool enable_crash_catcher_{false};
     std::string crash_cookie_;
+    std::string perf_dir_;
     std::string last_crashdumps_report_;
 };
 

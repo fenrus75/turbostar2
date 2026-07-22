@@ -61,7 +61,7 @@ terminal_window::~terminal_window()
 }
 
 bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network,
-				    bool enable_crash_catcher, bool allow_display)
+				    bool enable_crash_catcher, bool allow_display, bool collect_performance)
 {
 	stop_process();
 	parser_ = std::move(parser);
@@ -96,6 +96,9 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	runner.set_use_pty(true);
 	runner.set_enable_crash_catcher(enable_crash_catcher);
 	runner.set_crash_cookie("run_" + std::to_string(id_));
+	if (collect_performance) {
+		runner.set_perf_dir(fs_utils::get_project_perf_dir());
+	}
 	if (enable_network) {
 		runner.set_network_access(true);
 	}

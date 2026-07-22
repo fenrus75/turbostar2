@@ -376,6 +376,16 @@ std::string get_project_dump_dir()
 	return dump_dir.string();
 }
 
+std::string get_project_perf_dir()
+{
+	std::filesystem::path perf_dir = std::filesystem::path(get_project_cache_root()) / "perf";
+
+	std::error_code ec;
+	std::filesystem::create_directories(perf_dir, ec);
+
+	return perf_dir.string();
+}
+
 bool is_valid_db_name(const std::string &name)
 {
 	if (name.empty())

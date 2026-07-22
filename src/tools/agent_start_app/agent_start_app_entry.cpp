@@ -20,7 +20,7 @@ std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Internal engine type mismatch.";
 	}
 
-	agentlib::start_app_result res = ctx.doc_provider->start_app(args_.args, args_.debugger, false);
+	agentlib::start_app_result res = ctx.doc_provider->start_app(args_.args, args_.debugger, false, args_.collect_performance);
 	if (res.app_run_id < 0) {
 		set_failure(ctx, "Failed to start application.");
 		return "Error: Failed to start application process.";

@@ -183,6 +183,14 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		if (!crash_cookie_.empty()) {
 			cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_CRASH_COOKIE=" + crash_cookie_) + " ";
 		}
+		if (!perf_dir_.empty()) {
+			cmd += "-p " + fs_utils::escape_shell_arg("Environment=TURBOSTAR_PERF_DIR=" + perf_dir_) + " ";
+			if (home_access_ == home_access_t::hidden) {
+				cmd += "-p BindPaths=" + fs_utils::escape_shell_arg(perf_dir_) + " ";
+			} else {
+				cmd += "-p ReadWritePaths=" + fs_utils::escape_shell_arg(perf_dir_) + " ";
+			}
+		}
 
 		// Ensure the directory containing libturbocatch.so is accessible (at least read-only)
 		std::string lib_dir = std::filesystem::path(lib_path).parent_path().string();

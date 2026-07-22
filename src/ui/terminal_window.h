@@ -17,7 +17,7 @@ class terminal_window : public ::window
 	virtual ~terminal_window();
 
 	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false,
-			   bool enable_crash_catcher = true, bool allow_display = false);
+			   bool enable_crash_catcher = true, bool allow_display = false, bool collect_performance = false);
 
 	// Stop process (sends SIGTERM/SIGKILL)
 	void stop_process();

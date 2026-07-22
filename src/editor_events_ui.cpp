@@ -74,7 +74,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::agent_start_app) {
-		auto res = start_app(ev.payload, ev.alt_pressed, ev.auto_continue);
+		auto res = start_app(ev.payload, ev.alt_pressed, ev.auto_continue, ev.collect_performance);
 		if (ev.generic_promise) {
 			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
 			prom->set_value(res);
@@ -749,7 +749,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 }
 
-agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger, bool auto_continue)
+agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger, bool auto_continue, bool collect_performance)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
@@ -759,6 +759,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		ev.payload = args;
 		ev.alt_pressed = use_debugger;
 		ev.auto_continue = auto_continue;
+		ev.collect_performance = collect_performance;
 		ev.generic_promise = prom;
 		global_queue_.push(ev);
 		return fut.get();
@@ -884,7 +885,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		}
 
 		logger.log("Starting app: " + raw_cmd);
-		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access())) {
+		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access(), collect_performance)) {
 			logger.log("Failed to start app process.");
 			return {-1, -1};
 		}

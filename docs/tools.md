@@ -529,11 +529,12 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
 
 ### `agent_start_app`
-*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen. Returns JSON with `app_run_id` and `gdb_run_id`.
+*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with `app_run_id` and `gdb_run_id`.
 *   **Arguments:**
     *   `args` *(string, optional)*: Command line arguments to pass to the application.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
     *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution).
+    *   `collect_performance` *(boolean, optional)*: If true, enables CPU cycle performance profiling sampling via `LD_PRELOAD` during execution. Defaults to false.
 
 ### `agent_wait_for_app`
 *   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, `is_alive`, `age_ms`, and optional `crash_notification`.

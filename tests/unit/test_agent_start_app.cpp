@@ -68,6 +68,13 @@ int main()
 			assert(!prep_invalid_wait.error_message.empty());
 		}
 
+		// 4. Test collect_performance validation
+		{
+			auto prep_perf = registry.prepare_tool("agent_start_app", "{\"args\": \"\", \"collect_performance\": true}", ctx);
+			assert(prep_perf.tool != nullptr);
+			assert(prep_perf.error_message.empty());
+		}
+
 		std::cout << "agent_start_app tool verified successfully!" << std::endl;
 	}
 
