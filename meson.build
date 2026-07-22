@@ -135,7 +135,7 @@ else
 endif
 
 libturbocatch = shared_library('turbocatch',
-  'src/crash_catcher/crash_catcher.c',
+  ['src/crash_catcher/crash_catcher.c', 'src/crash_catcher/perf_catcher.c'],
   dependencies: [libunwind_dep, dl_dep],
   override_options: ['b_sanitize=none'],
   install: true,
@@ -279,6 +279,12 @@ test_address_lookup = executable('test_address_lookup',
   dependencies : [nlohmann_json_dep, thread_dep],
   include_directories: 'src')
 test('unit_address_lookup', test_address_lookup, suite: 'editor')
+
+test_perf_catcher = executable('test_perf_catcher',
+  ['tests/unit/test_perf_catcher.cpp'],
+  dependencies : [thread_dep],
+  include_directories: 'src')
+test('unit_perf_catcher', test_perf_catcher, suite: 'editor', depends: libturbocatch)
 
 test_agent_highlight = executable('test_agent_highlight',
   ['tests/unit/test_agent_highlight.cpp'],
