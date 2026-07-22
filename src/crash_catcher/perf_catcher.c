@@ -103,12 +103,21 @@ __attribute__((constructor)) void turboperf_init(void)
 	safe_strcpy(g_perf_dir, env_dir, sizeof(g_perf_dir));
 	mkdir(g_perf_dir, 0755);
 
+	unsigned long target_freq = 4000;
+	const char *freq_env = getenv("TURBOSTAR_PERF_FREQ");
+	if (freq_env && freq_env[0] != '\0') {
+		long f = atol(freq_env);
+		if (f > 0 && f <= 100000) {
+			target_freq = (unsigned long)f;
+		}
+	}
+
 	struct perf_event_attr pe;
 	memset(&pe, 0, sizeof(struct perf_event_attr));
 	pe.type = PERF_TYPE_HARDWARE;
 	pe.size = sizeof(struct perf_event_attr);
 	pe.config = PERF_COUNT_HW_CPU_CYCLES;
-	pe.sample_freq = 1000;
+	pe.sample_freq = target_freq;
 	pe.freq = 1;
 	pe.sample_type = PERF_SAMPLE_IP;
 	pe.disabled = 0;
@@ -138,9 +147,9 @@ __attribute__((constructor)) void turboperf_init(void)
 	int fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	if (fd < 0) {
 		err1 = errno;
-		// Fallback 1: Hardware cycles with period sampling
+		// Fallback 1: Hardware cycles with period sampling (25,000 cycles)
 		pe.freq = 0;
-		pe.sample_period = 100000;
+		pe.sample_period = 25000;
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
@@ -149,7 +158,7 @@ __attribute__((constructor)) void turboperf_init(void)
 		pe.type = PERF_TYPE_SOFTWARE;
 		pe.config = PERF_COUNT_SW_TASK_CLOCK;
 		pe.freq = 1;
-		pe.sample_freq = 1000;
+		pe.sample_freq = target_freq;
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
@@ -158,7 +167,7 @@ __attribute__((constructor)) void turboperf_init(void)
 		pe.type = PERF_TYPE_SOFTWARE;
 		pe.config = PERF_COUNT_SW_CPU_CLOCK;
 		pe.freq = 1;
-		pe.sample_freq = 1000;
+		pe.sample_freq = target_freq;
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {
@@ -167,7 +176,7 @@ __attribute__((constructor)) void turboperf_init(void)
 		pe.type = PERF_TYPE_SOFTWARE;
 		pe.config = PERF_COUNT_SW_CPU_CLOCK;
 		pe.freq = 0;
-		pe.sample_period = 1000000; // 1 ms
+		pe.sample_period = 250000; // 250 us
 		fd = (int)sys_perf_event_open(&pe, 0, -1, -1, 0);
 	}
 	if (fd < 0) {

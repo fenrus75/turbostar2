@@ -251,6 +251,7 @@
 
 
 ## 22-07-2026
+- Perf Sampling Rate Tuning & `TURBOSTAR_PERF_FREQ` Support (`perf_catcher.c`): Increased default sampling frequency from 1,000 Hz to 4,000 Hz (4 kHz) and period fallback from 100,000 to 25,000 cycles for higher sample density during short CPU bursts. Added support for `TURBOSTAR_PERF_FREQ` environment variable to allow customizing sampling rates up to 100,000 Hz.
 - Tool Status Window `perf_event_paranoid` Check (`dialog_factories.cpp`): Added `/proc/sys/kernel/perf_event_paranoid` inspection to `create_tool_status_dialog()`. Displays status (`☑ OK (val=1)` vs `☐ Restricted (val=3)`) and provides instructions to run `sudo sysctl -w kernel.perf_event_paranoid=1` when CPU profiling is restricted. Updated unit test in `test_tool_status.cpp`.
 - Perf Sampling Fallbacks & Debug Log Forwarding (`perf_catcher.c` & `perf_manager.cpp`): Added `PERF_COUNT_SW_TASK_CLOCK` sampling fallback in `perf_catcher.c` and exact `errno` logging. Updated `perf_manager::parse_and_resolve` to parse and forward `perf_debug_*.txt` files to `event_logger`, providing diagnostic visibility into PMU and software sampling initialization.
 - Perf Ring Buffer Size & Debug Log Generator (`perf_catcher.c`): Replaced static 1 MB mmap ring buffer request with adaptive power-of-two page size fallbacks (64 pages -> 16 pages -> 4 pages) to prevent `ENOMEM`/`EPERM` mmap failures when `kernel.perf_event_mlock_kb` is restricted. Added `perf_debug_<pid>.txt` generation in `TURBOSTAR_PERF_DIR` for diagnostic tracking of init and shutdown events.
