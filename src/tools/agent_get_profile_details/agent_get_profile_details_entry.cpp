@@ -125,17 +125,47 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 	return merged;
 }
 
-static std::vector<std::string> read_file_lines(const std::string &file_path, const agentlib::tool_context &ctx)
+static std::string resolve_file_path(const std::string &file_path, const agentlib::tool_context &ctx)
+{
+	if (file_path.empty() || file_path == "??") {
+		return "";
+	}
+
+	std::vector<std::string> candidates;
+	if (std::filesystem::path(file_path).is_absolute()) {
+		candidates.push_back(file_path);
+	} else {
+		std::string wdir = ctx.fs_security.get_working_directory();
+		if (!wdir.empty()) {
+			candidates.push_back((std::filesystem::path(wdir) / file_path).string());
+		}
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		if (!proj_root.empty()) {
+			candidates.push_back((std::filesystem::path(proj_root) / file_path).string());
+		}
+		std::string proj_dir = fs_utils::get_project_dir();
+		if (!proj_dir.empty()) {
+			candidates.push_back((std::filesystem::path(proj_dir) / file_path).string());
+		}
+		candidates.push_back(file_path);
+	}
+
+	for (const auto &cand : candidates) {
+		std::error_code ec;
+		if (std::filesystem::exists(cand, ec) && !std::filesystem::is_directory(cand, ec)) {
+			return cand;
+		}
+	}
+	return file_path;
+}
+
+static std::vector<std::string> read_file_lines(const std::string &resolved_path)
 {
 	std::vector<std::string> lines;
-	if (file_path.empty() || file_path == "??") {
+	if (resolved_path.empty()) {
 		return lines;
 	}
-	std::string abs_path = file_path;
-	if (!std::filesystem::path(abs_path).is_absolute()) {
-		abs_path = (std::filesystem::path(ctx.fs_security.get_working_directory()) / file_path).string();
-	}
-	std::ifstream in(abs_path);
+	std::ifstream in(resolved_path);
 	if (!in.is_open()) {
 		return lines;
 	}
@@ -239,16 +269,12 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 			hot_line_numbers.push_back(lp.first);
 		}
 
-		auto file_lines = read_file_lines(file_path, ctx);
+		std::string resolved_path = resolve_file_path(file_path, ctx);
+		auto file_lines = read_file_lines(resolved_path);
 		int total_lines = static_cast<int>(file_lines.size());
 
-		std::string abs_file_path = file_path;
-		if (!abs_file_path.empty() && !std::filesystem::path(abs_file_path).is_absolute()) {
-			abs_file_path = (std::filesystem::path(ctx.fs_security.get_working_directory()) / file_path).string();
-		}
-
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
-		symbol_bounds bounds = query_lsp_symbol_bounds(abs_file_path, args_.function_name, representative_line);
+		symbol_bounds bounds = query_lsp_symbol_bounds(resolved_path, args_.function_name, representative_line);
 
 		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);
 
