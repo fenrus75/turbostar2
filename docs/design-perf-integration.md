@@ -87,16 +87,15 @@ To prevent performance bottlenecks when converting thousands of raw sample addre
 
 #### Left Window Border Heatmap Indicators
 To visualize performance bottlenecks without stealing line-number gutter width or shrinking editor text area:
-- **Border Character Override**: For lines with significant performance samples ($\ge 1\%$ global cycles), the default double vertical window frame character `║` is replaced with `┃` (`U+2503` Heavy Vertical Bar) on the left border of the editor window.
-- **Color Threshold Gradient**:
-  - $\ge 1\%$ global samples: **White** (`COLOR_WHITE | A_BOLD`)
-  - $\ge 10\%$ global samples: **Bright Yellow** (`COLOR_YELLOW | A_BOLD`)
-  - $\ge 50\%$ global samples: **Bright Red** (`COLOR_RED | A_BOLD`)
+- **Dithered Density Blocks & Color Gradient**: For lines with performance samples ($\ge 1\%$ global cycles), the default double vertical window frame character `║` on the left border of the editor window is replaced with progressively thicker dithered block glyphs and distinct color pairs:
+  - $\ge 1\%$ global samples: **Light Shade `░`** in **Bright Cyan** (`COLOR_PAIR(32)`)
+  - $\ge 10\%$ global samples: **Medium Shade `▒`** in **Bright Yellow** (`COLOR_PAIR(21)`)
+  - $\ge 50\%$ global samples: **Solid Block `█`** in **Bright Red** (`COLOR_PAIR(31)`)
 
 #### Status Bar Detail Messages
 When the cursor moves onto any line containing performance samples (significant or not):
 - The editor issues `set_status_message(payload, status_priorities::HOVER)` to display detailed sample statistics in the status bar:
-  `Perf: 3,080 samples (60.4% global) [is_prime_vA]`
+  `Perf: 60.4% (3080 samples)`
 - Moving the cursor to a line with zero performance samples automatically clears the status message via `clear_status_message(status_priorities::HOVER)`.
 
 #### Dynamic Edit Tracking via `document_listener`

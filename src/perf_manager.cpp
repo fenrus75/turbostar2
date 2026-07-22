@@ -409,10 +409,7 @@ std::string perf_manager::get_line_profile_statusmsg(const std::string &filename
 
 	for (const auto &ls : it->second) {
 		if (ls.line_number == line_number && ls.count > 0) {
-			if (!ls.function_name.empty()) {
-				return std::format("Perf: {} samples ({:.1f}% global) [{}]", ls.count, ls.percentage, ls.function_name);
-			}
-			return std::format("Perf: {} samples ({:.1f}% global)", ls.count, ls.percentage);
+			return std::format("Perf: {:.1f}% ({} samples)", ls.percentage, ls.count);
 		}
 	}
 	return "";

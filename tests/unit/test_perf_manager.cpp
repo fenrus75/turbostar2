@@ -75,9 +75,7 @@ int main()
 	assert(perf_manager::get_instance().get_line_profile_percentage("test_file.cpp", 15) == 0.0);
 
 	std::string status10 = perf_manager::get_instance().get_line_profile_statusmsg("test_file.cpp", 10);
-	assert(status10.find("600 samples") != std::string::npos);
-	assert(status10.find("60.0%") != std::string::npos);
-	assert(status10.find("foo_func()") != std::string::npos);
+	assert(status10 == "Perf: 60.0% (600 samples)");
 
 	assert(perf_manager::get_instance().get_line_profile_statusmsg("test_file.cpp", 15).empty());
 
