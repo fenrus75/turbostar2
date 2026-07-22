@@ -348,13 +348,9 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			activate_window(win_idx);
 			auto doc = windows_[win_idx]->get_document();
 			if (doc) {
-				doc->move_to_top();
 				int target_line = std::max(0, sample.line_number - 1);
 				int target_col = sample.column_number > 0 ? sample.column_number - 1 : 0;
-				doc->move_cursor(0, target_line);
-				if (target_col > 0) {
-					doc->move_cursor(target_col, 0);
-				}
+				doc->set_cursor_position(target_col, target_line);
 			}
 			set_status_message(std::format("Hotspot: {:.1f}% ({}) at {}:{}", sample.percentage, sample.function_name,
 						       sample.file_path, sample.line_number),

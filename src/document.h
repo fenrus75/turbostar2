@@ -122,6 +122,7 @@ class document
 	std::string get_text_all() const;
 	std::string get_word_under_cursor() const;
 	void move_cursor(int dx, int dy);
+	void set_cursor_position(int col, int line);
 	void request_redraw() const;
 	void insert_char(const std::string &utf8_char);
 	void insert_text(const std::string &text);

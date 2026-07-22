@@ -19,6 +19,15 @@ void document::move_cursor(int dx, int dy)
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
 
+	if (dy != 0) {
+		cursor_y_ += dy;
+		if (cursor_y_ < 0)
+			cursor_y_ = 0;
+		if (cursor_y_ >= line_count_unlocked())
+			cursor_y_ = line_count_unlocked() - 1;
+		cursor_x_ = lines_[cursor_y_]->display_col_to_char_pos(target_cursor_x_);
+	}
+
 	if (dx != 0) {
 		if (dx < 0 && cursor_x_ == 0 && cursor_y_ > 0) {
 			cursor_y_--;
@@ -32,24 +41,35 @@ void document::move_cursor(int dx, int dy)
 		update_target_cursor_x_unlocked();
 	}
 
-	if (dy != 0) {
-		cursor_y_ += dy;
-	}
-
-	if (cursor_y_ < 0)
-		cursor_y_ = 0;
-	if (cursor_y_ >= line_count_unlocked())
-		cursor_y_ = line_count_unlocked() - 1;
-
-	if (dy != 0) {
-		cursor_x_ = lines_[cursor_y_]->display_col_to_char_pos(target_cursor_x_);
-	}
-
 	int line_len = lines_[cursor_y_]->length_in_chars();
 	if (cursor_x_ < 0)
 		cursor_x_ = 0;
 	if (cursor_x_ > line_len)
 		cursor_x_ = line_len;
+
+	lock.unlock();
+	notify_cursor_changed();
+}
+
+void document::set_cursor_position(int col, int line)
+{
+	std::unique_lock lock(mutex_);
+	break_undo_coalescing_unlocked();
+
+	cursor_y_ = line;
+	if (cursor_y_ < 0)
+		cursor_y_ = 0;
+	if (cursor_y_ >= line_count_unlocked())
+		cursor_y_ = line_count_unlocked() - 1;
+
+	cursor_x_ = col;
+	int line_len = lines_[cursor_y_]->length_in_chars();
+	if (cursor_x_ < 0)
+		cursor_x_ = 0;
+	if (cursor_x_ > line_len)
+		cursor_x_ = line_len;
+
+	update_target_cursor_x_unlocked();
 
 	lock.unlock();
 	notify_cursor_changed();
