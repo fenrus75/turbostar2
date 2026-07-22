@@ -83,16 +83,28 @@ To prevent performance bottlenecks when converting thousands of raw sample addre
 
 ## 4. UI & AI Agent Integration
 
-### 4.1 Editor UI Visualizations
-- **Line Gutter Percentages**: Displays percentage hits in the editor line-number margin (e.g. ` 14.2% │ for (int i = 0; i < n; ++i)`).
-- **Ncurses Heatmap Gradient**:
-  - **Top 1% Hot Lines**: Vibrant red background / text.
-  - **Top 5% Hot Lines**: Warm orange/yellow text.
-  - **Top 20% Hot Lines**: Subtle cyan highlight.
+### 4.1 Editor UI Visualizations & Line Tracking
 
-### 4.2 LLM Agent Tools
-- `agent_get_profile_summary`: Returns top N hot functions by cycle percentage.
-- `agent_get_profile_details`: Returns line-by-line percentage breakdowns for a target function or source file.
+#### Left Window Border Heatmap Indicators
+To visualize performance bottlenecks without stealing line-number gutter width or shrinking editor text area:
+- **Border Character Override**: For lines with significant performance samples ($\ge 1\%$ global cycles), the default double vertical window frame character `║` is replaced with `┃` (`U+2503` Heavy Vertical Bar) on the left border of the editor window.
+- **Color Threshold Gradient**:
+  - $\ge 1\%$ global samples: **White** (`COLOR_WHITE | A_BOLD`)
+  - $\ge 10\%$ global samples: **Bright Yellow** (`COLOR_YELLOW | A_BOLD`)
+  - $\ge 50\%$ global samples: **Bright Red** (`COLOR_RED | A_BOLD`)
+
+#### Status Bar Detail Messages
+When the cursor moves onto any line containing performance samples (significant or not):
+- The editor issues `set_status_message(payload, status_priorities::HOVER)` to display detailed sample statistics in the status bar:
+  `Perf: 3,080 samples (60.4% global) [is_prime_vA]`
+- Moving the cursor to a line with zero performance samples automatically clears the status message via `clear_status_message(status_priorities::HOVER)`.
+
+#### Dynamic Edit Tracking via `document_listener`
+To keep line sample associations accurate as the user or LLM agent edits the document:
+- **Listener Registration**: `perf_manager` registers a `document_listener` callback with the active `document` instance via `document::add_listener()`.
+- **Line Insertions (`on_line_inserted(filename, y)`)**: Sample line numbers at or below the insertion point (`line_number >= y + 1`) shift down by +1 (`line_number++`).
+- **Line Deletions (`on_line_deleted(filename, y)`)**: Samples on the deleted line (`line_number == y + 1`) are marked stale, while samples below shift up by -1 (`line_number--`).
+- **Validity Limit & Reset**: Each document tracks a `perf_modification_count`. After $\ge 20$ line modifications, the profile data for that document is marked invalid (`perf_valid = false`), gracefully hiding border highlights until a fresh profiling run is executed.
 
 ---
 
