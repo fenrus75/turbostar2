@@ -16,6 +16,8 @@ int main()
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	static event_queue q;
 	auto agent = ai_agent::create(1, "TestClearAgent", model, &q, nullptr);
+	std::vector<message> init_msgs = {{"system", "System baseline prompt"}};
+	agent->set_conversation(init_msgs);
 
 	std::cout << "Testing /clear command..." << std::endl;
 
@@ -45,6 +47,12 @@ int main()
 	const auto &interactions = agent->get_interactions();
 	assert(!interactions.empty());
 	assert(interactions.back()->get_raw_text().find("Agent context cleared") != std::string::npos);
+
+	// Verify system prompt is preserved in conversation messages
+	auto msgs = agent->get_conversation();
+	assert(!msgs.empty());
+	assert(msgs[0].role == "system");
+	assert(!msgs[0].content.empty());
 
 	std::cout << "/clear command verified successfully!" << std::endl;
 	return 0;

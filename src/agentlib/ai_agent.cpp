@@ -729,7 +729,7 @@ void ai_agent::clear_conversation()
 			tx->add_turn(sys_turn);
 			auto ep = std::make_shared<Episode>("ep_init", "Initial Episode", "Initial conversation episode");
 			ep->add_transaction(tx);
-			conversation_->add_episode(ep);
+			conversation_->set_current_episode(ep);
 		}
 	}
 
@@ -2058,6 +2058,13 @@ void ai_agent::set_conversation_unlocked(const std::vector<message> &c)
 		if (turn && current_tx) {
 			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			current_tx->add_turn(turn);
+		}
+	}
+
+	for (const auto &msg : c) {
+		if (msg.role == "system") {
+			original_system_prompt_ = msg.content;
+			break;
 		}
 	}
 }
