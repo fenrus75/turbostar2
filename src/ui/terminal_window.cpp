@@ -91,21 +91,23 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	}
 
 	// Build the sandboxed command using command_runner
-	sync_command_runner runner;
-	runner.apply_build_profile();
-	runner.set_use_pty(true);
-	runner.set_enable_crash_catcher(enable_crash_catcher);
-	runner.set_crash_cookie("run_" + std::to_string(id_));
+	runner_.apply_build_profile();
+	runner_.set_use_pty(true);
+	runner_.set_enable_crash_catcher(enable_crash_catcher);
+	runner_.set_crash_cookie("run_" + std::to_string(id_));
 	if (collect_performance) {
-		runner.set_perf_dir(fs_utils::get_project_perf_dir());
+		runner_.set_perf_dir(fs_utils::get_project_perf_dir());
+	} else {
+		runner_.set_perf_dir("");
 	}
 	if (enable_network) {
-		runner.set_network_access(true);
+		runner_.set_network_access(true);
 	}
 	if (allow_display) {
-		runner.set_allow_display(true);
+		runner_.set_allow_display(true);
 	}
-	std::string sandboxed_cmd = runner.build_command(raw_command);
+	std::string sandboxed_cmd = runner_.build_command(raw_command);
+	perf_resolved_ = false;
 	event_logger::get_instance().log("Terminal window start_process sandboxed cmd: " + sandboxed_cmd);
 
 	pid_ = fork();
@@ -176,6 +178,10 @@ void terminal_window::stop_process()
 		}
 		is_alive_ = false;
 		pid_ = -1;
+		if (!perf_resolved_) {
+			perf_resolved_ = true;
+			runner_.on_child_exit();
+		}
 	}
 	if (input_fifo_fd_ >= 0) {
 		close(input_fifo_fd_);
@@ -299,6 +305,11 @@ bool terminal_window::update_pty()
 		if (waitpid(pid_, &status, WNOHANG) > 0) {
 			pid_ = -1;
 		}
+	}
+
+	if (!is_alive_ && !perf_resolved_) {
+		perf_resolved_ = true;
+		runner_.on_child_exit();
 	}
 
 	if (new_data) {

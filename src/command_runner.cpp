@@ -16,6 +16,7 @@
 #include "crashdump_manager.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "perf_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -385,11 +386,19 @@ int command_runner::execute(const std::string &command)
 		final_exit_code = 128 + WTERMSIG(status);
 	}
 
+	on_child_exit();
+
+	return final_exit_code;
+}
+
+void command_runner::on_child_exit()
+{
 	if (!bypass_crashdump_check_ && !project_hash_.empty()) {
 		last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
 	}
-
-	return final_exit_code;
+	if (!perf_dir_.empty()) {
+		turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir_, 0, true);
+	}
 }
 
 void sync_command_runner::on_output_chunk(const std::string &chunk)

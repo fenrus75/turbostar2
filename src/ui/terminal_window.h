@@ -6,6 +6,7 @@
 #include "window.h"
 
 #include "build_log_parser.h"
+#include "command_runner.h"
 
 namespace ui
 {
@@ -91,6 +92,9 @@ class terminal_window : public ::window
 
 	int input_fifo_fd_{-1};
 	std::string input_fifo_path_;
+
+	sync_command_runner runner_;
+	bool perf_resolved_{false};
 
       public:
 	void set_input_fifo(const std::string &path);
