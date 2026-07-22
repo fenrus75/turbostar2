@@ -120,6 +120,37 @@ static symbol_bounds query_lsp_symbol_bounds(const std::string &abs_file_path, c
 	return bounds;
 }
 
+static symbol_bounds tighten_symbol_bounds(symbol_bounds bounds, const std::vector<std::string> &file_lines)
+{
+	if (bounds.start_line <= 0 || bounds.end_line <= 0 || file_lines.empty()) {
+		return bounds;
+	}
+
+	int start_idx = std::max(0, bounds.start_line - 1);
+	int end_idx = std::min(static_cast<int>(file_lines.size()) - 1, bounds.end_line - 1);
+
+	auto is_comment_or_blank = [](const std::string &line) -> bool {
+		size_t first = line.find_first_not_of(" \t\r\n");
+		if (first == std::string::npos) {
+			return true;
+		}
+		if (line.compare(first, 2, "//") == 0) {
+			return true;
+		}
+		if (line.compare(first, 2, "/*") == 0) {
+			return true;
+		}
+		return false;
+	};
+
+	while (end_idx > start_idx && is_comment_or_blank(file_lines[end_idx])) {
+		--end_idx;
+	}
+
+	bounds.end_line = end_idx + 1;
+	return bounds;
+}
+
 static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lines, int total_lines,
 						  const symbol_bounds &bounds)
 {
@@ -410,6 +441,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
 		symbol_bounds bounds = query_lsp_symbol_bounds(resolved_path, args_.function_name, representative_line);
+		bounds = tighten_symbol_bounds(bounds, file_lines);
 
 		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);
 
