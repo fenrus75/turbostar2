@@ -1,0 +1,83 @@
+#include "test_watchdog.h"
+#include <cassert>
+#include <iostream>
+#include <nlohmann/json.hpp>
+#include "../../src/agentlib/tool_registry.h"
+#include "../../src/perf_manager.h"
+#include "../../src/project_manager.h"
+
+using namespace agentlib;
+using namespace turbostar;
+
+int main()
+{
+	test_watchdog::setup_watchdog(30);
+	project_manager::get_instance().initialize();
+
+	tool_registry &registry = tool_registry::get_instance();
+	tool_context ctx;
+
+	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
+	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
+	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
+
+	std::cout << "Testing agent_get_profile_summary and agent_get_profile_details..." << std::endl;
+
+	// Populate synthetic profile report in perf_manager
+	perf_profile_report report;
+	report.total_samples = 1000;
+	report.top_functions.push_back(
+		perf_function_sample{.function_name = "test_func_a", .file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
+	report.top_functions.push_back(
+		perf_function_sample{.function_name = "test_func_b", .file_path = "src/utils.cpp", .line_number = 15, .count = 400, .percentage = 40.0});
+	report.top_lines.push_back(perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
+	report.top_lines.push_back(perf_line_sample{.file_path = "src/utils.cpp", .line_number = 15, .count = 400, .percentage = 40.0});
+	report.line_samples_by_file["src/main.cpp"].push_back(
+		perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
+
+	perf_manager::get_instance().set_active_profile(report);
+
+	// 1. Test agent_get_profile_summary
+	{
+		auto prep = registry.prepare_tool("agent_get_profile_summary", "{\"limit\": 5}", ctx);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
+
+		std::string result = prep.tool->execute(ctx);
+		auto res_json = nlohmann::json::parse(result);
+		assert(res_json["total_samples"] == 1000);
+		assert(res_json["top_functions"].size() == 2);
+		assert(res_json["top_functions"][0]["function_name"] == "test_func_a");
+		std::cout << "agent_get_profile_summary verified successfully!" << std::endl;
+	}
+
+	// 2. Test agent_get_profile_details by file
+	{
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"file_path\": \"src/main.cpp\"}", ctx);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
+
+		std::string result = prep.tool->execute(ctx);
+		auto res_json = nlohmann::json::parse(result);
+		assert(res_json["total_samples"] == 1000);
+		assert(res_json["line_samples"].size() == 1);
+		assert(res_json["line_samples"][0]["line_number"] == 42);
+		std::cout << "agent_get_profile_details (file filter) verified successfully!" << std::endl;
+	}
+
+	// 3. Test agent_get_profile_details all
+	{
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{}", ctx);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
+
+		std::string result = prep.tool->execute(ctx);
+		auto res_json = nlohmann::json::parse(result);
+		assert(res_json["line_samples"].size() == 2);
+		std::cout << "agent_get_profile_details (all) verified successfully!" << std::endl;
+	}
+
+	perf_manager::get_instance().clear_active_profile();
+	std::cout << "Profile tools tests passed successfully!" << std::endl;
+	return 0;
+}

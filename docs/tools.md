@@ -536,6 +536,17 @@ These tools allow the agent to interact with the project's Git repository.
     *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution).
     *   `collect_performance` *(boolean, optional)*: If true, enables CPU cycle performance profiling sampling via `LD_PRELOAD` during execution. Defaults to false.
 
+### `agent_get_profile_summary`
+*   **Description:** Returns top functions and source lines ranked by CPU cycle percentage from the active or most recent performance profile run.
+*   **Arguments:**
+    *   `limit` *(integer, optional)*: Maximum number of top functions and lines to return. Defaults to 10.
+
+### `agent_get_profile_details`
+*   **Description:** Returns line-by-line CPU cycle percentages for a target source file or function name from the active performance profile.
+*   **Arguments:**
+    *   `file_path` *(string, optional)*: Source file path to filter line performance samples.
+    *   `function_name` *(string, optional)*: Function name to filter line performance samples.
+
 ### `agent_wait_for_app`
 *   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, `is_alive`, `age_ms`, and optional `crash_notification`.
 *   **Arguments:**

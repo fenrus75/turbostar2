@@ -194,5 +194,9 @@ tools_sources = files(
   'perform_code_review/perform_code_review_entry.cpp',
   'perform_code_review/perform_code_review_security.cpp',
   'fs_purge_tmp/fs_purge_tmp_entry.cpp',
-  'fs_purge_tmp/fs_purge_tmp_security.cpp'
+  'fs_purge_tmp/fs_purge_tmp_security.cpp',
+  'agent_get_profile_summary/agent_get_profile_summary_entry.cpp',
+  'agent_get_profile_summary/agent_get_profile_summary_security.cpp',
+  'agent_get_profile_details/agent_get_profile_details_entry.cpp',
+  'agent_get_profile_details/agent_get_profile_details_security.cpp'
 )
