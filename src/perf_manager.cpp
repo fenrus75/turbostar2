@@ -131,6 +131,21 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	std::string maps_arg = maps_path.empty() ? "" : maps_path.string();
 	auto resolved_addrs = address_lookup::resolve_addresses(unique_ips, maps_arg);
 
+	{
+		std::ofstream dbg_resolved("/tmp/perf_debug_resolved.json");
+		dbg_resolved << "[\n";
+		bool first = true;
+		for (size_t i = 0; i < unique_ips.size() && i < resolved_addrs.size(); ++i) {
+			if (!first) dbg_resolved << ",\n";
+			first = false;
+			dbg_resolved << std::format(R"({{"ip": "0x{:x}", "function": "{}", "file": "{}", "line": {}, "count": {}}})",
+						unique_ips[i], resolved_addrs[i].function_name,
+						resolved_addrs[i].file_path, resolved_addrs[i].line_number,
+						ip_counts[unique_ips[i]]);
+		}
+		dbg_resolved << "\n]\n";
+	}
+
 	struct func_acc {
 		std::string name;
 		uint64_t count{0};
@@ -191,6 +206,32 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			l.count += count;
 			if (!res.function_name.empty() && res.function_name != "??") {
 				l.func_counts[res.function_name] += count;
+			}
+		}
+	}
+
+	{
+		std::ofstream dbg_maps("/tmp/perf_debug_maps.txt");
+		dbg_maps << "=== FUNC MAP ===\n";
+		for (const auto &pair : func_map) {
+			const auto &f = pair.second;
+			dbg_maps << std::format("Function: {} (Total count: {})\n", f.name, f.count);
+			for (const auto &file_pair : f.file_counts) {
+				dbg_maps << std::format("  File: {} (Count: {})\n", file_pair.first, file_pair.second);
+				auto it = f.file_line_counts.find(file_pair.first);
+				if (it != f.file_line_counts.end()) {
+					for (const auto &line_pair : it->second) {
+						dbg_maps << std::format("    Line {}: (Count: {})\n", line_pair.first, line_pair.second);
+					}
+				}
+			}
+		}
+		dbg_maps << "\n=== LINE MAP ===\n";
+		for (const auto &pair : line_map) {
+			const auto &l = pair.second;
+			dbg_maps << std::format("Line Key: {} (File: {}, Line: {}, Total count: {})\n", pair.first, l.file_path, l.line_number, l.count);
+			for (const auto &func_pair : l.func_counts) {
+				dbg_maps << std::format("  Function: {} (Count: {})\n", func_pair.first, func_pair.second);
 			}
 		}
 	}
