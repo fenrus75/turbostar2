@@ -24,30 +24,61 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		return nlohmann::json{{"total_samples", 0}, {"line_samples", nlohmann::json::array()}}.dump(2);
 	}
 
+	auto match_string = [](std::string_view target, std::string_view query) -> bool {
+		if (target.empty() || query.empty()) {
+			return false;
+		}
+		std::string t;
+		t.reserve(target.size());
+		for (char c : target) t.push_back(static_cast<char>(std::tolower(c)));
+		std::string q;
+		q.reserve(query.size());
+		for (char c : query) q.push_back(static_cast<char>(std::tolower(c)));
+		return t.find(q) != std::string::npos || q.find(t) != std::string::npos;
+	};
+
 	nlohmann::json line_samples = nlohmann::json::array();
 
 	if (!args_.file_path.empty()) {
-		auto it = report.line_samples_by_file.find(args_.file_path);
-		if (it != report.line_samples_by_file.end()) {
-			for (const auto &ls : it->second) {
+		for (const auto &l : report.top_lines) {
+			if (match_string(l.file_path, args_.file_path)) {
 				line_samples.push_back({
-				    {"file_path", ls.file_path},
-				    {"line_number", ls.line_number},
-				    {"count", ls.count},
-				    {"percentage", ls.percentage},
+				    {"file_path", l.file_path},
+				    {"line_number", l.line_number},
+				    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
+				    {"count", l.count},
+				    {"percentage", l.percentage},
 				});
 			}
 		}
 	} else if (!args_.function_name.empty()) {
 		for (const auto &l : report.top_lines) {
+			if (match_string(l.function_name, args_.function_name)) {
+				line_samples.push_back({
+				    {"file_path", l.file_path},
+				    {"line_number", l.line_number},
+				    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
+				    {"count", l.count},
+				    {"percentage", l.percentage},
+				});
+			}
+		}
+		// Fallback: If no line sample matched directly on ls.function_name, match top_functions to file_path
+		if (line_samples.empty()) {
 			for (const auto &f : report.top_functions) {
-				if (f.function_name == args_.function_name && f.file_path == l.file_path) {
-					line_samples.push_back({
-					    {"file_path", l.file_path},
-					    {"line_number", l.line_number},
-					    {"count", l.count},
-					    {"percentage", l.percentage},
-					});
+				if (match_string(f.function_name, args_.function_name) && !f.file_path.empty()) {
+					auto it = report.line_samples_by_file.find(f.file_path);
+					if (it != report.line_samples_by_file.end()) {
+						for (const auto &ls : it->second) {
+							line_samples.push_back({
+							    {"file_path", ls.file_path},
+							    {"line_number", ls.line_number},
+							    {"function_name", ls.function_name.empty() ? nullptr : nlohmann::json(ls.function_name)},
+							    {"count", ls.count},
+							    {"percentage", ls.percentage},
+							});
+						}
+					}
 				}
 			}
 		}
@@ -56,6 +87,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 			line_samples.push_back({
 			    {"file_path", l.file_path},
 			    {"line_number", l.line_number},
+			    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
 			    {"count", l.count},
 			    {"percentage", l.percentage},
 			});

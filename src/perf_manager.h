@@ -12,6 +12,7 @@ namespace turbostar
 struct perf_line_sample {
 	std::string file_path;
 	int line_number{0};
+	std::string function_name;
 	uint64_t count{0};
 	double percentage{0.0};
 };

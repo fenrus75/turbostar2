@@ -140,6 +140,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	struct line_acc {
 		std::string file_path;
 		int line_number{0};
+		std::string function_name;
 		uint64_t count{0};
 	};
 
@@ -166,6 +167,9 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			auto &l = line_map[line_key];
 			l.file_path = res.file_path;
 			l.line_number = res.line_number;
+			if (l.function_name.empty() && !res.function_name.empty() && res.function_name != "??") {
+				l.function_name = res.function_name;
+			}
 			l.count += count;
 		}
 	}
@@ -191,6 +195,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		double pct = (static_cast<double>(l.count) * 100.0) / static_cast<double>(total_samples);
 		perf_line_sample ls{.file_path = l.file_path,
 				    .line_number = l.line_number,
+				    .function_name = l.function_name,
 				    .count = l.count,
 				    .percentage = pct};
 		report.top_lines.push_back(ls);

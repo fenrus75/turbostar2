@@ -30,10 +30,10 @@ int main()
 		perf_function_sample{.function_name = "test_func_a", .file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
 	report.top_functions.push_back(
 		perf_function_sample{.function_name = "test_func_b", .file_path = "src/utils.cpp", .line_number = 15, .count = 400, .percentage = 40.0});
-	report.top_lines.push_back(perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
-	report.top_lines.push_back(perf_line_sample{.file_path = "src/utils.cpp", .line_number = 15, .count = 400, .percentage = 40.0});
+	report.top_lines.push_back(perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .function_name = "test_func_a", .count = 600, .percentage = 60.0});
+	report.top_lines.push_back(perf_line_sample{.file_path = "src/utils.cpp", .line_number = 15, .function_name = "test_func_b", .count = 400, .percentage = 40.0});
 	report.line_samples_by_file["src/main.cpp"].push_back(
-		perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .count = 600, .percentage = 60.0});
+		perf_line_sample{.file_path = "src/main.cpp", .line_number = 42, .function_name = "test_func_a", .count = 600, .percentage = 60.0});
 
 	perf_manager::get_instance().set_active_profile(report);
 
@@ -65,7 +65,21 @@ int main()
 		std::cout << "agent_get_profile_details (file filter) verified successfully!" << std::endl;
 	}
 
-	// 3. Test agent_get_profile_details all
+	// 3. Test agent_get_profile_details by function name (substring match)
+	{
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_a\"}", ctx);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
+
+		std::string result = prep.tool->execute(ctx);
+		auto res_json = nlohmann::json::parse(result);
+		assert(res_json["total_samples"] == 1000);
+		assert(res_json["line_samples"].size() == 1);
+		assert(res_json["line_samples"][0]["line_number"] == 42);
+		std::cout << "agent_get_profile_details (function_name filter) verified successfully!" << std::endl;
+	}
+
+	// 4. Test agent_get_profile_details all
 	{
 		auto prep = registry.prepare_tool("agent_get_profile_details", "{}", ctx);
 		assert(prep.tool != nullptr);
