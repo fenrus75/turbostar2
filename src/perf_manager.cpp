@@ -169,7 +169,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 					norm_file_path = norm_file_path.substr(0, colon_idx);
 				}
 			}
-			norm_file_path = std::filesystem::path(norm_file_path).lexically_normal().string();
+			norm_file_path = fs_utils::make_relative_to_project(norm_file_path);
 		}
 
 		if (!res.function_name.empty() && res.function_name != "??") {
@@ -342,6 +342,9 @@ double perf_manager::get_line_profile_percentage(const std::string &filename, in
 
 	auto it = active_report_.line_samples_by_file.find(rel_path);
 	if (it == active_report_.line_samples_by_file.end()) {
+		it = active_report_.line_samples_by_file.find(filename);
+	}
+	if (it == active_report_.line_samples_by_file.end()) {
 		return 0.0;
 	}
 
@@ -370,6 +373,9 @@ std::string perf_manager::get_line_profile_statusmsg(const std::string &filename
 	}
 
 	auto it = active_report_.line_samples_by_file.find(rel_path);
+	if (it == active_report_.line_samples_by_file.end()) {
+		it = active_report_.line_samples_by_file.find(filename);
+	}
 	if (it == active_report_.line_samples_by_file.end()) {
 		return "";
 	}
