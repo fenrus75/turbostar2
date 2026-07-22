@@ -635,13 +635,19 @@ void ai_agent::close()
 }
 void ai_agent::set_status(agent_status s, int target_id)
 {
+	agent_status old_status = agent_status::idle;
+	int parent_id = -1;
 	{
 		std::lock_guard<std::mutex> lock(state_mutex_);
+		old_status = status_;
 		status_ = s;
 		if (s == agent_status::waiting) {
 			waiting_on_id_ = target_id;
 		} else {
 			waiting_on_id_ = -1;
+		}
+		if (auto parent = parent_agent_.lock()) {
+			parent_id = parent->get_id();
 		}
 
 		// When an agent goes into the dead state, all of its active subagents
@@ -656,6 +662,21 @@ void ai_agent::set_status(agent_status s, int target_id)
 		}
 	}
 	status_cv_.notify_all();
+
+	auto status_to_string = [](agent_status st) -> const char * {
+		switch (st) {
+		case agent_status::idle: return "idle";
+		case agent_status::thinking: return "thinking";
+		case agent_status::tool_execution: return "tool_execution";
+		case agent_status::waiting: return "waiting";
+		case agent_status::error: return "error";
+		case agent_status::dead: return "dead";
+		}
+		return "unknown";
+	};
+
+	event_logger::get_instance().log("Agent {} ({}) status: {} -> {} (parent_id={})", id_, name_,
+					 status_to_string(old_status), status_to_string(s), parent_id);
 
 	if (global_queue_) {
 		editor_event tool_ev;
@@ -1840,14 +1861,17 @@ void ai_agent::start_processing()
 			}
 		}
 
-		// When an agent finishes its work, check if a final result has been
-		// recorded (either via an explicit tool call or implicit idle exit).
-		// If a final result exists, transition the status to dead. Otherwise,
-		// the agent remains active and returns to the idle state to wait for
-		// subsequent user instructions.
-		if (self->has_final_result()) {
+		bool is_subagent = self->is_exit_implicitly_on_idle() || (self->get_parent() != nullptr);
+		event_logger::get_instance().log("Agent {} ({}) ended run loop turn: is_subagent={}, has_final_result={}, exit_on_idle={}",
+						 self->id_, self->name_, is_subagent, self->has_final_result(),
+						 self->is_exit_implicitly_on_idle());
+
+		// Subagents (ephemeral task agents) transition to the terminal 'dead' state upon recording a final result.
+		// Main interactive session agents must ALWAYS return to the 'idle' state so that the user can send follow-up prompts.
+		if (is_subagent && self->has_final_result()) {
 			self->set_status(agent_status::dead);
 		} else {
+			self->set_final_result(""); // Reset transient final result for interactive main agent turns
 			self->set_status(agent_status::idle);
 		}
 		event_logger::get_instance().log("Agent {} ended run loop. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
