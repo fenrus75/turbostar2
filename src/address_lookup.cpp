@@ -182,6 +182,78 @@ std::vector<memory_mapping> address_lookup::parse_maps(const std::string &maps_p
 	return mappings;
 }
 
+static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(const std::vector<std::string> &lines)
+{
+	std::unordered_map<uintptr_t, resolved_address> resolved_map;
+
+	uintptr_t current_addr = 0;
+	bool has_addr = false;
+	int state = 0; // 0 = expecting address, 1 = expecting func_name, 2 = expecting location
+
+	resolved_address current_res;
+
+	for (const std::string &raw_line : lines) {
+		std::string line = raw_line;
+		while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) {
+			line.pop_back();
+		}
+		if (line.empty()) {
+			continue;
+		}
+
+		if (line.starts_with("0x") || line.starts_with("0X")) {
+			if (has_addr) {
+				resolved_map[current_addr] = current_res;
+			}
+			try {
+				current_addr = std::stoull(line, nullptr, 16);
+				has_addr = true;
+			} catch (...) {
+				has_addr = false;
+			}
+			current_res = resolved_address{.address = current_addr};
+			state = 1;
+			continue;
+		}
+
+		if (!has_addr) {
+			continue;
+		}
+
+		if (state == 1) {
+			current_res.function_name = (line == "??" || line.empty()) ? "" : line;
+			state = 2;
+		} else if (state == 2) {
+			current_res.location = line;
+
+			size_t colon_pos = line.find_last_of(':');
+			if (colon_pos != std::string::npos) {
+				current_res.file_path = line.substr(0, colon_pos);
+				std::string line_part = line.substr(colon_pos + 1);
+				size_t space_pos = line_part.find(' ');
+				if (space_pos != std::string::npos) {
+					line_part = line_part.substr(0, space_pos);
+				}
+				try {
+					current_res.line_number = std::stoi(line_part);
+				} catch (...) {
+					current_res.line_number = 0;
+				}
+			} else {
+				current_res.file_path = line;
+				current_res.line_number = 0;
+			}
+			state = 3; // Finished primary frame for this address; skip any extra inlined outer frames
+		}
+	}
+
+	if (has_addr) {
+		resolved_map[current_addr] = current_res;
+	}
+
+	return resolved_map;
+}
+
 resolved_address address_lookup::resolve_address(uintptr_t address, const std::string &maps_path_or_pid)
 {
 	auto results = resolve_addresses({address}, maps_path_or_pid);
@@ -229,74 +301,26 @@ std::vector<resolved_address> address_lookup::resolve_addresses(const std::vecto
 
 	// 2. High-performance batch resolution using eu-addr2line (-M <maps_file>)
 	if (!eu_addr2line_bin.empty() && fs::exists(maps_path)) {
-		std::vector<std::string> args = {"-M", maps_path, "-f", "-C"};
+		std::vector<std::string> args = {"-a", "-M", maps_path, "-f", "-C"};
 		for (auto addr : unique_addrs) {
 			args.push_back(std::format("0x{:x}", addr));
 		}
 
 		auto lines = run_command(eu_addr2line_bin, args);
-		for (size_t i = 0; i < unique_addrs.size(); ++i) {
-			uintptr_t addr = unique_addrs[i];
-			resolved_address res;
-			res.address = addr;
-
-			if (2 * i + 1 < lines.size()) {
-				std::string func_name = lines[2 * i];
-				std::string loc_str = lines[2 * i + 1];
-
-				res.function_name = func_name.empty() ? "??" : func_name;
-				res.location = loc_str.empty() ? "??" : loc_str;
-
-				size_t colon_pos = loc_str.find_last_of(':');
-				if (colon_pos != std::string::npos) {
-					res.file_path = loc_str.substr(0, colon_pos);
-					std::string line_part = loc_str.substr(colon_pos + 1);
-					try {
-						res.line_number = std::stoi(line_part);
-					} catch (...) {
-						res.line_number = 0;
-					}
-				} else {
-					res.file_path = loc_str;
-					res.line_number = 0;
-				}
-			}
-
-			resolved_map[addr] = res;
-		}
+		resolved_map = parse_addr2line_output(lines);
 	} else if (!addr2line_bin.empty()) {
 		// Fallback: Parse memory mappings and group relative offsets per ELF binary
 		std::vector<memory_mapping> mappings = parse_maps(maps_path);
 
 		// If maps_path_or_pid is a direct ELF binary path (not a maps file)
 		if (mappings.empty() && fs::exists(maps_path_or_pid) && !fs::is_directory(maps_path_or_pid)) {
-			std::vector<std::string> args = {"-f", "-C", "-e", maps_path_or_pid};
+			std::vector<std::string> args = {"-a", "-f", "-C", "-e", maps_path_or_pid};
 			for (auto addr : unique_addrs) {
 				args.push_back(std::format("0x{:x}", addr));
 			}
 
 			auto lines = run_command(addr2line_bin, args);
-			for (size_t i = 0; i < unique_addrs.size(); ++i) {
-				uintptr_t addr = unique_addrs[i];
-				resolved_address res;
-				res.address = addr;
-
-				if (2 * i + 1 < lines.size()) {
-					res.function_name = lines[2 * i];
-					res.location = lines[2 * i + 1];
-					size_t colon_pos = res.location.find_last_of(':');
-					if (colon_pos != std::string::npos) {
-						res.file_path = res.location.substr(0, colon_pos);
-						try {
-							res.line_number = std::stoi(res.location.substr(colon_pos + 1));
-						} catch (...) {
-							res.line_number = 0;
-						}
-					}
-				}
-
-				resolved_map[addr] = res;
-			}
+			resolved_map = parse_addr2line_output(lines);
 		} else {
 			// Group addresses by mapped ELF pathname
 			struct addr_offset {
@@ -320,31 +344,23 @@ std::vector<resolved_address> address_lookup::resolve_addresses(const std::vecto
 				const std::string &elf_path = pair.first;
 				const auto &offsets = pair.second;
 
-				std::vector<std::string> args = {"-f", "-C", "-e", elf_path};
+				std::vector<std::string> args = {"-a", "-f", "-C", "-e", elf_path};
 				for (const auto &item : offsets) {
 					args.push_back(std::format("0x{:x}", item.rel_offset));
 				}
 
 				auto lines = run_command(addr2line_bin, args);
-				for (size_t i = 0; i < offsets.size(); ++i) {
-					uintptr_t addr = offsets[i].original_addr;
-					resolved_address res;
-					res.address = addr;
+				auto sub_map = parse_addr2line_output(lines);
 
-					if (2 * i + 1 < lines.size()) {
-						res.function_name = lines[2 * i];
-						res.location = lines[2 * i + 1];
-						size_t colon_pos = res.location.find_last_of(':');
-						if (colon_pos != std::string::npos) {
-							res.file_path = res.location.substr(0, colon_pos);
-							try {
-								res.line_number = std::stoi(res.location.substr(colon_pos + 1));
-							} catch (...) {
-								res.line_number = 0;
-							}
-						}
+				for (const auto &item : offsets) {
+					auto it = sub_map.find(item.rel_offset);
+					if (it != sub_map.end()) {
+						resolved_address res = it->second;
+						res.address = item.original_addr;
+						resolved_map[item.original_addr] = res;
+					} else {
+						resolved_map[item.original_addr] = resolved_address{.address = item.original_addr};
 					}
-					resolved_map[addr] = res;
 				}
 			}
 		}
