@@ -16,8 +16,6 @@
   - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
   - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
 
-- refactor: investigate std::ostringstream usages to see if std::format is a better/simpler solution
-
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -255,6 +253,7 @@
 
 
 ## 22-07-2026
+- `std::ostringstream` to `std::format` Refactor (`event_logger.cpp`, `crashdump_manager.cpp`, `agent_status_entry.cpp`, `agent_list_todos_entry.cpp`, `agent_todo_status_entry.cpp`, `sqlite_list_db_entry.cpp`, `agent_list_episodes_entry.cpp`): Replaced stream-based `ostringstream` boilerplate with C++20/C++23 `std::format` across logging, crashdump tables, and agent status tools.
 - Centralized Project-Relative Path Formatting (`fs_utils.h/cpp`, `agent_get_profile_summary_entry.cpp` & `agent_get_profile_details_entry.cpp`): Added `fs_utils::make_relative_to_project` helper to strip project root prefixes consistently across all profiling tools and summary reports.
 - Profile Details File Percentage Field Naming (`agent_get_profile_details_entry.cpp` & `docs/tools.md`): Updated `agent_get_profile_details` to return `file_percentage` instead of `function_percentage` when line samples are filtered by `file_path`. Eliminates ambiguity for LLM agents when evaluating file-scope vs function-scope CPU cycle percentages.
 - LSP Symbol Range Tightening & Trailing Comment Trimming (`agent_get_profile_details_entry.cpp`): Implemented `tighten_symbol_bounds` to inspect source code lines backwards from LSP `end_line` and strip trailing comment-only or blank lines. Prevents function profile detail context snippets from bleeding into neighboring function headers or comments.
