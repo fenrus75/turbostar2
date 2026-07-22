@@ -6,6 +6,7 @@
 #include <fstream>
 #include <format>
 #include <iostream>
+#include <map>
 #include <unordered_map>
 
 namespace fs = std::filesystem;
@@ -132,16 +133,16 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 
 	struct func_acc {
 		std::string name;
-		std::string file_path;
-		int line_number{0};
 		uint64_t count{0};
+		std::map<int, uint64_t> line_counts;
+		std::unordered_map<std::string, uint64_t> file_counts;
 	};
 
 	struct line_acc {
 		std::string file_path;
 		int line_number{0};
-		std::string function_name;
 		uint64_t count{0};
+		std::unordered_map<std::string, uint64_t> func_counts;
 	};
 
 	std::unordered_map<std::string, func_acc> func_map;
@@ -174,9 +175,11 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			auto &f = func_map[res.function_name];
 			f.name = res.function_name;
 			f.count += count;
-			if (f.file_path.empty()) {
-				f.file_path = norm_file_path;
-				f.line_number = res.line_number;
+			if (res.line_number > 0) {
+				f.line_counts[res.line_number] += count;
+			}
+			if (!norm_file_path.empty() && norm_file_path != "??") {
+				f.file_counts[norm_file_path] += count;
 			}
 		}
 
@@ -185,20 +188,39 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			auto &l = line_map[line_key];
 			l.file_path = norm_file_path;
 			l.line_number = res.line_number;
-			if (l.function_name.empty() && !res.function_name.empty() && res.function_name != "??") {
-				l.function_name = res.function_name;
-			}
 			l.count += count;
+			if (!res.function_name.empty() && res.function_name != "??") {
+				l.func_counts[res.function_name] += count;
+			}
 		}
 	}
 
 	for (const auto &pair : func_map) {
 		const auto &f = pair.second;
 		double pct = (static_cast<double>(f.count) * 100.0) / static_cast<double>(total_samples);
+
+		std::string top_file;
+		uint64_t max_file_cnt = 0;
+		for (const auto &file_pair : f.file_counts) {
+			if (file_pair.second > max_file_cnt) {
+				max_file_cnt = file_pair.second;
+				top_file = file_pair.first;
+			}
+		}
+
+		int top_line = 0;
+		uint64_t max_line_cnt = 0;
+		for (const auto &line_pair : f.line_counts) {
+			if (line_pair.second > max_line_cnt) {
+				max_line_cnt = line_pair.second;
+				top_line = line_pair.first;
+			}
+		}
+
 		report.top_functions.push_back(
 			perf_function_sample{.function_name = f.name,
-						 .file_path = f.file_path,
-						 .line_number = f.line_number,
+						 .file_path = top_file,
+						 .line_number = top_line,
 						 .count = f.count,
 						 .percentage = pct});
 	}
@@ -211,9 +233,19 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	for (const auto &pair : line_map) {
 		const auto &l = pair.second;
 		double pct = (static_cast<double>(l.count) * 100.0) / static_cast<double>(total_samples);
+
+		std::string top_func;
+		uint64_t max_func_cnt = 0;
+		for (const auto &func_pair : l.func_counts) {
+			if (func_pair.second > max_func_cnt) {
+				max_func_cnt = func_pair.second;
+				top_func = func_pair.first;
+			}
+		}
+
 		perf_line_sample ls{.file_path = l.file_path,
 				    .line_number = l.line_number,
-				    .function_name = l.function_name,
+				    .function_name = top_func,
 				    .count = l.count,
 				    .percentage = pct};
 		report.top_lines.push_back(ls);
