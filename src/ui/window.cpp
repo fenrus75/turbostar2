@@ -1136,14 +1136,17 @@ void window::draw_border() const
 			int doc_line = top_line_ + 1 + i;
 			double pct = turbostar::perf_manager::get_instance().get_line_profile_percentage(filename, doc_line);
 			if (pct >= 1.0) {
-				int pair = 5; // White on Blue (>= 1%)
+				int pair = 32; // Bright Cyan on Blue (>= 1%)
+				const char *glyph = "░";
 				if (pct >= 50.0) {
 					pair = 31; // Bright Red on Blue (>= 50%)
+					glyph = "█";
 				} else if (pct >= 10.0) {
 					pair = 21; // Bright Yellow on Blue (>= 10%)
+					glyph = "▒";
 				}
 				attron(COLOR_PAIR(pair));
-				mvaddstr(y_ + 1 + i, x_, "┃");
+				mvaddstr(y_ + 1 + i, x_, glyph);
 				attroff(COLOR_PAIR(pair));
 			}
 		}
