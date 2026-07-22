@@ -1,6 +1,8 @@
 #include "agent_get_profile_details.h"
 #include "../../fs_utils.h"
+#include "../../lsp_manager.h"
 #include "../../perf_manager.h"
+#include "../../project_manager.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -22,14 +24,88 @@ struct line_range {
 	int end_line;
 };
 
-static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lines, int total_lines)
+struct symbol_bounds {
+	int start_line{0};
+	int end_line{0};
+};
+
+static bool find_matching_symbol(const lsp_manager::symbol_node &node, const std::string &target_name,
+				  int target_line, lsp_manager::symbol_node &out_match)
 {
+	auto match_string = [](std::string_view target, std::string_view query) -> bool {
+		if (target.empty() || query.empty()) return false;
+		std::string t, q;
+		for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		return t.find(q) != std::string::npos || q.find(t) != std::string::npos;
+	};
+
+	int start_l = node.range.start_y + 1;
+	int end_l = node.range.end_y + 1;
+
+	bool name_matches = !target_name.empty() && match_string(node.name, target_name);
+	bool line_contains = (target_line > 0 && target_line >= start_l && target_line <= end_l);
+
+	if (name_matches || line_contains) {
+		for (const auto &child : node.children) {
+			if (find_matching_symbol(child, target_name, target_line, out_match)) {
+				return true;
+			}
+		}
+		out_match = node;
+		return true;
+	}
+
+	for (const auto &child : node.children) {
+		if (find_matching_symbol(child, target_name, target_line, out_match)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static symbol_bounds query_lsp_symbol_bounds(const std::string &abs_file_path, const std::string &target_func,
+					      int target_line)
+{
+	symbol_bounds bounds{0, 0};
+	if (abs_file_path.empty()) {
+		return bounds;
+	}
+
+	auto symbols = project_manager::get_instance().lsp_query_document_symbols(abs_file_path);
+	if (symbols.empty()) {
+		return bounds;
+	}
+
+	lsp_manager::symbol_node match;
+	for (const auto &root : symbols) {
+		if (find_matching_symbol(root, target_func, target_line, match)) {
+			bounds.start_line = match.range.start_y + 1;
+			bounds.end_line = match.range.end_y + 1;
+			break;
+		}
+	}
+	return bounds;
+}
+
+static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lines, int total_lines,
+						  const symbol_bounds &bounds)
+{
+	int func_start = (bounds.start_line > 0) ? bounds.start_line : 1;
+	int func_end = (bounds.end_line > 0) ? bounds.end_line : total_lines;
+
 	std::vector<line_range> ranges;
 	for (int line : hot_lines) {
-		int start = std::max(1, line - 2);
-		int end = (total_lines > 0) ? std::min(total_lines, line + 2) : line + 2;
+		int start = std::max(func_start, line - 2);
+		int end = (func_end > 0) ? std::min(func_end, line + 2) : line + 2;
 		ranges.push_back({start, end});
 	}
+
+	if (bounds.start_line > 0 && bounds.end_line > 0) {
+		ranges.push_back({bounds.start_line, bounds.start_line});
+		ranges.push_back({bounds.end_line, bounds.end_line});
+	}
+
 	std::sort(ranges.begin(), ranges.end(), [](const line_range &a, const line_range &b) {
 		return a.start_line < b.start_line;
 	});
@@ -166,7 +242,15 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		auto file_lines = read_file_lines(file_path, ctx);
 		int total_lines = static_cast<int>(file_lines.size());
 
-		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines);
+		std::string abs_file_path = file_path;
+		if (!abs_file_path.empty() && !std::filesystem::path(abs_file_path).is_absolute()) {
+			abs_file_path = (std::filesystem::path(ctx.fs_security.get_working_directory()) / file_path).string();
+		}
+
+		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
+		symbol_bounds bounds = query_lsp_symbol_bounds(abs_file_path, args_.function_name, representative_line);
+
+		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);
 
 		for (const auto &r : ranges) {
 			for (int line_num = r.start_line; line_num <= r.end_line; ++line_num) {
