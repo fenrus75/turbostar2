@@ -60,8 +60,18 @@ int main()
 		std::string result = prep.tool->execute(ctx);
 		auto res_json = nlohmann::json::parse(result);
 		assert(res_json["total_samples"] == 1000);
-		assert(res_json["line_samples"].size() == 1);
-		assert(res_json["line_samples"][0]["line_number"] == 42);
+		assert(res_json["target_samples"] == 600);
+		assert(!res_json["line_samples"].empty());
+		bool found_line_42 = false;
+		for (const auto &ls : res_json["line_samples"]) {
+			if (ls["line_number"] == 42) {
+				found_line_42 = true;
+				assert(ls["count"] == 600);
+				assert(ls["global_percentage"] == 60.0);
+				assert(ls["function_percentage"] == 100.0);
+			}
+		}
+		assert(found_line_42);
 		std::cout << "agent_get_profile_details (file filter) verified successfully!" << std::endl;
 	}
 
@@ -74,8 +84,8 @@ int main()
 		std::string result = prep.tool->execute(ctx);
 		auto res_json = nlohmann::json::parse(result);
 		assert(res_json["total_samples"] == 1000);
-		assert(res_json["line_samples"].size() == 1);
-		assert(res_json["line_samples"][0]["line_number"] == 42);
+		assert(res_json["target_samples"] == 600);
+		assert(!res_json["line_samples"].empty());
 		std::cout << "agent_get_profile_details (function_name filter) verified successfully!" << std::endl;
 	}
 
@@ -87,7 +97,7 @@ int main()
 
 		std::string result = prep.tool->execute(ctx);
 		auto res_json = nlohmann::json::parse(result);
-		assert(res_json["line_samples"].size() == 2);
+		assert(!res_json["line_samples"].empty());
 		std::cout << "agent_get_profile_details (all) verified successfully!" << std::endl;
 	}
 

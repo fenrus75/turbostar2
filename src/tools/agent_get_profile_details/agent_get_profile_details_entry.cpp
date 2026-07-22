@@ -1,10 +1,79 @@
 #include "agent_get_profile_details.h"
 #include "../../fs_utils.h"
 #include "../../perf_manager.h"
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+#include <fstream>
+#include <map>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace tools
 {
+
+namespace
+{
+
+struct line_range {
+	int start_line;
+	int end_line;
+};
+
+static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lines, int total_lines)
+{
+	std::vector<line_range> ranges;
+	for (int line : hot_lines) {
+		int start = std::max(1, line - 2);
+		int end = (total_lines > 0) ? std::min(total_lines, line + 2) : line + 2;
+		ranges.push_back({start, end});
+	}
+	std::sort(ranges.begin(), ranges.end(), [](const line_range &a, const line_range &b) {
+		return a.start_line < b.start_line;
+	});
+
+	std::vector<line_range> merged;
+	for (const auto &r : ranges) {
+		if (merged.empty()) {
+			merged.push_back(r);
+		} else {
+			if (r.start_line <= merged.back().end_line + 1) {
+				merged.back().end_line = std::max(merged.back().end_line, r.end_line);
+			} else {
+				merged.push_back(r);
+			}
+		}
+	}
+	return merged;
+}
+
+static std::vector<std::string> read_file_lines(const std::string &file_path, const agentlib::tool_context &ctx)
+{
+	std::vector<std::string> lines;
+	if (file_path.empty() || file_path == "??") {
+		return lines;
+	}
+	std::string abs_path = file_path;
+	if (!std::filesystem::path(abs_path).is_absolute()) {
+		abs_path = (std::filesystem::path(ctx.fs_security.get_working_directory()) / file_path).string();
+	}
+	std::ifstream in(abs_path);
+	if (!in.is_open()) {
+		return lines;
+	}
+	std::string line;
+	while (std::getline(in, line)) {
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
+		lines.push_back(line);
+	}
+	return lines;
+}
+
+} // namespace
 
 bool agent_get_profile_details_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
 {
@@ -30,73 +99,119 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		}
 		std::string t;
 		t.reserve(target.size());
-		for (char c : target) t.push_back(static_cast<char>(std::tolower(c)));
+		for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		std::string q;
 		q.reserve(query.size());
-		for (char c : query) q.push_back(static_cast<char>(std::tolower(c)));
+		for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		return t.find(q) != std::string::npos || q.find(t) != std::string::npos;
 	};
 
-	nlohmann::json line_samples = nlohmann::json::array();
+	// 1. Filter raw line samples based on file_path or function_name
+	std::vector<turbostar::perf_line_sample> matched_samples;
 
 	if (!args_.file_path.empty()) {
 		for (const auto &l : report.top_lines) {
 			if (match_string(l.file_path, args_.file_path)) {
-				line_samples.push_back({
-				    {"file_path", l.file_path},
-				    {"line_number", l.line_number},
-				    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
-				    {"count", l.count},
-				    {"percentage", l.percentage},
-				});
+				matched_samples.push_back(l);
 			}
 		}
 	} else if (!args_.function_name.empty()) {
 		for (const auto &l : report.top_lines) {
 			if (match_string(l.function_name, args_.function_name)) {
-				line_samples.push_back({
-				    {"file_path", l.file_path},
-				    {"line_number", l.line_number},
-				    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
-				    {"count", l.count},
-				    {"percentage", l.percentage},
-				});
+				matched_samples.push_back(l);
 			}
 		}
-		// Fallback: If no line sample matched directly on ls.function_name, match top_functions to file_path
-		if (line_samples.empty()) {
+		if (matched_samples.empty()) {
 			for (const auto &f : report.top_functions) {
 				if (match_string(f.function_name, args_.function_name) && !f.file_path.empty()) {
 					auto it = report.line_samples_by_file.find(f.file_path);
 					if (it != report.line_samples_by_file.end()) {
 						for (const auto &ls : it->second) {
-							line_samples.push_back({
-							    {"file_path", ls.file_path},
-							    {"line_number", ls.line_number},
-							    {"function_name", ls.function_name.empty() ? nullptr : nlohmann::json(ls.function_name)},
-							    {"count", ls.count},
-							    {"percentage", ls.percentage},
-							});
+							matched_samples.push_back(ls);
 						}
 					}
 				}
 			}
 		}
 	} else {
-		for (const auto &l : report.top_lines) {
-			line_samples.push_back({
-			    {"file_path", l.file_path},
-			    {"line_number", l.line_number},
-			    {"function_name", l.function_name.empty() ? nullptr : nlohmann::json(l.function_name)},
-			    {"count", l.count},
-			    {"percentage", l.percentage},
-			});
+		matched_samples = report.top_lines;
+	}
+
+	uint64_t target_total_samples = 0;
+	for (const auto &s : matched_samples) {
+		target_total_samples += s.count;
+	}
+
+	// Group samples by file_path
+	std::unordered_map<std::string, std::map<int, turbostar::perf_line_sample>> samples_by_file;
+	for (const auto &s : matched_samples) {
+		samples_by_file[s.file_path][s.line_number] = s;
+	}
+
+	nlohmann::json line_samples = nlohmann::json::array();
+	std::string primary_file_path;
+
+	for (const auto &file_pair : samples_by_file) {
+		const std::string &file_path = file_pair.first;
+		if (primary_file_path.empty()) {
+			primary_file_path = file_path;
+		}
+
+		const auto &line_map = file_pair.second;
+		std::vector<int> hot_line_numbers;
+		for (const auto &lp : line_map) {
+			hot_line_numbers.push_back(lp.first);
+		}
+
+		auto file_lines = read_file_lines(file_path, ctx);
+		int total_lines = static_cast<int>(file_lines.size());
+
+		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines);
+
+		for (const auto &r : ranges) {
+			for (int line_num = r.start_line; line_num <= r.end_line; ++line_num) {
+				nlohmann::json entry;
+				entry["line_number"] = line_num;
+
+				if (line_num >= 1 && line_num <= total_lines) {
+					entry["code"] = file_lines[line_num - 1];
+				} else {
+					entry["code"] = nullptr;
+				}
+
+				auto it = line_map.find(line_num);
+				if (it != line_map.end()) {
+					const auto &s = it->second;
+					double global_pct = (report.total_samples > 0)
+								? (static_cast<double>(s.count) * 100.0 / report.total_samples)
+								: 0.0;
+					double func_pct = (target_total_samples > 0)
+							      ? (static_cast<double>(s.count) * 100.0 / target_total_samples)
+							      : 0.0;
+					entry["count"] = s.count;
+					entry["global_percentage"] = global_pct;
+					entry["function_percentage"] = func_pct;
+					if (!s.function_name.empty()) {
+						entry["function_name"] = s.function_name;
+					}
+				} else {
+					entry["count"] = 0;
+					entry["global_percentage"] = 0.0;
+					entry["function_percentage"] = 0.0;
+				}
+
+				if (samples_by_file.size() > 1) {
+					entry["file_path"] = file_path;
+				}
+				line_samples.push_back(entry);
+			}
 		}
 	}
 
 	nlohmann::json output = {
 	    {"total_samples", report.total_samples},
-	    {"file_path", args_.file_path.empty() ? nullptr : nlohmann::json(args_.file_path)},
+	    {"target_samples", target_total_samples},
+	    {"file_path", primary_file_path.empty() ? (args_.file_path.empty() ? nullptr : nlohmann::json(args_.file_path)) : nlohmann::json(primary_file_path)},
 	    {"function_name", args_.function_name.empty() ? nullptr : nlohmann::json(args_.function_name)},
 	    {"line_samples", line_samples},
 	};
