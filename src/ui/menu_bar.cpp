@@ -69,17 +69,28 @@ menu_bar::menu_bar()
 	      {"About...", event_type::about, 'a', "", false}}}};
 }
 
+void menu_bar::select_category(int index)
+{
+	if (index < 0 || index >= static_cast<int>(categories_.size())) {
+		active_category_ = -1;
+		selected_item_ = 0;
+		return;
+	}
+	active_category_ = index;
+	selected_item_ = 0;
+	const auto &items = categories_[active_category_].items;
+	if (!items.empty() && (items[0].is_separator || items[0].is_disabled)) {
+		find_next_item();
+	}
+}
+
 bool menu_bar::handle_alt_key(char c, event_queue &queue)
 {
 	(void)queue;
 	c = std::tolower(c);
 	for (size_t i = 0; i < categories_.size(); ++i) {
 		if (categories_[i].hotkey == c) {
-			active_category_ = static_cast<int>(i);
-			selected_item_ = 0;
-			if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
-				find_next_item();
-			}
+			select_category(static_cast<int>(i));
 			event_logger::get_instance().log("Menu activated: {}", categories_[i].name);
 			return true;
 		}
@@ -136,20 +147,12 @@ bool menu_bar::handle_key(int key, event_queue &queue)
 		find_prev_item();
 		return true;
 	} else if (key == KEY_RIGHT) {
-		active_category_ = (active_category_ + 1) % categories_.size();
-		selected_item_ = 0;
-		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
-			find_next_item();
-		}
+		select_category((active_category_ + 1) % categories_.size());
 		event_logger::get_instance().log("Menu activated: {}", categories_[active_category_].name);
 		event_logger::get_instance().log("Menu key: {}", key);
 		return true;
 	} else if (key == KEY_LEFT) {
-		active_category_ = (active_category_ - 1 + categories_.size()) % categories_.size();
-		selected_item_ = 0;
-		if (!categories_[active_category_].items.empty() && categories_[active_category_].items[0].is_separator) {
-			find_next_item();
-		}
+		select_category((active_category_ - 1 + categories_.size()) % categories_.size());
 		event_logger::get_instance().log("Menu activated: {}", categories_[active_category_].name);
 		event_logger::get_instance().log("Menu key: {}", key);
 		return true;
@@ -348,7 +351,9 @@ void menu_bar::find_next_item()
 	int start_item = selected_item_;
 	do {
 		selected_item_ = (selected_item_ + 1) % categories_[active_category_].items.size();
-	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
+	} while ((categories_[active_category_].items[selected_item_].is_separator ||
+	          categories_[active_category_].items[selected_item_].is_disabled) &&
+	         selected_item_ != start_item);
 }
 
 void menu_bar::find_prev_item()
@@ -359,7 +364,9 @@ void menu_bar::find_prev_item()
 	do {
 		selected_item_ =
 		    (selected_item_ - 1 + categories_[active_category_].items.size()) % categories_[active_category_].items.size();
-	} while (categories_[active_category_].items[selected_item_].is_separator && selected_item_ != start_item);
+	} while ((categories_[active_category_].items[selected_item_].is_separator ||
+	          categories_[active_category_].items[selected_item_].is_disabled) &&
+	         selected_item_ != start_item);
 }
 
 bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
@@ -418,7 +425,8 @@ bool menu_bar::handle_mouse(int x, int y, event_queue &queue)
 					active_category_ = static_cast<int>(i);
 					selected_item_ = 0;
 					if (!categories_[active_category_].items.empty() &&
-					    categories_[active_category_].items[0].is_separator) {
+					    (categories_[active_category_].items[0].is_separator ||
+					     categories_[active_category_].items[0].is_disabled)) {
 						find_next_item();
 					}
 					event_logger::get_instance().log("Menu activated (mouse): {}", categories_[active_category_].name);

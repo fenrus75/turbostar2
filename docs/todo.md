@@ -14,9 +14,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- menu navigation bug: if a menu item is grayed out, the cursor-down key that would land you on the item still goes there just does not show it
-	- desired behavior: it should act as a "skip" and just go to the item below it
-
 - feature: Multi-Run Profile Comparison via `run_id` in Profiling Tools (`agent_get_profile_summary` & `agent_get_profile_details`):
   - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
   - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
@@ -247,6 +244,7 @@
 
 
 ## 22-07-2026
+- Menu Navigation Disabled Items Fix & Category Selection Helper (`menu_bar.h/cpp`): Added `select_category(index)` private helper method and updated `find_next_item()` and `find_prev_item()` to skip disabled items (`is_disabled`) alongside separators (`is_separator`). Prevents vertical arrow navigation (`KEY_UP`/`KEY_DOWN`) and horizontal category switching (`KEY_LEFT`/`KEY_RIGHT`/Alt keys/Mouse clicks) from landing on disabled menu options.
 - `document::set_cursor_position` API & `move_cursor` Evaluation Order Fix (`document.h`, `document_nav.cpp`, `editor_events_ui.cpp`): Added atomic `document::set_cursor_position(col, line)` method for direct absolute cursor placement. Re-ordered `move_cursor(dx, dy)` in `document_nav.cpp` to evaluate vertical movement (`dy`) before horizontal (`dx`), preventing single-character right-arrow line wrapping from corrupting vertical line deltas.
 - "Go to Next Hotspot" (`F7`) Navigation (`perf_manager.h/cpp`, `address_lookup.h/cpp`, `menu_bar.cpp`, `editor.cpp`, `editor_events.cpp`, `editor_events_key.cpp`, `editor_events_ui.cpp`, `docs/design-perf-integration.md`, `docs/keybindings.md`): Added `go_to_hotspot_possible()` and `get_next_hotspot()` to `perf_manager`. Added `column_number` tracking to `address_lookup` and `perf_line_sample` (with separate line/column `try/catch` parsing). Added `"Go to next hotspot"` to the **Run** menu (grayed out when no profile exists), bound to **`F7`** (`event_type::go_to_next_hotspot`). Automatically focuses existing editor windows or opens unopened files, moving the cursor to line and column offsets and centering the view. Updated `keybindings.md` table to document `F1`–`F10` function keys.
 - Concise Performance Status Line Message (`perf_manager.cpp`, `test_perf_manager.cpp`, `docs/design-perf-integration.md`): Simplified line profile status string to `Perf: X% (N samples)` (e.g. `Perf: 4.5% (230 samples)`), removing redundant function name signatures to save status bar space when multiple messages stack.
