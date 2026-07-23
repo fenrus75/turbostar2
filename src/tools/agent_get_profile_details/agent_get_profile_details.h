@@ -8,6 +8,7 @@ namespace tools
 {
 
 struct agent_get_profile_details_args {
+	std::string run_id;
 	std::string file_path;
 	std::string function_name;
 };

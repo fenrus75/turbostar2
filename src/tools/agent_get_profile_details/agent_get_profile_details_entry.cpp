@@ -338,15 +338,18 @@ bool agent_get_profile_details_tool::validate_runtime(const agentlib::tool_conte
 
 std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 {
-	auto report = turbostar::perf_manager::get_instance().get_active_profile();
-	if (report.total_samples == 0) {
+	auto report = turbostar::perf_manager::get_instance().get_profile_for_run(args_.run_id);
+	if (report.total_samples == 0 && args_.run_id.empty()) {
 		std::string perf_dir = fs_utils::get_project_perf_dir();
-		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, true);
+		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, "editor", true);
 	}
 
 	if (report.total_samples == 0) {
 		set_success(ctx, "No performance profile samples collected.");
-		return nlohmann::json{{"total_samples", 0}, {"line_samples", nlohmann::json::array()}}.dump(2);
+		return nlohmann::json{{"run_id", args_.run_id.empty() ? "editor" : args_.run_id},
+				      {"total_samples", 0},
+				      {"line_samples", nlohmann::json::array()}}
+		    .dump(2);
 	}
 
 	// 1. Filter raw line samples based on file_path or function_name
@@ -475,6 +478,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	nlohmann::json output = {
+	    {"run_id", args_.run_id.empty() ? "editor" : args_.run_id},
 	    {"total_samples", report.total_samples},
 	    {"target_samples", target_total_samples},
 	    {"file_path", display_file_path.empty() ? nullptr : nlohmann::json(display_file_path)},

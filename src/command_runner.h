@@ -33,6 +33,7 @@ public:
     void set_enable_crash_catcher(bool enable) { enable_crash_catcher_ = enable; }
     void set_crash_cookie(const std::string& cookie) { crash_cookie_ = cookie; }
     void set_perf_dir(const std::string& dir) { perf_dir_ = dir; }
+    void set_run_id(const std::string& run_id) { run_id_ = run_id; }
     void set_timeout(int seconds) { timeout_seconds_ = seconds; }
     int get_timeout() const { return timeout_seconds_; }
     bool has_timed_out() const { return timed_out_; }
@@ -126,6 +127,7 @@ private:
     bool enable_crash_catcher_{false};
     std::string crash_cookie_;
     std::string perf_dir_;
+    std::string run_id_{"editor"};
     std::string last_crashdumps_report_;
 };
 

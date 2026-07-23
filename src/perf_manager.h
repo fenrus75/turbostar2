@@ -50,14 +50,22 @@ class perf_manager : public document_listener
 	static perf_manager &get_instance();
 
 	// Parse raw sample .dat file and maps .txt file from perf_dir and resolve symbols using address_lookup.
+	// Stores the report under run_id (defaults to "editor") and sets it as active_report_.
 	perf_profile_report parse_and_resolve(const std::string &perf_dir, int target_pid = 0,
+					      const std::string &run_id = "editor",
 					      bool cleanup_raw_files = true);
 
 	// Get active profile report
 	perf_profile_report get_active_profile() const;
 
+	// Get profile report by run_id string (if empty or "latest", returns active_report_)
+	perf_profile_report get_profile_for_run(const std::string &run_id = "") const;
+
+	// List all currently saved run_ids
+	std::vector<std::string> get_saved_run_ids() const;
+
 	// Set active profile report
-	void set_active_profile(const perf_profile_report &report);
+	void set_active_profile(const perf_profile_report &report, const std::string &run_id = "editor");
 
 	// Clear active profile report
 	void clear_active_profile();
@@ -95,12 +103,14 @@ class perf_manager : public document_listener
 	perf_manager &operator=(const perf_manager &) = delete;
 
 	/*
-	 * mutex_ protects active_report_ and file_states_ across UI redraw threads, document edit listeners,
-	 * background tasks, and agent tool execution.
+	 * mutex_ protects active_report_, active_run_id_, saved_reports_, and file_states_ across UI redraw
+	 * threads, document edit listeners, background tasks, and agent tool execution.
 	 * Locking guidelines: standalone lock; never acquired while holding ncurses or event queue mutexes.
 	 */
 	mutable std::mutex mutex_;
 	perf_profile_report active_report_;
+	std::string active_run_id_{"editor"};
+	std::unordered_map<std::string, perf_profile_report> saved_reports_;
 	std::unordered_map<std::string, file_perf_state> file_states_;
 };
 

@@ -35,10 +35,11 @@ std::string agent_wait_for_app_tool::execute(agentlib::tool_context &ctx)
 		out["crash_notification"] = res.crash_notification;
 	}
 
-	auto report = turbostar::perf_manager::get_instance().get_active_profile();
+	std::string run_id_str = "run_" + std::to_string(args_.run_id);
+	auto report = turbostar::perf_manager::get_instance().get_profile_for_run(run_id_str);
 	if (report.total_samples == 0) {
 		std::string perf_dir = fs_utils::get_project_perf_dir();
-		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, true);
+		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
 	}
 	if (report.total_samples > 0) {
 		out["profile_notification"] = "Performance profile data is available, use agent_get_profile_summary to retrieve this data.";

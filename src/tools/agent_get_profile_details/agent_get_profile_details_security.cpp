@@ -27,7 +27,7 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Returns line-by-line CPU cycle percentages for a target source file or function name from the most recent performance profile run.";
+		return "Returns line-by-line CPU cycle percentages for a target source file or function name from a performance profile run (defaults to latest profile).";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -35,7 +35,11 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"file_path",
+		     {{"run_id",
+		       {{"description",
+			 "Optional execution run ID returned by agent_start_app (e.g., '1', '2', or 'editor'). Omit for latest profile."},
+			{"oneOf", nlohmann::json::array({nlohmann::json{{"type", "string"}}, nlohmann::json{{"type", "integer"}}})}}},
+		      {"file_path",
 		       {{"type", "string"},
 			{"description", "Source file path to filter line performance samples. Optional."}}},
 		      {"function_name",
@@ -48,9 +52,22 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 				std::string &out_error) const override
 	{
 		try {
-			agent_get_profile_details_raw_args raw = args_json.get<agent_get_profile_details_raw_args>();
-			args_.file_path = raw.file_path;
-			args_.function_name = raw.function_name;
+			args_.run_id.clear();
+			if (args_json.contains("run_id")) {
+				if (args_json["run_id"].is_string()) {
+					args_.run_id = args_json["run_id"].get<std::string>();
+				} else if (args_json["run_id"].is_number()) {
+					args_.run_id = std::to_string(args_json["run_id"].get<int>());
+				}
+			}
+			args_.file_path.clear();
+			if (args_json.contains("file_path") && args_json["file_path"].is_string()) {
+				args_.file_path = args_json["file_path"].get<std::string>();
+			}
+			args_.function_name.clear();
+			if (args_json.contains("function_name") && args_json["function_name"].is_string()) {
+				args_.function_name = args_json["function_name"].get<std::string>();
+			}
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

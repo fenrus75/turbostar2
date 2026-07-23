@@ -26,10 +26,11 @@ std::string agent_terminate_run_tool::execute(agentlib::tool_context &ctx)
 	auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(args_.run_id);
 	std::string crash_notif = crashdump_manager::format_crash_notification(dumps);
 
-	auto report = turbostar::perf_manager::get_instance().get_active_profile();
+	std::string run_id_str = "run_" + std::to_string(args_.run_id);
+	auto report = turbostar::perf_manager::get_instance().get_profile_for_run(run_id_str);
 	if (report.total_samples == 0) {
 		std::string perf_dir = fs_utils::get_project_perf_dir();
-		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, true);
+		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
 	}
 	std::string perf_notif;
 	if (report.total_samples > 0) {

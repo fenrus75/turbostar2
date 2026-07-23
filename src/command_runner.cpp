@@ -397,7 +397,7 @@ void command_runner::on_child_exit()
 		last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
 	}
 	if (!perf_dir_.empty()) {
-		turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir_, 0, true);
+		turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir_, 0, run_id_, true);
 	}
 }
 

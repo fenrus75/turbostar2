@@ -14,10 +14,6 @@
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- feature: Multi-Run Profile Comparison via `run_id` in Profiling Tools (`agent_get_profile_summary` & `agent_get_profile_details`):
-  - *Problem*: Profiling tools currently only inspect the active/latest profiling report.
-  - *Fix*: Add an optional `run_id` (or `perf_dir`) parameter to `agent_get_profile_summary` and `agent_get_profile_details`. When specified, load/parse the profile data associated with that specific execution run handle, allowing LLM agents to compare "before" vs "after" optimization benchmarks across multiple runs.
-
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -242,6 +238,9 @@
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
+
+## 23-07-2026
+- Multi-Run Performance Profile Storage & Comparison via `run_id` (`perf_manager.h/cpp`, `command_runner.h/cpp`, `terminal_window.cpp`, `agent_get_profile_summary.h/cpp`, `agent_get_profile_details.h/cpp`, `docs/design-perf-integration.md`, `test_perf_manager.cpp`, `test_profile_tools.cpp`): Added in-memory report storage (`saved_reports_[run_id]`) and string ID normalization in `perf_manager`. Updated `command_runner` and `terminal_window` to associate execution session IDs (`"run_N"`) with profiled output runs. Updated `agent_get_profile_summary` and `agent_get_profile_details` JSON schemas and handlers to accept an optional `run_id` parameter, enabling LLM agents to compare performance cycle counts across multiple execution runs.
 
 ## 22-07-2026
 - Menu Navigation Disabled Items Fix & Category Selection Helper (`menu_bar.h/cpp`): Added `select_category(index)` private helper method and updated `find_next_item()` and `find_prev_item()` to skip disabled items (`is_disabled`) alongside separators (`is_separator`). Prevents vertical arrow navigation (`KEY_UP`/`KEY_DOWN`) and horizontal category switching (`KEY_LEFT`/`KEY_RIGHT`/Alt keys/Mouse clicks) from landing on disabled menu options.

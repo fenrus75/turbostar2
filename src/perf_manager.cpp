@@ -22,11 +22,12 @@ perf_manager &perf_manager::get_instance()
 }
 
 perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir, int target_pid,
-						      bool cleanup_raw_files)
+						      const std::string &run_id, bool cleanup_raw_files)
 {
 	perf_profile_report report;
 	auto &logger = event_logger::get_instance();
-	logger.log(std::format("perf_manager: Beginning parse_and_resolve for perf_dir='{}' (target_pid={})", perf_dir, target_pid));
+	logger.log(std::format("perf_manager: Beginning parse_and_resolve for perf_dir='{}' (target_pid={}, run_id='{}')",
+			       perf_dir, target_pid, run_id));
 
 	if (perf_dir.empty() || !fs::exists(perf_dir)) {
 		logger.log(std::format("perf_manager: Directory '{}' is empty or does not exist.", perf_dir));
@@ -308,9 +309,9 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		}
 	}
 
-	set_active_profile(report);
-	logger.log(std::format("perf_manager: Successfully resolved {} top functions and {} top lines across {} total samples.",
-			       report.top_functions.size(), report.top_lines.size(), report.total_samples));
+	set_active_profile(report, run_id);
+	logger.log(std::format("perf_manager: Successfully resolved {} top functions and {} top lines across {} total samples (run_id='{}').",
+			       report.top_functions.size(), report.top_lines.size(), report.total_samples, run_id));
 	return report;
 }
 
@@ -320,16 +321,67 @@ perf_profile_report perf_manager::get_active_profile() const
 	return active_report_;
 }
 
-void perf_manager::set_active_profile(const perf_profile_report &report)
+static std::string normalize_run_id(const std::string &id)
+{
+	if (id.empty() || id == "editor" || id == "latest") {
+		return id.empty() ? "editor" : id;
+	}
+	if (id.starts_with("run_")) {
+		return id;
+	}
+	bool all_digits = true;
+	for (char c : id) {
+		if (!std::isdigit(static_cast<unsigned char>(c))) {
+			all_digits = false;
+			break;
+		}
+	}
+	if (all_digits && !id.empty()) {
+		return "run_" + id;
+	}
+	return id;
+}
+
+perf_profile_report perf_manager::get_profile_for_run(const std::string &run_id) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	std::string key = normalize_run_id(run_id);
+	if (run_id.empty() || run_id == "latest" || key == active_run_id_) {
+		return active_report_;
+	}
+	auto it = saved_reports_.find(key);
+	if (it != saved_reports_.end()) {
+		return it->second;
+	}
+	return {};
+}
+
+std::vector<std::string> perf_manager::get_saved_run_ids() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::vector<std::string> ids;
+	ids.reserve(saved_reports_.size());
+	for (const auto &pair : saved_reports_) {
+		ids.push_back(pair.first);
+	}
+	return ids;
+}
+
+void perf_manager::set_active_profile(const perf_profile_report &report, const std::string &run_id)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string key = normalize_run_id(run_id);
+	saved_reports_[key] = report;
 	active_report_ = report;
+	active_run_id_ = key;
+	file_states_.clear();
 }
 
 void perf_manager::clear_active_profile()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	active_report_ = perf_profile_report{};
+	active_run_id_ = "editor";
 	file_states_.clear();
 }
 

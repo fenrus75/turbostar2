@@ -130,6 +130,13 @@ To allow developers to quickly cycle through performance bottlenecks across open
    - **Opportunistic Column Position**: If `addr2line` provided a column number (`column_number > 0`), the cursor moves to `column_number - 1`; otherwise it defaults to column `0`.
    - **Auto-Centering**: The editor centers the window view vertically on the target line (`top_line_ = std::max(0, line_number - content_height / 2)`).
 
+### 4.3 Multi-Run Profile Storage & Comparison via `run_id`
+
+To enable LLM agents to compare "before" vs. "after" optimization benchmarks across multiple runs:
+- **In-Memory Run Dictionary**: `perf_manager` maintains a dictionary `saved_reports_[run_id]` mapping string IDs (e.g. `"run_1"`, `"run_2"`, `"editor"`) to resolved `perf_profile_report` objects.
+- **Exact `run_id` Alignment**: Tool queries and background sessions use the exact string execution ID returned by `agent_start_app` (or numeric string format `"run_N"`). Re-running an app session under an existing `run_id` automatically overwrites that report.
+- **Tool Schema Parameters**: `agent_get_profile_summary` and `agent_get_profile_details` accept an optional `run_id` argument (string or int in JSON). Omitting `run_id` or passing `"latest"` returns the active profile for editor visualization.
+
 ---
 
 ## 5. Future Considerations

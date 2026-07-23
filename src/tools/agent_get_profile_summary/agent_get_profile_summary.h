@@ -7,6 +7,7 @@ namespace tools
 {
 
 struct agent_get_profile_summary_args {
+	std::string run_id;
 	int limit{10};
 };
 

@@ -97,6 +97,7 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	runner_.set_crash_cookie("run_" + std::to_string(id_));
 	if (collect_performance) {
 		runner_.set_perf_dir(fs_utils::get_project_perf_dir());
+		runner_.set_run_id("run_" + std::to_string(id_));
 	} else {
 		runner_.set_perf_dir("");
 	}

@@ -52,14 +52,46 @@ int main()
 	samples_out.write(reinterpret_cast<const char *>(&slot2), sizeof(slot2));
 	samples_out.close();
 
-	auto synth_report = perf_manager::get_instance().parse_and_resolve(tmp_perf_dir.string(), 12345, true);
+	auto synth_report = perf_manager::get_instance().parse_and_resolve(tmp_perf_dir.string(), 12345, "editor", true);
 	assert(synth_report.total_samples == 150);
 	std::cout << "Synthetic report total samples: " << synth_report.total_samples << std::endl;
 
 	auto active = perf_manager::get_instance().get_active_profile();
 	assert(active.total_samples == 150);
 
-	// 2. Editor UI Query & Document Listener Interface Tests
+	// 2. Multi-Run Profile Storage & Comparison via run_id Tests
+	perf_profile_report run1_rep;
+	run1_rep.total_samples = 500;
+	perf_line_sample r1_ls{"main.cpp", 15, 0, "slow_func()", 400, 80.0};
+	run1_rep.top_lines = {r1_ls};
+	run1_rep.line_samples_by_file["main.cpp"] = {r1_ls};
+
+	perf_profile_report run2_rep;
+	run2_rep.total_samples = 100;
+	perf_line_sample r2_ls{"main.cpp", 15, 0, "slow_func()", 20, 20.0};
+	run2_rep.top_lines = {r2_ls};
+	run2_rep.line_samples_by_file["main.cpp"] = {r2_ls};
+
+	perf_manager::get_instance().set_active_profile(run1_rep, "run_1");
+	perf_manager::get_instance().set_active_profile(run2_rep, "run_2");
+
+	// Active profile should be latest ("run_2")
+	assert(perf_manager::get_instance().get_active_profile().total_samples == 100);
+
+	// Query run_1 specifically by "run_1" and by numeric string "1"
+	auto fetched_run1 = perf_manager::get_instance().get_profile_for_run("run_1");
+	assert(fetched_run1.total_samples == 500);
+	assert(fetched_run1.top_lines[0].percentage == 80.0);
+
+	auto fetched_run1_num = perf_manager::get_instance().get_profile_for_run("1");
+	assert(fetched_run1_num.total_samples == 500);
+
+	// Query run_2 specifically by "run_2"
+	auto fetched_run2 = perf_manager::get_instance().get_profile_for_run("run_2");
+	assert(fetched_run2.total_samples == 100);
+	assert(fetched_run2.top_lines[0].percentage == 20.0);
+
+	// 3. Editor UI Query & Document Listener Interface Tests
 	perf_profile_report test_rep;
 	test_rep.total_samples = 1000;
 
