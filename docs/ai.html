@@ -43,11 +43,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">In-Editor Agent Integration</h2>
         <p class="detail-text">
-          Turbostar features a native AI agent integrated directly into the workspace layout. The agent has full access to the project manager, filesystem context, compile state, and execution environments.
+          Pair program with an AI agent that understands your entire workspace. Your embedded assistant can edit files, run builds, launch tests, and fix errors directly alongside you.
         </p>
         <ul class="detail-list">
-          <li><strong>Interactive Chat:</strong> Toggle the Agent Chat window in any visual split workspace to converse, ask questions, or request code modifications.</li>
-          <li><strong>Automated Refactoring:</strong> The agent suggests and executes edits in real-time, rewriting blocks of code surgically using precise diff mappings.</li>
+          <li><strong>Split-Window Agent Chat:</strong> Chat, ask questions, or delegate coding tasks in a dedicated side-by-side window while watching your code update in real-time.</li>
+          <li><strong>Atomic Code Refactoring:</strong> The agent applies clean, precise file modifications directly into your open editor buffers with full undo support.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -69,11 +69,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Virtual Context Paging</h2>
         <p class="detail-text">
-          Context windows are finite and costly. Instead of discarding history when the buffer fills, Turbostar pages chunks of conversation in and out dynamically, mimicking OS virtual memory.
+          Run long multi-hour development sessions without context limits. Turbostar automatically pages history in and out like virtual memory, preserving deep project history while keeping LLM costs low.
         </p>
         <ul class="detail-list">
-          <li><strong>Paging Levels:</strong> Implements tiered compression: Full Content, Think-Removed Content (condensing reasoning outputs), and Tool-Call Reduced Content (redirection markers for duplicated actions).</li>
-          <li><strong>On-Disk Fallback:</strong> Reductions occur in memory only; full details are saved to disk. Paged-out blocks leave hints instructing the agent on when to request page-in upgrades.</li>
+          <li><strong>Tiered Context Optimization:</strong> Automatically compresses agent reasoning logs and redundant tool outputs while keeping critical decision context intact.</li>
+          <li><strong>Deep Disk Memory:</strong> Every detail is preserved safely on disk, allowing the agent to page earlier context back into memory whenever needed.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -95,11 +95,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Modular Tool Families</h2>
         <p class="detail-text">
-          Avoid LLM context bloat and model distraction. Instead of overloading agents with every tool in the universe, Turbostar groups capabilities into dynamically activated <strong>Tool Families</strong>.
+          Keep AI agents fast, focused, and affordable. Agents load specialized tool capabilities on-demand, preventing context clutter and model confusion.
         </p>
         <ul class="detail-list">
-          <li><strong>On-Demand Activation:</strong> Agents activate specific families (such as <code>git</code>, <code>image</code>, <code>x86</code>, or <code>hexedit</code>) dynamically at runtime only when needed, minimizing prompt token consumption.</li>
-          <li><strong>Specialized Subagents:</strong> Subagents are configured to load only a subset of families, protecting them from schema noise and ensuring high-focus task execution.</li>
+          <li><strong>On-Demand Capabilities:</strong> Agents activate tool sets (such as <code>git</code>, <code>image</code>, <code>x86</code>, or <code>hexedit</code>) only when required, keeping prompt sizes small and responses fast.</li>
+          <li><strong>High-Focus Subagents:</strong> Spawns specialized subagents equipped only with the exact tools needed for their specific role.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -127,11 +127,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">In-Editor Code Review &amp; Edits</h2>
         <p class="detail-text">
-          Run automated security reviews and code formatting recommendations directly inside the TUI. Agent edits are tracked cleanly as single atomic undo operations.
+          Ensure high code quality automatically. AI agents perform inline code reviews, flag potential vulnerabilities, and format code before changes are committed.
         </p>
         <ul class="detail-list">
-          <li><strong>Unified Review Dialogs:</strong> Inline review comments let developers step through and resolve suggestions with coordinate-free layout dialogs.</li>
-          <li><strong>Safety Verification:</strong> Python execution tools scan scripts automatically using <code>bandit</code> before running them.</li>
+          <li><strong>Interactive Review Cards:</strong> Step through agent recommendations directly in the editor and approve or reject edits with single keystrokes.</li>
+          <li><strong>Pre-Execution Security Scans:</strong> Automatically scans Python code for security flaws before execution to keep your environment safe.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -153,11 +153,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Compiler Context Optimization</h2>
         <p class="detail-text">
-          Low-level development is verbose. Healthy build logs can easily span hundreds of kilobytes of compiler outputs, wasting critical agent context and inflating token costs.
+          Save 95%+ of token costs on build errors. Turbostar distills verbose compiler logs into concise, actionable error locations so agents fix build issues on the first attempt.
         </p>
         <ul class="detail-list">
-          <li><strong>Noise Filtering:</strong> Turbostar filters out thousands of lines of successful compilation outputs (e.g. <code>[12/350] Compiling C++ object...</code>), leaving only the overall summary or precise error locations.</li>
-          <li><strong>Context Preservation:</strong> Instead of dumping massive raw compiler stdout logs, Turbostar parses compiler diagnostics, shrinking logs from 40+ KB of noise to less than 1 KB of actionable target context.</li>
+          <li><strong>Noise-Free Build Output:</strong> Strips out hundreds of lines of successful compilation noise, presenting the agent with only the relevant errors and summaries.</li>
+          <li><strong>Instant Diagnostic Focus:</strong> Pinpoints exact failure files and line numbers so the model resolves compiler errors immediately without wasting context tokens.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -185,11 +185,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Interactive Agent-Driven Debugging</h2>
         <p class="detail-text">
-          Debugging isn't just about reading stack traces. Turbostar allows the AI agent to run, interact with, and debug your application concurrently in real-time.
+          Let your AI agent debug live applications. The agent can launch your program, send test inputs, set GDB breakpoints, and step through code autonomously.
         </p>
         <ul class="detail-list">
-          <li><strong>Parallel GDB Control:</strong> The agent can drive GDB commands (setting breakpoints, stepping, viewing backtraces) in one window while feeding test inputs directly into the application's stdin in another.</li>
-          <li><strong>Signal &amp; I/O Isolation:</strong> Utilizes a dedicated loop control systemd namespace and custom signal disposition wrappers (ignoring job control signals) to prevent GDB from hung states (e.g. <code>SIGTTOU</code> loops).</li>
+          <li><strong>Real-Time Interactive Debugging:</strong> The agent feeds test cases into stdin while driving GDB in parallel to inspect variable states and isolate runtime bugs.</li>
+          <li><strong>Isolated Test Sandbox:</strong> Runs debugging sessions in protected environments to prevent hung processes and ensure host stability.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -211,11 +211,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Autonomous Crash Notifications &amp; Core Dump Inspection</h2>
         <p class="detail-text">
-          When an application under test crashes, Turbostar's runtime environment captures the failure using <code>libturbocatch</code> and tagged crash cookies (<code>run_&lt;id&gt;</code>). The AI agent receives automatic crash alerts and can autonomously spawn interactive GDB sessions to inspect post-mortem core dumps.
+          Resolve application crashes automatically. When a test run segfaults, the agent receives an immediate alert and inspects the core dump to find the root cause.
         </p>
         <ul class="detail-list">
-          <li><strong>Automated Crash Cookie Tracking:</strong> Execution tools (<code>agent_start_app</code>, <code>agent_wait_for_app</code>, <code>agent_terminate_run</code>, <code>agent_get_run_screenshot</code>) detect crashes instantly and pass crash notifications containing Crash IDs directly into the agent's context.</li>
-          <li><strong>Interactive GDB Core Dump Sessions:</strong> Using <code>agent_debug_coredump</code> and <code>agent_write_to_run</code>, the agent interactively executes GDB commands (<code>backtrace</code>, <code>print</code>, <code>info registers</code>) against core dumps to diagnose root causes without human intervention.</li>
+          <li><strong>Instant Crash Alerts:</strong> Execution tools notify the agent the moment a process crashes, providing unique Crash IDs for instant post-mortem analysis.</li>
+          <li><strong>Autonomous Core Dump Analysis:</strong> The agent inspects stack backtraces, variable states, and CPU registers via GDB, proposing exact code fixes automatically.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -237,11 +237,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Agent Command Center</h2>
         <p class="detail-text">
-          Keep complete visibility over active background agents. The Agent Command Center provides a real-time visual dashboard, mapping subagent hierarchies and executing processes dynamically.
+          Maintain total oversight over multi-agent workflows. The Command Center provides a visual dashboard to monitor subagents, background tasks, and active tool calls.
         </p>
         <ul class="detail-list">
-          <li><strong>Agent State Monitoring:</strong> Track thread status, active tool calls, and lifecycle stages (e.g., active, idle, dead) with clean DOS-inspired ncurses flow grids.</li>
-          <li><strong>Subagent Hierarchy Trees:</strong> Visualize parent-child relationships and terminate or inspect active subagents directly from the panel.</li>
+          <li><strong>Real-Time Process Tracking:</strong> Monitor agent progress, execution states, and task lifecycles across a clean visual dashboard grid.</li>
+          <li><strong>Subagent Hierarchy Control:</strong> Inspect parent-child agent trees, view running subagent tasks, or terminate stalled operations with one click.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -263,11 +263,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Integrated Undo History</h2>
         <p class="detail-text">
-          Agent edits are not destructive. Unlike external CLI coding tools that overwrite source files blindly, all changes made by the Turbostar agent are integrated directly into the editor's core transaction undo buffer.
+          Code with complete safety and control. All agent modifications are integrated directly into the editor's undo buffer, allowing you to review or revert any change instantly.
         </p>
         <ul class="detail-list">
-          <li><strong>Granular Undo:</strong> You can step back through the agent's edits line-by-line or block-by-block using standard editor undo keys.</li>
-          <li><strong>Transformed Views:</strong> Visual highlighting shows exactly what lines the agent modified, giving you absolute control over what gets committed.</li>
+          <li><strong>Granular Step-Back:</strong> Review or undo agent edits line-by-line using standard editor undo keys (<code>^K H</code> / <code>Ctrl+Z</code>).</li>
+          <li><strong>Visual Change Highlights:</strong> See exactly what lines the agent added, modified, or deleted before approving changes.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -289,12 +289,12 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Autonomous CPU Cycle Profiling</h2>
         <p class="detail-text">
-          Turbostar equips AI agents with dedicated tools (<code>agent_get_profile_summary</code>, <code>agent_get_profile_details</code>) to analyze CPU hardware performance profile runs autonomously.
+          Empower agents to optimize application performance automatically. Agents query CPU profiling data to identify bottlenecks and speed up critical inner loops.
         </p>
         <ul class="detail-list">
-          <li><strong>Flat Hardware Cycle Tracking:</strong> Operates directly on Linux <code>PERF_COUNT_HW_CPU_CYCLES</code> hardware events parsed via <code>libturbocatch.so</code>.</li>
-          <li><strong>Automated Bottleneck Discovery:</strong> Agents query top functions and line-by-line cycle percentages, pinpointing optimization targets in C++ and C codebases without manual intervention.</li>
-          <li><strong>Symbol Boundary Tightening:</strong> LSP symbol bounds are automatically tightened to exclude trailing comments or blank lines, presenting clean function context snippets to the model.</li>
+          <li><strong>Direct Bottleneck Discovery:</strong> Agents query top functions and line-by-line CPU cycle percentages to pinpoint exact performance bottlenecks.</li>
+          <li><strong>Multi-Run Benchmark Comparison:</strong> Compare cycle counts across multiple execution runs (<code>run_1</code>, <code>run_2</code>) to measure optimization gains empirically.</li>
+          <li><strong>Focused Symbol Context:</strong> Automatically extracts clean source code blocks around performance hotspots for precise AI refactoring.</li>
         </ul>
       </div>
       <div class="detail-visual">

@@ -43,11 +43,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Multi-Window Tiled Workspace</h2>
         <p class="detail-text">
-          Turbostar splits screen real estate dynamically, supporting multi-document layouts. Window boundaries are double-bordered, drop-shadowed, and react natively to mouse events for resizing and dragging.
+          Edit multiple files side-by-side with total clarity. Keep your source code, test suites, and terminal outputs visible at the same time without cluttering your screen or breaking your concentration.
         </p>
         <ul class="detail-list">
-          <li><strong>Mouse Interception:</strong> Click and drag coordinates-free layouts natively. Hold <code>Shift</code> to override and trigger your terminal emulator's native selection.</li>
-          <li><strong>Linked Windows:</strong> Opening complementary files binds window pairs (e.g. Code Review edits &amp; compiler outputs) so they move and cycle focus synchronously.</li>
+          <li><strong>Intuitive Window Dragging:</strong> Resize and rearrange windows smoothly with your mouse, while holding <code>Shift</code> lets you copy raw terminal text whenever needed.</li>
+          <li><strong>Synchronized Window Pairing:</strong> Related windows (such as code reviews or build logs) move and cycle focus together so you stay in sync as you edit.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -69,11 +69,11 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Developer Native: Compile, Run &amp; Debug</h2>
         <p class="detail-text">
-          Designed specifically for low-level systems developers. Compile, run, and debug applications directly within the editor interface, keeping you fully in your workspace without context switching.
+          Stay entirely in your flow. Build your software, launch tests, and step through live C++ and Python code without ever leaving your terminal workspace.
         </p>
         <ul class="detail-list">
-          <li><strong>In-Editor Compilation:</strong> Build your projects with standard toolchains (Meson, Make, GCC/Clang) instantly, with real-time feedback and direct error navigation.</li>
-          <li><strong>Interactive GDB Debugging:</strong> Perform single-stepping, set breakpoints, and inspect variables using an integrated <code>gdbserver</code> environment inside the TUI editor window.</li>
+          <li><strong>Instant In-Editor Builds:</strong> One-keystroke builds (Meson, Make, GCC/Clang) with interactive error tracking that jumps your cursor directly to failing lines of code.</li>
+          <li><strong>Full Interactive Debugging:</strong> Set breakpoints, step through code line-by-line, and inspect live variables inside split editor windows to resolve bugs in seconds.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -93,15 +93,15 @@
     <!-- Visual Feature 3: Crash Catcher & Core Inspector -->
     <section class="detail-split" id="crash-catcher">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Crash Catcher &amp; Core View Manager</h2>
+        <h2 class="detail-subtitle">Crash Protection &amp; Core View Manager</h2>
         <p class="detail-text">
-          Never get stuck debugging segmentation faults or lose your terminal state. Turbostar integrates <code>libturbocatch.so</code> to intercept failures, alongside a built-in Core View Manager to inspect crash dumps directly within the editor.
+          Write and run systems code with zero fear of losing work or scrambling for crash logs. If your application segfaults, Turbostar captures the backtrace and jumps straight to the bug.
         </p>
         <ul class="detail-list">
-          <li><strong>Real-time Signal Interception:</strong> Catches unexpected crashes (<code>SIGSEGV</code>, <code>SIGABRT</code>, failed assertions) during manual runs or automated tests.</li>
-          <li><strong>Aggregated Logs &amp; Core Inspection:</strong> Displays recent application coredumps, complete with dates, target binaries, active thread identifiers, and register states.</li>
-          <li><strong>Source Code Linking:</strong> Parses the backtrace dynamically, automatically linking crash locations back to the exact filename and line number in the editor for immediate debugging.</li>
-          <li><strong>Graceful Terminal Restoration:</strong> Instantly resets TUI terminal configurations back to standard modes on fatal signals, keeping your shell functional.</li>
+          <li><strong>Zero Lost Work:</strong> Traps unexpected crashes instantly, preserving your open file buffers and keeping your TUI session completely stable.</li>
+          <li><strong>Visual Crash Dump Inspector:</strong> View recent coredumps, thread states, and register values directly in the editor without manually invoking external tools.</li>
+          <li><strong>One-Click Source Navigation:</strong> Jump instantly from stack backtraces to the exact source file and line where the error occurred.</li>
+          <li><strong>Clean Terminal Recovery:</strong> Automatically restores your terminal prompt to clean standard mode if an unhandled signal strikes.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -123,13 +123,13 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Zero-Dependency CPU Performance Profiling</h2>
         <p class="detail-text">
-          Profile your C++ and systems applications in real-time with zero external tool dependencies. Turbostar interfaces directly with Linux <code>perf_event_open</code> hardware counters via <code>libturbocatch.so</code>, avoiding kernel mismatches or external binary requirements.
+          Spot performance bottlenecks visually as you write code. Live CPU cycle profiling highlights hot code paths directly in your editor gutter with zero setup or external tools.
         </p>
         <ul class="detail-list">
-          <li><strong>Dithered Density Border Heatmap:</strong> Visualizes CPU hotspots directly on the left window frame without shrinking text area, scaling from Light Shade <code>░</code> (Cyan &ge; 1%) and Medium Shade <code>▒</code> (Yellow &ge; 10%) to Solid Block <code>█</code> (Bright Red &ge; 50%).</li>
-          <li><strong>One-Key Hotspot Navigation (<code>F7</code>):</strong> Jump instantly to top CPU bottlenecks in rank order across open or closed files with automatic window activation, line centering, and column placement.</li>
-          <li><strong>Hover Status Bar Stats:</strong> Displays concise cycle percentage and sample counts (e.g. <code>Perf: 60.4% (3080 samples)</code>) whenever the cursor moves onto a profiled line.</li>
-          <li><strong>Edit-Resilient Line Tracking:</strong> Dynamic <code>document_listener</code> callbacks shift sample offsets smoothly as you edit until major modifications invalidate the snapshot.</li>
+          <li><strong>Visual Gutter Heatmap:</strong> Color-coded density blocks (<code>░</code> cyan &ge; 1%, <code>▒</code> yellow &ge; 10%, <code>█</code> red &ge; 50%) pinpoint hot source lines right next to your code without taking up screen space.</li>
+          <li><strong>One-Key Hotspot Jumps (<code>F7</code>):</strong> Instantly jump to the top CPU bottlenecks across your entire project in rank order, with automatic file opening and line centering.</li>
+          <li><strong>Live Cursor Profiling Stats:</strong> Moving your cursor onto any profiled line instantly shows cycle percentages and sample counts in the status bar.</li>
+          <li><strong>Edit-Resilient Heatmaps:</strong> Performance highlights update dynamically as you add or remove lines, keeping cycle data accurate while you refactor.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -149,18 +149,16 @@
     <!-- Visual Feature 5: Hex Editor -->
     <section class="detail-split" id="hex-editor">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Integrated Hex Editor</h2>
+        <h2 class="detail-subtitle">Integrated Hex Editor &amp; Disassembler</h2>
         <p class="detail-text">
-          Analyze and edit binary files natively in the TUI workspace without corrupting raw data. Turbostar automatically detects binary formats on load and activates a specialized hex editing mode with dedicated buffer management.
+          Inspect, edit, and disassemble binary files safely. Decode file structures, modify raw bytes, and view x86 assembly inline without leaving your TUI workspace.
         </p>
         <ul class="detail-list">
-          <li><strong>Dual Column Focus:</strong> Seamlessly toggle editing focus between the raw Hex tuples and clean ASCII view using the <code>Tab</code> key.</li>
-          <li><strong>Dynamic Scaling:</strong> Display wrapping adjusts automatically to multiples of 16 bytes per line depending on the window's current width.</li>
-          <li><strong>High-Contrast Color Coding:</strong> Differentiate address offsets, null bytes (<code>00</code>), printable ASCII, and non-printable control characters with theme-matched color pairs.</li>
-          <li><strong>Nibble-Level Editing:</strong> Edit hex digits at the individual half-byte (nibble) level, or directly type printable characters in the ASCII column.</li>
-          <li><strong>Smart Auto-Grow:</strong> Edit in overwrite mode by default to protect file integrity, with automated file expansion when appending bytes at EOF.</li>
-          <li><strong>File Format Awareness:</strong> Automatically parses headers of known binary files (such as ELF, PNG, and JPEG/JFIF), displaying decoded metadata in the status bar and highlighting header blocks as visual sections.</li>
-          <li><strong>x86 Instruction Disassembly:</strong> Disassembles raw x86 machine code instructions inline, highlighting instruction bytes and matching them to assembly mnemonics.</li>
+          <li><strong>Dual-Column Hex &amp; ASCII View:</strong> Edit raw hex tuples or ASCII text side-by-side, switching columns instantly with <code>Tab</code>.</li>
+          <li><strong>High-Contrast Format Highlights:</strong> Spot null bytes, control codes, and printable characters at a glance with clear color coding.</li>
+          <li><strong>Automatic File Structure Decoding:</strong> Decode ELF, PNG, and JPEG headers automatically to inspect binary metadata and section boundaries.</li>
+          <li><strong>Inline x86 Disassembly:</strong> Disassemble x86/x64 machine code instructions side-by-side with raw bytes for rapid reverse engineering.</li>
+          <li><strong>Nibble-Level Precision:</strong> Edit individual hex nibbles in safe overwrite mode to prevent accidental file corruption, with seamless auto-extension at EOF.</li>
         </ul>
       </div>
       <div class="detail-visual">
