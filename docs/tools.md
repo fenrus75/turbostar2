@@ -537,13 +537,15 @@ These tools allow the agent to interact with the project's Git repository.
     *   `collect_performance` *(boolean, optional)*: If true, enables CPU cycle performance profiling sampling via `LD_PRELOAD` during execution. Defaults to false.
 
 ### `agent_get_profile_summary`
-*   **Description:** Returns top functions and source lines ranked by CPU cycle percentage from the active or most recent performance profile run.
+*   **Description:** Returns top functions and source lines ranked by CPU cycle percentage from the active or specified performance profile run.
 *   **Arguments:**
+    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns the active profile from the most recent run.
     *   `limit` *(integer, optional)*: Maximum number of top functions and lines to return. Defaults to 10.
 
 ### `agent_get_profile_details`
 *   **Description:** Returns line-by-line performance profiling details with source code text, line numbers sorted ascending, ±2 context lines merged into continuous blocks, sample counts, global application cycle percentages (`global_percentage`), and function/file cycle percentages (`function_percentage` when filtering by function, `file_percentage` when filtering by file) for a target source file or function name.
 *   **Arguments:**
+    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns details for the active profile from the most recent run.
     *   `file_path` *(string, optional)*: Source file path to filter line performance samples.
     *   `function_name` *(string, optional)*: Function name to filter line performance samples.
 
