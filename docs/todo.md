@@ -11,9 +11,16 @@
 ## Webpage todo items (do not delete this header line)
 
 
+## Style note for the website
+remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: new project dialog
+	- triggers when called in an empty directory
+	- have some template projects built in (a meson C++ one, a meson C one, a meson python, CMake C++, Cmake C)
+	- ask programming language and build system and create the basics as well as git init and commit the template
+		
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -27,11 +34,6 @@
 	would help developers track what modifications the agent is proposing in binary formats.
 
 - fs_replace_content improvement: tabs vs spaces seems to confuse the agent
-
-- feature: a markdown_to_html filter 
-	- should be straightforward structural conversion
-	- almost a line by line regexp, after some boilerplate headers / footers
-
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -91,7 +93,7 @@
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
 		- we started this with code review kind of
 	- should be able to suggest model names/capabilities to be run in -- say a vision model for image processing tasks
-	- should be able to register /slash commands
+	- [x] should be able to register /slash commands
 	- skills that plug into specific subagent types only
 	- should have prefered color set + logo for the grid view
 
@@ -238,6 +240,9 @@
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
+
+## 24-07-2026
+- Technical Details Webpage & Navigation Link (`docs/details.html`, `docs/index.html`, `docs/editor.html`, `docs/ai.html`, `meson.build`): Added new `docs/details.html` page styled consistently with the website design system, featuring a Table of Contents and technical feature deep-dive section skeletons. Updated top header navigation and footer links across all pages, and added `website_validate_details` to the `meson.build` website test suite.
 
 ## 23-07-2026
 - Multi-Run Performance Profile Storage & Comparison via `run_id` (`perf_manager.h/cpp`, `command_runner.h/cpp`, `terminal_window.cpp`, `agent_get_profile_summary.h/cpp`, `agent_get_profile_details.h/cpp`, `docs/design-perf-integration.md`, `test_perf_manager.cpp`, `test_profile_tools.cpp`): Added in-memory report storage (`saved_reports_[run_id]`) and string ID normalization in `perf_manager`. Updated `command_runner` and `terminal_window` to associate execution session IDs (`"run_N"`) with profiled output runs. Updated `agent_get_profile_summary` and `agent_get_profile_details` JSON schemas and handlers to accept an optional `run_id` parameter, enabling LLM agents to compare performance cycle counts across multiple execution runs.

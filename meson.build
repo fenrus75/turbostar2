@@ -2106,7 +2106,8 @@ if tidy_prog.found()
   html_tests = [
     ['index', 'docs/index.html'],
     ['editor', 'docs/editor.html'],
-    ['ai', 'docs/ai.html']
+    ['ai', 'docs/ai.html'],
+    ['details', 'docs/details.html']
   ]
   foreach item : html_tests
     test_name = 'website_validate_' + item[0]

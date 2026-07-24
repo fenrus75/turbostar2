@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Technical details, architectural sitemaps, low-level Linux integration specs, and internal engine design of Turbostar.">
+  <title>Technical Details - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+  <script src="./overlay.js" defer></script>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+        <a href="details.html" class="active" id="nav-details">Technical Details</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="nav-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="nav-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="details-header">
+      <span class="hero-tag">Architecture &amp; Low-Level Specs</span>
+      <h1 class="page-title">Technical <span>Details</span></h1>
+      <p class="page-desc">
+        Comprehensive architectural documentation, deep-dive specifications, and technical reference for the Turbostar TUI editor engine, AI agent infrastructure, and low-level Linux integration.
+      </p>
+    </section>
+
+    <!-- Table of Contents -->
+    <section class="detail-split" id="table-of-contents">
+      <div class="detail-info" style="max-width: 100%;">
+        <h2 class="detail-subtitle">Table of Contents</h2>
+        <p class="detail-text">
+          Jump to specific technical topics and deep-dive architectural specifications:
+        </p>
+        <ul class="detail-list">
+          <li><a href="#architecture-overview"><strong>1. Architecture Overview</strong></a> — High-level sitemap, core event loop, and module relationships.</li>
+          <li><a href="#tui-rendering-engine"><strong>2. TUI Rendering &amp; Buffer Management</strong></a> — Dual-buffering, ncurses abstraction layer, and WordStar keybinding engine.</li>
+          <li><a href="#perf-profiling-internals"><strong>3. Performance Profiling &amp; Hardware Counters</strong></a> — <code>perf_event_open</code> integration, <code>libturbocatch.so</code> preloads, and multi-run <code>run_id</code> tracking.</li>
+          <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
+          <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 1: Architecture Overview -->
+    <section class="features-section" id="architecture-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">1. Architecture Overview</h2>
+        <p>Core design principles and subsystem sitemap of Turbostar.</p>
+      </div>
+
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Core Subsystems</h3>
+          <p class="detail-text">
+            Turbostar is built as a highly modular C++23 application. The core editor runtime decouples UI rendering from file management, language server communications, and AI tool orchestration.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Editor Core:</strong> Event queue dispatching, window tiling, document buffer management, and keybinding translation.</li>
+            <li><strong>Agent Framework:</strong> Tool registration, security validation, subagent lifecycle management, and protocol transport wrappers.</li>
+            <li><strong>Subprocess &amp; Sandbox Layer:</strong> Process runner, PTY master allocation, systemd namespace isolation, and hardware signal handlers.</li>
+          </ul>
+        </div>
+        <div class="detail-visual">
+          <div class="terminal-mockup">
+            <div class="terminal-header">
+              <div class="terminal-title">architecture --overview</div>
+            </div>
+            <div class="terminal-content" style="background: var(--bg-secondary);">
+              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Subsystem Architecture Sitemap:</span>
+[User Input / Mouse Events]
+       │
+       ▼
+┌──────────────┐    ┌─────────────────┐
+│ Event Queue  │───>│ Editor Window   │
+└──────────────┘    └─────────────────┘
+       │                     │
+       ▼                     ▼
+┌──────────────┐    ┌─────────────────┐
+│ Document Mgr │    │ LSP / Git Layer │
+└──────────────┘    └─────────────────┘
+       │                     │
+       ▼                     ▼
+┌──────────────┐    ┌─────────────────┐
+│ Agent Engine │───>│ Sandboxed Runner│
+└──────────────┘    └─────────────────┘</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: TUI Rendering & Buffer Management -->
+    <section class="features-section" id="tui-rendering-engine" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">2. TUI Rendering &amp; Buffer Management</h2>
+        <p>Low-latency terminal graphics, double-buffered window frames, and keybinding translation.</p>
+      </div>
+
+      <div class="detail-split reverse">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Rendering Pipeline</h3>
+          <p class="detail-text">
+            The user interface uses a custom ncurses abstraction layer with optimized cell diffing to minimize terminal redraw latency even over remote SSH connections.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Double-Buffered Grids:</strong> Computes frame diffs in memory before emitting terminal escape sequences.</li>
+            <li><strong>Coordinate-Free Windows:</strong> Tiled window borders are computed dynamically, supporting intuitive mouse drag-and-resize events.</li>
+          </ul>
+        </div>
+        <div class="detail-visual">
+          <div class="terminal-mockup">
+            <div class="terminal-header">
+              <div class="terminal-title">tui --rendering-pipeline</div>
+            </div>
+            <div class="terminal-content" style="background: var(--bg-secondary);">
+              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Render Pipeline Technical Details:</span>
+- Primary Frame Buffer: Off-screen character matrix
+- Diff Engine: Cell-level comparison (char + color pair)
+- Palette: Turbo Pascal 7 dark mode color map
+- Input Translation: WordStar prefix key state machine</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Performance Profiling & Hardware Counters -->
+    <section class="features-section" id="perf-profiling-internals" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">3. Performance Profiling &amp; Hardware Counters</h2>
+        <p>In-process cycle sampling, symbol resolution, and multi-run report storage.</p>
+      </div>
+
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Profiling Subsystem</h3>
+          <p class="detail-text">
+            Performance profiling operates via Linux <code>perf_event_open</code> syscalls injected through <code>libturbocatch.so</code>. Cycle counts are mapped back to source file lines using asynchronous DWARF symbol resolution.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Zero-Kernel Dependency:</strong> Direct hardware counter access without requiring external perf tools or kernel modules.</li>
+            <li><strong>Multi-Run Storage:</strong> Reports are indexed in-memory by execution <code>run_id</code>, allowing agents to compare performance across optimization passes.</li>
+          </ul>
+        </div>
+        <div class="detail-visual">
+          <div class="terminal-mockup">
+            <div class="terminal-header">
+              <div class="terminal-title">perf --subsystem-spec</div>
+            </div>
+            <div class="terminal-content" style="background: var(--bg-secondary);">
+              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Perf Profiling Technical Specs:</span>
+- Hardware Event: PERF_COUNT_HW_CPU_CYCLES
+- Interceptor: libturbocatch.so (LD_PRELOAD)
+- Map Pairing: /proc/self/maps PID pairing
+- Symbol Lookup: eu-addr2line / DWARF line tables
+- Storage Key: run_id ("run_1", "run_2", "editor")</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Sandboxing & Process Isolation -->
+    <section class="features-section" id="sandboxing-security" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">4. Sandboxing &amp; Process Isolation</h2>
+        <p>Security model, systemd namespace isolation, and pre-execution script validation.</p>
+      </div>
+
+      <div class="detail-split reverse">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Security Engine</h3>
+          <p class="detail-text">
+            All untrusted tool executions and child application processes run inside restricted Linux mount and PID namespaces created via systemd isolation.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Filesystem Security:</strong> Restricts read/write access to explicitly authorized project paths.</li>
+            <li><strong>Static Analysis Checks:</strong> Automated Bandit scanning blocks insecure Python scripts prior to native execution.</li>
+          </ul>
+        </div>
+        <div class="detail-visual">
+          <div class="terminal-mockup">
+            <div class="terminal-header">
+              <div class="terminal-title">sandbox --security-spec</div>
+            </div>
+            <div class="terminal-content" style="background: var(--bg-secondary);">
+              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Sandboxing Architecture Specs:</span>
+- Namespace Boundaries: Mount, PID, IPC, Network (optional)
+- Root FS Mount: Read-only tmpfs
+- Project Mount: Read/Write bind-mount (restricted)
+- Static Scanner: Bandit (Python AST inspector)</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Virtual Context Paging Engine -->
+    <section class="features-section" id="context-paging-engine" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">5. Virtual Context Paging Engine</h2>
+        <p>Tiered context compression, memory-mapped history, and disk page-in upgrades.</p>
+      </div>
+
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Paging Architecture</h3>
+          <p class="detail-text">
+            To prevent context window overflow during extended agent interactions, Turbostar implements a memory-mapped context paging engine inspired by operating system virtual memory.
+          </p>
+          <ul class="detail-list">
+            <li><strong>Tiered Compression:</strong> Converts full tool outputs and reasoning blocks into compact redirection markers.</li>
+            <li><strong>On-Disk Persistence:</strong> Retains complete uncompressed conversation trajectories on disk for page-in retrieval.</li>
+          </ul>
+        </div>
+        <div class="detail-visual">
+          <div class="terminal-mockup">
+            <div class="terminal-header">
+              <div class="terminal-title">paging --engine-spec</div>
+            </div>
+            <div class="terminal-content" style="background: var(--bg-secondary);">
+              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Context Paging Technical Specs:</span>
+- Level 0: Full Content (Active Window)
+- Level 1: Think-Removed Content (Compressed Reasoning)
+- Level 2: Tool-Call Reduced Content (Redirection Tokens)
+- Persistence Store: JSONL log trajectory store</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source under the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="editor.html" id="foot-editor">Editor</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+        <a href="details.html" id="foot-details">Technical Details</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="foot-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
