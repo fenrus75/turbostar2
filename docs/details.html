@@ -50,7 +50,7 @@
           <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat</li>
           <li><a href="#crash-catching"><strong>2. Catching Crashes</strong></a> — Providing the agent and the user automatic backtraces and debuggable coredumps.</li>
 <!--
-          <li><a href="#perf-profiling-internals"><strong>3. Performance Profiling &amp; Hardware Counters</strong></a> — <code>perf_event_open</code> integration, <code>libturbocatch.so</code> preloads, and multi-run <code>run_id</code> tracking.</li>
+          <li><a href="#perf-profiling"><strong>3. Performance Profiling </strong></a> — <code>perf_event_open</code> integration, <code>libturbocatch.so</code> preloads, and multi-run <code>run_id</code> tracking.</li>
           <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
           <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
 -->
@@ -127,17 +127,17 @@
           <h3 class="detail-subtitle">Coredumps</h3>
           <p class="detail-text">
 	    Coredumps are the ultimate data for analyzing crashing, containing a full copy of the memory of the application at the time of crash. However,
-            reliably getting a coredump file turns out to be a nightmare of Linux distribution specific mess. Systemd's coredumpctl? Not on Debian. Running ChromeOS? Just forget it.
+            reliably getting a coredump file turns out to be a nightmare of Linux distribution specific mess. Systemd's <code>coredumpctl</code>? Not on Debian. Running ChromeOS? Just forget it.
  	    Running in a container, well, all bets are off.
           </p>
           <p class="detail-text">
-	    Turbostar will use coredumpctl if it is available, but in addition, libturbocatch.so will trigger the execution of gdb's "gcore" application
-	    and make a kernel-independent coredump file of the crashing application. While neither gcore nor coredumpctl each are perfect, the dual-attempt
+	    Turbostar will use <code>coredumpctl</code> if it is available, but in addition, libturbocatch.so will trigger the execution of <code>gdb</code>'s "<code>gcore</code>" application
+	    and make a kernel-independent coredump file of the crashing application. While neither <code>gcore</code> nor <code>coredumpctl</code> each are perfect, the dual-attempt
 	    approach means that in practice, coredumps will be available for each crash;
           </p>
           <p class="detail-text">
-	    From the backtrace details, an one click "gdb window for the coredump" is available to the human user of the editor, while for AI agents,
-  	    a fully interactive gdb session is one tool call away. 
+	    From the backtrace details, an one click "<code>gdb</code> window for the coredump" is available to the human user of the editor, while for AI agents,
+  	    a fully interactive <code>gdb</code> session is one tool call away. 
           </p>
         </div>
         <div class="detail-info">
@@ -149,11 +149,11 @@
           <h3 class="detail-subtitle">Result</h3>
           <p class="detail-text">
 	    The result: on a crash, the AI agent is notified of this, and has direct access to a full, high quality backtrace... and then will drive
-	    gdb on the coredump if it needs more details.. fast and with minimal context bloat. No need to go hunt for a coredump, no need to grep through
+	    <code>gdb</code> on the coredump if it needs more details.. fast and with minimal context bloat. No need to go hunt for a coredump, no need to grep through
 	    logs to see if a backtrace exists.. it's all right there instantly and automatic.
 	  </p>
 	  <p class="detail-text">This works well with various open models, but even with models from companies who's agent CLI does not have the ability to drive
-	    gdb this way! 
+	    <code>gdb</code> this way! 
           </p>
         </div>
       </div>

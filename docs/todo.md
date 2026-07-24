@@ -16,6 +16,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- feature: in images:// namespace, give each file an "origin_file" hash and "origin_ops" string, which tools fill in (with a new helper)
+	so that the providence of an image can be documented. Example idea is, that, say if image ABCD is the source image,
+	and the agent calls a rotate(90) operation that yields image EFGH, that image EFGH has an origin_file of ABCD and an origin_ops
+	of "rotate(90)". We can then list such an origin "chain" as part of the list operation
+
 - feature: new project dialog
 	- triggers when called in an empty directory
 	- have some template projects built in (a meson C++ one, a meson C one, a meson python, CMake C++, Cmake C)
