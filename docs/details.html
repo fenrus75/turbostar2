@@ -35,7 +35,7 @@
       <span class="hero-tag">Architecture &amp; Low-Level Specs</span>
       <h1 class="page-title">Technical <span>Details</span></h1>
       <p class="page-desc">
-        Comprehensive architectural documentation, deep-dive specifications, and technical reference for the Turbostar TUI editor engine, AI agent infrastructure, and low-level Linux integration.
+        Technical details for select features of Turbostar.
       </p>
     </section>
 
@@ -47,99 +47,103 @@
           Jump to specific technical topics and deep-dive architectural specifications:
         </p>
         <ul class="detail-list">
-          <li><a href="#architecture-overview"><strong>1. Architecture Overview</strong></a> — High-level sitemap, core event loop, and module relationships.</li>
-          <li><a href="#tui-rendering-engine"><strong>2. TUI Rendering &amp; Buffer Management</strong></a> — Dual-buffering, ncurses abstraction layer, and WordStar keybinding engine.</li>
+          <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat</li>
+          <li><a href="#crash-catching"><strong>2. Catching Crashes</strong></a> — Providing the agent and the user automatic backtraces and debuggable coredumps.</li>
+<!--
           <li><a href="#perf-profiling-internals"><strong>3. Performance Profiling &amp; Hardware Counters</strong></a> — <code>perf_event_open</code> integration, <code>libturbocatch.so</code> preloads, and multi-run <code>run_id</code> tracking.</li>
           <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
           <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
+-->
         </ul>
       </div>
     </section>
 
-    <!-- Section 1: Architecture Overview -->
-    <section class="features-section" id="architecture-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+    <section class="features-section" id="tool-families" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
-        <h2 class="section-title">1. Architecture Overview</h2>
-        <p>Core design principles and subsystem sitemap of Turbostar.</p>
+        <h2 class="section-title">1. Tool families</h2>
+        <p>How to provide a large, rich toolset to an agent without context bloat</p>
       </div>
 
       <div class="detail-split">
         <div class="detail-info">
-          <h3 class="detail-subtitle">Core Subsystems</h3>
+          <h3 class="detail-subtitle">Problem statement</h3>
           <p class="detail-text">
-            Turbostar is built as a highly modular C++23 application. The core editor runtime decouples UI rendering from file management, language server communications, and AI tool orchestration.
+             When an agent framework provides a very large set of tools to the LLM, model performance tends to degrade. Not only does a large
+	     toolset take up a lot of tokens, but models - especially quantized ones - often tend to start hallucinating tool parameters or even
+	     tool names.
           </p>
-          <ul class="detail-list">
-            <li><strong>Editor Core:</strong> Event queue dispatching, window tiling, document buffer management, and keybinding translation.</li>
-            <li><strong>Agent Framework:</strong> Tool registration, security validation, subagent lifecycle management, and protocol transport wrappers.</li>
-            <li><strong>Subprocess &amp; Sandbox Layer:</strong> Process runner, PTY master allocation, systemd namespace isolation, and hardware signal handlers.</li>
-          </ul>
-        </div>
-        <div class="detail-visual">
-          <div class="terminal-mockup">
-            <div class="terminal-header">
-              <div class="terminal-title">architecture --overview</div>
-            </div>
-            <div class="terminal-content" style="background: var(--bg-secondary);">
-              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Subsystem Architecture Sitemap:</span>
-[User Input / Mouse Events]
-       │
-       ▼
-┌──────────────┐    ┌─────────────────┐
-│ Event Queue  │───>│ Editor Window   │
-└──────────────┘    └─────────────────┘
-       │                     │
-       ▼                     ▼
-┌──────────────┐    ┌─────────────────┐
-│ Document Mgr │    │ LSP / Git Layer │
-└──────────────┘    └─────────────────┘
-       │                     │
-       ▼                     ▼
-┌──────────────┐    ┌─────────────────┐
-│ Agent Engine │───>│ Sandboxed Runner│
-└──────────────┘    └─────────────────┘</code></pre>
-            </div>
-          </div>
+          <h3 class="detail-subtitle">Solution: Tool families</h3>
+          <p class="detail-text">
+		Turbostar groups tools into "tool families"; most of which will not be enabled by default. The LLM is provided a tool call
+		to activate a tool family, and is provided a list of available families, including descriptions that inform the LLM when
+		to activate the specific tool family.
+          </p>
+	  <p>
+		To illustrate this concept better, below is a list of some of the available tool families in Turbostar. Note that plugins
+	 	can register their own tool families dynamically.
+	        <ul class="detail-list">
+		<li>git - all the various tool calls to interact with the git version control system </li>
+		<li>hexedit - various tools to analyze, dump and edit binary files</li>
+		<li>image - various image processing tools (zoom, rotate, crop, format conversion, etc)</li>
+		<li>x86asm - tools to assemble, disassemble and analyze x86 code
+		</ul>
+	  </p>
+	  <p>
+		In agent definition files (agent.md etc), we extend the agent specification with an option that specifies which tool families 
+		are enabled by default for this agent. For example, a coding agent will have the "git" family enabled, while an agent working
+	   	on webpages may have the "image" tool family enabled by default, but not the git one.
+	  </p>
+
+
         </div>
       </div>
     </section>
 
-    <!-- Section 2: TUI Rendering & Buffer Management -->
-    <section class="features-section" id="tui-rendering-engine" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+    <section class="features-section" id="crash-catching" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
-        <h2 class="section-title">2. TUI Rendering &amp; Buffer Management</h2>
-        <p>Low-latency terminal graphics, double-buffered window frames, and keybinding translation.</p>
+        <h2 class="section-title">2. Catching Crashes</h2>
+        <p>Providing the agent and the user automatic backtraces and debuggable coredumps.</p>
       </div>
 
       <div class="detail-split reverse">
         <div class="detail-info">
-          <h3 class="detail-subtitle">Rendering Pipeline</h3>
+          <h3 class="detail-subtitle">Backtraces</h3>
           <p class="detail-text">
-            The user interface uses a custom ncurses abstraction layer with optimized cell diffing to minimize terminal redraw latency even over remote SSH connections.
+            Native (C, C++, etc) applications can "crash" for many reasons, from chasing a bad pointer, to hitting an assert() to not handling an exception.
+	    Turbostar will wrap test and application execution with a special LD_PRELOAD library (libturbocatch.so) that will intercept key signals and
+	    will (carefully) write a stack trace to a dedicated location. 
           </p>
-          <ul class="detail-list">
-            <li><strong>Double-Buffered Grids:</strong> Computes frame diffs in memory before emitting terminal escape sequences.</li>
-            <li><strong>Coordinate-Free Windows:</strong> Tiled window borders are computed dynamically, supporting intuitive mouse drag-and-resize events.</li>
-          </ul>
+          <p class="detail-text">
+	    The main turbostar application will use this backtrace file to decode the addresses (something that is not safe in signal handlers) to turn
+	    this into an actionable report for the user and the AI agent. Turbostar keeps an internal database of crashes, and the user and the AI agent
+	    can go through these and look at the details at any time. For the user of the editor, backtrace elements have a "go to source" option
+	    for those parts of the backtrace that are within the project.
+          </p>
+          <p class="detail-text">
+	    AI agents get automatically notified that a crash happened, with instructions on how to retreive the details for the crash.
+          </p>
         </div>
-        <div class="detail-visual">
-          <div class="terminal-mockup">
-            <div class="terminal-header">
-              <div class="terminal-title">tui --rendering-pipeline</div>
-            </div>
-            <div class="terminal-content" style="background: var(--bg-secondary);">
-              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Render Pipeline Technical Details:</span>
-- Primary Frame Buffer: Off-screen character matrix
-- Diff Engine: Cell-level comparison (char + color pair)
-- Palette: Turbo Pascal 7 dark mode color map
-- Input Translation: WordStar prefix key state machine</code></pre>
-            </div>
-          </div>
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Coredumps</h3>
+          <p class="detail-text">
+	    Coredumps are the ultimate data for analyzing crashing, containing a full copy of the memory of the application at the time of crash. However,
+            reliably getting a coredump file turns out to be a nightmare of Linux distribution specific mess. Systemd's coredumpctl? Not on Debian. Running ChromeOS? Just forget it.
+ 	    Running in a container, well, all bets are off.
+          </p>
+          <p class="detail-text">
+	    Turbostar will use coredumpctl if it is available, but in addition, libturbocatch.so will trigger the execution of gdb's "gcore" application
+	    and make a kernel-independent coredump file of the crashing application. While neither gcore nor coredumpctl each are perfect, the dual-attempt
+	    approach means that in practice, coredumps will be available for each crash;
+          </p>
+          <p class="detail-text">
+	    From the backtrace details, an one click "gdb window for the coredump" is available to the human user of the editor, while for AI agents,
+  	    a fully interactive gdb session is one tool call away. 
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- Section 3: Performance Profiling & Hardware Counters -->
+<!--
     <section class="features-section" id="perf-profiling-internals" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
         <h2 class="section-title">3. Performance Profiling &amp; Hardware Counters</h2>
@@ -175,7 +179,6 @@
       </div>
     </section>
 
-    <!-- Section 4: Sandboxing & Process Isolation -->
     <section class="features-section" id="sandboxing-security" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
         <h2 class="section-title">4. Sandboxing &amp; Process Isolation</h2>
@@ -210,7 +213,6 @@
       </div>
     </section>
 
-    <!-- Section 5: Virtual Context Paging Engine -->
     <section class="features-section" id="context-paging-engine" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
         <h2 class="section-title">5. Virtual Context Paging Engine</h2>
@@ -245,7 +247,7 @@
       </div>
     </section>
   </main>
-
+-->
   <!-- Footer -->
   <footer>
     <div class="footer-container">
