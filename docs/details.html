@@ -105,7 +105,7 @@
         <p>Providing the agent and the user automatic backtraces and debuggable coredumps.</p>
       </div>
 
-      <div class="detail-split reverse">
+      <div class="detail-split">
         <div class="detail-info">
           <h3 class="detail-subtitle">Backtraces</h3>
           <p class="detail-text">
@@ -138,6 +138,11 @@
           <p class="detail-text">
 	    From the backtrace details, an one click "gdb window for the coredump" is available to the human user of the editor, while for AI agents,
   	    a fully interactive gdb session is one tool call away. 
+          </p>
+          <p class="detail-text">
+	    The result: on a crash, the AI agent is notified of this, and has direct access to a full, high quality backtrace... and then will drive
+	    gdb on the coredump if it needs more details. This works well, even with models from companies who's agent CLI does not have the ability to drive
+	    gdb this way!
           </p>
         </div>
       </div>
