@@ -144,8 +144,11 @@
           <h3 class="detail-subtitle">Result</h3>
           <p class="detail-text">
 	    The result: on a crash, the AI agent is notified of this, and has direct access to a full, high quality backtrace... and then will drive
-	    gdb on the coredump if it needs more details. This works well, even with models from companies who's agent CLI does not have the ability to drive
-	    gdb this way!
+	    gdb on the coredump if it needs more details.. fast and with minimal context bloat. No need to go hunt for a coredump, no need to grep through
+	    logs to see if a backtrace exists.. it's all right there instant and automatic.
+	  </p>
+	  <p class="detail-text">>This works well, even with models from companies who's agent CLI does not have the ability to drive
+	    gdb this way! 
           </p>
         </div>
       </div>
