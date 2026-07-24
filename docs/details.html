@@ -131,7 +131,7 @@
  	    Running in a container, well, all bets are off.
           </p>
           <p class="detail-text">
-	    Turbostar will use <code>coredumpctl</code> if it is available, but in addition, libturbocatch.so will trigger the execution of <code>gdb</code>'s "<code>gcore</code>" application
+	    Turbostar will use <code>coredumpctl</code> if it is available, but in addition, libturbocatch.so will trigger the execution of <code>gdb</code>'s <code>gcore</code> application
 	    and make a kernel-independent coredump file of the crashing application. While neither <code>gcore</code> nor <code>coredumpctl</code> each are perfect, the dual-attempt
 	    approach means that in practice, coredumps will be available for each crash;
           </p>
@@ -177,7 +177,7 @@
           <p class="detail-text">
 		Profile collection is subject to very strict security rules in Linux, and to minimize the needed permissions,
 		profiles are collected using a LD_PRELOAD library (libturbocatch.so). This allows the profile to be collected
-	        strictly for its own process (and children), minimizing required permissions.
+	        strictly with the process (and its children), minimizing required permissions.
           </p>
           <p class="detail-text">
 		Symbol resolution and accumulation of data is done by the main Turbostar application, giving a per line
@@ -188,7 +188,7 @@
           <p class="detail-text">
 		AI agents can request profile collection as part of the normal tool calls to run the application, and
 		the various performance profiles are stored in an in-memory database (allowing the agent to compare "before" and "after" profiles).
-		The agent can request overall profile information, as well as per function or per file profile data.
+		The agent can request overall profile information, as well as per function or per source file profile data.
           </p>
 
         </div>
