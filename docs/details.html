@@ -49,8 +49,8 @@
         <ul class="detail-list">
           <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat</li>
           <li><a href="#crash-catching"><strong>2. Catching Crashes</strong></a> — Providing the agent and the user automatic backtraces and debuggable coredumps.</li>
+          <li><a href="#perf-profiling"><strong>3. Performance Profiling </strong></a> — Built-in profiling using Linux' <code>perf subsystem</code> .</li>
 <!--
-          <li><a href="#perf-profiling"><strong>3. Performance Profiling </strong></a> — <code>perf_event_open</code> integration, <code>libturbocatch.so</code> preloads, and multi-run <code>run_id</code> tracking.</li>
           <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
           <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
 -->
@@ -159,41 +159,42 @@
       </div>
     </section>
 
-<!--
-    <section class="features-section" id="perf-profiling-internals" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+    <section class="features-section" id="perf-profiling" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
-        <h2 class="section-title">3. Performance Profiling &amp; Hardware Counters</h2>
+        <h2 class="section-title">3. Built-in Performance Profiling</h2>
         <p>In-process cycle sampling, symbol resolution, and multi-run report storage.</p>
       </div>
 
       <div class="detail-split">
         <div class="detail-info">
           <h3 class="detail-subtitle">Profiling Subsystem</h3>
+	  <p class="detail-text">
+		Turbostar has basic performance profiling natively built in. While the Linux <code>perf</code> tool is very powerful,
+	 	it is not very friendly for integration into editors and other applications due to the limited support for
+		machine readable output. Because of this, for basic profiles, Turbostar directly uses the <code>perf_event_open</code> system
+		call and collects a cycles based profile
+	  </p>
           <p class="detail-text">
-            Performance profiling operates via Linux <code>perf_event_open</code> syscalls injected through <code>libturbocatch.so</code>. Cycle counts are mapped back to source file lines using asynchronous DWARF symbol resolution.
+		Profile collection is subject to very strict security rules in Linux, and to minimize the needed permissions,
+		profiles are collected using a LD_PRELOAD library (libturbocatch.so). This allows the profile to be collected
+	        strictly for its own process (and children), minimizing required permissions.
           </p>
-          <ul class="detail-list">
-            <li><strong>Zero-Kernel Dependency:</strong> Direct hardware counter access without requiring external perf tools or kernel modules.</li>
-            <li><strong>Multi-Run Storage:</strong> Reports are indexed in-memory by execution <code>run_id</code>, allowing agents to compare performance across optimization passes.</li>
-          </ul>
-        </div>
-        <div class="detail-visual">
-          <div class="terminal-mockup">
-            <div class="terminal-header">
-              <div class="terminal-title">perf --subsystem-spec</div>
-            </div>
-            <div class="terminal-content" style="background: var(--bg-secondary);">
-              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Perf Profiling Technical Specs:</span>
-- Hardware Event: PERF_COUNT_HW_CPU_CYCLES
-- Interceptor: libturbocatch.so (LD_PRELOAD)
-- Map Pairing: /proc/self/maps PID pairing
-- Symbol Lookup: eu-addr2line / DWARF line tables
-- Storage Key: run_id ("run_1", "run_2", "editor")</code></pre>
-            </div>
-          </div>
+          <p class="detail-text">
+		Symbol resolution and accumulation of data is done by the main Turbostar application, giving a per line
+		and per function set of data. For the human using the editor, hot lines are shown as hot by a special
+		visualization in the editor window frame, and the F7 hotkey can be used to jump to and between the hotspots
+		in the code.
+	  </p>
+          <p class="detail-text">
+		AI agents can request profile collection as part of the normal tool calls to run the application, and
+		the various performance profiles are stored in an in-memory database (allowing the agent to compare "before" and "after" profiles).
+		The agent can request overall profile information, as well as per function or per file profile data.
+          </p>
+
         </div>
       </div>
     </section>
+<!--
 
     <section class="features-section" id="sandboxing-security" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
