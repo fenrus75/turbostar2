@@ -10,6 +10,7 @@ Top design documentation: `docs/design.md`
 - git commit after each logical change or item implemented. This is a standing rule.
 - **CRITICAL**: When adding a new `event_type` enum value (in `src/event_queue.h`), you **MUST** update the central routing switch statement in `editor::dispatch` inside `src/editor_events.cpp` to route the new event to its handler. Since `editor::dispatch` has a `default: break;` case, a missing mapping compiles with NO warnings but silently discards the event at runtime.
 - perform a code review before each commit to ensure no stray edits happened
+- when working on a crash report, use the process from `docs/turbostar-crash-analysis-protocol.md`
 - run the test suite before commit
 - when fixing a bug (not: new feature), create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
