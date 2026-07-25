@@ -171,6 +171,7 @@ static void fallback_terminate_handler()
 #ifdef TURBOSTAR_GIT_HASH
 		msg += "Git Commit: " TURBOSTAR_GIT_HASH "\n";
 #endif
+		msg += "Analysis Protocol: See docs/turbostar-crash-analysis-protocol.md\n";
 		write(crash_fd, msg.c_str(), msg.length());
 		event_logger::dump_recent_logs_signal_safe(crash_fd, 10);
 	}
@@ -264,6 +265,7 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	safe_write(TURBOSTAR_GIT_HASH);
 	safe_write("\n");
 #endif
+	safe_write("Analysis Protocol: See docs/turbostar-crash-analysis-protocol.md\n");
 
 	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
 	if (crash_fd != -1) {
