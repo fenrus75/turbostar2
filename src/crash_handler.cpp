@@ -1,5 +1,6 @@
 #define UNW_LOCAL_ONLY
 #include "crash_handler.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include <libunwind.h>
 #include <signal.h>
@@ -167,7 +168,9 @@ static void fallback_terminate_handler()
 	if (crash_fd != -1) {
 		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n";
 		write(crash_fd, msg.c_str(), msg.length());
+		event_logger::dump_recent_logs_signal_safe(crash_fd, 10);
 	}
+	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
 
 	std::abort();
 }
@@ -250,6 +253,11 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		safe_write("Executable: ");
 		safe_write(exe_path);
 		safe_write("\n");
+	}
+
+	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
+	if (crash_fd != -1) {
+		event_logger::dump_recent_logs_signal_safe(crash_fd, 10);
 	}
 
 	safe_write("\nStack trace:\n");

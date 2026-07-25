@@ -26,12 +26,37 @@ void event_logger::set_log_file(const std::string &filename)
 	log_stream_.open(filename, std::ios::app);
 }
 
+#include <cstring>
+#include <unistd.h>
+
 void event_logger::log(const std::string &message)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
 
+	std::string formatted_line = std::format("[{:06d}ms] {}\n", ms, message);
+
+	// Populate lock-free signal-safe ring buffer with trailing '\n' included
+	uint64_t seq = ring_write_seq_.fetch_add(1, std::memory_order_relaxed);
+	size_t slot_idx = seq % LOG_RING_SLOTS;
+	auto &slot = ring_slots_[slot_idx];
+
+	// Phase 1: Mark slot invalid (length = 0)
+	slot.length.store(0, std::memory_order_relaxed);
+	std::atomic_thread_fence(std::memory_order_release);
+
+	// Phase 2: Copy formatted_line into slot.data buffer
+	size_t to_copy = std::min(formatted_line.size(), LOG_RING_SLOT_SIZE - 1);
+	std::memcpy(slot.data, formatted_line.data(), to_copy);
+	if (to_copy > 0 && slot.data[to_copy - 1] != '\n') {
+		slot.data[to_copy - 1] = '\n';
+	}
+	slot.data[to_copy] = '\0';
+
+	// Phase 3: Publish actual written length
+	slot.length.store(to_copy, std::memory_order_release);
+
+	std::lock_guard<std::mutex> lock(mutex_);
 	std::string formatted_message = std::format("[{:06d}ms] {}", ms, message);
 
 	events.push_back(formatted_message);
@@ -44,6 +69,33 @@ void event_logger::log(const std::string &message)
 	}
 	if (stdout_logging_ && ms >= 50) {
 		std::cout << formatted_message << std::endl;
+	}
+}
+
+void event_logger::dump_recent_logs_signal_safe(int fd, size_t max_count)
+{
+	if (fd < 0) {
+		return;
+	}
+	auto &inst = get_instance();
+	uint64_t total_logged = inst.ring_write_seq_.load(std::memory_order_acquire);
+	if (total_logged == 0) {
+		return;
+	}
+
+	size_t count = std::min(static_cast<size_t>(total_logged), std::min(max_count, LOG_RING_SLOTS));
+	uint64_t start_seq = total_logged - count;
+
+	const char *header = "\nRecent Debug Logs:\n";
+	write(fd, header, 20);
+
+	for (uint64_t seq = start_seq; seq < total_logged; ++seq) {
+		size_t idx = seq % LOG_RING_SLOTS;
+		const auto &slot = inst.ring_slots_[idx];
+		size_t len = slot.length.load(std::memory_order_acquire);
+		if (len > 0 && len < LOG_RING_SLOT_SIZE) {
+			write(fd, slot.data, len);
+		}
 	}
 }
 
