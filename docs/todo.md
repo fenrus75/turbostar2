@@ -16,8 +16,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- key feature: include the last few log entries in turbostar crash files
-
 - feature: in images:// namespace, give each file an "origin_file" hash and "origin_ops" string, which tools fill in (with a new helper)
 	so that the providence of an image can be documented. Example idea is, that, say if image ABCD is the source image,
 	and the agent calls a rotate(90) operation that yields image EFGH, that image EFGH has an origin_file of ABCD and an origin_ops
@@ -251,7 +249,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 ## 25-07-2026
 - Lock-Free Signal-Safe Debug Log Ring Buffer for Crash Reports (`event_logger.h/cpp`, `crash_handler.cpp`, `test_event_logger.cpp`): Implemented a BSS-allocated circular ring buffer (`LOG_RING_SLOTS = 16`, `LOG_RING_SLOT_SIZE = 256`) with a two-phase atomic length-publishing protocol (`length = 0` during writes, published post-copy). Updated `event_logger::log()` to ensure trailing `\n` is handled on the logging thread. Added `event_logger::dump_recent_logs_signal_safe()` and integrated it into `crash_handler` signal and exception handlers to append recent debug log lines to crash files and stderr without malloc, mutexes, or `strlen()` calls. Added unit test in `test_event_logger.cpp`.
 - Git Commit Hash in Crash Handler Reports (`meson.build`, `src/meson.build`, `src/git_version.h.in`, `src/crash_handler.cpp`): Configured `vcs_tag()` in Meson with `git describe --always --dirty` to generate `git_version.h` (`TURBOSTAR_GIT_HASH`). Updated `crash_handler::fallback_signal_handler` and `fallback_terminate_handler` to write `Git Commit: <hash>` to stderr and crash dump files with 100% signal safety.
-- Streamlined Crash Analysis Protocol & Crash Log Reference (`docs/turbostar-crash-analysis-protocol.md`, `src/crash_handler.cpp`): Refined the 3-step **What – How – Where** protocol documentation into concise imperative guidelines for AI agents. Added `Analysis Protocol: See docs/turbostar-crash-analysis-protocol.md` reference to crash report outputs in `crash_handler`.
+- Streamlined Crash Analysis Protocol & Crash Log Reference (`docs/turbostar-crash-analysis-protocol.md`, `src/crash_handler.cpp`): Refined the 3-step **What – How – Where** protocol documentation into concise imperative guidelines for AI agents, adding explicit testcase creation requirement at the end of the **How** step to verify hypotheses prior to fixing and prove resolution afterwards. Added `Analysis Protocol: See docs/turbostar-crash-analysis-protocol.md` reference to crash report outputs in `crash_handler`.
 
 ## 24-07-2026
 - Technical Details Webpage & Navigation Link (`docs/details.html`, `docs/index.html`, `docs/editor.html`, `docs/ai.html`, `meson.build`): Added new `docs/details.html` page styled consistently with the website design system, featuring a Table of Contents and technical feature deep-dive section skeletons. Updated top header navigation and footer links across all pages, and added `website_validate_details` to the `meson.build` website test suite.

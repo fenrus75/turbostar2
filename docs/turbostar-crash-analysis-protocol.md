@@ -36,6 +36,11 @@ The state was never initialized or assigned a valid value.
 The crash report lacks sufficient context to prove the root cause.
 * **Action:** Do **NOT** write a speculative fix. Instead, improve observability by adding structured logging (`event_logger`), assertions, or telemetry at key decision points so future crashes capture complete diagnostic state.
 
+### D. Testcase Verification (Validating the "How")
+At the conclusion of the **How** analysis (for Positive and Negative How), **MUST** attempt to create a minimal testcase that reproduces the root-cause state.
+* **Validation Rule:** The testcase **MUST** fail prior to applying the fix (verifying your "How" hypothesis) and **MUST** pass once the fix is applied (proving the fix works).
+* **Fallback:** If an automated testcase is not technically feasible (e.g., hardware/OS-specific signal scenarios), document the explicit manual reproduction sequence in your analysis.
+
 ---
 
 ## Step 3: WHERE (Fix Location)
@@ -46,4 +51,4 @@ Determine the correct location in the codebase for the fix based on Step 2.
 2. **Defensive Guard (Fallback):** Avoid placing a simple NULL check or dummy fallback at the crash site unless handling the condition locally is valid domain logic.
 3. **Commit Message Format:** Ensure the final Git commit message includes:
    - Line 1: **WHAT** summary
-   - Body: **HOW** trace (Q&A steps) and **WHERE** fix rationale.
+   - Body: **HOW** trace (Q&A steps), testcase verification result, and **WHERE** fix rationale.
