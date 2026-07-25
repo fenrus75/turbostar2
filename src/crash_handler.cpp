@@ -2,6 +2,7 @@
 #include "crash_handler.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "git_version.h"
 #include <libunwind.h>
 #include <signal.h>
 #include <ucontext.h>
@@ -167,6 +168,9 @@ static void fallback_terminate_handler()
 
 	if (crash_fd != -1) {
 		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n";
+#ifdef TURBOSTAR_GIT_HASH
+		msg += "Git Commit: " TURBOSTAR_GIT_HASH "\n";
+#endif
 		write(crash_fd, msg.c_str(), msg.length());
 		event_logger::dump_recent_logs_signal_safe(crash_fd, 10);
 	}
@@ -254,6 +258,12 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		safe_write(exe_path);
 		safe_write("\n");
 	}
+
+#ifdef TURBOSTAR_GIT_HASH
+	safe_write("Git Commit: ");
+	safe_write(TURBOSTAR_GIT_HASH);
+	safe_write("\n");
+#endif
 
 	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
 	if (crash_fd != -1) {

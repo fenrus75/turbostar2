@@ -1,0 +1,5 @@
+#pragma once
+
+#ifndef TURBOSTAR_GIT_HASH
+#define TURBOSTAR_GIT_HASH "@VCS_TAG@"
+#endif

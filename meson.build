@@ -18,6 +18,12 @@ if get_option('enable-analyzer')
   endif
 endif
 git_prog = find_program('git', required: false)
+git_version_h = vcs_tag(
+  input : 'src/git_version.h.in',
+  output : 'git_version.h',
+  fallback : meson.project_version(),
+  command : ['git', 'describe', '--always', '--dirty']
+)
 ncurses_dep = dependency('ncursesw', required : false)
 if not ncurses_dep.found()
   ncurses_dep = cc.find_library('ncursesw', required : true)
