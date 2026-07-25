@@ -50,6 +50,7 @@
           <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat</li>
           <li><a href="#crash-catching"><strong>2. Catching Crashes</strong></a> — Providing the agent and the user automatic backtraces and debuggable coredumps.</li>
           <li><a href="#perf-profiling"><strong>3. Performance Profiling </strong></a> — Built-in profiling using Linux' <code>perf subsystem</code> .</li>
+          <li><a href="#compile-context"><strong>4. Compile output aware</strong></a> — Reduce context consumption of compile and test output</li>
 <!--
           <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
           <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
@@ -189,6 +190,37 @@
 		AI agents can request profile collection as part of the normal tool calls to run the application, and
 		the various performance profiles are stored in an in-memory database (allowing the agent to compare "before" and "after" profiles).
 		The agent can request overall profile information, as well as per function or per source file profile data.
+          </p>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section" id="compile-context" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">4. Compiler output awareness
+        <p>Reduce context-token consumption of compiler and test output.</p>
+      </div>
+
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">Compiler output</h3>
+	  <p class="detail-text">
+		Compiling software can give a lot of output - for example, meson emits about 1000 lines when compiling Turbostar.
+		Most of those 1000 lines - all the successful warning-free lines -- are not useful for the LLM, but would still
+		consume tokens in the context window. 
+	  </p>
+          <p class="detail-text">
+		Turbostar is aware of the common standard output of build frameworks such as meson, and will filter out
+		all the standard lines that provide no value to the LLM. Obviously, this is only meaningful
+		for compiled languages -- but the reduction in context consuming tokens is usually in the 20x to 50x range!
+          </p>
+          <h3 class="detail-subtitle">Test suite output</h3>
+          <p class="detail-text">
+		Just like compiler output, output of test suites tends to be formatted in standard ways, and Turbostar
+		will try to filter out successful tests, leaving only test failures for the LLM to worry about.
+	  </p>
+          <p class="detail-text">
           </p>
 
         </div>
