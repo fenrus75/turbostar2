@@ -47,55 +47,42 @@
           Jump to specific technical topics and deep-dive architectural specifications:
         </p>
         <ul class="detail-list">
-          <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat</li>
+          <li><a href="#tool-families"><strong>1. Tool Families</strong></a> — How to provide a large, rich toolset to an agent without context bloat.</li>
           <li><a href="#crash-catching"><strong>2. Catching Crashes</strong></a> — Providing the agent and the user automatic backtraces and debuggable coredumps.</li>
-          <li><a href="#perf-profiling"><strong>3. Performance Profiling </strong></a> — Built-in profiling using Linux' <code>perf subsystem</code> .</li>
-          <li><a href="#compile-context"><strong>4. Compile output aware</strong></a> — Reduce context consumption of compile and test output</li>
-<!--
-          <li><a href="#sandboxing-security"><strong>4. Sandboxing &amp; Process Isolation</strong></a> — Linux mount/PID namespaces, cgroup limits, and secure tool execution.</li>
-          <li><a href="#context-paging-engine"><strong>5. Virtual Context Paging Engine</strong></a> — Tiered conversation compression, disk fallback, and memory-mapped history.</li>
--->
+          <li><a href="#perf-profiling"><strong>3. Performance Profiling</strong></a> — Built-in profiling using Linux's <code>perf</code> subsystem.</li>
+          <li><a href="#compile-context"><strong>4. Compile Output Awareness</strong></a> — Reduce context consumption of compile and test output.</li>
         </ul>
       </div>
     </section>
 
     <section class="features-section" id="tool-families" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
-        <h2 class="section-title">1. Tool families</h2>
+        <h2 class="section-title">1. Tool Families</h2>
         <p>How to provide a large, rich toolset to an agent without context bloat</p>
       </div>
 
       <div class="detail-split">
         <div class="detail-info">
-          <h3 class="detail-subtitle">Problem statement</h3>
+          <h3 class="detail-subtitle">Problem Statement</h3>
           <p class="detail-text">
-             When an agent framework provides a very large set of tools to the LLM, model performance tends to degrade. Not only does a large
-	     toolset take up a lot of tokens, but models - especially quantized ones - often tend to start hallucinating tool parameters or even
-	     tool names.
+            When an agent framework provides a very large set of tools to the LLM, model performance tends to degrade. Not only does a large toolset take up a lot of tokens, but models—especially quantized ones—often start hallucinating tool parameters or even tool names.
           </p>
-          <h3 class="detail-subtitle">Solution: Tool families</h3>
+          <h3 class="detail-subtitle">Solution: Tool Families</h3>
           <p class="detail-text">
-		Turbostar groups tools into "tool families"; most of which will not be enabled by default. The LLM is provided a tool call
-		to activate a tool family, and is provided a list of available families, including descriptions that inform the LLM when
-		to activate the specific tool family.
+            Turbostar groups tools into "tool families", most of which are not enabled by default. The LLM is provided a tool call to activate a tool family, along with a list of available families including descriptions that inform the LLM when to activate a specific family.
           </p>
-	  <p>
-		To illustrate this concept better, below is a list of some of the available tool families in Turbostar. Note that plugins
-	 	can register their own tool families dynamically.
-	        <ul class="detail-list">
-		<li>git - all the various tool calls to interact with the git version control system </li>
-		<li>hexedit - various tools to analyze, dump and edit binary files</li>
-		<li>image - various image processing tools (zoom, rotate, crop, format conversion, etc)</li>
-		<li>x86asm - tools to assemble, disassemble and analyze x86 code
-		</ul>
-	  </p>
-	  <p>
-		In agent definition files (agent.md etc), we extend the agent specification with an option that specifies which tool families 
-		are enabled by default for this agent. For example, a coding agent will have the "git" family enabled, while an agent working
-	   	on webpages may have the "image" tool family enabled by default, but not the git one.
-	  </p>
-
-
+          <p class="detail-text">
+            To illustrate this concept better, below is a list of some available tool families in Turbostar. Plugins can also register their own tool families dynamically.
+          </p>
+          <ul class="detail-list">
+            <li><strong>git:</strong> All the tool calls to interact with the Git version control system.</li>
+            <li><strong>hexedit:</strong> Tools to analyze, dump, and edit binary files.</li>
+            <li><strong>image:</strong> Image processing tools (zoom, rotate, crop, format conversion, etc.).</li>
+            <li><strong>x86asm:</strong> Tools to assemble, disassemble, and analyze x86/x64 machine code.</li>
+          </ul>
+          <p class="detail-text">
+            In agent definition files (e.g., <code>agent.md</code>), we extend the agent specification with an option that specifies which tool families are enabled by default for that agent. For example, a coding agent will have the "git" family enabled by default, while an agent working on webpages may have the "image" tool family enabled, but not the Git family.
+          </p>
         </div>
       </div>
     </section>
@@ -110,51 +97,39 @@
         <div class="detail-info">
           <h3 class="detail-subtitle">Backtraces</h3>
           <p class="detail-text">
-            Native (C, C++, etc) applications can "crash" for many reasons, from chasing a bad pointer, to hitting an assert() to not handling an exception.
-	    Turbostar will wrap test and application execution with a special LD_PRELOAD library (libturbocatch.so) that will intercept key signals and
-	    will (carefully) write a stack trace to a dedicated location. 
+            Native applications (C, C++, etc.) can crash for many reasons—from chasing a bad pointer to hitting an <code>assert()</code> or failing to handle an exception. Turbostar wraps test and application execution with a special <code>LD_PRELOAD</code> library (<code>libturbocatch.so</code>) that intercepts key signals and carefully writes a stack trace to a dedicated location.
           </p>
           <p class="detail-text">
-	    The main turbostar application will use this backtrace file to decode the addresses (something that is not safe in signal handlers) to turn
-	    this into an actionable report for the user and the AI agent. Turbostar keeps an internal database of crashes, and the user and the AI agent
-	    can go through these and look at the details at any time. For the user of the editor, backtrace elements have a "go to source" option
-	    for those parts of the backtrace that are within the project.
+            The main Turbostar application uses this backtrace file to decode addresses (something that is not safe to do inside signal handlers) and turn them into an actionable report for both the user and the AI agent. Turbostar maintains an internal crash database so users and AI agents can review crash details at any time. For human editor users, backtrace entries within the project include a "go to source" option.
           </p>
           <p class="detail-text">
-	    AI agents get automatically notified that a crash happened, with instructions on how to retreive the details for the crash.
+            AI agents are automatically notified when a crash occurs, complete with instructions on how to retrieve crash details.
           </p>
         </div>
         <div class="detail-info">
           <h3 class="detail-subtitle">Coredumps</h3>
           <p class="detail-text">
-	    Coredumps are the ultimate data for analyzing crashing, containing a full copy of the memory of the application at the time of crash. However,
-            reliably getting a coredump file turns out to be a nightmare of Linux distribution specific mess. Systemd's <code>coredumpctl</code>? Not on Debian. Running ChromeOS? Just forget it.
- 	    Running in a container, well, all bets are off.
+            Coredumps are the ultimate data source for analyzing crashes, containing a full memory snapshot of the application at the moment of failure. However, reliably generating a coredump file turns out to be a nightmare of Linux distribution-specific quirks. Systemd's <code>coredumpctl</code>? Not on Debian. Running ChromeOS? Forget it. Running inside a container? All bets are off.
           </p>
           <p class="detail-text">
-	    Turbostar will use <code>coredumpctl</code> if it is available, but in addition, libturbocatch.so will trigger the execution of <code>gdb</code>'s <code>gcore</code> application
-	    and make a kernel-independent coredump file of the crashing application. While neither <code>gcore</code> nor <code>coredumpctl</code> each are perfect, the dual-attempt
-	    approach means that in practice, coredumps will be available for each crash;
+            Turbostar uses <code>coredumpctl</code> if available, but <code>libturbocatch.so</code> additionally triggers execution of <code>gdb</code>'s <code>gcore</code> utility to produce a kernel-independent coredump file. While neither tool is individually perfect, this dual-attempt approach ensures coredumps are reliably generated for every crash.
           </p>
           <p class="detail-text">
-	    From the backtrace details, an one click "<code>gdb</code> window for the coredump" is available to the human user of the editor, while for AI agents,
-  	    a fully interactive <code>gdb</code> session is one tool call away. 
+            From the backtrace details, a one-click "GDB window for the coredump" option is available to human editor users, while a fully interactive <code>gdb</code> session is just one tool call away for AI agents.
           </p>
         </div>
         <div class="detail-info">
           <h3 class="detail-subtitle">Example</h3>
           <p class="detail-text">
-		An example crash dump that is given to an AI agent can be seen <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/crash.md">on github</a>.
-	  </p>
+            An example crash dump provided to an AI agent can be viewed <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/crash.md" target="_blank" rel="noopener noreferrer">on GitHub</a>.
+          </p>
 
           <h3 class="detail-subtitle">Result</h3>
           <p class="detail-text">
-	    The result: on a crash, the AI agent is notified of this, and has direct access to a full, high quality backtrace... and then will drive
-	    <code>gdb</code> on the coredump if it needs more details.. fast and with minimal context bloat. No need to go hunt for a coredump, no need to grep through
-	    logs to see if a backtrace exists.. it's all right there instantly and automatic.
-	  </p>
-	  <p class="detail-text">This works well with various open models, but even with models from companies who's agent CLI does not have the ability to drive
-	    <code>gdb</code> this way! 
+            On a crash, the AI agent is notified immediately and gains direct access to a full, high-quality backtrace... and can then drive <code>gdb</code> on the coredump if more details are needed—fast and with minimal context bloat. No hunting for coredumps or grepping through logs; everything is available instantly and automatically.
+          </p>
+          <p class="detail-text">
+            This works seamlessly with open models, as well as models from providers whose agent CLI lacks native GDB integration!
           </p>
         </div>
       </div>
@@ -169,134 +144,46 @@
       <div class="detail-split">
         <div class="detail-info">
           <h3 class="detail-subtitle">Profiling Subsystem</h3>
-	  <p class="detail-text">
-		Turbostar has basic performance profiling natively built in. While the Linux <code>perf</code> tool is very powerful,
-	 	it is not very friendly for integration into editors and other applications due to the limited support for
-		machine readable output. Because of this, for basic profiles, Turbostar directly uses the <code>perf_event_open</code> system
-		call and collects a cycles based profile
-	  </p>
           <p class="detail-text">
-		Profile collection is subject to very strict security rules in Linux, and to minimize the needed permissions,
-		profiles are collected using a LD_PRELOAD library (libturbocatch.so). This allows the profile to be collected
-	        strictly with the process (and its children), minimizing required permissions.
+            Turbostar includes native basic performance profiling. While the Linux <code>perf</code> CLI tool is powerful, its output format is not editor-friendly. To provide basic profiling, Turbostar invokes the <code>perf_event_open</code> system call directly to collect a cycle-based profile.
           </p>
           <p class="detail-text">
-		Symbol resolution and accumulation of data is done by the main Turbostar application, giving a per line
-		and per function set of data. For the human using the editor, hot lines are shown as hot by a special
-		visualization in the editor window frame, and the F7 hotkey can be used to jump to and between the hotspots
-		in the code.
-	  </p>
-          <p class="detail-text">
-		AI agents can request profile collection as part of the normal tool calls to run the application, and
-		the various performance profiles are stored in an in-memory database (allowing the agent to compare "before" and "after" profiles).
-		The agent can request overall profile information, as well as per function or per source file profile data.
+            Profile collection is subject to strict Linux security policies. To minimize required permissions, profiles are gathered using an <code>LD_PRELOAD</code> library (<code>libturbocatch.so</code>), scoping sampling strictly to the target process and its children.
           </p>
-
+          <p class="detail-text">
+            Symbol resolution and data accumulation are handled by the main Turbostar application, producing per-line and per-function datasets. Hot lines are highlighted directly on the editor window frame, and the <code>F7</code> hotkey allows quick navigation between hotspots in the code.
+          </p>
+          <p class="detail-text">
+            AI agents can request profile collection during normal app execution tool calls. Profiles are stored in an in-memory database, allowing agents to compare "before" and "after" runs and query function-level or source-file-level details.
+          </p>
         </div>
       </div>
     </section>
 
     <section class="features-section" id="compile-context" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
       <div class="section-header">
-        <h2 class="section-title">4. Compiler output awareness
+        <h2 class="section-title">4. Compiler Output Awareness</h2>
         <p>Reduce context-token consumption of compiler and test output.</p>
       </div>
 
       <div class="detail-split">
         <div class="detail-info">
-          <h3 class="detail-subtitle">Compiler output</h3>
-	  <p class="detail-text">
-		Compiling software can give a lot of output - for example, meson emits about 1000 lines when compiling Turbostar.
-		Most of those 1000 lines - all the successful warning-free lines -- are not useful for the LLM, but would still
-		consume tokens in the context window. 
-	  </p>
+          <h3 class="detail-subtitle">Compiler Output</h3>
           <p class="detail-text">
-		Turbostar is aware of the common standard output of build frameworks such as meson, and will filter out
-		all the standard lines that provide no value to the LLM. Obviously, this is only meaningful
-		for compiled languages -- but the reduction in context consuming tokens is usually in the 20x to 50x range!
+            Compiling software can generate verbose output—for example, Meson emits over 1,000 lines when compiling Turbostar. Most of those lines (successful, warning-free build steps) offer no value to the LLM while consuming substantial context window tokens.
           </p>
-          <h3 class="detail-subtitle">Test suite output</h3>
           <p class="detail-text">
-		Just like compiler output, output of test suites tends to be formatted in standard ways, and Turbostar
-		will try to filter out successful tests, leaving only test failures for the LLM to worry about.
-	  </p>
-          <p class="detail-text">
+            Turbostar parses standard output from common build systems like Meson and filters out noise lines. While this applies primarily to compiled languages, the reduction in context-consuming tokens is typically between 20x and 50x!
           </p>
-
-        </div>
-      </div>
-    </section>
-<!--
-
-    <section class="features-section" id="sandboxing-security" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
-      <div class="section-header">
-        <h2 class="section-title">4. Sandboxing &amp; Process Isolation</h2>
-        <p>Security model, systemd namespace isolation, and pre-execution script validation.</p>
-      </div>
-
-      <div class="detail-split reverse">
-        <div class="detail-info">
-          <h3 class="detail-subtitle">Security Engine</h3>
+          <h3 class="detail-subtitle">Test Suite Output</h3>
           <p class="detail-text">
-            All untrusted tool executions and child application processes run inside restricted Linux mount and PID namespaces created via systemd isolation.
+            Similarly, test suite output follows standard formats. Turbostar filters out successful tests, presenting only test failures for the LLM to analyze.
           </p>
-          <ul class="detail-list">
-            <li><strong>Filesystem Security:</strong> Restricts read/write access to explicitly authorized project paths.</li>
-            <li><strong>Static Analysis Checks:</strong> Automated Bandit scanning blocks insecure Python scripts prior to native execution.</li>
-          </ul>
-        </div>
-        <div class="detail-visual">
-          <div class="terminal-mockup">
-            <div class="terminal-header">
-              <div class="terminal-title">sandbox --security-spec</div>
-            </div>
-            <div class="terminal-content" style="background: var(--bg-secondary);">
-              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Sandboxing Architecture Specs:</span>
-- Namespace Boundaries: Mount, PID, IPC, Network (optional)
-- Root FS Mount: Read-only tmpfs
-- Project Mount: Read/Write bind-mount (restricted)
-- Static Scanner: Bandit (Python AST inspector)</code></pre>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="features-section" id="context-paging-engine" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
-      <div class="section-header">
-        <h2 class="section-title">5. Virtual Context Paging Engine</h2>
-        <p>Tiered context compression, memory-mapped history, and disk page-in upgrades.</p>
-      </div>
-
-      <div class="detail-split">
-        <div class="detail-info">
-          <h3 class="detail-subtitle">Paging Architecture</h3>
-          <p class="detail-text">
-            To prevent context window overflow during extended agent interactions, Turbostar implements a memory-mapped context paging engine inspired by operating system virtual memory.
-          </p>
-          <ul class="detail-list">
-            <li><strong>Tiered Compression:</strong> Converts full tool outputs and reasoning blocks into compact redirection markers.</li>
-            <li><strong>On-Disk Persistence:</strong> Retains complete uncompressed conversation trajectories on disk for page-in retrieval.</li>
-          </ul>
-        </div>
-        <div class="detail-visual">
-          <div class="terminal-mockup">
-            <div class="terminal-header">
-              <div class="terminal-title">paging --engine-spec</div>
-            </div>
-            <div class="terminal-content" style="background: var(--bg-secondary);">
-              <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Context Paging Technical Specs:</span>
-- Level 0: Full Content (Active Window)
-- Level 1: Think-Removed Content (Compressed Reasoning)
-- Level 2: Tool-Call Reduced Content (Redirection Tokens)
-- Persistence Store: JSONL log trajectory store</code></pre>
-            </div>
-          </div>
         </div>
       </div>
     </section>
   </main>
--->
+
   <!-- Footer -->
   <footer>
     <div class="footer-container">
