@@ -29,10 +29,7 @@ class config_manager
 	{
 		return build_system_;
 	}
-	void set_build_system(const std::string &sys)
-	{
-		build_system_ = sys;
-	}
+	void set_build_system(const std::string &sys);
 
 	std::string get_build_directory() const
 	{

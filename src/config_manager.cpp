@@ -7,12 +7,25 @@
 #include "event_logger.h"
 #include "project_manager.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace fs = std::filesystem;
 
 config_manager &config_manager::get_instance()
 {
 	static config_manager instance;
 	return instance;
+}
+
+void config_manager::set_build_system(const std::string &sys)
+{
+	std::string bs = sys;
+	std::transform(bs.begin(), bs.end(), bs.begin(), [](unsigned char c) { return std::tolower(c); });
+	if (bs == "pyproject.toml") {
+		bs = "python";
+	}
+	build_system_ = bs;
 }
 
 std::string config_manager::get_config_file_path() const
