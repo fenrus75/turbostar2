@@ -2617,18 +2617,10 @@ bool apply_new_project_from_dialog(const dialog &dlg, std::string &out_error)
 	if (ok) {
 		std::string bs = opts.buildsystem;
 		std::transform(bs.begin(), bs.end(), bs.begin(), [](unsigned char c) { return std::tolower(c); });
-
-		if (bs == "meson") {
-			config_manager::get_instance().set_build_system("meson");
-		} else if (bs == "cmake") {
-			config_manager::get_instance().set_build_system("cmake");
-		} else if (bs == "cargo") {
-			config_manager::get_instance().set_build_system("cargo");
-		} else if (bs.find("pyproject") != std::string::npos || opts.language == "Python") {
-			config_manager::get_instance().set_build_system("python");
-		} else {
-			config_manager::get_instance().set_build_system(bs);
+		if (bs == "pyproject.toml") {
+			bs = "python";
 		}
+		config_manager::get_instance().set_build_system(bs);
 
 		std::string cache_root = fs_utils::get_project_cache_root();
 		if (!cache_root.empty()) {
