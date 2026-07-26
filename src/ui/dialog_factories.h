@@ -46,3 +46,6 @@ std::unique_ptr<dialog> create_copilot_connect_dialog();
 struct review_item;
 std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item);
 std::unique_ptr<dialog> create_image_manager_dialog();
+
+std::unique_ptr<dialog> create_new_project_dialog();
+bool apply_new_project_from_dialog(const dialog &dlg, std::string &out_error);

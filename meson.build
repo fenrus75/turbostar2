@@ -212,6 +212,12 @@ test_event_logger = executable('test_event_logger',
   include_directories: 'src')
 test('unit_event_logger', test_event_logger, suite: 'agent')
 
+test_project_template_manager = executable('test_project_template_manager',
+  ['tests/unit/test_project_template_manager.cpp'],
+  dependencies : [core_dep],
+  include_directories: inc)
+test('unit_project_template_manager', test_project_template_manager, suite: 'agent')
+
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
   ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   include_directories: 'src')

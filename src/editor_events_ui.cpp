@@ -184,6 +184,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::new_project) {
+		logger.log("Dispatching new_project event.");
+		active_dialog_ = create_new_project_dialog();
+		active_dialog_mode_ = dialog_mode::new_project;
+		set_focus(focus_target::dialog, "new_project");
+		return;
+	}
+
 	if (ev.type == event_type::plugins) {
 		logger.log("Dispatching plugins event.");
 		std::vector<std::string> lines;

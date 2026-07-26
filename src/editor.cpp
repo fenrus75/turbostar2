@@ -25,6 +25,7 @@
 #include "history_manager.h"
 #include "perf_manager.h"
 #include "project_manager.h"
+#include "project_template_manager.h"
 #include "utf8.h"
 #include "line.h"
 #include "filter_registry.h"
@@ -134,9 +135,15 @@ editor::editor(editor_options opts)
 			} else {
 				new_window("");
 				if (!opts.no_welcome && initial_agent_prompt_.empty()) {
-					active_dialog_ = create_welcome_dialog();
-					active_dialog_mode_ = dialog_mode::welcome;
-					set_focus(focus_target::dialog, "welcome");
+					if (turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
+						active_dialog_ = create_new_project_dialog();
+						active_dialog_mode_ = dialog_mode::new_project;
+						set_focus(focus_target::dialog, "new_project");
+					} else {
+						active_dialog_ = create_welcome_dialog();
+						active_dialog_mode_ = dialog_mode::welcome;
+						set_focus(focus_target::dialog, "welcome");
+					}
 				}
 			}
 		}

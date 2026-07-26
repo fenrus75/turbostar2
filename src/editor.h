@@ -220,7 +220,8 @@ class editor : public agentlib::document_provider
 		insert_file_multiline,
 		image_manager,
 		image_import_select_file,
-		image_save_select_file
+		image_save_select_file,
+		new_project
 	};
 	int codereview_edit_item_id_{-1};
 	std::string pending_image_vfs_uri_;

@@ -264,6 +264,21 @@ void editor::resolve_dialog(dialog_result res)
 				}
 				update_window_menu();
 			}
+		} else if (active_dialog_mode_ == dialog_mode::new_project) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "ok") {
+				std::string err;
+				bool ok = apply_new_project_from_dialog(*active_dialog_, err);
+				if (!ok && !err.empty()) {
+					active_dialog_ = create_message_dialog("Error Creating Project", {err});
+					active_dialog_mode_ = dialog_mode::none;
+					set_focus(focus_target::dialog, "error");
+					return;
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+			}
 		} else if (active_dialog_mode_ == dialog_mode::model_list) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "add") {

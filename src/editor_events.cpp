@@ -142,6 +142,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::redraw:
 		case event_type::notify_undo_changed:
 		case event_type::about:
+		case event_type::new_project:
 		case event_type::plugins:
 		case event_type::settings:
 		case event_type::syntax_colors_config:

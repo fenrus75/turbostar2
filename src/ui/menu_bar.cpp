@@ -9,7 +9,8 @@ menu_bar::menu_bar()
 	categories_ = {
 	    {"File",
 	     'f',
-	     {{"New", event_type::new_doc, 'n', "^KN", false},
+	     {{"New Project...", event_type::new_project, 'p', "", false},
+	      {"New File", event_type::new_doc, 'n', "^KN", false},
 	      {"Open...", event_type::load, 'o', "^KE", false},
 	      {"Save", event_type::save, 's', "^KS", false},
 	      {"Save as...", event_type::save_as, 'a', "^KW", false},

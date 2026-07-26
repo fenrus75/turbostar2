@@ -1,0 +1,6 @@
+[package]
+name = "@@PROJECT_NAME_LOWER@@"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]

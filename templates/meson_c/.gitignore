@@ -1,0 +1,6 @@
+build/
+.ninja_*
+*.o
+*.so
+*.a
+.cache/

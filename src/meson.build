@@ -20,6 +20,7 @@ core_sources = files(
   'git_manager.cpp',
   'lsp_manager.cpp',
   'project_manager.cpp',
+  'project_template_manager.cpp',
   'event_logger.cpp',
   'event_queue.cpp',
   'gcc_log_parser.cpp',
@@ -194,9 +195,14 @@ turbostar_movie_h = custom_target('turbostar_movie.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'turbostar_movie_json']
 )
 
+project_templates_embedded_h = custom_target('project_templates_embedded.h',
+  output : 'project_templates_embedded.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_templates.py'), join_paths(meson.project_source_root(), 'templates'), '@OUTPUT@']
+)
+
 # Define static libraries
 libturbostar_core = static_library('turbostar_core',
-  core_sources + [git_version_h],
+  core_sources + [git_version_h, project_templates_embedded_h],
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
   dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep])
