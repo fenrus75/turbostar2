@@ -42,7 +42,8 @@ std::string image_crop_tool::execute(agentlib::tool_context &ctx)
 			target_alias = *args_.output;
 		}
 
-		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias);
+		std::string origin_ops = std::format("crop({},{},{},{})", args_.x, args_.y, args_.width, args_.height);
+		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest cropped image to VFS.");
 			return "Error: Failed to re-ingest cropped image into VFS cache.";

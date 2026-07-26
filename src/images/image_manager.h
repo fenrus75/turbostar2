@@ -16,6 +16,14 @@ struct image_metadata {
 	int width = 0;
 	int height = 0;
 	size_t size_bytes = 0;
+	std::string origin_file;
+	std::string origin_ops;
+};
+
+struct origin_chain_node {
+	std::string sha256;
+	std::string name;
+	std::string origin_ops;
 };
 
 class image_manager
@@ -33,16 +41,30 @@ class image_manager
 	// - images://<name> (equivalent to images://by-name/<name>)
 	std::string resolve_uri(const std::string &uri);
 
+	// Resolves any VFS URI, alias, or file ID to its canonical sha256 hash.
+	std::string get_canonical_sha256(const std::string &uri);
+
 	// Generates a unique temporary image file path under cache_root
 	std::string get_temp_image_path();
 
 	// Ingests an image from temp_path, computes its hash, parses dimensions,
-	// copies it to the cache directory, and associates it with the given name.
+	// copies it to the cache directory, and associates it with the given name
+	// and optional provenance info (origin_file URI/hash and origin_ops string).
 	// Returns the resolved images://by-sha256/ URI.
-	std::string ingest_image(const std::string &temp_path, const std::string &alias = "");
+	std::string ingest_image(
+	    const std::string &temp_path,
+	    const std::string &alias = "",
+	    const std::string &origin_file = "",
+	    const std::string &origin_ops = "");
 
 	// Retrieves metadata for a resolved URI
 	bool get_metadata(const std::string &uri, image_metadata &out_meta);
+
+	// Returns the full provenance chain from root source image to current image
+	std::vector<origin_chain_node> get_origin_chain(const std::string &uri);
+
+	// Formats the origin chain as a human/agent-readable string
+	std::string format_origin_chain(const std::string &uri);
 
 	// Registers a remote provider file_id mapping for a resolved VFS image
 	bool register_file_id(const std::string &uri, const std::string &file_id);

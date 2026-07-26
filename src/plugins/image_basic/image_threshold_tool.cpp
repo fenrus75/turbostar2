@@ -38,7 +38,8 @@ std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 			target_alias = *args_.output;
 		}
 
-		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias);
+		std::string origin_ops = args_.level.has_value() ? std::format("threshold({})", *args_.level) : std::format("adaptiveThreshold({},{},{})", args_.windowWidth, args_.windowHeight, args_.offset);
+		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest thresholded image to VFS.");
 			return "Error: Failed to re-ingest thresholded image into VFS cache.";

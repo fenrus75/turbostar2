@@ -43,7 +43,8 @@ std::string image_compose_tool::execute(agentlib::tool_context &ctx)
 			target_alias = *args_.output;
 		}
 
-		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias);
+		std::string origin_ops = std::format("compose(x={},y={})", args_.x, args_.y);
+		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.main_image, origin_ops);
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest composed image to VFS.");
 			return "Error: Failed to re-ingest composed image into VFS cache.";

@@ -33,7 +33,7 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 			target_alias = *args_.output;
 		}
 
-		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias);
+		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, "grayscale");
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest grayscale image to VFS.");
 			return "Error: Failed to re-ingest grayscale image into VFS cache.";

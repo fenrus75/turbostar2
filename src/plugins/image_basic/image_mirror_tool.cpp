@@ -41,7 +41,8 @@ std::string image_mirror_tool::execute(agentlib::tool_context &ctx)
 			target_alias = *args_.output;
 		}
 
-		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias);
+		std::string origin_ops = std::format("mirror({})", args_.direction);
+		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest mirrored image to VFS.");
 			return "Error: Failed to re-ingest mirrored image into VFS cache.";

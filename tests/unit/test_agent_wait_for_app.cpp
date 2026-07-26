@@ -102,7 +102,7 @@ int main()
 			ctx.doc_provider = &dummy;
 			turbostar::perf_profile_report report;
 			report.total_samples = 100;
-			turbostar::perf_manager::get_instance().set_active_profile(report);
+			turbostar::perf_manager::get_instance().set_active_profile(report, "run_42");
 
 			std::string res = registry.execute_tool("agent_wait_for_app", R"({"run_id": 42})", ctx);
 			assert(res.find("profile_notification") != std::string::npos);

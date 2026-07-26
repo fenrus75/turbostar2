@@ -71,7 +71,7 @@ int main()
 			ctx.doc_provider = &dummy;
 			turbostar::perf_profile_report report;
 			report.total_samples = 50;
-			turbostar::perf_manager::get_instance().set_active_profile(report);
+			turbostar::perf_manager::get_instance().set_active_profile(report, "run_1");
 
 			auto prep = registry.prepare_tool("agent_terminate_run", "{\"run_id\": 1}", ctx);
 			assert(prep.tool != nullptr);

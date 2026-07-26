@@ -10,6 +10,7 @@
 #include "filter_registry.h"
 #include "pluginloader.h"
 #include "project_manager.h"
+#include "images/image_manager.h"
 #include "fs_utils.h"
 
 using namespace agentlib;
@@ -276,6 +277,38 @@ int main()
 		std::cout << "image_getdata result: " << result.substr(0, 100) << "..." << std::endl;
 		assert(!result.empty());
 		assert(result.starts_with("data:image/png;base64,"));
+	}
+
+	// 15. Test Image Provenance & Origin Chain Tracking
+	{
+		std::cout << "Testing Image Provenance & Origin Chain Tracking..." << std::endl;
+
+		// 15a. Rotate logo.jpg (alias) -> logo_chain_rot.jpg
+		nlohmann::json rot_args = {{"name", "logo.jpg"}, {"degrees", 90}, {"output", "logo_chain_rot.jpg"}};
+		std::string rot_res = registry.execute_tool("image_rotate", rot_args.dump(), ctx);
+		assert(rot_res.find("Successfully rotated") != std::string::npos);
+
+		// 15b. Crop logo_chain_rot.jpg (alias) -> logo_chain_crop.jpg
+		nlohmann::json crop_args = {{"name", "logo_chain_rot.jpg"}, {"x", 5}, {"y", 5}, {"width", 20}, {"height", 20}, {"output", "logo_chain_crop.jpg"}};
+		std::string crop_res = registry.execute_tool("image_crop", crop_args.dump(), ctx);
+		assert(crop_res.find("Successfully cropped") != std::string::npos);
+
+		// 15c. Verify metadata origin fields
+		images::image_metadata meta;
+		bool meta_ok = images::image_manager::get_instance().get_metadata("images://logo_chain_crop.jpg", meta);
+		assert(meta_ok);
+		std::cout << "Origin file hash: " << meta.origin_file << std::endl;
+		std::cout << "Origin ops: " << meta.origin_ops << std::endl;
+		assert(!meta.origin_file.empty());
+		assert(meta.origin_ops == "crop(5,5,20,20)");
+
+		// 15d. Verify formatted origin chain
+		std::string chain_str = images::image_manager::get_instance().format_origin_chain("images://logo_chain_crop.jpg");
+		std::cout << "Formatted origin chain: " << chain_str << std::endl;
+		assert(chain_str.find("images://logo.jpg") != std::string::npos);
+		assert(chain_str.find("rotate(90)") != std::string::npos);
+		assert(chain_str.find("crop(5,5,20,20)") != std::string::npos);
+		assert(chain_str.find("images://logo_chain_crop.jpg") != std::string::npos);
 	}
 
 	std::cout << "All basic image operation tests passed successfully!" << std::endl;

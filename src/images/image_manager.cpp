@@ -192,6 +192,8 @@ void image_manager::load_mappings()
 				meta.width = item.value("width", 0);
 				meta.height = item.value("height", 0);
 				meta.size_bytes = item.value("size_bytes", 0UL);
+				meta.origin_file = item.value("origin_file", "");
+				meta.origin_ops = item.value("origin_ops", "");
 				mappings_.push_back(meta);
 			}
 		}
@@ -219,12 +221,60 @@ void image_manager::save_mappings()
 		item["width"] = meta.width;
 		item["height"] = meta.height;
 		item["size_bytes"] = meta.size_bytes;
+		item["origin_file"] = meta.origin_file;
+		item["origin_ops"] = meta.origin_ops;
 		j_list.push_back(item);
 	}
 
 	nlohmann::json out;
 	out["mappings"] = j_list;
 	ofs << out.dump(4);
+}
+
+std::string image_manager::get_canonical_sha256(const std::string &uri)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	if (uri.empty()) {
+		return "";
+	}
+
+	std::string clean_uri = uri;
+	if (clean_uri.starts_with("images://")) {
+		clean_uri = clean_uri.substr(9);
+	}
+
+	if (clean_uri.starts_with("by-sha256/")) {
+		return clean_uri.substr(10);
+	}
+
+	if (clean_uri.starts_with("by-file-id/")) {
+		std::string file_id = clean_uri.substr(11);
+		for (const auto &meta : mappings_) {
+			if (std::find(meta.file_ids.begin(), meta.file_ids.end(), file_id) != meta.file_ids.end()) {
+				return meta.sha256;
+			}
+		}
+		return "";
+	}
+
+	std::string name = clean_uri;
+	if (name.starts_with("by-name/")) {
+		name = name.substr(8);
+	}
+	for (const auto &meta : mappings_) {
+		if (std::find(meta.names.begin(), meta.names.end(), name) != meta.names.end()) {
+			return meta.sha256;
+		}
+	}
+
+	for (const auto &meta : mappings_) {
+		if (meta.sha256 == clean_uri) {
+			return meta.sha256;
+		}
+	}
+
+	return "";
 }
 
 std::string image_manager::resolve_uri(const std::string &uri)
@@ -280,7 +330,11 @@ std::string image_manager::get_temp_image_path()
 	return (tmp_dir / filename).string();
 }
 
-std::string image_manager::ingest_image(const std::string &temp_path, const std::string &alias)
+std::string image_manager::ingest_image(
+    const std::string &temp_path,
+    const std::string &alias,
+    const std::string &origin_file,
+    const std::string &origin_ops)
 {
 	if (!std::filesystem::exists(temp_path)) {
 		return "";
@@ -289,6 +343,11 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 	std::string hash = compute_file_sha256(temp_path);
 	if (hash.empty()) {
 		return "";
+	}
+
+	std::string canonical_origin = get_canonical_sha256(origin_file);
+	if (canonical_origin.empty() && !origin_file.empty()) {
+		canonical_origin = origin_file;
 	}
 
 	std::string cache_dir = get_cache_dir();
@@ -342,6 +401,12 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 			if (!clean_alias.empty() && std::find(it->names.begin(), it->names.end(), clean_alias) == it->names.end()) {
 				it->names.push_back(clean_alias);
 			}
+			if (!canonical_origin.empty()) {
+				it->origin_file = canonical_origin;
+			}
+			if (!origin_ops.empty()) {
+				it->origin_ops = origin_ops;
+			}
 		} else {
 			image_metadata meta;
 			meta.sha256 = hash;
@@ -354,6 +419,8 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 			meta.width = width;
 			meta.height = height;
 			meta.size_bytes = size;
+			meta.origin_file = canonical_origin;
+			meta.origin_ops = origin_ops;
 			mappings_.push_back(meta);
 		}
 
@@ -361,6 +428,97 @@ std::string image_manager::ingest_image(const std::string &temp_path, const std:
 	}
 
 	return "images://by-sha256/" + hash;
+}
+
+std::vector<origin_chain_node> image_manager::get_origin_chain(const std::string &uri)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::vector<origin_chain_node> chain;
+
+	auto resolve_hash_locked = [&](const std::string &u) -> std::string {
+		if (u.empty()) return "";
+		std::string clean = u;
+		if (clean.starts_with("images://")) clean = clean.substr(9);
+		if (clean.starts_with("by-sha256/")) return clean.substr(10);
+		if (clean.starts_with("by-file-id/")) {
+			std::string fid = clean.substr(11);
+			for (const auto &m : mappings_) {
+				if (std::find(m.file_ids.begin(), m.file_ids.end(), fid) != m.file_ids.end())
+					return m.sha256;
+			}
+			return "";
+		}
+		std::string n = clean;
+		if (n.starts_with("by-name/")) n = n.substr(8);
+		for (const auto &m : mappings_) {
+			if (std::find(m.names.begin(), m.names.end(), n) != m.names.end())
+				return m.sha256;
+		}
+		for (const auto &m : mappings_) {
+			if (m.sha256 == clean) return m.sha256;
+		}
+		return "";
+	};
+
+	std::string current_hash = resolve_hash_locked(uri);
+	if (current_hash.empty()) {
+		return chain;
+	}
+
+	size_t depth = 0;
+	std::vector<std::string> visited;
+
+	while (!current_hash.empty() && depth < 32) {
+		if (std::find(visited.begin(), visited.end(), current_hash) != visited.end()) {
+			break;
+		}
+		visited.push_back(current_hash);
+
+		auto it = std::find_if(mappings_.begin(), mappings_.end(), [&](const image_metadata &m) {
+			return m.sha256 == current_hash;
+		});
+
+		if (it == mappings_.end()) {
+			break;
+		}
+
+		std::string display_name = current_hash.substr(0, 8);
+		if (!it->names.empty()) {
+			display_name = it->names.front();
+		}
+
+		chain.push_back(origin_chain_node{it->sha256, display_name, it->origin_ops});
+		current_hash = it->origin_file;
+		depth++;
+	}
+
+	std::reverse(chain.begin(), chain.end());
+	return chain;
+}
+
+std::string image_manager::format_origin_chain(const std::string &uri)
+{
+	auto chain = get_origin_chain(uri);
+	if (chain.empty()) {
+		return "";
+	}
+
+	std::string result;
+	for (size_t i = 0; i < chain.size(); ++i) {
+		if (i > 0) {
+			if (!chain[i].origin_ops.empty()) {
+				result += " -> " + chain[i].origin_ops + " -> ";
+			} else {
+				result += " -> ";
+			}
+		}
+		std::string name_str = chain[i].name;
+		if (!name_str.starts_with("images://")) {
+			name_str = "images://" + name_str;
+		}
+		result += name_str;
+	}
+	return result;
 }
 
 bool image_manager::get_metadata(const std::string &uri, image_metadata &out_meta)
