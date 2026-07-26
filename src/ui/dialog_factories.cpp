@@ -2613,5 +2613,29 @@ bool apply_new_project_from_dialog(const dialog &dlg, std::string &out_error)
 	opts.target_directory = dlg.get_value("target_directory").value_or(project_manager::get_instance().get_project_root());
 	opts.init_git = (dlg.get_value("init_git").value_or("true") == "true");
 
-	return turbostar::project_template_manager::get_instance().create_project(opts, out_error);
+	bool ok = turbostar::project_template_manager::get_instance().create_project(opts, out_error);
+	if (ok) {
+		std::string bs = opts.buildsystem;
+		std::transform(bs.begin(), bs.end(), bs.begin(), [](unsigned char c) { return std::tolower(c); });
+
+		if (bs == "meson") {
+			config_manager::get_instance().set_build_system("meson");
+		} else if (bs == "cmake") {
+			config_manager::get_instance().set_build_system("cmake");
+		} else if (bs == "cargo") {
+			config_manager::get_instance().set_build_system("cargo");
+		} else if (bs.find("pyproject") != std::string::npos || opts.language == "Python") {
+			config_manager::get_instance().set_build_system("python");
+		} else {
+			config_manager::get_instance().set_build_system(bs);
+		}
+
+		std::string cache_root = fs_utils::get_project_cache_root();
+		if (!cache_root.empty()) {
+			config_manager::get_instance().save_project(cache_root);
+		} else {
+			config_manager::get_instance().save_global();
+		}
+	}
+	return ok;
 }

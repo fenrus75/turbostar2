@@ -16,6 +16,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- language specific system prompt feature
+	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
+	- allow for language (and maybe language version?) specific system prompt text to be inserted
+
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -94,7 +98,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 	- image processing
-		- [ ] file format conversion
+		- [x] file format conversion
 		- [x] cut out parts of image into new image (crop)
 		- [x] rescale image / rotate / ..
 		- [x] to grayscale conversion
@@ -237,7 +241,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 ## 26-07-2026
-- New Project Creation Wizard & Template Engine (`templates/`, `scripts/embed_templates.py`, `project_template_manager.h/cpp`, `dialog_factories.h/cpp`, `menu_bar.cpp`, `editor.cpp`, `editor_events_key.cpp`, `editor_events_ui.cpp`, `test_project_template_manager.cpp`): Added embedded project template engine supporting Meson C++, Meson C, CMake C++, CMake C, Python (`pyproject.toml`), and Rust (`Cargo`). Created `embed_templates.py` Python build step compiling template files into static C++ byte arrays in `project_templates_embedded.h`. Implemented `project_template_manager` with `@@VAR@@` token replacements (`@@PROJECT_NAME@@`, `@@EXECUTABLE_NAME@@`, `@@AUTHOR_NAME@@`, `@@AUTHOR_EMAIL@@`, `@@YEAR@@`, `@@LANGUAGE_STD@@`), `.C++17` version override fallback selection, and automatic `git init` + initial commit. Designed reactive TUI `create_new_project_dialog` with cascading `ui_dropdown` candidate updates when Language changes. Added `File -> New Project...` menu item and empty-directory auto-trigger on startup. Added unit test in `test_project_template_manager.cpp`.
+- New Project Creation Wizard & Template Engine (`templates/`, `scripts/embed_templates.py`, `project_template_manager.h/cpp`, `dialog_factories.h/cpp`, `menu_bar.cpp`, `editor.cpp`, `editor_events_key.cpp`, `editor_events_ui.cpp`, `test_project_template_manager.cpp`): Added embedded project template engine supporting Meson C++, Meson C, CMake C++, CMake C, Python (`pyproject.toml`), and Rust (`Cargo`). Created `embed_templates.py` Python build step compiling template files into static C++ byte arrays in `project_templates_embedded.h`. Implemented `project_template_manager` with `@@VAR@@` token replacements (`@@PROJECT_NAME@@`, `@@EXECUTABLE_NAME@@`, `@@AUTHOR_NAME@@`, `@@AUTHOR_EMAIL@@`, `@@YEAR@@`, `@@LANGUAGE_STD@@`), `.C++17` version override fallback selection, and automatic `git init` + initial commit. Designed reactive TUI `create_new_project_dialog` with cascading `ui_dropdown` candidate updates when Language changes. Synchronized user's build system choice directly to `config_manager` (`meson`, `cmake`, `cargo`, `python`) upon project creation. Added `File -> New Project...` menu item and empty-directory auto-trigger on startup. Added unit test in `test_project_template_manager.cpp`.
 - Image Provenance & Origin Chain Tracking in `images://` VFS Namespace (`image_manager.h/cpp`, `image_rotate_tool.cpp`, `image_resize_tool.cpp`, `image_crop_tool.cpp`, `image_mirror_tool.cpp`, `image_grayscale_tool.cpp`, `image_threshold_tool.cpp`, `image_compose_tool.cpp`, `test_image_tools.cpp`): Added `origin_file` (canonical SHA-256 hash) and `origin_ops` metadata fields to `image_metadata`, persisted in `mappings.json`. Added `get_canonical_sha256()` helper to resolve VFS aliases/URIs to canonical parent hashes, updated `ingest_image()` to store provenance data, and implemented `get_origin_chain()` and `format_origin_chain()` to reconstruct the transformation history (e.g., `images://logo.jpg -> rotate(90) -> crop(5,5,20,20)`). Updated all `image_basic` plugin tools to pass provenance metadata upon output ingestion. Added unit test suite 15 in `test_image_tools.cpp`.
 
 ## 25-07-2026
