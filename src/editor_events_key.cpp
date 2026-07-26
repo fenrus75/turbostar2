@@ -20,6 +20,7 @@
 #include "linux_clang_format.h"
 #include "mcp/mcp_manager.h"
 #include "project_manager.h"
+#include "project_template_manager.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
 #include "codereview_manager.h"
@@ -665,9 +666,23 @@ void editor::resolve_dialog(dialog_result res)
 			return;
 		}
 
+		bool open_new_project = false;
+		if (active_dialog_mode_ == dialog_mode::welcome) {
+			std::string dlg_res = active_dialog_->get_result();
+			if (dlg_res == "new_project" || turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
+				open_new_project = true;
+			}
+		}
+
 		active_dialog_.reset();
 		active_dialog_mode_ = dialog_mode::none;
 		set_focus(focus_target::window, "dialog_close");
+
+		if (open_new_project) {
+			active_dialog_ = create_new_project_dialog();
+			active_dialog_mode_ = dialog_mode::new_project;
+			set_focus(focus_target::dialog, "new_project");
+		}
 
 	} else if (res == dialog_result::cancelled) {
 		is_quitting_ = false;
@@ -694,9 +709,23 @@ void editor::resolve_dialog(dialog_result res)
 			}
 		}
 
+		bool open_new_project = false;
+		if (active_dialog_mode_ == dialog_mode::welcome) {
+			std::string dlg_res = active_dialog_->get_result();
+			if (dlg_res == "new_project" || turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
+				open_new_project = true;
+			}
+		}
+
 		active_dialog_.reset();
 		active_dialog_mode_ = dialog_mode::none;
 		set_focus(focus_target::window, "dialog_cancel");
+
+		if (open_new_project) {
+			active_dialog_ = create_new_project_dialog();
+			active_dialog_mode_ = dialog_mode::new_project;
+			set_focus(focus_target::dialog, "new_project");
+		}
 	}
 }
 

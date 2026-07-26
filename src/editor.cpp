@@ -135,15 +135,9 @@ editor::editor(editor_options opts)
 			} else {
 				new_window("");
 				if (!opts.no_welcome && initial_agent_prompt_.empty()) {
-					if (turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
-						active_dialog_ = create_new_project_dialog();
-						active_dialog_mode_ = dialog_mode::new_project;
-						set_focus(focus_target::dialog, "new_project");
-					} else {
-						active_dialog_ = create_welcome_dialog();
-						active_dialog_mode_ = dialog_mode::welcome;
-						set_focus(focus_target::dialog, "welcome");
-					}
+					active_dialog_ = create_welcome_dialog();
+					active_dialog_mode_ = dialog_mode::welcome;
+					set_focus(focus_target::dialog, "welcome");
 				}
 			}
 		}

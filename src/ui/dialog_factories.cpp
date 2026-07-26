@@ -247,6 +247,10 @@ std::unique_ptr<dialog> create_welcome_dialog()
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_new_project", "New Project...", 'n', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("new_project");
+	}));
 	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK", 'o', [d = dlg.get()]() {
 		d->set_action(dialog_result::cancelled);
 		d->set_result("ok");
@@ -2489,27 +2493,29 @@ std::unique_ptr<dialog> create_image_manager_dialog()
 
 std::unique_ptr<dialog> create_new_project_dialog()
 {
-	int flow_width = 56;
-	int width = flow_width + 6;
-
-	auto dlg = std::make_unique<dialog>("Create New Project", width, 22);
+	auto dlg = std::make_unique<dialog>("Create New Project", 1, 1);
 
 	auto flow = std::make_unique<ui_vertical_flow>("new_project_flow", 3, 1, 0);
 
 	flow->add_child(std::make_unique<ui_text_label>("Create a New Turbostar Project"));
 	flow->add_child(std::make_unique<ui_text_label>(""));
 
+	std::string default_dir = project_manager::get_instance().get_project_root();
+	std::string default_name = std::filesystem::path(default_dir).filename().string();
+	if (default_name.empty() || default_name == "/") {
+		default_name = "my_app";
+	}
+
 	auto row_name = std::make_unique<ui_horizontal_flow>("row_name", 0, 0);
 	row_name->add_child(std::make_unique<ui_text_label>("Project Name:   "));
-	row_name->add_child(std::make_unique<ui_textbox>("project_name", 30, "my_app"));
+	row_name->add_child(std::make_unique<ui_textbox>("project_name", 30, default_name));
 	flow->add_child(std::move(row_name));
 
 	auto row_exec = std::make_unique<ui_horizontal_flow>("row_exec", 0, 0);
 	row_exec->add_child(std::make_unique<ui_text_label>("Target Binary:  "));
-	row_exec->add_child(std::make_unique<ui_textbox>("executable_name", 30, "my_app"));
+	row_exec->add_child(std::make_unique<ui_textbox>("executable_name", 30, default_name));
 	flow->add_child(std::move(row_exec));
 
-	std::string default_dir = project_manager::get_instance().get_project_root();
 	auto row_dir = std::make_unique<ui_horizontal_flow>("row_dir", 0, 0);
 	row_dir->add_child(std::make_unique<ui_text_label>("Directory:      "));
 	row_dir->add_child(std::make_unique<ui_textbox>("target_directory", 30, default_dir));
@@ -2567,8 +2573,10 @@ std::unique_ptr<dialog> create_new_project_dialog()
 	row_std->add_child(std::move(standard_dd));
 	flow->add_child(std::move(row_std));
 
+	flow->add_child(std::make_unique<ui_text_label>(""));
+
 	auto row_git = std::make_unique<ui_horizontal_flow>("row_git", 0, 0);
-	row_git->add_child(std::make_unique<ui_checkbox>("init_git", "Initialize Git repository", true));
+	row_git->add_child(std::make_unique<ui_checkbox>("init_git", "Initialize Git repository", 'g', true));
 	flow->add_child(std::move(row_git));
 
 	flow->add_child(std::make_unique<ui_text_label>(""));
@@ -2584,7 +2592,13 @@ std::unique_ptr<dialog> create_new_project_dialog()
 	}));
 	flow->add_child(std::move(row_buttons));
 
+	auto flow_ptr = flow.get();
 	dlg->add_child(std::move(flow));
+
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
 	return dlg;
 }
 
