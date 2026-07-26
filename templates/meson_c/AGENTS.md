@@ -10,8 +10,8 @@
 - **Language Standard**: @@LANGUAGE_STD@@
 - **Include Guards**: Prefer `#pragma once` or standard `#ifndef` include guards for header files.
 - **Const Correctness**: Use `const` for read-only pointer arguments (`const char *`, `const uint8_t *`).
-- **Memory Management**: Check return values of `malloc`/`calloc`/`realloc`. Ensure every allocated resource is freed and pointers cleared (`ptr = NULL`).
-- **Safe String Functions**: Avoid unbounded string functions (`strcpy`, `sprintf`, `gets`); use size-bounded functions (`snprintf`, `strncpy`) and guarantee null-termination.
+- **Memory Management**: Check return values of `realloc`. Ensure every allocated resource is freed and pointers cleared (`ptr = NULL`).
+   - free(NULL) is valid, so avoid `if (ptr) free(ptr)` constructs
 - **Initialization**: Always initialize variables and struct instances (e.g. `{0}` or `memset`) prior to use.
 - **File Organization**: Place each module/component in a dedicated `.c` file and matching `.h` header in the same directory.
 
