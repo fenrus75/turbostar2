@@ -5,5 +5,6 @@
 - **Install**: `pip install -e .`
 
 ## Code Conventions
-- Python Version: @@LANGUAGE_STD@@
-- Follow PEP8 and type annotations.
+- Minimum Python Version: @@LANGUAGE_STD@@
+- Follow PEP8 style guide
+- Consistently add type annotations (PEP484, etc) to arguments and variable declarations
