@@ -20,6 +20,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
 	- allow for language (and maybe language version?) specific system prompt text to be inserted
 
+- allow tmp:// write access during plan mode
+
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -48,8 +50,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- image
 
 
-
-- feature: new project welcome screen with some key settings
 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
@@ -148,11 +148,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - bug: valgrind does not work in our sandbox
 
-- feature: sandbox: we should provide the agent a scratch directory space (tmpfs backed) that is explicitly allowed for
-  write in the tool security system and sandbox system so that the agent does not need to clobber the actual
-  project directory with small python or other scripts it makes to do things
-
-
 - feature: MCP support enhancements
 	- each tool will get a prefix to make sure they are unique
 	- each MCP should have its own "uv sandbox"
@@ -239,6 +234,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
+
+## 27-07-2026
+- Synchronize Coding Rules from `AGENTS.md` to `GEMINI.md` (`GEMINI.md`): Integrated core guidelines from `templates/meson_cpp/AGENTS.md` into `GEMINI.md`, including strict RAII (no raw `new`/`delete`), `std::string`/`std::string_view` preference over raw `char *`, Standard Library container/algorithm priority, `constexpr`/`const`/`noexcept` annotations, security-first input validation & labeling, and rationale-focused commenting ("why" over "what").
 
 ## 26-07-2026
 - New Project Creation Wizard & Template Engine (`templates/`, `scripts/embed_templates.py`, `project_template_manager.h/cpp`, `dialog_factories.h/cpp`, `menu_bar.cpp`, `editor.cpp`, `editor_events_key.cpp`, `editor_events_ui.cpp`, `test_project_template_manager.cpp`): Added embedded project template engine supporting Meson C++, Meson C, CMake C++, CMake C, Python (`pyproject.toml`), and Rust (`Cargo`). Created `embed_templates.py` Python build step compiling template files into static C++ byte arrays in `project_templates_embedded.h`. Implemented `project_template_manager` with `@@VAR@@` token replacements (`@@PROJECT_NAME@@`, `@@EXECUTABLE_NAME@@`, `@@AUTHOR_NAME@@`, `@@AUTHOR_EMAIL@@`, `@@YEAR@@`, `@@LANGUAGE_STD@@`), `.C++17` version override fallback selection, and automatic `git init` + initial commit. Designed reactive TUI `create_new_project_dialog` with cascading `ui_dropdown` candidate updates when Language changes. Synchronized user's build system choice directly to `config_manager` (`meson`, `cmake`, `cargo`, `python`) upon project creation. Added `File -> New Project...` menu item and empty-directory auto-trigger on startup. Added unit test in `test_project_template_manager.cpp`.

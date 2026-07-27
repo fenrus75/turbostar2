@@ -16,10 +16,19 @@ Top design documentation: `docs/design.md`
     should first fail, and pass once the bug is fixed.
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
 - read `.clang-format` on startup
-- prefer std::format over string concatinations, and clean up any existing cases as you see them
+- prefer std::format over string concatenations, and clean up any existing cases as you see them
+- use `std::string` or `std::string_view` over raw `char *` except when interfacing with C APIs or kernel calls
 - the project uses C++23
+- follow RAII principles strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`
+- strongly prefer C++ Standard Library containers and algorithms over custom implementations
+- label methods and parameters `constexpr`, `const`, and `noexcept` whenever appropriate
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
-- add extensive comments to the code when fixing issues, but comment desired/required code behavior, not changes done.
+- add extensive comments describing goals, constraints, ownership, and design intent (the "why"), rather than restating code implementation logic.
+- **Security Considerations**:
+  - Adopt a security-first mindset when generating code.
+  - Clearly label variables and parameters holding untrusted (user/network) data in comments.
+  - Validate untrusted input as early as possible.
+  - Verify all buffer and array accesses against underflows and overflows.
 - all `#include ""` should be relative to the `src/` directory (e.g., `#include "fs_utils.h"` or `#include "agentlib/tool_registry.h"` instead of using relative `../../` paths), since `src/` is in the compiler include paths.
 - use #pragma ONCE for include guards
 - when declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining: (1) what specific member data or resources the mutex protects, and (2) the general locking rules, lifecycle, or ordering guidelines associated with it.
