@@ -99,6 +99,18 @@ void test_utf8_wrap_string()
 	assert(lines3[2] == "  螃蟹");
 }
 
+void test_utf8_ascii_fastpath()
+{
+	std::string_view ascii_str = "Hello, Turbostar Editor 2026!";
+	assert(utf8::display_width(ascii_str) == ascii_str.length());
+	assert(utf8::length(ascii_str) == ascii_str.length());
+	assert(utf8::is_valid_utf8(ascii_str));
+
+	std::string_view mixed_str = "Hello 🦀 World!";
+	assert(utf8::display_width(mixed_str) == 15); // 6 ASCII + 2 for crab emoji + 7 ASCII
+	assert(utf8::length(mixed_str) == 14); // 6 ASCII + 1 crab emoji + 7 ASCII
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -109,6 +121,7 @@ int main()
 	test_utf8_byte_to_char_pos();
 	test_utf8_next_character();
 	test_utf8_wrap_string();
+	test_utf8_ascii_fastpath();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

@@ -5,20 +5,7 @@
 namespace utf8
 {
 
-size_t char_len(unsigned char lead_byte)
-{
-	if (lead_byte < 0x80)
-		return 1;
-	if ((lead_byte & 0xE0) == 0xC0)
-		return 2;
-	if ((lead_byte & 0xF0) == 0xE0)
-		return 3;
-	if ((lead_byte & 0xF8) == 0xF0)
-		return 4;
-	return 1; // Invalid UTF-8 sequence, treat as 1 byte to make progress
-}
-
-size_t length(std::string_view s)
+size_t length(std::string_view s) noexcept
 {
 	size_t offset = 0;
 	size_t chars = 0;
@@ -34,15 +21,21 @@ size_t length(std::string_view s)
 	return chars;
 }
 
-size_t display_width(std::string_view s)
+size_t display_width(std::string_view s) noexcept
 {
 	size_t total_width = 0;
 	size_t offset = 0;
 	mbstate_t state = {};
 	while (offset < s.length()) {
-		wchar_t wc;
+		unsigned char c = static_cast<unsigned char>(s[offset]);
+		if (c < 0x80) {
+			total_width += 1;
+			offset += 1;
+			continue;
+		}
+		wchar_t wc = 0;
 		size_t res = mbrtowc(&wc, s.data() + offset, s.length() - offset, &state);
-		if (res == (size_t)-1 || res == (size_t)-2) {
+		if (res == static_cast<size_t>(-1) || res == static_cast<size_t>(-2)) {
 			// Invalid or incomplete char, assume width 1 and advance 1 byte
 			total_width += 1;
 			offset += 1;
@@ -52,7 +45,7 @@ size_t display_width(std::string_view s)
 		} else {
 			int w = wcwidth(wc);
 			if (w >= 0) {
-				total_width += w;
+				total_width += static_cast<size_t>(w);
 			}
 			offset += res;
 		}
@@ -60,7 +53,7 @@ size_t display_width(std::string_view s)
 	return total_width;
 }
 
-size_t char_to_byte_offset(std::string_view s, size_t char_pos)
+size_t char_to_byte_offset(std::string_view s, size_t char_pos) noexcept
 {
 	size_t offset = 0;
 	size_t chars = 0;
@@ -76,7 +69,7 @@ size_t char_to_byte_offset(std::string_view s, size_t char_pos)
 	return offset;
 }
 
-size_t byte_to_char_pos(std::string_view s, size_t byte_offset)
+size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept
 {
 	size_t offset = 0;
 	size_t chars = 0;
@@ -159,7 +152,7 @@ std::string sanitize(std::string_view s)
 	return res;
 }
 
-bool is_valid_utf8(std::string_view s)
+bool is_valid_utf8(std::string_view s) noexcept
 {
 	size_t i = 0;
 	while (i < s.length()) {
@@ -208,18 +201,18 @@ void trim_trailing_whitespace(std::string &s)
 	}
 }
 
-std::vector<std::string> wrap_string(const std::string &prefix, const std::string &text, int width)
+std::vector<std::string> wrap_string(std::string_view prefix, std::string_view text, int width)
 {
 	std::vector<std::string> lines;
 	int prefix_utf8_len = static_cast<int>(utf8::display_width(prefix));
 
 	if (width <= prefix_utf8_len + 4) {
-		lines.push_back(prefix + text);
+		lines.push_back(std::string(prefix) + std::string(text));
 		return lines;
 	}
 
 	int available_width = width - prefix_utf8_len;
-	std::string current_prefix = prefix;
+	std::string current_prefix(prefix);
 	size_t byte_idx = 0;
 
 	while (byte_idx < text.length()) {
@@ -269,7 +262,7 @@ std::vector<std::string> wrap_string(const std::string &prefix, const std::strin
 			chunk_byte_len = char_bytes;
 		}
 
-		lines.push_back(current_prefix + text.substr(byte_idx, chunk_byte_len));
+		lines.push_back(current_prefix + std::string(text.substr(byte_idx, chunk_byte_len)));
 		byte_idx += chunk_byte_len;
 
 		while (byte_idx < text.length() && (text[byte_idx] == ' ' || text[byte_idx] == '\t')) {
@@ -280,7 +273,7 @@ std::vector<std::string> wrap_string(const std::string &prefix, const std::strin
 	}
 
 	if (lines.empty()) {
-		lines.push_back(prefix);
+		lines.push_back(std::string(prefix));
 	}
 
 	return lines;
