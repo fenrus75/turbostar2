@@ -17,11 +17,11 @@ Top design documentation: `docs/design.md`
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
 - read `.clang-format` on startup
 - prefer std::format over string concatenations, and clean up any existing cases as you see them
-- use `std::string` or `std::string_view` over raw `char *` except when interfacing with C APIs or kernel calls
+- prefer `std::string_view` for read-only string function parameters over `const std::string &` to avoid unnecessary allocations, and use `std::string` when ownership or mutation is required; avoid raw `char *` except when interfacing with C APIs or kernel calls
 - the project uses C++23
 - follow RAII principles strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`
 - strongly prefer C++ Standard Library containers and algorithms over custom implementations
-- label methods and parameters `constexpr`, `const`, and `noexcept` whenever appropriate
+- label methods and parameters `constexpr`, `const`, `std::string_view`, and `noexcept` whenever appropriate
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
 - add extensive comments describing goals, constraints, ownership, and design intent (the "why"), rather than restating code implementation logic.
 - **Security Considerations**:
