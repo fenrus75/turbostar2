@@ -1,6 +1,8 @@
 #pragma once
 
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <cstdint>
 
@@ -32,23 +34,23 @@ class address_lookup
 {
       public:
 	// Parse Linux /proc/<pid>/maps file or maps file path into memory_mapping entries.
-	static std::vector<memory_mapping> parse_maps(const std::string &maps_path_or_pid);
+	static std::vector<memory_mapping> parse_maps(std::string_view maps_path_or_pid);
 
 	// Resolve a single memory address to function name, file path, and line number.
-	static resolved_address resolve_address(uintptr_t address, const std::string &maps_path_or_pid = "");
+	static resolved_address resolve_address(uintptr_t address, std::string_view maps_path_or_pid = "");
 
 	// Resolve a batch of memory addresses in high-performance bulk mode.
 	// Uses address deduplication, batch execution, and persistent eu-addr2line/addr2line invocations.
-	static std::vector<resolved_address> resolve_addresses(const std::vector<uintptr_t> &addresses,
-							       const std::string &maps_path_or_pid = "");
+	static std::vector<resolved_address> resolve_addresses(std::span<const uintptr_t> addresses,
+							       std::string_view maps_path_or_pid = "");
 
       private:
 	// Check if a binary exists in PATH
-	static bool check_binary_exists(const std::string &name);
+	static bool check_binary_exists(std::string_view name);
 
 	// Safely execute subprocess without shell interpretation, passing stdin content if provided
-	static std::vector<std::string> run_command(const std::string &bin, const std::vector<std::string> &args,
-						    const std::string &stdin_input = "");
+	static std::vector<std::string> run_command(std::string_view bin, std::span<const std::string> args,
+						    std::string_view stdin_input = "");
 };
 
 } // namespace turbostar

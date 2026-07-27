@@ -94,7 +94,7 @@ static std::string extract_executable_name(const std::vector<memory_map> &maps)
 	return "App";
 }
 
-void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) const
+void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) const
 {
 	fs::path report_path = fs::path(crash_dir) / "report.md";
 	if (fs::exists(report_path))
@@ -152,7 +152,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 		}
 		stack_in.close();
 
-		auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path);
+		auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path.native());
 		int frame = 0;
 		static std::string project_root = project_manager::get_instance().get_project_root();
 		std::string prefix = project_root;
@@ -202,7 +202,7 @@ void crashdump_manager::generate_report_if_needed(const std::string &crash_dir) 
 	}
 }
 
-std::string crashdump_manager::refresh(const std::string & /*project_hash*/)
+std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 
@@ -306,7 +306,7 @@ const std::vector<crashdump_info> &crashdump_manager::get_crashdumps() const
 	return crashdumps_;
 }
 
-std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_cookie(const std::string &cookie) const
+std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_cookie(std::string_view cookie) const
 {
 	std::vector<crashdump_info> res;
 	for (const auto &c : crashdumps_) {
@@ -360,7 +360,7 @@ void crashdump_manager::clear_all()
 	}
 }
 
-std::string crashdump_manager::format_crash_notification(const std::vector<crashdump_info> &dumps)
+std::string crashdump_manager::format_crash_notification(std::span<const crashdump_info> dumps)
 {
 	if (dumps.empty())
 		return "";

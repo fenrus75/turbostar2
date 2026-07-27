@@ -1,6 +1,8 @@
 #pragma once
 
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <set>
 #include <mutex>
@@ -21,9 +23,9 @@ public:
     static crashdump_manager& get_instance();
 
     // Returns a markdown formatted string of newly discovered crashdumps, or empty string if none.
-    std::string refresh(const std::string& project_hash);
+    std::string refresh(std::string_view project_hash);
     const std::vector<crashdump_info>& get_crashdumps() const;
-    std::vector<crashdump_info> get_crashdumps_for_cookie(const std::string& cookie) const;
+    std::vector<crashdump_info> get_crashdumps_for_cookie(std::string_view cookie) const;
     std::vector<crashdump_info> get_crashdumps_for_run(int run_id) const;
     std::string get_markdown_table(size_t limit = 20) const;
     
@@ -31,7 +33,7 @@ public:
     void clear_all();
 
     // Formats a consistent crash notification message for LLM tools
-    static std::string format_crash_notification(const std::vector<crashdump_info>& dumps);
+    static std::string format_crash_notification(std::span<const crashdump_info> dumps);
     static std::string format_crash_notification(size_t crash_count);
 
 
@@ -39,7 +41,7 @@ private:
     crashdump_manager() = default;
     
     // Internal helper to parse raw dump files and generate report.md
-    void generate_report_if_needed(const std::string& crash_dir) const;
+    void generate_report_if_needed(std::string_view crash_dir) const;
 
     std::vector<crashdump_info> crashdumps_;
     std::set<std::string> seen_crash_ids_;

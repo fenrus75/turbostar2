@@ -18,8 +18,8 @@ namespace fs = std::filesystem;
 namespace turbostar
 {
 
-std::vector<std::string> address_lookup::run_command(const std::string &bin, const std::vector<std::string> &args,
-						      const std::string &stdin_input)
+std::vector<std::string> address_lookup::run_command(std::string_view bin, std::span<const std::string> args,
+						      std::string_view stdin_input)
 {
 	int pipe_out[2];
 	int pipe_in[2];
@@ -66,14 +66,15 @@ std::vector<std::string> address_lookup::run_command(const std::string &bin, con
 			close(dev_null);
 		}
 
+		std::string bin_str(bin);
 		std::vector<char *> argv;
-		argv.push_back(const_cast<char *>(bin.c_str()));
+		argv.push_back(const_cast<char *>(bin_str.c_str()));
 		for (const auto &arg : args) {
 			argv.push_back(const_cast<char *>(arg.c_str()));
 		}
 		argv.push_back(nullptr);
 
-		execvp(bin.c_str(), argv.data());
+		execvp(bin_str.c_str(), argv.data());
 		_exit(1);
 	}
 
@@ -84,7 +85,7 @@ std::vector<std::string> address_lookup::run_command(const std::string &bin, con
 		close(pipe_in[0]);
 		size_t written = 0;
 		while (written < stdin_input.size()) {
-			ssize_t n = write(pipe_in[1], stdin_input.c_str() + written, stdin_input.size() - written);
+			ssize_t n = write(pipe_in[1], stdin_input.data() + written, stdin_input.size() - written);
 			if (n <= 0)
 				break;
 			written += static_cast<size_t>(n);
@@ -114,7 +115,7 @@ std::vector<std::string> address_lookup::run_command(const std::string &bin, con
 	return lines;
 }
 
-bool address_lookup::check_binary_exists(const std::string &name)
+bool address_lookup::check_binary_exists(std::string_view name)
 {
 	if (name.starts_with('/')) {
 		return fs::exists(name);
@@ -122,9 +123,9 @@ bool address_lookup::check_binary_exists(const std::string &name)
 	return fs::exists(std::format("/usr/bin/{}", name)) || fs::exists(std::format("/bin/{}", name));
 }
 
-std::vector<memory_mapping> address_lookup::parse_maps(const std::string &maps_path_or_pid)
+std::vector<memory_mapping> address_lookup::parse_maps(std::string_view maps_path_or_pid)
 {
-	std::string maps_path = maps_path_or_pid;
+	std::string maps_path(maps_path_or_pid);
 	if (maps_path.empty()) {
 		maps_path = "/proc/self/maps";
 	} else if (std::all_of(maps_path.begin(), maps_path.end(), ::isdigit)) {
@@ -288,31 +289,31 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 	return resolved_map;
 }
 
-resolved_address address_lookup::resolve_address(uintptr_t address, const std::string &maps_path_or_pid)
+resolved_address address_lookup::resolve_address(uintptr_t address, std::string_view maps_path_or_pid)
 {
-	auto results = resolve_addresses({address}, maps_path_or_pid);
+	auto results = resolve_addresses({&address, 1}, maps_path_or_pid);
 	if (!results.empty()) {
 		return results[0];
 	}
 	return resolved_address{.address = address};
 }
 
-std::vector<resolved_address> address_lookup::resolve_addresses(const std::vector<uintptr_t> &addresses,
-								const std::string &maps_path_or_pid)
+std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const uintptr_t> addresses,
+								std::string_view maps_path_or_pid)
 {
 	if (addresses.empty()) {
 		return {};
 	}
 
 	// 1. Deduplicate unique addresses to avoid duplicate resolution queries
-	std::vector<uintptr_t> unique_addrs = addresses;
+	std::vector<uintptr_t> unique_addrs(addresses.begin(), addresses.end());
 	std::sort(unique_addrs.begin(), unique_addrs.end());
 	unique_addrs.erase(std::unique(unique_addrs.begin(), unique_addrs.end()), unique_addrs.end());
 
 	std::unordered_map<uintptr_t, resolved_address> resolved_map;
 
 	// Determine maps path if applicable
-	std::string maps_path = maps_path_or_pid;
+	std::string maps_path(maps_path_or_pid);
 	if (maps_path.empty()) {
 		maps_path = "/proc/self/maps";
 	} else if (std::all_of(maps_path.begin(), maps_path.end(), ::isdigit)) {
@@ -347,8 +348,8 @@ std::vector<resolved_address> address_lookup::resolve_addresses(const std::vecto
 		std::vector<memory_mapping> mappings = parse_maps(maps_path);
 
 		// If maps_path_or_pid is a direct ELF binary path (not a maps file)
-		if (mappings.empty() && fs::exists(maps_path_or_pid) && !fs::is_directory(maps_path_or_pid)) {
-			std::vector<std::string> args = {"-a", "-f", "-C", "-e", maps_path_or_pid};
+		if (mappings.empty() && fs::exists(maps_path) && !fs::is_directory(maps_path)) {
+			std::vector<std::string> args = {"-a", "-f", "-C", "-e", maps_path};
 			for (auto addr : unique_addrs) {
 				args.push_back(std::format("0x{:x}", addr));
 			}
