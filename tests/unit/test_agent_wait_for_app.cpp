@@ -13,11 +13,11 @@ using namespace agentlib;
 class dummy_doc_provider_wait : public document_provider {
 public:
 	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(const std::string&) const override { return nullptr; }
-	bool apply_live_edits(const std::string&, const std::string&) override { return false; }
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
+	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
 	void save_all_documents() override {}
 
-	wait_for_app_result wait_for_app(int run_id, const std::string& type, int /*timeout_sec*/) override {
+	wait_for_app_result wait_for_app(int run_id, std::string_view type, int /*timeout_sec*/) override {
 		if (run_id == 42) {
 			if (type == "settled") {
 				return {"settled", 1500, true, ""};

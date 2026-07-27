@@ -175,14 +175,15 @@ editor::editor(editor_options opts)
 	}
 }
 
-void editor::new_window(const std::string &filename)
+void editor::new_window(std::string_view filename)
 {
 	if (filename.empty()) {
 		open_file_as_text("");
 		return;
 	}
 
-	fs_utils::file_type_t type = fs_utils::get_file_type(filename);
+	std::string fname(filename);
+	fs_utils::file_type_t type = fs_utils::get_file_type(fname);
 	if (config_manager::get_instance().is_force_ascii()) {
 		type = fs_utils::file_type_t::ASCII;
 	}
@@ -192,18 +193,19 @@ void editor::new_window(const std::string &filename)
 	} else if (type == fs_utils::file_type_t::ASCII) {
 		open_file_as_text(filename);
 	} else { // MAYBE
-		pending_open_filename_ = filename;
-		active_dialog_ = create_maybe_binary_prompt_dialog(filename);
+		pending_open_filename_ = fname;
+		active_dialog_ = create_maybe_binary_prompt_dialog(fname);
 		active_dialog_mode_ = dialog_mode::maybe_binary_prompt;
 		set_focus(focus_target::dialog, "maybe_binary_prompt");
 	}
 }
 
-void editor::open_file_as_text(const std::string &filename)
+void editor::open_file_as_text(std::string_view filename)
 {
-	auto doc = std::make_shared<document>(global_queue_, filename);
+	std::string fname(filename);
+	auto doc = std::make_shared<document>(global_queue_, fname);
 	doc->add_listener(&codereview_manager::get_instance());
-	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename);
+	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, fname);
 	win->attach_document(doc);
 
 	documents_.push_back(doc);
@@ -211,17 +213,18 @@ void editor::open_file_as_text(const std::string &filename)
 	activate_window(windows_.size() - 1);
 }
 
-void editor::open_file_as_binary(const std::string &filename)
+void editor::open_file_as_binary(std::string_view filename)
 {
-	auto bin_doc = std::make_shared<binary_document>(global_queue_, filename);
-	auto win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, filename, bin_doc);
+	std::string fname(filename);
+	auto bin_doc = std::make_shared<binary_document>(global_queue_, fname);
+	auto win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, fname, bin_doc);
 
 	documents_.push_back(bin_doc);
 	windows_.push_back(std::move(win));
 	activate_window(windows_.size() - 1);
 }
 
-void editor::open_prompt_in_editor(ui_multiline_edit *edit, const std::string &initial_text)
+void editor::open_prompt_in_editor(ui_multiline_edit *edit, std::string_view initial_text)
 {
 	std::string virtual_filename = "*Prompt*";
 
@@ -561,7 +564,7 @@ std::vector<std::string> editor::get_open_document_paths() const
 	return paths;
 }
 
-std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(const std::string &safe_path) const
+std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(std::string_view safe_path) const
 {
 	std::filesystem::path target_p(safe_path);
 	for (const auto &doc : documents_) {
@@ -990,7 +993,7 @@ std::string focus_target_to_string(focus_target target)
 	return "unknown";
 }
 
-void editor::set_focus(focus_target target, const std::string &source)
+void editor::set_focus(focus_target target, std::string_view source)
 {
 	std::string target_name = focus_target_to_string(target);
 
@@ -1473,11 +1476,11 @@ void editor::render(bool cursor_only)
 	}
 }
 
-bool editor::apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload)
+bool editor::apply_live_edits(std::string_view safe_path, std::string_view edits_json_payload)
 {
 	editor_event ev;
 	ev.type = event_type::apply_edits;
-	ev.payload = safe_path + "\n" + edits_json_payload;
+	ev.payload = std::string(safe_path) + "\n" + std::string(edits_json_payload);
 	global_queue_.push(ev);
 	return true;
 }
@@ -1620,11 +1623,11 @@ std::string editor::get_k_block_status_help() const
 	return result;
 }
 
-void editor::set_status_message(const std::string &message, int priority, std::chrono::milliseconds duration,
+void editor::set_status_message(std::string_view message, int priority, std::chrono::milliseconds duration,
 				std::function<void()> click_handler)
 {
 	status_message msg;
-	msg.text = message;
+	msg.text = std::string(message);
 	if (duration == std::chrono::milliseconds::max()) {
 		msg.expiry = std::chrono::steady_clock::time_point::max();
 	} else {

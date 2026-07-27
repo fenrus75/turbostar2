@@ -63,7 +63,9 @@ class editor : public agentlib::document_provider
 	friend void test_vim_emulation();
 	friend void test_status_bar_paste();
 
-	const std::vector<latency_spike> &get_latency_spikes_for_testing() const
+#include <string_view>
+
+	const std::vector<latency_spike> &get_latency_spikes_for_testing() const noexcept
 	{
 		return latency_spikes_;
 	}
@@ -92,27 +94,27 @@ class editor : public agentlib::document_provider
 	 * @param target The new component to focus.
 	 * @param source Optional name of the component initiating the change.
 	 */
-	void set_focus(focus_target target, const std::string &source = "unknown");
+	void set_focus(focus_target target, std::string_view source = "unknown");
 
 	// unified app execution and debugging agent APIs
-	agentlib::start_app_result start_app(const std::string &args, bool use_debugger, bool auto_continue = true, bool collect_performance = false) override;
-	agentlib::start_app_result start_coredump_gdb(const std::string &crash_id) override;
-	bool write_to_run(int run_id, const std::string &data) override;
+	agentlib::start_app_result start_app(std::string_view args, bool use_debugger, bool auto_continue = true, bool collect_performance = false) override;
+	agentlib::start_app_result start_coredump_gdb(std::string_view crash_id) override;
+	bool write_to_run(int run_id, std::string_view data) override;
 	agentlib::run_screenshot_data get_run_screenshot(int run_id) override;
 	int64_t get_run_last_modified_age(int run_id) override;
 	void set_run_recording(int run_id, bool recording) override;
 	std::vector<std::string> get_run_recorded_data(int run_id) override;
 	bool terminate_run(int run_id) override;
-	agentlib::wait_for_app_result wait_for_app(int run_id, const std::string &type, int timeout_sec) override;
+	agentlib::wait_for_app_result wait_for_app(int run_id, std::string_view type, int timeout_sec) override;
 	ui::terminal_window *find_terminal_window(int run_id);
 
 	// agentlib::document_provider implementation
 	std::vector<std::string> get_open_document_paths() const override;
-	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string &safe_path) const override;
-	bool apply_live_edits(const std::string &safe_path, const std::string &edits_json_payload) override;
+	std::unique_ptr<agentlib::document_snapshot> get_open_document(std::string_view safe_path) const override;
+	bool apply_live_edits(std::string_view safe_path, std::string_view edits_json_payload) override;
 	void save_all_documents() override;
 
-	void set_status_message(const std::string &message, int priority = 0,
+	void set_status_message(std::string_view message, int priority = 0,
 				std::chrono::milliseconds duration = std::chrono::milliseconds::max(),
 				std::function<void()> click_handler = nullptr);
 	void clear_status_message(int priority);
@@ -126,7 +128,7 @@ class editor : public agentlib::document_provider
 	void dispatch(const editor_event &ev);
 
       private:
-	void new_window(const std::string &filename);
+	void new_window(std::string_view filename);
 	std::string get_k_block_status_help() const;
 	void new_agent_window();
 	void new_agent_center_window();
@@ -150,22 +152,22 @@ class editor : public agentlib::document_provider
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
-	void open_file_as_text(const std::string &filename);
-	void open_file_as_binary(const std::string &filename);
-	void open_prompt_in_editor(ui_multiline_edit *edit, const std::string &initial_text);
+	void open_file_as_text(std::string_view filename);
+	void open_file_as_binary(std::string_view filename);
+	void open_prompt_in_editor(ui_multiline_edit *edit, std::string_view initial_text);
 	void check_files_changed();
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
 	bool handle_p_block_key(int key);
 	void handle_inline_agent_prompt_key(int key);
-	void launch_inline_agent(const std::string &prompt);
-	void execute_vim_command(const std::string &cmd_raw);
+	void launch_inline_agent(std::string_view prompt);
+	void execute_vim_command(std::string_view cmd_raw);
 	void render(bool cursor_only = false);
 
 	event_queue global_queue_;
 
 	std::thread::id main_thread_id_;
-	bool is_main_thread() const
+	bool is_main_thread() const noexcept
 	{
 		return std::this_thread::get_id() == main_thread_id_;
 	}

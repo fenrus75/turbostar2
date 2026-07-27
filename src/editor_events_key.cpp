@@ -1380,10 +1380,11 @@ void editor::handle_inline_agent_prompt_key(int key)
 	}
 }
 
-void editor::launch_inline_agent(const std::string &prompt)
+void editor::launch_inline_agent(std::string_view prompt)
 {
+	std::string prompt_str(prompt);
 	auto &logger = event_logger::get_instance();
-	logger.log("Launching inline agent with prompt: " + prompt);
+	logger.log("Launching inline agent with prompt: " + prompt_str);
 
 	std::shared_ptr<document> doc = get_active_doc();
 	if (!doc)
@@ -1409,7 +1410,7 @@ void editor::launch_inline_agent(const std::string &prompt)
 	} else if (!filename.empty() && project_manager::get_instance().lsp_is_supported_file(filename)) {
 		// No cached scope, need to wait for LSP
 		logger.log("No cached scope for inline agent. Querying LSP.");
-		pending_inline_agent_task_ = {prompt, true};
+		pending_inline_agent_task_ = {prompt_str, true};
 		project_manager::get_instance().lsp_request_selection_range(filename, cur_y, cur_x);
 		return;
 	}
@@ -1461,19 +1462,19 @@ void editor::launch_inline_agent(const std::string &prompt)
 	    "instructions.";
 
 	agent->inject_context("system", system_prompt);
-	agent->submit_prompt(prompt);
+	agent->submit_prompt(prompt_str);
 
 	headless_agents_.push_back(agent);
 
 	set_status_message("Agent: Thinking...", status_priorities::INFO, std::chrono::seconds(10));
 }
 
-void editor::execute_vim_command(const std::string &cmd_raw)
+void editor::execute_vim_command(std::string_view cmd_raw)
 {
 	auto &logger = event_logger::get_instance();
-	logger.log("Executing Vim command: " + cmd_raw);
+	logger.log(std::format("Executing Vim command: {}", cmd_raw));
 
-	std::string cmd = cmd_raw;
+	std::string cmd(cmd_raw);
 	cmd.erase(cmd.begin(), std::find_if(cmd.begin(), cmd.end(), [](unsigned char ch) { return !std::isspace(ch); }));
 	cmd.erase(std::find_if(cmd.rbegin(), cmd.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), cmd.end());
 

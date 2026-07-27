@@ -826,14 +826,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 }
 
-agentlib::start_app_result editor::start_app(const std::string &args, bool use_debugger, bool auto_continue, bool collect_performance)
+agentlib::start_app_result editor::start_app(std::string_view args, bool use_debugger, bool auto_continue, bool collect_performance)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
 		auto fut = prom->get_future();
 		editor_event ev;
 		ev.type = event_type::agent_start_app;
-		ev.payload = args;
+		ev.payload = std::string(args);
 		ev.alt_pressed = use_debugger;
 		ev.auto_continue = auto_continue;
 		ev.collect_performance = collect_performance;
@@ -843,7 +843,7 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 	}
 
 	auto &logger = event_logger::get_instance();
-	logger.log("start_app called with args: '" + args + "', debugger: " + (use_debugger ? "true" : "false"));
+	logger.log(std::format("start_app called with args: '{}', debugger: {}", args, use_debugger ? "true" : "false"));
 
 	std::string exe = config_manager::get_instance().get_main_executable();
 	if (exe.empty()) {
@@ -902,11 +902,11 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 		std::string gdbserver_cmd =
 		    "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
 		if (!args.empty()) {
-			gdbserver_cmd += " " + args;
+			gdbserver_cmd += std::format(" {}", args);
 		}
-		gdbserver_cmd += " < " + fs_utils::escape_shell_arg(fifo_path.string()) + " 2>/dev/null";
+		gdbserver_cmd += std::format(" < {} 2>/dev/null", fs_utils::escape_shell_arg(fifo_path.string()));
 
-		logger.log("Starting gdbserver: " + gdbserver_cmd);
+		logger.log(std::format("Starting gdbserver: {}", gdbserver_cmd));
 		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false, config_manager::get_instance().is_shell_display_access())) {
 			logger.log("Failed to start gdbserver process.");
 			std::error_code ec;
@@ -958,10 +958,10 @@ agentlib::start_app_result editor::start_app(const std::string &args, bool use_d
 
 		std::string raw_cmd = build_exe.string();
 		if (!args.empty()) {
-			raw_cmd += " " + args;
+			raw_cmd += std::format(" {}", args);
 		}
 
-		logger.log("Starting app: " + raw_cmd);
+		logger.log(std::format("Starting app: {}", raw_cmd));
 		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access(), collect_performance)) {
 			logger.log("Failed to start app process.");
 			return {-1, -1};
@@ -989,7 +989,7 @@ ui::terminal_window *editor::find_terminal_window(int run_id)
 	return nullptr;
 }
 
-bool editor::write_to_run(int run_id, const std::string &data)
+bool editor::write_to_run(int run_id, std::string_view data)
 {
 	auto *tw = find_terminal_window(run_id);
 	if (!tw)
@@ -1103,7 +1103,7 @@ bool editor::terminate_run(int run_id)
 	return true;
 }
 
-agentlib::wait_for_app_result editor::wait_for_app(int run_id, const std::string &type, int timeout_sec)
+agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view type, int timeout_sec)
 {
 	agentlib::wait_for_app_result res;
 	res.status = "not_found";
@@ -1211,33 +1211,34 @@ static bool extract_system_coredump(const std::string &crash_id)
 	return false;
 }
 
-agentlib::start_app_result editor::start_coredump_gdb(const std::string &crash_id)
+agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
 		auto fut = prom->get_future();
 		editor_event ev;
 		ev.type = event_type::agent_start_coredump_gdb;
-		ev.payload = crash_id;
+		ev.payload = std::string(crash_id);
 		ev.generic_promise = prom;
 		global_queue_.push(ev);
 		return fut.get();
 	}
 
+	std::string crash_id_str(crash_id);
 	auto &logger = event_logger::get_instance();
-	logger.log("start_coredump_gdb called with crash_id: '" + crash_id + "'");
+	logger.log(std::format("start_coredump_gdb called with crash_id: '{}'", crash_id_str));
 
-	std::string exe = get_executable_for_crash(crash_id);
+	std::string exe = get_executable_for_crash(crash_id_str);
 	if (exe.empty()) {
 		logger.log("start_coredump_gdb failed: no executable found in crash info.");
 		return {-1, -1};
 	}
 
-	std::string core_path = get_coredump_path_for_crash(crash_id);
+	std::string core_path = get_coredump_path_for_crash(crash_id_str);
 	if (core_path.empty()) {
 		logger.log("Coredump not found locally, attempting coredumpctl fallback...");
-		if (extract_system_coredump(crash_id)) {
-			core_path = get_coredump_path_for_crash(crash_id);
+		if (extract_system_coredump(crash_id_str)) {
+			core_path = get_coredump_path_for_crash(crash_id_str);
 		}
 	}
 

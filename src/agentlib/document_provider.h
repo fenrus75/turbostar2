@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <string_view>
 
 namespace agentlib {
 
@@ -66,25 +67,25 @@ public:
 
     // Returns a snapshot if the file is currently open in the editor, else nullptr.
     // The path provided here MUST be the absolute, canonicalized safe_path.
-    virtual std::unique_ptr<document_snapshot> get_open_document(const std::string& safe_path) const = 0;
+    virtual std::unique_ptr<document_snapshot> get_open_document(std::string_view safe_path) const = 0;
 
     // Dispatches a batch of edits to the main UI thread to be applied to the live document.
-    virtual bool apply_live_edits(const std::string& safe_path, const std::string& edits_json_payload) = 0;
+    virtual bool apply_live_edits(std::string_view safe_path, std::string_view edits_json_payload) = 0;
 
     // Forces the editor to save all open, modified documents to disk synchronously.
     // Useful before invoking external tools (compilers, git) that expect the disk to be up-to-date.
     virtual void save_all_documents() = 0;
 
     // Unified app execution and debugging agent APIs
-    virtual start_app_result start_app(const std::string& /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true, bool /*collect_performance*/ = false) { return {-1, -1}; }
-    virtual start_app_result start_coredump_gdb(const std::string& /*crash_id*/) { return {-1, -1}; }
-    virtual bool write_to_run(int /*run_id*/, const std::string& /*data*/) { return false; }
+    virtual start_app_result start_app(std::string_view /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true, bool /*collect_performance*/ = false) { return {-1, -1}; }
+    virtual start_app_result start_coredump_gdb(std::string_view /*crash_id*/) { return {-1, -1}; }
+    virtual bool write_to_run(int /*run_id*/, std::string_view /*data*/) { return false; }
     virtual run_screenshot_data get_run_screenshot(int /*run_id*/) { return {}; }
     virtual int64_t get_run_last_modified_age(int /*run_id*/) { return -1; }
     virtual void set_run_recording(int /*run_id*/, bool /*recording*/) {}
     virtual std::vector<std::string> get_run_recorded_data(int /*run_id*/) { return {}; }
     virtual bool terminate_run(int /*run_id*/) { return false; }
-    virtual wait_for_app_result wait_for_app(int /*run_id*/, const std::string& /*type*/, int /*timeout_sec*/) { return {"not_found", 0, false, ""}; }
+    virtual wait_for_app_result wait_for_app(int /*run_id*/, std::string_view /*type*/, int /*timeout_sec*/) { return {"not_found", 0, false, ""}; }
 };
 
 } // namespace agentlib

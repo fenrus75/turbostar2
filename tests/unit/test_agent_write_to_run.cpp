@@ -12,13 +12,13 @@ using namespace agentlib;
 class mock_doc_provider : public document_provider {
 public:
 	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(const std::string&) const override { return nullptr; }
-	bool apply_live_edits(const std::string&, const std::string&) override { return false; }
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
+	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
 	void save_all_documents() override {}
 
-	bool write_to_run(int run_id, const std::string& data) override {
+	bool write_to_run(int run_id, std::string_view data) override {
 		if (run_id == 123) {
-			last_written_data = data;
+			last_written_data = std::string(data);
 			return true;
 		}
 		return false;

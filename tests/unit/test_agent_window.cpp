@@ -17,11 +17,11 @@ class mock_doc_provider : public agentlib::document_provider
 	{
 		return {};
 	}
-	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string &) const override
+	std::unique_ptr<agentlib::document_snapshot> get_open_document(std::string_view) const override
 	{
 		return nullptr;
 	}
-	bool apply_live_edits(const std::string &, const std::string &) override
+	bool apply_live_edits(std::string_view, std::string_view) override
 	{
 		return false;
 	}

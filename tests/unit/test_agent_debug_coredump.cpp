@@ -13,10 +13,10 @@ using namespace agentlib;
 class dummy_doc_provider : public document_provider {
 public:
 	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(const std::string&) const override { return nullptr; }
-	bool apply_live_edits(const std::string&, const std::string&) override { return false; }
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
+	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
 	void save_all_documents() override {}
-	start_app_result start_coredump_gdb(const std::string& /*crash_id*/) override {
+	start_app_result start_coredump_gdb(std::string_view /*crash_id*/) override {
 		return {42, 42};
 	}
 };

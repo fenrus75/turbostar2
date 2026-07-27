@@ -42,7 +42,7 @@ class mock_document_provider : public agentlib::document_provider
 		return {};
 	}
 
-	std::unique_ptr<agentlib::document_snapshot> get_open_document(const std::string &safe_path) const override
+	std::unique_ptr<agentlib::document_snapshot> get_open_document(std::string_view safe_path) const override
 	{
 		if (safe_path == mock_open_file) {
 			auto snap = std::make_unique<mock_document_snapshot>();
@@ -52,7 +52,7 @@ class mock_document_provider : public agentlib::document_provider
 		return nullptr;
 	}
 
-	bool apply_live_edits(const std::string & /*safe_path*/, const std::string & /*edits_json_payload*/) override
+	bool apply_live_edits(std::string_view /*safe_path*/, std::string_view /*edits_json_payload*/) override
 	{
 		return false;
 	}
