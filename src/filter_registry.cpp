@@ -53,30 +53,30 @@ filter_registry::filter_registry()
 	}, {"build"});
 }
 
-void filter_registry::register_filter(const std::string &name, filter_func func, const std::vector<std::string> &categories)
+void filter_registry::register_filter(std::string_view name, filter_func func, const std::vector<std::string> &categories)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	filters_[name] = filter_info{std::move(func), categories};
+	filters_[std::string(name)] = filter_info{std::move(func), categories};
 }
 
-void filter_registry::unregister_filter(const std::string &name)
+void filter_registry::unregister_filter(std::string_view name)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	filters_.erase(name);
+	filters_.erase(std::string(name));
 }
 
-bool filter_registry::has_filter(const std::string &name) const
+bool filter_registry::has_filter(std::string_view name) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	return filters_.contains(name);
+	return filters_.contains(std::string(name));
 }
 
-std::string filter_registry::apply_filter(const std::string &name, const std::string &input, bool &out_success) const
+std::string filter_registry::apply_filter(std::string_view name, std::string_view input, bool &out_success) const
 {
 	filter_func func;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
-		auto it = filters_.find(name);
+		auto it = filters_.find(std::string(name));
 		if (it == filters_.end()) {
 			out_success = false;
 			return "";
@@ -84,10 +84,10 @@ std::string filter_registry::apply_filter(const std::string &name, const std::st
 		func = it->second.func;
 	}
 	out_success = true;
-	return func(input);
+	return func(std::string(input));
 }
 
-std::vector<std::string> filter_registry::get_registered_filters(const std::string &category) const
+std::vector<std::string> filter_registry::get_registered_filters(std::string_view category) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	std::vector<std::string> names;

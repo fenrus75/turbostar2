@@ -1,8 +1,10 @@
 #pragma once
-#include <string>
 #include <functional>
 #include <map>
 #include <mutex>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace agentlib
@@ -15,11 +17,11 @@ class filter_registry
 
 	static filter_registry &get_instance();
 
-	void register_filter(const std::string &name, filter_func func, const std::vector<std::string> &categories = {});
-	void unregister_filter(const std::string &name);
-	bool has_filter(const std::string &name) const;
-	std::string apply_filter(const std::string &name, const std::string &input, bool &out_success) const;
-	std::vector<std::string> get_registered_filters(const std::string &category = "") const;
+	void register_filter(std::string_view name, filter_func func, const std::vector<std::string> &categories = {});
+	void unregister_filter(std::string_view name);
+	bool has_filter(std::string_view name) const;
+	std::string apply_filter(std::string_view name, std::string_view input, bool &out_success) const;
+	std::vector<std::string> get_registered_filters(std::string_view category = "") const;
 
       private:
 	filter_registry();

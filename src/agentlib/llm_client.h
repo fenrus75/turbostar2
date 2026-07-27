@@ -19,11 +19,14 @@ class llm_client
 	explicit llm_client(std::shared_ptr<llm_transport> transport, std::string model_id, api_type type = api_type::openai);
 	~llm_client();
 
-	llm_chat_response send_chat(const std::vector<message> &conversation, const tool_registry *registry = nullptr,
-				    const std::string &previous_response_id = "", const agent_properties &properties = {});
+#include <span>
+#include <string_view>
 
-	void send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-			      const tool_registry *registry = nullptr, const std::string &previous_response_id = "",
+	llm_chat_response send_chat(std::span<const message> conversation, const tool_registry *registry = nullptr,
+				    std::string_view previous_response_id = "", const agent_properties &properties = {});
+
+	void send_chat_stream(std::span<const message> conversation, std::function<void(const chat_delta &)> callback,
+			      const tool_registry *registry = nullptr, std::string_view previous_response_id = "",
 			      const agent_properties &properties = {});
 
 	void cancel();

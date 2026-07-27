@@ -20,7 +20,10 @@ llm_client::llm_client(std::shared_ptr<llm_transport> transport, std::string mod
 
 llm_client::~llm_client() = default;
 
-static std::shared_ptr<Conversation> build_temp_conversation(const std::vector<message>& conversation) {
+#include <span>
+#include <string_view>
+
+static std::shared_ptr<Conversation> build_temp_conversation(std::span<const message> conversation) {
 	auto convo = std::make_shared<Conversation>();
 	auto ep = convo->create_new_episode("temp_ep_id", "temp_ep_title", "temp_ep_summary");
 	
@@ -52,14 +55,14 @@ static std::shared_ptr<Conversation> build_temp_conversation(const std::vector<m
 	return convo;
 }
 
-llm_chat_response llm_client::send_chat(const std::vector<message> &conversation, const tool_registry * /*registry*/,
-					const std::string &previous_response_id,
+llm_chat_response llm_client::send_chat(std::span<const message> conversation, const tool_registry * /*registry*/,
+					std::string_view previous_response_id,
 					const agent_properties &properties)
 {
 	llm_chat_response chat_response;
 	chat_response.msg.role = "assistant";
-	
-	send_chat_stream(conversation, [&](const chat_delta &delta) {
+
+	send_chat_stream(conversation, [&chat_response](const chat_delta &delta) {
 		if (!delta.content.empty()) {
 			chat_response.msg.content += delta.content;
 		}
@@ -73,23 +76,8 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 			if (!chat_response.msg.tool_calls) {
 				chat_response.msg.tool_calls = std::vector<tool_call>();
 			}
-			for (const auto& tc : *delta.tool_calls) {
-				bool merged = false;
-				for (auto& existing : *chat_response.msg.tool_calls) {
-					if (!tc.id.empty() && existing.id == tc.id) {
-						existing.function.arguments += tc.function.arguments;
-						merged = true;
-						break;
-					}
-					if (!tc.function.name.empty() && existing.function.name == tc.function.name && tc.id.empty()) {
-						existing.function.arguments += tc.function.arguments;
-						merged = true;
-						break;
-					}
-				}
-				if (!merged) {
-					chat_response.msg.tool_calls->push_back(tc);
-				}
+			for (const auto &tc : *delta.tool_calls) {
+				chat_response.msg.tool_calls->push_back(tc);
 			}
 		}
 		if (delta.usage.total_tokens > 0) {
@@ -103,8 +91,8 @@ llm_chat_response llm_client::send_chat(const std::vector<message> &conversation
 	return chat_response;
 }
 
-void llm_client::send_chat_stream(const std::vector<message> &conversation, std::function<void(const chat_delta &)> callback,
-				  const tool_registry * /*registry*/, const std::string &previous_response_id, const agent_properties &properties)
+void llm_client::send_chat_stream(std::span<const message> conversation, std::function<void(const chat_delta &)> callback,
+				  const tool_registry * /*registry*/, std::string_view previous_response_id, const agent_properties &properties)
 {
 	if (!connection_) {
 		connection_ = connection_factory::create(transport_, model_id_, type_);
@@ -112,7 +100,7 @@ void llm_client::send_chat_stream(const std::vector<message> &conversation, std:
 
 	auto convo = build_temp_conversation(conversation);
 	if (!previous_response_id.empty()) {
-		nlohmann::json metadata = {{"last_response_id", previous_response_id}};
+		nlohmann::json metadata = {{"last_response_id", std::string(previous_response_id)}};
 		convo->set_connection_state({{"metadata", metadata}});
 	}
 

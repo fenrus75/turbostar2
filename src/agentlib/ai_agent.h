@@ -204,12 +204,15 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return global_queue_;
 	}
 
+#include <span>
+#include <string_view>
+
 	void save_conversation(const std::string &filepath) const;
-	void page_out_context(size_t start_index, size_t end_index, const std::string &title, const std::string &summary,
+	void page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
 			      const std::vector<std::string> &tags);
-	void page_out_prior_context(const std::string &target_episode_id, bool include_all_prior, const std::string &title,
-				    const std::string &summary, const std::vector<std::string> &tags);
-	void snapshot_episode(const std::string &title, const std::string &summary, const std::vector<std::string> &tags);
+	void page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
+				    std::string_view summary, const std::vector<std::string> &tags);
+	void snapshot_episode(std::string_view title, std::string_view summary, const std::vector<std::string> &tags);
 	void update_episode_hint(const std::string &episode_id, const std::string &hint);
 	bool page_in_context(const std::string &episode_id, int compression_level = 1);
 	bool set_episode_state(const std::string &episode_id, int target_level);
@@ -252,7 +255,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void force_compaction();
 
 	std::vector<message> get_conversation() const;
-	void set_conversation(const std::vector<message> &c);
+	void set_conversation(std::span<const message> c);
 	std::shared_ptr<Conversation> get_conversation_data() const;
 
        protected:
@@ -313,7 +316,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::weak_ptr<ai_agent> parent_agent_;
 
 	void update_system_prompt_with_families();
-	void set_conversation_unlocked(const std::vector<message> &c);
+	void set_conversation_unlocked(std::span<const message> c);
 	std::vector<message> get_conversation_unlocked() const;
 	void save_todos_internal() const;
 	void save_todos_internal_unlocked() const;

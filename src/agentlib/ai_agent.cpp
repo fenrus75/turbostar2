@@ -1966,13 +1966,13 @@ std::vector<message> ai_agent::get_conversation() const
 	return get_conversation_unlocked();
 }
 
-void ai_agent::set_conversation(const std::vector<message> &c)
+void ai_agent::set_conversation(std::span<const message> c)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	set_conversation_unlocked(c);
 }
 
-void ai_agent::set_conversation_unlocked(const std::vector<message> &c)
+void ai_agent::set_conversation_unlocked(std::span<const message> c)
 {
 	long long next_seq = 1;
 	if (conversation_) {
@@ -2130,7 +2130,7 @@ void ai_agent::save_conversation(const std::string &filepath) const
 	}
 }
 
-void ai_agent::snapshot_episode(const std::string &title, const std::string &summary, const std::vector<std::string> &tags)
+void ai_agent::snapshot_episode(std::string_view title, std::string_view summary, const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	if (!conversation_ || !conversation_->get_current_episode())
@@ -2154,8 +2154,11 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 	std::string filepath = history_dir + "/" + episode_id + ".json";
 	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
-	curr_ep->set_title(title);
-	curr_ep->set_summary(summary);
+	std::string title_str(title);
+	std::string summary_str(summary);
+
+	curr_ep->set_title(title_str);
+	curr_ep->set_summary(summary_str);
 	curr_ep->set_finalized(true);
 
 	nlohmann::json root = curr_ep->serialize();
@@ -2169,8 +2172,8 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 
 	nlohmann::json meta;
 	meta["episode_id"] = episode_id;
-	meta["title"] = title;
-	meta["summary"] = summary;
+	meta["title"] = title_str;
+	meta["summary"] = summary_str;
 	meta["reactivation_hint"] = curr_ep->get_reactivation_hint();
 	meta["tags"] = tags;
 	meta["episode_seq"] = seq;
@@ -2187,8 +2190,8 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 
 	episode_index_entry mi;
 	mi.id = episode_id;
-	mi.title = title;
-	mi.summary = summary;
+	mi.title = title_str;
+	mi.summary = summary_str;
 	mi.tags = tags;
 	mi.episode_seq = seq;
 	mi.lru_seq = l_seq;
@@ -2199,7 +2202,7 @@ void ai_agent::snapshot_episode(const std::string &title, const std::string &sum
 	episode_index_[episode_id] = mi;
 }
 
-void ai_agent::page_out_context(size_t start_index, size_t end_index, const std::string &title, const std::string &summary,
+void ai_agent::page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
 				const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -2287,7 +2290,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, const std:
 	std::string episode_id = "episode_" + std::to_string(seq);
 
 	// Construct temp episode to serialize it
-	auto temp_ep = std::make_shared<Episode>(episode_id, title, summary);
+	auto temp_ep = std::make_shared<Episode>(episode_id, std::string(title), std::string(summary));
 	temp_ep->set_finalized(true);
 	temp_ep->set_sequence_number(seq);
 	std::shared_ptr<Transaction> current_tx = nullptr;
@@ -2534,8 +2537,8 @@ std::string ai_agent::get_memory_index() const
 	return out.str();
 }
 
-void ai_agent::page_out_prior_context(const std::string &target_episode_id, bool include_all_prior, const std::string &title,
-				      const std::string &summary, const std::vector<std::string> &tags)
+void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
+				    std::string_view summary, const std::vector<std::string> &tags)
 {
 	std::unique_lock<std::mutex> lock(conversation_mutex_);
 
