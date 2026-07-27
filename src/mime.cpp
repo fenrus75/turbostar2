@@ -7,41 +7,51 @@
 namespace mime
 {
 
-std::string from_extension(const std::string &filename_or_ext)
+std::string from_extension(std::string_view filename_or_ext)
 {
 	size_t dot = filename_or_ext.find_last_of('.');
-	std::string ext = (dot == std::string::npos) ? filename_or_ext : filename_or_ext.substr(dot + 1);
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	std::string_view ext = (dot == std::string_view::npos) ? filename_or_ext : filename_or_ext.substr(dot + 1);
 
-	if (ext == "png") return "image/png";
-	if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
-	if (ext == "gif") return "image/gif";
-	if (ext == "webp") return "image/webp";
-	if (ext == "pdf") return "application/pdf";
-	if (ext == "txt") return "text/plain";
-	if (ext == "html" || ext == "htm") return "text/html";
-	if (ext == "css") return "text/css";
-	if (ext == "js") return "text/javascript";
-	if (ext == "json") return "application/json";
-	if (ext == "xml") return "application/xml";
-	if (ext == "zip") return "application/zip";
-	if (ext == "tar") return "application/x-tar";
-	if (ext == "gz") return "application/gzip";
-	if (ext == "mp3") return "audio/mpeg";
-	if (ext == "mp4") return "video/mp4";
-	if (ext == "wav") return "audio/wav";
-	if (ext == "ogg") return "audio/ogg";
+	auto iequals = [ext](std::string_view target) noexcept {
+		if (ext.size() != target.size())
+			return false;
+		for (size_t i = 0; i < ext.size(); ++i) {
+			if (std::tolower(static_cast<unsigned char>(ext[i])) != target[i])
+				return false;
+		}
+		return true;
+	};
+
+	if (iequals("png")) return "image/png";
+	if (iequals("jpg") || iequals("jpeg")) return "image/jpeg";
+	if (iequals("gif")) return "image/gif";
+	if (iequals("webp")) return "image/webp";
+	if (iequals("pdf")) return "application/pdf";
+	if (iequals("txt")) return "text/plain";
+	if (iequals("html") || iequals("htm")) return "text/html";
+	if (iequals("css")) return "text/css";
+	if (iequals("js")) return "text/javascript";
+	if (iequals("json")) return "application/json";
+	if (iequals("xml")) return "application/xml";
+	if (iequals("zip")) return "application/zip";
+	if (iequals("tar")) return "application/x-tar";
+	if (iequals("gz")) return "application/gzip";
+	if (iequals("mp3")) return "audio/mpeg";
+	if (iequals("mp4")) return "video/mp4";
+	if (iequals("wav")) return "audio/wav";
+	if (iequals("ogg")) return "audio/ogg";
 	return "application/octet-stream";
 }
 
-std::string detect_file_type(const std::string &path)
+std::string detect_file_type(std::string_view path)
 {
+	std::string path_str(path);
 #ifdef HAS_LIBMAGIC
-	if (path.find("://") == std::string::npos && std::filesystem::exists(path)) {
+	if (path.find("://") == std::string_view::npos && std::filesystem::exists(path_str)) {
 		magic_t magic = magic_open(MAGIC_MIME_TYPE);
 		if (magic) {
 			if (magic_load(magic, nullptr) == 0) {
-				const char *mime = magic_file(magic, path.c_str());
+				const char *mime = magic_file(magic, path_str.c_str());
 				if (mime) {
 					std::string res(mime);
 					magic_close(magic);
@@ -53,7 +63,7 @@ std::string detect_file_type(const std::string &path)
 	}
 #endif
 	// Fallback to reading first 8 bytes and checking signatures via detect_buffer_type
-	std::ifstream file(path, std::ios::binary);
+	std::ifstream file(path_str, std::ios::binary);
 	if (file) {
 		char sig[8] = {0};
 		file.read(sig, 8);
@@ -103,14 +113,15 @@ std::string detect_buffer_type(std::string_view buffer)
 	return "application/octet-stream";
 }
 
-std::string detect_file_description([[maybe_unused]] const std::string &path)
+std::string detect_file_description([[maybe_unused]] std::string_view path)
 {
+	std::string path_str(path);
 #ifdef HAS_LIBMAGIC
-	if (std::filesystem::exists(path)) {
+	if (std::filesystem::exists(path_str)) {
 		magic_t magic = magic_open(MAGIC_NONE);
 		if (magic) {
 			if (magic_load(magic, nullptr) == 0) {
-				const char *desc = magic_file(magic, path.c_str());
+				const char *desc = magic_file(magic, path_str.c_str());
 				if (desc) {
 					std::string res(desc);
 					magic_close(magic);
