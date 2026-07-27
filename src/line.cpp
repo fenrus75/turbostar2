@@ -1,15 +1,16 @@
 #include "line.h"
 #include <algorithm>
-#include <string>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include "utf8.h"
 
 int line::global_tab_width = 8;
 
-line::line(const std::string &text) : text_(text)
+line::line(std::string_view text) : text_(text)
 {
 	// Initialize attributes to normal for all chars
-	attributes_.assign(length_in_chars(), syntax_attribute::normal);
+	attributes_.assign(utf8::length(text_), syntax_attribute::normal);
 }
 
 line::line(const line &other)
@@ -63,10 +64,10 @@ void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out
 	out_attrs = attributes_;
 }
 
-void line::set_text(const std::string &text)
+void line::set_text(std::string_view text)
 {
 	std::unique_lock lock(mutex_);
-	text_ = text;
+	text_ = std::string(text);
 	attributes_.assign(utf8::length(text_), syntax_attribute::normal);
 }
 
@@ -88,7 +89,7 @@ bool line::next_utf8_character(size_t &byte_offset, std::string &out_char) const
 	return utf8::next_character(text_, byte_offset, out_char);
 }
 
-void line::insert_at(int char_pos, const std::string &utf8_char)
+void line::insert_at(int char_pos, std::string_view utf8_char)
 {
 	if (char_pos < 0)
 		char_pos = 0;
@@ -120,7 +121,7 @@ void line::remove_at(int char_pos)
 	size_t offset = utf8::char_to_byte_offset(text_, char_pos);
 
 	if (offset < text_.length()) {
-		size_t next_offset = offset + utf8::char_len(byte_at_unlocked(offset));
+		size_t next_offset = offset + utf8::char_len(byte_at_unlocked(static_cast<int>(offset)));
 		text_.erase(offset, next_offset - offset);
 		if (char_pos < static_cast<int>(attributes_.size())) {
 			attributes_.erase(attributes_.begin() + char_pos);
@@ -155,6 +156,9 @@ void line::split_at(int char_pos, line &new_line)
 
 void line::merge(const line &other_line)
 {
+	if (this == &other_line) {
+		return;
+	}
 	std::unique_lock lock_this(mutex_, std::defer_lock);
 	std::shared_lock lock_other(other_line.mutex_, std::defer_lock);
 	std::lock(lock_this, lock_other);
@@ -163,9 +167,8 @@ void line::merge(const line &other_line)
 	attributes_.insert(attributes_.end(), other_line.attributes_.begin(), other_line.attributes_.end());
 }
 
-int line::char_to_display_col(int char_pos) const
+int line::char_to_display_col_unlocked(int char_pos) const
 {
-	std::shared_lock lock(mutex_);
 	int col = 0;
 	int current_char = 0;
 	size_t byte_offset = 0;
@@ -195,14 +198,20 @@ int line::char_to_display_col(int char_pos) const
 	return col;
 }
 
+int line::char_to_display_col(int char_pos) const
+{
+	std::shared_lock lock(mutex_);
+	return char_to_display_col_unlocked(char_pos);
+}
+
 int line::display_col_to_char_pos(int display_col) const
 {
 	std::shared_lock lock(mutex_);
-	int len = length_in_chars();
+	int len = utf8::length(text_);
 	int best_char_pos = 0;
 	int best_diff = 999999;
 	for (int pos = 0; pos <= len; ++pos) {
-		int col = char_to_display_col(pos);
+		int col = char_to_display_col_unlocked(pos);
 		int diff = std::abs(col - display_col);
 		if (diff < best_diff) {
 			best_diff = diff;
@@ -221,7 +230,7 @@ unsigned char line::byte_at(int offset) const
 	return byte_at_unlocked(offset);
 }
 
-unsigned char line::byte_at_unlocked(int offset) const
+unsigned char line::byte_at_unlocked(int offset) const noexcept
 {
 	if (offset >= 0 && offset < static_cast<int>(text_.length())) {
 		return static_cast<unsigned char>(text_[offset]);

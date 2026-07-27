@@ -1,7 +1,8 @@
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
-#include <clocale>
+#include <atomic>
+#include <thread>
 #include "../../src/line.h"
 
 int main()
@@ -71,6 +72,28 @@ int main()
 	assert(l_tab.display_col_to_char_pos(5) == 2); // 5 is closer to 8 (diff 3) than 1 (diff 4)
 	assert(l_tab.display_col_to_char_pos(8) == 2);
 	assert(l_tab.display_col_to_char_pos(9) == 3);
+
+	std::cout << "Testing self-merge...\n";
+	line l_merge("hello");
+	l_merge.merge(l_merge);
+	assert(l_merge.get_text() == "hello");
+
+	std::cout << "Testing concurrent display_col_to_char_pos vs writer...\n";
+	line l_concurrent("hello world, this is a test line for concurrent display col");
+	std::atomic<bool> stop{false};
+	std::thread writer([&]() {
+		while (!stop) {
+			l_concurrent.set_attributes({syntax_attribute::normal, syntax_attribute::keyword});
+			std::this_thread::yield();
+		}
+	});
+
+	for (int i = 0; i < 500; ++i) {
+		int pos = l_concurrent.display_col_to_char_pos(10);
+		(void)pos;
+	}
+	stop = true;
+	writer.join();
 
 	std::cout << "line unit test passed!\n";
 	return 0;

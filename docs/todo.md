@@ -16,6 +16,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
+	- we need a better strategy
+
 - language specific system prompt feature
 	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
 	- allow for language (and maybe language version?) specific system prompt text to be inserted
@@ -236,6 +239,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 ## 27-07-2026
+- Refactor `line.h` / `line.cpp` and Fix Threading & Deadlock Bugs (`src/line.h`, `src/line.cpp`, `tests/unit/test_line.cpp`): Fixed critical thread-safety bug in `display_col_to_char_pos()` where `shared_lock(mutex_)` was recursively re-acquired via `char_to_display_col()` on non-recursive `std::shared_mutex` (causing UB/deadlock). Introduced `char_to_display_col_unlocked()`. Added self-merge guard (`if (this == &other_line) return;`) to `line::merge` to prevent deadlocks when merging a line with itself. Updated constructors and methods to accept `std::string_view` (`explicit line(std::string_view)`, `set_text(std::string_view)`, `insert_at(...)`) to eliminate temporary string allocations. Added `noexcept` annotations (`line() noexcept = default;`, `byte_at_unlocked(...) const noexcept`). Added self-merge and concurrent multi-threaded deadlock unit test cases to `test_line.cpp`.
 - Synchronize Coding Rules from `AGENTS.md` to `GEMINI.md` (`GEMINI.md`): Integrated core guidelines from `templates/meson_cpp/AGENTS.md` into `GEMINI.md`, including strict RAII (no raw `new`/`delete`), `std::string`/`std::string_view` preference over raw `char *`, Standard Library container/algorithm priority, `constexpr`/`const`/`noexcept` annotations, security-first input validation & labeling, and rationale-focused commenting ("why" over "what").
 
 ## 26-07-2026
