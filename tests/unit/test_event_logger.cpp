@@ -19,6 +19,12 @@ int main()
 	auto no_match = logger.get_latest_matching_message("nonexistent");
 	assert(!no_match.has_value());
 
+	std::string_view sv_msg = "Unit test event 3 - string_view parameter";
+	logger.log(sv_msg);
+	auto sv_match = logger.get_latest_matching_message(std::string_view("string_view parameter"));
+	assert(sv_match.has_value());
+	assert(sv_match->find("Unit test event 3 - string_view parameter") != std::string::npos);
+
 	logger.log("Formatted unit test event {} - number {}", "banana", 789);
 	auto format_match = logger.get_latest_matching_message("banana");
 	assert(format_match.has_value());

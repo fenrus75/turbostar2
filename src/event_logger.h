@@ -23,15 +23,15 @@ class event_logger
       public:
 	static event_logger &get_instance();
 
-	void set_log_file(const std::string &filename);
-	void log(const std::string &message);
+	void set_log_file(std::string_view filename);
+	void log(std::string_view message);
 	void enable_stdout_logging(bool enable);
 
 	template <typename... Args>
 	void log(std::string_view fmt, const Args&... args) {
 		log(std::vformat(fmt, std::make_format_args(args...)));
 	}
-	std::optional<std::string> get_latest_matching_message(const std::string &substring) const;
+	std::optional<std::string> get_latest_matching_message(std::string_view substring = "") const;
 	uint64_t get_total_event_count() const;
 	std::vector<std::string> get_event_slice(uint64_t start_seq, uint64_t end_seq) const;
 	static void dump_recent_logs_signal_safe(int fd, size_t max_count = 10);

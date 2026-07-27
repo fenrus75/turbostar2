@@ -20,21 +20,21 @@ event_logger::~event_logger()
 	}
 }
 
-void event_logger::set_log_file(const std::string &filename)
+void event_logger::set_log_file(std::string_view filename)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	log_stream_.open(filename, std::ios::app);
+	log_stream_.open(std::string(filename), std::ios::app);
 }
 
 #include <cstring>
 #include <unistd.h>
 
-void event_logger::log(const std::string &message)
+void event_logger::log(std::string_view message)
 {
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
 
-	std::string formatted_line = std::format("[{:06d}ms] {}\n", ms, message);
+	std::string formatted_message = std::format("[{:06d}ms] {}", ms, message);
 
 	// Populate lock-free signal-safe ring buffer with trailing '\n' included
 	uint64_t seq = ring_write_seq_.fetch_add(1, std::memory_order_relaxed);
@@ -45,19 +45,18 @@ void event_logger::log(const std::string &message)
 	slot.length.store(0, std::memory_order_relaxed);
 	std::atomic_thread_fence(std::memory_order_release);
 
-	// Phase 2: Copy formatted_line into slot.data buffer
-	size_t to_copy = std::min(formatted_line.size(), LOG_RING_SLOT_SIZE - 1);
-	std::memcpy(slot.data, formatted_line.data(), to_copy);
-	if (to_copy > 0 && slot.data[to_copy - 1] != '\n') {
-		slot.data[to_copy - 1] = '\n';
-	}
-	slot.data[to_copy] = '\0';
+	// Phase 2: Copy formatted_message into slot.data buffer and ensure trailing '\n'
+	size_t msg_len = formatted_message.size();
+	size_t to_copy = std::min(msg_len, LOG_RING_SLOT_SIZE - 2);
+	std::memcpy(slot.data, formatted_message.data(), to_copy);
+	slot.data[to_copy] = '\n';
+	slot.data[to_copy + 1] = '\0';
+	size_t total_written = to_copy + 1;
 
 	// Phase 3: Publish actual written length
-	slot.length.store(to_copy, std::memory_order_release);
+	slot.length.store(total_written, std::memory_order_release);
 
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string formatted_message = std::format("[{:06d}ms] {}", ms, message);
 
 	events.push_back(formatted_message);
 	total_events_logged_++;
@@ -108,7 +107,7 @@ void event_logger::enable_stdout_logging(bool enable)
 	}
 }
 
-std::optional<std::string> event_logger::get_latest_matching_message(const std::string &substring) const
+std::optional<std::string> event_logger::get_latest_matching_message(std::string_view substring) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto it = events.rbegin(); it != events.rend(); ++it) {
