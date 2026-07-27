@@ -1,8 +1,9 @@
 #pragma once
 
-#include <memory>
-#include <nlohmann/json.hpp>
+#include <cstdint>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace turbostar
@@ -34,7 +35,7 @@ class context_dnn
 	 * @brief Attempts to load weights from the specified path or default fallback paths.
 	 * @return true if weights were successfully loaded, false otherwise.
 	 */
-	bool load_weights(const std::string &custom_path = "");
+	bool load_weights(std::string_view custom_path = "");
 
 	/**
 	 * @brief Evaluates whether a transition from previous turn to current turn is a milestone boundary.
@@ -43,7 +44,7 @@ class context_dnn
 	 * @param metadata 16-dimensional metadata vector M.
 	 * @return Probability of the transition being a boundary in range [0.0, 1.0]. Returns negative value on failure.
 	 */
-	float predict_boundary(const std::string &text_prev, const std::string &text_curr, const std::vector<float> &metadata);
+	float predict_boundary(std::string_view text_prev, std::string_view text_curr, std::span<const float> metadata);
 
 	/**
 	 * @brief Checks if weights are currently loaded.
@@ -54,9 +55,9 @@ class context_dnn
 	}
 
 	// Exposed utilities for testing
-	static uint32_t compute_crc32(const std::string &str);
-	static std::vector<std::string> tokenize(const std::string &text);
-	static std::vector<float> pool_text(const std::vector<std::string> &tokens, const float *embed_matrix);
+	static uint32_t compute_crc32(std::string_view str);
+	static std::vector<std::string> tokenize(std::string_view text);
+	static std::vector<float> pool_text(std::span<const std::string> tokens, const float *embed_matrix);
 
       private:
 	context_dnn() = default;

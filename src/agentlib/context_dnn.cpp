@@ -60,11 +60,11 @@ struct alignas(8) weights_header {
 	uint32_t reserved; // padding to align to 8 bytes
 };
 
-bool context_dnn::load_weights(const std::string &custom_path)
+bool context_dnn::load_weights(std::string_view custom_path)
 {
 	std::vector<std::string> search_paths;
 	if (!custom_path.empty()) {
-		search_paths.push_back(expand_user_path(custom_path));
+		search_paths.push_back(expand_user_path(std::string(custom_path)));
 	} else {
 		search_paths.push_back("./dnn_training/weights.bin");
 		search_paths.push_back("../dnn_training/weights.bin");
@@ -169,7 +169,7 @@ bool context_dnn::load_weights(const std::string &custom_path)
 	return true;
 }
 
-uint32_t context_dnn::compute_crc32(const std::string &str)
+uint32_t context_dnn::compute_crc32(std::string_view str)
 {
 	uint32_t crc = 0xFFFFFFFF;
 	for (char c : str) {
@@ -185,7 +185,7 @@ uint32_t context_dnn::compute_crc32(const std::string &str)
 	return ~crc;
 }
 
-std::vector<std::string> context_dnn::tokenize(const std::string &text)
+std::vector<std::string> context_dnn::tokenize(std::string_view text)
 {
 	std::vector<std::string> tokens;
 	std::string current;
@@ -205,7 +205,7 @@ std::vector<std::string> context_dnn::tokenize(const std::string &text)
 	return tokens;
 }
 
-std::vector<float> context_dnn::pool_text(const std::vector<std::string> &tokens, const float *embed_matrix)
+std::vector<float> context_dnn::pool_text(std::span<const std::string> tokens, const float *embed_matrix)
 {
 	std::vector<float> pooled(512, 0.0f);
 	if (tokens.empty() || !embed_matrix) {
@@ -298,7 +298,7 @@ static std::vector<float> evaluate_dense_layer(const std::vector<float> &input, 
 	return output;
 }
 
-float context_dnn::predict_boundary(const std::string &text_prev, const std::string &text_curr, const std::vector<float> &metadata)
+float context_dnn::predict_boundary(std::string_view text_prev, std::string_view text_curr, std::span<const float> metadata)
 {
 	if (!weights_.loaded) {
 		return -1.0f;
