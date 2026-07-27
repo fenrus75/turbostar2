@@ -30,12 +30,15 @@ class codereview_manager : public document_listener
       public:
 	static codereview_manager &get_instance();
 
+#include <span>
+#include <string_view>
+
 	// document_listener overrides
 	void on_line_inserted(const std::string &filename, int y) override;
 	void on_line_deleted(const std::string &filename, int y) override;
 
 	// Verify and mark items stale if line content differs significantly
-	void verify_line_contents(const std::string &filename, const std::vector<std::string> &lines);
+	void verify_line_contents(std::string_view filename, std::span<const std::string> lines);
 
 	// Load code reviews from review.json in the project cache directory
 	void load_project(const std::string &project_root_path);

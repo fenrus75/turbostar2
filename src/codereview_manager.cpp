@@ -278,7 +278,7 @@ void codereview_manager::clear_all()
 	save_project_unlocked();
 }
 
-static bool file_matches(const std::string &proj_root, const std::string &filename1, const std::string &filename2)
+static bool file_matches(std::string_view proj_root, std::string_view filename1, std::string_view filename2)
 {
 	if (filename1.empty() || filename2.empty())
 		return false;
@@ -334,7 +334,7 @@ static bool contents_match(const std::string &orig, const std::string &curr)
 	return false;
 }
 
-void codereview_manager::verify_line_contents(const std::string &filename, const std::vector<std::string> &lines)
+void codereview_manager::verify_line_contents(std::string_view filename, std::span<const std::string> lines)
 {
 	std::unique_lock lock(mutex_);
 	bool changed = false;

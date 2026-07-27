@@ -184,10 +184,10 @@ class document
 
 	void apply_external_edits_json(std::string_view json_str);
 
-	void set_lsp_highlights(const std::vector<text_range> &highlights)
+	void set_lsp_highlights(std::span<const text_range> highlights)
 	{
 		std::unique_lock lock(mutex_);
-		lsp_highlights_ = highlights;
+		lsp_highlights_.assign(highlights.begin(), highlights.end());
 	}
 	std::vector<text_range> get_lsp_highlights() const
 	{
@@ -195,10 +195,10 @@ class document
 		return lsp_highlights_;
 	}
 
-	void set_lsp_diagnostics(const std::vector<diagnostic_info> &diagnostics)
+	void set_lsp_diagnostics(std::span<const diagnostic_info> diagnostics)
 	{
 		std::unique_lock lock(mutex_);
-		lsp_diagnostics_ = diagnostics;
+		lsp_diagnostics_.assign(diagnostics.begin(), diagnostics.end());
 	}
 	std::vector<diagnostic_info> get_lsp_diagnostics() const
 	{
@@ -219,7 +219,7 @@ class document
 
       protected:
 	std::vector<line> get_selection_block() const;
-	void insert_block(const std::vector<line> &block, bool whole_lines = false);
+	void insert_block(std::span<const line> block, bool whole_lines = false);
 	void update_target_cursor_x_unlocked();
 	void set_modified();
 	int line_count_unlocked() const;

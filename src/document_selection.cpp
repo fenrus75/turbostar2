@@ -282,7 +282,9 @@ void document::move_selection()
 	notify_cursor_changed();
 }
 
-void document::insert_block(const std::vector<line> &block, bool whole_lines)
+#include <span>
+
+void document::insert_block(std::span<const line> block, bool whole_lines)
 {
 	if (block.empty())
 		return;
