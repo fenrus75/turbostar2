@@ -23,14 +23,14 @@ std::string get_marker_name(uint8_t code)
 }
 } // namespace
 
-bool jpeg_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
+bool jpeg_hex_highlighter::can_handle(std::span<const uint8_t> data) const
 {
 	if (data.size() < 4)
 		return false;
 	return data[0] == 0xFF && data[1] == 0xD8;
 }
 
-bool jpeg_hex_highlighter::parse(const std::vector<uint8_t> &data)
+bool jpeg_hex_highlighter::parse(std::span<const uint8_t> data)
 {
 	parsed_successfully_ = false;
 	markers_.clear();
@@ -141,7 +141,7 @@ bool jpeg_hex_highlighter::parse(const std::vector<uint8_t> &data)
 	return true;
 }
 
-highlight_info jpeg_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	if (!parsed_successfully_)
 		return {};
@@ -224,7 +224,7 @@ size_t jpeg_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> jpeg_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> jpeg_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;

@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <optional>
 
@@ -46,19 +48,19 @@ class hex_highlighter
 	virtual ~hex_highlighter() = default;
 
 	// Determine if this highlighter should be used for this data
-	virtual bool can_handle(const std::vector<uint8_t> &data) const = 0;
+	virtual bool can_handle(std::span<const uint8_t> data) const = 0;
 
 	// Parse the data and cache structure offsets
-	virtual bool parse(const std::vector<uint8_t> &data) = 0;
+	virtual bool parse(std::span<const uint8_t> data) = 0;
 
 	// Query information for a byte offset
-	virtual highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const = 0;
+	virtual highlight_info get_info(std::span<const uint8_t> data, size_t offset) const = 0;
 
 	// Query the next symbol boundary offset after the current_offset
 	virtual size_t get_next_symbol_offset(size_t current_offset) const { return current_offset; }
 
 	// Query offset by name (e.g. section name like ".text", symbol name, or chunk name like "PLTE")
-	virtual std::optional<size_t> get_offset_by_name(const std::string &/*name*/) const { return std::nullopt; }
+	virtual std::optional<size_t> get_offset_by_name(std::string_view /*name*/) const { return std::nullopt; }
 
 	// Get a high-level overview of the entire parsed structure (e.g. archive content lists)
 	virtual std::string get_structure_summary() const { return ""; }

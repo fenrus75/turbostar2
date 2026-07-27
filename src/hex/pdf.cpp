@@ -12,11 +12,11 @@ static bool is_digit(uint8_t c) {
     return c >= '0' && c <= '9';
 }
 
-bool pdf_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const {
+bool pdf_hex_highlighter::can_handle(std::span<const uint8_t> data) const {
 	return data.size() >= 5 && data[0] == '%' && data[1] == 'P' && data[2] == 'D' && data[3] == 'F' && data[4] == '-';
 }
 
-bool pdf_hex_highlighter::parse(const std::vector<uint8_t> &data) {
+bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 	parsed_successfully_ = false;
 	objects_.clear();
 	xrefs_.clear();
@@ -172,7 +172,7 @@ bool pdf_hex_highlighter::parse(const std::vector<uint8_t> &data) {
 	return true;
 }
 
-highlight_info pdf_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info pdf_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	(void)data;
 	if (!parsed_successfully_) {
@@ -238,7 +238,7 @@ size_t pdf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> pdf_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> pdf_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;

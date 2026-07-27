@@ -28,7 +28,7 @@ hex_highlighter_registry::hex_highlighter_registry()
 	highlighters_.push_back(std::make_shared<tar_hex_highlighter>());
 }
 
-std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(const std::vector<uint8_t> &data) const
+std::shared_ptr<hex_highlighter> hex_highlighter_registry::detect_highlighter(std::span<const uint8_t> data) const
 {
 	for (const auto &hl : highlighters_) {
 		if (hl->can_handle(data)) {

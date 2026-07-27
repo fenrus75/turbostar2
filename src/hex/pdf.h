@@ -29,11 +29,11 @@ class pdf_hex_highlighter : public hex_highlighter
 	pdf_hex_highlighter() = default;
 	~pdf_hex_highlighter() override = default;
 
-	bool can_handle(const std::vector<uint8_t> &data) const override;
-	bool parse(const std::vector<uint8_t> &data) override;
-	highlight_info get_info(const std::vector<uint8_t> &data, size_t offset) const override;
+	bool can_handle(std::span<const uint8_t> data) const override;
+	bool parse(std::span<const uint8_t> data) override;
+	highlight_info get_info(std::span<const uint8_t> data, size_t offset) const override;
 	size_t get_next_symbol_offset(size_t current_offset) const override;
-	std::optional<size_t> get_offset_by_name(const std::string &name) const override;
+	std::optional<size_t> get_offset_by_name(std::string_view name) const override;
 	std::string get_structure_summary() const override;
 	bool prefer_summary_in_tmp_only() const override { return true; }
 

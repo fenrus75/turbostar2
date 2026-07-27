@@ -2,7 +2,7 @@
 #include "mime.h"
 #include <format>
 
-bool png_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
+bool png_hex_highlighter::can_handle(std::span<const uint8_t> data) const
 {
 	if (data.size() < 8)
 		return false;
@@ -10,7 +10,7 @@ bool png_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
 	       data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A;
 }
 
-bool png_hex_highlighter::parse(const std::vector<uint8_t> &data)
+bool png_hex_highlighter::parse(std::span<const uint8_t> data)
 {
 	parsed_successfully_ = false;
 	chunks_.clear();
@@ -71,7 +71,7 @@ bool png_hex_highlighter::parse(const std::vector<uint8_t> &data)
 	return true;
 }
 
-highlight_info png_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info png_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	if (!parsed_successfully_)
 		return {};
@@ -151,7 +151,7 @@ size_t png_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> png_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> png_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;

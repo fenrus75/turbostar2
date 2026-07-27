@@ -3,12 +3,12 @@
 #include <cstring>
 #include <format>
 
-bool zip_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
+bool zip_hex_highlighter::can_handle(std::span<const uint8_t> data) const
 {
 	return data.size() >= 4 && data[0] == 0x50 && data[1] == 0x4B && data[2] == 0x03 && data[3] == 0x04;
 }
 
-bool zip_hex_highlighter::parse(const std::vector<uint8_t> &data)
+bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 {
 	parsed_successfully_ = false;
 	local_files_.clear();
@@ -156,7 +156,7 @@ bool zip_hex_highlighter::parse(const std::vector<uint8_t> &data)
 	return parsed_successfully_;
 }
 
-highlight_info zip_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info zip_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	(void)data;
 	if (!parsed_successfully_) {
@@ -210,7 +210,7 @@ size_t zip_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> zip_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> zip_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;

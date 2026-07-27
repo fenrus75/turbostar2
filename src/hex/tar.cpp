@@ -4,7 +4,7 @@
 #include <format>
 #include <string_view>
 
-bool tar_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
+bool tar_hex_highlighter::can_handle(std::span<const uint8_t> data) const
 {
 	if (data.size() < 512) {
 		return false;
@@ -13,7 +13,7 @@ bool tar_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
 	return std::string_view(reinterpret_cast<const char*>(data.data() + 257), 5) == "ustar";
 }
 
-bool tar_hex_highlighter::parse(const std::vector<uint8_t> &data)
+bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 {
 	parsed_successfully_ = false;
 	files_.clear();
@@ -95,7 +95,7 @@ bool tar_hex_highlighter::parse(const std::vector<uint8_t> &data)
 	return parsed_successfully_;
 }
 
-highlight_info tar_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info tar_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	highlight_info info;
 	info.type = hex_semantic_type::normal;
@@ -173,7 +173,7 @@ size_t tar_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> tar_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> tar_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;

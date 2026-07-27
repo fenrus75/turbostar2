@@ -83,7 +83,7 @@ std::string demangle_section_name(const std::string &name)
 	return result;
 }
 
-uint16_t read_u16(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
+uint16_t read_u16(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
 	if (offset + 2 > data.size())
 		return 0;
@@ -94,7 +94,7 @@ uint16_t read_u16(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
 	}
 }
 
-uint32_t read_u32(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
+uint32_t read_u32(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
 	if (offset + 4 > data.size())
 		return 0;
@@ -105,7 +105,7 @@ uint32_t read_u32(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
 	}
 }
 
-uint64_t read_u64(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
+uint64_t read_u64(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
 	if (offset + 8 > data.size())
 		return 0;
@@ -118,7 +118,7 @@ uint64_t read_u64(const std::vector<uint8_t> &data, size_t offset, bool is_lsb)
 	}
 }
 
-std::string read_string(const std::vector<uint8_t> &data, size_t offset, size_t max_len)
+std::string read_string(std::span<const uint8_t> data, size_t offset, size_t max_len)
 {
 	std::string res;
 	for (size_t i = 0; i < max_len; ++i) {
@@ -328,14 +328,14 @@ std::string shorten_hex_numbers(const std::string &input)
 
 } // namespace
 
-bool elf_hex_highlighter::can_handle(const std::vector<uint8_t> &data) const
+bool elf_hex_highlighter::can_handle(std::span<const uint8_t> data) const
 {
 	if (data.size() < 64)
 		return false;
 	return data[0] == 0x7F && data[1] == 'E' && data[2] == 'L' && data[3] == 'F';
 }
 
-bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
+bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 {
 	parsed_successfully_ = false;
 	sections_.clear();
@@ -568,7 +568,7 @@ bool elf_hex_highlighter::parse(const std::vector<uint8_t> &data)
 	return true;
 }
 
-highlight_info elf_hex_highlighter::get_info(const std::vector<uint8_t> &data, size_t offset) const
+highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	if (!parsed_successfully_)
 		return {};
@@ -1043,7 +1043,7 @@ size_t elf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
 	return current_offset;
 }
 
-std::optional<size_t> elf_hex_highlighter::get_offset_by_name(const std::string &name) const
+std::optional<size_t> elf_hex_highlighter::get_offset_by_name(std::string_view name) const
 {
 	if (!parsed_successfully_) {
 		return std::nullopt;
