@@ -10,9 +10,10 @@
 - **Language Standard**: @@LANGUAGE_STD@@
 - **Include Guards**: Prefer `#pragma once`.
 - **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, using `std::make_unique` and `std::make_shared`.
-- **String Handling**: Use `std::string` or `std::string_view` over raw `char *` except when interfacing with C APIs or the OS kernel.
+- **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.
 - **Standard Library**: Prefer C++ Standard Library containers and algorithms over custom implementations.
 - **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory.
+- **Constexpr & Qualifiers**: Label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` when appropriate.
 
 ## Security Considerations
 - **Security-First**: Adopt a security-first mindset.
@@ -26,6 +27,18 @@
 - **Mutex Declarations**: Precede every mutex declaration in header files with a comment block explaining:
   1. What specific data or resources the mutex protects.
   2. Locking rules, lifecycle, or ordering guidelines.
+- **Subclass Header Documentation**: When creating a base class or adding a subclass, include or update a comment block table directly above the parent class definition detailing all derived subclasses and their file locations:
+```cpp
+/*
+
+# subclasses of <parent class>
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| <subclass 1> | <project relative path to the header for subclass 1> |
+
+*/
+```
 
 ## Version Control Conventions
 - **Pre-commit Review**: Perform a code review before each commit to ensure no stray or accidental edits are included.
