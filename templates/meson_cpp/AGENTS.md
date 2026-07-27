@@ -13,6 +13,7 @@
 - **String Handling**: Use `std::string` or `std::string_view` over raw `char *` except when interfacing with C APIs or the OS kernel.
 - **Standard Library**: Prefer C++ Standard Library containers and algorithms over custom implementations.
 - **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory.
+- **Constexpr**: Label methods (and their arguments) `constexpr`, `const` and `noexcept` when appropriate for the method
 
 ## Security Considerations
 - **Security-First**: Adopt a security-first mindset.
