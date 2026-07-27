@@ -22,10 +22,10 @@ namespace fs_utils
 {
 static std::string g_override_project_dir;
 
-void set_override_project_dir(const std::string &path)
+void set_override_project_dir(std::string_view path)
 {
 	event_logger::get_instance().log("Override project directory set to '{}'", path);
-	g_override_project_dir = path;
+	g_override_project_dir = std::string(path);
 }
 
 std::string get_project_dir()
@@ -49,10 +49,10 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p)
 	}
 }
 
-std::string make_relative_to_project(const std::string &path_str, const std::string &working_dir)
+std::string make_relative_to_project(std::string_view path_str, std::string_view working_dir)
 {
 	if (path_str.empty()) {
-		return path_str;
+		return std::string(path_str);
 	}
 
 	std::vector<std::string> roots;
@@ -65,7 +65,7 @@ std::string make_relative_to_project(const std::string &path_str, const std::str
 		roots.push_back(proj_dir);
 	}
 	if (!working_dir.empty()) {
-		roots.push_back(working_dir);
+		roots.push_back(std::string(working_dir));
 	}
 
 	std::filesystem::path target_p(path_str);
@@ -83,20 +83,21 @@ std::string make_relative_to_project(const std::string &path_str, const std::str
 	return target_p.string();
 }
 
-bool is_binary_file(const std::string &filepath)
+bool is_binary_file(std::string_view filepath)
 {
 	if (filepath.empty()) {
 		return false;
 	}
+	std::filesystem::path fpath(filepath);
 	std::error_code ec;
-	if (!std::filesystem::is_regular_file(filepath, ec)) {
+	if (!std::filesystem::is_regular_file(fpath, ec)) {
 		return false;
 	}
-	uint64_t size = std::filesystem::file_size(filepath, ec);
+	uint64_t size = std::filesystem::file_size(fpath, ec);
 	if (ec || size == 0) {
 		return false;
 	}
-	std::ifstream file(filepath, std::ios::binary);
+	std::ifstream file(fpath, std::ios::binary);
 	if (!file.is_open()) {
 		return false;
 	}
@@ -120,20 +121,21 @@ bool is_binary_file(const std::string &filepath)
 	return false;
 }
 
-file_type_t get_file_type(const std::string &filepath)
+file_type_t get_file_type(std::string_view filepath)
 {
 	if (filepath.empty()) {
 		return file_type_t::ASCII;
 	}
+	std::filesystem::path fpath(filepath);
 	std::error_code ec;
-	if (!std::filesystem::is_regular_file(filepath, ec)) {
+	if (!std::filesystem::is_regular_file(fpath, ec)) {
 		return file_type_t::ASCII;
 	}
-	uint64_t size = std::filesystem::file_size(filepath, ec);
+	uint64_t size = std::filesystem::file_size(fpath, ec);
 	if (ec || size == 0) {
 		return file_type_t::ASCII;
 	}
-	std::ifstream file(filepath, std::ios::binary);
+	std::ifstream file(fpath, std::ios::binary);
 	if (!file.is_open()) {
 		return file_type_t::ASCII;
 	}
@@ -162,14 +164,15 @@ file_type_t get_file_type(const std::string &filepath)
 	return file_type_t::ASCII;
 }
 
-std::string count_lines_in_file(const std::string &filepath)
+std::string count_lines_in_file(std::string_view filepath)
 {
 	if (is_binary_file(filepath)) {
 		return "";
 	}
 
+	std::string fpath_str(filepath);
 	struct stat sb;
-	if (stat(filepath.c_str(), &sb) == -1) {
+	if (stat(fpath_str.c_str(), &sb) == -1) {
 		return "";
 	}
 
@@ -178,7 +181,7 @@ std::string count_lines_in_file(const std::string &filepath)
 		return "";
 	}
 
-	int fd = open(filepath.c_str(), O_RDONLY);
+	int fd = open(fpath_str.c_str(), O_RDONLY);
 	if (fd == -1) {
 		return "";
 	}
@@ -216,7 +219,7 @@ std::string count_lines_in_file(const std::string &filepath)
 	return std::to_string(lines);
 }
 
-std::string get_compile_command_for_file(const std::string &filepath, const std::string &build_dir)
+std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir)
 {
 	std::filesystem::path cc_json = std::filesystem::path(build_dir) / "compile_commands.json";
 	if (!std::filesystem::exists(cc_json)) {
@@ -236,7 +239,7 @@ std::string get_compile_command_for_file(const std::string &filepath, const std:
 	try {
 		lsp::json::Value val = lsp::json::parse(json_str);
 		if (val.isArray()) {
-			std::string target_abs = safe_absolute(filepath).lexically_normal().string();
+			std::string target_abs = safe_absolute(std::filesystem::path(filepath)).lexically_normal().string();
 			for (auto &entry_val : val.array()) {
 				if (entry_val.isObject()) {
 					auto &obj = entry_val.object();
@@ -307,13 +310,13 @@ class sync_compile_runner : public command_runner
 	}
 };
 
-std::string execute_command_sync(const std::string &cmd, int timeout_seconds)
+std::string execute_command_sync(std::string_view cmd, int timeout_seconds)
 {
 	build_error_manager::get_instance().clear();
 	sync_compile_runner runner;
 	runner.apply_build_profile();
 	runner.set_timeout(timeout_seconds);
-	int exit_code = runner.execute(cmd + " 2>&1");
+	int exit_code = runner.execute(std::string(cmd) + " 2>&1");
 	runner.flush();
 	runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
 	return runner.full_output;
@@ -390,7 +393,7 @@ std::string get_project_tmp_dir()
 	return tmp_dir.string();
 }
 
-std::string get_project_history_dir(const std::string &agent_name)
+std::string get_project_history_dir(std::string_view agent_name)
 {
 	std::filesystem::path history_dir = std::filesystem::path(get_project_cache_root()) / "history" / agent_name;
 
@@ -420,7 +423,7 @@ std::string get_project_perf_dir()
 	return perf_dir.string();
 }
 
-bool is_valid_db_name(const std::string &name)
+bool is_valid_db_name(std::string_view name) noexcept
 {
 	if (name.empty())
 		return false;
@@ -432,20 +435,20 @@ bool is_valid_db_name(const std::string &name)
 	return true;
 }
 
-bool is_shell_safe(const std::string &s, bool allow_tilde)
+bool is_shell_safe(std::string_view s, bool allow_tilde) noexcept
 {
 	if (s.empty())
 		return false;
 
 	// Prevent directory traversal or flag injection at the start
-	if (s.find("..") != std::string::npos || s.front() == '-') {
+	if (s.find("..") != std::string_view::npos || s.front() == '-') {
 		return false;
 	}
 
 	// Strict allowlist: Alphanumeric, slash, dot, underscore, hyphen, equals, colon, plus, comma, at-sign.
 	// Explicity excludes: Space, quote marks, ampersand, pipe, redirect, semicolon, backtick, dollar, braces, etc.
 	for (char c : s) {
-		bool is_safe = std::isalnum(c) || c == '/' || c == '.' || c == '_' || c == '-' || c == '=' || c == ':' || c == '+' ||
+		bool is_safe = std::isalnum(static_cast<unsigned char>(c)) || c == '/' || c == '.' || c == '_' || c == '-' || c == '=' || c == ':' || c == '+' ||
 			       c == ',' || c == '@';
 		if (allow_tilde && c == '~') {
 			is_safe = true;
@@ -456,7 +459,7 @@ bool is_shell_safe(const std::string &s, bool allow_tilde)
 	}
 	return true;
 }
-bool is_safe_for_ui(const std::string &s)
+bool is_safe_for_ui(std::string_view s) noexcept
 {
 	for (unsigned char c : s) {
 		// Reject control characters (0-31), including ESC (27)
@@ -469,7 +472,7 @@ bool is_safe_for_ui(const std::string &s)
 	return true;
 }
 
-std::string escape_shell_arg(const std::string &arg)
+std::string escape_shell_arg(std::string_view arg)
 {
 	std::string escaped;
 	escaped.reserve(arg.size() + 10);
@@ -485,7 +488,7 @@ std::string escape_shell_arg(const std::string &arg)
 	return escaped;
 }
 
-std::string unescape_string(const std::string &input)
+std::string unescape_string(std::string_view input)
 {
 	std::string result;
 	result.reserve(input.size());
@@ -523,13 +526,13 @@ std::string unescape_string(const std::string &input)
 	return result;
 }
 
-std::string shorten_filename(const std::string &filepath, int max_length)
+std::string shorten_filename(std::string_view filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {
-		return filepath;
+		return std::string(filepath);
 	}
 	if (max_length <= 4) {
-		return filepath.substr(filepath.length() - max_length);
+		return std::string(filepath.substr(filepath.length() - max_length));
 	}
 
 	std::filesystem::path p(filepath);
@@ -556,7 +559,7 @@ std::string shorten_filename(const std::string &filepath, int max_length)
 	int remaining_space = max_length - 4 - first_dir.length() - result_right.length();
 
 	if (remaining_space < 0) {
-		std::string full = filepath;
+		std::string full(filepath);
 		return "...." + full.substr(full.length() - (max_length - 4));
 	}
 
@@ -717,7 +720,7 @@ std::vector<unsigned char> base64_decode(std::string_view encoded)
 }
 
 
-std::string format_binary_output(std::span<const unsigned char> data, const std::string &format, const std::string &mime_type)
+std::string format_binary_output(std::span<const unsigned char> data, std::string_view format, std::string_view mime_type)
 {
 	if (format == "hex") {
 		std::string hex_str;

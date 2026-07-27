@@ -326,7 +326,7 @@ static std::vector<std::string> read_file_lines(const std::string &resolved_path
 
 static std::string make_relative_to_project(const std::string &path_str, const agentlib::tool_context &ctx)
 {
-	return fs_utils::make_relative_to_project(path_str, ctx.fs_security.get_working_directory());
+	return fs_utils::make_relative_to_project(path_str, ctx.fs_security.get_working_directory().native());
 }
 
 } // namespace
