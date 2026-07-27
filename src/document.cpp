@@ -43,12 +43,12 @@ document::document(event_queue &global_queue) : global_queue_(global_queue)
 	notify_cursor_changed();
 }
 
-document::document(event_queue &global_queue, const std::string &filename) : filename_(filename), global_queue_(global_queue)
+document::document(event_queue &global_queue, std::string_view filename) : filename_(filename), global_queue_(global_queue)
 {
 	if (!filename_.empty()) {
 		safe_filename_ = fs_utils::safe_absolute(filename_).string();
 	}
-	if (filename.empty() || !load_from_file(filename)) {
+	if (filename.empty() || !load_from_file(std::string(filename))) {
 		if (lines_.empty())
 			lines_.push_back(std::make_shared<line>(""));
 	}
@@ -109,7 +109,7 @@ bool document::load_from_file(const std::string &filename)
 	current_action_group_.actions.clear();
 	edit_group_depth_ = 0;
 
-	event_logger::get_instance().log("Document loaded from: {} ({} lines)", filename, line_count_unlocked());
+	event_logger::get_instance().log("Document loaded from: {} ({} lines)", filename_, line_count_unlocked());
 
 	auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
 	if (pos_opt) {
@@ -134,16 +134,17 @@ bool document::load_from_file(const std::string &filename)
 	codereview_manager::get_instance().verify_line_contents(filename_, load_lines);
 
 	lock.unlock();
-	git_manager::get_instance().request_status(filename);
-	project_manager::get_instance().lsp_open_document(filename, get_text_all());
+	git_manager::get_instance().request_status(filename_);
+	project_manager::get_instance().lsp_open_document(filename_, get_text_all());
 	notify_cursor_changed();
 	return true;
 }
-bool document::insert_file(const std::string &filename)
+bool document::insert_file(std::string_view filename)
 {
-	std::ifstream file(filename);
+	std::string fname(filename);
+	std::ifstream file(fname);
 	if (!file.is_open()) {
-		event_logger::get_instance().log("Insert File failed: Could not open file {}", filename);
+		event_logger::get_instance().log("Insert File failed: Could not open file {}", fname);
 		return false;
 	}
 
@@ -285,19 +286,19 @@ void document::clear()
 	notify_cursor_changed();
 }
 
-const std::string &document::get_filename() const
+const std::string &document::get_filename() const noexcept
 {
 	std::shared_lock lock(mutex_);
 	return filename_;
 }
 
-const std::string &document::get_safe_filename() const
+const std::string &document::get_safe_filename() const noexcept
 {
 	std::shared_lock lock(mutex_);
 	return safe_filename_;
 }
 
-bool document::has_nondefault_filename() const
+bool document::has_nondefault_filename() const noexcept
 {
 	std::shared_lock lock(mutex_);
 	return !filename_.empty() && filename_ != "unknown.txt";
@@ -331,10 +332,10 @@ std::string document::get_git_branch() const
 	return git_branch_;
 }
 
-void document::set_git_branch(const std::string &branch)
+void document::set_git_branch(std::string_view branch)
 {
 	std::unique_lock lock(mutex_);
-	git_branch_ = branch;
+	git_branch_ = std::string(branch);
 }
 
 int document::line_count() const
@@ -543,7 +544,7 @@ bool document::is_terminator_at_unlocked(int y, int x) const
 }
 
 
-void document::apply_external_edits_json(const std::string &json_str)
+void document::apply_external_edits_json(std::string_view json_str)
 {
 	if (is_read_only())
 		return;
@@ -736,7 +737,7 @@ void document::update_last_disk_mtime()
 	}
 }
 
-bool document::get_ignore_disk_changes() const
+bool document::get_ignore_disk_changes() const noexcept
 {
 	std::shared_lock lock(mutex_);
 	return ignore_disk_changes_;

@@ -81,30 +81,30 @@ class document
 {
       public:
 	document(event_queue &global_queue);
-	document(event_queue &global_queue, const std::string &filename);
+	document(event_queue &global_queue, std::string_view filename);
 	virtual ~document();
 
 	void add_listener(document_listener *l);
 	void remove_listener(document_listener *l);
 
 	virtual bool load_from_file(const std::string &filename);
-	bool insert_file(const std::string &filename);
+	bool insert_file(std::string_view filename);
 	virtual bool save();
 	virtual bool save_to_file(const std::string &filename);
 	void clear();
 	bool check_disk_changed();
 	void update_last_disk_mtime();
-	bool get_ignore_disk_changes() const;
+	bool get_ignore_disk_changes() const noexcept;
 	void set_ignore_disk_changes(bool ignore);
-	const std::string &get_filename() const;
-	const std::string &get_safe_filename() const;
-	bool has_nondefault_filename() const;
+	const std::string &get_filename() const noexcept;
+	const std::string &get_safe_filename() const noexcept;
+	bool has_nondefault_filename() const noexcept;
 	virtual bool is_modified() const;
 	virtual void clear_modified();
 	std::string get_git_branch() const;
-	void set_git_branch(const std::string &branch);
+	void set_git_branch(std::string_view branch);
 
-	virtual bool is_read_only() const
+	virtual bool is_read_only() const noexcept
 	{
 		return read_only_;
 	}
@@ -124,8 +124,8 @@ class document
 	void move_cursor(int dx, int dy);
 	void set_cursor_position(int col, int line);
 	void request_redraw() const;
-	void insert_char(const std::string &utf8_char);
-	void insert_text(const std::string &text);
+	void insert_char(std::string_view utf8_char);
+	void insert_text(std::string_view text);
 	void backspace();
 	void delete_char();
 	void delete_word_forward();
@@ -135,7 +135,7 @@ class document
 	void split_line();
 	void delete_line();
 
-	void append_line(const std::string &text);
+	void append_line(std::string_view text);
 	void trim_top_lines(int max_lines);
 
 	void move_to_bol();
@@ -155,8 +155,8 @@ class document
 	void delete_selection();
 	void copy_selection();
 	void move_selection();
-	bool has_selection() const;
-	bool write_selection_to_file(const std::string &filename);
+	bool has_selection() const noexcept;
+	bool write_selection_to_file(std::string_view filename);
 
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;
@@ -182,15 +182,16 @@ class document
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
 	std::string get_undo_name(size_t steps_back) const;
 
-	void apply_external_edits_json(const std::string &json_str);
+	void apply_external_edits_json(std::string_view json_str);
 
 	void set_lsp_highlights(const std::vector<text_range> &highlights)
 	{
 		std::unique_lock lock(mutex_);
 		lsp_highlights_ = highlights;
 	}
-	const std::vector<text_range> &get_lsp_highlights() const
+	std::vector<text_range> get_lsp_highlights() const
 	{
+		std::shared_lock lock(mutex_);
 		return lsp_highlights_;
 	}
 
@@ -199,8 +200,9 @@ class document
 		std::unique_lock lock(mutex_);
 		lsp_diagnostics_ = diagnostics;
 	}
-	const std::vector<diagnostic_info> &get_lsp_diagnostics() const
+	std::vector<diagnostic_info> get_lsp_diagnostics() const
 	{
+		std::shared_lock lock(mutex_);
 		return lsp_diagnostics_;
 	}
 
@@ -209,8 +211,9 @@ class document
 		std::unique_lock lock(mutex_);
 		enclosing_scope_ = range;
 	}
-	const std::optional<text_range> &get_enclosing_scope() const
+	std::optional<text_range> get_enclosing_scope() const
 	{
+		std::shared_lock lock(mutex_);
 		return enclosing_scope_;
 	}
 

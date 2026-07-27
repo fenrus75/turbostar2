@@ -583,6 +583,44 @@ int main()
 		assert(doc.get_cursor_x() == 0);
 	}
 
+		// Test concurrent LSP getter/setter safety
+		{
+			document lsp_doc(queue);
+			std::atomic<bool> stop{false};
+			std::thread writer([&]() {
+				int counter = 0;
+				while (!stop) {
+					std::vector<diagnostic_info> diags;
+					for (int k = 0; k < (counter % 50); ++k) {
+						diagnostic_info d;
+						d.message = "diag " + std::to_string(k);
+						diags.push_back(d);
+					}
+					lsp_doc.set_lsp_diagnostics(diags);
+
+					std::vector<text_range> highlights;
+					for (int k = 0; k < (counter % 50); ++k) {
+						text_range tr{k, 0, k, 10};
+						highlights.push_back(tr);
+					}
+					lsp_doc.set_lsp_highlights(highlights);
+					counter++;
+					std::this_thread::yield();
+				}
+			});
+
+			for (int i = 0; i < 1000; ++i) {
+				auto diags = lsp_doc.get_lsp_diagnostics();
+				(void)diags.size();
+				auto hl = lsp_doc.get_lsp_highlights();
+				(void)hl.size();
+				auto scope = lsp_doc.get_enclosing_scope();
+				(void)scope.has_value();
+			}
+			stop = true;
+			writer.join();
+		}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

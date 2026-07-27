@@ -331,7 +331,7 @@ void document::insert_block(const std::vector<line> &block, bool whole_lines)
 	end_edit_group();
 }
 
-bool document::has_selection() const
+bool document::has_selection() const noexcept
 {
 	std::shared_lock lock(mutex_);
 	return selection_start_y_ != -1 && selection_end_y_ != -1;
@@ -436,8 +436,9 @@ void document::adjust_selection_for_line_delete(int y)
 	adjust(selection_end_x_, selection_end_y_);
 }
 
-bool document::write_selection_to_file(const std::string &filename)
+bool document::write_selection_to_file(std::string_view filename)
 {
+	std::string fname(filename);
 	std::unique_lock lock(mutex_);
 	std::vector<line> block = get_selection_block();
 	lock.unlock();
@@ -470,7 +471,7 @@ bool document::write_selection_to_file(const std::string &filename)
 		}
 	}
 
-	std::ofstream file(filename);
+	std::ofstream file(fname);
 	if (!file.is_open()) {
 		event_logger::get_instance().log("Write selection failed: Could not open file {}", filename);
 		return false;

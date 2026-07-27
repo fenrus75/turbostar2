@@ -14,7 +14,7 @@
 
 namespace fs = std::filesystem;
 
-void document::insert_char(const std::string &utf8_char)
+void document::insert_char(std::string_view utf8_char)
 {
 	std::unique_lock lock(mutex_);
 	if (is_read_only())
@@ -284,16 +284,16 @@ void document::split_line()
 	notify_cursor_changed();
 }
 
-void document::append_line(const std::string &text)
+void document::append_line(std::string_view text)
 {
 	std::unique_lock lock(mutex_);
 
 	// If the document is just a single empty line, replace it.
 	if (lines_.size() == 1 && lines_[0]->get_text().empty()) {
-		lines_[0] = std::make_shared<line>(text);
+		lines_[0] = std::make_shared<line>(std::string(text));
 		mark_line_dirty(lines_[0]);
 	} else {
-		auto l = std::make_shared<line>(text);
+		auto l = std::make_shared<line>(std::string(text));
 		int new_idx = static_cast<int>(lines_.size());
 		lines_.push_back(l);
 		for (auto *listener : listeners_) {
@@ -391,7 +391,7 @@ void document::delete_line()
 	notify_cursor_changed();
 }
 
-void document::insert_text(const std::string &text)
+void document::insert_text(std::string_view text)
 {
 	std::unique_lock lock(mutex_);
 	if (is_read_only())
@@ -438,7 +438,7 @@ void document::insert_text(const std::string &text)
 
 				if (i + char_len > text.length())
 					char_len = text.length() - i;
-				std::string utf8_char = text.substr(i, char_len);
+				std::string_view utf8_char = text.substr(i, char_len);
 
 				record_action(edit_action::action_type::replace_line, cursor_y_, lines_[cursor_y_]);
 				adjust_selection_for_insert(cursor_y_, cursor_x_, 1);
