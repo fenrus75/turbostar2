@@ -27,6 +27,18 @@
 - **Mutex Declarations**: Precede every mutex declaration in header files with a comment block explaining:
   1. What specific data or resources the mutex protects.
   2. Locking rules, lifecycle, or ordering guidelines.
+- **Subclass Header Documentation**: When creating a base class or adding a subclass, include or update a comment block table directly above the parent class definition detailing all derived subclasses and their file locations:
+```cpp
+/*
+
+# subclasses of <parent class>
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| <subclass 1> | <project relative path to the header for subclass 1> |
+
+*/
+```
 
 ## Version Control Conventions
 - **Pre-commit Review**: Perform a code review before each commit to ensure no stray or accidental edits are included.
