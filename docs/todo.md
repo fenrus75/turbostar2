@@ -24,8 +24,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
 	- allow for language (and maybe language version?) specific system prompt text to be inserted
 
-- allow tmp:// write access during plan mode
-
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
 - 1. **Highlight Differences (Hex Diffing)**:
@@ -296,6 +294,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Standalone `address_lookup` Component (`src/address_lookup.h/cpp`): Created a centralized, standalone address translation module (`turbostar::address_lookup`) to convert raw memory addresses into function names, file paths, and line numbers. Implemented high-performance batch address deduplication, secure absolute binary checks (`/usr/bin/eu-addr2line` and `/usr/bin/addr2line`), and maps parsing (`parse_maps`). Refactored `src/crash_process.cpp` and `src/crashdump_manager.cpp` to use `address_lookup`, updated build files (`src/meson.build`, `meson.build`), and added unit tests in `tests/unit/test_address_lookup.cpp`.
 
 ## 28-07-2026
+- `tmp://` Virtual Filesystem Write Access During Plan Mode (`src/tools/`, `src/agentlib/tool_registry.cpp`): Allowed write access to `tmp://` virtual files during Plan Mode across all file writing and editing tools (`fs_write_file`, `fs_replace_content`, `fs_replace_lines`, `fs_mkdir`, and `apply_text_filter`), and updated `tool_registry::prepare_tool` read-only bypass checks. Updated `enter_plan_mode` return message to inform agents that `tmp://` paths remain fully writable for drafting plans. Added unit test assertions to `tests/unit/test_exit_plan_mode.cpp` and `meson.build`. Verified with `unit_test_exit_plan_mode` and full test suite passing (245 OK).
 - `fs_replace_content` Staged Relaxed Matching & `function_hint` Scope Resolution (`src/tools/fs_replace_content/`): Implemented a 3-stage matching pipeline for LLM code replacements: (1) Strict exact matching, (2) LSP symbol / regex scope resolution using the new optional `function_hint` parameter, and (3) Staged relaxed matching (Level A: CRLF/trailing space normalization, Level B: Tab-space equivalence, Level C: Leading whitespace normalization for multi-line blocks $\ge 3$ lines). Added a 4-combo hint state error matrix (`format_multiple_matches_error`) guiding the LLM to supply `function_hint` first, `line_hint` second, or expand `target_content`. Added unit tests 8 through 11 in `tests/unit/test_fs_replace_content.cpp`. Verified with `unit_test_fs_replace_content` passing.
 
 ## 27-07-2026

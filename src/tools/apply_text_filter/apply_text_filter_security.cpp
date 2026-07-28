@@ -1,5 +1,6 @@
 #include "apply_text_filter.h"
 #include "../../agentlib/tool_registry.h"
+#include "../../agentlib/ai_agent.h"
 #include "../../filter_registry.h"
 #include <nlohmann/json.hpp>
 
@@ -20,10 +21,15 @@ nlohmann::json apply_text_filter_validator::get_parameters_schema() const
 		{"required", {"text", "filter"}}};
 }
 
-bool apply_text_filter_validator::is_allowed_in_plan_mode(const nlohmann::json &args, const agentlib::tool_context & /*ctx*/) const
+bool apply_text_filter_validator::is_allowed_in_plan_mode(const nlohmann::json &args, const agentlib::tool_context &ctx) const
 {
-	// Only allowed in plan mode if it does not write to a file
-	return !args.contains("output_path");
+	if (!args.contains("output_path")) return true;
+	if (!args["output_path"].is_string()) return false;
+	std::string path = args["output_path"].get<std::string>();
+	if (path.starts_with("tmp://") || path.starts_with("tmp:/")) return true;
+	if (!ctx.active_agent) return false;
+	std::string plan_file = ctx.active_agent->get_plan_file();
+	return !plan_file.empty() && path == plan_file;
 }
 
 bool apply_text_filter_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx,

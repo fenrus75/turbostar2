@@ -275,9 +275,12 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	}
 
 	if (ctx.properties.read_only && !validator->is_pure()) {
-		res.error_message =
-		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
-		return res;
+		bool allowed_in_plan = (ctx.active_agent && ctx.active_agent->is_planning() && validator->is_allowed_in_plan_mode_statically());
+		if (!allowed_in_plan) {
+			res.error_message =
+			    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+			return res;
+		}
 	}
 
 	nlohmann::json args;

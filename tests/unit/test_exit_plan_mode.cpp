@@ -8,6 +8,8 @@
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
 
+#include "../../src/agentlib/virtual_file_system.h"
+
 using namespace agentlib;
 
 int main()
@@ -18,6 +20,8 @@ int main()
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
 	event_queue q;
+	virtual_file_system vfs;
+	ctx.fs_security.set_vfs(&vfs);
 
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
@@ -39,6 +43,20 @@ int main()
 		// Sync properties (mimicking the agent loop)
 		ctx.properties = agent->get_properties();
 		assert(ctx.properties.read_only == true);
+
+		// 1b. Verify tmp:// write access allowed in plan mode
+		auto prep_tmp = registry.prepare_tool("fs_write_file", "{\"path\": \"tmp://draft_plan.md\", \"content\": \"# Draft Plan\"}", ctx);
+		assert(prep_tmp.error_message.empty());
+		assert(prep_tmp.tool != nullptr);
+		prep_tmp.tool->execute(ctx);
+
+		auto prep_tmp_replace = registry.prepare_tool("fs_replace_content", "{\"path\": \"tmp://draft_plan.md\", \"target_content\": \"# Draft Plan\", \"replacement_content\": \"# Final Draft Plan\"}", ctx);
+		assert(prep_tmp_replace.error_message.empty());
+
+		// Verify write to non-plan project file is blocked in plan mode
+		auto prep_blocked = registry.prepare_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"// hack\"}", ctx);
+		assert(!prep_blocked.error_message.empty());
+		assert(prep_blocked.error_message.find("Security Violation: Agent is currently in Plan Mode") != std::string::npos);
 
 		// 2. Exit plan mode with user approval
 		std::thread worker([&q]() {
