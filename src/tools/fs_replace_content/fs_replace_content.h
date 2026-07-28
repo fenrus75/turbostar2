@@ -12,6 +12,7 @@ struct fs_replace_content_args {
     std::string target_content;
     std::string replacement_content;
     std::optional<int> line_hint;
+    std::optional<std::string> function_hint;
 };
 
 class fs_replace_content_tool : public agentlib::llm_tool {
@@ -54,7 +55,11 @@ public:
                 }},
                 {"line_hint", {
                     {"type", "integer"},
-                    {"description", "Optional. A 1-based line number representing a hint of where target_content is located in the file. Highly recommended if there could be multiple matching blocks."}
+                    {"description", "Optional. A 1-based line number representing a hint of where target_content is located in the file. Useful if there could be multiple matching blocks."}
+                }},
+                {"function_hint", {
+                    {"type", "string"},
+                    {"description", "Optional. The name of the enclosing function, method, or class (e.g. 'execute_disk_fallback'). Highly recommended for long files to restrict search scope and resolve ambiguity."}
                 }}
             }},
             {"required", nlohmann::json::array({"path", "target_content", "replacement_content"})}

@@ -17,6 +17,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 - test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
+	- we link them all for just about ANY code change -- that can't be right
 	- we need a better strategy
 
 - language specific system prompt feature
@@ -36,8 +37,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - 3. **Interactive Byte Editor Interface**:
 	   * *The Idea*: A high-level visual representation of the hex edits in the editor UI (similar to how `flag_as_error` creates an overlay)
 	would help developers track what modifications the agent is proposing in binary formats.
-
-- fs_replace_content improvement: tabs vs spaces seems to confuse the agent
 
 - nit: the hexeditor has a size limit that's a bit on the small side -- maybe we should check system memory size and on large systems
     increase the limits?
@@ -295,6 +294,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
 - Standalone `address_lookup` Component (`src/address_lookup.h/cpp`): Created a centralized, standalone address translation module (`turbostar::address_lookup`) to convert raw memory addresses into function names, file paths, and line numbers. Implemented high-performance batch address deduplication, secure absolute binary checks (`/usr/bin/eu-addr2line` and `/usr/bin/addr2line`), and maps parsing (`parse_maps`). Refactored `src/crash_process.cpp` and `src/crashdump_manager.cpp` to use `address_lookup`, updated build files (`src/meson.build`, `meson.build`), and added unit tests in `tests/unit/test_address_lookup.cpp`.
+
+## 28-07-2026
+- `fs_replace_content` Staged Relaxed Matching & `function_hint` Scope Resolution (`src/tools/fs_replace_content/`): Implemented a 3-stage matching pipeline for LLM code replacements: (1) Strict exact matching, (2) LSP symbol / regex scope resolution using the new optional `function_hint` parameter, and (3) Staged relaxed matching (Level A: CRLF/trailing space normalization, Level B: Tab-space equivalence, Level C: Leading whitespace normalization for multi-line blocks $\ge 3$ lines). Added unit tests 8, 9, 10 in `tests/unit/test_fs_replace_content.cpp`. Verified with `unit_test_fs_replace_content` passing.
 
 ## 27-07-2026
 - Template AGENTS.md Guidelines Synchronization (`templates/meson_cpp/AGENTS.md`, `templates/cmake_cpp/AGENTS.md`): Synchronized C++ coding standards across CMake and Meson project templates, incorporating `std::span<const T>`, `std::string_view`, `constexpr`/`noexcept` qualifiers, and subclass comment table documentation requirements.

@@ -138,6 +138,50 @@ int main()
 			ctx.fs_security.set_vfs(nullptr);
 		}
 
+		// 8. function_hint disambiguation case
+		{
+			write_file("void func_one() {\n    return;\n}\n\nvoid func_two() {\n    return;\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "return;"},
+				{"replacement_content", "return_two();"},
+				{"function_hint", "func_two"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "function_hint result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(read_file() == "void func_one() {\n    return;\n}\n\nvoid func_two() {\n    return_two();\n}\n");
+		}
+
+		// 9. Tab/space relaxed matching case (hard tabs in file, spaces in target)
+		{
+			write_file("void test_tabs() {\n\t\tdo_work();\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "        do_work();"},
+				{"replacement_content", "        do_work_new();"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Tab/space relaxed result: " << res << std::endl;
+			std::cout << "Actual read_file(): [" << read_file() << "]" << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(read_file() == "void test_tabs() {\n        do_work_new();\n}\n");
+		}
+
+		// 10. Multi-line leading whitespace relaxed matching case
+		{
+			write_file("void multi_line() {\n    if (cond) {\n        execute();\n    }\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "if (cond) {\n  execute();\n}"},
+				{"replacement_content", "if (cond) {\n        execute_new();\n    }"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Multi-line relaxed result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(read_file() == "void multi_line() {\n    if (cond) {\n        execute_new();\n    }\n}\n");
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

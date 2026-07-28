@@ -7,6 +7,7 @@
 #include <sstream>
 #include "../../agentlib/interactions/base.h"
 #include "../../markdown_utils.h"
+#include "../../project_manager.h"
 
 namespace tools {
 
@@ -124,7 +125,103 @@ static std::vector<std::string> split_lines(const std::string& str) {
         }
         res.push_back(line);
     }
+    if (!str.empty() && (str.back() == '\n' || str.back() == '\r')) {
+        // preserve line count matching
+    }
     return res;
+}
+
+static bool find_symbol_range(const std::vector<lsp_manager::symbol_node>& nodes, std::string_view hint, int& out_start, int& out_end) {
+    for (const auto& node : nodes) {
+        if (node.name.find(hint) != std::string::npos || std::string_view(node.name) == hint) {
+            out_start = node.range.start_y + 1;
+            out_end = node.range.end_y + 1;
+            return true;
+        }
+        if (find_symbol_range(node.children, hint, out_start, out_end)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool fallback_find_symbol_range(const std::vector<std::string>& file_lines, std::string_view hint, int& out_start, int& out_end) {
+    if (hint.empty()) return false;
+    for (size_t i = 0; i < file_lines.size(); ++i) {
+        const auto& line = file_lines[i];
+        if (line.find(hint) != std::string::npos) {
+            if (line.find('(') != std::string::npos || line.find('{') != std::string::npos ||
+                line.find("def ") != std::string::npos || line.find("class ") != std::string::npos ||
+                line.find("fn ") != std::string::npos || line.find("struct ") != std::string::npos) {
+                out_start = static_cast<int>(i + 1);
+                int brace_count = 0;
+                bool found_brace = false;
+                out_end = std::min(static_cast<int>(file_lines.size()), out_start + 120);
+                for (size_t j = i; j < file_lines.size(); ++j) {
+                    for (char c : file_lines[j]) {
+                        if (c == '{') {
+                            brace_count++;
+                            found_brace = true;
+                        } else if (c == '}') {
+                            brace_count--;
+                            if (found_brace && brace_count <= 0) {
+                                out_end = static_cast<int>(j + 1);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static std::string normalize_line_for_relaxed(std::string_view line, bool strip_leading) {
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) {
+        line.remove_suffix(1);
+    }
+    if (strip_leading) {
+        while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
+            line.remove_prefix(1);
+        }
+        return std::string(line);
+    }
+    std::string res;
+    res.reserve(line.size() * 2);
+    for (char c : line) {
+        if (c == '\t') {
+            res.append("    ");
+        } else {
+            res.push_back(c);
+        }
+    }
+    return res;
+}
+
+static void get_line_byte_range(const std::string& text, int start_line_1based, int num_lines, bool target_ends_with_newline, size_t& out_start, size_t& out_len) {
+    int current_line = 1;
+    size_t idx = 0;
+    size_t n = text.size();
+    while (idx < n && current_line < start_line_1based) {
+        if (text[idx] == '\n') {
+            current_line++;
+        }
+        idx++;
+    }
+    out_start = idx;
+    int lines_counted = 0;
+    while (idx < n && lines_counted < num_lines) {
+        if (text[idx] == '\n') {
+            lines_counted++;
+            if (lines_counted == num_lines && !target_ends_with_newline) {
+                break;
+            }
+        }
+        idx++;
+    }
+    out_len = idx - out_start;
 }
 
 fs_replace_content_tool::fs_replace_content_tool(fs_replace_content_args args) : args_(std::move(args)) {
@@ -180,64 +277,169 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     std::string file_content = buffer.str();
     in.close();
 
-    // 2. Find matches
+    std::vector<std::string> file_lines = split_lines(file_content);
+
+    // Resolve scope using function_hint if provided
+    int scope_start = 1;
+    int scope_end = std::numeric_limits<int>::max();
+    if (args_.function_hint.has_value() && !args_.function_hint->empty()) {
+        std::string_view f_hint = args_.function_hint.value();
+        auto symbols = project_manager::get_instance().lsp_query_document_symbols(args_.safe_path);
+        if (!find_symbol_range(symbols, f_hint, scope_start, scope_end)) {
+            fallback_find_symbol_range(file_lines, f_hint, scope_start, scope_end);
+        }
+    }
+
+    // 2. Find strict exact matches
     std::vector<size_t> match_indices;
+    std::vector<int> match_lines;
     size_t pos = file_content.find(args_.target_content, 0);
     while (pos != std::string::npos) {
-        match_indices.push_back(pos);
-        pos = file_content.find(args_.target_content, pos + args_.target_content.length());
-    }
-
-    if (match_indices.empty()) {
-        return "Error: target_content not found in the file. Check spelling and formatting.";
-    }
-
-    // 3. Resolve starting line numbers for matches
-    std::vector<int> match_lines;
-    for (size_t idx : match_indices) {
         int line_num = 1;
-        for (size_t c_idx = 0; c_idx < idx; ++c_idx) {
+        for (size_t c_idx = 0; c_idx < pos; ++c_idx) {
             if (file_content[c_idx] == '\n') {
                 line_num++;
             }
         }
-        match_lines.push_back(line_num);
+        if (line_num >= scope_start && line_num <= scope_end) {
+            match_indices.push_back(pos);
+            match_lines.push_back(line_num);
+        }
+        pos = file_content.find(args_.target_content, pos + args_.target_content.length());
     }
 
-    size_t chosen_idx_pos = 0;
+    size_t replace_pos = 0;
+    int start_line = 1;
+    std::string new_content;
 
-    // 4. Disambiguate if multiple matches found
-    if (match_lines.size() > 1) {
-        if (args_.line_hint.has_value()) {
-            int hint = args_.line_hint.value();
-            size_t best_match = 0;
-            int min_diff = std::abs(match_lines[0] - hint);
-            for (size_t m = 1; m < match_lines.size(); ++m) {
-                int diff = std::abs(match_lines[m] - hint);
-                if (diff < min_diff) {
-                    min_diff = diff;
-                    best_match = m;
+    if (!match_indices.empty()) {
+        // Disambiguate exact match if multiple found
+        size_t chosen_idx_pos = 0;
+        if (match_lines.size() > 1) {
+            if (args_.line_hint.has_value()) {
+                int hint = args_.line_hint.value();
+                size_t best_match = 0;
+                int min_diff = std::abs(match_lines[0] - hint);
+                for (size_t m = 1; m < match_lines.size(); ++m) {
+                    int diff = std::abs(match_lines[m] - hint);
+                    if (diff < min_diff) {
+                        min_diff = diff;
+                        best_match = m;
+                    }
+                }
+                chosen_idx_pos = best_match;
+            } else {
+                std::stringstream err_ss;
+                err_ss << "Error: Multiple matches (" << match_lines.size() << ") found for target_content at line numbers: [";
+                for (size_t i = 0; i < match_lines.size(); ++i) {
+                    err_ss << match_lines[i] << (i + 1 < match_lines.size() ? ", " : "");
+                }
+                err_ss << "]. Please pass 'line_hint' or 'function_hint' parameter to specify which occurrence to edit.";
+                return err_ss.str();
+            }
+        }
+        replace_pos = match_indices[chosen_idx_pos];
+        start_line = match_lines[chosen_idx_pos];
+        new_content = file_content.substr(0, replace_pos) + 
+                      args_.replacement_content + 
+                      file_content.substr(replace_pos + args_.target_content.length());
+    } else {
+        // Step 3: Staged Relaxed Fallback Search
+        std::vector<std::string> target_lines = split_lines(args_.target_content);
+        size_t target_count = target_lines.size();
+        if (target_count == 0 || file_lines.size() < target_count) {
+            return "Error: target_content not found in the file. Check spelling and formatting.";
+        }
+
+        std::vector<int> relaxed_matches;
+        for (size_t i = 0; i + target_count <= file_lines.size(); ++i) {
+            int line_num = static_cast<int>(i + 1);
+            if (line_num < scope_start || line_num > scope_end) {
+                continue;
+            }
+
+            bool match_level_b = true;
+            bool match_level_c = (target_count >= 3);
+
+            for (size_t j = 0; j < target_count; ++j) {
+                std::string file_norm_b = normalize_line_for_relaxed(file_lines[i + j], false);
+                std::string targ_norm_b = normalize_line_for_relaxed(target_lines[j], false);
+                if (file_norm_b != targ_norm_b) {
+                    match_level_b = false;
+                }
+
+                if (match_level_c) {
+                    std::string file_norm_c = normalize_line_for_relaxed(file_lines[i + j], true);
+                    std::string targ_norm_c = normalize_line_for_relaxed(target_lines[j], true);
+                    if (file_norm_c != targ_norm_c) {
+                        match_level_c = false;
+                    }
                 }
             }
-            chosen_idx_pos = best_match;
-        } else {
-            std::stringstream err_ss;
-            err_ss << "Error: Multiple matches (" << match_lines.size() << ") found for target_content at line numbers: [";
-            for (size_t i = 0; i < match_lines.size(); ++i) {
-                err_ss << match_lines[i] << (i + 1 < match_lines.size() ? ", " : "");
+
+            if (match_level_b || match_level_c) {
+                relaxed_matches.push_back(line_num);
             }
-            err_ss << "]. Please pass the optional 'line_hint' parameter to specify which occurrence to edit.";
-            return err_ss.str();
         }
+
+        if (relaxed_matches.empty()) {
+            if (args_.function_hint.has_value()) {
+                return std::format("Error: target_content not found in {} inside function/scope '{}'. Check formatting and indentation.", args_.path, args_.function_hint.value());
+            }
+            return "Error: target_content not found in the file. Check spelling and formatting.";
+        }
+
+        size_t chosen_relaxed = 0;
+        if (relaxed_matches.size() > 1) {
+            if (args_.line_hint.has_value()) {
+                int hint = args_.line_hint.value();
+                int min_diff = std::abs(relaxed_matches[0] - hint);
+                for (size_t m = 1; m < relaxed_matches.size(); ++m) {
+                    int diff = std::abs(relaxed_matches[m] - hint);
+                    if (diff < min_diff) {
+                        min_diff = diff;
+                        chosen_relaxed = m;
+                    }
+                }
+            } else {
+                std::stringstream err_ss;
+                err_ss << "Error: Multiple relaxed matches (" << relaxed_matches.size() << ") found for target_content at line numbers: [";
+                for (size_t i = 0; i < relaxed_matches.size(); ++i) {
+                    err_ss << relaxed_matches[i] << (i + 1 < relaxed_matches.size() ? ", " : "");
+                }
+                err_ss << "]. Please pass 'line_hint' or 'function_hint' parameter to specify which occurrence to edit.";
+                return err_ss.str();
+            }
+        }
+
+        start_line = relaxed_matches[chosen_relaxed];
+        size_t match_start_byte = 0;
+        size_t match_byte_len = 0;
+        bool target_ends_with_newline = !args_.target_content.empty() && (args_.target_content.back() == '\n' || args_.target_content.back() == '\r');
+        get_line_byte_range(file_content, start_line, static_cast<int>(target_count), target_ends_with_newline, match_start_byte, match_byte_len);
+
+        if (start_line >= 1 && start_line <= static_cast<int>(file_lines.size()) && !target_lines.empty()) {
+            size_t file_indent_len = 0;
+            while (file_indent_len < file_lines[start_line - 1].size() && (file_lines[start_line - 1][file_indent_len] == ' ' || file_lines[start_line - 1][file_indent_len] == '\t')) {
+                file_indent_len++;
+            }
+            size_t target_indent_len = 0;
+            while (target_indent_len < target_lines[0].size() && (target_lines[0][target_indent_len] == ' ' || target_lines[0][target_indent_len] == '\t')) {
+                target_indent_len++;
+            }
+            if (file_indent_len > target_indent_len) {
+                size_t diff_indent = file_indent_len - target_indent_len;
+                if (match_byte_len >= diff_indent) {
+                    match_start_byte += diff_indent;
+                    match_byte_len -= diff_indent;
+                }
+            }
+        }
+
+        new_content = file_content.substr(0, match_start_byte) + 
+                      args_.replacement_content + 
+                      file_content.substr(match_start_byte + match_byte_len);
     }
-
-    size_t replace_pos = match_indices[chosen_idx_pos];
-    int start_line = match_lines[chosen_idx_pos];
-
-    // 5. Construct substituted content
-    std::string new_content = file_content.substr(0, replace_pos) + 
-                              args_.replacement_content + 
-                              file_content.substr(replace_pos + args_.target_content.length());
 
     // 6. Generate diff
     std::vector<std::string> before_lines = split_lines(file_content);

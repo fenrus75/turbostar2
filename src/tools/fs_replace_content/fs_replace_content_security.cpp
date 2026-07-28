@@ -53,6 +53,18 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
             hint = h_val;
         }
 
+        std::optional<std::string> func_hint;
+        if (raw_args.contains("function_hint")) {
+            if (!raw_args["function_hint"].is_string()) {
+                out_error = "Invalid 'function_hint' parameter (must be a string).";
+                return false;
+            }
+            std::string fh_val = raw_args["function_hint"].get<std::string>();
+            if (!fh_val.empty()) {
+                func_hint = fh_val;
+            }
+        }
+
         // Perform file security manager check (write access)
         std::string canonical_path;
         if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::write, canonical_path, out_error)) {
@@ -64,6 +76,7 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
         args_.target_content = target;
         args_.replacement_content = replacement;
         args_.line_hint = hint;
+        args_.function_hint = func_hint;
 
         return true;
     } catch (const std::exception& e) {
