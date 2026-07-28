@@ -182,6 +182,21 @@ int main()
 			assert(read_file() == "void multi_line() {\n    if (cond) {\n        execute_new();\n    }\n}\n");
 		}
 
+		// 11. Ambiguous failure case with function_hint provided (Combo 2)
+		{
+			write_file("void double_return() {\n    return;\n    return;\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "return;"},
+				{"replacement_content", "return_two();"},
+				{"function_hint", "double_return"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "function_hint combo 2 result: " << res << std::endl;
+			assert(res.find("Multiple occurrences exist even within function/scope 'double_return'") != std::string::npos);
+			assert(res.find("Please pass 'line_hint'") != std::string::npos);
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

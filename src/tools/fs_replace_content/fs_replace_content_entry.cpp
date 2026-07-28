@@ -261,6 +261,39 @@ std::string fs_replace_content_tool::execute(agentlib::tool_context& ctx) {
     return result_msg;
 }
 
+static std::string format_multiple_matches_error(
+    std::string_view path,
+    size_t match_count,
+    const std::vector<int>& lines,
+    bool is_relaxed,
+    const std::optional<std::string>& function_hint,
+    const std::optional<int>& line_hint)
+{
+    std::stringstream err_ss;
+    std::string match_type = is_relaxed ? "relaxed matches" : "matches";
+    
+    err_ss << "Error: Multiple " << match_type << " (" << match_count << ") found for target_content in " << path << " at line numbers: [";
+    for (size_t i = 0; i < lines.size(); ++i) {
+        err_ss << lines[i] << (i + 1 < lines.size() ? ", " : "");
+    }
+    err_ss << "]. ";
+
+    bool has_func = function_hint.has_value() && !function_hint->empty();
+    bool has_line = line_hint.has_value();
+
+    if (!has_func && !has_line) {
+        err_ss << "Please pass 'function_hint' parameter with the enclosing function/method name (e.g. 'execute_disk_fallback'), or pass 'line_hint' to specify which occurrence to edit.";
+    } else if (has_func && !has_line) {
+        err_ss << "Multiple occurrences exist even within function/scope '" << function_hint.value() << "'. Please pass 'line_hint' to specify which line to edit, or include more context lines in target_content.";
+    } else if (!has_func && has_line) {
+        err_ss << "Multiple occurrences exist near line_hint " << line_hint.value() << ". Please pass 'function_hint' with the enclosing function name to narrow the scope.";
+    } else {
+        err_ss << "Multiple occurrences exist inside function '" << function_hint.value() << "' near line " << line_hint.value() << ". Please expand target_content to include more unique surrounding lines.";
+    }
+
+    return err_ss.str();
+}
+
 std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_context& ctx) {
     std::string path_to_use = args_.safe_path;
     auto* vfs = ctx.fs_security.get_vfs();
@@ -329,13 +362,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
                 }
                 chosen_idx_pos = best_match;
             } else {
-                std::stringstream err_ss;
-                err_ss << "Error: Multiple matches (" << match_lines.size() << ") found for target_content at line numbers: [";
-                for (size_t i = 0; i < match_lines.size(); ++i) {
-                    err_ss << match_lines[i] << (i + 1 < match_lines.size() ? ", " : "");
-                }
-                err_ss << "]. Please pass 'line_hint' or 'function_hint' parameter to specify which occurrence to edit.";
-                return err_ss.str();
+                return format_multiple_matches_error(args_.path, match_lines.size(), match_lines, false, args_.function_hint, args_.line_hint);
             }
         }
         replace_pos = match_indices[chosen_idx_pos];
@@ -402,13 +429,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
                     }
                 }
             } else {
-                std::stringstream err_ss;
-                err_ss << "Error: Multiple relaxed matches (" << relaxed_matches.size() << ") found for target_content at line numbers: [";
-                for (size_t i = 0; i < relaxed_matches.size(); ++i) {
-                    err_ss << relaxed_matches[i] << (i + 1 < relaxed_matches.size() ? ", " : "");
-                }
-                err_ss << "]. Please pass 'line_hint' or 'function_hint' parameter to specify which occurrence to edit.";
-                return err_ss.str();
+                return format_multiple_matches_error(args_.path, relaxed_matches.size(), relaxed_matches, true, args_.function_hint, args_.line_hint);
             }
         }
 
