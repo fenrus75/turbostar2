@@ -89,6 +89,19 @@ dialog_result dialog::handle_key(int key)
 	// Pass to the new container system
 	this->handle_event(ev, x_, y_);
 
+	auto pressed_name = get_pressed_element_name();
+	if (pressed_name) {
+		if (*pressed_name == "wizard_next" || *pressed_name == "wizard_finish") {
+			action_ = dialog_result::confirmed;
+			if (result_string_.empty()) {
+				result_string_ = "ok";
+			}
+		} else if (*pressed_name == "wizard_cancel") {
+			action_ = dialog_result::cancelled;
+			result_string_ = "cancel";
+		}
+	}
+
 	if (action_ == dialog_result::pending && key == 27) { // Standalone ESC or swallowed ESC
 		for (auto &child : children_) {
 			if (child->press_on_esc()) {
@@ -112,6 +125,19 @@ std::optional<dialog_result> dialog::handle_mouse(int mouse_x, int mouse_y)
 
 	// Pass to the new container system
 	this->handle_event(ev, x_, y_);
+
+	auto pressed_name = get_pressed_element_name();
+	if (pressed_name) {
+		if (*pressed_name == "wizard_next" || *pressed_name == "wizard_finish") {
+			action_ = dialog_result::confirmed;
+			if (result_string_.empty()) {
+				result_string_ = "ok";
+			}
+		} else if (*pressed_name == "wizard_cancel") {
+			action_ = dialog_result::cancelled;
+			result_string_ = "cancel";
+		}
+	}
 
 	if (action_ != dialog_result::pending) {
 		return action_;

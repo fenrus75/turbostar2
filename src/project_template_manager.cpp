@@ -91,12 +91,15 @@ bool project_template_manager::create_project(const project_create_options &opts
 		}
 	}
 
-	if (target_template_id.empty()) {
+	bool is_other = (opts.language == "Other" || opts.buildsystem == "Other" || opts.buildsystem == "None / Custom");
+	if (target_template_id.empty() && !is_other) {
 		out_error = std::format("No matching template found for language '{}' and build system '{}'.", opts.language, opts.buildsystem);
 		return false;
 	}
 
 	std::filesystem::create_directories(opts.target_directory);
+
+	if (!target_template_id.empty()) {
 
 	std::string author_name = get_cmd_output("git config user.name");
 	if (author_name.empty()) author_name = "Developer";
@@ -162,6 +165,7 @@ bool project_template_manager::create_project(const project_create_options &opts
 			return false;
 		}
 		ofs << substituted;
+	}
 	}
 
 	// Initialize Git repository if requested

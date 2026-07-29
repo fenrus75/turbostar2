@@ -35,6 +35,7 @@
 #include "ui/components/ui_horizontal_flow.h"
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_multiline_edit.h"
+#include "ui/components/ui_paged_container.h"
 #include "ui/components/ui_radio.h"
 #include "ui/components/ui_textbox.h"
 #include "ui/components/ui_vertical_flow.h"
@@ -2495,109 +2496,154 @@ std::unique_ptr<dialog> create_new_project_dialog()
 {
 	auto dlg = std::make_unique<dialog>("Create New Project", 1, 1);
 
-	auto flow = std::make_unique<ui_vertical_flow>("new_project_flow", 3, 1, 0);
-
-	flow->add_child(std::make_unique<ui_text_label>("Create a New Turbostar Project"));
-	flow->add_child(std::make_unique<ui_text_label>(""));
-
 	std::string default_dir = project_manager::get_instance().get_project_root();
 	std::string default_name = std::filesystem::path(default_dir).filename().string();
 	if (default_name.empty() || default_name == "/") {
 		default_name = "my_app";
 	}
 
+	auto wizard = std::make_unique<ui_paged_container>("wizard");
+	auto *wizard_ptr = wizard.get();
+
+	// Page 0: Project Identity & Location
+	auto page0 = std::make_unique<ui_vertical_flow>("page0", 2, 1, 0);
+	page0->add_child(std::make_unique<ui_text_label>("Step 1 of 3: Project Identity & Location"));
+	page0->add_child(std::make_unique<ui_text_label>(""));
+
 	auto row_name = std::make_unique<ui_horizontal_flow>("row_name", 0, 0);
 	row_name->add_child(std::make_unique<ui_text_label>("Project Name:   "));
 	row_name->add_child(std::make_unique<ui_textbox>("project_name", 30, default_name));
-	flow->add_child(std::move(row_name));
+	page0->add_child(std::move(row_name));
 
 	auto row_exec = std::make_unique<ui_horizontal_flow>("row_exec", 0, 0);
 	row_exec->add_child(std::make_unique<ui_text_label>("Target Binary:  "));
 	row_exec->add_child(std::make_unique<ui_textbox>("executable_name", 30, default_name));
-	flow->add_child(std::move(row_exec));
+	page0->add_child(std::move(row_exec));
 
 	auto row_dir = std::make_unique<ui_horizontal_flow>("row_dir", 0, 0);
 	row_dir->add_child(std::make_unique<ui_text_label>("Directory:      "));
 	row_dir->add_child(std::make_unique<ui_textbox>("target_directory", 30, default_dir));
-	flow->add_child(std::move(row_dir));
+	page0->add_child(std::move(row_dir));
 
-	ui_dropdown *buildsystem_dd_ptr = nullptr;
-	ui_dropdown *standard_dd_ptr = nullptr;
+	wizard_ptr->add_page(std::move(page0));
 
-	auto buildsystem_dd = std::make_unique<ui_dropdown>("buildsystem", 24, "Meson", std::vector<std::string>{"Meson", "CMake"});
-	buildsystem_dd_ptr = buildsystem_dd.get();
+	// Page 1: Select Programming Language
+	auto page1 = std::make_unique<ui_vertical_flow>("page1", 2, 1, 0);
+	page1->add_child(std::make_unique<ui_text_label>("Step 2 of 3: Select Programming Language"));
+	page1->add_child(std::make_unique<ui_text_label>(""));
 
-	auto standard_dd = std::make_unique<ui_dropdown>("language_standard", 24, "C++23", std::vector<std::string>{"C++23", "C++20", "C++17"});
-	standard_dd_ptr = standard_dd.get();
+	auto lang_group = std::make_unique<ui_radiobutton_group>("language", false);
+	lang_group->add_child(std::make_unique<ui_radio_choice>("C++", "C++", 'C', true));
+	lang_group->add_child(std::make_unique<ui_radio_choice>("C", "C", 'a', false));
+	lang_group->add_child(std::make_unique<ui_radio_choice>("Python", "Python", 'P', false));
+	lang_group->add_child(std::make_unique<ui_radio_choice>("Rust", "Rust", 'R', false));
+	lang_group->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+	page1->add_child(std::move(lang_group));
 
-	auto on_lang_change = [buildsystem_dd_ptr, standard_dd_ptr](const std::string &selected_lang) {
-		if (selected_lang == "C++") {
-			if (buildsystem_dd_ptr) buildsystem_dd_ptr->set_candidates({"Meson", "CMake"});
-			if (standard_dd_ptr) {
-				standard_dd_ptr->set_candidates({"C++23", "C++20", "C++17"});
-				standard_dd_ptr->set_buffer("C++23");
-			}
-		} else if (selected_lang == "C") {
-			if (buildsystem_dd_ptr) buildsystem_dd_ptr->set_candidates({"Meson", "CMake"});
-			if (standard_dd_ptr) {
-				standard_dd_ptr->set_candidates({"C17", "C11", "C99"});
-				standard_dd_ptr->set_buffer("C17");
-			}
-		} else if (selected_lang == "Python") {
-			if (buildsystem_dd_ptr) buildsystem_dd_ptr->set_candidates({"pyproject.toml", "Meson"});
-			if (standard_dd_ptr) {
-				standard_dd_ptr->set_candidates({"3.11+", "3.10", "3.9"});
-				standard_dd_ptr->set_buffer("3.11+");
-			}
-		} else if (selected_lang == "Rust") {
-			if (buildsystem_dd_ptr) buildsystem_dd_ptr->set_candidates({"Cargo"});
-			if (standard_dd_ptr) {
-				standard_dd_ptr->set_candidates({"2021 Edition", "2018 Edition"});
-				standard_dd_ptr->set_buffer("2021 Edition");
-			}
-		}
-	};
+	wizard_ptr->add_page(std::move(page1));
 
-	auto row_lang = std::make_unique<ui_horizontal_flow>("row_lang", 0, 0);
-	row_lang->add_child(std::make_unique<ui_text_label>("Language:       "));
-	row_lang->add_child(std::make_unique<ui_dropdown>("language", 24, "C++", std::vector<std::string>{"C++", "C", "Python", "Rust"}, on_lang_change));
-	flow->add_child(std::move(row_lang));
+	// Page 2: Build System & Language Standard Options
+	auto page2 = std::make_unique<ui_vertical_flow>("page2", 2, 1, 0);
+	page2->add_child(std::make_unique<ui_text_label>("Step 3 of 3: Build System & Language Standard"));
+	page2->add_child(std::make_unique<ui_text_label>(""));
 
-	auto row_build = std::make_unique<ui_horizontal_flow>("row_build", 0, 0);
-	row_build->add_child(std::make_unique<ui_text_label>("Build System:   "));
-	row_build->add_child(std::move(buildsystem_dd));
-	flow->add_child(std::move(row_build));
+	auto row_stack = std::make_unique<ui_horizontal_flow>("row_stack", 0, 0);
 
-	auto row_std = std::make_unique<ui_horizontal_flow>("row_std", 0, 0);
-	row_std->add_child(std::make_unique<ui_text_label>("Standard:       "));
-	row_std->add_child(std::move(standard_dd));
-	flow->add_child(std::move(row_std));
+	auto build_box = std::make_unique<ui_group_box>("gb_build", 24, "Build System");
+	auto build_group = std::make_unique<ui_radiobutton_group>("buildsystem", false);
+	auto *build_group_ptr = build_group.get();
+	build_box->add_child(std::move(build_group));
+	row_stack->add_child(std::move(build_box));
 
-	flow->add_child(std::make_unique<ui_text_label>(""));
+	auto std_box = std::make_unique<ui_group_box>("gb_std", 24, "Language Standard");
+	auto std_group = std::make_unique<ui_radiobutton_group>("language_standard", false);
+	auto *std_group_ptr = std_group.get();
+	std_box->add_child(std::move(std_group));
+	row_stack->add_child(std::move(std_box));
+
+	page2->add_child(std::move(row_stack));
+	page2->add_child(std::make_unique<ui_text_label>(""));
 
 	auto row_git = std::make_unique<ui_horizontal_flow>("row_git", 0, 0);
 	row_git->add_child(std::make_unique<ui_checkbox>("init_git", "Initialize Git repository", 'g', true));
-	flow->add_child(std::move(row_git));
+	page2->add_child(std::move(row_git));
 
-	flow->add_child(std::make_unique<ui_text_label>(""));
+	wizard_ptr->add_page(std::move(page2));
 
-	auto row_buttons = std::make_unique<ui_horizontal_flow>("row_buttons", 0, 0);
-	row_buttons->add_child(std::make_unique<ui_button>("btn_create", "Create Project", 'c', [d = dlg.get()]() {
-		d->set_action(dialog_result::confirmed);
-		d->set_result("ok");
-	}));
-	row_buttons->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'a', [d = dlg.get()]() {
-		d->set_action(dialog_result::cancelled);
-		d->set_result("cancel");
-	}));
-	flow->add_child(std::move(row_buttons));
+	// Page Entry Callback: Populate Page 2 based on Page 1 language selection
+	wizard_ptr->set_page_entered_callback([wizard_ptr, build_group_ptr, std_group_ptr](size_t page) {
+		if (page == 2 && build_group_ptr && std_group_ptr) {
+			std::string selected_lang = wizard_ptr->get_value("language").value_or("C++");
 
-	auto flow_ptr = flow.get();
-	dlg->add_child(std::move(flow));
+			build_group_ptr->clear_children();
+			std_group_ptr->clear_children();
+
+			if (selected_lang == "C++") {
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("CMake", "CMake", 'K', false));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++23", "C++23", '3', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++20", "C++20", '0', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++17", "C++17", '7', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
+			} else if (selected_lang == "C") {
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("CMake", "CMake", 'K', false));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C17", "C17", '7', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C11", "C11", '1', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C99", "C99", '9', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
+			} else if (selected_lang == "Python") {
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("pyproject.toml", "pyproject.toml", 'p', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', false));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.11+", "3.11+", '1', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.10", "3.10", '0', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.9", "3.9", '9', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
+			} else if (selected_lang == "Rust") {
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Cargo", "Cargo", 'C', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2021 Edition", "2021 Edition", '1', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2018 Edition", "2018 Edition", '8', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
+			} else {
+				// Other language
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Custom / Default", "Custom / Default", 'D', true));
+			}
+			build_group_ptr->flow();
+			std_group_ptr->flow();
+		}
+	});
+
+	// Page Validation Callback: Ensure project name and directory are non-empty
+	wizard_ptr->set_validate_page_callback([wizard_ptr](size_t page, std::string &out_err) {
+		if (page == 0) {
+			auto name = wizard_ptr->get_value("project_name").value_or("");
+			auto dir = wizard_ptr->get_value("target_directory").value_or("");
+			if (name.empty()) {
+				out_err = "Project name cannot be empty.";
+				return false;
+			}
+			if (dir.empty()) {
+				out_err = "Target directory cannot be empty.";
+				return false;
+			}
+		}
+		return true;
+	});
+
+	dlg->add_child(std::move(wizard));
 
 	dlg->flow();
-	dlg->set_width(flow_ptr->width());
-	dlg->set_height(flow_ptr->height());
+	dlg->set_width(wizard_ptr->width() + 4);
+	dlg->set_height(wizard_ptr->height() + 2);
 
 	return dlg;
 }
