@@ -1,4 +1,4 @@
-[Jump to content](#bodyContent)
+Jump to content
 
    Main menu
 
@@ -7,43 +7,41 @@ Main menu
 
  Navigation
 
-- [Main page](/wiki/Main_Page)
-- [Contents](/wiki/Wikipedia:Contents)
-- [Current events](/wiki/Portal:Current_events)
-- [Random article](/wiki/Special:Random)
-- [About Wikipedia](/wiki/Wikipedia:About)
-- [Contact us](//en.wikipedia.org/wiki/Wikipedia:Contact_us)
+- Main page
+- Contents
+- Current events
+- Random article
+- About Wikipedia
+- Contact us
 
  Contribute
 
-- [Help](/wiki/Help:Contents)
-- [Learn to edit](/wiki/Help:Introduction)
-- [Community portal](/wiki/Wikipedia:Community_portal)
-- [Recent changes](/wiki/Special:RecentChanges)
-- [Upload file](/wiki/Wikipedia:File_upload_wizard)
-- [Special pages](/wiki/Special:SpecialPages)
+- Help
+- Learn to edit
+- Community portal
+- Recent changes
+- Upload file
+- Special pages
 
-  [](/wiki/Main_Page)
-
- [Search](/wiki/Special:Search)
+ Search
 
  Search
 
    Appearance
 
-- [Donate](https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en)
+- Donate
 
-- [Create account](/w/index.php?title=Special:CreateAccount&returnto=JPEG+File+Interchange+Format)
+- Create account
 
-- [Log in](/w/index.php?title=Special:UserLogin&returnto=JPEG+File+Interchange+Format)
+- Log in
 
    Personal tools
 
-- [Donate](https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en)
+- Donate
 
-- [Create account](/w/index.php?title=Special:CreateAccount&returnto=JPEG+File+Interchange+Format)
+- Create account
 
-- [Log in](/w/index.php?title=Special:UserLogin&returnto=JPEG+File+Interchange+Format)
+- Log in
 
 ## Contents
 
@@ -94,17 +92,17 @@ Main menu
 - [Português](https://pt.wikipedia.org/wiki/JPEG_File_Interchange_Format)
 - [中文](https://zh.wikipedia.org/wiki/JPEG%E6%96%87%E4%BB%B6%E4%BA%A4%E6%8D%A2%E6%A0%BC%E5%BC%8F)
 
-- [Article](/wiki/JPEG_File_Interchange_Format)
+- [Article](https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format)
 
-- [Talk](/wiki/Talk:JPEG_File_Interchange_Format)
+- [Talk](https://en.wikipedia.org/wiki/Talk:JPEG_File_Interchange_Format)
 
   English
 
-- [Read](/wiki/JPEG_File_Interchange_Format)
+- [Read](https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format)
 
 -
 
-- [View history](/w/index.php?title=JPEG_File_Interchange_Format&action=history)
+- [View history](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&action=history)
 
    Tools
 
@@ -113,27 +111,27 @@ Tools
 
  Actions
 
-- [Read](/wiki/JPEG_File_Interchange_Format)
+- [Read](https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format)
 
 -
 
-- [View history](/w/index.php?title=JPEG_File_Interchange_Format&action=history)
+- [View history](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&action=history)
 
  General
 
-- [What links here](/wiki/Special:WhatLinksHere/JPEG_File_Interchange_Format)
-- [Related changes](/wiki/Special:RecentChangesLinked/JPEG_File_Interchange_Format)
-- [Upload file](//en.wikipedia.org/wiki/Wikipedia:File_Upload_Wizard)
-- [Permanent link](/w/index.php?title=JPEG_File_Interchange_Format&oldid=1364436986)
-- [Page information](/w/index.php?title=JPEG_File_Interchange_Format&action=info)
-- [Cite this page](/w/index.php?title=Special:CiteThisPage&page=JPEG_File_Interchange_Format&id=1364436986&wpFormIdentifier=titleform)
-- [Get shortened URL](/w/index.php?title=Special:UrlShortener&url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FJPEG_File_Interchange_Format)
-- [Switch to legacy parser](/w/index.php?title=JPEG_File_Interchange_Format&useparsoid=0)
+- [What links here](https://en.wikipedia.org/wiki/Special:WhatLinksHere/JPEG_File_Interchange_Format)
+- [Related changes](https://en.wikipedia.org/wiki/Special:RecentChangesLinked/JPEG_File_Interchange_Format)
+- [Upload file](https://en.wikipedia.org/wiki/Wikipedia:File_Upload_Wizard)
+- [Permanent link](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&oldid=1364436986)
+- [Page information](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&action=info)
+- [Cite this page](https://en.wikipedia.org/w/index.php?title=Special:CiteThisPage&page=JPEG_File_Interchange_Format&id=1364436986&wpFormIdentifier=titleform)
+- [Get shortened URL](https://en.wikipedia.org/w/index.php?title=Special:UrlShortener&url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FJPEG_File_Interchange_Format)
+- [Switch to legacy parser](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&useparsoid=0)
 
  Print/export
 
-- [Download as PDF](/w/index.php?title=Special:DownloadAsPdf&page=JPEG_File_Interchange_Format&action=show-download-screen)
-- [Printable version](/w/index.php?title=JPEG_File_Interchange_Format&printable=yes)
+- [Download as PDF](https://en.wikipedia.org/w/index.php?title=Special:DownloadAsPdf&page=JPEG_File_Interchange_Format&action=show-download-screen)
+- [Printable version](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&printable=yes)
 
  In other projects
 
@@ -146,35 +144,35 @@ From Wikipedia, the free encyclopedia
 
 Image file format with multiple editions
 
-The **JPEG File Interchange Format** (**JFIF**) is an [image file format](//en.wikipedia.org/wiki/Image_file_format) standard published as [ITU-T](//en.wikipedia.org/wiki/ITU-T) Recommendation T.871 and [ISO/IEC](//en.wikipedia.org/wiki/ISO/IEC) 10918-5. It defines supplementary specifications for the [container format](//en.wikipedia.org/wiki/Digital_container_format) that contains the image data encoded with the [JPEG](//en.wikipedia.org/wiki/JPEG) algorithm. The base specifications for a JPEG container format are defined in Annex B of the JPEG standard, known as [JPEG Interchange Format](//en.wikipedia.org/wiki/JPEG_Interchange_Format) (JIF). JFIF builds on JIF to solve some of JIF's limitations, including unnecessary complexity, component sample registration, resolution, aspect ratio, and [color space](//en.wikipedia.org/wiki/Color_space). Because JFIF is not the original JPG standard, one might expect another [MIME](//en.wikipedia.org/wiki/MIME) type. However, it is still registered as "image/jpeg" (indicating its primary data format rather than the amended information).
+The **JPEG File Interchange Format** (**JFIF**) is an [image file format](https://en.wikipedia.org/wiki/Image_file_format) standard published as [ITU-T](https://en.wikipedia.org/wiki/ITU-T) Recommendation T.871 and [ISO/IEC](https://en.wikipedia.org/wiki/ISO/IEC) 10918-5. It defines supplementary specifications for the [container format](https://en.wikipedia.org/wiki/Digital_container_format) that contains the image data encoded with the [JPEG](https://en.wikipedia.org/wiki/JPEG) algorithm. The base specifications for a JPEG container format are defined in Annex B of the JPEG standard, known as [JPEG Interchange Format](https://en.wikipedia.org/wiki/JPEG_Interchange_Format) (JIF). JFIF builds on JIF to solve some of JIF's limitations, including unnecessary complexity, component sample registration, resolution, aspect ratio, and [color space](https://en.wikipedia.org/wiki/Color_space). Because JFIF is not the original JPG standard, one might expect another [MIME](https://en.wikipedia.org/wiki/MIME) type. However, it is still registered as "image/jpeg" (indicating its primary data format rather than the amended information).
 
-JFIF is [mutually incompatible](#Compatibility) with the newer [Exchangeable image file format](//en.wikipedia.org/wiki/Exchangeable_image_file_format) (Exif).
+JFIF is [mutually incompatible](#Compatibility) with the newer [Exchangeable image file format](https://en.wikipedia.org/wiki/Exchangeable_image_file_format) (Exif).
 
 ## Purpose
 
-JFIF defines a number of details that are left unspecified by the JPEG Part 1 standard ([ISO](//en.wikipedia.org/wiki/ISO)/[IEC](//en.wikipedia.org/wiki/International_Electrotechnical_Commission) 10918-1, [ITU-T](//en.wikipedia.org/wiki/ITU-T) Recommendation T.81.)[[1]](#cite_note-itu_t81-1)
+JFIF defines a number of details that are left unspecified by the JPEG Part 1 standard ([ISO](https://en.wikipedia.org/wiki/ISO)/[IEC](https://en.wikipedia.org/wiki/International_Electrotechnical_Commission) 10918-1, [ITU-T](https://en.wikipedia.org/wiki/ITU-T) Recommendation T.81.)[[1]](#cite_note-itu_t81-1)
 
 ### Component sample registration
 
-JPEG allows multiple components (such as [Y, Cb, and Cr](//en.wikipedia.org/wiki/YCbCr)) to have different resolutions, but it does not define how those differing sample arrays (which render bitmaps) should be aligned. This pixel-producing information is rendered with the expectation of indicating rectangles by their [centroid](//en.wikipedia.org/wiki/Centroid), rather than being pixel data directly, or being 'first corner and flood', etc. which is uncommon.
+JPEG allows multiple components (such as [Y, Cb, and Cr](https://en.wikipedia.org/wiki/YCbCr)) to have different resolutions, but it does not define how those differing sample arrays (which render bitmaps) should be aligned. This pixel-producing information is rendered with the expectation of indicating rectangles by their [centroid](https://en.wikipedia.org/wiki/Centroid), rather than being pixel data directly, or being 'first corner and flood', etc. which is uncommon.
 
 ### Resolution and aspect ratio
 
-The JPEG standard does not include any method of coding the resolution or aspect ratio of an image. JFIF provides resolution or aspect ratio information using an application segment extension to JPEG. It uses Application Segment #0, with a segment header consisting of the [null-terminated string](//en.wikipedia.org/wiki/Null-terminated_string) spelling "JFIF" in [ASCII](//en.wikipedia.org/wiki/ASCII) followed by a byte equal to 0, and specifies that this must be the first segment in the file, hence making it simple to recognize a JFIF file. [Exif](//en.wikipedia.org/wiki/Exif) images recorded by digital cameras generally do not include this segment, but typically comply in all other respects with the JFIF standard.
+The JPEG standard does not include any method of coding the resolution or aspect ratio of an image. JFIF provides resolution or aspect ratio information using an application segment extension to JPEG. It uses Application Segment #0, with a segment header consisting of the [null-terminated string](https://en.wikipedia.org/wiki/Null-terminated_string) spelling "JFIF" in [ASCII](https://en.wikipedia.org/wiki/ASCII) followed by a byte equal to 0, and specifies that this must be the first segment in the file, hence making it simple to recognize a JFIF file. [Exif](https://en.wikipedia.org/wiki/Exif) images recorded by digital cameras generally do not include this segment, but typically comply in all other respects with the JFIF standard.
 
 ### Color space
 
-The JPEG standard used for the compression coding in JFIF files does not define which [color encoding](//en.wikipedia.org/wiki/Color_space) is to be used for images. JFIF defines the [color model](//en.wikipedia.org/wiki/Color_model) to be used: either Y for greyscale, or [YCbCr](//en.wikipedia.org/wiki/YCbCr) derived from [RGB color primaries](//en.wikipedia.org/wiki/RGB_color_model) as defined in [CCIR 601](//en.wikipedia.org/wiki/CCIR_601) (now known as Rec. [ITU-R](//en.wikipedia.org/wiki/ITU-R) BT.601), except with a different "full range" scaling of the Y, Cb and Cr components. Unlike the "studio range" defined in CCIR 601, in which black is represented by Y=16 and white by Y=235 and values outside of this range are available for [signal processing](//en.wikipedia.org/wiki/Signal_processing) "headroom" and "footroom", JFIF uses all 256 levels of the 8-bit representation, so that Y=0 for black and Y=255 for peak white. The RGB color primaries defined in JFIF via CCIR 601 also differ somewhat from what has become common practice in newer applications (e.g., they differ slightly from the color primaries defined in [sRGB](//en.wikipedia.org/wiki/SRGB)). Moreover, CCIR 601 (before 2007) did not provide a precise definition of the RGB color primaries; it relied instead on the underlying practices of the television industry.
+The JPEG standard used for the compression coding in JFIF files does not define which [color encoding](https://en.wikipedia.org/wiki/Color_space) is to be used for images. JFIF defines the [color model](https://en.wikipedia.org/wiki/Color_model) to be used: either Y for greyscale, or [YCbCr](https://en.wikipedia.org/wiki/YCbCr) derived from [RGB color primaries](https://en.wikipedia.org/wiki/RGB_color_model) as defined in [CCIR 601](https://en.wikipedia.org/wiki/CCIR_601) (now known as Rec. [ITU-R](https://en.wikipedia.org/wiki/ITU-R) BT.601), except with a different "full range" scaling of the Y, Cb and Cr components. Unlike the "studio range" defined in CCIR 601, in which black is represented by Y=16 and white by Y=235 and values outside of this range are available for [signal processing](https://en.wikipedia.org/wiki/Signal_processing) "headroom" and "footroom", JFIF uses all 256 levels of the 8-bit representation, so that Y=0 for black and Y=255 for peak white. The RGB color primaries defined in JFIF via CCIR 601 also differ somewhat from what has become common practice in newer applications (e.g., they differ slightly from the color primaries defined in [sRGB](https://en.wikipedia.org/wiki/SRGB)). Moreover, CCIR 601 (before 2007) did not provide a precise definition of the RGB color primaries; it relied instead on the underlying practices of the television industry.
 
-Color interpretation of a JFIF image may be improved by embedding an [ICC](//en.wikipedia.org/wiki/International_Color_Consortium) profile, colorspace metadata, or an [sRGB](//en.wikipedia.org/wiki/SRGB) tag, and using an application that interprets this information.
+Color interpretation of a JFIF image may be improved by embedding an [ICC](https://en.wikipedia.org/wiki/International_Color_Consortium) profile, colorspace metadata, or an [sRGB](https://en.wikipedia.org/wiki/SRGB) tag, and using an application that interprets this information.
 
 ## File format structure
 
-A JFIF file consists of a sequence of markers or marker segments (for details refer to [JPEG, Syntax and structure](//en.wikipedia.org/wiki/JPEG#Syntax_and_structure)). The markers are defined in part 1 of the [JPEG](//en.wikipedia.org/wiki/JPEG) Standard.[[1]](#cite_note-itu_t81-1) Each marker consists of two bytes: an `FF` byte followed by a byte which is not equal to `00` or `FF` and specifies the type of the marker. Some markers stand alone, but most indicate the start of a marker segment that contains data bytes according to the following pattern:
+A JFIF file consists of a sequence of markers or marker segments (for details refer to [JPEG, Syntax and structure](https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure)). The markers are defined in part 1 of the [JPEG](https://en.wikipedia.org/wiki/JPEG) Standard.[[1]](#cite_note-itu_t81-1) Each marker consists of two bytes: an `FF` byte followed by a byte which is not equal to `00` or `FF` and specifies the type of the marker. Some markers stand alone, but most indicate the start of a marker segment that contains data bytes according to the following pattern:
 
 `FF *xx* *s1* *s2* *[data bytes]*`
 
-The bytes *s1* and *s2* are taken together to represent a [big-endian](//en.wikipedia.org/wiki/Endianness) 16-bit integer specifying the length of the following "data bytes" plus the 2 bytes used to represent the length. In other words, *s1* and *s2* specify the number of the following *data bytes* as     256 ⋅ s 1 + s 2 − 2   {\displaystyle 256\cdot s1+s2-2}  .
+The bytes *s1* and *s2* are taken together to represent a [big-endian](https://en.wikipedia.org/wiki/Endianness) 16-bit integer specifying the length of the following "data bytes" plus the 2 bytes used to represent the length. In other words, *s1* and *s2* specify the number of the following *data bytes* as     256 ⋅ s 1 + s 2 − 2   {\displaystyle 256\cdot s1+s2-2}  .
 
 According to part 1 of the JPEG standard, applications can use APP marker segments and define an application specific meaning of the data. In the JFIF standard, the following APP marker segments are defined:
 
@@ -254,21 +252,21 @@ The thumbnail data depends on the thumbnail format as follows:
 
 ## Compatibility
 
-The newer [Exchangeable image file format](//en.wikipedia.org/wiki/Exchangeable_image_file_format) (Exif) is comparable to JFIF, but the two standards are mutually incompatible. This is because both standards specify that their particular application segment (APP0 for JFIF, APP1 for Exif) must immediately follow the SOI marker. In practice, many programs and digital cameras produce files with both application segments included. This will not affect the image decoding for most decoders, but poorly designed JFIF or Exif parsers may not recognise the file properly.
+The newer [Exchangeable image file format](https://en.wikipedia.org/wiki/Exchangeable_image_file_format) (Exif) is comparable to JFIF, but the two standards are mutually incompatible. This is because both standards specify that their particular application segment (APP0 for JFIF, APP1 for Exif) must immediately follow the SOI marker. In practice, many programs and digital cameras produce files with both application segments included. This will not affect the image decoding for most decoders, but poorly designed JFIF or Exif parsers may not recognise the file properly.
 
-JFIF is compatible with Adobe [Photoshop](//en.wikipedia.org/wiki/Photoshop)'s JPEG "Information Resource Block" extensions, and [IPTC Information Interchange Model](//en.wikipedia.org/wiki/IPTC_Information_Interchange_Model) metadata, since JFIF does not preclude other application segments, and the Photoshop extensions are not required to be the first in the file. However, Photoshop generally saves CMYK buffers as four-component "Adobe JPEGs" that are not conformant with JFIF. Since these files are not in a YCbCr color space, they are typically not decodable by Web browsers and other Internet software.
+JFIF is compatible with Adobe [Photoshop](https://en.wikipedia.org/wiki/Photoshop)'s JPEG "Information Resource Block" extensions, and [IPTC Information Interchange Model](https://en.wikipedia.org/wiki/IPTC_Information_Interchange_Model) metadata, since JFIF does not preclude other application segments, and the Photoshop extensions are not required to be the first in the file. However, Photoshop generally saves CMYK buffers as four-component "Adobe JPEGs" that are not conformant with JFIF. Since these files are not in a YCbCr color space, they are typically not decodable by Web browsers and other Internet software.
 
 ## History
 
-Development of the JFIF document was led by Eric Hamilton of [C-Cube Microsystems](//en.wikipedia.org/wiki/C-Cube_Microsystems), and agreement on the first version was established in late 1991 at a meeting held at C-Cube involving about 40 representatives of various computer, telecommunications, and imaging companies. Shortly afterwards, a minor revision was published — JFIF 1.01.[[3]](#cite_note-ecma_tr98-3) For nearly 20 years, the latest version available was v1.02, published September 1, 1992.[[2]](#cite_note-hamilton_1992-2)
+Development of the JFIF document was led by Eric Hamilton of [C-Cube Microsystems](https://en.wikipedia.org/wiki/C-Cube_Microsystems), and agreement on the first version was established in late 1991 at a meeting held at C-Cube involving about 40 representatives of various computer, telecommunications, and imaging companies. Shortly afterwards, a minor revision was published — JFIF 1.01.[[3]](#cite_note-ecma_tr98-3) For nearly 20 years, the latest version available was v1.02, published September 1, 1992.[[2]](#cite_note-hamilton_1992-2)
 
-In 1996, [RFC](//en.wikipedia.org/wiki/Request_for_Comments) 2046 specified that the image format used for transmitting JPEG images across the Internet should be JFIF. The [MIME type](//en.wikipedia.org/wiki/MIME_type) of "image/jpeg" must be encoded as JFIF. In practice, however, virtually all Internet software can decode any baseline *JIF* image that uses Y or YCbCr components, whether it is JFIF compliant or not.
+In 1996, [RFC](https://en.wikipedia.org/wiki/Request_for_Comments) 2046 specified that the image format used for transmitting JPEG images across the Internet should be JFIF. The [MIME type](https://en.wikipedia.org/wiki/MIME_type) of "image/jpeg" must be encoded as JFIF. In practice, however, virtually all Internet software can decode any baseline *JIF* image that uses Y or YCbCr components, whether it is JFIF compliant or not.
 
-As time went by, C-Cube was restructured (and eventually devolved into [Harmonic](//en.wikipedia.org/wiki/Harmonic_Inc.), [LSI Logic](//en.wikipedia.org/wiki/LSI_Logic), [Magnum Semiconductor](//en.wikipedia.org/wiki/Magnum_Semiconductor), [Avago Technologies](//en.wikipedia.org/wiki/Avago_Technologies), [Broadcom](//en.wikipedia.org/wiki/Broadcom_Limited), and GigOptix, GigPeak, etc), and lost interest in the document, and the specification had no official publisher until it was picked up by [Ecma International](//en.wikipedia.org/wiki/Ecma_International) and the ITU-T/ISO/IEC [Joint Photographic Experts Group](//en.wikipedia.org/wiki/Joint_Photographic_Experts_Group) around 2009 to avoid it being lost to history and provide a way to formally cite it in standard publications and improve its editorial quality. It was published by ECMA in 2009 as Technical Report number 98 to avoid loss of the historical record,[[3]](#cite_note-ecma_tr98-3) and it was formally standardized by [ITU-T](//en.wikipedia.org/wiki/ITU-T) in 2011 as its Recommendation T.871[[4]](#cite_note-itu_t871-4) and by ISO/IEC in 2013 as ISO/IEC 10918-5,[[5]](#cite_note-iso_10918-5-5) The newer publications included editorial improvements but no substantial technical changes.
+As time went by, C-Cube was restructured (and eventually devolved into [Harmonic](https://en.wikipedia.org/wiki/Harmonic_Inc.), [LSI Logic](https://en.wikipedia.org/wiki/LSI_Logic), [Magnum Semiconductor](https://en.wikipedia.org/wiki/Magnum_Semiconductor), [Avago Technologies](https://en.wikipedia.org/wiki/Avago_Technologies), [Broadcom](https://en.wikipedia.org/wiki/Broadcom_Limited), and GigOptix, GigPeak, etc), and lost interest in the document, and the specification had no official publisher until it was picked up by [Ecma International](https://en.wikipedia.org/wiki/Ecma_International) and the ITU-T/ISO/IEC [Joint Photographic Experts Group](https://en.wikipedia.org/wiki/Joint_Photographic_Experts_Group) around 2009 to avoid it being lost to history and provide a way to formally cite it in standard publications and improve its editorial quality. It was published by ECMA in 2009 as Technical Report number 98 to avoid loss of the historical record,[[3]](#cite_note-ecma_tr98-3) and it was formally standardized by [ITU-T](https://en.wikipedia.org/wiki/ITU-T) in 2011 as its Recommendation T.871[[4]](#cite_note-itu_t871-4) and by ISO/IEC in 2013 as ISO/IEC 10918-5,[[5]](#cite_note-iso_10918-5-5) The newer publications included editorial improvements but no substantial technical changes.
 
 ## See also
 
-- [Joint Photographic Experts Group](//en.wikipedia.org/wiki/Joint_Photographic_Experts_Group)
+- [Joint Photographic Experts Group](https://en.wikipedia.org/wiki/Joint_Photographic_Experts_Group)
 
 ## References
 
@@ -286,9 +284,9 @@ As time went by, C-Cube was restructured (and eventually devolved into [Harmonic
 
 ### Books
 
-- Miano, John M, "Compressed Image File Formats"; 1999, Addison-Wesley [ISBN](//en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-201-60443-6](//en.wikipedia.org/wiki/Special:BookSources/978-0-201-60443-6)
+- Miano, John M, "Compressed Image File Formats"; 1999, Addison-Wesley [ISBN](https://en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-201-60443-6](https://en.wikipedia.org/wiki/Special:BookSources/978-0-201-60443-6)
 
-- Pennebaker, William B. and [Joan L. Mitchell](//en.wikipedia.org/wiki/Joan_L._Mitchell): *JPEG still image data compression standard*; 3rd edition, 1993, Springer [ISBN](//en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-442-01272-4](//en.wikipedia.org/wiki/Special:BookSources/978-0-442-01272-4)
+- Pennebaker, William B. and [Joan L. Mitchell](https://en.wikipedia.org/wiki/Joan_L._Mitchell): *JPEG still image data compression standard*; 3rd edition, 1993, Springer [ISBN](https://en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-442-01272-4](https://en.wikipedia.org/wiki/Special:BookSources/978-0-442-01272-4)
 
 ### Standards
 
@@ -298,48 +296,48 @@ As time went by, C-Cube was restructured (and eventually devolved into [Harmonic
 
 - Recommendation ITU-T T.81: [*Information technology – Digital compression and coding of continuous-tone still images – Requirements and guidelines*](http://www.itu.int/rec/T-REC-T.81) (PDF and Microsoft Word, 1.5 MB) Approved 18 September 1992; posted 14 April 2004
 
-Retrieved from "[https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&oldid=1364436986](https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&oldid=1364436986)"
+Retrieved from "https://en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&oldid=1364436986"
 
-[Categories](/wiki/Help:Category):
+Categories:
 
-- [JPEG](/wiki/Category:JPEG)
-- [Graphics file formats](/wiki/Category:Graphics_file_formats)
-- [Open formats](/wiki/Category:Open_formats)
+- JPEG
+- Graphics file formats
+- Open formats
 
 Hidden categories:
 
-- [Articles with short description](/wiki/Category:Articles_with_short_description)
-- [Short description is different from Wikidata](/wiki/Category:Short_description_is_different_from_Wikidata)
+- Articles with short description
+- Short description is different from Wikidata
 
 -  This page was last edited on 16 July 2026, at 14:32 (UTC).
 
-- Page was rendered with [Parsoid](https://www.mediawiki.org/wiki/Special:MyLanguage/Parsoid).
+- Page was rendered with Parsoid.
 
-- Text is available under the [Creative Commons Attribution-ShareAlike 4.0 License](/wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License); additional terms may apply. By using this site, you agree to the [Terms of Use](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use) and [Privacy Policy](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy). Wikipedia® is a registered trademark of the [Wikimedia Foundation, Inc.](https://wikimediafoundation.org/), a non-profit organization.
+- Text is available under the Creative Commons Attribution-ShareAlike 4.0 License; additional terms may apply. By using this site, you agree to the Terms of Use and Privacy Policy. Wikipedia® is a registered trademark of the Wikimedia Foundation, Inc., a non-profit organization.
 
-- [Privacy policy](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy)
+- Privacy policy
 
-- [About Wikipedia](/wiki/Wikipedia:About)
+- About Wikipedia
 
-- [Disclaimers](/wiki/Wikipedia:General_disclaimer)
+- Disclaimers
 
-- [Contact Wikipedia](//en.wikipedia.org/wiki/Wikipedia:Contact_us)
+- Contact Wikipedia
 
-- [Legal & safety contacts](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information)
+- Legal & safety contacts
 
-- [Code of Conduct](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct)
+- Code of Conduct
 
-- [Developers](https://developer.wikimedia.org)
+- Developers
 
-- [Statistics](https://stats.wikimedia.org/#/en.wikipedia.org)
+- Statistics
 
-- [Cookie statement](https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement)
+- Cookie statement
 
-- [Mobile view](//en.wikipedia.org/w/index.php?title=JPEG_File_Interchange_Format&mobileaction=toggle_view_mobile)
+- Mobile view
 
-- [](https://www.wikimedia.org/)
+-
 
-- [](https://www.mediawiki.org/)
+-
 
   Search
 
@@ -349,6 +347,4 @@ Hidden categories:
 
 JPEG File Interchange Format
 
- [](#) [](#) [](#) [](#) [](#) [](#) [](#)
-
-  8 languages  [Add topic](#)
+  8 languages  Add topic

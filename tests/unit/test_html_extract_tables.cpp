@@ -271,6 +271,12 @@ int main()
 
 			// Verify standalone [] lines are removed
 			assert(md_res.find("\n[]\n") == std::string::npos);
+
+			// Verify pre-heading nav links are plain text (no [Main page](/wiki/Main_Page))
+			assert(md_res.find("[Main page]") == std::string::npos);
+
+			// Verify main content relative links are resolved to absolute URLs
+			assert(md_res.find("[image file format](https://en.wikipedia.org/wiki/Image_file_format)") != std::string::npos);
 		}
 	}
 

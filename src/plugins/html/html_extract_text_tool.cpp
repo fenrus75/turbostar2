@@ -188,8 +188,71 @@ void append_paragraph_separator(std::string &out)
 	}
 }
 
+std::string extract_base_url(lxb_html_document_t *document)
+{
+	if (!document)
+		return "";
+
+	lxb_dom_node_t *root = lxb_dom_interface_node(lxb_dom_document_root(lxb_dom_interface_document(document)));
+	if (!root)
+		return "";
+
+	lxb_dom_collection_t *collection = lxb_dom_collection_make(&document->dom_document, 16);
+	if (!collection)
+		return "";
+
+	std::string base_url;
+
+	lxb_dom_elements_by_tag_name(lxb_dom_interface_element(root), collection, reinterpret_cast<const lxb_char_t *>("base"), 4);
+	for (size_t i = 0; i < lxb_dom_collection_length(collection); ++i) {
+		lxb_dom_element_t *element = lxb_dom_collection_element(collection, i);
+		size_t len = 0;
+		const lxb_char_t *val = lxb_dom_element_get_attribute(element, reinterpret_cast<const lxb_char_t *>("href"), 4, &len);
+		if (val && len > 0) {
+			base_url = std::string(reinterpret_cast<const char *>(val), len);
+			break;
+		}
+	}
+
+	if (base_url.empty()) {
+		lxb_dom_collection_clean(collection);
+		lxb_dom_elements_by_tag_name(lxb_dom_interface_element(root), collection, reinterpret_cast<const lxb_char_t *>("link"), 4);
+		for (size_t i = 0; i < lxb_dom_collection_length(collection); ++i) {
+			lxb_dom_element_t *element = lxb_dom_collection_element(collection, i);
+			size_t rel_len = 0;
+			const lxb_char_t *rel_val = lxb_dom_element_get_attribute(element, reinterpret_cast<const lxb_char_t *>("rel"), 3, &rel_len);
+			if (rel_val && rel_len > 0) {
+				std::string rel_str(reinterpret_cast<const char *>(rel_val), rel_len);
+				if (rel_str == "canonical") {
+					size_t href_len = 0;
+					const lxb_char_t *href_val = lxb_dom_element_get_attribute(element, reinterpret_cast<const lxb_char_t *>("href"), 4, &href_len);
+					if (href_val && href_len > 0) {
+						base_url = std::string(reinterpret_cast<const char *>(href_val), href_len);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	lxb_dom_collection_destroy(collection, true);
+
+	if (!base_url.empty()) {
+		size_t scheme_end = base_url.find("://");
+		if (scheme_end != std::string::npos) {
+			size_t host_end = base_url.find('/', scheme_end + 3);
+			if (host_end != std::string::npos) {
+				return base_url.substr(0, host_end);
+			}
+			return base_url;
+		}
+	}
+
+	return "";
+}
+
 void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string &out, bool rich, int &list_depth,
-	       std::vector<int> &list_counters)
+	       std::vector<int> &list_counters, bool &in_main_content, const std::string &base_url)
 {
 	if (!node)
 		return;
@@ -209,6 +272,26 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	lxb_tag_id_t tag = LXB_TAG__UNDEF;
 	if (type == LXB_DOM_NODE_TYPE_ELEMENT) {
 		tag = lxb_dom_node_tag_id(node);
+		lxb_dom_element_t *elem = lxb_dom_interface_element(node);
+
+		// Footer detection -> turn in_main_content back to false
+		if (tag == LXB_TAG_FOOTER) {
+			in_main_content = false;
+		} else {
+			size_t id_len = 0, class_len = 0;
+			const lxb_char_t *id_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("id"), 2, &id_len);
+			const lxb_char_t *class_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("class"), 5, &class_len);
+			std::string attr_str;
+			if (id_val && id_len > 0)
+				attr_str += std::string(reinterpret_cast<const char *>(id_val), id_len) + " ";
+			if (class_val && class_len > 0)
+				attr_str += std::string(reinterpret_cast<const char *>(class_val), class_len);
+			std::transform(attr_str.begin(), attr_str.end(), attr_str.begin(), [](unsigned char c) { return std::tolower(c); });
+			if (attr_str.find("footer") != std::string::npos || attr_str.find("catlinks") != std::string::npos ||
+			    attr_str.find("printfooter") != std::string::npos) {
+				in_main_content = false;
+			}
+		}
 	}
 
 	// Skip non-visible tags
@@ -231,11 +314,15 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	else if (tag == LXB_TAG_H6)
 		heading_level = 6;
 
+	if (heading_level > 0 || tag == LXB_TAG_MAIN || tag == LXB_TAG_ARTICLE) {
+		in_main_content = true;
+	}
+
 	if (heading_level > 0) {
 		append_paragraph_separator(out);
 		out += std::string(heading_level, '#') + " ";
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 		}
 		append_paragraph_separator(out);
 		return;
@@ -275,7 +362,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		}
 
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 		}
 
 		list_counters.pop_back();
@@ -300,7 +387,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		}
 
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 		}
 		append_newline(out);
 		return;
@@ -310,7 +397,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	if (tag == LXB_TAG_P) {
 		append_paragraph_separator(out);
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 		}
 		append_paragraph_separator(out);
 		return;
@@ -319,7 +406,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	if (tag == LXB_TAG_DIV || tag == LXB_TAG_SECTION || tag == LXB_TAG_ARTICLE || tag == LXB_TAG_HEADER || tag == LXB_TAG_FOOTER) {
 		append_newline(out);
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 		}
 		append_newline(out);
 		return;
@@ -339,7 +426,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		if (href_val && href_len > 0) {
 			std::string link_text;
 			for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-				walk_node(document, child, link_text, rich, list_depth, list_counters);
+				walk_node(document, child, link_text, rich, list_depth, list_counters, in_main_content, base_url);
 			}
 			link_text = collapse_whitespace(link_text);
 			link_text = trim(link_text);
@@ -350,7 +437,23 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 				return;
 			}
 
-			out += "[" + link_text + "](" + std::string(reinterpret_cast<const char *>(href_val), href_len) + ")";
+			if (link_text.empty()) {
+				return;
+			}
+
+			if (!in_main_content) {
+				out += link_text;
+				return;
+			}
+
+			std::string href(reinterpret_cast<const char *>(href_val), href_len);
+			if (href.starts_with("//")) {
+				href = "https:" + href;
+			} else if (href.starts_with("/") && !base_url.empty()) {
+				href = base_url + href;
+			}
+
+			out += "[" + link_text + "](" + href + ")";
 			return;
 		}
 	}
@@ -368,7 +471,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		out += "`";
 
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		walk_node(document, child, out, rich, list_depth, list_counters);
+		walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
 	}
 
 	if (is_bold && rich)
@@ -487,10 +590,12 @@ std::string convert_to_markdown(const std::string &html_content, bool rich)
 		body_node = lxb_dom_interface_node(lxb_dom_document_root(lxb_dom_interface_document(document)));
 	}
 
+	std::string base_url = tools::extract_base_url(document);
 	std::string extracted;
 	int list_depth = 0;
 	std::vector<int> list_counters;
-	tools::walk_node(document, body_node, extracted, rich, list_depth, list_counters);
+	bool in_main_content = false;
+	tools::walk_node(document, body_node, extracted, rich, list_depth, list_counters, in_main_content, base_url);
 
 	lxb_html_document_destroy(document);
 
