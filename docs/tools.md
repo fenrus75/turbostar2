@@ -116,12 +116,13 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
         *   `replace_with` *(string, optional)*: Required for `add` and `replace`. The new content to insert or replace the line with. You MAY use newline characters (\n) here to insert multiple lines. Pass empty string for `remove`.
 
 ### `fs_replace_content`
-*   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. If multiple occurrences of `target_content` exist, a `line_hint` must be passed to target the closest match; otherwise, the tool fails and reports all matching line numbers.
+*   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. Supports staged relaxed matching (whitespace/CRLF normalization) and LSP/symbol scope resolution using `function_hint` or `line_hint` if multiple matches exist.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `target_content` *(string, required)*: The exact, contiguous block of text to replace in the file.
     *   `replacement_content` *(string, required)*: The new content that will replace `target_content`.
     *   `line_hint` *(integer, optional)*: A 1-based line number hinting where the block starts. Required to resolve ambiguity if the target content appears multiple times.
+    *   `function_hint` *(string, optional)*: The name of the enclosing function, method, or class (e.g., `'execute'`). Highly recommended for long files to restrict search scope and resolve ambiguity.
 
 ### `fs_write_file`
 *   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
