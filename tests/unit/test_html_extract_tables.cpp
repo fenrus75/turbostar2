@@ -242,6 +242,31 @@ int main()
 		assert(res.find("| Cell A | Cell B |") != std::string::npos);
 	}
 
+	// 14. Test jpeg.html conversion and write output to jpeg.md
+	std::string jpeg_path = std::filesystem::exists("jpeg.html") ? "jpeg.html" : (std::filesystem::exists("../jpeg.html") ? "../jpeg.html" : "");
+	if (!jpeg_path.empty()) {
+		std::ifstream ifs(jpeg_path, std::ios::binary);
+		if (ifs) {
+			std::string html_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			ifs.close();
+
+			bool success = false;
+			std::string md_res = filter_registry::get_instance().apply_filter("html_to_markdown", html_content, success);
+			assert(success);
+
+			std::string out_md_path = (jpeg_path == "../jpeg.html") ? "../jpeg.md" : "jpeg.md";
+			std::ofstream ofs(out_md_path, std::ios::binary);
+			if (ofs) {
+				ofs << md_res;
+				ofs.close();
+			}
+
+			assert(md_res.find("[\n") == std::string::npos);
+			assert(md_res.find("\n](#") == std::string::npos);
+			assert(md_res.find("[1.1 Component sample registration](#Component_sample_registration)") != std::string::npos);
+		}
+	}
+
 	// Clean up mock files
 	std::filesystem::remove(full_html_path);
 	std::filesystem::remove(full_large_html_path);

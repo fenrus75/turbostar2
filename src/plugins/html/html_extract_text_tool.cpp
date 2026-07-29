@@ -337,11 +337,13 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		    lxb_dom_interface_element(node),
 		    reinterpret_cast<const lxb_char_t *>("href"), 4, &href_len);
 		if (href_val && href_len > 0) {
-			out += "[";
+			std::string link_text;
 			for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-				walk_node(document, child, out, rich, list_depth, list_counters);
+				walk_node(document, child, link_text, rich, list_depth, list_counters);
 			}
-			out += "](" + std::string(reinterpret_cast<const char *>(href_val), href_len) + ")";
+			link_text = collapse_whitespace(link_text);
+			link_text = trim(link_text);
+			out += "[" + link_text + "](" + std::string(reinterpret_cast<const char *>(href_val), href_len) + ")";
 			return;
 		}
 	}
