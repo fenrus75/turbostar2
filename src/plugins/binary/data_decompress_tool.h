@@ -7,9 +7,11 @@ namespace tools {
 
 struct data_decompress_args {
 	std::string input_data;
+	std::string path;
 	std::string input_file;
 	std::string format;
 	std::string output_format;
+	std::string output_path;
 	std::string output_file;
 	size_t offset{0};
 	long long length{-1};

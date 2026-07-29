@@ -303,7 +303,26 @@ void test_decompress_tool_interface() {
         std::string err;
         agentlib::tool_context ctx;
         assert(!val.validate_args(args, ctx, err));
-        assert(err.find("Exactly one of") != std::string::npos);
+        assert(err.find("Must specify") != std::string::npos || err.find("exactly one") != std::string::npos);
+    }
+
+    // 4. Test validation and execution with path (new standard)
+    {
+        tools::data_decompress_validator val;
+        nlohmann::json args = {
+            {"path", path},
+            {"format", "zlib"},
+            {"output_format", "text"}
+        };
+        std::string err;
+        agentlib::tool_context ctx;
+        assert(val.validate_args(args, ctx, err));
+        
+        auto tool = val.create_tool(args);
+        assert(tool != nullptr);
+        
+        std::string result = tool->execute(ctx);
+        assert(result == content);
     }
 
     // Clean up

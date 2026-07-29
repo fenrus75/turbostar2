@@ -7,8 +7,11 @@ namespace tools {
 
 struct data_compress_args {
 	std::string input_data;
+	std::string path;
+	std::string input_file;
 	std::string format;
 	std::string output_format;
+	std::string output_path;
 	std::string output_file;
 };
 

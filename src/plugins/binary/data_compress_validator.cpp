@@ -4,29 +4,43 @@
 namespace tools {
 
 std::string data_compress_validator::get_description() const {
-	return "Compress data into various formats. Supports file paths, data URLs, hex strings, or base64 as input.";
+	return "Compress data into various formats. Accepts raw data strings (input_data) or a target file path (path).";
 }
 
 nlohmann::json data_compress_validator::get_parameters_schema() const {
 	return {
 	    {"type", "object"},
 	    {"properties",
-	     {{"input_data", {{"type", "string"}, {"description", "The input data to compress."}}},
+	     {{"path", {{"type", "string"}, {"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Input file to compress. Mutually exclusive with 'input_data'."}}},
+	      {"input_file", {{"type", "string"}, {"description", "Legacy alias for 'path'."}}},
+	      {"input_data", {{"type", "string"}, {"description", "Raw data string, hex, base64, or data URL to compress. Mutually exclusive with 'path'."}}},
 	      {"format", {{"type", "string"}, {"description", "Format to use. 'deflate' is an alias for 'zlib'."}, {"enum", {"zstd", "gzip", "zlib", "deflate", "xz", "bzip2", "lz4"}}, {"default", "zstd"}}},
 	      {"output_format", {{"type", "string"}, {"description", "Return format."}, {"enum", {"hex", "base64", "text"}}, {"default", "hex"}}},
-	      {"output_file", {{"type", "string"}, {"description", "Optional file to write output."}}}}},
-	    {"required", nlohmann::json::array({"input_data"})}};
+	      {"output_path", {{"type", "string"}, {"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.bin'). Optional file path to write output instead of returning it."}}},
+	      {"output_file", {{"type", "string"}, {"description", "Legacy alias for 'output_path'."}}}}},
+	    {"required", nlohmann::json::array()}};
 }
 
 bool data_compress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &, std::string &out_error) const {
 	try {
 		args_.input_data = raw_json.value("input_data", "");
+		args_.path = raw_json.value("path", "");
+		args_.input_file = raw_json.value("input_file", "");
 		args_.format = raw_json.value("format", "zstd");
 		args_.output_format = raw_json.value("output_format", "hex");
+		args_.output_path = raw_json.value("output_path", "");
 		args_.output_file = raw_json.value("output_file", "");
 		
-		if (args_.input_data.empty()) {
-			out_error = "input_data cannot be empty.";
+		std::string target_file_path = !args_.path.empty() ? args_.path : args_.input_file;
+		bool has_data = !args_.input_data.empty();
+		bool has_file = !target_file_path.empty();
+
+		if (!has_data && !has_file) {
+			out_error = "Must specify exactly one of 'path' or 'input_data'.";
+			return false;
+		}
+		if (has_data && has_file) {
+			out_error = "Parameters 'input_data' and 'path' are mutually exclusive.";
 			return false;
 		}
 		
