@@ -827,3 +827,13 @@ These tools allow the agent to interact with the project's Git repository.
     *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://out.txt`). Optional file path to write output instead of returning it.
     *   `offset` *(integer, optional)*: Byte offset to start reading from. Defaults to 0.
     *   `size` *(integer, optional)*: Maximum number of bytes to read. Defaults to -1 (read all).
+
+---
+
+## 13. Agent-to-Agent (A2A) Tools
+
+### `a2a_validate_card` (Family: `a2a`)
+*   **Description:** Validates an A2A Agent Card JSON file or raw string against the formal A2A Agent Card specification. Returns a structured Markdown validation report.
+*   **Arguments:**
+    *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://agent.card.json'). Optional path to the A2A card JSON file to validate.
+    *   `card_data` *(string, optional)*: Optional raw JSON string of the A2A card to validate directly.

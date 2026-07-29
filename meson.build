@@ -244,7 +244,15 @@ test_hexedit_plugin = executable('test_hexedit_plugin',
   include_directories: inc)
 test('unit_hexedit_plugin', test_hexedit_plugin, suite: 'plugins')
 
-test_binary_plugin = executable('test_binary_plugin',
+test_a2a_validate_card = executable('test_a2a_validate_card',
+  ['tests/unit/test_a2a_validate_card.cpp'],
+  dependencies: [ui_dep, agent_dep, core_dep, ncurses_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true
+)
+test('unit_a2a_validate_card', test_a2a_validate_card, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+
+test_binary_plugin_impl = executable('test_binary_plugin_impl',
   ['tests/unit/test_binary_plugin.cpp',
    'src/plugins/binary/data_compress_tool.cpp',
    'src/plugins/binary/data_decompress_tool.cpp',
@@ -253,7 +261,7 @@ test_binary_plugin = executable('test_binary_plugin',
    'src/plugins/binary/binary_utils.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zlib_dep, liblzma_dep, libzstd_dep, bzip2_dep, liblz4_dep],
   include_directories: inc)
-test('unit_binary_plugin', test_binary_plugin, suite: 'plugins')
+test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',

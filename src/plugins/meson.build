@@ -141,3 +141,15 @@ binary_plugin = shared_module('binary',
   name_prefix: '',
   install_dir: plugin_dir
 )
+
+a2a_plugin = shared_module('a2a',
+  ['a2a/plugin.cpp',
+   'a2a/a2a_validate_card/a2a_validate_card_entry.cpp',
+   'a2a/a2a_validate_card/a2a_validate_card_security.cpp'],
+  dependencies: [nlohmann_json_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+
