@@ -6,11 +6,11 @@ namespace tools
 
 struct security_review_with_agent_raw_args {
 	std::vector<std::string> files;
-	std::string result_file;
+	std::string output_path;
 	std::string instructions;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(security_review_with_agent_raw_args, files, result_file, instructions);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(security_review_with_agent_raw_args, files, output_path, instructions);
 
 bool security_review_with_agent_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
 							       std::string &out_error) const
@@ -31,16 +31,16 @@ bool security_review_with_agent_validator::validate_args_impl(const nlohmann::js
 			}
 		}
 
-		// Security path validation: check result_file under write access if configured
-		if (!parsed.result_file.empty()) {
+		// Security path validation: check output_path under write access if configured
+		if (!parsed.output_path.empty()) {
 			std::string resolved_path;
-			if (!ctx.fs_security.validate_access(parsed.result_file, agentlib::access_type::write, resolved_path, out_error)) {
+			if (!ctx.fs_security.validate_access(parsed.output_path, agentlib::access_type::write, resolved_path, out_error)) {
 				return false;
 			}
 		}
 
 		args_.files = parsed.files;
-		args_.result_file = parsed.result_file;
+		args_.output_path = parsed.output_path;
 		args_.instructions = parsed.instructions;
 		return true;
 	} catch (const std::exception &e) {

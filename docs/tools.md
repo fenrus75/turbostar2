@@ -58,10 +58,10 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `limit` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
 
 ### `fs_read_binary`
-*   **Description:** Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. Can read a specific range using start_offset and size.
+*   **Description:** Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. Can read a specific range using offset and size.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
-    *   `start_offset` *(integer, optional)*: The 0-based byte offset to start reading from. Defaults to 0.
+    *   `offset` *(integer, optional)*: The 0-based byte offset to start reading from. Defaults to 0.
     *   `size` *(integer, optional)*: The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.
     *   `format` *(string, optional)*: The output format (`'base64'` or `'hex'`). Defaults to `'base64'`.
 
@@ -178,7 +178,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 ### `flag_as_error`
 *   **Description:** Flags a specific line (and optional column range) in a file as an error or warning, creating a diagnostic overlay in the editor UI (red/yellow backgrounds).
 *   **Arguments:**
-    *   `filename` *(string, required)*: The relative path to the file.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `line` *(integer, required)*: The 1-based line number of the error.
     *   `column` *(integer, required)*: The 1-based start column number of the error. Use 1 if unknown.
     *   `length` *(integer, required)*: The length of the error highlight in characters. Use 0 to highlight the whole line.
@@ -197,7 +197,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 ### `open_in_editor`
 *   **Description:** Open a file in the editor UI for the user to view or edit. If the file is already open in a window, that window is activated and focused; otherwise, the file is loaded in a new window.
 *   **Arguments:**
-    *   `filename` *(string, required)*: The path of the file to open in the editor.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
 
 ---
 
@@ -265,7 +265,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Executes Python code in a sandboxed environment.
 *   **Arguments:**
     *   `code` *(string, optional)*: The raw Python code string to execute.
-    *   `file_path` *(string, optional)*: The relative path to a Python script to execute.
+    *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://script.py'). Path to a Python script to execute.
     *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available).
 
 ### `web_fetch`
@@ -479,9 +479,9 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
 
 ### `git_log`
-*   **Description:** View the last commit messages in the repository (git log -n <count> --oneline).
+*   **Description:** View the last commit messages in the repository (git log -n <limit> --oneline).
 *   **Arguments:**
-    *   `count` *(integer, optional)*: The number of commits to retrieve. Defaults to 10.
+    *   `limit` *(integer, optional)*: The maximum number of commits to retrieve. Defaults to 10.
 
 ### `git_blame`
 *   **Description:** View the commit-level git blame history of a file, consolidated into contiguous ranges of lines with commit summary and date. Grounding code is provided for the start line of each range to assist the agent.
@@ -566,7 +566,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Returns line-by-line performance profiling details with source code text, line numbers sorted ascending, ±2 context lines merged into continuous blocks, sample counts, global application cycle percentages (`global_percentage`), and function/file cycle percentages (`function_percentage` when filtering by function, `file_percentage` when filtering by file) for a target source file or function name.
 *   **Arguments:**
     *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns details for the active profile from the most recent run.
-    *   `file_path` *(string, optional)*: Source file path to filter line performance samples.
+    *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Source file path to filter line performance samples.
     *   `function_name` *(string, optional)*: Function name to filter line performance samples.
 
 ### `agent_wait_for_app`
@@ -757,7 +757,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Creates a new code review item in the database.
 *   **Arguments:**
     *   `summary` *(string, required)*: Brief one-line summary of the issue.
-    *   `filename` *(string, required)*: Relative path to the file containing the issue.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). File containing the issue.
     *   `line_number` *(integer, optional)*: 1-based line number target. Defaults to 0 if omitted.
     *   `line_content` *(string, optional)*: Exact content of the line. If omitted but line_number is given, it will be auto-resolved from the file.
     *   `severity` *(string, required)*: Severity of the issue (`'nit'`, `'low'`, `'medium'`, `'high'`, `'critical'`).
@@ -787,7 +787,7 @@ These tools allow the agent to interact with the project's Git repository.
 ### `list_code_review_items`
 *   **Description:** Lists all code review items as a compact Markdown table. Normal agents only see unresolved items; verifiers can also see resolved items by setting `include_resolved` to true.
 *   **Arguments:**
-    *   `filename` *(string, optional)*: Optional filename prefix to filter items.
+    *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Optional file path prefix to filter items.
     *   `severity` *(string, optional)*: Optional severity filter (one of: `nit`, `low`, `medium`, `high`, `critical`). Specifying a level returns all items of that severity or more severe.
     *   `include_resolved` *(boolean, optional)*: If true, lists resolved/verified items (restricted to verifiers).
 
@@ -801,7 +801,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `files` *(array of strings, required)*: List of file paths relative to the project root to perform security code review on.
     *   `instructions` *(string, optional)*: Optional custom instructions or specific focus areas for the security agent.
-    *   `result_file` *(string, optional)*: Optional file path relative to project root where the final markdown findings will be written.
+    *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://findings.md'). Optional file path where the final markdown findings will be written.
 
 ---
 

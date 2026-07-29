@@ -7,12 +7,12 @@ namespace tools
 
 struct hexinspect_raw_args {
 	std::string path;
-	size_t start_offset{0};
+	size_t offset{0};
 	size_t size{256};
 	std::string offset_by_name;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(hexinspect_raw_args, path, start_offset, size, offset_by_name);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(hexinspect_raw_args, path, offset, size, offset_by_name);
 
 std::string hexinspect_validator::get_description() const
 {
@@ -26,9 +26,9 @@ nlohmann::json hexinspect_validator::get_parameters_schema() const
 	    {"type", "object"},
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the binary file relative to project root."}}},
-	      {"start_offset", {{"type", "integer"}, {"description", "0-based byte offset to start inspecting. Defaults to 0."}}},
+	      {"offset", {{"type", "integer"}, {"description", "0-based byte offset to start inspecting. Defaults to 0."}}},
 	      {"size", {{"type", "integer"}, {"description", "Number of bytes to inspect. Defaults to 256. Maximum 4096."}}},
-	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve start_offset automatically."}}}}},
+	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve offset automatically."}}}}},
 	    {"required", nlohmann::json::array({"path"})}};
 }
 
@@ -49,7 +49,7 @@ bool hexinspect_validator::validate_args_impl(const nlohmann::json &raw_json, co
 
 		args_.requested_path = parsed.path;
 		args_.safe_path = canonical_path;
-		args_.start_offset = parsed.start_offset;
+		args_.offset = parsed.offset;
 		args_.size = (parsed.size == 0) ? 256 : (parsed.size > 4096 ? 4096 : parsed.size);
 		args_.offset_by_name = parsed.offset_by_name;
 

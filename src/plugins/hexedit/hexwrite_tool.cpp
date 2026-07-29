@@ -79,7 +79,7 @@ std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No data provided to write.";
 	}
 
-	size_t start = args_.start_offset;
+	size_t start = args_.offset;
 	if (!args_.offset_by_name.empty()) {
 		std::ifstream infile(args_.safe_path, std::ios::binary);
 		if (infile.is_open()) {

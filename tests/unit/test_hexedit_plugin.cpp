@@ -33,7 +33,7 @@ void test_hexdump_tool()
 	tools::hexdump_args args;
 	args.requested_path = test_file;
 	args.safe_path = test_file;
-	args.start_offset = 0;
+	args.offset = 0;
 	args.size = 20;
 
 	tools::hexdump_tool tool(args);
@@ -64,7 +64,7 @@ void test_hexwrite_tool()
 		tools::hexwrite_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.start_offset = 0;
+		args.offset = 0;
 		args.hex_data = "7f 45 4c 46";
 
 		tools::hexwrite_tool tool(args);
@@ -86,7 +86,7 @@ void test_hexwrite_tool()
 		tools::hexwrite_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.start_offset = 8;
+		args.offset = 8;
 		args.hex_data = "0xaa, 0xbb";
 
 		tools::hexwrite_tool tool(args);
@@ -147,7 +147,7 @@ void test_named_offsets()
 		tools::hexdump_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.start_offset = 0;
+		args.offset = 0;
 		args.size = 8;
 		args.offset_by_name = "PLTE"; // should resolve to offset 33
 
@@ -162,7 +162,7 @@ void test_named_offsets()
 		tools::hexwrite_args args;
 		args.requested_path = test_file;
 		args.safe_path = test_file;
-		args.start_offset = 0;
+		args.offset = 0;
 		args.hex_data = "11 22 33 44";
 		args.offset_by_name = "PLTE"; // should resolve to offset 33
 

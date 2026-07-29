@@ -119,7 +119,7 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 		highlighter->parse(file_data);
 	}
 
-	size_t start = args_.start_offset;
+	size_t start = args_.offset;
 	if (!args_.offset_by_name.empty()) {
 		if (!highlighter) {
 			set_failure(ctx, "File format not supported for offset resolution by name.");

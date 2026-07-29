@@ -30,9 +30,9 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 			auto view_opt = vfs->read_file(args_.safe_path);
 			if (view_opt) {
 				std::string_view view = view_opt.value()->view();
-				size_t start = args_.start_offset;
+				size_t start = args_.offset;
 				if (start >= view.length()) {
-					return "Error: start_offset is out of bounds.";
+					return "Error: offset is out of bounds.";
 				}
 				size_t len = view.length() - start;
 				if (args_.size >= 0 && static_cast<size_t>(args_.size) < len) {
@@ -68,17 +68,17 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Could not open file for reading.";
 	}
 
-	if (args_.start_offset > 0) {
-		file.seekg(args_.start_offset);
+	if (args_.offset > 0) {
+		file.seekg(args_.offset);
 		if (file.fail()) {
-			return "Error: start_offset is out of bounds.";
+			return "Error: offset is out of bounds.";
 		}
 	}
 
 	// Determine how much to read
-	std::streamsize bytes_to_read = sb.st_size - args_.start_offset;
+	std::streamsize bytes_to_read = sb.st_size - args_.offset;
 	if (bytes_to_read < 0) {
-		return "Error: start_offset is out of bounds.";
+		return "Error: offset is out of bounds.";
 	}
 
 	if (args_.size >= 0 && args_.size < bytes_to_read) {

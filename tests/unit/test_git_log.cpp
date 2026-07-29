@@ -33,10 +33,10 @@ int main()
 		assert(result.find("Process exited with code 0") != std::string::npos);
 	}
 
-	// 1b. Success case: retrieve git log with explicit count
+	// 1b. Success case: retrieve git log with explicit limit
 	{
-		std::string result = registry.execute_tool("git_log", "{\"count\": 2}", ctx);
-		std::cout << "Result (count=2):\n" << result << std::endl;
+		std::string result = registry.execute_tool("git_log", "{\"limit\": 2}", ctx);
+		std::cout << "Result (limit=2):\n" << result << std::endl;
 		assert(!result.empty());
 		assert(result.find("Process exited with code 0") != std::string::npos);
 	}

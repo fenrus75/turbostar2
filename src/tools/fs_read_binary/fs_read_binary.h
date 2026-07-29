@@ -8,7 +8,7 @@ namespace tools
 
 struct fs_read_binary_args {
 	std::string requested_path;
-	int start_offset;
+	int offset;
 	int size;
 	std::string safe_path;
 	std::string format;

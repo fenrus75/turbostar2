@@ -10,7 +10,7 @@ namespace tools
 
 struct security_review_with_agent_args {
 	std::vector<std::string> files;
-	std::string result_file;
+	std::string output_path;
 	std::string instructions;
 };
 
@@ -49,9 +49,9 @@ class security_review_with_agent_validator : public agentlib::tool_validator
 			{"description", "List of file paths relative to the project root to perform security code review on."}}},
 		      {"instructions",
 		       {{"type", "string"}, {"description", "Optional custom instructions or specific focus areas for the security agent."}}},
-		      {"result_file",
+		      {"output_path",
 		       {{"type", "string"},
-			{"description", "Optional file path relative to project root where the final markdown findings will be written."}}}}},
+			{"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://findings.md'). Optional file path where the final markdown findings will be written."}}}}},
 		    {"required", nlohmann::json::array({"files"})}};
 	}
 

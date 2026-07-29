@@ -6,18 +6,18 @@ namespace tools
 
 bool git_log_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
 	try {
-		args_.count = 10;
-		if (args.contains("count")) {
-			if (!args["count"].is_number_integer()) {
-				out_error = "Invalid 'count' parameter: must be an integer.";
+		args_.limit = 10;
+		if (args.contains("limit")) {
+			if (!args["limit"].is_number_integer()) {
+				out_error = "Invalid 'limit' parameter: must be an integer.";
 				return false;
 			}
-			int count = args["count"].get<int>();
-			if (count <= 0) {
-				out_error = "'count' parameter must be greater than 0.";
+			int limit = args["limit"].get<int>();
+			if (limit <= 0) {
+				out_error = "'limit' parameter must be greater than 0.";
 				return false;
 			}
-			args_.count = count;
+			args_.limit = limit;
 		}
 		return true;
 	} catch (const std::exception& e) {

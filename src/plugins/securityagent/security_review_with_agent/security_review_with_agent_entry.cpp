@@ -128,8 +128,8 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	subagent->set_exit_implicitly_on_idle(true);
 	subagent->set_notify_parent_on_completion(false);
 
-	if (!args_.result_file.empty()) {
-		subagent->set_allowed_write_file(args_.result_file);
+	if (!args_.output_path.empty()) {
+		subagent->set_allowed_write_file(args_.output_path);
 	}
 
 	// 3. Equip with the securityagent tool family
@@ -137,7 +137,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 
 	// 4. Construct reporting instructions
 	std::string reporting_instr;
-	if (!args_.result_file.empty()) {
+	if (!args_.output_path.empty()) {
 		reporting_instr = std::format(
 		    "**After each phase**, you MUST write/append your findings to the configured output file `{}` using the `fs_write_file` tool "
 		    "(or update it using the `fs_replace_content` tool).\n"
@@ -145,7 +145,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 		    "to actually write the findings to the file `{}`. If the file does not exist yet, create it with your initial findings. "
 		    "Avoid reporting issues already identified in earlier phases as duplicates. If a previously "
 		    "flagged issue is encountered in a later phase, update the existing entry in the file with any new details or findings.",
-		    args_.result_file, args_.result_file);
+		    args_.output_path, args_.output_path);
 	} else {
 		reporting_instr = "**After each phase**, use the `create_code_review_item` tool to report any items found in this phase.";
 	}
@@ -166,8 +166,8 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	// result file (if any). This provides a fallback prompt that outlines its clear objective.
 	std::string extra_instr = args_.instructions;
 	if (extra_instr.empty()) {
-		if (!args_.result_file.empty()) {
-			extra_instr = std::format("Review {} for security and place the result in `{}`.", files_comma_str, args_.result_file);
+		if (!args_.output_path.empty()) {
+			extra_instr = std::format("Review {} for security and place the result in `{}`.", files_comma_str, args_.output_path);
 		} else {
 			extra_instr = std::format("Review {} for security.", files_comma_str);
 		}

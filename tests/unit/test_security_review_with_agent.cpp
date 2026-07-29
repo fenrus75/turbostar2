@@ -64,7 +64,7 @@ void test_security_review_with_agent_execution()
 	reviewer_ctx.active_agent = reviewer_temp.get();
 	reviewer_ctx.properties = reviewer_temp->get_properties();
 
-	std::string args_json = "{\"files\": [\"sec_src_to_review.cpp\"], \"instructions\": \"Focus on buffer overflows\", \"result_file\": \"findings.md\"}";
+	std::string args_json = "{\"files\": [\"sec_src_to_review.cpp\"], \"instructions\": \"Focus on buffer overflows\", \"output_path\": \"findings.md\"}";
 	auto prep = registry.prepare_tool("security_review_with_agent", args_json, reviewer_ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
@@ -180,7 +180,7 @@ void test_security_review_with_agent_empty_instructions()
 	ctx.active_agent = agent.get();
 	ctx.properties = agent->get_properties();
 
-	std::string args_json = "{\"files\": [\"sec_src_to_review.cpp\"], \"instructions\": \"\", \"result_file\": \"findings.md\"}";
+	std::string args_json = "{\"files\": [\"sec_src_to_review.cpp\"], \"instructions\": \"\", \"output_path\": \"findings.md\"}";
 	auto prep = registry.prepare_tool("security_review_with_agent", args_json, ctx);
 	assert(prep.tool != nullptr);
 

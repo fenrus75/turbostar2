@@ -6,7 +6,7 @@
 namespace tools {
 
 struct git_log_args {
-    int count = 10;
+    int limit = 10;
 };
 
 class git_log_tool : public agentlib::llm_tool_action {
@@ -23,15 +23,15 @@ private:
 class git_log_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_log"; }
-    std::string get_description() const override { return "View the last commit messages in the repository (git log -n <count> --oneline)."; }
+    std::string get_description() const override { return "View the last commit messages in the repository (git log -n <limit> --oneline)."; }
 
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},
             {"properties", {
-                {"count", {
+                {"limit", {
                     {"type", "integer"},
-                    {"description", "Optional number of commits to retrieve. Defaults to 10."},
+                    {"description", "Optional maximum number of commits to retrieve. Defaults to 10."},
                     {"default", 10}
                 }}
             }}

@@ -47,7 +47,7 @@ When working with binary archives in sandbox environments, you can unpack and ex
    `data_decompress(input_file="archive.tar.gz", output_file="tmp://archive.tar", format="gzip")`
 
 2. **Inspect Internal Offsets**:
-   `hexinspect(path="tmp://archive.tar", start_offset=0, size=512)`
+   `hexinspect(path="tmp://archive.tar", offset=0, size=512)`
    *Returns the archive layout table showing filenames, data offsets (e.g. `0x200` / `512`), and byte lengths (e.g. `11215`).*
 
 3. **Extract Target File Slice**:

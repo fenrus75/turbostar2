@@ -9,12 +9,12 @@ namespace tools
 
 struct fs_read_binary_raw_args {
 	std::string path;
-	int start_offset = 0;
+	int offset = 0;
 	int size = -1;
 	std::string format = "base64";
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_binary_raw_args, path, start_offset, size, format);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_binary_raw_args, path, offset, size, format);
 
 class fs_read_binary_validator : public agentlib::tool_validator
 {
@@ -35,7 +35,7 @@ class fs_read_binary_validator : public agentlib::tool_validator
 	std::string get_description() const override
 	{
 		return "Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. "
-		       "Can read a specific range using start_offset and size.";
+		       "Can read a specific range using offset and size.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -44,7 +44,7 @@ class fs_read_binary_validator : public agentlib::tool_validator
 		    {"type", "object"},
 		    {"properties",
 		     {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
-		      {"start_offset",
+		      {"offset",
 		       {{"type", "integer"}, {"description", "The 0-based byte offset to start reading from. Defaults to 0."}}},
 		      {"size",
 		       {{"type", "integer"},
@@ -75,7 +75,7 @@ class fs_read_binary_validator : public agentlib::tool_validator
 
 			args_.requested_path = parsed.path;
 			args_.safe_path = canonical_path;
-			args_.start_offset = (parsed.start_offset < 0) ? 0 : parsed.start_offset;
+			args_.offset = (parsed.offset < 0) ? 0 : parsed.offset;
 			args_.size = parsed.size;
 			args_.format = parsed.format;
 

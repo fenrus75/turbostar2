@@ -30,7 +30,7 @@ int main()
 
 		// 1. Success case: read first 10 bytes of poem.txt
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"start_offset\": 0, \"size\": 10}";
+			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 0, \"size\": 10}";
 			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
 			std::cout << "Read binary result (b64): " << res << std::endl;
 			assert(!res.empty());
@@ -40,7 +40,7 @@ int main()
 
 		// Success case: read first 4 bytes of poem.txt in hex format
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"start_offset\": 0, \"size\": 4, \"format\": \"hex\"}";
+			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 0, \"size\": 4, \"format\": \"hex\"}";
 			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
 			std::cout << "Read binary result (hex): " << res << std::endl;
 			assert(!res.empty());
@@ -57,9 +57,9 @@ int main()
 			assert(res.find("Error:") != std::string::npos);
 		}
 
-		// 3. Execution failure case: start_offset out of bounds
+		// 3. Execution failure case: offset out of bounds
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"start_offset\": 500000, \"size\": 10}";
+			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 500000, \"size\": 10}";
 			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
 			std::cout << "Offset out of bounds result: " << res << std::endl;
 			assert(res.find("out of bounds") != std::string::npos);

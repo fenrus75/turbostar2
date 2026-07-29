@@ -18,7 +18,7 @@ bool git_log_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std:
 
 std::string git_log_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string cmd = std::format("git --no-pager log -n {} --oneline --no-color", args_.count);
+	std::string cmd = std::format("git --no-pager log -n {} --oneline --no-color", args_.limit);
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	if (output.empty()) {

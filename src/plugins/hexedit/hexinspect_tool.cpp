@@ -94,7 +94,7 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Failed to parse structural format of the file.";
 	}
 
-	size_t start = args_.start_offset;
+	size_t start = args_.offset;
 	if (!args_.offset_by_name.empty()) {
 		auto resolved_offset = highlighter->get_offset_by_name(args_.offset_by_name);
 		if (!resolved_offset) {
@@ -125,7 +125,7 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 	result += std::format("| **MIME Type** | {} |\n", sanitize_for_table(mime_type));
 	result += std::format("| **Description** | {} |\n\n", sanitize_for_table(description));
 
-	if (args_.start_offset == 0 && args_.offset_by_name.empty()) {
+	if (args_.offset == 0 && args_.offset_by_name.empty()) {
 		std::string structure_summary = highlighter->get_structure_summary();
 		if (!structure_summary.empty()) {
 			std::string filename = std::filesystem::path(args_.requested_path).filename().string();
