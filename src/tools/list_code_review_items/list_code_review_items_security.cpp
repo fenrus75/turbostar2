@@ -4,14 +4,14 @@
 namespace tools {
 
 struct list_code_review_items_raw_args {
-	std::string filename;
+	std::string path;
 	std::string severity;
 	bool include_resolved = false;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
 	list_code_review_items_raw_args,
-	filename,
+	path,
 	severity,
 	include_resolved
 );
@@ -24,7 +24,7 @@ bool list_code_review_items_validator::validate_args_impl(
 	try {
 		list_code_review_items_raw_args parsed = raw_json.get<list_code_review_items_raw_args>();
 
-		args_.filename = parsed.filename;
+		args_.filename = parsed.path;
 		args_.severity = parsed.severity;
 		args_.include_resolved = parsed.include_resolved;
 		return true;

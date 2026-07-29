@@ -32,7 +32,7 @@ int main()
 	// Test 1: Open regular file
 	{
 		tools::open_in_editor_validator validator;
-		nlohmann::json args = {{"filename", "test.txt"}};
+		nlohmann::json args = {{"path", "test.txt"}};
 
 		std::string error;
 		bool valid = validator.validate_args(args, ctx, error);

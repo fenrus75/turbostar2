@@ -47,7 +47,7 @@ int main()
 		std::filesystem::path script_path = std::filesystem::path(project_root) / "test_run_python_temp.py";
 		write_file(script_path, "print('Hello from script file!')\n");
 
-		nlohmann::json args = {{"file_path", "test_run_python_temp.py"}};
+		nlohmann::json args = {{"path", "test_run_python_temp.py"}};
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Hello from script file!") != std::string::npos);
@@ -57,7 +57,7 @@ int main()
 
 	// 3. Validation failure: both code and file_path provided
 	{
-		nlohmann::json args = {{"code", "print(1)"}, {"file_path", "test.py"}};
+		nlohmann::json args = {{"code", "print(1)"}, {"path", "test.py"}};
 		auto prep = registry.prepare_tool("run_python", args.dump(), ctx);
 		assert(prep.tool == nullptr);
 		assert(prep.error_message.find("Cannot provide both") != std::string::npos);
@@ -73,7 +73,7 @@ int main()
 
 	// 5. Validation failure: file_path does not exist
 	{
-		nlohmann::json args = {{"file_path", "non_existent_file_xyz_123.py"}};
+		nlohmann::json args = {{"path", "non_existent_file_xyz_123.py"}};
 		auto prep = registry.prepare_tool("run_python", args.dump(), ctx);
 		assert(prep.tool == nullptr);
 		assert(prep.error_message.find("does not exist") != std::string::npos);
@@ -81,7 +81,7 @@ int main()
 
 	// 6. Security failure: file_path outside allowed root
 	{
-		nlohmann::json args = {{"file_path", "../../../etc/passwd"}};
+		nlohmann::json args = {{"path", "../../../etc/passwd"}};
 		auto prep = registry.prepare_tool("run_python", args.dump(), ctx);
 		assert(prep.tool == nullptr);
 		assert(prep.error_message.find("Security Violation") != std::string::npos ||
@@ -111,7 +111,7 @@ int main()
 		std::filesystem::path script_path = std::filesystem::path(project_root) / "test_run_python_insecure.py";
 		write_file(script_path, "import subprocess\ndef run_user_command():\n    user_input = input(\"Enter a command to run: \")\n    subprocess.call(user_input, shell=True)\nrun_user_command()\n");
 
-		nlohmann::json args = {{"file_path", "test_run_python_insecure.py"}};
+		nlohmann::json args = {{"path", "test_run_python_insecure.py"}};
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		assert(result.find("Security Validation Failed") != std::string::npos);
 
@@ -127,7 +127,7 @@ int main()
 		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/test_run_python_vfs.py";
 		write_file(std::filesystem::path(physical_vfs_path), "print('Hello from VFS tmp script file!')\n");
 
-		nlohmann::json args = {{"file_path", vfs_path}};
+		nlohmann::json args = {{"path", vfs_path}};
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		std::cout << "VFS Result: " << result << std::endl;
 		assert(result.find("Hello from VFS tmp script file!") != std::string::npos);

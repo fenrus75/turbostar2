@@ -50,7 +50,7 @@ void test_create_tool_execution()
 	// Test 1: Happy path with auto line lookup
 	std::string args_json = "{"
 				"\"summary\": \"Lookout issue\","
-				"\"filename\": \"src_test.cpp\","
+				"\"path\": \"src_test.cpp\","
 				"\"line_number\": 3,"
 				"\"severity\": \"medium\","
 				"\"description\": \"Test description\""
@@ -86,7 +86,7 @@ void test_create_tool_execution()
 	// Invalid severity
 	std::string bad_severity_args = "{"
 					"\"summary\": \"Lookout issue\","
-					"\"filename\": \"src_test.cpp\","
+					"\"path\": \"src_test.cpp\","
 					"\"line_number\": 3,"
 					"\"severity\": \"ultra-critical\","
 					"\"description\": \"Test description\""
@@ -98,7 +98,7 @@ void test_create_tool_execution()
 	// Unallowed filename (outside temp_proj)
 	std::string bad_file_args = "{"
 				    "\"summary\": \"Lookout issue\","
-				    "\"filename\": \"/etc/passwd\","
+				    "\"path\": \"/etc/passwd\","
 				    "\"line_number\": 1,"
 				    "\"severity\": \"high\","
 				    "\"description\": \"Test description\""
@@ -110,7 +110,7 @@ void test_create_tool_execution()
 	// Invalid negative line number
 	std::string bad_line_args = "{"
 				    "\"summary\": \"Lookout issue\","
-				    "\"filename\": \"src_test.cpp\","
+				    "\"path\": \"src_test.cpp\","
 				    "\"line_number\": -1,"
 				    "\"severity\": \"high\","
 				    "\"description\": \"Test description\""

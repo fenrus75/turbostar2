@@ -34,9 +34,9 @@ public:
 		return {
 			{"type", "object"},
 			{"properties", {
-				{"filename", {
+				{"path", {
 					{"type", "string"},
-					{"description", "Optional filename to filter items (prefix matching, e.g. 'src/')."}
+					{"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Optional path prefix to filter items (e.g. 'src/')."}
 				}},
 				{"severity", {
 					{"type", "string"},

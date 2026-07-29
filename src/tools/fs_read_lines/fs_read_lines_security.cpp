@@ -44,7 +44,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
+		     {{"path", {{"type", "string"}, {"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt')."}}},
 		      {"start_line",
 		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with 'tail'."}}},
 		      {"end_line",

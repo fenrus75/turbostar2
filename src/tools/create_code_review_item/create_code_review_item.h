@@ -47,7 +47,10 @@ class create_code_review_item_validator : public agentlib::tool_validator
 		return {{"type", "object"},
 			{"properties",
 			 {{"summary", {{"type", "string"}, {"description", "A short, single-line summary of the issue."}}},
-			  {"filename", {{"type", "string"}, {"description", "The target file path, relative to the project root."}}},
+			  {"path",
+			   {{"type", "string"},
+			    {"description",
+			     "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). The target file path containing the issue."}}},
 			  {"line_number",
 			   {{"type", "integer"},
 			    {"description", "The 1-based line number (defaults to 0 if not pointing to a specific line)."}}},
@@ -60,7 +63,7 @@ class create_code_review_item_validator : public agentlib::tool_validator
 			  {"description", {{"type", "string"}, {"description", "A detailed description explaining the code issue."}}},
 			  {"proposed_fix",
 			   {{"type", "string"}, {"description", "A suggested code snippet or explanation on how to resolve the issue."}}}}},
-			{"required", nlohmann::json::array({"summary", "filename", "severity", "description"})}};
+			{"required", nlohmann::json::array({"summary", "path", "severity", "description"})}};
 	}
 
       protected:

@@ -15,10 +15,6 @@
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
-- testing agent reports that the html_to_markdown filter is terrible
-	- test case URL: https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
-
-
 - consider adding an input filename parameter to the apply_text_filter tool call
 
 - test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them

@@ -7,7 +7,7 @@ namespace tools
 
 struct create_code_review_item_raw_args {
 	std::string summary;
-	std::string filename;
+	std::string path;
 	int line_number = 0;
 	std::string line_content;
 	std::string severity;
@@ -15,7 +15,7 @@ struct create_code_review_item_raw_args {
 	std::string proposed_fix;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(create_code_review_item_raw_args, summary, filename, line_number, line_content, severity,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(create_code_review_item_raw_args, summary, path, line_number, line_content, severity,
 						description, proposed_fix);
 
 bool create_code_review_item_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
@@ -28,8 +28,8 @@ bool create_code_review_item_validator::validate_args_impl(const nlohmann::json 
 			out_error = "Summary cannot be empty.";
 			return false;
 		}
-		if (parsed.filename.empty()) {
-			out_error = "Filename cannot be empty.";
+		if (parsed.path.empty()) {
+			out_error = "Path cannot be empty.";
 			return false;
 		}
 		if (parsed.severity.empty()) {
@@ -52,14 +52,14 @@ bool create_code_review_item_validator::validate_args_impl(const nlohmann::json 
 			return false;
 		}
 
-		// Security: Validate read access to target filename
+		// Security: Validate read access to target path
 		std::string canonical_path;
-		if (!ctx.fs_security.validate_access(parsed.filename, agentlib::access_type::read, canonical_path, out_error)) {
+		if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
 		}
 
 		args_.summary = parsed.summary;
-		args_.filename = parsed.filename;
+		args_.filename = parsed.path;
 		args_.line_number = parsed.line_number;
 		args_.line_content = parsed.line_content;
 		args_.severity = parsed.severity;

@@ -39,9 +39,10 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 		       {{"description",
 			 "Optional execution run ID returned by agent_start_app (e.g., '1', '2', or 'editor'). Omit for latest profile."},
 			{"oneOf", nlohmann::json::array({nlohmann::json{{"type", "string"}}, nlohmann::json{{"type", "integer"}}})}}},
-		      {"file_path",
+		      {"path",
 		       {{"type", "string"},
-			{"description", "Source file path to filter line performance samples. Optional."}}},
+			{"description",
+			 "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Source file path to filter line performance samples. Optional."}}},
 		      {"function_name",
 		       {{"type", "string"},
 			{"description", "Function name to filter line performance samples. Optional."}}}}}};
@@ -61,8 +62,8 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 				}
 			}
 			args_.file_path.clear();
-			if (args_json.contains("file_path") && args_json["file_path"].is_string()) {
-				args_.file_path = args_json["file_path"].get<std::string>();
+			if (args_json.contains("path") && args_json["path"].is_string()) {
+				args_.file_path = args_json["path"].get<std::string>();
 			}
 			args_.function_name.clear();
 			if (args_json.contains("function_name") && args_json["function_name"].is_string()) {

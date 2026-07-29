@@ -53,7 +53,7 @@ int main()
 
 	// 2. Test agent_get_profile_details by file
 	{
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"file_path\": \"src/main.cpp\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"path\": \"src/main.cpp\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 

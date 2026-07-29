@@ -31,11 +31,11 @@ class open_in_editor_validator : public agentlib::single_file_tool_validator
 	}
 	std::string get_parameter_name() const override
 	{
-		return "filename";
+		return "path";
 	}
 	std::string get_parameter_description() const override
 	{
-		return "The path of the file to open in the editor.";
+		return "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). The path of the file to open in the editor.";
 	}
 
 	agentlib::access_type get_required_permission() const override

@@ -77,7 +77,7 @@ void test_list_tool_execution()
 	assert(res_str.find("Leaked Memory") != std::string::npos);
 
 	// Test 4: Prefix match on filename (e.g. "src/")
-	args_json = "{\"filename\": \"src/\", \"include_resolved\": true}";
+	args_json = "{\"path\": \"src/\", \"include_resolved\": true}";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	std::cout << "Result prefix src/:\n" << res_str << std::endl;
 	assert(res_str.find("src/ui/window.cpp") != std::string::npos);
@@ -85,7 +85,7 @@ void test_list_tool_execution()
 	assert(res_str.find("tests/test.cpp") == std::string::npos);
 
 	// Test 5: Exact filename match (e.g. "tests/test.cpp")
-	args_json = "{\"filename\": \"tests/test.cpp\"}";
+	args_json = "{\"path\": \"tests/test.cpp\"}";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	std::cout << "Result exact tests/test.cpp:\n" << res_str << std::endl;
 	assert(res_str.find("tests/test.cpp") != std::string::npos);
