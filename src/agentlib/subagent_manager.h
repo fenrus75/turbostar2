@@ -22,8 +22,9 @@ class subagent_manager
 	void register_subagent(std::string name, std::string text, std::string animation_json = "");
 	void unregister_subagent(std::string name);
 
-	// Programmatic A2A Agent Card synthesis
+	// Programmatic A2A Agent Card synthesis and 3-tier resolution
 	std::string generate_a2a_card_for_agent(const std::string &name, const std::string &output_card_path = "") const;
+	std::string get_a2a_card(const std::string &name);
 
 
       private:

@@ -355,4 +355,55 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 	return card_json;
 }
 
+std::string subagent_manager::get_a2a_card(const std::string &name)
+{
+	auto sa_opt = find_subagent_by_name(name);
+	if (!sa_opt) {
+		return "";
+	}
+
+	const auto &sa = *sa_opt;
+
+	// Tier 1: Local Sidecar Check
+	if (!sa.file_path.empty() && !sa.file_path.starts_with("builtin://") && !sa.file_path.starts_with("plugin://")) {
+		std::filesystem::path md_path(sa.file_path);
+		std::filesystem::path sidecar_path = md_path.parent_path() / (sa.name + ".card.json");
+		if (std::filesystem::exists(sidecar_path)) {
+			std::ifstream f(sidecar_path);
+			if (f.is_open()) {
+				std::stringstream ss;
+				ss << f.rdbuf();
+				return ss.str();
+			}
+		}
+	}
+
+	// Tier 2: Global Cache Check (~/.cache/turbostar/agent_cards/<name>_<hash>.json)
+	std::string hash_seed = sa.name + ":" + sa.description + ":" + sa.system_prompt;
+	size_t content_hash = std::hash<std::string>{}(hash_seed);
+	std::filesystem::path cache_dir = expand_path("~/.cache/turbostar/agent_cards");
+	std::filesystem::path cache_file = cache_dir / std::format("{}_{:x}.json", sa.name, content_hash);
+
+	if (std::filesystem::exists(cache_file)) {
+		std::ifstream f(cache_file);
+		if (f.is_open()) {
+			std::stringstream ss;
+			ss << f.rdbuf();
+			return ss.str();
+		}
+	}
+
+	// Tier 3: Synthesis & Auto-Save
+	std::string target_save_path;
+	if (!sa.file_path.empty() && !sa.file_path.starts_with("builtin://") && !sa.file_path.starts_with("plugin://")) {
+		std::filesystem::path md_path(sa.file_path);
+		std::filesystem::path sidecar_path = md_path.parent_path() / (sa.name + ".card.json");
+		target_save_path = sidecar_path.string();
+	} else {
+		target_save_path = cache_file.string();
+	}
+
+	return generate_a2a_card_for_agent(sa.name, target_save_path);
+}
+
 } // namespace agentlib

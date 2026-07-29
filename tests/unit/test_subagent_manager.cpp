@@ -109,11 +109,15 @@ void test_subagent_manager_basic()
 	assert(over_research_opt->read_only == false);
 	assert(over_research_opt->system_prompt == "Overridden system prompt.");
 
-	// Verify programmatic A2A card generation
+	// Verify programmatic A2A card generation and 3-tier resolution
 	std::string card_json = manager.generate_a2a_card_for_agent("research");
 	assert(!card_json.empty());
 	assert(card_json.find("\"name\": \"research\"") != std::string::npos);
 	assert(card_json.find("\"protocol_version\": \"1.0\"") != std::string::npos);
+
+	std::string a2a_resolved_card = manager.get_a2a_card("custom-agent");
+	assert(!a2a_resolved_card.empty());
+	assert(a2a_resolved_card.find("\"name\": \"custom-agent\"") != std::string::npos);
 
 	// Clean up animation
 	agent_animation_registry::get_instance().unregister_animation("custom-agent");
