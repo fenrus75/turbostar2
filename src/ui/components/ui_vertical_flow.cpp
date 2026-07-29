@@ -43,9 +43,10 @@ bool ui_vertical_flow::flow()
 
 	int total_height = children_.empty() ? 0 : (running_y - spacer_ + y_offset_);
 
-	bool dimensions_changed = (this->width() != total_width || this->height() != total_height);
+	int effective_width = std::max(this->width(), total_width);
+	bool dimensions_changed = (this->width() != effective_width || this->height() != total_height);
 	if (dimensions_changed) {
-		this->set_width(total_width);
+		this->set_width(effective_width);
 		this->set_height(total_height);
 	}
 

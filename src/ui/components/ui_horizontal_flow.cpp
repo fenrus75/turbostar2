@@ -42,10 +42,12 @@ bool ui_horizontal_flow::flow()
 	int total_width = children_.empty() ? 0 : (running_x - 2 + x_offset_);
 	int total_height = children_.empty() ? 0 : (2 * y_offset_ + max_child_height);
 
-	bool dimensions_changed = (this->width() != total_width || this->height() != total_height);
+	int effective_width = std::max(this->width(), total_width);
+	int effective_height = std::max(this->height(), total_height);
+	bool dimensions_changed = (this->width() != effective_width || this->height() != effective_height);
 	if (dimensions_changed) {
-		this->set_width(total_width);
-		this->set_height(total_height);
+		this->set_width(effective_width);
+		this->set_height(effective_height);
 	}
 
 	return dimensions_changed;

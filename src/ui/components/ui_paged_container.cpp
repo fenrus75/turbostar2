@@ -16,6 +16,7 @@ ui_paged_container::ui_paged_container(std::string name)
 void ui_paged_container::init_button_bar()
 {
 	button_bar_ = std::make_unique<ui_buttons_horizontal>("wizard_button_bar");
+	button_bar_->set_centered(true);
 	button_bar_->set_parent(this);
 
 	auto back = std::make_unique<ui_button>("wizard_back", "<< ~B~ack", 'B', nullptr);

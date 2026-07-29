@@ -89,6 +89,11 @@ int main()
 	dlg->flow();
 	dlg->draw();
 
+	// Advance to page 2 (with group boxes and radio groups) and verify draw does not hang
+	wizard->next_page(); // Go to page 2
+	dlg->flow();
+	dlg->draw();
+
 	std::cout << "All ui_paged_container wizard tests passed!" << std::endl;
 	return 0;
 }
