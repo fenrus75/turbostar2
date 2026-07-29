@@ -15,15 +15,9 @@
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+- testing agent reports that the html_to_markdown filter is terrible
+	- test case URL: https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
 
-- "multipage" ui container for flows of setup questions
-
-- better sorting of models
-	- offset per server (builtin servers get -2.0 points, custom ones 0.0)
-	- offset by parsing model name for the first ([0-9]+\.[0.9]+)
-	- hardcoded table (probably a text file we turn into a header/cpp file at build time)
-
-- hexedit tool family message: we should give an example on how to extract a file from a .tar.gz file
 
 - consider adding an input filename parameter to the apply_text_filter tool call
 

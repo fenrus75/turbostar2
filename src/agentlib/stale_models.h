@@ -7,7 +7,7 @@
 namespace agentlib {
 
 // Sorted list of known deprecated/stale LLM model IDs.
-constexpr std::array<std::string_view, 19> STALE_MODELS = {
+constexpr std::array<std::string_view, 22> STALE_MODELS = {
     "claude-1.0",
     "claude-2.0",
     "claude-2.1",
@@ -20,6 +20,9 @@ constexpr std::array<std::string_view, 19> STALE_MODELS = {
     "gpt-4-32k",
     "gpt-4-32k-0314",
     "gpt-4-32k-0613",
+    "imagen-4.0-fast-generate-001",
+    "imagen-4.0-generate-001",
+    "imagen-4.0-ultra-generate-001",
     "test-stale-model",
     "text-davinci-002",
     "text-davinci-003",
