@@ -219,7 +219,7 @@ inline void normalize_tool_call(tool_call &call)
 			if (!dir_path_val.empty()) {
 				new_args["dir_path"] = dir_path_val;
 			}
-			for (const auto &k : {"include_ext", "max_results", "context_lines"}) {
+			for (const auto &k : {"include_ext", "limit", "context_lines"}) {
 				if (args.contains(k)) {
 					new_args[k] = args[k];
 				}

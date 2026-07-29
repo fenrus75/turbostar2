@@ -13,7 +13,9 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 ### Parameter Naming Rules
 1. **Primary Input Target**: Always use **`path`** for single file or directory input targets. Do NOT use `filename`, `file_path`, or `filepath` for general filesystem paths.
 2. **Input + Output Operations**: For format conversions or transformations taking an input target and producing an output file, use **`path`** (or `input_path`) for input, and **`output_path`** for destination output. Both support workspace relative paths and VFS URIs (`tmp://...`).
-3. **Domain-Specific Name Spaces**: Tools operating strictly in non-filesystem name spaces (such as `images://` asset names in image tools or database names in database tools) may use domain-appropriate parameter names like `filename` or `database`.
+3. **Item & Result Count Caps**: Always use **`limit`** when capping the maximum number of items, search results, files, or entries returned by a list or query tool. Do NOT use `max_results` or `count`.
+4. **Byte Range Slicing**: Always use **`offset`** for start byte position and **`size`** for number of bytes to read or process. Do NOT use `length` for byte range sizes.
+5. **Domain-Specific Name Spaces**: Tools operating strictly in non-filesystem name spaces (such as `images://` asset names in image tools or database names in database tools) may use domain-appropriate parameter names like `filename` or `database`.
 
 ### Parameter Description Rules
 1. **Standard Base Description**: Every `path` and `output_path` parameter description MUST start with the standard base phrase:
@@ -53,7 +55,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
     *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.
-    *   `max_results` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
+    *   `limit` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
 
 ### `fs_read_binary`
 *   **Description:** Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. Can read a specific range using start_offset and size.
@@ -815,7 +817,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://file.bin`). Optional file path to write output instead of returning it.
 
 ### `data_decompress` (Family: `binary`)
-*   **Description:** Extracts and decompresses data from various sources (file paths, VFS URIs, data URLs, hex/base64/ascii85 strings). Supports offset and length ranges to extract nested streams. Output can be returned as text, hex, base64, or written directly to a file.
+*   **Description:** Extracts and decompresses data from various sources (file paths, VFS URIs, data URLs, hex/base64/ascii85 strings). Supports offset and size ranges to extract nested streams. Output can be returned as text, hex, base64, or written directly to a file.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://file.bin`) of the file to decompress. Mutually exclusive with `input_data`.
     *   `input_data` *(string, optional)*: Raw data string, hex, base64, or data URL to decompress. Mutually exclusive with `path`.
@@ -823,4 +825,4 @@ These tools allow the agent to interact with the project's Git repository.
     *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `text`.
     *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://out.txt`). Optional file path to write output instead of returning it.
     *   `offset` *(integer, optional)*: Byte offset to start reading from. Defaults to 0.
-    *   `length` *(integer, optional)*: Maximum number of bytes to read. Defaults to -1 (read all).
+    *   `size` *(integer, optional)*: Maximum number of bytes to read. Defaults to -1 (read all).

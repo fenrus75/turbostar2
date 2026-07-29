@@ -26,7 +26,7 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
                 {"type", "string"},
                 {"description", "Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted."}
             }},
-            {"max_results", {
+            {"limit", {
                 {"type", "integer"},
                 {"description", "Cap the total number of detailed matches (line content + number) to prevent blowing out the context window. Defaults to 50."},
                 {"default", 50}
@@ -57,7 +57,7 @@ bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args,
             args_.search_path = std::nullopt;
         }
         
-        args_.max_results = raw_args.value("max_results", 50);
+        args_.limit = raw_args.value("limit", 50);
         args_.context_lines = raw_args.value("context_lines", 0);
         if (args_.context_lines < 0) args_.context_lines = 0;
         if (args_.context_lines > 10) args_.context_lines = 10;

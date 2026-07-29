@@ -18,7 +18,7 @@ struct fs_grep_files_args {
     std::optional<std::string> include_ext;
     std::optional<std::string> search_path;
     bool is_regex{false};
-    int max_results{50};
+    int limit{50};
     int context_lines{0};
     
     // Resolved safe path

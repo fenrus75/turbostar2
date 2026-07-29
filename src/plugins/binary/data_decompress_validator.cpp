@@ -17,7 +17,7 @@ nlohmann::json data_decompress_validator::get_parameters_schema() const {
 	      {"output_format", {{"type", "string"}, {"description", "Return format."}, {"enum", {"hex", "base64", "text"}}, {"default", "text"}}},
 	      {"output_path", {{"type", "string"}, {"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://out.txt'). Optional file path to write output instead of returning it."}}},
 	      {"offset", {{"type", "integer"}, {"description", "Byte offset to start reading from."}, {"default", 0}}},
-	      {"length", {{"type", "integer"}, {"description", "Maximum number of bytes to read."}, {"default", -1}}}}},
+	      {"size", {{"type", "integer"}, {"description", "Maximum number of bytes to read."}, {"default", -1}}}}},
 	    {"required", nlohmann::json::array()}};
 }
 
@@ -29,7 +29,7 @@ bool data_decompress_validator::validate_args_impl(const nlohmann::json &raw_jso
 		args_.output_format = raw_json.value("output_format", "text");
 		args_.output_path = raw_json.value("output_path", "");
 		args_.offset = raw_json.value("offset", 0);
-		args_.length = raw_json.value("length", -1);
+		args_.size = raw_json.value("size", -1);
 		
 		bool has_data = !args_.input_data.empty();
 		bool has_file = !args_.path.empty();

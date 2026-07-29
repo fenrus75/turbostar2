@@ -12,7 +12,7 @@ struct data_decompress_args {
 	std::string output_format;
 	std::string output_path;
 	size_t offset{0};
-	long long length{-1};
+	long long size{-1};
 };
 
 class data_decompress_tool : public agentlib::llm_tool_action {

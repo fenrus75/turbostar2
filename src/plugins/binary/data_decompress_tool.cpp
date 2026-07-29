@@ -18,13 +18,13 @@ std::string data_decompress_tool::execute(agentlib::tool_context &ctx)
 	try {
 		std::vector<uint8_t> raw_data;
 		if (!args_.path.empty()) {
-			raw_data = binary_utils::resolve_input_file(args_.path, args_.offset, args_.length, ctx.fs_security.get_vfs());
+			raw_data = binary_utils::resolve_input_file(args_.path, args_.offset, args_.size, ctx.fs_security.get_vfs());
 		} else {
-			raw_data = binary_utils::resolve_input_data(args_.input_data, args_.offset, args_.length, ctx.fs_security.get_vfs());
+			raw_data = binary_utils::resolve_input_data(args_.input_data, args_.offset, args_.size, ctx.fs_security.get_vfs());
 		}
 		if (raw_data.empty()) {
             set_failure(ctx, "Empty input data.");
-			return "Error: could not resolve or read input data (result was empty). Check your offset and length.";
+			return "Error: could not resolve or read input data (result was empty). Check your offset and size.";
 		}
 		std::vector<uint8_t> decompressed = binary_utils::decompress_data(raw_data, args_.format);
         set_success(ctx, "Data decompressed successfully.");

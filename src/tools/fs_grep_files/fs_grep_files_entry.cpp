@@ -269,7 +269,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
 					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
-						if (total_detailed_matches < args_.max_results) {
+						if (total_detailed_matches < args_.limit) {
 							match_lines.push_back(i + 1);
 							total_detailed_matches++;
 						} else {
@@ -402,7 +402,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 		if (!overflow_files.empty()) {
 			ss << "---\n";
-			ss << "*Note: `max_results` (" << args_.max_results
+			ss << "*Note: `limit` (" << args_.limit
 			   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or specifying "
 			      "a `search_path`.*\n";
 			for (const auto &f : overflow_files) {

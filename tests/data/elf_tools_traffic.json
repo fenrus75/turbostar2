@@ -899,7 +899,7 @@
                   "description": "Set to true if the pattern is a regular expression. Defaults to false for literal string search.",
                   "type": "boolean"
                 },
-                "max_results": {
+                "limit": {
                   "default": 50,
                   "description": "Cap the total number of detailed matches (line content + number) to prevent blowing out the context window. Defaults to 50.",
                   "type": "integer"
@@ -2822,7 +2822,7 @@
                   "description": "Set to true if the pattern is a regular expression. Defaults to false for literal string search.",
                   "type": "boolean"
                 },
-                "max_results": {
+                "limit": {
                   "default": 50,
                   "description": "Cap the total number of detailed matches (line content + number) to prevent blowing out the context window. Defaults to 50.",
                   "type": "integer"

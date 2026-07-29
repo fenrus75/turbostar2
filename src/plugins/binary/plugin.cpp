@@ -26,7 +26,7 @@ void plugin_run(void)
 		"Activate when you need to inspect or manipulate compressed binary data",
 		"The 'binary' tool family provides tools for compressing and decompressing data streams.\n\n"
 		"Key Tools:\n"
-		"- data_decompress: Extracts and decompresses data from various sources (files, data URLs, hex/base64 strings). It allows reading embedded streams (like PDF objects) using the offset and length parameters.\n"
+		"- data_decompress: Extracts and decompresses data from various sources (files, data URLs, hex/base64 strings). It allows reading embedded streams (like PDF objects) using the offset and size parameters.\n"
 		"- data_compress: Compresses data into various formats (zstd, gzip, zlib, etc.) and returns it as text, hex, base64, or writes to a file."
 	);
 }
