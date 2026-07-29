@@ -268,6 +268,9 @@ int main()
 			// Verify edit links like [Edit] or [edit] are suppressed
 			assert(md_res.find("[Edit](/w/index.php") == std::string::npos);
 			assert(md_res.find("[edit](/w/index.php") == std::string::npos);
+
+			// Verify standalone [] lines are removed
+			assert(md_res.find("\n[]\n") == std::string::npos);
 		}
 	}
 

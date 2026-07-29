@@ -152,33 +152,23 @@ JFIF is [mutually incompatible](#Compatibility) with the newer [Exchangeable ima
 
 ## Purpose
 
-[]
-
 JFIF defines a number of details that are left unspecified by the JPEG Part 1 standard ([ISO](//en.wikipedia.org/wiki/ISO)/[IEC](//en.wikipedia.org/wiki/International_Electrotechnical_Commission) 10918-1, [ITU-T](//en.wikipedia.org/wiki/ITU-T) Recommendation T.81.)[[1]](#cite_note-itu_t81-1)
 
 ### Component sample registration
-
-[]
 
 JPEG allows multiple components (such as [Y, Cb, and Cr](//en.wikipedia.org/wiki/YCbCr)) to have different resolutions, but it does not define how those differing sample arrays (which render bitmaps) should be aligned. This pixel-producing information is rendered with the expectation of indicating rectangles by their [centroid](//en.wikipedia.org/wiki/Centroid), rather than being pixel data directly, or being 'first corner and flood', etc. which is uncommon.
 
 ### Resolution and aspect ratio
 
-[]
-
 The JPEG standard does not include any method of coding the resolution or aspect ratio of an image. JFIF provides resolution or aspect ratio information using an application segment extension to JPEG. It uses Application Segment #0, with a segment header consisting of the [null-terminated string](//en.wikipedia.org/wiki/Null-terminated_string) spelling "JFIF" in [ASCII](//en.wikipedia.org/wiki/ASCII) followed by a byte equal to 0, and specifies that this must be the first segment in the file, hence making it simple to recognize a JFIF file. [Exif](//en.wikipedia.org/wiki/Exif) images recorded by digital cameras generally do not include this segment, but typically comply in all other respects with the JFIF standard.
 
 ### Color space
-
-[]
 
 The JPEG standard used for the compression coding in JFIF files does not define which [color encoding](//en.wikipedia.org/wiki/Color_space) is to be used for images. JFIF defines the [color model](//en.wikipedia.org/wiki/Color_model) to be used: either Y for greyscale, or [YCbCr](//en.wikipedia.org/wiki/YCbCr) derived from [RGB color primaries](//en.wikipedia.org/wiki/RGB_color_model) as defined in [CCIR 601](//en.wikipedia.org/wiki/CCIR_601) (now known as Rec. [ITU-R](//en.wikipedia.org/wiki/ITU-R) BT.601), except with a different "full range" scaling of the Y, Cb and Cr components. Unlike the "studio range" defined in CCIR 601, in which black is represented by Y=16 and white by Y=235 and values outside of this range are available for [signal processing](//en.wikipedia.org/wiki/Signal_processing) "headroom" and "footroom", JFIF uses all 256 levels of the 8-bit representation, so that Y=0 for black and Y=255 for peak white. The RGB color primaries defined in JFIF via CCIR 601 also differ somewhat from what has become common practice in newer applications (e.g., they differ slightly from the color primaries defined in [sRGB](//en.wikipedia.org/wiki/SRGB)). Moreover, CCIR 601 (before 2007) did not provide a precise definition of the RGB color primaries; it relied instead on the underlying practices of the television industry.
 
 Color interpretation of a JFIF image may be improved by embedding an [ICC](//en.wikipedia.org/wiki/International_Color_Consortium) profile, colorspace metadata, or an [sRGB](//en.wikipedia.org/wiki/SRGB) tag, and using an application that interprets this information.
 
 ## File format structure
-
-[]
 
 A JFIF file consists of a sequence of markers or marker segments (for details refer to [JPEG, Syntax and structure](//en.wikipedia.org/wiki/JPEG#Syntax_and_structure)). The markers are defined in part 1 of the [JPEG](//en.wikipedia.org/wiki/JPEG) Standard.[[1]](#cite_note-itu_t81-1) Each marker consists of two bytes: an `FF` byte followed by a byte which is not equal to `00` or `FF` and specifies the type of the marker. Some markers stand alone, but most indicate the start of a marker segment that contains data bytes according to the following pattern:
 
@@ -209,8 +199,6 @@ The JFIF standard requires that the JFIF APP0 marker segment immediately follows
 
 ### JFIF APP0 marker segment
 
-[]
-
 In the mandatory JFIF APP0 marker segment the parameters of the image are specified. Optionally an uncompressed thumbnail can be embedded.
 
 | JFIF APP0 marker segment |              |                                                                                                                                                                               |
@@ -228,8 +216,6 @@ In the mandatory JFIF APP0 marker segment the parameters of the image are specif
 | Thumbnail data           | 3 × n       | Uncompressed 24 bit RGB (8 bits per color channel) raster thumbnail data in the order R0, G0, B0, ... Rn-1, Gn-1, Bn-1; with n = Xthumbnail × Ythumbnail                     |
 
 ### JFIF extension APP0 marker segment
-
-[]
 
 Immediately following the JFIF APP0 marker segment may be a JFIF extension APP0 marker segment. This segment may only be present for JFIF versions 1.02 and above. It allows to embed a thumbnail image in 3 different formats.
 
@@ -268,15 +254,11 @@ The thumbnail data depends on the thumbnail format as follows:
 
 ## Compatibility
 
-[]
-
 The newer [Exchangeable image file format](//en.wikipedia.org/wiki/Exchangeable_image_file_format) (Exif) is comparable to JFIF, but the two standards are mutually incompatible. This is because both standards specify that their particular application segment (APP0 for JFIF, APP1 for Exif) must immediately follow the SOI marker. In practice, many programs and digital cameras produce files with both application segments included. This will not affect the image decoding for most decoders, but poorly designed JFIF or Exif parsers may not recognise the file properly.
 
 JFIF is compatible with Adobe [Photoshop](//en.wikipedia.org/wiki/Photoshop)'s JPEG "Information Resource Block" extensions, and [IPTC Information Interchange Model](//en.wikipedia.org/wiki/IPTC_Information_Interchange_Model) metadata, since JFIF does not preclude other application segments, and the Photoshop extensions are not required to be the first in the file. However, Photoshop generally saves CMYK buffers as four-component "Adobe JPEGs" that are not conformant with JFIF. Since these files are not in a YCbCr color space, they are typically not decodable by Web browsers and other Internet software.
 
 ## History
-
-[]
 
 Development of the JFIF document was led by Eric Hamilton of [C-Cube Microsystems](//en.wikipedia.org/wiki/C-Cube_Microsystems), and agreement on the first version was established in late 1991 at a meeting held at C-Cube involving about 40 representatives of various computer, telecommunications, and imaging companies. Shortly afterwards, a minor revision was published — JFIF 1.01.[[3]](#cite_note-ecma_tr98-3) For nearly 20 years, the latest version available was v1.02, published September 1, 1992.[[2]](#cite_note-hamilton_1992-2)
 
@@ -286,13 +268,9 @@ As time went by, C-Cube was restructured (and eventually devolved into [Harmonic
 
 ## See also
 
-[]
-
 - [Joint Photographic Experts Group](//en.wikipedia.org/wiki/Joint_Photographic_Experts_Group)
 
 ## References
-
-[]
 
 1. [1](#cite_ref-itu_t81_1-0) [2](#cite_ref-itu_t81_1-1) ["Recommendation ITU-T T.81: Information technology – Digital compression and coding of continuous-tone still images – Requirements and guidelines"](http://www.itu.int/rec/T-REC-T.81) (PDF). *ITU-T (formerly CCITT)*. 18 February 1992. Retrieved 15 June 2015.
 
@@ -306,19 +284,13 @@ As time went by, C-Cube was restructured (and eventually devolved into [Harmonic
 
 ## Further reading
 
-[]
-
 ### Books
-
-[]
 
 - Miano, John M, "Compressed Image File Formats"; 1999, Addison-Wesley [ISBN](//en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-201-60443-6](//en.wikipedia.org/wiki/Special:BookSources/978-0-201-60443-6)
 
 - Pennebaker, William B. and [Joan L. Mitchell](//en.wikipedia.org/wiki/Joan_L._Mitchell): *JPEG still image data compression standard*; 3rd edition, 1993, Springer [ISBN](//en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-442-01272-4](//en.wikipedia.org/wiki/Special:BookSources/978-0-442-01272-4)
 
 ### Standards
-
-[]
 
 - Hamilton, Eric: [*JPEG File Interchange Format, Version 1.02*](http://www.w3.org/Graphics/JPEG/jfif3.pdf) (PDF, 0.02 MB) 1 September 1992
 

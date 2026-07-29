@@ -507,6 +507,11 @@ std::string convert_to_markdown(const std::string &html_content, bool rich)
 			line = line.substr(0, end + 1);
 		}
 
+		std::string trimmed = tools::trim(line);
+		if (trimmed == "[]" || trimmed == "[ ]") {
+			line = "";
+		}
+
 		if (line.empty()) {
 			blank_lines++;
 			if (blank_lines <= 1) {
