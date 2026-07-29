@@ -19,19 +19,6 @@ void ui_paged_container::init_button_bar()
 	button_bar_->set_centered(true);
 	button_bar_->set_parent(this);
 
-	auto back = std::make_unique<ui_button>("wizard_back", "<< ~B~ack", 'B', nullptr);
-	back_btn_ = back.get();
-
-	auto cancel = std::make_unique<ui_button>("wizard_cancel", "~C~ancel", 'C', nullptr, true);
-	cancel_btn_ = cancel.get();
-
-	auto next = std::make_unique<ui_button>("wizard_next", "~N~ext >>", 'N', nullptr);
-	next_btn_ = next.get();
-
-	button_bar_->add_child(std::move(back));
-	button_bar_->add_child(std::move(cancel));
-	button_bar_->add_child(std::move(next));
-
 	update_button_states();
 }
 
@@ -40,23 +27,30 @@ void ui_paged_container::update_button_states()
 	if (!button_bar_)
 		return;
 
-	if (pages_.empty()) {
-		if (back_btn_) back_btn_->set_position(-999, -999);
-		if (next_btn_) next_btn_->set_text("~N~ext >>", 'N');
-		return;
+	button_bar_->clear_children();
+	back_btn_ = nullptr;
+	cancel_btn_ = nullptr;
+	next_btn_ = nullptr;
+
+	if (current_page_ > 0) {
+		auto back = std::make_unique<ui_button>("wizard_back", "<< ~B~ack", 'B', nullptr);
+		back_btn_ = back.get();
+		button_bar_->add_child(std::move(back));
 	}
 
-	if (current_page_ == 0) {
-		if (back_btn_) back_btn_->set_position(-999, -999);
-	} else {
-		if (back_btn_) back_btn_->set_position(0, 0);
-	}
+	auto cancel = std::make_unique<ui_button>("wizard_cancel", "~C~ancel", 'C', nullptr, true);
+	cancel_btn_ = cancel.get();
+	button_bar_->add_child(std::move(cancel));
 
-	if (current_page_ + 1 >= pages_.size()) {
-		if (next_btn_) next_btn_->set_text("~F~inish", 'F');
-	} else {
-		if (next_btn_) next_btn_->set_text("~N~ext >>", 'N');
+	std::string next_text = "~N~ext >>";
+	char next_hotkey = 'N';
+	if (!pages_.empty() && current_page_ + 1 >= pages_.size()) {
+		next_text = "~F~inish";
+		next_hotkey = 'F';
 	}
+	auto next = std::make_unique<ui_button>("wizard_next", next_text, next_hotkey, nullptr);
+	next_btn_ = next.get();
+	button_bar_->add_child(std::move(next));
 
 	button_bar_->flow();
 }
@@ -145,10 +139,10 @@ void ui_paged_container::on_page_entered(size_t /*page_index*/)
 void ui_paged_container::draw(int abs_x, int abs_y) const
 {
 	if (current_page_ < pages_.size() && pages_[current_page_]) {
-		pages_[current_page_]->draw(abs_x, abs_y);
+		pages_[current_page_]->draw(abs_x + pages_[current_page_]->x(), abs_y + pages_[current_page_]->y());
 	}
 	if (button_bar_) {
-		button_bar_->draw(abs_x, abs_y);
+		button_bar_->draw(abs_x + button_bar_->x(), abs_y + button_bar_->y());
 	}
 }
 
@@ -156,7 +150,7 @@ bool ui_paged_container::handle_event(const editor_event &ev, int abs_x, int abs
 {
 	// 1. Process navigation button events first
 	if (button_bar_) {
-		bool handled = button_bar_->handle_event(ev, abs_x, abs_y);
+		bool handled = button_bar_->handle_event(ev, abs_x + button_bar_->x(), abs_y + button_bar_->y());
 		if (back_btn_ && back_btn_->is_pressed()) {
 			back_btn_->set_pressed(false);
 			previous_page();
@@ -177,7 +171,7 @@ bool ui_paged_container::handle_event(const editor_event &ev, int abs_x, int abs
 
 	// 2. Process active page events
 	if (current_page_ < pages_.size() && pages_[current_page_]) {
-		if (pages_[current_page_]->handle_event(ev, abs_x, abs_y)) {
+		if (pages_[current_page_]->handle_event(ev, abs_x + pages_[current_page_]->x(), abs_y + pages_[current_page_]->y())) {
 			return true;
 		}
 	}
@@ -265,13 +259,7 @@ std::vector<ui_element *> ui_paged_container::get_focusable_elements()
 
 	if (button_bar_) {
 		auto btn_elems = button_bar_->get_focusable_elements();
-		for (auto *elem : btn_elems) {
-			// Skip hidden back_btn_ on page 0
-			if (current_page_ == 0 && elem == back_btn_) {
-				continue;
-			}
-			result.push_back(elem);
-		}
+		result.insert(result.end(), btn_elems.begin(), btn_elems.end());
 	}
 	return result;
 }
