@@ -18,6 +18,8 @@ class ui_button : public ui_element
 	int natural_width() const override;
 	bool is_focusable() const override { return true; }
 
+	void set_text(const std::string &text, char hotkey = '\0');
+
       private:
 	std::string text_;
 	char hotkey_;

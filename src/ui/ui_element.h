@@ -242,6 +242,7 @@ class ui_element
 | ui_group_box          | src/ui/components/ui_group_box.h                           |
 | ui_grid_flow          | src/ui/components/ui_grid_flow.h                            |
 | ui_agent_tile         | src/ui/components/ui_agent_tile.h                           |
+| ui_paged_container    | src/ui/components/ui_paged_container.h                      |
 
 */
 class ui_container : public ui_element

@@ -20,6 +20,15 @@ ui_button::ui_button(std::string name, const std::string &text, char hotkey, std
 	press_on_esc_ = press_on_esc;
 }
 
+void ui_button::set_text(const std::string &text, char hotkey)
+{
+	text_ = text;
+	if (hotkey != '\0') {
+		hotkey_ = hotkey;
+	}
+	width_ = static_cast<int>(utf8::length(utf8::trim(text_))) + 3;
+}
+
 void ui_button::draw(int abs_x, int abs_y) const
 {
 	int body_width = std::max<int>(text_.length(), width_ - 1);
