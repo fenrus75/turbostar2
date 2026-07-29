@@ -264,6 +264,10 @@ int main()
 			assert(md_res.find("[\n") == std::string::npos);
 			assert(md_res.find("\n](#") == std::string::npos);
 			assert(md_res.find("[1.1 Component sample registration](#Component_sample_registration)") != std::string::npos);
+
+			// Verify edit links like [Edit] or [edit] are suppressed
+			assert(md_res.find("[Edit](/w/index.php") == std::string::npos);
+			assert(md_res.find("[edit](/w/index.php") == std::string::npos);
 		}
 	}
 

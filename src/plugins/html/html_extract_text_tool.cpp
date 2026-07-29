@@ -343,6 +343,13 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 			}
 			link_text = collapse_whitespace(link_text);
 			link_text = trim(link_text);
+
+			std::string lower_text = link_text;
+			std::transform(lower_text.begin(), lower_text.end(), lower_text.begin(), [](unsigned char c) { return std::tolower(c); });
+			if (lower_text == "edit" || lower_text == "[edit]" || lower_text == "edit source" || lower_text == "[edit source]" || lower_text == "edit links") {
+				return;
+			}
+
 			out += "[" + link_text + "](" + std::string(reinterpret_cast<const char *>(href_val), href_len) + ")";
 			return;
 		}
