@@ -79,7 +79,7 @@ bool ui_radio_choice::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 
 		if (has_focus_) {
-			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
+			if (ev.key_code == '\t') {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_next())
@@ -88,12 +88,53 @@ bool ui_radio_choice::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				}
 				return true;
 			}
-			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
+			if (ev.key_code == KEY_BTAB) {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_previous())
 						break;
 					p = p->parent();
+				}
+				return true;
+			}
+			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN) {
+				if (parent_) {
+					const auto &siblings = parent_->children();
+					auto it = std::find_if(siblings.begin(), siblings.end(),
+							       [this](const std::unique_ptr<ui_element> &child) { return child.get() == this; });
+					if (it != siblings.end()) {
+						auto next_it = std::next(it);
+						if (next_it == siblings.end()) {
+							next_it = siblings.begin();
+						}
+						if (next_it != siblings.end()) {
+							parent_->set_focus_by_name((*next_it)->name());
+							parent_->child_got_selected(next_it->get());
+							auto *radio = dynamic_cast<ui_radio_choice *>(next_it->get());
+							if (radio) {
+								radio->set_selected(true);
+							}
+						}
+					}
+				}
+				return true;
+			}
+			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP) {
+				if (parent_) {
+					const auto &siblings = parent_->children();
+					auto it = std::find_if(siblings.begin(), siblings.end(),
+							       [this](const std::unique_ptr<ui_element> &child) { return child.get() == this; });
+					if (it != siblings.end()) {
+						auto prev_it = (it == siblings.begin()) ? std::prev(siblings.end()) : std::prev(it);
+						if (prev_it != siblings.end()) {
+							parent_->set_focus_by_name((*prev_it)->name());
+							parent_->child_got_selected(prev_it->get());
+							auto *radio = dynamic_cast<ui_radio_choice *>(prev_it->get());
+							if (radio) {
+								radio->set_selected(true);
+							}
+						}
+					}
 				}
 				return true;
 			}
@@ -264,4 +305,79 @@ int ui_radiobutton_group::natural_height() const
 		}
 		return total;
 	}
+}
+
+bool ui_radiobutton_group::focus_first()
+{
+	if (children_.empty())
+		return false;
+	ui_element *target = nullptr;
+	for (const auto &child : children_) {
+		auto *radio = dynamic_cast<ui_radio_choice *>(child.get());
+		if (radio && radio->is_selected()) {
+			target = child.get();
+			break;
+		}
+	}
+	if (!target) {
+		target = children_.front().get();
+	}
+	if (target) {
+		if (focused_child_ && focused_child_ != target) {
+			focused_child_->set_focus(false);
+		}
+		focused_child_ = target;
+		focused_child_->set_focus(true);
+		return true;
+	}
+	return false;
+}
+
+bool ui_radiobutton_group::focus_last()
+{
+	if (children_.empty())
+		return false;
+	ui_element *target = nullptr;
+	for (const auto &child : children_) {
+		auto *radio = dynamic_cast<ui_radio_choice *>(child.get());
+		if (radio && radio->is_selected()) {
+			target = child.get();
+			break;
+		}
+	}
+	if (!target) {
+		target = children_.back().get();
+	}
+	if (target) {
+		if (focused_child_ && focused_child_ != target) {
+			focused_child_->set_focus(false);
+		}
+		focused_child_ = target;
+		focused_child_->set_focus(true);
+		return true;
+	}
+	return false;
+}
+
+bool ui_radiobutton_group::focus_next()
+{
+	return false;
+}
+
+bool ui_radiobutton_group::focus_previous()
+{
+	return false;
+}
+
+std::vector<ui_element *> ui_radiobutton_group::get_focusable_elements()
+{
+	if (children_.empty())
+		return {};
+	for (const auto &child : children_) {
+		auto *radio = dynamic_cast<ui_radio_choice *>(child.get());
+		if (radio && radio->is_selected()) {
+			return {child.get()};
+		}
+	}
+	return {children_.front().get()};
 }

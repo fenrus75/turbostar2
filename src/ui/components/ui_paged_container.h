@@ -48,6 +48,11 @@ class ui_paged_container : public ui_container
 	bool flow() override;
 	int natural_width() const override;
 	int natural_height() const override;
+
+	bool focus_first() override;
+	bool focus_last() override;
+	bool focus_next() override;
+	bool focus_previous() override;
 	std::vector<ui_element *> get_focusable_elements() override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 	std::optional<std::string> get_pressed_element_name() const override;

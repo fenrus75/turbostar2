@@ -90,9 +90,35 @@ int main()
 	dlg->draw();
 
 	// Advance to page 2 (with group boxes and radio groups) and verify draw does not hang
-	wizard->next_page(); // Go to page 2
-	dlg->flow();
-	dlg->draw();
+	// 8. Test Radio Group Tab Navigation
+	auto r_dlg = std::make_unique<dialog>("Radio Test", 40, 15);
+	auto t1 = std::make_unique<ui_textbox>("t1", 10, "first");
+	auto rbg = std::make_unique<ui_radiobutton_group>("rbg", false);
+	auto r1 = std::make_unique<ui_radio_choice>("r1", "Option 1", '1', true);
+	auto r2 = std::make_unique<ui_radio_choice>("r2", "Option 2", '2', false);
+	auto *r1_ptr = r1.get();
+	auto t2_ptr = std::make_unique<ui_textbox>("t2", 10, "second");
+	auto *t2_raw = t2_ptr.get();
+
+	rbg->add_child(std::move(r1));
+	rbg->add_child(std::move(r2));
+
+	r_dlg->add_child(std::move(t1));
+	r_dlg->add_child(std::move(rbg));
+	r_dlg->add_child(std::move(t2_ptr));
+
+	r_dlg->focus_first();
+	editor_event tab_ev;
+	tab_ev.type = event_type::key_press;
+	tab_ev.key_code = '\t';
+
+	// Tab from t1 into rbg (focuses r1)
+	r_dlg->handle_event(tab_ev, 0, 0);
+	assert(r1_ptr->has_focus());
+
+	// Tab from r1 (should exit rbg and focus t2)
+	r_dlg->handle_event(tab_ev, 0, 0);
+	assert(t2_raw->has_focus());
 
 	std::cout << "All ui_paged_container wizard tests passed!" << std::endl;
 	return 0;

@@ -53,6 +53,12 @@ class ui_radiobutton_group : public ui_container
 	void child_got_selected(ui_element *child) override;
 	std::optional<std::string> get_value(const std::string &target_name) const override;
 
+	bool focus_first() override;
+	bool focus_last() override;
+	bool focus_next() override;
+	bool focus_previous() override;
+	std::vector<ui_element *> get_focusable_elements() override;
+
       private:
 	bool horizontal_;
 	bool want_stretch_{false};

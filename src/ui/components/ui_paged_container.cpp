@@ -249,6 +249,61 @@ int ui_paged_container::natural_height() const
 	return max_h + 2;
 }
 
+bool ui_paged_container::focus_first()
+{
+	auto elems = get_focusable_elements();
+	if (elems.empty())
+		return false;
+	elems.front()->set_focus(true);
+	return true;
+}
+
+bool ui_paged_container::focus_last()
+{
+	auto elems = get_focusable_elements();
+	if (elems.empty())
+		return false;
+	elems.back()->set_focus(true);
+	return true;
+}
+
+bool ui_paged_container::focus_next()
+{
+	auto elems = get_focusable_elements();
+	if (elems.empty())
+		return false;
+
+	auto it = std::find_if(elems.begin(), elems.end(), [](ui_element *e) { return e->has_focus(); });
+	if (it != elems.end()) {
+		(*it)->set_focus(false);
+		auto next_it = std::next(it);
+		if (next_it == elems.end()) {
+			next_it = elems.begin();
+		}
+		(*next_it)->set_focus(true);
+		return true;
+	} else {
+		return focus_first();
+	}
+}
+
+bool ui_paged_container::focus_previous()
+{
+	auto elems = get_focusable_elements();
+	if (elems.empty())
+		return false;
+
+	auto it = std::find_if(elems.begin(), elems.end(), [](ui_element *e) { return e->has_focus(); });
+	if (it != elems.end()) {
+		(*it)->set_focus(false);
+		auto prev_it = (it == elems.begin()) ? std::prev(elems.end()) : std::prev(it);
+		(*prev_it)->set_focus(true);
+		return true;
+	} else {
+		return focus_last();
+	}
+}
+
 std::vector<ui_element *> ui_paged_container::get_focusable_elements()
 {
 	std::vector<ui_element *> result;
