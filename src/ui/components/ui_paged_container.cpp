@@ -33,19 +33,19 @@ void ui_paged_container::update_button_states()
 	next_btn_ = nullptr;
 
 	if (current_page_ > 0) {
-		auto back = std::make_unique<ui_button>("wizard_back", "<< ~B~ack", 'B', nullptr);
+		auto back = std::make_unique<ui_button>("wizard_back", "<< Back", 'B', nullptr);
 		back_btn_ = back.get();
 		button_bar_->add_child(std::move(back));
 	}
 
-	auto cancel = std::make_unique<ui_button>("wizard_cancel", "~C~ancel", 'C', nullptr, true);
+	auto cancel = std::make_unique<ui_button>("wizard_cancel", "Cancel", 'C', nullptr, true);
 	cancel_btn_ = cancel.get();
 	button_bar_->add_child(std::move(cancel));
 
-	std::string next_text = "~N~ext >>";
+	std::string next_text = "Next >>";
 	char next_hotkey = 'N';
 	if (!pages_.empty() && current_page_ + 1 >= pages_.size()) {
-		next_text = "~F~inish";
+		next_text = "Finish";
 		next_hotkey = 'F';
 	}
 	auto next = std::make_unique<ui_button>("wizard_next", next_text, next_hotkey, nullptr);
