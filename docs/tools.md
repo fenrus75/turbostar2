@@ -6,12 +6,29 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 
 ---
 
+## Tool Parameter Naming & Description Guidelines
+
+All tools in Turbostar follow a **"Standardized Unless..."** design policy for parameter names and parameter descriptions:
+
+### Parameter Naming Rules
+1. **Primary Input Target**: Always use **`path`** for single file or directory input targets. Do NOT use `filename`, `file_path`, or `filepath` for general filesystem paths.
+2. **Input + Output Operations**: For format conversions or transformations taking an input target and producing an output file, use **`path`** (or `input_path`) for input, and **`output_path`** for destination output. Both support workspace relative paths and VFS URIs (`tmp://...`).
+3. **Domain-Specific Name Spaces**: Tools operating strictly in non-filesystem name spaces (such as `images://` asset names in image tools or database names in database tools) may use domain-appropriate parameter names like `filename` or `database`.
+
+### Parameter Description Rules
+1. **Standard Base Description**: Every `path` and `output_path` parameter description MUST start with the standard base phrase:
+   - **For file paths:** `"Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt')."`
+   - **For directory paths:** `"Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir')."`
+2. **Tool-Specific Additions**: If a tool has specific requirements or rules for its path argument, append it as a **second sentence** directly following the standard base description.
+
+---
+
 ## 1. File System Reading & Inspection
 
 ### `fs_list_dir`
 *   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optionally rich metadata). ALWAYS use this tool to list directory contents instead of running `ls` in a shell command.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the directory, relative to the project root.
+    *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir').
     *   `rich_metadata` *(boolean, optional)*: If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, ELF architectures).
     *   `limit` *(integer, optional)*: Maximum number of files to return in the list. Defaults to 100.
     *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.
@@ -19,7 +36,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_read_lines`
 *   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail`.
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
@@ -27,7 +44,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_read_symbol`
 *   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Uses the LSP server to locate the exact symbol boundaries and returns the code chunk with line numbers.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
 
 ### `fs_grep_files`
@@ -41,7 +58,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_read_binary`
 *   **Description:** Reads binary content from a file and returns it as a base64 encoded string or space-separated hex bytes. Can read a specific range using start_offset and size.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_offset` *(integer, optional)*: The 0-based byte offset to start reading from. Defaults to 0.
     *   `size` *(integer, optional)*: The number of bytes to read. Defaults to reading the rest of the file if omitted. A maximum limit (e.g., 50MB) may apply.
     *   `format` *(string, optional)*: The output format (`'base64'` or `'hex'`). Defaults to `'base64'`.
@@ -49,14 +66,14 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_regexp_lines`
 *   **Description:** Search for a regular expression within a file and return matching lines as a Markdown table.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `pattern` *(string, required)*: The RE2 regular expression pattern to search for (e.g., `'function.*foo'`).
     *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex matching. Defaults to false.
 
 ### `fs_file_size`
 *   **Description:** Get the size of a file in bytes.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
 
 ### `fs_list_tests`
 *   **Description:** Returns a markdown table of available test names in the project, optionally filtered by a pattern.
@@ -89,7 +106,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_replace_lines`
 *   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets.
 *   **Arguments:**
-    *   `path` *(string, required)*: Path to the file to edit, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `edits` *(array of objects, required)*: A list of edit operations.
         *   `line_number` *(integer, required)*: The 1-based line number to target.
         *   `type` *(string, required)*: The type of edit operation (`add`, `remove`, `replace`).
@@ -99,7 +116,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_replace_content`
 *   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. If multiple occurrences of `target_content` exist, a `line_hint` must be passed to target the closest match; otherwise, the tool fails and reports all matching line numbers.
 *   **Arguments:**
-    *   `path` *(string, required)*: Path to the file to edit, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `target_content` *(string, required)*: The exact, contiguous block of text to replace in the file.
     *   `replacement_content` *(string, required)*: The new content that will replace `target_content`.
     *   `line_hint` *(integer, optional)*: A 1-based line number hinting where the block starts. Required to resolve ambiguity if the target content appears multiple times.
@@ -107,7 +124,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_write_file`
 *   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the file to write, relative to the project root.
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to write.
     *   `content` *(string, required)*: The entire complete content to write into the file, or content to append.
     *   `force_overwrite` *(boolean, optional)*: Set to true to overwrite an existing file. Defaults to false. Mutually exclusive with `append`.
     *   `append` *(boolean, optional)*: Set to true to safely append `content` to the end of an existing file. Defaults to false. Mutually exclusive with `force_overwrite`.
@@ -115,7 +132,7 @@ All tools are validated through a robust two-stage pipeline. Path resolution aut
 ### `fs_mkdir`
 *   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports directory paths relative to the project root, or virtual paths (e.g., `tmp://nested/dir`).
 *   **Arguments:**
-    *   `path` *(string, required)*: The path to the directory to create, relative to the project root or virtual domain.
+    *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir'). Path to the directory to create.
 
 ### `fs_purge_tmp`
 *   **Description:** Purges (deletes) files and directories in the virtual `tmp://` scratch space. If a substring is provided, only deletes files/directories whose names contain the substring.
