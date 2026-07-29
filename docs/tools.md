@@ -806,19 +806,20 @@ These tools allow the agent to interact with the project's Git repository.
 ## 12. Binary Compression Tools
 
 ### `data_compress` (Family: `binary`)
-*   **Description:** Compresses data into various formats (zstd, gzip, zlib, deflate, xz, bzip2, lz4) and returns it as text, hex, base64, or writes to a file.
+*   **Description:** Compresses data into various formats (`zstd`, `gzip`, `zlib`, `deflate`, `xz`, `bzip2`, `lz4`). Supports file paths, VFS URIs (e.g., `tmp://file.txt`), data URLs, hex strings, base64, or raw text as input. Output can be returned as text, hex, base64, or written directly to a file.
 *   **Arguments:**
-    *   `input_data` *(string, required)*: The input raw data to compress.
+    *   `input_data` *(string, required)*: The input data to compress. Auto-detects and supports file paths, VFS URIs (`tmp://...`), data URLs (`data:...`), hex strings, base64, or literal text.
     *   `format` *(string, optional)*: Compression format (one of: `zstd`, `gzip`, `zlib`, `deflate`, `xz`, `bzip2`, `lz4`). Defaults to `zstd`.
-    *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `text`.
-    *   `output_file` *(string, optional)*: Optional file path (or virtual URI like `tmp://file.bin`) to write the output instead of returning it.
+    *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `hex`.
+    *   `output_file` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://file.bin`). Optional file to write output.
 
 ### `data_decompress` (Family: `binary`)
-*   **Description:** Extracts and decompresses data from various sources (files, data URLs, hex/base64/ascii85 strings, or virtual URIs). Supports offset/length ranges to extract nested streams.
+*   **Description:** Extracts and decompresses data from various sources (file paths, VFS URIs, data URLs, hex/base64/ascii85 strings). Supports offset and length ranges to extract nested streams.
 *   **Arguments:**
-    *   `input_data` *(string, required)*: The input raw/encoded data or path to the file to decompress.
+    *   `input_data` *(string, optional)*: The input raw/encoded data (base64, hex, data URL, or literal text) to decompress. Mutually exclusive with `input_file`.
+    *   `input_file` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://file.bin`) of the file to decompress. Mutually exclusive with `input_data`.
     *   `format` *(string, optional)*: Compression format (one of: `auto`, `zstd`, `gzip`, `zlib`, `deflate`, `xz`, `bzip2`, `lz4`, `pdflzw`, `lzw`, `pdfrunlength`, `runlength`, `ascii85`, `none`). Defaults to `auto`.
     *   `output_format` *(string, optional)*: Format to return the output (one of: `hex`, `base64`, `text`). Defaults to `text`.
-    *   `output_file` *(string, optional)*: Optional file path (or virtual URI like `tmp://file.bin`) to write the output instead of returning it.
+    *   `output_file` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., `tmp://out.txt`). Optional file to write output.
     *   `offset` *(integer, optional)*: Byte offset to start reading from. Defaults to 0.
     *   `length` *(integer, optional)*: Maximum number of bytes to read. Defaults to -1 (read all).
