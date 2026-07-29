@@ -94,8 +94,10 @@ void model_server_registry::load_servers()
 					type = api_type::claude;
 				}
 
+				double base_score = item.value("base_score", -2.0);
+
 				if (!id.empty()) {
-					register_server(std::make_shared<model_server>(id, name, url, api_key, type));
+					register_server(std::make_shared<model_server>(id, name, url, api_key, type, base_score));
 				}
 			}
 		}
@@ -122,6 +124,7 @@ void model_server_registry::save_servers() const
 		item["name"] = server->get_name();
 		item["url"] = server->get_url();
 		item["api_key"] = server->get_api_key();
+		item["base_score"] = server->get_base_score();
 
 		std::string api_type_str = "openai";
 		if (server->get_api_type() == api_type::gemini)

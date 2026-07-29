@@ -15,6 +15,14 @@
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+
+- "multipage" ui container for flows of setup questions
+
+- better sorting of models
+	- offset per server (builtin servers get -2.0 points, custom ones 0.0)
+	- offset by parsing model name for the first ([0-9]+\.[0.9]+)
+	- hardcoded table (probably a text file we turn into a header/cpp file at build time)
+
 - hexedit tool family message: we should give an example on how to extract a file from a .tar.gz file
 
 - consider adding an input filename parameter to the apply_text_filter tool call
@@ -284,6 +292,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Profile Details Output Formatting & Context Merging (`agent_get_profile_details_entry.cpp`): Redesigned `agent_get_profile_details` tool output: fetches source code lines (`code`), lifts `file_path` to top-level JSON header, sorts entries by `line_number` ascending, expands and merges ±2 context lines around hot spots into continuous blocks, retains raw `count` samples, and provides both `global_percentage` and `function_percentage`. Updated `docs/tools.md` and unit test `test_profile_tools.cpp`.
 - Agent Profile Details Function Matching Fix (`agent_get_profile_details_entry.cpp` & `perf_manager.cpp`): Added `function_name` field directly to `perf_line_sample` struct and replaced rigid exact string equality (`==`) with case-insensitive substring matching (`match_string`) in `agent_get_profile_details`. Allows querying functions without demangled parameter signatures (e.g. `is_prime_vB` matching `is_prime_vB(int)`). Updated unit test `test_profile_tools.cpp`.
 - Perf Sampling Rate Tuning & `TURBOSTAR_PERF_FREQ` Support (`perf_catcher.c`): Increased default sampling frequency from 1,000 Hz to 4,000 Hz (4 kHz) and period fallback from 100,000 to 25,000 cycles for higher sample density during short CPU bursts. Added support for `TURBOSTAR_PERF_FREQ` environment variable to allow customizing sampling rates up to 100,000 Hz.
+## 29-07-2026
+- Dynamic AI Model Scoring & Sorting System (`src/agentlib/ai_model.h/cpp`, `src/agentlib/model_server.h/cpp`, `src/agentlib/stale_models.h`, `scripts/add_stale_model.py`): Implemented runtime dynamic model scoring and list sorting (`ai_model::calculate_score()` and `ai_model_registry::get_all_models()`). Scoring combines `model_server` base scores (custom user servers = `0.0`, default vendor servers = `-2.0`), major/minor semantic version bonuses (`version / 10.0`), continuous linear age decay based on model creation timestamps, and a `-1.0` penalty for known stale models defined in `src/agentlib/stale_models.h`. Added `scripts/add_stale_model.py` helper CLI to maintain the stale model header. Updated `httplib_transport.cpp` to extract API `created` timestamps and added unit test in `tests/unit/test_ai_model_scoring.cpp`. Verified with 100% test pass (245 OK, 2 SKIPPED).
+
 - Tool Status Window `perf_event_paranoid` Check (`dialog_factories.cpp`): Added `/proc/sys/kernel/perf_event_paranoid` inspection to `create_tool_status_dialog()`. Displays status (`☑ OK (val=1)` vs `☐ Restricted (val=3)`) and provides instructions to run `sudo sysctl -w kernel.perf_event_paranoid=1` when CPU profiling is restricted. Updated unit test in `test_tool_status.cpp`.
 - Perf Sampling Fallbacks & Debug Log Forwarding (`perf_catcher.c` & `perf_manager.cpp`): Added `PERF_COUNT_SW_TASK_CLOCK` sampling fallback in `perf_catcher.c` and exact `errno` logging. Updated `perf_manager::parse_and_resolve` to parse and forward `perf_debug_*.txt` files to `event_logger`, providing diagnostic visibility into PMU and software sampling initialization.
 - Perf Ring Buffer Size & Debug Log Generator (`perf_catcher.c`): Replaced static 1 MB mmap ring buffer request with adaptive power-of-two page size fallbacks (64 pages -> 16 pages -> 4 pages) to prevent `ENOMEM`/`EPERM` mmap failures when `kernel.perf_event_mlock_kb` is restricted. Added `perf_debug_<pid>.txt` generation in `TURBOSTAR_PERF_DIR` for diagnostic tracking of init and shutdown events.

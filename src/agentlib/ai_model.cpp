@@ -1,9 +1,12 @@
 #include "ai_model.h"
 #include "model_server.h"
+#include "stale_models.h"
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <regex>
 #include <nlohmann/json.hpp>
 #include "../config_manager.h"
 #include "../event_logger.h"
@@ -13,6 +16,46 @@ using json = nlohmann::json;
 
 namespace agentlib
 {
+
+double ai_model::calculate_score() const
+{
+	double score = 0.0;
+
+	// 1. Server Base Score
+	auto srv = model_server_registry::get_instance().get_server(server_id_);
+	if (srv) {
+		score += srv->get_base_score();
+	}
+
+	// 2. Major/Minor Version Extraction (e.g. 2.5 -> +0.25)
+	static const std::regex ver_regex(R"((?:^|[^0-9])([0-9]{1,2}\.[0-9]{1,2})(?:[^0-9]|$))");
+	std::smatch match;
+	if (std::regex_search(id_, match, ver_regex) || std::regex_search(name_, match, ver_regex)) {
+		try {
+			double ver = std::stod(match[1].str());
+			score += (ver / 10.0);
+		} catch (...) {
+		}
+	}
+
+	// 3. Continuous Linear Age Decay
+	if (creation_timestamp_ > 0) {
+		auto now_sec = static_cast<uint64_t>(
+		    std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+		if (now_sec > creation_timestamp_) {
+			double age_days = static_cast<double>(now_sec - creation_timestamp_) / 86400.0;
+			double penalty = std::min(1.2, (age_days / 365.0) * 1.0);
+			score -= penalty;
+		}
+	}
+
+	// 4. Known Stale Model Penalty
+	if (is_stale_model(id_)) {
+		score -= 1.0;
+	}
+
+	return score;
+}
 
 ai_model::ai_model(std::string id, std::string name, std::string url, std::string purpose, double cost_per_1m_tx, double cost_per_1m_rx,
 		   std::string api_key, api_type type, int max_context_tokens, model_cost_type cost_type, std::string server_id, bool from_download)
@@ -34,7 +77,7 @@ ai_model::ai_model(std::string id, std::string name, std::string url, std::strin
 				}
 			}
 			if (!existing_srv || existing_srv->get_id() == "none") {
-				auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", url, api_key, type);
+				auto new_srv = std::make_shared<model_server>(derived_id, name_ + " Server", url, api_key, type, -2.0);
 				reg.register_server(new_srv);
 				reg.save_servers();
 			}
@@ -173,6 +216,16 @@ std::vector<std::shared_ptr<ai_model>> ai_model_registry::get_all_models() const
 	for (const auto &[id, model] : models_) {
 		result.push_back(model);
 	}
+
+	std::stable_sort(result.begin(), result.end(), [](const std::shared_ptr<ai_model> &a, const std::shared_ptr<ai_model> &b) {
+		double score_a = a->calculate_score();
+		double score_b = b->calculate_score();
+		if (score_a != score_b) {
+			return score_a > score_b;
+		}
+		return a->get_name() < b->get_name();
+	});
+
 	return result;
 }
 
@@ -217,7 +270,8 @@ void ai_model_registry::load_models()
 					cost_type = model_cost_type::paid_per_request;
 				}
 				bool from_download = item.value("from_download", false);
- 
+				uint64_t creation_ts = item.value("creation_timestamp", 0ULL);
+
 				model_capabilities caps;
 				if (item.contains("capabilities") && item["capabilities"].is_object()) {
 					auto caps_obj = item["capabilities"];
@@ -226,11 +280,12 @@ void ai_model_registry::load_models()
 					caps.audio = caps_obj.value("audio", false);
 					caps.coding = caps_obj.value("coding", false);
 				}
- 
+
 				if (!id.empty()) {
 					auto model = std::make_shared<ai_model>(id, name, url, purpose, tx_cost, rx_cost, api_key, type,
 										  max_tokens, cost_type, server_id, from_download);
 					model->set_capabilities(caps);
+					model->set_creation_timestamp(creation_ts);
 					register_model(model);
 				}
 			}
@@ -269,7 +324,10 @@ void ai_model_registry::save_models() const
 			cost_type_str = "paid_per_request";
 		item["cost_type"] = cost_type_str;
 		item["from_download"] = model->get_from_download();
- 
+		if (model->get_creation_timestamp() > 0) {
+			item["creation_timestamp"] = model->get_creation_timestamp();
+		}
+
 		auto caps = model->get_capabilities();
 		json caps_obj;
 		caps_obj["vision"] = caps.vision;
@@ -277,7 +335,7 @@ void ai_model_registry::save_models() const
 		caps_obj["audio"] = caps.audio;
 		caps_obj["coding"] = caps.coding;
 		item["capabilities"] = caps_obj;
- 
+
 		data.push_back(item);
 	}
 

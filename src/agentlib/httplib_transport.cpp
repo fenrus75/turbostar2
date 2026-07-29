@@ -427,8 +427,11 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 					std::string purpose = std::format("Imported from {}", server_url);
 					int max_tokens = item.value("inputTokenLimit", 1000000);
 
-					result.push_back(std::make_shared<ai_model>(clean_id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::gemini,
-										    max_tokens, model_cost_type::free_local, server_id, true));
+					uint64_t created_ts = item.value("created", 0ULL);
+					auto model = std::make_shared<ai_model>(clean_id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::gemini,
+										  max_tokens, model_cost_type::free_local, server_id, true);
+					model->set_creation_timestamp(created_ts);
+					result.push_back(model);
 				}
 			}
 		} else {
@@ -442,9 +445,12 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 					std::string id = item["id"];
 					std::string name = item.value("name", id);
 					std::string purpose = std::format("Imported from {}", server_url);
+					uint64_t created_ts = item.value("created", 0ULL);
 
-					result.push_back(std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
-										    250000, model_cost_type::free_local, server_id, true));
+					auto model = std::make_shared<ai_model>(id, name, server_url, purpose, 0.0, 0.0, api_key, api_type::openai,
+										  250000, model_cost_type::free_local, server_id, true);
+					model->set_creation_timestamp(created_ts);
+					result.push_back(model);
 				}
 			}
 		}

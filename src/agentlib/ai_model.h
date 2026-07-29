@@ -109,6 +109,17 @@ class ai_model
 		capabilities_ = capabilities;
 	}
  
+	uint64_t get_creation_timestamp() const
+	{
+		return creation_timestamp_;
+	}
+	void set_creation_timestamp(uint64_t ts)
+	{
+		creation_timestamp_ = ts;
+	}
+
+	double calculate_score() const;
+
 	int get_global_tokens_tx() const
 	{
 		return global_tokens_tx_;
@@ -136,6 +147,7 @@ class ai_model
 	std::string server_id_;
 	bool from_download_;
 	model_capabilities capabilities_;
+	uint64_t creation_timestamp_{0};
 
 	std::atomic<int> global_tokens_tx_{0};
 	std::atomic<int> global_tokens_rx_{0};
