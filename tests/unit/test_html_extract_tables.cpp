@@ -243,7 +243,7 @@ int main()
 	}
 
 	// 14. Test jpeg.html conversion and write output to jpeg.md
-	std::string jpeg_path = std::filesystem::exists("jpeg.html") ? "jpeg.html" : (std::filesystem::exists("../jpeg.html") ? "../jpeg.html" : "");
+	std::string jpeg_path = std::filesystem::exists("tests/data/jpeg.html") ? "tests/data/jpeg.html" : (std::filesystem::exists("../tests/data/jpeg.html") ? "../tests/data/jpeg.html" : "");
 	if (!jpeg_path.empty()) {
 		std::ifstream ifs(jpeg_path, std::ios::binary);
 		if (ifs) {
@@ -254,7 +254,7 @@ int main()
 			std::string md_res = filter_registry::get_instance().apply_filter("html_to_markdown", html_content, success);
 			assert(success);
 
-			std::string out_md_path = (jpeg_path == "../jpeg.html") ? "../jpeg.md" : "jpeg.md";
+			std::string out_md_path = (jpeg_path == "../tests/data/jpeg.html") ? "../tests/data/jpeg.md" : "tests/data/jpeg.md";
 			std::ofstream ofs(out_md_path, std::ios::binary);
 			if (ofs) {
 				ofs << md_res;
