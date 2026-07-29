@@ -9,6 +9,8 @@ namespace tools
 
 struct apply_text_filter_args {
 	std::string text;
+	std::string path;
+	std::string safe_path;
 	std::string filter;
 	std::string output_path;
 	std::string safe_output_path;

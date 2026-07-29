@@ -11,18 +11,25 @@ nlohmann::json apply_text_filter_validator::get_parameters_schema() const
 {
 	return {{"type", "object"},
 		{"properties",
-		 {{"text", {{"type", "string"}, {"description", "The input text to convert."}}},
+		 {{"text", {{"type", "string"}, {"description", "Optional. The input text string to convert. Either 'text' or 'path' must be provided."}}},
+		  {"path",
+		   {{"type", "string"},
+		    {"description", "Optional. The relative file path under the project workspace or VFS URI (e.g., 'tmp://input.html') to read input text from."}}},
 		  {"filter",
 		   {{"type", "string"},
 		    {"description", "The name of the filter to apply (e.g., 'strip_utf8', 'strip_ansi', 'html_to_markdown')."}}},
 		  {"output_path",
 		   {{"type", "string"},
-		    {"description", "Optional. The relative file path under the project workspace to save the converted output."}}}}},
-		{"required", {"text", "filter"}}};
+		    {"description", "Optional. The relative file path under the project workspace or VFS URI (e.g., 'tmp://out.md') to save the converted output."}}}}},
+		{"required", {"filter"}}};
 }
 
 bool apply_text_filter_validator::is_allowed_in_plan_mode(const nlohmann::json &args, const agentlib::tool_context &ctx) const
 {
+	if (args.contains("path") && args["path"].is_string()) {
+		std::string in_p = args["path"].get<std::string>();
+		if (!in_p.starts_with("tmp://") && !in_p.starts_with("tmp:/")) return false;
+	}
 	if (!args.contains("output_path")) return true;
 	if (!args["output_path"].is_string()) return false;
 	std::string path = args["output_path"].get<std::string>();
@@ -40,17 +47,42 @@ bool apply_text_filter_validator::validate_args_impl(const nlohmann::json &args,
 		return false;
 	}
 
-	if (!args.contains("text") || !args["text"].is_string()) {
-		out_error = "Missing or invalid 'text' argument (must be string).";
-		return false;
-	}
-
 	if (!args.contains("filter") || !args["filter"].is_string()) {
 		out_error = "Missing or invalid 'filter' argument (must be string).";
 		return false;
 	}
 
-	std::string text = args["text"].get<std::string>();
+	std::string text;
+	if (args.contains("text")) {
+		if (!args["text"].is_string()) {
+			out_error = "Invalid 'text' argument (must be string).";
+			return false;
+		}
+		text = args["text"].get<std::string>();
+	}
+
+	std::string path;
+	std::string safe_path;
+	if (args.contains("path")) {
+		if (!args["path"].is_string()) {
+			out_error = "Invalid 'path' argument (must be string).";
+			return false;
+		}
+		path = args["path"].get<std::string>();
+		if (path.empty()) {
+			out_error = "'path' argument cannot be empty.";
+			return false;
+		}
+		if (!ctx.fs_security.validate_access(path, agentlib::access_type::read, safe_path, out_error)) {
+			return false;
+		}
+	}
+
+	if (text.empty() && path.empty()) {
+		out_error = "Either 'text' or 'path' argument must be provided.";
+		return false;
+	}
+
 	std::string filter = args["filter"].get<std::string>();
 
 	// Validate filter existence
@@ -85,13 +117,15 @@ bool apply_text_filter_validator::validate_args_impl(const nlohmann::json &args,
 
 	// Validate unexpected arguments
 	for (auto it = args.begin(); it != args.end(); ++it) {
-		if (it.key() != "text" && it.key() != "filter" && it.key() != "output_path") {
+		if (it.key() != "text" && it.key() != "path" && it.key() != "filter" && it.key() != "output_path") {
 			out_error = "Unexpected parameter '" + it.key() + "' passed to tool.";
 			return false;
 		}
 	}
 
 	parsed_args_.text = text;
+	parsed_args_.path = path;
+	parsed_args_.safe_path = safe_path;
 	parsed_args_.filter = filter;
 	parsed_args_.output_path = output_path;
 	parsed_args_.safe_output_path = safe_output_path;

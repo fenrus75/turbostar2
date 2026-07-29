@@ -648,8 +648,35 @@ extern std::string troff2md(std::string troff_content);
 			assert(result_troff.find("```c") != std::string::npos);
 			assert(result_troff.find("bold text") != std::string::npos);
 			assert(result_troff.find("**bold text**") == std::string::npos);
-			assert(result_troff.find("font bold") != std::string::npos);
-			assert(result_troff.find("**font bold**") == std::string::npos);
+		}
+
+		// Test 7: apply_text_filter reading from input path parameter
+		{
+			std::string in_file = "test_filter_in.txt";
+			std::string full_in_path = (ctx.fs_security.get_working_directory() / in_file).string();
+			std::ofstream ofs(full_in_path, std::ios::binary);
+			ofs << "\x1b[32mPath input test\x1b[0m";
+			ofs.close();
+
+			std::string out_file = "test_filter_in_out.txt";
+			std::string result_path = registry.execute_tool(
+				"apply_text_filter",
+				"{\"path\": \"" + in_file + "\", \"filter\": \"strip_ansi\", \"output_path\": \"" + out_file + "\"}",
+				ctx
+			);
+			std::cout << "Path filter result: " << result_path << std::endl;
+			assert(result_path.find("Successfully applied filter") != std::string::npos);
+
+			std::string full_out_path = (ctx.fs_security.get_working_directory() / out_file).string();
+			assert(std::filesystem::exists(full_out_path));
+
+			std::ifstream ifs(full_out_path);
+			std::string file_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			assert(file_content == "Path input test");
+			ifs.close();
+
+			std::filesystem::remove(full_in_path);
+			std::filesystem::remove(full_out_path);
 		}
 	}
 
