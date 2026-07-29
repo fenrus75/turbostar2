@@ -53,6 +53,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
 - feature: become an A2A server for our agents
+	- **A2A Agent Card Synthesis & Sidecar Storage**: Hybrid 3-tier resolution policy (Local sidecar `<agent_name>.card.json` -> Global cache `~/.cache/turbostar/agent_cards/<hash>.json` -> LLM Synthesis).
+	- **Dedicated `:plugin:a2a` Tool Family**: Keep global namespace clean by grouping A2A tools (`a2a_validate_card`, `a2a_synthesize_card`, `a2a_publish_card`) under the `a2a` family.
+	- **`a2a_validate_card` Tool**: Validates synthesized or user-edited `.card.json` files against the formal A2A Agent Card JSON Schema specification.
 
 - feature: become a client to A2A
 	we need to parse agent cards and hook them up to our subagent directory
