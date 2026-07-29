@@ -837,3 +837,9 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://agent.card.json'). Optional path to the A2A card JSON file to validate.
     *   `card_data` *(string, optional)*: Optional raw JSON string of the A2A card to validate directly.
+
+### `a2a_generate_card_with_agent` (Family: `a2a`)
+*   **Description:** Spawns the `a2acardgenerator` subagent to convert a human-written subagent `.md` definition file into a formal, validated A2A Agent Card JSON file.
+*   **Arguments:**
+    *   `path` *(string)*: Relative path under the project workspace or VFS URI (e.g., 'src/plugins/securityagent/securityagent.md') of the agent .md definition file.
+    *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'src/plugins/securityagent/securityagent.card.json'). Optional output card path (defaults to sidecar next to .md).

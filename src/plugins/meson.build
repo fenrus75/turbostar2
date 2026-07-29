@@ -142,10 +142,19 @@ binary_plugin = shared_module('binary',
   install_dir: plugin_dir
 )
 
+a2acardgenerator_agent_h = custom_target('a2acardgenerator_agent.h',
+  input : 'a2a/a2acardgenerator.md',
+  output : 'a2acardgenerator_agent.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'a2acardgenerator_agent_md']
+)
+
 a2a_plugin = shared_module('a2a',
   ['a2a/plugin.cpp',
    'a2a/a2a_validate_card/a2a_validate_card_entry.cpp',
-   'a2a/a2a_validate_card/a2a_validate_card_security.cpp'],
+   'a2a/a2a_validate_card/a2a_validate_card_security.cpp',
+   'a2a/a2a_generate_card_with_agent/a2a_generate_card_with_agent_entry.cpp',
+   'a2a/a2a_generate_card_with_agent/a2a_generate_card_with_agent_security.cpp',
+   a2acardgenerator_agent_h],
   dependencies: [nlohmann_json_dep],
   include_directories: inc,
   install: true,
