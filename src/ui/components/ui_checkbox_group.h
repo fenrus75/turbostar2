@@ -21,6 +21,12 @@ class ui_checkbox_group : public ui_container
 	int natural_width() const override;
 	int natural_height() const override;
 
+	bool focus_first() override;
+	bool focus_last() override;
+	bool focus_next() override;
+	bool focus_previous() override;
+	std::vector<ui_element *> get_focusable_elements() override;
+
       private:
 	bool want_stretch_{false};
 };

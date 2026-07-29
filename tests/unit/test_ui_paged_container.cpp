@@ -120,6 +120,33 @@ int main()
 	r_dlg->handle_event(tab_ev, 0, 0);
 	assert(t2_raw->has_focus());
 
+	// 9. Test Checkbox Group Tab Navigation
+	auto c_dlg = std::make_unique<dialog>("Checkbox Test", 40, 15);
+	auto ct1 = std::make_unique<ui_textbox>("ct1", 10, "first");
+	auto cbg = std::make_unique<ui_checkbox_group>("cbg", 0, 0, 25, 4);
+	auto cb1 = std::make_unique<ui_checkbox>("cb1", "Option A", 'a', true);
+	auto cb2 = std::make_unique<ui_checkbox>("cb2", "Option B", 'b', false);
+	auto *cb1_ptr = cb1.get();
+	auto ct2_ptr = std::make_unique<ui_textbox>("ct2", 10, "second");
+	auto *ct2_raw = ct2_ptr.get();
+
+	cbg->add_child(std::move(cb1));
+	cbg->add_child(std::move(cb2));
+
+	c_dlg->add_child(std::move(ct1));
+	c_dlg->add_child(std::move(cbg));
+	c_dlg->add_child(std::move(ct2_ptr));
+
+	c_dlg->focus_first();
+
+	// Tab from ct1 into cbg (focuses cb1)
+	c_dlg->handle_event(tab_ev, 0, 0);
+	assert(cb1_ptr->has_focus());
+
+	// Tab from cb1 (should exit cbg and focus ct2)
+	c_dlg->handle_event(tab_ev, 0, 0);
+	assert(ct2_raw->has_focus());
+
 	std::cout << "All ui_paged_container wizard tests passed!" << std::endl;
 	return 0;
 }

@@ -76,7 +76,7 @@ bool ui_checkbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 		}
 
 		if (has_focus_) {
-			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN || ev.key_code == '\t') {
+			if (ev.key_code == '\t') {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_next())
@@ -85,12 +85,43 @@ bool ui_checkbox::handle_event(const editor_event &ev, int abs_x, int abs_y)
 				}
 				return true;
 			}
-			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP || ev.key_code == KEY_BTAB) {
+			if (ev.key_code == KEY_BTAB) {
 				ui_element *p = parent_;
 				while (p) {
 					if (p->focus_previous())
 						break;
 					p = p->parent();
+				}
+				return true;
+			}
+			if (ev.key_code == KEY_RIGHT || ev.key_code == KEY_DOWN) {
+				if (parent_) {
+					const auto &siblings = parent_->children();
+					auto it = std::find_if(siblings.begin(), siblings.end(),
+							       [this](const std::unique_ptr<ui_element> &child) { return child.get() == this; });
+					if (it != siblings.end()) {
+						auto next_it = std::next(it);
+						if (next_it == siblings.end()) {
+							next_it = siblings.begin();
+						}
+						if (next_it != siblings.end()) {
+							parent_->set_focus_by_name((*next_it)->name());
+						}
+					}
+				}
+				return true;
+			}
+			if (ev.key_code == KEY_LEFT || ev.key_code == KEY_UP) {
+				if (parent_) {
+					const auto &siblings = parent_->children();
+					auto it = std::find_if(siblings.begin(), siblings.end(),
+							       [this](const std::unique_ptr<ui_element> &child) { return child.get() == this; });
+					if (it != siblings.end()) {
+						auto prev_it = (it == siblings.begin()) ? std::prev(siblings.end()) : std::prev(it);
+						if (prev_it != siblings.end()) {
+							parent_->set_focus_by_name((*prev_it)->name());
+						}
+					}
 				}
 				return true;
 			}

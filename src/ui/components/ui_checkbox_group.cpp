@@ -69,3 +69,55 @@ int ui_checkbox_group::natural_height() const
 	}
 	return height_sum;
 }
+
+bool ui_checkbox_group::focus_first()
+{
+	if (children_.empty())
+		return false;
+	ui_element *target = focused_child_ ? focused_child_ : children_.front().get();
+	if (target) {
+		if (focused_child_ && focused_child_ != target) {
+			focused_child_->set_focus(false);
+		}
+		focused_child_ = target;
+		focused_child_->set_focus(true);
+		return true;
+	}
+	return false;
+}
+
+bool ui_checkbox_group::focus_last()
+{
+	if (children_.empty())
+		return false;
+	ui_element *target = focused_child_ ? focused_child_ : children_.back().get();
+	if (target) {
+		if (focused_child_ && focused_child_ != target) {
+			focused_child_->set_focus(false);
+		}
+		focused_child_ = target;
+		focused_child_->set_focus(true);
+		return true;
+	}
+	return false;
+}
+
+bool ui_checkbox_group::focus_next()
+{
+	return false;
+}
+
+bool ui_checkbox_group::focus_previous()
+{
+	return false;
+}
+
+std::vector<ui_element *> ui_checkbox_group::get_focusable_elements()
+{
+	if (children_.empty())
+		return {};
+	if (focused_child_) {
+		return {focused_child_};
+	}
+	return {children_.front().get()};
+}
