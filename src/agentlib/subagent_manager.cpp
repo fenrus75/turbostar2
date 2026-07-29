@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <cstdlib>
+#include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
 // Generated headers for embedded agents
@@ -283,5 +283,76 @@ void subagent_manager::unregister_subagent(std::string name)
 	}
 }
 
+std::string subagent_manager::generate_a2a_card_for_agent(const std::string &name, const std::string &output_card_path) const
+{
+	auto sa_opt = find_subagent_by_name(name);
+	if (!sa_opt) {
+		return "";
+	}
+
+	const auto &sa = *sa_opt;
+	nlohmann::json card;
+	card["protocol_version"] = "1.0";
+	card["name"] = sa.name;
+	card["description"] = sa.description.empty() ? (sa.name + " subagent") : sa.description;
+	card["version"] = "1.0.0";
+	card["read_only"] = sa.read_only;
+
+	// skills
+	nlohmann::json skills = nlohmann::json::array();
+	for (const auto &fam : sa.tool_families) {
+		std::string s = fam;
+		if (s.starts_with(":plugin:")) s = s.substr(8);
+		skills.push_back(s);
+	}
+	if (skills.empty()) {
+		skills.push_back("general-task");
+	}
+	card["skills"] = skills;
+
+	// input_schema
+	nlohmann::json input_props;
+	input_props["instructions"] = {
+		{"type", "string"},
+		{"description", "Task instructions or prompt for " + sa.name}
+	};
+	if (!sa.read_only) {
+		input_props["target_files"] = {
+			{"type", "array"},
+			{"items", {{"type", "string"}}},
+			{"description", "List of workspace file paths to modify or process"}
+		};
+	}
+	card["input_schema"] = {
+		{"type", "object"},
+		{"properties", input_props},
+		{"required", nlohmann::json::array({"instructions"})}
+	};
+
+	// output_schema
+	card["output_schema"] = {
+		{"type", "object"},
+		{"properties", {
+			{"status", {{"type", "string"}, {"enum", nlohmann::json::array({"success", "failure", "in_progress"})}}},
+			{"summary", {{"type", "string"}, {"description", "Summary of completed work"}}},
+			{"artifacts", {{"type", "array"}, {"items", {{"type", "string"}}}}}
+		}}
+	};
+
+	std::string card_json = card.dump(2);
+
+	if (!output_card_path.empty()) {
+		std::filesystem::path p(output_card_path);
+		if (p.has_parent_path()) {
+			std::filesystem::create_directories(p.parent_path());
+		}
+		std::ofstream f(p);
+		if (f.is_open()) {
+			f << card_json << "\n";
+		}
+	}
+
+	return card_json;
+}
 
 } // namespace agentlib
