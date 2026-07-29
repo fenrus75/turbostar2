@@ -269,9 +269,11 @@ std::optional<std::string> ui_paged_container::get_value(const std::string &targ
 	if (name_ == target_name) {
 		return std::nullopt;
 	}
-	if (current_page_ < pages_.size() && pages_[current_page_]) {
-		auto val = pages_[current_page_]->get_value(target_name);
-		if (val) return val;
+	for (const auto &p : pages_) {
+		if (p) {
+			auto val = p->get_value(target_name);
+			if (val) return val;
+		}
 	}
 	if (button_bar_) {
 		return button_bar_->get_value(target_name);
