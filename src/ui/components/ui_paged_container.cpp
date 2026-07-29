@@ -197,7 +197,7 @@ bool ui_paged_container::flow()
 
 	int btn_w = button_bar_ ? button_bar_->natural_width() : 0;
 	int req_w = std::max(max_page_w, btn_w);
-	int req_h = max_page_h + 3;
+	int req_h = max_page_h + 2;
 
 	// Hybrid Grow-Only Resizing
 	if (req_w > width_) {
@@ -211,11 +211,12 @@ bool ui_paged_container::flow()
 		changed = true;
 	}
 
-	int page_area_h = std::max(0, height_ - 3);
+	int page_area_h = std::max(0, height_ - 2);
 	if (current_page_ < pages_.size() && pages_[current_page_]) {
 		pages_[current_page_]->set_position(0, 0);
-		pages_[current_page_]->set_width(width_);
-		pages_[current_page_]->set_height(page_area_h);
+		if (pages_[current_page_]->width() != width_) {
+			pages_[current_page_]->set_width(width_);
+		}
 		if (pages_[current_page_]->flow()) {
 			changed = true;
 		}
@@ -223,8 +224,9 @@ bool ui_paged_container::flow()
 
 	if (button_bar_) {
 		button_bar_->set_position(0, page_area_h);
-		button_bar_->set_width(width_);
-		button_bar_->set_height(3);
+		if (button_bar_->width() != width_) {
+			button_bar_->set_width(width_);
+		}
 		if (button_bar_->flow()) {
 			changed = true;
 		}
@@ -249,7 +251,7 @@ int ui_paged_container::natural_height() const
 	for (const auto &p : pages_) {
 		max_h = std::max(max_h, p->natural_height());
 	}
-	return max_h + 3;
+	return max_h + 2;
 }
 
 std::vector<ui_element *> ui_paged_container::get_focusable_elements()

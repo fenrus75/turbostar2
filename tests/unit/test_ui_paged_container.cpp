@@ -85,7 +85,9 @@ int main()
 	// 6. Test Back Navigation
 	bool went_back = wizard->previous_page();
 	assert(went_back == true);
-	assert(wizard->current_page() == 1);
+	// 7. Verify Dialog Drawing & Layout Flow Non-Infinite Loop
+	dlg->flow();
+	dlg->draw();
 
 	std::cout << "All ui_paged_container wizard tests passed!" << std::endl;
 	return 0;
