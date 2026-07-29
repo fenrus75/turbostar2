@@ -12,7 +12,7 @@ namespace agentlib
 class model_server
 {
       public:
-	model_server(std::string id, std::string name, std::string url, std::string api_key = "", api_type type = api_type::openai, double base_score = -2.0)
+	model_server(std::string id, std::string name, std::string url, std::string api_key = "", api_type type = api_type::openai, double base_score = 0.0)
 	    : id_(std::move(id)), name_(std::move(name)), url_(std::move(url)), api_key_(std::move(api_key)), type_(type), base_score_(base_score)
 	{
 	}

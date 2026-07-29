@@ -94,7 +94,7 @@ void model_server_registry::load_servers()
 					type = api_type::claude;
 				}
 
-				double base_score = item.value("base_score", -2.0);
+				double base_score = item.value("base_score", 0.0);
 
 				if (!id.empty()) {
 					register_server(std::make_shared<model_server>(id, name, url, api_key, type, base_score));
