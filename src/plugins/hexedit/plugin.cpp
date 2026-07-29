@@ -27,14 +27,35 @@ void plugin_run(void)
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"hexedit",
 		"Activate when viewing or writing raw hex data in binary/text files",
-		"The 'hexedit' tool family allows you to inspect and modify raw byte data in binary or text files.\n\n"
-		"Key Tools:\n"
-		"- hexdump: Displays structural binary contents formatted as a hex dump. (Path and size are required; start_offset is optional and defaults to 0).\n"
-		"- hexwrite: Modifies specific byte ranges in a file by writing a sequence of raw hex values. (offset is optional and defaults to 0; overwrite mode).\n"
-		"- hexinspect: Performs structure-aware pattern or offset inspections. (start_offset defaults to 0; size defaults to 256 and has a maximum limit of 4096).\n\n"
-		"Constraints & Memory Limits:\n"
-		"- The tools support files up to a maximum size of 50 MB. Larger files are rejected for safety and performance reasons.\n\n"
-		"Usage recommendation: Start by performing a hexinspect on a new file before using hexdump and others to get more details.\n"
+		R"(### Hexedit & Binary Manipulation Tool Family (`hexedit` / `binary`)
+
+Tools in this family enable direct binary file inspection, structural parsing, range extraction, and byte-level editing without requiring external shell utilities.
+
+#### Key Workflows & Capability Overview
+- **Structure Discovery (`hexinspect`)**: Automatically parses MIME structures (TAR, ELF, PNG, JPEG, ZIP, etc.) and returns offset tables, headers, and metadata.
+- **Raw Dump & Annotation (`hexdump`)**: Formats byte ranges with offset numbers, hex values, and ASCII representations.
+- **Targeted Slice Extraction (`data_decompress`)**: Extract exact byte slices from archives or binary payloads using `format='none'`, combined with byte `offset` and `length`.
+- **Byte Patching (`hexwrite`)**: Overwrite specific byte ranges at exact offsets.
+
+---
+
+#### Workflow Example: Inspecting & Extracting Files from Archives (.tar.gz)
+
+When working with binary archives in sandbox environments, you can unpack and extract files natively without dropping into shell commands:
+
+1. **Decompress the Archive**:
+   `data_decompress(input_file="archive.tar.gz", output_file="tmp://archive.tar", format="gzip")`
+
+2. **Inspect Internal Offsets**:
+   `hexinspect(path="tmp://archive.tar", start_offset=0, size=512)`
+   *Returns the archive layout table showing filenames, data offsets (e.g. `0x200` / `512`), and byte lengths (e.g. `11215`).*
+
+3. **Extract Target File Slice**:
+   `data_decompress(input_file="tmp://archive.tar", output_file="tmp://extracted_file.cpp", format="none", offset=512, length=11215)`
+
+4. **Read or Process Extracted Artifact**:
+   `fs_read_lines(path="tmp://extracted_file.cpp", start_line=1, end_line=20)`
+)"
 	);
 }
 

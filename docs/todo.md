@@ -15,6 +15,9 @@
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+- hexedit tool family message: we should give an example on how to extract a file from a .tar.gz file
+
+- consider adding an input filename parameter to the apply_text_filter tool call
 
 - test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
 	- we link them all for just about ANY code change -- that can't be right
@@ -294,6 +297,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Standalone `address_lookup` Component (`src/address_lookup.h/cpp`): Created a centralized, standalone address translation module (`turbostar::address_lookup`) to convert raw memory addresses into function names, file paths, and line numbers. Implemented high-performance batch address deduplication, secure absolute binary checks (`/usr/bin/eu-addr2line` and `/usr/bin/addr2line`), and maps parsing (`parse_maps`). Refactored `src/crash_process.cpp` and `src/crashdump_manager.cpp` to use `address_lookup`, updated build files (`src/meson.build`, `meson.build`), and added unit tests in `tests/unit/test_address_lookup.cpp`.
 
 ## 28-07-2026
+- `hexedit` Tool Family Description Update (`src/plugins/hexedit/plugin.cpp`): Updated the `hexedit` tool family description registered in `plugin_run()` with capability-driven workflow guidance, format discovery details (TAR, ELF, PNG, JPEG, ZIP), and a step-by-step 4-stage in-process binary extraction workflow example (`data_decompress` $\to$ `hexinspect` $\to$ `data_decompress(format='none')` $\to$ `fs_read_lines`). Verified with `unit_test_activate_tool_family` passing.
 - `tmp://` Virtual Filesystem Write Access During Plan Mode (`src/tools/`, `src/agentlib/tool_registry.cpp`): Allowed write access to `tmp://` virtual files during Plan Mode across all file writing and editing tools (`fs_write_file`, `fs_replace_content`, `fs_replace_lines`, `fs_mkdir`, and `apply_text_filter`), and updated `tool_registry::prepare_tool` read-only bypass checks. Updated `enter_plan_mode` return message to inform agents that `tmp://` paths remain fully writable for drafting plans. Added unit test assertions to `tests/unit/test_exit_plan_mode.cpp` and `meson.build`. Verified with `unit_test_exit_plan_mode` and full test suite passing (245 OK).
 - `fs_replace_content` Staged Relaxed Matching & `function_hint` Scope Resolution (`src/tools/fs_replace_content/`): Implemented a 3-stage matching pipeline for LLM code replacements: (1) Strict exact matching, (2) LSP symbol / regex scope resolution using the new optional `function_hint` parameter, and (3) Staged relaxed matching (Level A: CRLF/trailing space normalization, Level B: Tab-space equivalence, Level C: Leading whitespace normalization for multi-line blocks $\ge 3$ lines). Added a 4-combo hint state error matrix (`format_multiple_matches_error`) guiding the LLM to supply `function_hint` first, `line_hint` second, or expand `target_content`. Added unit tests 8 through 11 in `tests/unit/test_fs_replace_content.cpp`. Verified with `unit_test_fs_replace_content` passing.
 
