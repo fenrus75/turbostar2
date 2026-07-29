@@ -265,7 +265,7 @@ void test_decompress_tool_interface() {
     {
         tools::data_decompress_validator val;
         nlohmann::json args = {
-            {"input_file", path},
+            {"path", path},
             {"format", "zlib"},
             {"output_format", "text"}
         };
@@ -284,7 +284,7 @@ void test_decompress_tool_interface() {
     {
         tools::data_decompress_validator val;
         nlohmann::json args = {
-            {"input_file", path},
+            {"path", path},
             {"input_data", "some data"},
             {"format", "zlib"}
         };
