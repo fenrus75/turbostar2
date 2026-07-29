@@ -263,7 +263,7 @@ int main()
 
 			assert(md_res.find("[\n") == std::string::npos);
 			assert(md_res.find("\n](#") == std::string::npos);
-			assert(md_res.find("[1.1 Component sample registration](#Component_sample_registration)") != std::string::npos);
+			assert(md_res.find("### Component sample registration") != std::string::npos);
 
 			// Verify edit links like [Edit] or [edit] are suppressed
 			assert(md_res.find("[Edit](/w/index.php") == std::string::npos);
@@ -274,6 +274,11 @@ int main()
 
 			// Verify pre-heading nav links are plain text (no [Main page](/wiki/Main_Page))
 			assert(md_res.find("[Main page]") == std::string::npos);
+
+			// Verify nav menu items inside UI containers are completely removed
+			assert(md_res.find("Main page") == std::string::npos);
+			assert(md_res.find("Current events") == std::string::npos);
+			assert(md_res.find("Learn to edit") == std::string::npos);
 
 			// Verify main content relative links are resolved to absolute URLs
 			assert(md_res.find("[image file format](https://en.wikipedia.org/wiki/Image_file_format)") != std::string::npos);

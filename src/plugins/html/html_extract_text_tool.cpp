@@ -252,13 +252,16 @@ std::string extract_base_url(lxb_html_document_t *document)
 }
 
 void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string &out, bool rich, int &list_depth,
-	       std::vector<int> &list_counters, bool &in_main_content, const std::string &base_url)
+	       std::vector<int> &list_counters, bool &in_main_content, const std::string &base_url, int &nav_container_depth)
 {
 	if (!node)
 		return;
 
 	lxb_dom_node_type_t type = lxb_dom_node_type(node);
 	if (type == LXB_DOM_NODE_TYPE_TEXT) {
+		if (nav_container_depth > 0) {
+			return;
+		}
 		size_t len = 0;
 		lxb_char_t *text = lxb_dom_node_text_content(node, &len);
 		if (text) {
@@ -270,29 +273,46 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	}
 
 	lxb_tag_id_t tag = LXB_TAG__UNDEF;
+	bool is_nav_container = false;
 	if (type == LXB_DOM_NODE_TYPE_ELEMENT) {
 		tag = lxb_dom_node_tag_id(node);
 		lxb_dom_element_t *elem = lxb_dom_interface_element(node);
 
-		// Footer detection -> turn in_main_content back to false
-		if (tag == LXB_TAG_FOOTER) {
-			in_main_content = false;
-		} else {
-			size_t id_len = 0, class_len = 0;
-			const lxb_char_t *id_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("id"), 2, &id_len);
-			const lxb_char_t *class_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("class"), 5, &class_len);
-			std::string attr_str;
-			if (id_val && id_len > 0)
-				attr_str += std::string(reinterpret_cast<const char *>(id_val), id_len) + " ";
-			if (class_val && class_len > 0)
-				attr_str += std::string(reinterpret_cast<const char *>(class_val), class_len);
-			std::transform(attr_str.begin(), attr_str.end(), attr_str.begin(), [](unsigned char c) { return std::tolower(c); });
-			if (attr_str.find("footer") != std::string::npos || attr_str.find("catlinks") != std::string::npos ||
-			    attr_str.find("printfooter") != std::string::npos) {
+		size_t id_len = 0, class_len = 0;
+		const lxb_char_t *id_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("id"), 2, &id_len);
+		const lxb_char_t *class_val = lxb_dom_element_get_attribute(elem, reinterpret_cast<const lxb_char_t *>("class"), 5, &class_len);
+		std::string attr_str;
+		if (id_val && id_len > 0)
+			attr_str += std::string(reinterpret_cast<const char *>(id_val), id_len) + " ";
+		if (class_val && class_len > 0)
+			attr_str += std::string(reinterpret_cast<const char *>(class_val), class_len);
+		std::transform(attr_str.begin(), attr_str.end(), attr_str.begin(), [](unsigned char c) { return std::tolower(c); });
+
+		std::string_view id_sv(id_val ? reinterpret_cast<const char *>(id_val) : "", id_len);
+
+		if (tag == LXB_TAG_NAV || tag == LXB_TAG_HEADER || tag == LXB_TAG_FOOTER || tag == LXB_TAG_ASIDE ||
+		    attr_str.find("sidebar") != std::string::npos || attr_str.find("vector-menu") != std::string::npos ||
+		    attr_str.find("vector-toc") != std::string::npos || attr_str.find("catlinks") != std::string::npos ||
+		    attr_str.find("printfooter") != std::string::npos || attr_str.find("mw-panel") != std::string::npos ||
+		    attr_str.find("vector-header") != std::string::npos || attr_str.find("mw-navigation") != std::string::npos ||
+		    id_sv == "mw-head" || id_sv == "toc" || id_sv == "footer") {
+			is_nav_container = true;
+			nav_container_depth++;
+			if (tag == LXB_TAG_FOOTER || id_sv == "footer" || attr_str.find("catlinks") != std::string::npos) {
 				in_main_content = false;
 			}
 		}
 	}
+
+	struct nav_guard {
+		int &depth;
+		bool active;
+		~nav_guard()
+		{
+			if (active)
+				depth--;
+		}
+	} guard{nav_container_depth, is_nav_container};
 
 	// Skip non-visible tags
 	if (tag == LXB_TAG_SCRIPT || tag == LXB_TAG_STYLE || tag == LXB_TAG_HEAD || tag == LXB_TAG_NOSCRIPT || tag == LXB_TAG_IFRAME) {
@@ -319,10 +339,13 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	}
 
 	if (heading_level > 0) {
+		if (nav_container_depth > 0) {
+			return;
+		}
 		append_paragraph_separator(out);
 		out += std::string(heading_level, '#') + " ";
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 		}
 		append_paragraph_separator(out);
 		return;
@@ -362,7 +385,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		}
 
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 		}
 
 		list_counters.pop_back();
@@ -387,7 +410,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		}
 
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 		}
 		append_newline(out);
 		return;
@@ -397,7 +420,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	if (tag == LXB_TAG_P) {
 		append_paragraph_separator(out);
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 		}
 		append_paragraph_separator(out);
 		return;
@@ -406,7 +429,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 	if (tag == LXB_TAG_DIV || tag == LXB_TAG_SECTION || tag == LXB_TAG_ARTICLE || tag == LXB_TAG_HEADER || tag == LXB_TAG_FOOTER) {
 		append_newline(out);
 		for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+			walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 		}
 		append_newline(out);
 		return;
@@ -426,7 +449,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		if (href_val && href_len > 0) {
 			std::string link_text;
 			for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-				walk_node(document, child, link_text, rich, list_depth, list_counters, in_main_content, base_url);
+				walk_node(document, child, link_text, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 			}
 			link_text = collapse_whitespace(link_text);
 			link_text = trim(link_text);
@@ -438,6 +461,11 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 			}
 
 			if (link_text.empty()) {
+				return;
+			}
+
+			// If inside explicit UI navigation container, strip link completely!
+			if (nav_container_depth > 0) {
 				return;
 			}
 
@@ -471,7 +499,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		out += "`";
 
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url);
+		walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 	}
 
 	if (is_bold && rich)
@@ -595,7 +623,8 @@ std::string convert_to_markdown(const std::string &html_content, bool rich)
 	int list_depth = 0;
 	std::vector<int> list_counters;
 	bool in_main_content = false;
-	tools::walk_node(document, body_node, extracted, rich, list_depth, list_counters, in_main_content, base_url);
+	int nav_container_depth = 0;
+	tools::walk_node(document, body_node, extracted, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
 
 	lxb_html_document_destroy(document);
 
@@ -613,7 +642,7 @@ std::string convert_to_markdown(const std::string &html_content, bool rich)
 		}
 
 		std::string trimmed = tools::trim(line);
-		if (trimmed == "[]" || trimmed == "[ ]") {
+		if (trimmed == "[]" || trimmed == "[ ]" || trimmed == "-" || trimmed == "*") {
 			line = "";
 		}
 
