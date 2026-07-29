@@ -15,7 +15,7 @@ nlohmann::json web_fetch_validator::get_parameters_schema() const
 		    {"description", "Optional. The relative file path under the project workspace to save the fetched content."}}},
 		  {"filter",
 		   {{"type", "string"},
-		    {"description", "Optional. A named content processing filter to apply (e.g. 'html_to_markdown')."}}},
+		    {"description", "Optional. A named content processing filter to apply (e.g. 'html_to_markdown' to reduce size/context)."}}},
 		  {"no_ask",
 		   {{"type", "boolean"},
 		    {"description", "Optional. If true, the tool will fail silently if the domain is not pre-approved, instead of "
