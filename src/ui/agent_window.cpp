@@ -77,8 +77,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 	system_prompt += "\n\n*** DIRECTIVE: SUBAGENTS ***\n"
-	                 "For complex, specialized, or concurrent sub-tasks, you should consider creating helper subagents using the `create_agent` tool.\n"
-	                 "You can find the list of pre-configured subagent profiles (such as 'research', 'self') in the `subagent_name` parameter description of the `create_agent` tool.\n";
+	                 "For complex, specialized, or concurrent sub-tasks, you should consider creating helper subagents using the `invoke_subagent` tool.\n"
+	                 "You can find the list of pre-configured subagent profiles (such as 'research', 'self') in the `subagent_name` parameter description of the `invoke_subagent` tool.\n";
 
 	agent_->inject_context("system", system_prompt);
 

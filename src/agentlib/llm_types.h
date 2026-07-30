@@ -161,6 +161,24 @@ inline void normalize_tool_call(tool_call &call)
 		official_name = "git_diff_unstaged";
 	} else if (alias == "man" || alias == "man_page" || alias == "manual") {
 		official_name = "fs_man";
+	} else if (alias == "create_agent") {
+		official_name = "invoke_subagent";
+	} else if (alias == "list_agents" || alias == "agent_list") {
+		official_name = "list_subagents";
+	} else if (alias == "agent_status") {
+		official_name = "get_subagent_status";
+	} else if (alias == "message_agent") {
+		official_name = "send_message";
+	} else if (alias == "wait_for_agent") {
+		official_name = "wait_for_subagent";
+	} else if (alias == "agent_get_output") {
+		official_name = "get_subagent_output";
+	} else if (alias == "agent_report_final_result") {
+		official_name = "report_final_result";
+	} else if (alias == "end_agent" || alias == "agent_end") {
+		official_name = "kill_subagent";
+	} else if (alias == "agent_todo_status") {
+		official_name = "get_subagent_todo_status";
 	}
 
 	if (official_name == alias) {

@@ -16,6 +16,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- cleanup: the long list of compat names for tool calls in src/agentlib/llm_types.h should become a std::map<>
+- our test case crash catcher should hook into the assert logging logic as well and more clearly print assert errors?
+
 - test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
 	- we need a better strategy
 
@@ -238,6 +241,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # done items (sorted by date, newest first)
+
+## 30-07-2026
+- Subagent Orchestration Tool Suite Renaming (`src/tools/`, `src/agentlib/llm_types.h`, `docs/tools.md`, `tests/unit/`, `tests/e2e/`): Renamed subagent orchestration tools to match industry-standard naming conventions: `create_agent` $\to$ `invoke_subagent` (with `local_only` boolean parameter), `message_agent` $\to$ `send_message`, `list_agents` $\to$ `list_subagents`, `agent_status` $\to$ `get_subagent_status`, `wait_for_agent` $\to$ `wait_for_subagent`, `agent_get_output` $\to$ `get_subagent_output`, `agent_report_final_result` $\to$ `report_final_result`, `end_agent` $\to$ `kill_subagent`, and `agent_todo_status` $\to$ `get_subagent_todo_status`. Added compatibility alias resolution in `src/agentlib/llm_types.h` (`normalize_tool_call_name`). Updated tool headers, entry C++ sources, security validators, `src/tools/meson.build`, `meson.build`, system prompt text in `agent_window.cpp`, `docs/tools.md`, and all unit & e2e test files. Verified with 100% test pass (249 OK).
 
 ## 29-07-2026
 - Tool Parameter Standardization & `apply_text_filter` Input Path (`src/tools/`, `docs/tools.md`, `tests/unit/`): Added `path` parameter support to `apply_text_filter` to accept input directly from workspace or VFS files (`tmp://`). Standardized parameter naming guidelines in `docs/tools.md` to establish the `"path"` standard for file system parameters across all non-image tools, and updated tool validators (`flag_as_error`, `open_in_editor`, `create_code_review_item`, `list_code_review_items`, `run_python`, `agent_get_profile_details`) and unit test cases to strictly use `"path"`. Verified with 100% test pass.

@@ -25,7 +25,7 @@ def run_test():
         
     output = result.stdout
     
-    if "[Tool Result] Agent " not in output or "created successfully with ID:" not in output:
+    if ("invoked successfully with ID:" not in output and "created successfully with ID:" not in output) or "Subagent" not in output:
         print("Failed to find agent creation result in output.")
         print(output)
         sys.exit(1)

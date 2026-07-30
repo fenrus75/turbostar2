@@ -518,15 +518,15 @@ test_list_tool_calls = executable('test_list_tool_calls',
   include_directories: inc)
 test('unit_test_list_tool_calls', test_list_tool_calls, suite: 'agent')
 
-test_message_agent = executable('test_message_agent',
-  ['tests/unit/test_message_agent.cpp',
-   'src/tools/message_agent/message_agent_entry.cpp',
-   'src/tools/message_agent/message_agent_security.cpp',
-   'src/tools/agent_create/agent_create_entry.cpp',
-   'src/tools/agent_create/agent_create_security.cpp'],
+test_send_message = executable('test_send_message',
+  ['tests/unit/test_send_message.cpp',
+   'src/tools/send_message/send_message_entry.cpp',
+   'src/tools/send_message/send_message_security.cpp',
+   'src/tools/invoke_subagent/invoke_subagent_entry.cpp',
+   'src/tools/invoke_subagent/invoke_subagent_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_message_agent', test_message_agent, suite: 'agent')
+test('unit_test_send_message', test_send_message, suite: 'agent')
 
 test_run_python = executable('test_run_python',
   ['tests/unit/test_run_python.cpp',
@@ -678,15 +678,15 @@ test_git_unstage = executable('test_git_unstage',
   include_directories: inc)
 test('unit_test_git_unstage', test_git_unstage, suite: 'agent')
 
-test_wait_for_agent = executable('test_wait_for_agent',
-  ['tests/unit/test_wait_for_agent.cpp',
-   'src/tools/wait_for_agent/wait_for_agent_entry.cpp',
-   'src/tools/wait_for_agent/wait_for_agent_security.cpp',
-   'src/tools/agent_create/agent_create_entry.cpp',
-   'src/tools/agent_create/agent_create_security.cpp'],
+test_wait_for_subagent = executable('test_wait_for_subagent',
+  ['tests/unit/test_wait_for_subagent.cpp',
+   'src/tools/wait_for_subagent/wait_for_subagent_entry.cpp',
+   'src/tools/wait_for_subagent/wait_for_subagent_security.cpp',
+   'src/tools/invoke_subagent/invoke_subagent_entry.cpp',
+   'src/tools/invoke_subagent/invoke_subagent_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_wait_for_agent', test_wait_for_agent, suite: 'agent')
+test('unit_test_wait_for_subagent', test_wait_for_subagent, suite: 'agent')
 
 test_web_fetch = executable('test_web_fetch',
   ['tests/unit/test_web_fetch.cpp',
@@ -761,11 +761,11 @@ test_exit_summarization = executable('test_exit_summarization',
   include_directories: inc)
 test('unit_test_exit_summarization', test_exit_summarization, suite: 'agent')
 
-test_agent_create = executable('test_agent_create',
-  ['tests/unit/test_agent_create.cpp'],
+test_invoke_subagent = executable('test_invoke_subagent',
+  ['tests/unit/test_invoke_subagent.cpp'],
   dependencies : [agent_dep, core_dep, tools_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_create', test_agent_create, suite: 'agent')
+test('unit_test_invoke_subagent', test_invoke_subagent, suite: 'agent')
 
 test_agent_window = executable('test_agent_window',
   ['tests/unit/test_agent_window.cpp'],
@@ -793,33 +793,33 @@ test_agent_delete_todo = executable('test_agent_delete_todo',
   include_directories: inc)
 test('unit_test_agent_delete_todo', test_agent_delete_todo, suite: 'agent')
 
-test_agent_end = executable('test_agent_end',
-  ['tests/unit/test_agent_end.cpp',
-   'src/tools/agent_end/agent_end_entry.cpp',
-   'src/tools/agent_end/agent_end_security.cpp'],
+test_kill_subagent = executable('test_kill_subagent',
+  ['tests/unit/test_kill_subagent.cpp',
+   'src/tools/kill_subagent/kill_subagent_entry.cpp',
+   'src/tools/kill_subagent/kill_subagent_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_end', test_agent_end, suite: 'agent')
+test('unit_test_kill_subagent', test_kill_subagent, suite: 'agent')
 
-test_agent_get_output = executable('test_agent_get_output',
-  ['tests/unit/test_agent_get_output.cpp',
-   'src/tools/agent_get_output/agent_get_output_entry.cpp',
-   'src/tools/agent_get_output/agent_get_output_security.cpp'],
+test_get_subagent_output = executable('test_get_subagent_output',
+  ['tests/unit/test_get_subagent_output.cpp',
+   'src/tools/get_subagent_output/get_subagent_output_entry.cpp',
+   'src/tools/get_subagent_output/get_subagent_output_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_get_output', test_agent_get_output, suite: 'agent')
+test('unit_test_get_subagent_output', test_get_subagent_output, suite: 'agent')
 
-test_agent_report_final_result = executable('test_agent_report_final_result',
-  ['tests/unit/test_agent_report_final_result.cpp',
-   'src/tools/agent_report_final_result/agent_report_final_result_entry.cpp',
-   'src/tools/agent_report_final_result/agent_report_final_result_security.cpp',
-   'src/tools/agent_get_output/agent_get_output_entry.cpp',
-   'src/tools/agent_get_output/agent_get_output_security.cpp',
-   'src/tools/wait_for_agent/wait_for_agent_entry.cpp',
-   'src/tools/wait_for_agent/wait_for_agent_security.cpp'],
+test_report_final_result = executable('test_report_final_result',
+  ['tests/unit/test_report_final_result.cpp',
+   'src/tools/report_final_result/report_final_result_entry.cpp',
+   'src/tools/report_final_result/report_final_result_security.cpp',
+   'src/tools/get_subagent_output/get_subagent_output_entry.cpp',
+   'src/tools/get_subagent_output/get_subagent_output_security.cpp',
+   'src/tools/wait_for_subagent/wait_for_subagent_entry.cpp',
+   'src/tools/wait_for_subagent/wait_for_subagent_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_report_final_result', test_agent_report_final_result, suite: 'agent')
+test('unit_test_report_final_result', test_report_final_result, suite: 'agent')
 
 test_api_formatter = executable('test_api_formatter',
   ['tests/unit/test_api_formatter.cpp'],
@@ -835,13 +835,13 @@ test_agent_get_run_screenshot = executable('test_agent_get_run_screenshot',
   include_directories: inc)
 test('unit_test_agent_get_run_screenshot', test_agent_get_run_screenshot, suite: 'agent')
 
-test_agent_list = executable('test_agent_list',
-  ['tests/unit/test_agent_list.cpp',
-   'src/tools/agent_list/agent_list_entry.cpp',
-   'src/tools/agent_list/agent_list_security.cpp'],
+test_list_subagents = executable('test_list_subagents',
+  ['tests/unit/test_list_subagents.cpp',
+   'src/tools/list_subagents/list_subagents_entry.cpp',
+   'src/tools/list_subagents/list_subagents_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_list', test_agent_list, suite: 'agent')
+test('unit_test_list_subagents', test_list_subagents, suite: 'agent')
 
 test_agent_list_todos = executable('test_agent_list_todos',
   ['tests/unit/test_agent_list_todos.cpp',
@@ -891,13 +891,13 @@ test_agent_set_application_binary = executable('test_agent_set_application_binar
   include_directories: inc)
 test('unit_test_agent_set_application_binary', test_agent_set_application_binary, suite: 'agent')
 
-test_agent_status = executable('test_agent_status',
-  ['tests/unit/test_agent_status.cpp',
-   'src/tools/agent_status/agent_status_entry.cpp',
-   'src/tools/agent_status/agent_status_security.cpp'],
+test_get_subagent_status = executable('test_get_subagent_status',
+  ['tests/unit/test_get_subagent_status.cpp',
+   'src/tools/get_subagent_status/get_subagent_status_entry.cpp',
+   'src/tools/get_subagent_status/get_subagent_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_status', test_agent_status, suite: 'agent')
+test('unit_test_get_subagent_status', test_get_subagent_status, suite: 'agent')
 
 test_agent_terminate_run = executable('test_agent_terminate_run',
   ['tests/unit/test_agent_terminate_run.cpp',
@@ -919,13 +919,13 @@ test_agent_wait_for_app = executable('test_agent_wait_for_app',
   include_directories: inc)
 test('unit_test_agent_wait_for_app', test_agent_wait_for_app, suite: 'agent')
 
-test_agent_todo_status = executable('test_agent_todo_status',
-  ['tests/unit/test_agent_todo_status.cpp',
-   'src/tools/agent_todo_status/agent_todo_status_entry.cpp',
-   'src/tools/agent_todo_status/agent_todo_status_security.cpp'],
+test_get_subagent_todo_status = executable('test_get_subagent_todo_status',
+  ['tests/unit/test_get_subagent_todo_status.cpp',
+   'src/tools/get_subagent_todo_status/get_subagent_todo_status_entry.cpp',
+   'src/tools/get_subagent_todo_status/get_subagent_todo_status_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_todo_status', test_agent_todo_status, suite: 'agent')
+test('unit_test_get_subagent_todo_status', test_get_subagent_todo_status, suite: 'agent')
 
 test_agent_write_to_run = executable('test_agent_write_to_run',
   ['tests/unit/test_agent_write_to_run.cpp',

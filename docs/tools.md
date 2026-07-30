@@ -351,25 +351,27 @@ These tools provide semantic understanding of code by leveraging the Language Se
 
 ## 8. Subagent Orchestration
 
-### `create_agent`
-*   **Description:** Creates a new subagent to delegate tasks to. You must provide either a `task` (user request) or a `profile` (system instructions), or both.
+### `invoke_subagent`
+*   **Description:** Invokes a subagent to delegate tasks to. You must provide a `subagent_name`, a `task` (user request), or a `profile` (system instructions), or a combination of them.
 *   **Arguments:**
     *   `name` *(string, required)*: A short, descriptive name for the subagent.
-    *   `profile` *(string, optional)*: System instructions and personality profile for the subagent. Required if `task` is omitted.
-    *   `task` *(string, optional)*: The initial task or request for the subagent to perform. Required if `profile` is omitted.
+    *   `subagent_name` *(string, optional)*: Optional name of a pre-configured subagent profile.
+    *   `profile` *(string, optional)*: System instructions and personality profile for the subagent.
+    *   `task` *(string, optional)*: The initial task or request for the subagent to perform.
     *   `wait` *(boolean, optional)*: If true, the tool will wait for the subagent to complete its task and will return its final response directly. Defaults to false (asynchronous).
+    *   `local_only` *(boolean, optional)*: If true, strictly restricts execution to local subagents. Defaults to false.
 
-### `list_agents`
+### `list_subagents`
 *   **Description:** Lists all active subagents managed by the current agent. Returns a Markdown table of ID, Name, and Status.
 *   **Arguments:** None.
 
-### `agent_status`
+### `get_subagent_status`
 *   **Description:** Returns detailed status information about a specific subagent.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to query.
 
-### `message_agent`
-*   **Description:** Sends a message or command to an active subagent.
+### `send_message`
+*   **Description:** Sends a message or command to an active subagent, appending it to their processing queue.
 *   **Security:**
     *   Maximum message length: 100KB (prevents DoS attacks)
     *   Validates target agent exists and is a direct child of the calling agent
@@ -377,27 +379,27 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `id` *(integer, required)*: The ID of the subagent.
     *   `message` *(string, required)*: The text message or instruction to send (max 100KB).
 
-### `wait_for_agent`
+### `wait_for_subagent`
 *   **Description:** Pauses execution until the specified subagent becomes idle.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to wait for.
 
-### `agent_get_output`
+### `get_subagent_output`
 *   **Description:** Retrieves the entire interaction history of a specific subagent.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to query.
 
-### `agent_report_final_result`
+### `report_final_result`
 *   **Description:** Reports the final result or summary of the completed task back to the parent agent. This replaces the default full interaction history returned to the parent with only the reported final result.
 *   **Arguments:**
     *   `result` *(string, required)*: The final result or outcome to report to the parent.
 
-### `end_agent`
+### `kill_subagent`
 *   **Description:** Closes and terminates a specific subagent.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to terminate.
 
-### `agent_todo_status`
+### `get_subagent_todo_status`
 *   **Description:** Returns the todo list with completion status of a specific subagent.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to query.
