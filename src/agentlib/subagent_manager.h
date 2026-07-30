@@ -16,7 +16,11 @@ class subagent_manager
 
 	void initialize();
 	const std::vector<subagent> &get_subagents() const;
+	std::vector<subagent> get_a2a_subagents() const;
 	std::optional<subagent> find_subagent_by_name(const std::string &name) const;
+
+	bool is_subagent_a2a_exposed(const std::string &name) const;
+	void set_subagent_a2a_exposed(const std::string &name, bool exposed);
 
 	// Dynamic registration interfaces for plugins
 	void register_subagent(std::string name, std::string text, std::string animation_json = "");

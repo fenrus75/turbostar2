@@ -98,6 +98,15 @@ static std::optional<subagent> parse_subagent_content(const std::string &content
 			sa.read_only = config["readOnly"].as<bool>();
 		}
 
+		// a2a_exposed / a2aExposed / a2a
+		if (config["a2a_exposed"]) {
+			sa.a2a_exposed = config["a2a_exposed"].as<bool>();
+		} else if (config["a2aExposed"]) {
+			sa.a2a_exposed = config["a2aExposed"].as<bool>();
+		} else if (config["a2a"]) {
+			sa.a2a_exposed = config["a2a"].as<bool>();
+		}
+
 		// permission_mode / permissionMode
 		if (config["permission_mode"]) {
 			sa.permission_mode = utf8::trim(config["permission_mode"].as<std::string>());
@@ -178,6 +187,33 @@ void subagent_manager::initialize()
 const std::vector<subagent> &subagent_manager::get_subagents() const
 {
 	return subagents_;
+}
+
+std::vector<subagent> subagent_manager::get_a2a_subagents() const
+{
+	std::vector<subagent> result;
+	for (const auto &sa : subagents_) {
+		if (sa.a2a_exposed) {
+			result.push_back(sa);
+		}
+	}
+	return result;
+}
+
+bool subagent_manager::is_subagent_a2a_exposed(const std::string &name) const
+{
+	auto sa = find_subagent_by_name(name);
+	return sa.has_value() && sa->a2a_exposed;
+}
+
+void subagent_manager::set_subagent_a2a_exposed(const std::string &name, bool exposed)
+{
+	for (auto &sa : subagents_) {
+		if (sa.name == name) {
+			sa.a2a_exposed = exposed;
+			break;
+		}
+	}
 }
 
 std::optional<subagent> subagent_manager::find_subagent_by_name(const std::string &name) const
@@ -358,7 +394,7 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 std::string subagent_manager::get_a2a_card(const std::string &name)
 {
 	auto sa_opt = find_subagent_by_name(name);
-	if (!sa_opt) {
+	if (!sa_opt || !sa_opt->a2a_exposed) {
 		return "";
 	}
 

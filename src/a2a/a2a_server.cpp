@@ -112,7 +112,7 @@ void a2a_server::setup_routes()
 		};
 
 		nlohmann::json agent_list = nlohmann::json::array();
-		for (const auto &sa : agentlib::subagent_manager::get_instance().get_subagents()) {
+		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
 			agent_list.push_back({
 				{"name", sa.name},
 				{"description", sa.description},
@@ -125,10 +125,10 @@ void a2a_server::setup_routes()
 		res.set_content(root_card.dump(2), "application/json");
 	});
 
-	// 2. GET /a2a/v1/cards -> List all registered agent cards
+	// 2. GET /a2a/v1/cards -> List all registered exposed agent cards
 	server_->Get("/a2a/v1/cards", [](const httplib::Request &, httplib::Response &res) {
 		nlohmann::json cards = nlohmann::json::array();
-		for (const auto &sa : agentlib::subagent_manager::get_instance().get_subagents()) {
+		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
 			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(sa.name);
 			if (!card_json.empty()) {
 				try {
@@ -224,8 +224,8 @@ void a2a_server::setup_routes()
 std::string a2a_server::create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error)
 {
 	auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(agent_name);
-	if (!sa) {
-		out_error = std::format("Subagent '{}' is not registered.", agent_name);
+	if (!sa || !sa->a2a_exposed) {
+		out_error = std::format("Subagent '{}' is not registered or not exposed via A2A.", agent_name);
 		return "";
 	}
 

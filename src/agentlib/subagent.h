@@ -14,6 +14,7 @@ struct subagent {
 	std::vector<std::string> tools;
 	std::vector<std::string> tool_families;
 	bool read_only{false};
+	bool a2a_exposed{true};
 	std::optional<std::string> permission_mode;
 	std::optional<std::string> effort;
 	std::optional<int> max_turns;

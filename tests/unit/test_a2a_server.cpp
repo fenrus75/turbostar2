@@ -67,6 +67,18 @@ int main()
 		std::cout << "Research card detail OK\n";
 	}
 
+	// Test disabling A2A exposure
+	agentlib::subagent_manager::get_instance().set_subagent_a2a_exposed("research", false);
+	assert(!agentlib::subagent_manager::get_instance().is_subagent_a2a_exposed("research"));
+	{
+		auto res = client.Get("/a2a/v1/cards/research");
+		assert(res != nullptr);
+		assert(res->status == 404);
+		std::cout << "Unexposed agent card 404 OK\n";
+	}
+	agentlib::subagent_manager::get_instance().set_subagent_a2a_exposed("research", true);
+	assert(agentlib::subagent_manager::get_instance().is_subagent_a2a_exposed("research"));
+
 	// 4. Test POST /a2a/v1/agents/research/tasks
 	std::string task_id;
 	{
