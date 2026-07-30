@@ -110,8 +110,35 @@ std::string a2a_server::get_default_model() const
 
 void a2a_server::setup_routes()
 {
+	// Log incoming requests before routing
+	server_->set_pre_routing_handler([](const httplib::Request &req, httplib::Response &) {
+		event_logger::get_instance().log("a2a_server: Incoming {} request for '{}' from {}:{}",
+			req.method, req.path, req.remote_addr, req.remote_port);
+		return httplib::Server::HandlerResponse::Unhandled;
+	});
+
+	// Log completed responses after routing
+	server_->set_logger([](const httplib::Request &req, const httplib::Response &res) {
+		event_logger::get_instance().log("a2a_server: Completed {} '{}' -> HTTP {} (content-length: {})",
+			req.method, req.path, res.status, res.body.size());
+	});
+
+	// Catch unhandled exceptions in route callbacks
+	server_->set_exception_handler([](const httplib::Request &req, httplib::Response &res, std::exception_ptr ep) {
+		std::string err_msg = "Unknown Exception";
+		try {
+			if (ep) std::rethrow_exception(ep);
+		} catch (const std::exception &e) {
+			err_msg = e.what();
+		}
+		event_logger::get_instance().log("a2a_server: Exception on {} '{}': {}", req.method, req.path, err_msg);
+		res.status = 500;
+		res.set_content(std::format(R"({{"error": "Internal Server Error", "detail": "{}"}})", err_msg), "application/json");
+	});
+
 	// 1. GET /.well-known/agent.json -> Server directory / primary agent card
 	server_->Get("/.well-known/agent.json", [this](const httplib::Request &, httplib::Response &res) {
+		event_logger::get_instance().log("a2a_server: Serving /.well-known/agent.json");
 		nlohmann::json root_card;
 		root_card["protocol_version"] = "1.0";
 		root_card["server"] = "Turbostar A2A Server";
@@ -134,6 +161,7 @@ void a2a_server::setup_routes()
 		}
 		root_card["hosted_agents"] = agent_list;
 
+		res.status = 200;
 		res.set_content(root_card.dump(2), "application/json");
 	});
 
@@ -145,8 +173,10 @@ void a2a_server::setup_routes()
 			if (last_slash != std::string::npos) {
 				agent_name = agent_name.substr(last_slash + 1);
 			}
+			event_logger::get_instance().log("a2a_server: Querying card detail for '{}'", agent_name);
 			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(agent_name);
 			if (card_json.empty()) {
+				event_logger::get_instance().log("a2a_server: Agent card for '{}' not found or unexposed (404)", agent_name);
 				res.status = 404;
 				res.set_content(std::format(R"({{"error": "Agent card not found for '{}'"}})", agent_name), "application/json");
 			} else {
@@ -155,6 +185,7 @@ void a2a_server::setup_routes()
 			}
 			return;
 		}
+		event_logger::get_instance().log("a2a_server: Listing cards index");
 		nlohmann::json cards = nlohmann::json::array();
 		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
 			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(sa.name);
@@ -173,8 +204,10 @@ void a2a_server::setup_routes()
 	// 3. GET /a2a/v1/cards/:name -> Get specific agent card
 	server_->Get(R"(/a2a/v1/cards/(.+))", [](const httplib::Request &req, httplib::Response &res) {
 		std::string agent_name = req.matches[1];
+		event_logger::get_instance().log("a2a_server: Querying card detail for '{}'", agent_name);
 		std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(agent_name);
 		if (card_json.empty()) {
+			event_logger::get_instance().log("a2a_server: Agent card for '{}' not found or unexposed (404)", agent_name);
 			res.status = 404;
 			res.set_content(std::format(R"({{"error": "Agent card not found for '{}'"}})", agent_name), "application/json");
 		} else {
@@ -186,11 +219,13 @@ void a2a_server::setup_routes()
 	// 4. POST /a2a/v1/agents/:name/tasks -> Enqueue task for specific agent
 	server_->Post(R"(/a2a/v1/agents/([^/]+)/tasks)", [this](const httplib::Request &req, httplib::Response &res) {
 		std::string agent_name = req.matches[1];
+		event_logger::get_instance().log("a2a_server: Task creation request received for agent '{}'", agent_name);
 		nlohmann::json input_params;
 		if (!req.body.empty()) {
 			try {
 				input_params = nlohmann::json::parse(req.body);
 			} catch (const std::exception &e) {
+				event_logger::get_instance().log("a2a_server: Invalid JSON body in task creation: {}", e.what());
 				res.status = 400;
 				res.set_content(std::format(R"({{"error": "Invalid JSON body: {}"}})", e.what()), "application/json");
 				return;
@@ -200,9 +235,11 @@ void a2a_server::setup_routes()
 		std::string err;
 		std::string task_id = create_task(agent_name, input_params, err);
 		if (task_id.empty()) {
+			event_logger::get_instance().log("a2a_server: Task creation failed for agent '{}': {}", agent_name, err);
 			res.status = 400;
 			res.set_content(std::format(R"({{"error": "{}"}})", err), "application/json");
 		} else {
+			event_logger::get_instance().log("a2a_server: Task '{}' enqueued successfully for agent '{}'", task_id, agent_name);
 			res.status = 202; // Accepted
 			nlohmann::json resp = {
 				{"task_id", task_id},
@@ -219,10 +256,13 @@ void a2a_server::setup_routes()
 		std::string task_id = req.matches[1];
 		auto task_opt = get_task(task_id);
 		if (!task_opt) {
+			event_logger::get_instance().log("a2a_server: Task query 404 for task_id '{}'", task_id);
 			res.status = 404;
 			res.set_content(std::format(R"({{"error": "Task not found for id '{}'"}})", task_id), "application/json");
 		} else {
 			const auto &t = *task_opt;
+			event_logger::get_instance().log("a2a_server: Task status query for '{}' -> status: '{}'", task_id, t.status);
+			res.status = 200;
 			nlohmann::json resp = {
 				{"id", t.id},
 				{"agent_name", t.agent_name},
@@ -241,11 +281,15 @@ void a2a_server::setup_routes()
 	// 6. DELETE /a2a/v1/tasks/:id -> Cancel task
 	server_->Delete(R"(/a2a/v1/tasks/([^/]+))", [this](const httplib::Request &req, httplib::Response &res) {
 		std::string task_id = req.matches[1];
+		event_logger::get_instance().log("a2a_server: Task cancel request for '{}'", task_id);
 		bool cancelled = cancel_task(task_id);
 		if (!cancelled) {
+			event_logger::get_instance().log("a2a_server: Task cancel failed for '{}' (404/not running)", task_id);
 			res.status = 404;
 			res.set_content(std::format(R"({{"error": "Task not found or already completed: '{}'"}})", task_id), "application/json");
 		} else {
+			event_logger::get_instance().log("a2a_server: Task '{}' cancelled", task_id);
+			res.status = 200;
 			res.set_content(std::format(R"({{"status": "cancelled", "task_id": "{}"}})", task_id), "application/json");
 		}
 	});
