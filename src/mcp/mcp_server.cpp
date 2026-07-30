@@ -419,6 +419,14 @@ void mcp_server::stop()
 		close(stdin_fd_);
 		stdin_fd_ = -1;
 	}
+	if (stdout_fd_ >= 0) {
+		close(stdout_fd_);
+		stdout_fd_ = -1;
+	}
+	if (stderr_fd_ >= 0) {
+		close(stderr_fd_);
+		stderr_fd_ = -1;
+	}
 
 	// Kill child process group
 	kill(-pid_, SIGTERM);
@@ -441,15 +449,6 @@ void mcp_server::stop()
 
 	pid_ = 0;
 	startup_time_ms_ = -1;
-
-	if (stdout_fd_ >= 0) {
-		close(stdout_fd_);
-		stdout_fd_ = -1;
-	}
-	if (stderr_fd_ >= 0) {
-		close(stderr_fd_);
-		stderr_fd_ = -1;
-	}
 
 	if (reader_thread_.joinable()) {
 		reader_thread_.join();
