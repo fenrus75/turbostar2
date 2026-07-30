@@ -136,9 +136,9 @@ void a2a_server::setup_routes()
 		res.set_content(std::format(R"({{"error": "Internal Server Error", "detail": "{}"}})", err_msg), "application/json");
 	});
 
-	// 1. GET /.well-known/agent.json -> Server directory / primary agent card
-	server_->Get("/.well-known/agent.json", [this](const httplib::Request &, httplib::Response &res) {
-		event_logger::get_instance().log("a2a_server: Serving /.well-known/agent.json");
+	// 1. GET /.well-known/agent.json / agent-card.json / agent-card -> Server directory / primary agent card
+	auto serve_well_known = [this](const httplib::Request &req, httplib::Response &res) {
+		event_logger::get_instance().log("a2a_server: Serving {}", req.path);
 		nlohmann::json root_card;
 		root_card["protocol_version"] = "1.0";
 		root_card["server"] = "Turbostar A2A Server";
@@ -163,7 +163,11 @@ void a2a_server::setup_routes()
 
 		res.status = 200;
 		res.set_content(root_card.dump(2), "application/json");
-	});
+	};
+
+	server_->Get("/.well-known/agent.json", serve_well_known);
+	server_->Get("/.well-known/agent-card.json", serve_well_known);
+	server_->Get("/.well-known/agent-card", serve_well_known);
 
 	// 2. GET /a2a/v1/cards -> List all registered exposed agent cards
 	server_->Get("/a2a/v1/cards", [](const httplib::Request &req, httplib::Response &res) {
