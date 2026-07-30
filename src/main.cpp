@@ -53,6 +53,7 @@ int main(int argc, char **argv)
 	bool fresh_agent = false;
 	bool force_ascii = false;
 	bool a2a_server_mode = false;
+	bool a2a_worktree = false;
 	int a2a_port = 7820;
 	std::string agent_name;
 	std::string agent_file;
@@ -69,6 +70,7 @@ int main(int argc, char **argv)
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
 	app.add_flag("--force-ascii", force_ascii, "Force opening files as ASCII text");
 	app.add_flag("--a2a-server, --server", a2a_server_mode, "Run in headless A2A server mode");
+	app.add_flag("--git-worktree, --a2a-worktree", a2a_worktree, "Pre-seed remote A2A task workspaces using private git worktrees from local repository");
 	app.add_option("--a2a-port", a2a_port, "Port to listen on for A2A server mode (default 7820)");
 	app.add_option("--a2a-connect", a2a_connect_servers, "Connect to remote A2A server (format: name=url or url)");
 	app.add_option("--agent-name", agent_name, "Name of the subagent to execute");
@@ -173,6 +175,9 @@ int main(int argc, char **argv)
 	}
 
 	if (a2a_server_mode) {
+		if (a2a_worktree) {
+			a2a::a2a_server::get_instance().set_use_git_worktree(true);
+		}
 		int bound_port = 0;
 		if (!a2a::a2a_server::get_instance().start(a2a_port, &bound_port)) {
 			std::cerr << "Failed to start A2A server on port " << a2a_port << std::endl;

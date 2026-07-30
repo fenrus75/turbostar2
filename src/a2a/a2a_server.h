@@ -62,6 +62,12 @@ class a2a_server
 	std::string get_default_model() const;
 
 	/*
+	 * Git worktree configuration API
+	 */
+	void set_use_git_worktree(bool enable);
+	bool is_use_git_worktree() const;
+
+	/*
 	 * Task management API
 	 */
 	std::string create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error);
@@ -78,6 +84,7 @@ class a2a_server
 	std::thread server_thread_;
 	std::atomic<bool> running_{false};
 	std::atomic<int> bound_port_{0};
+	std::atomic<bool> use_git_worktree_{false};
 	std::string default_model_;
 
 	/*

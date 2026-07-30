@@ -1,6 +1,8 @@
 #include "a2a_server.h"
 #include "agentlib/subagent_manager.h"
 #include "event_logger.h"
+#include "git_manager.h"
+#include "project_manager.h"
 #include <chrono>
 #include <format>
 #include <httplib.h>
@@ -368,6 +370,16 @@ static std::string get_self_executable_path()
 	}
 }
 
+void a2a_server::set_use_git_worktree(bool enable)
+{
+	use_git_worktree_.store(enable);
+}
+
+bool a2a_server::is_use_git_worktree() const
+{
+	return use_git_worktree_.load();
+}
+
 std::string a2a_server::create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error)
 {
 	auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(agent_name);
@@ -415,7 +427,26 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 		if (input_params.contains("git_ref") && input_params["git_ref"].is_string()) {
 			git_ref = input_params["git_ref"].get<std::string>();
 		}
-		if (!repo_url.empty()) {
+
+		bool created_worktree = false;
+		std::string parent_repo = git_manager::get_instance().get_repository_root();
+		if (parent_repo.empty()) {
+			parent_repo = project_manager::get_instance().get_project_root();
+		}
+
+		if (is_use_git_worktree() && !parent_repo.empty() && std::filesystem::exists(parent_repo + "/.git")) {
+			event_logger::get_instance().log("a2a_server: Creating git worktree for task '{}' at '{}' from parent '{}'", task_id, task_dir, parent_repo);
+			std::string target_ref = git_ref.empty() ? "HEAD" : git_ref;
+			std::string worktree_cmd = std::format("git -C '{}' worktree add -f '{}' '{}' >/dev/null 2>&1", parent_repo, task_dir, target_ref);
+			int wt_rc = ::system(worktree_cmd.c_str());
+			if (wt_rc == 0) {
+				created_worktree = true;
+			} else {
+				event_logger::get_instance().log("a2a_server: Git worktree creation failed (rc={})", wt_rc);
+			}
+		}
+
+		if (!created_worktree && !repo_url.empty()) {
 			event_logger::get_instance().log("a2a_server: Pre-seeding workspace for task '{}' from git repo '{}'", task_id, repo_url);
 			std::string branch_flag = git_ref.empty() ? "" : std::format(" --branch '{}'", git_ref);
 			std::string clone_cmd = std::format("git clone --depth 1{} '{}' '{}' >/dev/null 2>&1", branch_flag, repo_url, task_dir);
@@ -439,6 +470,11 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 			self_bin, agent_name, prompt, task_dir, result_file, log_file, model_flag);
 
 		int rc = ::system(cmd.c_str());
+
+		if (created_worktree && !parent_repo.empty()) {
+			std::string wt_cleanup = std::format("git -C '{}' worktree remove -f '{}' >/dev/null 2>&1; git -C '{}' worktree prune >/dev/null 2>&1", parent_repo, task_dir, parent_repo);
+			(void)::system(wt_cleanup.c_str());
+		}
 
 		std::lock_guard<std::mutex> lock(tasks_mutex_);
 		auto it = tasks_.find(task_id);

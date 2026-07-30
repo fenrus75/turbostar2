@@ -6,6 +6,9 @@
 #include <filesystem>
 #include "agentlib/subagent.h"
 
+#include <mutex>
+#include <shared_mutex>
+
 namespace agentlib
 {
 
@@ -40,6 +43,14 @@ class __attribute__((visibility("default"))) subagent_manager
 	void scan_directory(const std::filesystem::path &dir);
 	std::optional<subagent> parse_subagent_file(const std::filesystem::path &path);
 
+	/**
+	 * @brief Protects access to subagents_ vector across concurrent queries and plugin registrations.
+	 * 
+	 * Lock ordering / lifecycle guidelines:
+	 * - Read operations (get_subagents, find_subagent_by_name, is_subagent_a2a_exposed, get_a2a_card) take a shared lock.
+	 * - Mutation operations (initialize, set_subagent_a2a_exposed, register_subagent, unregister_subagent) take an exclusive lock.
+	 */
+	mutable std::shared_mutex subagents_mutex_;
 	std::vector<subagent> subagents_;
 };
 

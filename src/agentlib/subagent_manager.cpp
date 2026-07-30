@@ -1,6 +1,7 @@
 #include "subagent_manager.h"
 #include "project_manager.h"
 #include "event_logger.h"
+#include "a2a/a2a_server.h"
 #include "utf8.h"
 #include <fstream>
 #include <iostream>
@@ -169,6 +170,7 @@ subagent_manager &subagent_manager::get_instance()
 
 void subagent_manager::initialize()
 {
+	std::unique_lock lock(subagents_mutex_);
 	subagents_.clear();
 	load_builtins();
 
@@ -192,6 +194,7 @@ const std::vector<subagent> &subagent_manager::get_subagents() const
 
 std::vector<subagent> subagent_manager::get_a2a_subagents() const
 {
+	std::shared_lock lock(subagents_mutex_);
 	std::vector<subagent> result;
 	for (const auto &sa : subagents_) {
 		if (sa.a2a_exposed) {
@@ -209,6 +212,7 @@ bool subagent_manager::is_subagent_a2a_exposed(const std::string &name) const
 
 void subagent_manager::set_subagent_a2a_exposed(const std::string &name, bool exposed)
 {
+	std::unique_lock lock(subagents_mutex_);
 	for (auto &sa : subagents_) {
 		if (sa.name == name) {
 			sa.a2a_exposed = exposed;
@@ -218,6 +222,7 @@ void subagent_manager::set_subagent_a2a_exposed(const std::string &name, bool ex
 
 std::optional<subagent> subagent_manager::find_subagent_by_name(const std::string &name) const
 {
+	std::shared_lock lock(subagents_mutex_);
 	for (const auto &sa : subagents_) {
 		if (sa.name == name) {
 			return sa;
@@ -287,6 +292,7 @@ std::optional<subagent> subagent_manager::parse_subagent_file(const std::filesys
 
 void subagent_manager::register_subagent(std::string name, std::string text, std::string animation_json)
 {
+	std::unique_lock lock(subagents_mutex_);
 	auto sa = parse_subagent_content(text, "plugin://" + name);
 	if (sa) {
 		sa->name = name; // Force the name requested by registration
@@ -309,6 +315,7 @@ void subagent_manager::register_subagent(std::string name, std::string text, std
 
 void subagent_manager::unregister_subagent(std::string name)
 {
+	std::unique_lock lock(subagents_mutex_);
 	// Clean up animation registry entry if registered under subagent's name
 	agent_animation_registry::get_instance().unregister_animation(name);
 
@@ -367,14 +374,16 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 		{"type", "string"},
 		{"description", "Task instructions or prompt for " + sa.name}
 	};
-	input_props["repository_url"] = {
-		{"type", "string"},
-		{"description", "Optional git repository URL to clone and pre-seed into the subagent workspace before execution"}
-	};
-	input_props["git_ref"] = {
-		{"type", "string"},
-		{"description", "Optional branch or commit hash to checkout when pre-seeding the repository"}
-	};
+	if (!a2a::a2a_server::get_instance().is_use_git_worktree()) {
+		input_props["repository_url"] = {
+			{"type", "string"},
+			{"description", "Optional git repository URL to clone and pre-seed into the subagent workspace before execution"}
+		};
+		input_props["git_ref"] = {
+			{"type", "string"},
+			{"description", "Optional branch or commit hash to checkout when pre-seeding the repository"}
+		};
+	}
 	if (!sa.read_only) {
 		input_props["target_files"] = {
 			{"type", "array"},
@@ -416,6 +425,7 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 
 std::string subagent_manager::get_a2a_card(const std::string &name)
 {
+	std::shared_lock lock(subagents_mutex_);
 	auto sa_opt = find_subagent_by_name(name);
 	if (!sa_opt || !sa_opt->a2a_exposed) {
 		return "";
@@ -438,7 +448,8 @@ std::string subagent_manager::get_a2a_card(const std::string &name)
 	}
 
 	// Tier 2: Global Cache Check (~/.cache/turbostar/agent_cards/<name>_<hash>.json)
-	std::string hash_seed = sa.name + ":" + sa.description + ":" + sa.system_prompt;
+	bool wt_mode = a2a::a2a_server::get_instance().is_use_git_worktree();
+	std::string hash_seed = sa.name + ":" + sa.description + ":" + sa.system_prompt + (wt_mode ? ":wt" : "");
 	size_t content_hash = std::hash<std::string>{}(hash_seed);
 	std::filesystem::path cache_dir = expand_path("~/.cache/turbostar/agent_cards");
 	std::filesystem::path cache_file = cache_dir / std::format("{}_{:x}.json", sa.name, content_hash);
