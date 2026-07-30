@@ -35,8 +35,7 @@ int main()
 		// 1. Success case: lists registered subagent profiles (research, self)
 		std::string result = registry.execute_tool("list_subagents", "{}", ctx);
 		std::cout << "Subagent list result:\n" << result << std::endl;
-		assert(result.find("Name") != std::string::npos);
-		assert(result.find("Description") != std::string::npos);
+		assert(result.find("Local Subagents") != std::string::npos);
 		assert(result.find("research") != std::string::npos);
 		assert(result.find("self") != std::string::npos);
 

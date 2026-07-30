@@ -76,6 +76,57 @@ std::optional<a2a_agent_card> a2a_client::fetch_agent_card(std::string_view serv
 	}
 }
 
+std::vector<a2a_agent_card> a2a_client::fetch_all_cards(std::string_view server_url, std::string &out_error, std::string_view auth_token)
+{
+	std::vector<a2a_agent_card> results;
+	std::string url_str(server_url);
+	httplib::Client cli(url_str);
+	cli.set_connection_timeout(3);
+	cli.set_read_timeout(5);
+
+	auto headers = make_headers(auth_token);
+
+	// Try GET /a2a/v1/cards index endpoint first
+	auto res = cli.Get("/a2a/v1/cards", headers);
+	if (res && res->status == 200) {
+		try {
+			nlohmann::json j = nlohmann::json::parse(res->body);
+			if (j.is_array()) {
+				for (const auto &item : j) {
+					a2a_agent_card card;
+					card.name = item.value("name", "");
+					card.description = item.value("description", "");
+					card.url = url_str;
+					card.raw_card = item;
+					if (!card.name.empty()) {
+						results.push_back(card);
+					}
+				}
+				if (!results.empty()) {
+					return results;
+				}
+			}
+		} catch (...) {}
+	}
+
+	// Fallback to fetch_agent_card
+	auto main_card = fetch_agent_card(server_url, out_error, auth_token);
+	if (main_card.has_value()) {
+		results.push_back(*main_card);
+		// Also expand listed skills as subagent entries
+		for (const auto &skill_name : main_card->skills) {
+			if (skill_name != main_card->name) {
+				a2a_agent_card sk_card;
+				sk_card.name = skill_name;
+				sk_card.description = std::format("Exposed skill/subagent '{}' on remote server", skill_name);
+				sk_card.url = url_str;
+				results.push_back(sk_card);
+			}
+		}
+	}
+	return results;
+}
+
 a2a_task_result a2a_client::submit_task(std::string_view server_url, std::string_view agent_name, std::string_view prompt, std::string_view auth_token)
 {
 	a2a_task_result res_info;

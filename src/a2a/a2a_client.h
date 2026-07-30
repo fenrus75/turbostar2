@@ -38,6 +38,7 @@ class a2a_client
 	 * Tries GET /.well-known/agent-card.json, falling back to GET /agent.json.
 	 */
 	std::optional<a2a_agent_card> fetch_agent_card(std::string_view server_url, std::string &out_error, std::string_view auth_token = "");
+	std::vector<a2a_agent_card> fetch_all_cards(std::string_view server_url, std::string &out_error, std::string_view auth_token = "");
 
 	/*
 	 * Submits a new task to a remote agent on server_url.
