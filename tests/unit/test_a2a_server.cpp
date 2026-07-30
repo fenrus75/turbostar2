@@ -71,7 +71,8 @@ int main()
 	agentlib::subagent_manager::get_instance().set_subagent_a2a_exposed("research", false);
 	assert(!agentlib::subagent_manager::get_instance().is_subagent_a2a_exposed("research"));
 	{
-		auto res = client.Get("/a2a/v1/cards/research");
+		httplib::Client unexp_client(std::format("http://127.0.0.1:{}", bound_port));
+		auto res = unexp_client.Get("/a2a/v1/cards/research");
 		assert(res != nullptr);
 		assert(res->status == 404);
 		std::cout << "Unexposed agent card 404 OK\n";
@@ -95,10 +96,18 @@ int main()
 
 	// 5. Test GET /a2a/v1/tasks/:id
 	{
-		auto res = client.Get(std::format("/a2a/v1/tasks/{}", task_id));
-		assert(res != nullptr);
-		assert(res->status == 200);
-		auto json_body = nlohmann::json::parse(res->body);
+		nlohmann::json json_body;
+		for (int i = 0; i < 50; ++i) {
+			httplib::Client poll_client(std::format("http://127.0.0.1:{}", bound_port));
+			auto res = poll_client.Get(std::format("/a2a/v1/tasks/{}", task_id));
+			if (res && res->status == 200) {
+				json_body = nlohmann::json::parse(res->body);
+				if (json_body["status"] != "running") {
+					break;
+				}
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		assert(json_body["id"] == task_id);
 		assert(json_body["status"] == "completed");
 		std::cout << "Task status OK\n";

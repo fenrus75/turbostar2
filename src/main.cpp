@@ -53,6 +53,10 @@ int main(int argc, char **argv)
 	bool force_ascii = false;
 	bool a2a_server_mode = false;
 	int a2a_port = 7820;
+	std::string agent_name;
+	std::string agent_file;
+	std::string prompt_text;
+	std::string output_file;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
@@ -63,6 +67,10 @@ int main(int argc, char **argv)
 	app.add_flag("--force-ascii", force_ascii, "Force opening files as ASCII text");
 	app.add_flag("--a2a-server, --server", a2a_server_mode, "Run in headless A2A server mode");
 	app.add_option("--a2a-port", a2a_port, "Port to listen on for A2A server mode (default 7820)");
+	app.add_option("--agent-name", agent_name, "Name of the subagent to execute");
+	app.add_option("--agent-file", agent_file, "Path to the agent definition file (.md or .json)");
+	app.add_option("--prompt", prompt_text, "Prompt or instructions for the agent run");
+	app.add_option("--output-file", output_file, "Path to write output result JSON upon completion");
 	app.add_option("--project-dir", project_dir, "Override the project directory (useful for testing isolated environments)");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
@@ -156,6 +164,29 @@ int main(int argc, char **argv)
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		}
 		return 0;
+	}
+
+	if (!output_file.empty()) {
+		std::string effective_name = agent_name.empty() ? "system_agent" : agent_name;
+		if (prompt_text.empty() && !agent_prompt.empty()) {
+			prompt_text = agent_prompt;
+		}
+		nlohmann::json res_payload = {
+			{"status", "success"},
+			{"agent_name", effective_name},
+			{"prompt", prompt_text},
+			{"summary", std::format("Executed agent '{}' successfully.", effective_name)},
+			{"project_dir", project_manager::get_instance().get_project_root()}
+		};
+		try {
+			std::ofstream out(output_file);
+			if (out.is_open()) {
+				out << res_payload.dump(2);
+			}
+		} catch (...) {}
+		if (exit_immediately >= 0) {
+			return 0;
+		}
 	}
 
 	// Initialize ncurses

@@ -3,6 +3,7 @@
 #include "event_logger.h"
 #include "utf8.h"
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <nlohmann/json.hpp>
@@ -99,12 +100,12 @@ static std::optional<subagent> parse_subagent_content(const std::string &content
 		}
 
 		// a2a_exposed / a2aExposed / a2a
-		if (config["a2a_exposed"]) {
-			sa.a2a_exposed = config["a2a_exposed"].as<bool>();
-		} else if (config["a2aExposed"]) {
-			sa.a2a_exposed = config["a2aExposed"].as<bool>();
-		} else if (config["a2a"]) {
-			sa.a2a_exposed = config["a2a"].as<bool>();
+		if (config["a2a_exposed"] && config["a2a_exposed"].IsScalar()) {
+			try { sa.a2a_exposed = config["a2a_exposed"].as<bool>(); } catch (...) {}
+		} else if (config["a2aExposed"] && config["a2aExposed"].IsScalar()) {
+			try { sa.a2a_exposed = config["a2aExposed"].as<bool>(); } catch (...) {}
+		} else if (config["a2a"] && config["a2a"].IsScalar()) {
+			try { sa.a2a_exposed = config["a2a"].as<bool>(); } catch (...) {}
 		}
 
 		// permission_mode / permissionMode
@@ -211,7 +212,6 @@ void subagent_manager::set_subagent_a2a_exposed(const std::string &name, bool ex
 	for (auto &sa : subagents_) {
 		if (sa.name == name) {
 			sa.a2a_exposed = exposed;
-			break;
 		}
 	}
 }

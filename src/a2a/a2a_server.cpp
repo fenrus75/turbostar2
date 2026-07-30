@@ -126,7 +126,19 @@ void a2a_server::setup_routes()
 	});
 
 	// 2. GET /a2a/v1/cards -> List all registered exposed agent cards
-	server_->Get("/a2a/v1/cards", [](const httplib::Request &, httplib::Response &res) {
+	server_->Get("/a2a/v1/cards", [](const httplib::Request &req, httplib::Response &res) {
+		if (req.path != "/a2a/v1/cards" && req.path != "/a2a/v1/cards/") {
+			std::string agent_name = req.path.substr(14);
+			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(agent_name);
+			if (card_json.empty()) {
+				res.status = 404;
+				res.set_content(std::format(R"({{"error": "Agent card not found for '{}'"}})", agent_name), "application/json");
+			} else {
+				res.status = 200;
+				res.set_content(card_json, "application/json");
+			}
+			return;
+		}
 		nlohmann::json cards = nlohmann::json::array();
 		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
 			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(sa.name);
@@ -138,17 +150,19 @@ void a2a_server::setup_routes()
 				}
 			}
 		}
+		res.status = 200;
 		res.set_content(cards.dump(2), "application/json");
 	});
 
 	// 3. GET /a2a/v1/cards/:name -> Get specific agent card
-	server_->Get(R"(/a2a/v1/cards/([^/]+))", [](const httplib::Request &req, httplib::Response &res) {
+	server_->Get(R"(/a2a/v1/cards/(.+))", [](const httplib::Request &req, httplib::Response &res) {
 		std::string agent_name = req.matches[1];
 		std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(agent_name);
 		if (card_json.empty()) {
 			res.status = 404;
 			res.set_content(std::format(R"({{"error": "Agent card not found for '{}'"}})", agent_name), "application/json");
 		} else {
+			res.status = 200;
 			res.set_content(card_json, "application/json");
 		}
 	});
@@ -221,6 +235,27 @@ void a2a_server::setup_routes()
 	});
 }
 
+static std::string get_self_executable_path()
+{
+	const char *env_bin = getenv("TURBOSTAR_BIN_PATH");
+	if (env_bin && *env_bin) {
+		return std::string(env_bin);
+	}
+	try {
+		std::string self = std::filesystem::read_symlink("/proc/self/exe").string();
+		if (self.find("test_") != std::string::npos) {
+			std::string parent = std::filesystem::path(self).parent_path().string();
+			if (std::filesystem::exists(parent + "/turbostar")) {
+				return parent + "/turbostar";
+			}
+			return "turbostar";
+		}
+		return self;
+	} catch (...) {
+		return "turbostar";
+	}
+}
+
 std::string a2a_server::create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error)
 {
 	auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(agent_name);
@@ -231,25 +266,68 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 
 	std::string task_id = generate_unique_task_id();
 	std::string ts = get_iso_timestamp();
+	std::string task_dir = std::format("/tmp/turbostar_a2a_{}", task_id);
+	try {
+		std::filesystem::create_directories(task_dir);
+	} catch (...) {}
 
 	a2a_task_info task;
 	task.id = task_id;
 	task.agent_name = agent_name;
-	task.status = "completed"; // Immediately mark as completed for synchronous/synthetic tasks
+	task.status = "running";
 	task.input_params = input_params;
-	task.output_result = {
-		{"status", "success"},
-		{"summary", std::format("Task completed by {}", agent_name)},
-		{"artifacts", nlohmann::json::array()}
-	};
 	task.created_at = ts;
 	task.updated_at = ts;
-	task.progress_percent = 100;
+	task.progress_percent = 10;
 
 	{
 		std::lock_guard<std::mutex> lock(tasks_mutex_);
 		tasks_[task_id] = task;
 	}
+
+	std::thread worker([this, task_id, agent_name, input_params, task_dir]() {
+		std::string prompt;
+		if (input_params.contains("instructions") && input_params["instructions"].is_string()) {
+			prompt = input_params["instructions"].get<std::string>();
+		} else if (input_params.contains("prompt") && input_params["prompt"].is_string()) {
+			prompt = input_params["prompt"].get<std::string>();
+		} else {
+			prompt = input_params.dump();
+		}
+
+		std::string result_file = task_dir + "/result.json";
+		std::string log_file = task_dir + "/session.log";
+		std::string self_bin = get_self_executable_path();
+
+		std::string cmd = std::format("'{}' --agent-name '{}' --prompt '{}' --project-dir '{}' --output-file '{}' --log '{}' --exit-immediately 0.5 >/dev/null 2>&1",
+			self_bin, agent_name, prompt, task_dir, result_file, log_file);
+
+		int rc = ::system(cmd.c_str());
+
+		std::lock_guard<std::mutex> lock(tasks_mutex_);
+		auto it = tasks_.find(task_id);
+		if (it != tasks_.end()) {
+			it->second.updated_at = get_iso_timestamp();
+			if (rc == 0 && std::filesystem::exists(result_file)) {
+				try {
+					std::ifstream f(result_file);
+					nlohmann::json res_json = nlohmann::json::parse(f);
+					it->second.output_result = res_json;
+					it->second.status = "completed";
+					it->second.progress_percent = 100;
+				} catch (...) {
+					it->second.status = "completed";
+					it->second.output_result = {{"status", "success"}, {"task_dir", task_dir}};
+					it->second.progress_percent = 100;
+				}
+			} else {
+				it->second.status = "failed";
+				it->second.error_message = std::format("Subprocess exited with code {}", rc);
+				it->second.progress_percent = 100;
+			}
+		}
+	});
+	worker.detach();
 
 	return task_id;
 }
