@@ -164,10 +164,22 @@ void a2a_server::setup_routes()
 		nlohmann::json agent_list = nlohmann::json::array();
 
 		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
+			nlohmann::json tags = nlohmann::json::array();
+			tags.push_back(sa.name);
+			if (sa.read_only) {
+				tags.push_back("read-only");
+			}
+			for (const auto &fam : sa.tool_families) {
+				std::string t = fam;
+				if (t.starts_with(":plugin:")) t = t.substr(8);
+				tags.push_back(t);
+			}
+
 			skills_array.push_back({
 				{"id", sa.name},
 				{"name", sa.name},
-				{"description", sa.description.empty() ? (sa.name + " subagent capability") : sa.description}
+				{"description", sa.description.empty() ? (sa.name + " subagent capability") : sa.description},
+				{"tags", tags}
 			});
 			agent_list.push_back({
 				{"name", sa.name},
@@ -181,7 +193,8 @@ void a2a_server::setup_routes()
 			skills_array.push_back({
 				{"id", "general"},
 				{"name", "general"},
-				{"description", "General task execution capability"}
+				{"description", "General task execution capability"},
+				{"tags", nlohmann::json::array({"general"})}
 			});
 		}
 
