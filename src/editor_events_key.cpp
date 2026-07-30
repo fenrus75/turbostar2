@@ -503,6 +503,16 @@ void editor::resolve_dialog(dialog_result res)
 				active_dialog_mode_ = dialog_mode::a2a_server_edit;
 				set_focus(focus_target::dialog, "a2a_server_edit");
 				return;
+			} else if (res_str.starts_with("edit:")) {
+				int idx = 0;
+				try { idx = std::stoi(res_str.substr(5)); } catch (...) {}
+				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
+				if (idx >= 0 && idx < (int)servers.size()) {
+					active_dialog_ = create_a2a_server_edit_dialog(servers[idx].name, servers[idx].url, servers[idx].auth_token);
+					active_dialog_mode_ = dialog_mode::a2a_server_edit;
+					set_focus(focus_target::dialog, "a2a_server_edit");
+					return;
+				}
 			} else if (res_str.starts_with("test:")) {
 				int idx = 0;
 				try { idx = std::stoi(res_str.substr(5)); } catch (...) {}

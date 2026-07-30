@@ -2709,6 +2709,13 @@ std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection)
 		d->set_action(dialog_result::confirmed);
 		d->set_result("add");
 	}));
+	btns->add_child(std::make_unique<ui_button>("btn_edit", "Edit...", 'e', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result(std::format("edit:{}", idx));
+		}
+	}));
 	btns->add_child(std::make_unique<ui_button>("btn_test", "Test/Card", 't', [d = dlg.get(), lb_ptr]() {
 		int idx = lb_ptr->get_selected_index();
 		if (idx >= 0) {
@@ -2740,14 +2747,14 @@ std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection)
 	return dlg;
 }
 
-std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name, const std::string &initial_url)
+std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name, const std::string &initial_url, const std::string &initial_auth)
 {
-	auto dlg = std::make_unique<dialog>("Add A2A Server", 64, 16);
+	auto dlg = std::make_unique<dialog>(initial_name.empty() ? "Add A2A Server" : "Edit A2A Server", 64, 16);
 	auto flow = std::make_unique<ui_vertical_flow>("add_a2a_flow", 2, 1, 1);
 
 	flow->add_child(std::make_unique<ui_textbox>("name", 56, initial_name, nullptr, "Handle / Name: "));
 	flow->add_child(std::make_unique<ui_textbox>("url", 56, initial_url.empty() ? "http://" : initial_url, nullptr, "Base URL:      "));
-	flow->add_child(std::make_unique<ui_textbox>("auth", 56, "", nullptr, "Auth Token:    "));
+	flow->add_child(std::make_unique<ui_textbox>("auth", 56, initial_auth, nullptr, "Auth Token:    "));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
