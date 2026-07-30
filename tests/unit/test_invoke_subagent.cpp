@@ -5,7 +5,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/subagent_manager.h"
 #include "../../src/project_manager.h"
-#include "../../src/event_queue.h"
+#include "a2a/a2a_server_manager.h"
 #include "tools/invoke_subagent/invoke_subagent.h"
 #include "agentlib/data/conversation.h"
 #include "agentlib/data/episode.h"
@@ -100,6 +100,33 @@ int main()
 				"{\"name\": \"sub_research\", \"subagent_name\": \"research\", \"task\": \"Perform scan\"}", ctx);
 			assert(prep_ok.tool != nullptr);
 			assert(prep_ok.error_message.empty());
+
+			// 6c. Test A2A remote server routing and local_only restriction
+			{
+				a2a::a2a_server_config s_remote;
+				s_remote.name = "devpc";
+				s_remote.url = "http://127.0.0.1:7860";
+				s_remote.tier = a2a::a2a_server_tier::ephemeral_runtime;
+				a2a::a2a_server_manager::get_instance().add_server(s_remote);
+
+				// Reject remote subagent when local_only is true
+				auto prep_remote_localonly = registry.prepare_tool("invoke_subagent",
+					"{\"name\": \"rem1\", \"subagent_name\": \"devpc:research\", \"task\": \"Remote scan\", \"local_only\": true}", ctx);
+				assert(prep_remote_localonly.tool == nullptr);
+				assert(prep_remote_localonly.error_message.find("local_only is true") != std::string::npos);
+
+				// Reject unregistered A2A server name
+				auto prep_unregistered = registry.prepare_tool("invoke_subagent",
+					"{\"name\": \"rem2\", \"subagent_name\": \"unknown_server:research\", \"task\": \"Remote scan\", \"local_only\": false}", ctx);
+				assert(prep_unregistered.tool == nullptr);
+				assert(prep_unregistered.error_message.find("not found in server registry") != std::string::npos);
+
+				// Succeed for registered server with local_only false
+				auto prep_remote_ok = registry.prepare_tool("invoke_subagent",
+					"{\"name\": \"rem3\", \"subagent_name\": \"devpc:research\", \"task\": \"Remote scan\", \"local_only\": false}", ctx);
+				assert(prep_remote_ok.tool != nullptr);
+				assert(prep_remote_ok.error_message.empty());
+			}
 		}
 
 		// 7. Rejection if agent is read-only

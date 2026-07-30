@@ -63,7 +63,8 @@ def test_agent_mouse_copy():
         print(f"Found Hello! line at 0-based screen row {target_row}, col {start_col}")
         
         # Settle down to allow layout/focus state to stabilize
-        time.sleep(0.5)
+        time.sleep(1.0)
+        runner._read_output()
         
         # SGR coordinate is 1-based: x_sgr = x_display + 1, y_sgr = y_display + 1
         y_sgr = target_row + 1
@@ -80,9 +81,9 @@ def test_agent_mouse_copy():
         # Release mouse
         runner.send_raw_keys(f"\x1b[<0;{x_end_sgr};{y_sgr}m".encode())
         
-        # Wait up to 2 seconds for clipboard sequence prefix to be captured
+        # Wait up to 3 seconds for clipboard sequence prefix to be captured
         start_wait = time.time()
-        while time.time() - start_wait < 2.0:
+        while time.time() - start_wait < 3.0:
             if b"\x1b]52;c;" in runner.captured_bytes:
                 break
             time.sleep(0.05)

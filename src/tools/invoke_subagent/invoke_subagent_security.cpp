@@ -4,6 +4,7 @@
 #include "agentlib/tool_validator.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/subagent_manager.h"
+#include "a2a/a2a_server_manager.h"
 #include "fs_utils.h"
 #include "invoke_subagent.h"
 
@@ -125,9 +126,23 @@ class invoke_subagent_validator : public agentlib::tool_validator
 				return false;
 			}
 
-			if (!raw_args.subagent_name.empty()) {
+			std::string target_subagent = !raw_args.subagent_name.empty() ? raw_args.subagent_name : raw_args.name;
+			auto colon_pos = target_subagent.find(':');
+			if (colon_pos != std::string::npos) {
+				if (raw_args.local_only) {
+					out_error = "Execution Error: Cannot invoke remote subagent '" + target_subagent + "' when local_only is true.";
+					return false;
+				}
+
+				std::string server_name = target_subagent.substr(0, colon_pos);
+				auto server_cfg = a2a::a2a_server_manager::get_instance().find_server(server_name);
+				if (!server_cfg.has_value()) {
+					out_error = "A2A Server '" + server_name + "' not found in server registry.";
+					return false;
+				}
+			} else if (!raw_args.subagent_name.empty()) {
 				auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(raw_args.subagent_name);
-				if (!sa && raw_args.subagent_name.find(':') == std::string::npos) {
+				if (!sa) {
 					out_error = "Subagent profile '" + raw_args.subagent_name + "' not found.";
 					return false;
 				}
