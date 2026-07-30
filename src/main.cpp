@@ -91,7 +91,16 @@ int main(int argc, char **argv)
 		}
 	}
 
-	CLI11_PARSE(app, argc, argv);
+	try {
+		app.parse(argc, argv);
+	} catch (const CLI::ParseError &e) {
+		return app.exit(e);
+	}
+
+	std::string binary_name = fs::path(argv[0]).filename().string();
+	if (binary_name == "turboserver" || binary_name == "a2aserver") {
+		a2a_server_mode = true;
+	}
 
 	if (!project_dir.empty()) {
 		fs_utils::set_override_project_dir(project_dir);
@@ -280,7 +289,7 @@ int main(int argc, char **argv)
 
 	config_manager::get_instance().set_force_ascii(force_ascii);
 
-	std::string binary_name = fs::path(argv[0]).filename().string();
+	binary_name = fs::path(argv[0]).filename().string();
 	bool is_turboagent = (binary_name == "turboagent");
 
 	editor_options opts{.debug_mode = debug_mode,

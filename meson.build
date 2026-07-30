@@ -167,6 +167,11 @@ install_symlink('turboagent',
   pointing_to: 'turbostar'
 )
 
+install_symlink('turboserver',
+  install_dir: 'bin',
+  pointing_to: 'turbostar'
+)
+
 agentcli_exe = executable('agentcli',
   'src/agentcli/main.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
@@ -196,7 +201,7 @@ agentcli_replay_exe = executable('agentcli_replay',
 copy_to_testrun_tgt = custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
-  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar.new" && mv "$1/turbostar.new" "$1/turbostar" && ln -sf turbostar "$1/turboagent"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
+  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar.new" && mv "$1/turbostar.new" "$1/turbostar" && ln -sf turbostar "$1/turboagent" && ln -sf turbostar "$1/turboserver"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
   build_by_default: true
 )
 
