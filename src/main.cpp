@@ -144,6 +144,7 @@ int main(int argc, char **argv)
 	statistics_manager::get_instance().load();
 	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
+	a2a::a2a_server_manager::get_instance().initialize();
 	(void)agentlib::tool_registry::get_instance();
 	(void)command_registry::get_instance();
 	agentlib::skill_manager::get_instance().initialize();
