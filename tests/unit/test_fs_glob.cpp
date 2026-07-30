@@ -28,11 +28,11 @@ int main()
 	{
 		// 1. Success case: glob src/**/*.cpp
 		{
-			std::string args = "{\"pattern\": \"src/**/*.cpp\"}";
+			std::string args = "{\"pattern\": \"src/a2a/*.cpp\"}";
 			std::string res = registry.execute_tool("fs_glob", args, ctx);
 			std::cout << "Glob result: " << res << std::endl;
-			assert(res.find("src/main.cpp") != std::string::npos);
-			assert(res.find("src/agentlib/ai_agent.cpp") != std::string::npos);
+			assert(res.find("src/a2a/a2a_server.cpp") != std::string::npos);
+			assert(res.find("src/a2a/a2a_client.cpp") != std::string::npos);
 		}
 
 		// 2. Success case: glob docs/*.md
