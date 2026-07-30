@@ -3,6 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 import time
+import os
 import sys
 
 BASE_URL = "http://localhost:7820/a2a/v1"
@@ -13,7 +14,8 @@ def main():
     if len(sys.argv) > 1:
         instructions = " ".join(sys.argv[1:])
 
-    print(f"[*] Dispatching task to {AGENT_NAME} agent with prompt: '{instructions}'...")
+    print(f"[*] Dispatching task to '{AGENT_NAME}' agent...")
+    print(f"[*] Prompt: '{instructions}'")
     
     # 1. Create a task
     url = f"{BASE_URL}/agents/{AGENT_NAME}/tasks"
@@ -51,18 +53,42 @@ def main():
                 print(f"    -> Current status: {status}")
                 
                 if status in ["success", "completed", "failure", "failed"]:
-                    print("\n[+] Task completed!")
-                    print("="*60)
-                    print(f"Task ID:          {status_json.get('id')}")
-                    print(f"Agent Name:       {status_json.get('agent_name')}")
-                    print(f"Final Status:     {status}")
-                    print(f"Progress Percent: {status_json.get('progress_percent')}%")
-                    print("-" * 60)
-                    print("Output Result:")
-                    print(json.dumps(status_json.get("output_result", {}), indent=2))
+                    output_res = status_json.get("output_result", {})
+                    
+                    print("\n[+] Task Execution Complete!")
+                    print("="*65)
+                    print(f" Task ID:          {status_json.get('id')}")
+                    print(f" Target Agent:     {status_json.get('agent_name')}")
+                    print(f" Final Status:     {status}")
+                    print(f" Progress:         {status_json.get('progress_percent')}%")
+                    
+                    if isinstance(output_res, dict):
+                        summary = output_res.get("summary", "N/A")
+                        project_dir = output_res.get("project_dir", f"/tmp/turbostar_a2a_{task_id}")
+                        print(f" Project Dir:      {project_dir}")
+                        print(f" Summary:          {summary}")
+                    
+                    print("-" * 65)
+                    print(" Full Output Payload:")
+                    print(json.dumps(output_res, indent=2))
+                    
+                    # Check for session log or output files in task workspace
+                    task_workspace = f"/tmp/turbostar_a2a_{task_id}"
+                    log_file = os.path.join(task_workspace, "session.log")
+                    if os.path.exists(log_file):
+                        print("-" * 65)
+                        print(f" Session Log Output ({log_file}):")
+                        try:
+                            with open(log_file, "r") as f:
+                                log_content = f.read().strip()
+                                print(log_content if log_content else "(empty log)")
+                        except Exception as log_err:
+                            print(f"(Could not read session log: {log_err})")
+
                     if status_json.get("error_message"):
-                        print(f"Error Message:    {status_json.get('error_message')}")
-                    print("="*60)
+                        print("-" * 65)
+                        print(f" Error Message:    {status_json.get('error_message')}")
+                    print("="*65)
                     
                     if status in ["success", "completed"]:
                         sys.exit(0)
