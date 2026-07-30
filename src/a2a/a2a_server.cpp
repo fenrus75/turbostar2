@@ -145,7 +145,7 @@ void a2a_server::setup_routes()
 			host = std::format("localhost:{}", bound_port_.load());
 		}
 		std::string scheme = "http";
-		std::string base_url = std::format("{}://{}", scheme, host);
+		std::string base_url = std::format("{}://{}/a2a/v1", scheme, host);
 
 		nlohmann::json root_card;
 		root_card["name"] = "Turbostar A2A Server";
@@ -185,7 +185,7 @@ void a2a_server::setup_routes()
 				{"name", sa.name},
 				{"description", sa.description},
 				{"read_only", sa.read_only},
-				{"card_url", std::format("/a2a/v1/cards/{}", sa.name)}
+				{"card_url", std::format("{}/cards/{}", base_url, sa.name)}
 			});
 		}
 
