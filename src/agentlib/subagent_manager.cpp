@@ -332,6 +332,13 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 	card["name"] = sa.name;
 	card["description"] = sa.description.empty() ? (sa.name + " subagent") : sa.description;
 	card["version"] = "1.0.0";
+	card["url"] = std::format("/a2a/v1/cards/{}", sa.name);
+	card["capabilities"] = {
+		{"streaming", false},
+		{"pushNotifications", false}
+	};
+	card["defaultInputModes"] = nlohmann::json::array({"text"});
+	card["defaultOutputModes"] = nlohmann::json::array({"text"});
 	card["read_only"] = sa.read_only;
 
 	// skills
@@ -339,10 +346,18 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 	for (const auto &fam : sa.tool_families) {
 		std::string s = fam;
 		if (s.starts_with(":plugin:")) s = s.substr(8);
-		skills.push_back(s);
+		skills.push_back({
+			{"id", s},
+			{"name", s},
+			{"description", "Capability provided by " + s + " tool family"}
+		});
 	}
 	if (skills.empty()) {
-		skills.push_back("general-task");
+		skills.push_back({
+			{"id", sa.name},
+			{"name", sa.name},
+			{"description", sa.description.empty() ? (sa.name + " subagent") : sa.description}
+		});
 	}
 	card["skills"] = skills;
 

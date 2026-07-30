@@ -139,19 +139,36 @@ void a2a_server::setup_routes()
 	// 1. GET /.well-known/agent.json / agent-card.json / agent-card -> Server directory / primary agent card
 	auto serve_well_known = [this](const httplib::Request &req, httplib::Response &res) {
 		event_logger::get_instance().log("a2a_server: Serving {}", req.path);
-		nlohmann::json root_card;
-		root_card["protocol_version"] = "1.0";
-		root_card["server"] = "Turbostar A2A Server";
-		root_card["port"] = bound_port_.load();
-		root_card["endpoints"] = {
-			{"cards_index", "/a2a/v1/cards"},
-			{"card_detail", "/a2a/v1/cards/{agent_name}"},
-			{"task_create", "/a2a/v1/agents/{agent_name}/tasks"},
-			{"task_status", "/a2a/v1/tasks/{task_id}"}
-		};
 
+		std::string host = req.get_header_value("Host");
+		if (host.empty()) {
+			host = std::format("localhost:{}", bound_port_.load());
+		}
+		std::string scheme = "http";
+		std::string base_url = std::format("{}://{}", scheme, host);
+
+		nlohmann::json root_card;
+		root_card["name"] = "Turbostar A2A Server";
+		root_card["description"] = "Turbostar A2A Server hosting multi-agent execution capabilities.";
+		root_card["version"] = "1.0.0";
+		root_card["url"] = base_url;
+		root_card["protocol_version"] = "1.0";
+		root_card["capabilities"] = {
+			{"streaming", false},
+			{"pushNotifications", false}
+		};
+		root_card["defaultInputModes"] = nlohmann::json::array({"text"});
+		root_card["defaultOutputModes"] = nlohmann::json::array({"text"});
+
+		nlohmann::json skills_array = nlohmann::json::array();
 		nlohmann::json agent_list = nlohmann::json::array();
+
 		for (const auto &sa : agentlib::subagent_manager::get_instance().get_a2a_subagents()) {
+			skills_array.push_back({
+				{"id", sa.name},
+				{"name", sa.name},
+				{"description", sa.description.empty() ? (sa.name + " subagent capability") : sa.description}
+			});
 			agent_list.push_back({
 				{"name", sa.name},
 				{"description", sa.description},
@@ -159,7 +176,25 @@ void a2a_server::setup_routes()
 				{"card_url", std::format("/a2a/v1/cards/{}", sa.name)}
 			});
 		}
+
+		if (skills_array.empty()) {
+			skills_array.push_back({
+				{"id", "general"},
+				{"name", "general"},
+				{"description", "General task execution capability"}
+			});
+		}
+
+		root_card["skills"] = skills_array;
+		root_card["endpoints"] = {
+			{"cards_index", "/a2a/v1/cards"},
+			{"card_detail", "/a2a/v1/cards/{agent_name}"},
+			{"task_create", "/a2a/v1/agents/{agent_name}/tasks"},
+			{"task_status", "/a2a/v1/tasks/{task_id}"}
+		};
 		root_card["hosted_agents"] = agent_list;
+		root_card["port"] = bound_port_.load();
+		root_card["server"] = "Turbostar A2A Server";
 
 		res.status = 200;
 		res.set_content(root_card.dump(2), "application/json");
