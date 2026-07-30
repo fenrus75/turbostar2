@@ -99,7 +99,8 @@ enum class event_type {
 	syntax_colors_config,	    ///< Request to show syntax colors configuration dialog
 	open_prompt_editor,	    ///< Request to edit a multiline edit buffer in a full editor window
 	prompt_insert_file,	    ///< Request to insert a file into a multiline edit buffer
-	image_manager		    ///< Request to show the image VFS manager dialog
+	image_manager,		    ///< Request to show the image VFS manager dialog
+	a2a_config		    ///< Request to show A2A server configuration dialog
 };
 
 namespace status_priorities

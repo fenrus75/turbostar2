@@ -5,6 +5,8 @@
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
+#include "a2a/a2a_server_manager.h"
+#include "a2a/a2a_client.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include "agentlib/model_server.h"
@@ -494,6 +496,76 @@ void editor::resolve_dialog(dialog_result res)
 				set_focus(focus_target::dialog, "mcp_tools");
 				return;
 			}
+		} else if (active_dialog_mode_ == dialog_mode::a2a_config) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str == "add") {
+				active_dialog_ = create_a2a_server_edit_dialog();
+				active_dialog_mode_ = dialog_mode::a2a_server_edit;
+				set_focus(focus_target::dialog, "a2a_server_edit");
+				return;
+			} else if (res_str.starts_with("test:")) {
+				int idx = 0;
+				try { idx = std::stoi(res_str.substr(5)); } catch (...) {}
+				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
+				if (idx >= 0 && idx < (int)servers.size()) {
+					std::string err;
+					auto card = a2a::a2a_client::get_instance().fetch_agent_card(servers[idx].url, err, servers[idx].auth_token);
+					if (card.has_value()) {
+						std::vector<std::string> lines = {
+							std::format("Handle: {}", servers[idx].name),
+							std::format("URL: {}", servers[idx].url),
+							std::format("Name: {}", card->name),
+							std::format("Description: {}", card->description)
+						};
+						active_dialog_ = create_message_dialog("A2A Server Online", lines);
+					} else {
+						std::vector<std::string> err_lines = {
+							std::format("Failed to reach '{}':", servers[idx].name),
+							err
+						};
+						active_dialog_ = create_message_dialog("A2A Connection Error", err_lines);
+					}
+				}
+				active_dialog_mode_ = dialog_mode::none;
+				return;
+			} else if (res_str.starts_with("remove:")) {
+				int idx = 0;
+				try { idx = std::stoi(res_str.substr(7)); } catch (...) {}
+				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
+				if (idx >= 0 && idx < (int)servers.size()) {
+					a2a::a2a_server_manager::get_instance().remove_server(servers[idx].name);
+					a2a::a2a_server_manager::get_instance().save_project_servers();
+				}
+				active_dialog_ = create_a2a_servers_dialog(0);
+				active_dialog_mode_ = dialog_mode::a2a_config;
+				set_focus(focus_target::dialog, "a2a_config");
+				return;
+			}
+		} else if (active_dialog_mode_ == dialog_mode::a2a_server_edit) {
+			std::string res_str = active_dialog_->get_result();
+			if (res_str.starts_with("save:")) {
+				auto parts = res_str.substr(5);
+				auto col1 = parts.find(':');
+				auto col2 = parts.find(':', col1 + 1);
+				if (col1 != std::string::npos && col2 != std::string::npos) {
+					std::string s_name = parts.substr(0, col1);
+					std::string s_url = parts.substr(col1 + 1, col2 - (col1 + 1));
+					std::string s_auth = parts.substr(col2 + 1);
+
+					a2a::a2a_server_config cfg;
+					cfg.name = s_name;
+					cfg.url = s_url;
+					cfg.auth_token = s_auth;
+					cfg.tier = a2a::a2a_server_tier::project_local;
+
+					a2a::a2a_server_manager::get_instance().add_server(cfg);
+					a2a::a2a_server_manager::get_instance().save_project_servers();
+				}
+			}
+			active_dialog_ = create_a2a_servers_dialog(0);
+			active_dialog_mode_ = dialog_mode::a2a_config;
+			set_focus(focus_target::dialog, "a2a_config");
+			return;
 		} else if (active_dialog_mode_ == dialog_mode::mcp_tools) {
 			std::string res_str = active_dialog_->get_result();
 			int current_idx = 0;

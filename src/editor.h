@@ -210,6 +210,8 @@ class editor : public agentlib::document_provider
 		run_settings,
 		mcp_config,
 		mcp_tools,
+		a2a_config,
+		a2a_server_edit,
 		write_block,
 		copilot_connect,
 		task_models,

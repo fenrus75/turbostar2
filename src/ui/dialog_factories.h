@@ -42,6 +42,8 @@ std::unique_ptr<dialog> create_syntax_colors_dialog();
 std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection = 0);
 std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, int initial_selection = 0);
 std::unique_ptr<dialog> create_copilot_connect_dialog();
+std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection = 0);
+std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name = "", const std::string &initial_url = "");
 
 struct review_item;
 std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item);

@@ -475,6 +475,14 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::a2a_config) {
+		logger.log("Dispatching a2a_config event.");
+		active_dialog_ = create_a2a_servers_dialog();
+		active_dialog_mode_ = dialog_mode::a2a_config;
+		set_focus(focus_target::dialog, "a2a_config");
+		return;
+	}
+
 	if (ev.type == event_type::copilot_connect) {
 		logger.log("Dispatching copilot_connect event.");
 		if (agentlib::copilot_manager::get_instance().is_authenticated()) {

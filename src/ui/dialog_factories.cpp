@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <format>
 #include <ncurses.h>
+#include "a2a/a2a_server_manager.h"
+#include "a2a/a2a_client.h"
 #include "agentlib/ai_model.h"
 #include "agentlib/model_server.h"
 #include "agentlib/copilot_manager.h"
@@ -2671,4 +2673,92 @@ bool apply_new_project_from_dialog(const dialog &dlg, std::string &out_error)
 		}
 	}
 	return ok;
+}
+
+std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection)
+{
+	auto dlg = std::make_unique<dialog>("A2A Remote Servers", 68, 20);
+	auto &manager = a2a::a2a_server_manager::get_instance();
+	auto servers = manager.get_all_servers();
+
+	std::vector<std::string> item_labels;
+	for (const auto &s : servers) {
+		std::string tier_str;
+		switch (s.tier) {
+		case a2a::a2a_server_tier::ephemeral_runtime: tier_str = "Runtime"; break;
+		case a2a::a2a_server_tier::project_local: tier_str = "Project"; break;
+		case a2a::a2a_server_tier::global_system: tier_str = "Global"; break;
+		}
+		item_labels.push_back(std::format("{} -> {} ({})", s.name, s.url, tier_str));
+	}
+
+	auto flow = std::make_unique<ui_vertical_flow>("a2a_config_flow", 0, 0, 2, 1);
+	int lb_width = std::max(64, std::min(100, COLS - 8));
+	auto lb = std::make_unique<ui_listbox>("a2a_server_list", lb_width, 12, nullptr, nullptr);
+	lb->set_items(item_labels);
+	if (initial_selection >= 0 && initial_selection < (int)servers.size()) {
+		lb->set_selected_index(initial_selection);
+	}
+	auto lb_ptr = lb.get();
+
+	flow->add_child(std::move(lb));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_add", "Add...", 'a', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("add");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_test", "Test/Card", 't', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result(std::format("test:{}", idx));
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_remove", "Remove", 'r', [d = dlg.get(), lb_ptr]() {
+		int idx = lb_ptr->get_selected_index();
+		if (idx >= 0) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result(std::format("remove:{}", idx));
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+	}));
+
+	flow->add_child(std::move(btns));
+	dlg->add_child(std::move(flow));
+	dlg->flow();
+	return dlg;
+}
+
+std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name, const std::string &initial_url)
+{
+	auto dlg = std::make_unique<dialog>("Add A2A Server", 60, 16);
+	auto flow = std::make_unique<ui_vertical_flow>("add_a2a_flow", 0, 0, 2, 1);
+
+	flow->add_child(std::make_unique<ui_textbox>("name", 52, initial_name, nullptr, "Handle / Name: "));
+	flow->add_child(std::make_unique<ui_textbox>("url", 52, initial_url.empty() ? "http://" : initial_url, nullptr, "Base URL:      "));
+	flow->add_child(std::make_unique<ui_textbox>("auth", 52, "", nullptr, "Auth Token:    "));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 's', [d = dlg.get()]() {
+		auto s_name = d->get_value("name").value_or("");
+		auto s_url = d->get_value("url").value_or("");
+		auto s_auth = d->get_value("auth").value_or("");
+		if (!s_name.empty() && !s_url.empty()) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result(std::format("save:{}:{}:{}", s_name, s_url, s_auth));
+		}
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'c', [d = dlg.get()]() {
+		d->set_action(dialog_result::cancelled);
+	}));
+
+	flow->add_child(std::move(btns));
+	dlg->add_child(std::move(flow));
+	dlg->flow();
+	return dlg;
 }

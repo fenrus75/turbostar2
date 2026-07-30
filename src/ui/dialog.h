@@ -38,6 +38,7 @@ class dialog : public ui_container{
 	virtual bool tick() { return false; }
 	virtual std::optional<dialog_result> handle_mouse(int x, int y);
 	virtual std::string get_result() const { return result_string_; }
+	const std::string &get_title() const { return title_; }
 
 	void set_result(const std::string& res) { result_string_ = res; }
 	void set_action(dialog_result action) { action_ = action; }
