@@ -367,6 +367,14 @@ std::string subagent_manager::generate_a2a_card_for_agent(const std::string &nam
 		{"type", "string"},
 		{"description", "Task instructions or prompt for " + sa.name}
 	};
+	input_props["repository_url"] = {
+		{"type", "string"},
+		{"description", "Optional git repository URL to clone and pre-seed into the subagent workspace before execution"}
+	};
+	input_props["git_ref"] = {
+		{"type", "string"},
+		{"description", "Optional branch or commit hash to checkout when pre-seeding the repository"}
+	};
 	if (!sa.read_only) {
 		input_props["target_files"] = {
 			{"type", "array"},

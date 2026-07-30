@@ -127,7 +127,7 @@ std::vector<a2a_agent_card> a2a_client::fetch_all_cards(std::string_view server_
 	return results;
 }
 
-a2a_task_result a2a_client::submit_task(std::string_view server_url, std::string_view agent_name, std::string_view prompt, std::string_view auth_token)
+a2a_task_result a2a_client::submit_task(std::string_view server_url, std::string_view agent_name, std::string_view prompt, std::string_view auth_token, std::string_view repository_url, std::string_view git_ref)
 {
 	a2a_task_result res_info;
 	std::string url_str(server_url);
@@ -135,8 +135,16 @@ a2a_task_result a2a_client::submit_task(std::string_view server_url, std::string
 	cli.set_connection_timeout(5);
 	cli.set_read_timeout(30);
 
+	nlohmann::json input_params = {{"prompt", std::string(prompt)}};
+	if (!repository_url.empty()) {
+		input_params["repository_url"] = std::string(repository_url);
+	}
+	if (!git_ref.empty()) {
+		input_params["git_ref"] = std::string(git_ref);
+	}
+
 	nlohmann::json req_body;
-	req_body["input_params"] = {{"prompt", std::string(prompt)}};
+	req_body["input_params"] = input_params;
 
 	std::string endpoint = std::format("/a2a/v1/agents/{}/tasks", agent_name);
 	auto headers = make_headers(auth_token);
@@ -231,9 +239,9 @@ a2a_task_result a2a_client::poll_task(std::string_view server_url, std::string_v
 	return res_info;
 }
 
-a2a_task_result a2a_client::execute_task_sync(std::string_view server_url, std::string_view agent_name, std::string_view prompt, int timeout_seconds, std::string_view auth_token)
+a2a_task_result a2a_client::execute_task_sync(std::string_view server_url, std::string_view agent_name, std::string_view prompt, int timeout_seconds, std::string_view auth_token, std::string_view repository_url, std::string_view git_ref)
 {
-	auto res = submit_task(server_url, agent_name, prompt, auth_token);
+	auto res = submit_task(server_url, agent_name, prompt, auth_token, repository_url, git_ref);
 	if (!res.success || res.task_id.empty()) {
 		return res;
 	}

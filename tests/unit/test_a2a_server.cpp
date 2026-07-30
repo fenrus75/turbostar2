@@ -15,6 +15,14 @@ using namespace a2a;
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+
+	std::filesystem::path temp_home = std::filesystem::absolute("./test_a2a_srv_home");
+	if (std::filesystem::exists(temp_home)) {
+		std::filesystem::remove_all(temp_home);
+	}
+	std::filesystem::create_directories(temp_home);
+	setenv("HOME", temp_home.c_str(), 1);
+
 	project_manager::get_instance().initialize();
 
 	(void)command_registry::get_instance();

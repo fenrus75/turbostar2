@@ -139,7 +139,12 @@ int main()
 
 		// Directly test validate_runtime on the tool under read-only state
 		{
-			tools::invoke_subagent_tool direct_tool({"sub_ro", "", "profile", "task", false});
+			tools::invoke_subagent_args sub_args;
+			sub_args.name = "sub_ro";
+			sub_args.profile = "profile";
+			sub_args.task = "task";
+			sub_args.wait = false;
+			tools::invoke_subagent_tool direct_tool(sub_args);
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("read-only") != std::string::npos);

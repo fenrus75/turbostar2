@@ -16,10 +16,12 @@ struct invoke_subagent_raw_args {
 	std::string subagent_name;
 	std::string profile;
 	std::string task;
+	std::string repository_url;
+	std::string git_ref;
 	bool wait{false};
 	bool local_only{false};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(invoke_subagent_raw_args, name, subagent_name, profile, task, wait, local_only);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(invoke_subagent_raw_args, name, subagent_name, profile, task, repository_url, git_ref, wait, local_only);
 
 /**
  * @brief Validator for the invoke_subagent tool, enforcing name uniqueness, lengths, and string safety.
@@ -100,10 +102,15 @@ class invoke_subagent_validator : public agentlib::tool_validator
 	}
 
       protected:
-	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
+	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context &ctx,
 				std::string &out_error) const override
 	{
 		try {
+			if (ctx.active_agent && ctx.active_agent->is_read_only()) {
+				out_error = "Execution Error: Agent is in read-only mode and cannot spawn subagents.";
+				return false;
+			}
+
 			invoke_subagent_raw_args raw_args = args_json.get<invoke_subagent_raw_args>();
 			if (raw_args.name.empty()) {
 				out_error = "Agent name cannot be empty.";
@@ -173,6 +180,8 @@ class invoke_subagent_validator : public agentlib::tool_validator
 			args_.subagent_name = raw_args.subagent_name;
 			args_.profile = raw_args.profile;
 			args_.task = raw_args.task;
+			args_.repository_url = raw_args.repository_url;
+			args_.git_ref = raw_args.git_ref;
 			args_.wait = raw_args.wait;
 			args_.local_only = raw_args.local_only;
 			return true;

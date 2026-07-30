@@ -358,6 +358,8 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `subagent_name` *(string, optional)*: Optional name of a pre-configured subagent profile.
     *   `profile` *(string, optional)*: System instructions and personality profile for the subagent.
     *   `task` *(string, optional)*: The initial task or request for the subagent to perform.
+    *   `repository_url` *(string, optional)*: Optional git repository URL to pre-seed the remote A2A subagent workspace before execution. If omitted during remote A2A invocation, auto-defaults to the active project repository URL.
+    *   `git_ref` *(string, optional)*: Optional branch or commit hash to checkout when pre-seeding the repository.
     *   `wait` *(boolean, optional)*: If true, the tool will wait for the subagent to complete its task and will return its final response directly. Defaults to false (asynchronous).
     *   `local_only` *(boolean, optional)*: If true, strictly restricts execution to local subagents. Defaults to false.
 

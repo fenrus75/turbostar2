@@ -407,6 +407,21 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 			prompt = input_params.dump();
 		}
 
+		std::string repo_url;
+		if (input_params.contains("repository_url") && input_params["repository_url"].is_string()) {
+			repo_url = input_params["repository_url"].get<std::string>();
+		}
+		std::string git_ref;
+		if (input_params.contains("git_ref") && input_params["git_ref"].is_string()) {
+			git_ref = input_params["git_ref"].get<std::string>();
+		}
+		if (!repo_url.empty()) {
+			event_logger::get_instance().log("a2a_server: Pre-seeding workspace for task '{}' from git repo '{}'", task_id, repo_url);
+			std::string branch_flag = git_ref.empty() ? "" : std::format(" --branch '{}'", git_ref);
+			std::string clone_cmd = std::format("git clone --depth 1{} '{}' '{}' >/dev/null 2>&1", branch_flag, repo_url, task_dir);
+			(void)::system(clone_cmd.c_str());
+		}
+
 		std::string result_file = task_dir + "/result.json";
 		std::string log_file = task_dir + "/session.log";
 		std::string self_bin = get_self_executable_path();

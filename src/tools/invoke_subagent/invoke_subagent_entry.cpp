@@ -3,6 +3,8 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/subagent_manager.h"
 #include "agentlib/interactions/llm_response.h"
+#include "fs_utils.h"
+#include "git_manager.h"
 #include "project_manager.h"
 #include "invoke_subagent.h"
 #include <format>
@@ -25,19 +27,8 @@ bool invoke_subagent_tool::validate_runtime(const agentlib::tool_context &ctx, s
 		out_error = "Execution Error: Agent is in read-only mode and cannot spawn subagents.";
 		return false;
 	}
-	if (args_.name.empty()) {
-		out_error = "Execution Error: Subagent name cannot be empty.";
-		return false;
-	}
-	if (args_.subagent_name.empty() && args_.profile.empty() && args_.task.empty()) {
-		out_error = "Execution Error: You must provide either a 'subagent_name', a 'profile', or a 'task' for the subagent.";
-		return false;
-	}
 	return true;
 }
-
-#include "a2a/a2a_client.h"
-#include "a2a/a2a_server_manager.h"
 
 std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 {
@@ -68,14 +59,32 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 			prompt = std::format("{}\n\n{}", args_.profile, prompt);
 		}
 
+		std::string repo_url = args_.repository_url;
+		std::string git_ref = args_.git_ref;
+		if (repo_url.empty()) {
+			std::string repo_root = git_manager::get_instance().get_repository_root();
+			if (!repo_root.empty()) {
+				std::string origin_url = fs_utils::execute_command_sync("git config --get remote.origin.url");
+				origin_url.erase(origin_url.find_last_not_of(" \n\r\t") + 1);
+				if (!origin_url.empty() && (origin_url.find("http") != std::string::npos || origin_url.find("git") != std::string::npos)) {
+					repo_url = origin_url;
+				}
+				std::string branch_name = fs_utils::execute_command_sync("git rev-parse --abbrev-ref HEAD");
+				branch_name.erase(branch_name.find_last_not_of(" \n\r\t") + 1);
+				if (!branch_name.empty() && branch_name != "HEAD") {
+					git_ref = branch_name;
+				}
+			}
+		}
+
 		if (args_.wait) {
-			auto res = a2a::a2a_client::get_instance().execute_task_sync(server_cfg->url, remote_agent, prompt, 60, server_cfg->auth_token);
+			auto res = a2a::a2a_client::get_instance().execute_task_sync(server_cfg->url, remote_agent, prompt, 60, server_cfg->auth_token, repo_url, git_ref);
 			if (res.success) {
 				return res.output_text;
 			}
 			return std::format("Error executing task on remote A2A server '{}:{}': {}", server_name, remote_agent, res.error_message);
 		} else {
-			auto res = a2a::a2a_client::get_instance().submit_task(server_cfg->url, remote_agent, prompt, server_cfg->auth_token);
+			auto res = a2a::a2a_client::get_instance().submit_task(server_cfg->url, remote_agent, prompt, server_cfg->auth_token, repo_url, git_ref);
 			if (res.success) {
 				return std::format("Remote subagent '{}:{}' invoked successfully with Task ID: {}. Task running asynchronously on A2A server '{}'.",
 				                   server_name, remote_agent, res.task_id, server_cfg->url);

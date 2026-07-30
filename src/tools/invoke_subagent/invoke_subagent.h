@@ -14,6 +14,8 @@ struct invoke_subagent_args {
     std::string subagent_name;
     std::string profile;
     std::string task;
+    std::string repository_url;
+    std::string git_ref;
     bool wait{false};
     bool local_only{false};
 };

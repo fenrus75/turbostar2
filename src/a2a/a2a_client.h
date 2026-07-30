@@ -44,7 +44,7 @@ class a2a_client
 	 * Submits a new task to a remote agent on server_url.
 	 * Sends POST /a2a/v1/agents/{agent_name}/tasks with input payload.
 	 */
-	a2a_task_result submit_task(std::string_view server_url, std::string_view agent_name, std::string_view prompt, std::string_view auth_token = "");
+	a2a_task_result submit_task(std::string_view server_url, std::string_view agent_name, std::string_view prompt, std::string_view auth_token = "", std::string_view repository_url = "", std::string_view git_ref = "");
 
 	/*
 	 * Queries the current status and output of task_id on server_url.
@@ -55,7 +55,7 @@ class a2a_client
 	/*
 	 * Synchronously executes a task on server_url: submits the task and polls until completion or timeout.
 	 */
-	a2a_task_result execute_task_sync(std::string_view server_url, std::string_view agent_name, std::string_view prompt, int timeout_seconds = 60, std::string_view auth_token = "");
+	a2a_task_result execute_task_sync(std::string_view server_url, std::string_view agent_name, std::string_view prompt, int timeout_seconds = 60, std::string_view auth_token = "", std::string_view repository_url = "", std::string_view git_ref = "");
 
 	/*
 	 * Cancels a running or enqueued task on server_url.
