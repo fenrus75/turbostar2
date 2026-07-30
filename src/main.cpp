@@ -8,6 +8,7 @@
 #include "agentlib/skill_manager.h"
 #include "agentlib/subagent_manager.h"
 #include "a2a/a2a_server.h"
+#include "a2a/a2a_server_manager.h"
 #include "agentlib/tool_registry.h"
 #include "agentlib/command_registry.h"
 #include "ansi.h"
@@ -57,7 +58,9 @@ int main(int argc, char **argv)
 	std::string agent_file;
 	std::string prompt_text;
 	std::string output_file;
+
 	std::vector<std::string> filenames;
+	std::vector<std::string> a2a_connect_servers;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
@@ -67,6 +70,7 @@ int main(int argc, char **argv)
 	app.add_flag("--force-ascii", force_ascii, "Force opening files as ASCII text");
 	app.add_flag("--a2a-server, --server", a2a_server_mode, "Run in headless A2A server mode");
 	app.add_option("--a2a-port", a2a_port, "Port to listen on for A2A server mode (default 7820)");
+	app.add_option("--a2a-connect", a2a_connect_servers, "Connect to remote A2A server (format: name=url or url)");
 	app.add_option("--agent-name", agent_name, "Name of the subagent to execute");
 	app.add_option("--agent-file", agent_file, "Path to the agent definition file (.md or .json)");
 	app.add_option("--prompt", prompt_text, "Prompt or instructions for the agent run");
@@ -112,6 +116,24 @@ int main(int argc, char **argv)
 
 	if (!project_dir.empty()) {
 		fs_utils::set_override_project_dir(project_dir);
+	}
+
+	// Register command-line specified A2A servers as ephemeral runtime connections
+	for (const auto &server_str : a2a_connect_servers) {
+		std::string s_name, s_url;
+		auto eq = server_str.find('=');
+		if (eq != std::string::npos) {
+			s_name = server_str.substr(0, eq);
+			s_url = server_str.substr(eq + 1);
+		} else {
+			s_name = "remote";
+			s_url = server_str;
+		}
+		a2a::a2a_server_config cfg;
+		cfg.name = s_name;
+		cfg.url = s_url;
+		cfg.tier = a2a::a2a_server_tier::ephemeral_runtime;
+		a2a::a2a_server_manager::get_instance().add_server(cfg);
 	}
 
 	config_manager::get_instance().load();

@@ -361,6 +361,14 @@ These tools provide semantic understanding of code by leveraging the Language Se
     *   `wait` *(boolean, optional)*: If true, the tool will wait for the subagent to complete its task and will return its final response directly. Defaults to false (asynchronous).
     *   `local_only` *(boolean, optional)*: If true, strictly restricts execution to local subagents. Defaults to false.
 
+### `a2a_connect_server`
+*   **Description:** Connects to a remote A2A server and registers it for remote subagent invocation (`invoke_subagent`).
+*   **Arguments:**
+    *   `name` *(string, required)*: Unique short name for the server (e.g. `devpc` or `gpu_node`).
+    *   `url` *(string, required)*: Base URL of the A2A server (e.g. `http://devpc.local:7820`).
+    *   `auth_token` *(string, optional)*: Optional bearer token or API key for authentication.
+    *   `persistent` *(boolean, optional)*: If true, saves server connection to project-local settings (`.cache/turbostar/projects/<hash>/a2a_servers.json`). Defaults to false (ephemeral).
+
 ### `list_subagents`
 *   **Description:** Lists all active subagents managed by the current agent. Returns a Markdown table of ID, Name, and Status.
 *   **Arguments:** None.

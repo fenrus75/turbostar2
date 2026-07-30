@@ -281,6 +281,14 @@ test_a2a_client = executable('test_a2a_client',
 )
 test('unit_a2a_client', test_a2a_client, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
+test_a2a_connect_server = executable('test_a2a_connect_server',
+  ['tests/unit/test_a2a_connect_server.cpp'],
+  dependencies: [ui_dep, agent_dep, core_dep, tools_dep, ncurses_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true
+)
+test('unit_a2a_connect_server', test_a2a_connect_server, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+
 test_binary_plugin_impl = executable('test_binary_plugin_impl',
   ['tests/unit/test_binary_plugin.cpp',
    'src/plugins/binary/data_compress_tool.cpp',

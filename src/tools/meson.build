@@ -37,6 +37,8 @@ tools_sources = files(
   'get_subagent_status/get_subagent_status_security.cpp',
   'kill_subagent/kill_subagent_entry.cpp',
   'kill_subagent/kill_subagent_security.cpp',
+  'a2a_connect_server/a2a_connect_server_entry.cpp',
+  'a2a_connect_server/a2a_connect_server_security.cpp',
   'get_subagent_todo_status/get_subagent_todo_status_entry.cpp',
   'get_subagent_todo_status/get_subagent_todo_status_security.cpp',
   'agent_set_status/agent_set_status_entry.cpp',
