@@ -7,6 +7,7 @@
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
 #include "agentlib/subagent_manager.h"
+#include "a2a/a2a_server.h"
 #include "agentlib/tool_registry.h"
 #include "agentlib/command_registry.h"
 #include "ansi.h"
@@ -50,6 +51,8 @@ int main(int argc, char **argv)
 	std::string project_dir;
 	bool fresh_agent = false;
 	bool force_ascii = false;
+	bool a2a_server_mode = false;
+	int a2a_port = 7820;
 	std::vector<std::string> filenames;
 
 	app.add_option("--log", log_file, "Path to log file");
@@ -58,6 +61,8 @@ int main(int argc, char **argv)
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
 	app.add_flag("--force-ascii", force_ascii, "Force opening files as ASCII text");
+	app.add_flag("--a2a-server, --server", a2a_server_mode, "Run in headless A2A server mode");
+	app.add_option("--a2a-port", a2a_port, "Port to listen on for A2A server mode (default 7820)");
 	app.add_option("--project-dir", project_dir, "Override the project directory (useful for testing isolated environments)");
 	app.add_option("--exit-immediately", exit_immediately, "Exit after N seconds")->expected(0, 1)->default_str("1.0");
 	app.add_option("--debug-filter", debug_string, "Debug filter string");
@@ -114,6 +119,34 @@ int main(int argc, char **argv)
 
 	if (debug_mode) {
 		logger.log("Debug mode enabled. Filter string: '" + debug_string + "'");
+	}
+
+	const char *env_port = getenv("TURBOSTAR_A2A_PORT");
+	if (env_port && *env_port) {
+		try {
+			a2a_port = std::stoi(env_port);
+		} catch (...) {}
+	}
+
+	if (a2a_server_mode) {
+		int bound_port = 0;
+		if (!a2a::a2a_server::get_instance().start(a2a_port, &bound_port)) {
+			std::cerr << "Failed to start A2A server on port " << a2a_port << std::endl;
+			return 1;
+		}
+		std::cout << "Turbostar A2A Server running on port " << bound_port << std::endl;
+		logger.log(std::format("A2A Server started on port {}", bound_port));
+
+		if (exit_immediately > 0) {
+			std::this_thread::sleep_for(std::chrono::duration<double>(exit_immediately));
+			a2a::a2a_server::get_instance().stop();
+			return 0;
+		}
+
+		while (a2a::a2a_server::get_instance().is_running()) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		}
+		return 0;
 	}
 
 	// Initialize ncurses

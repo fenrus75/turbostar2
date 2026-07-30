@@ -103,7 +103,8 @@ agentlib_sources = files(
   'agentlib/data/conversation.cpp',
   'agentlib/data/turn_registry.cpp',
   'mcp/mcp_server.cpp',
-  'mcp/mcp_manager.cpp'
+  'mcp/mcp_manager.cpp',
+  'a2a/a2a_server.cpp'
 )
 
 ui_sources = files(

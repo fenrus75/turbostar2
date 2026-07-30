@@ -260,6 +260,14 @@ test_a2a_generate_card_with_agent = executable('test_a2a_generate_card_with_agen
 )
 test('unit_a2a_generate_card_with_agent', test_a2a_generate_card_with_agent, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
+test_a2a_server = executable('test_a2a_server',
+  ['tests/unit/test_a2a_server.cpp'],
+  dependencies: [ui_dep, agent_dep, core_dep, ncurses_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true
+)
+test('unit_a2a_server', test_a2a_server, suite: 'plugins', env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+
 test_binary_plugin_impl = executable('test_binary_plugin_impl',
   ['tests/unit/test_binary_plugin.cpp',
    'src/plugins/binary/data_compress_tool.cpp',
