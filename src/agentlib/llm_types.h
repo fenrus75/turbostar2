@@ -2,6 +2,8 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace agentlib
@@ -142,43 +144,42 @@ inline void normalize_tool_call(tool_call &call)
 	std::string alias = call.function.name;
 
 	// Normalize name
+	static const std::unordered_map<std::string_view, std::string_view> tool_name_aliases = {
+		{"read_file", "fs_read_lines"},
+		{"view_file", "fs_read_lines"},
+		{"cat", "fs_read_lines"},
+		{"fs_read_file", "fs_read_lines"},
+		{"grep", "fs_grep_files"},
+		{"search_grep", "fs_grep_files"},
+		{"find_in_files", "fs_grep_files"},
+		{"list_dir", "fs_list_dir"},
+		{"glob", "fs_glob"},
+		{"find_files", "fs_glob"},
+		{"mkdir", "fs_mkdir"},
+		{"create_directory", "fs_mkdir"},
+		{"replace_content", "fs_replace_content"},
+		{"edit_content", "fs_replace_content"},
+		{"run_tests", "fs_run_tests"},
+		{"git_diff", "git_diff_unstaged"},
+		{"man", "fs_man"},
+		{"man_page", "fs_man"},
+		{"manual", "fs_man"},
+		{"create_agent", "invoke_subagent"},
+		{"list_agents", "list_subagents"},
+		{"agent_list", "list_subagents"},
+		{"agent_status", "get_subagent_status"},
+		{"message_agent", "send_message"},
+		{"wait_for_agent", "wait_for_subagent"},
+		{"agent_get_output", "get_subagent_output"},
+		{"agent_report_final_result", "report_final_result"},
+		{"end_agent", "kill_subagent"},
+		{"agent_end", "kill_subagent"},
+		{"agent_todo_status", "get_subagent_todo_status"}
+	};
+
 	std::string official_name = alias;
-	if (alias == "read_file" || alias == "view_file" || alias == "cat" || alias == "fs_read_file") {
-		official_name = "fs_read_lines";
-	} else if (alias == "grep" || alias == "search_grep" || alias == "find_in_files") {
-		official_name = "fs_grep_files";
-	} else if (alias == "list_dir") {
-		official_name = "fs_list_dir";
-	} else if (alias == "glob" || alias == "find_files" || alias == "fs_glob") {
-		official_name = "fs_glob";
-	} else if (alias == "mkdir" || alias == "create_directory") {
-		official_name = "fs_mkdir";
-	} else if (alias == "replace_content" || alias == "edit_content" || alias == "fs_replace_content") {
-		official_name = "fs_replace_content";
-	} else if (alias == "run_tests") {
-		official_name = "fs_run_tests";
-	} else if (alias == "git_diff") {
-		official_name = "git_diff_unstaged";
-	} else if (alias == "man" || alias == "man_page" || alias == "manual") {
-		official_name = "fs_man";
-	} else if (alias == "create_agent") {
-		official_name = "invoke_subagent";
-	} else if (alias == "list_agents" || alias == "agent_list") {
-		official_name = "list_subagents";
-	} else if (alias == "agent_status") {
-		official_name = "get_subagent_status";
-	} else if (alias == "message_agent") {
-		official_name = "send_message";
-	} else if (alias == "wait_for_agent") {
-		official_name = "wait_for_subagent";
-	} else if (alias == "agent_get_output") {
-		official_name = "get_subagent_output";
-	} else if (alias == "agent_report_final_result") {
-		official_name = "report_final_result";
-	} else if (alias == "end_agent" || alias == "agent_end") {
-		official_name = "kill_subagent";
-	} else if (alias == "agent_todo_status") {
-		official_name = "get_subagent_todo_status";
+	if (auto it = tool_name_aliases.find(alias); it != tool_name_aliases.end()) {
+		official_name = std::string(it->second);
 	}
 
 	if (official_name == alias) {
