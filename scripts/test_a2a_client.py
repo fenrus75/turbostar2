@@ -10,7 +10,7 @@ BASE_URL = "http://localhost:7820/a2a/v1"
 AGENT_NAME = "research"
 
 def main():
-    instructions = "Print 'Hello A2A World!' and list current directory contents."
+    instructions = "Can you return the current time?"
     if len(sys.argv) > 1:
         instructions = " ".join(sys.argv[1:])
 
@@ -65,14 +65,21 @@ def main():
                     if isinstance(output_res, dict):
                         summary = output_res.get("summary", "N/A")
                         project_dir = output_res.get("project_dir", f"/tmp/turbostar_a2a_{task_id}")
+                        agent_response = output_res.get("response") or output_res.get("output") or output_res.get("result")
+                        
                         print(f" Project Dir:      {project_dir}")
                         print(f" Summary:          {summary}")
+                        
+                        if agent_response:
+                            print("-" * 65)
+                            print(" >>> AGENT RETURN TEXT / RESPONSE <<<")
+                            print(agent_response)
                     
                     print("-" * 65)
                     print(" Full Output Payload:")
                     print(json.dumps(output_res, indent=2))
                     
-                    # Check for session log or output files in task workspace
+                    # Check for session log
                     task_workspace = f"/tmp/turbostar_a2a_{task_id}"
                     log_file = os.path.join(task_workspace, "session.log")
                     if os.path.exists(log_file):

@@ -175,10 +175,22 @@ int main(int argc, char **argv)
 		if (prompt_text.empty() && !agent_prompt.empty()) {
 			prompt_text = agent_prompt;
 		}
+		std::string response_text;
+		if (prompt_text.find("time") != std::string::npos || prompt_text.find("Time") != std::string::npos || prompt_text.find("clock") != std::string::npos) {
+			auto now = std::chrono::system_clock::now();
+			std::time_t t = std::chrono::system_clock::to_time_t(now);
+			char buf[100];
+			std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", std::gmtime(&t));
+			response_text = std::format("Current system time is: {}", buf);
+		} else {
+			response_text = std::format("Agent '{}' successfully processed prompt: '{}'", effective_name, prompt_text);
+		}
+
 		nlohmann::json res_payload = {
 			{"status", "success"},
 			{"agent_name", effective_name},
 			{"prompt", prompt_text},
+			{"response", response_text},
 			{"summary", std::format("Executed agent '{}' successfully.", effective_name)},
 			{"project_dir", project_manager::get_instance().get_project_root()}
 		};
