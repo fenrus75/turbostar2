@@ -552,16 +552,12 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 		} else if (active_dialog_mode_ == dialog_mode::a2a_server_edit) {
-			std::string res_str = active_dialog_->get_result();
-			if (res_str.starts_with("save:")) {
-				auto parts = res_str.substr(5);
-				auto col1 = parts.find(':');
-				auto col2 = parts.find(':', col1 + 1);
-				if (col1 != std::string::npos && col2 != std::string::npos) {
-					std::string s_name = parts.substr(0, col1);
-					std::string s_url = parts.substr(col1 + 1, col2 - (col1 + 1));
-					std::string s_auth = parts.substr(col2 + 1);
+			if (active_dialog_->get_action() == dialog_result::confirmed) {
+				std::string s_name = active_dialog_->get_value("name").value_or("");
+				std::string s_url = active_dialog_->get_value("url").value_or("");
+				std::string s_auth = active_dialog_->get_value("auth").value_or("");
 
+				if (!s_name.empty() && !s_url.empty()) {
 					a2a::a2a_server_config cfg;
 					cfg.name = s_name;
 					cfg.url = s_url;

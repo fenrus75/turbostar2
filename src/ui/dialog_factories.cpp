@@ -2761,10 +2761,9 @@ std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial
 	btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 's', [d = dlg.get()]() {
 		auto s_name = d->get_value("name").value_or("");
 		auto s_url = d->get_value("url").value_or("");
-		auto s_auth = d->get_value("auth").value_or("");
 		if (!s_name.empty() && !s_url.empty()) {
 			d->set_action(dialog_result::confirmed);
-			d->set_result(std::format("save:{}:{}:{}", s_name, s_url, s_auth));
+			d->set_result("save");
 		}
 	}));
 	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'c', [d = dlg.get()]() {
