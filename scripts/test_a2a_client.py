@@ -9,12 +9,16 @@ BASE_URL = "http://localhost:7820/a2a/v1"
 AGENT_NAME = "research"
 
 def main():
-    print(f"[*] Dispatching task to {AGENT_NAME} agent...")
+    instructions = "Print 'Hello A2A World!' and list current directory contents."
+    if len(sys.argv) > 1:
+        instructions = " ".join(sys.argv[1:])
+
+    print(f"[*] Dispatching task to {AGENT_NAME} agent with prompt: '{instructions}'...")
     
     # 1. Create a task
     url = f"{BASE_URL}/agents/{AGENT_NAME}/tasks"
     payload = {
-        "instructions": "Print 'Hello A2A World!' and list current directory contents."
+        "instructions": instructions
     }
     
     data = json.dumps(payload).encode('utf-8')
