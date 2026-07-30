@@ -56,6 +56,12 @@ class a2a_server
 	int get_bound_port() const;
 
 	/*
+	 * Model configuration API
+	 */
+	void set_default_model(const std::string &model);
+	std::string get_default_model() const;
+
+	/*
 	 * Task management API
 	 */
 	std::string create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error);
@@ -72,6 +78,7 @@ class a2a_server
 	std::thread server_thread_;
 	std::atomic<bool> running_{false};
 	std::atomic<int> bound_port_{0};
+	std::string default_model_;
 
 	/*
 	 * tasks_mutex_ protects access to the tasks_ unordered_map when creating,

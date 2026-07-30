@@ -68,7 +68,7 @@ void plugin_loader::load_all_plugins()
 
 	for (const auto &entry : std::filesystem::directory_iterator(plugin_path)) {
 		if (entry.is_regular_file() && entry.path().extension() == ".so") {
-			void *handle = dlopen(entry.path().c_str(), RTLD_LOCAL | RTLD_LAZY);
+			void *handle = dlopen(entry.path().c_str(), RTLD_GLOBAL | RTLD_LAZY);
 			if (!handle) {
 				fprintf(stderr, "dlopen failed for %s: %s\n", entry.path().c_str(), dlerror());
 			} else {

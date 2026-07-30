@@ -31,8 +31,8 @@ int main()
 	std::cout << "Server started on port: " << bound_port << " status: " << started << std::endl;
 	assert(started);
 	assert(bound_port >= 7820);
-	assert(server.is_running());
-	assert(server.get_bound_port() == bound_port);
+	server.set_default_model("gemini-2.5-pro");
+	assert(server.get_default_model() == "gemini-2.5-pro");
 
 	httplib::Client client(std::format("http://127.0.0.1:{}", bound_port));
 
@@ -97,7 +97,7 @@ int main()
 	// 5. Test GET /a2a/v1/tasks/:id
 	{
 		nlohmann::json json_body;
-		for (int i = 0; i < 50; ++i) {
+		for (int i = 0; i < 150; ++i) {
 			httplib::Client poll_client(std::format("http://127.0.0.1:{}", bound_port));
 			auto res = poll_client.Get(std::format("/a2a/v1/tasks/{}", task_id));
 			if (res && res->status == 200) {

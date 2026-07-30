@@ -9,7 +9,7 @@
 namespace agentlib
 {
 
-class subagent_manager
+class __attribute__((visibility("default"))) subagent_manager
 {
       public:
 	static subagent_manager &get_instance();

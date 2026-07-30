@@ -96,6 +96,18 @@ int a2a_server::get_bound_port() const
 	return bound_port_;
 }
 
+void a2a_server::set_default_model(const std::string &model)
+{
+	std::lock_guard<std::mutex> lock(tasks_mutex_);
+	default_model_ = model;
+}
+
+std::string a2a_server::get_default_model() const
+{
+	std::lock_guard<std::mutex> lock(tasks_mutex_);
+	return default_model_;
+}
+
 void a2a_server::setup_routes()
 {
 	// 1. GET /.well-known/agent.json -> Server directory / primary agent card
@@ -128,7 +140,11 @@ void a2a_server::setup_routes()
 	// 2. GET /a2a/v1/cards -> List all registered exposed agent cards
 	server_->Get("/a2a/v1/cards", [](const httplib::Request &req, httplib::Response &res) {
 		if (req.path != "/a2a/v1/cards" && req.path != "/a2a/v1/cards/") {
-			std::string agent_name = req.path.substr(14);
+			std::string agent_name = req.path;
+			size_t last_slash = agent_name.find_last_of('/');
+			if (last_slash != std::string::npos) {
+				agent_name = agent_name.substr(last_slash + 1);
+			}
 			std::string card_json = agentlib::subagent_manager::get_instance().get_a2a_card(agent_name);
 			if (card_json.empty()) {
 				res.status = 404;
@@ -299,8 +315,17 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 		std::string log_file = task_dir + "/session.log";
 		std::string self_bin = get_self_executable_path();
 
-		std::string cmd = std::format("'{}' --agent-name '{}' --prompt '{}' --project-dir '{}' --output-file '{}' --log '{}' --exit-immediately 0.5 >/dev/null 2>&1",
-			self_bin, agent_name, prompt, task_dir, result_file, log_file);
+		std::string model;
+		if (input_params.contains("model") && input_params["model"].is_string()) {
+			model = input_params["model"].get<std::string>();
+		} else {
+			model = get_default_model();
+		}
+		std::string model_flag = model.empty() ? "" : std::format(" --model '{}'", model);
+
+		std::string cmd = std::format("'{}' --agent-name '{}' --prompt '{}' --project-dir '{}' --output-file '{}' --log '{}'{}"
+			" --exit-immediately 0.5 >/dev/null 2>&1",
+			self_bin, agent_name, prompt, task_dir, result_file, log_file, model_flag);
 
 		int rc = ::system(cmd.c_str());
 

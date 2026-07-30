@@ -115,6 +115,10 @@ int main(int argc, char **argv)
 	}
 
 	config_manager::get_instance().load();
+	if (!override_model_id.empty()) {
+		config_manager::get_instance().set_default_model_id(override_model_id);
+		a2a::a2a_server::get_instance().set_default_model(override_model_id);
+	}
 	statistics_manager::get_instance().load();
 	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
@@ -313,10 +317,6 @@ int main(int argc, char **argv)
 
 	// Initialize and start MCP servers asynchronously in a background thread
 	agentlib::mcp_manager::get_instance().start_async(project_root);
-
-	if (!override_model_id.empty()) {
-		config_manager::get_instance().set_default_model_id(override_model_id);
-	}
 
 	config_manager::get_instance().set_force_ascii(force_ascii);
 
