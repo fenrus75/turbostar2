@@ -2692,7 +2692,7 @@ std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection)
 		item_labels.push_back(std::format("{} -> {} ({})", s.name, s.url, tier_str));
 	}
 
-	auto flow = std::make_unique<ui_vertical_flow>("a2a_config_flow", 0, 0, 2, 1);
+	auto flow = std::make_unique<ui_vertical_flow>("a2a_config_flow", 2, 1, 1);
 	int lb_width = std::max(64, std::min(100, COLS - 8));
 	auto lb = std::make_unique<ui_listbox>("a2a_server_list", lb_width, 12, nullptr, nullptr);
 	lb->set_items(item_labels);
@@ -2728,19 +2728,26 @@ std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection)
 	}));
 
 	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
 	dlg->add_child(std::move(flow));
+
 	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("a2a_server_list");
 	return dlg;
 }
 
 std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name, const std::string &initial_url)
 {
-	auto dlg = std::make_unique<dialog>("Add A2A Server", 60, 16);
-	auto flow = std::make_unique<ui_vertical_flow>("add_a2a_flow", 0, 0, 2, 1);
+	auto dlg = std::make_unique<dialog>("Add A2A Server", 64, 16);
+	auto flow = std::make_unique<ui_vertical_flow>("add_a2a_flow", 2, 1, 1);
 
-	flow->add_child(std::make_unique<ui_textbox>("name", 52, initial_name, nullptr, "Handle / Name: "));
-	flow->add_child(std::make_unique<ui_textbox>("url", 52, initial_url.empty() ? "http://" : initial_url, nullptr, "Base URL:      "));
-	flow->add_child(std::make_unique<ui_textbox>("auth", 52, "", nullptr, "Auth Token:    "));
+	flow->add_child(std::make_unique<ui_textbox>("name", 56, initial_name, nullptr, "Handle / Name: "));
+	flow->add_child(std::make_unique<ui_textbox>("url", 56, initial_url.empty() ? "http://" : initial_url, nullptr, "Base URL:      "));
+	flow->add_child(std::make_unique<ui_textbox>("auth", 56, "", nullptr, "Auth Token:    "));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 	btns->set_centered(true);
@@ -2758,7 +2765,14 @@ std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial
 	}));
 
 	flow->add_child(std::move(btns));
+
+	auto flow_ptr = flow.get();
 	dlg->add_child(std::move(flow));
+
 	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	dlg->set_focus_by_name("name");
 	return dlg;
 }
