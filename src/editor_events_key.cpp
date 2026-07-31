@@ -248,11 +248,19 @@ void editor::resolve_dialog(dialog_result res)
 						for (const auto &mid : to_remove) {
 							registry.remove_model(mid);
 						}
-						for (auto &model : imported_models) {
-							registry.register_model(std::move(model));
+						for (const auto &model : imported_models) {
+							registry.register_model(model);
 						}
 						registry.save_models();
+						std::vector<std::string> lines = {std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()};
+						active_dialog_ = create_message_dialog("Query Successful", lines);
+					} else {
+						std::vector<std::string> lines = {"Failed to fetch models from server " + server->get_name() + ":", error_msg.empty() ? "No models returned or connection failed" : error_msg};
+						active_dialog_ = create_message_dialog("Query Error", lines);
 					}
+					active_dialog_mode_ = dialog_mode::reopen_ai_settings;
+					set_focus(focus_target::dialog, "btn_ok");
+					return;
 				}
 				active_dialog_ = create_ai_settings_dialog();
 				active_dialog_mode_ = dialog_mode::settings;
@@ -363,6 +371,11 @@ void editor::resolve_dialog(dialog_result res)
 					}
 				}
 			}
+		} else if (active_dialog_mode_ == dialog_mode::reopen_ai_settings) {
+			active_dialog_ = create_ai_settings_dialog();
+			active_dialog_mode_ = dialog_mode::settings;
+			set_focus(focus_target::dialog, "ai_settings");
+			return;
 		} else if (active_dialog_mode_ == dialog_mode::task_models) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "ok" || res_str == "save_global") {

@@ -5,10 +5,19 @@
 #include "../../src/ui/dialog_factories.h"
 #include "test_watchdog.h"
 
+#include <filesystem>
+#include <cstdlib>
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
-	std::cout << "Testing restructured 3 Options tabbed dialogs..." << std::endl;
+
+	// Isolate HOME environment variable to temporary directory to prevent modifying user's actual config
+	std::string temp_home = (std::filesystem::temp_directory_path() / "test_options_dialogs_home").string();
+	std::filesystem::create_directories(temp_home + "/.cache/turbostar");
+	setenv("HOME", temp_home.c_str(), 1);
+
+	std::cout << "Testing restructured 3 Options tabbed dialogs in isolated HOME (" << temp_home << ")..." << std::endl;
 
 	// 1. Test Editor & Workspace Settings Dialog
 	auto editor_dlg = create_editor_settings_dialog();
