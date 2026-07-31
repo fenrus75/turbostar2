@@ -102,6 +102,11 @@ int main(int argc, char **argv)
 	return 77;
 #endif
 
+	namespace fs = std::filesystem;
+	std::string temp_home = (fs::temp_directory_path() / std::format("test_fallback_crash_home_{}", getpid())).string();
+	fs::create_directories(temp_home);
+	setenv("HOME", temp_home.c_str(), 1);
+
 	// Child process code path: triggers the signal handler
 	if (argc > 1 && (std::string(argv[1]) == "child" || std::string(argv[1]) == "child_sigsegv")) {
 		// Install the fallback signal handler
@@ -130,6 +135,9 @@ int main(int argc, char **argv)
 
 	// Run uncaught exception test
 	run_child_and_verify("child_exception", "Caught signal: 6 (SIGABRT - Aborted)", "Uncaught std::exception: Test exception message", argv[0]);
+
+	std::error_code ec;
+	fs::remove_all(temp_home, ec);
 
 	std::cout << "test_fallback_crash passed successfully!" << std::endl;
 	return 0;
