@@ -312,6 +312,75 @@
       </div>
     </section>
 
+    <!-- Visual Feature 10: Interactive Agent Creation & Zero-Porting A2A Server -->
+    <section class="detail-split" id="a2a-server-mode">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Interactive Agent Creation &amp; Zero-Porting A2A Server</h2>
+        <p class="detail-text">
+          Create, test, and fine-tune custom subagents interactively—complete with Model Context Protocol (MCP) servers, custom skills, specific AI models, and prompt rules. Once ready, serve those exact agents over the open Agent-to-Agent (A2A) protocol directly from the same environment without writing external wrapper code.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Same-Environment Execution:</strong> Eliminate the hassle of porting agent definitions, MCP tool configs, or prompt files. Your interactive editing environment directly becomes the headless A2A server (<code>turboserver --server</code>).</li>
+          <li><strong>Zero-Latency Git Worktrees:</strong> Serve tasks with <code>--git-worktree</code> mode to instantly provision clean, isolated git worktree checkouts in under 50ms without network cloning or disk pollution.</li>
+          <li><strong>Open Standard OpenAPI Schema:</strong> Automatically synthesizes and serves OpenAPI-compliant Agent Cards (<code>/.well-known/agent-card.json</code>) detailing available tools, skills, and parameters.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-a2a-server">
+          <div class="terminal-header">
+            <div class="terminal-title">turboserver --server --git-worktree --a2a-port 7820</div>
+          </div>
+          <div class="terminal-content" style="background: var(--bg-secondary);">
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Launch interactive agents directly over A2A:</span>
+<span class="literal">$</span> turboserver --server --git-worktree
+<span class="keyword">A2A Server listening:</span> http://0.0.0.0:7820
+<span class="keyword">Card Catalog:</span> 4 subagents published (research, self, securityagent, x86_opt)
+<span class="keyword">Worktree Engine:</span> Private git worktree pre-seeding enabled (&lt; 50ms)
+
+<span class="comment"># Serving incoming remote A2A task:</span>
+[POST /a2a/v1/agents/research/tasks] -> task-4f8a92b
+=> Created worktree: /tmp/turbostar_a2a_task-4f8a92b from HEAD
+=> Running subagent with full MCP & skill context...
+=> Task completed successfully. Worktree pruned.</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 11: Native A2A Client & Remote Agent Orchestration -->
+    <section class="detail-split reverse" id="a2a-client-orchestration">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Native A2A Client &amp; Remote Agent Orchestration</h2>
+        <p class="detail-text">
+          Delegate complex coding tasks across network boundaries. Turbostar includes a built-in Agent-to-Agent (A2A) client that enables your local agent to discover, connect to, and orchestrate remote agent servers seamlessly.
+        </p>
+        <ul class="detail-list">
+          <li><strong>TP7 TUI Server Manager &amp; Tooling:</strong> Manage persistent remote servers through a retro Turbo Pascal dialog (<code>A2A Servers...</code>) or programmatically via the <code>a2a_connect_server</code> tool.</li>
+          <li><strong>Remote Namespace Routing:</strong> Invoke remote agents effortlessly using <code>server:agent</code> syntax (e.g. <code>invoke_subagent(name: "gpu_box:securityagent")</code>).</li>
+          <li><strong>Automated Workspace Pre-Seeding:</strong> Automatically detects your active git repository remote URL and branch, pre-seeding the remote server's workspace so remote subagents start with complete project context on Turn 0.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-a2a-client">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --a2a-orchestrator</div>
+          </div>
+          <div class="terminal-content" style="background: var(--bg-secondary);">
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Local agent delegates task to remote GPU server:</span>
+<span class="keyword">invoke_subagent</span>(
+  name: <span class="string">"gpu_box:securityagent"</span>,
+  instructions: <span class="string">"Perform full C++ memory safety audit"</span>
+)
+<span class="literal">=> Auto-detected Repo:</span> https://github.com/fenrus75/turbostar2.git
+<span class="literal">=> Auto-detected Branch:</span> main
+<span class="literal">=> Dispatching A2A Task:</span> Submitted to http://gpu-box.local:7820
+<span class="literal">=> Status:</span> Remote workspace pre-seeded. Subagent active...
+<span class="keyword">Task Result:</span> Audit completed (0 warnings found).</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Security Model -->
     <section class="page-header" id="security-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem;">
       <h2 class="detail-subtitle">Secure Tool Execution</h2>
@@ -373,6 +442,16 @@
         <article class="card" id="card-protocols">
           <h3 class="card-title">Multi-Protocol LLM Support</h3>
           <p class="card-desc">Run with your preferred provider. Turbostar natively supports Google Gemini, OpenAI (both Completion and Responses APIs), and Anthropic Claude protocols.</p>
+        </article>
+
+        <article class="card" id="card-a2a-server">
+          <h3 class="card-title">Zero-Porting A2A Server Mode</h3>
+          <p class="card-desc">Interactively build custom subagents with full MCP tools, models, and skills, then serve them over A2A directly from the same environment with <code>--git-worktree</code> instant workspace pre-seeding.</p>
+        </article>
+
+        <article class="card" id="card-a2a-client">
+          <h3 class="card-title">Built-in Native A2A Client</h3>
+          <p class="card-desc">Discover, configure, and orchestrate remote A2A agent servers across your network with TUI management dialogs, <code>server:agent</code> routing, and automated repository context pre-seeding.</p>
         </article>
 
         <article class="card" id="card-mcp">
