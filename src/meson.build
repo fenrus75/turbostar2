@@ -158,6 +158,7 @@ ui_sources = files(
   'ui/popup_menu.cpp',
   'ui/components/ui_thumbnail.cpp',
   'ui/components/ui_paged_container.cpp',
+  'ui/components/ui_tabbed_container.cpp',
   'ui/dynamic_colors.cpp'
 )
 

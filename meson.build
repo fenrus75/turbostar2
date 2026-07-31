@@ -755,6 +755,12 @@ test_ui_paged_container = executable('test_ui_paged_container',
   include_directories: inc)
 test('unit_test_ui_paged_container', test_ui_paged_container, suite: 'ui')
 
+test_ui_tabbed_container = executable('test_ui_tabbed_container',
+  'tests/unit/test_ui_tabbed_container.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_ui_tabbed_container', test_ui_tabbed_container, suite: 'ui')
+
 test_latency_spike = executable('test_latency_spike',
   'tests/unit/test_latency_spike.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

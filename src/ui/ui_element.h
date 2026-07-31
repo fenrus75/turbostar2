@@ -34,6 +34,7 @@ class ui_container;
 | ui_durmovie       | src/ui/components/ui_durmovie.h                         |
 | ui_color_picker   | src/ui/components/ui_color_picker.h                     |
 | ui_thumbnail      | src/ui/components/ui_thumbnail.h                        |
+| ui_tabbed_container | src/ui/components/ui_tabbed_container.h               |
 | ui_container      | src/ui/ui_element.h                                     |
 
 */
