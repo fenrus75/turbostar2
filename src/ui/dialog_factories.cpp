@@ -1139,11 +1139,11 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	// --- Tab 2: Model Providers ---
 	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
-	tab2_flow->add_child(std::make_unique<ui_text_label>("lbl_providers", "Configured LLM Provider Servers:"));
+	tab2_flow->add_child(std::make_unique<ui_text_label>("Configured LLM Provider Servers:"));
 	auto servers_list = std::make_unique<ui_listbox>("server_list", 38, 5, nullptr, nullptr);
 	std::vector<std::string> server_names;
 	for (const auto &srv : agentlib::model_server_registry::get_instance().get_all_servers()) {
-		server_names.push_back(srv->get_id() + " (" + srv->get_name() + ")");
+		server_names.push_back("  " + srv->get_id() + " - " + srv->get_name());
 	}
 	servers_list->set_items(server_names);
 	auto srv_ptr = servers_list.get();
@@ -1162,13 +1162,20 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 			d->set_result("edit_model_server:" + servers[idx]->get_id());
 		}
 	}));
+	srv_btns->add_child(std::make_unique<ui_button>("btn_query_srv", "Query Models", 'q', [d = dlg.get(), srv_ptr]() {
+		int idx = srv_ptr->get_selected_index();
+		auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
+		if (idx >= 0 && idx < (int)servers.size()) {
+			d->set_action(dialog_result::confirmed);
+			d->set_result("query_model_server:" + servers[idx]->get_id());
+		}
+	}));
 	srv_btns->add_child(std::make_unique<ui_button>("btn_del_srv", "Delete", 'd', [d = dlg.get(), srv_ptr]() {
 		int idx = srv_ptr->get_selected_index();
 		auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
 		if (idx >= 0 && idx < (int)servers.size()) {
-			agentlib::model_server_registry::get_instance().remove_server(servers[idx]->get_id());
 			d->set_action(dialog_result::confirmed);
-			d->set_result("reopen_ai_settings");
+			d->set_result("delete_model_server:" + servers[idx]->get_id());
 		}
 	}));
 	tab2_flow->add_child(std::move(srv_btns));
@@ -1176,7 +1183,7 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	// --- Tab 3: Task Assignment ---
 	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
-	tab3_flow->add_child(std::make_unique<ui_text_label>("lbl_tasks", "Task-Specific Model Mappings:"));
+	tab3_flow->add_child(std::make_unique<ui_text_label>("Task-Specific Model Mappings:"));
 
 	std::vector<std::string> candidates;
 	candidates.push_back("");
@@ -1204,7 +1211,7 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	// --- Tab 4: MCP & Plugins ---
 	auto tab4_flow = std::make_unique<ui_vertical_flow>("tab4_flow", 0, 0, 1, 1);
-	tab4_flow->add_child(std::make_unique<ui_text_label>("lbl_mcp", "Active MCP Tool Servers:"));
+	tab4_flow->add_child(std::make_unique<ui_text_label>("Active MCP Tool Servers:"));
 	auto mcp_list = std::make_unique<ui_listbox>("mcp_list", 38, 5, nullptr, nullptr);
 	std::vector<std::string> mcp_names;
 	for (const auto &srv : agentlib::mcp_manager::get_instance().get_servers()) {

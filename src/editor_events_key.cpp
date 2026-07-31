@@ -231,6 +231,43 @@ void editor::resolve_dialog(dialog_result res)
 				set_focus(focus_target::dialog, "model_server_edit");
 				return;
 			}
+			if (res_str.starts_with("query_model_server:")) {
+				std::string id = res_str.substr(19);
+				auto server = agentlib::model_server_registry::get_instance().get_server(id);
+				if (server) {
+					std::string error_msg;
+					auto imported_models = agentlib::fetch_models_from_server(server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
+					if (!imported_models.empty()) {
+						auto &registry = agentlib::ai_model_registry::get_instance();
+						std::vector<std::string> to_remove;
+						for (const auto &model : registry.get_all_models()) {
+							if (model->get_server_id() == id && model->get_from_download()) {
+								to_remove.push_back(model->get_id());
+							}
+						}
+						for (const auto &mid : to_remove) {
+							registry.remove_model(mid);
+						}
+						for (auto &model : imported_models) {
+							registry.register_model(std::move(model));
+						}
+						registry.save_models();
+					}
+				}
+				active_dialog_ = create_ai_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "ai_settings");
+				return;
+			}
+			if (res_str.starts_with("delete_model_server:")) {
+				std::string id = res_str.substr(20);
+				agentlib::model_server_registry::get_instance().remove_server(id);
+				agentlib::model_server_registry::get_instance().save_servers();
+				active_dialog_ = create_ai_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "ai_settings");
+				return;
+			}
 			if (res_str == "add_a2a_server") {
 				active_dialog_ = create_a2a_server_edit_dialog("", "", "");
 				active_dialog_mode_ = dialog_mode::settings;
@@ -246,6 +283,32 @@ void editor::resolve_dialog(dialog_result res)
 					set_focus(focus_target::dialog, "a2a_server_edit");
 					return;
 				}
+			}
+			if (res_str.starts_with("test_a2a_server:")) {
+				std::string srv_name = res_str.substr(16);
+				auto srv_opt = a2a::a2a_server_manager::get_instance().find_server(srv_name);
+				if (srv_opt) {
+					std::string err;
+					auto card = a2a::a2a_client::get_instance().fetch_agent_card(srv_opt->url, err, srv_opt->auth_token);
+					if (card) {
+						std::vector<std::string> lines = {"Server: " + card->name, "Description: " + card->description, "Skills: " + std::to_string(card->skills.size())};
+						active_dialog_ = create_message_dialog("A2A Server Connection OK", lines);
+					} else {
+						std::vector<std::string> lines = {"URL: " + srv_opt->url, "Error: " + (err.empty() ? "Unable to reach server" : err)};
+						active_dialog_ = create_message_dialog("A2A Server Connection Failed", lines);
+					}
+					active_dialog_mode_ = dialog_mode::none;
+					set_focus(focus_target::dialog, "a2a_test_result");
+					return;
+				}
+			}
+			if (res_str.starts_with("delete_a2a_server:")) {
+				std::string srv_name = res_str.substr(18);
+				a2a::a2a_server_manager::get_instance().remove_server(srv_name);
+				active_dialog_ = create_a2a_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_settings");
+				return;
 			}
 			if (res_str == "gen_a2a_token") {
 				std::string new_tok = config_manager::get_instance().generate_a2a_server_token();

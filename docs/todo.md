@@ -20,6 +20,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
 	- we need a better strategy
+	- a lot of this is somehow caused by git_version.h causing a lot of rebuilds for no reason!
 
 - language specific system prompt feature
 	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
