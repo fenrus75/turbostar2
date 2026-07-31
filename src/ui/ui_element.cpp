@@ -123,9 +123,6 @@ bool ui_container::handle_event(const editor_event &ev, int abs_x, int abs_y)
 
 std::optional<std::string> ui_container::get_value(const std::string &target_name) const
 {
-	if (name_ == target_name) {
-		return std::nullopt; // Containers usually don't have values themselves
-	}
 	for (const auto &child : children_) {
 		auto val = child->get_value(target_name);
 		if (val)

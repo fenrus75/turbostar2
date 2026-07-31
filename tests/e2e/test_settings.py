@@ -8,13 +8,13 @@ def test_settings_dialog():
         runner.start()
         config_path = os.path.join(runner.temp_home, '.turbostar')
         
-        # 1. Open Settings Dialog via Alt+P -> P
+        # 1. Open Editor Settings Dialog via Alt+P -> E
         runner.send_keys(KEY_ESC + 'p') # Alt+P
         runner.assert_menu_active(timeout=2.0)
-        runner.send_keys('p')
+        runner.send_keys('e')
 
         # Verify dialog is open
-        runner.assert_text_on_screen("Preferences", timeout=1.5)
+        runner.assert_text_on_screen("Editor & Workspace Settings", timeout=1.5)
         runner.assert_text_on_screen("Clang Format Style")
         
         # 2. Select "Google" style (hotkey 'G')

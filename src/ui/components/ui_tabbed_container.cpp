@@ -175,6 +175,15 @@ bool ui_tabbed_container::handle_event(const editor_event &ev, int abs_x, int ab
 	}
 
 	if (ev.type == event_type::key_press) {
+		if (ev.key_code < 0) {
+			// Forward Alt+Hotkey shortcuts to active page content first
+			if (auto active = get_active_page()) {
+				if (active->handle_event(ev, abs_x + sidebar_width_ + 1, abs_y)) {
+					return true;
+				}
+			}
+		}
+
 		if (sidebar_list_ && sidebar_list_->has_focus()) {
 			if (ev.key_code == KEY_RIGHT || ev.key_code == '\t' || ev.key_code == 10 || ev.key_code == 13) {
 				// Move focus from sidebar to right page
