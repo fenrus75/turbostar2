@@ -121,6 +121,41 @@ int main()
 		std::cout << "Task status OK\n";
 	}
 
+	// 6. Test Bearer Token Enforcement
+	server.set_auth_token("secret_test_token_12345");
+	server.set_enforce_token(true);
+
+	// Request without token should be 401 Unauthorized
+	{
+		httplib::Client unauth_client(std::format("http://127.0.0.1:{}", bound_port));
+		auto res = unauth_client.Get("/.well-known/agent.json");
+		assert(res != nullptr);
+		assert(res->status == 401);
+		std::cout << "Unauthenticated request rejected with 401 OK\n";
+	}
+
+	// Request with invalid token should be 401 Unauthorized
+	{
+		httplib::Client wrong_client(std::format("http://127.0.0.1:{}", bound_port));
+		httplib::Headers headers = {{"Authorization", "Bearer wrong_token"}};
+		auto res = wrong_client.Get("/.well-known/agent.json", headers);
+		assert(res != nullptr);
+		assert(res->status == 401);
+		std::cout << "Invalid token request rejected with 401 OK\n";
+	}
+
+	// Request with valid token should succeed (200 OK)
+	{
+		httplib::Client auth_client(std::format("http://127.0.0.1:{}", bound_port));
+		httplib::Headers headers = {{"Authorization", "Bearer secret_test_token_12345"}};
+		auto res = auth_client.Get("/.well-known/agent.json", headers);
+		assert(res != nullptr);
+		assert(res->status == 200);
+		std::cout << "Valid Bearer token request authenticated 200 OK\n";
+	}
+
+	server.set_enforce_token(false);
+
 	server.stop();
 	assert(!server.is_running());
 

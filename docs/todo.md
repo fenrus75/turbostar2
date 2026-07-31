@@ -24,6 +24,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - language specific system prompt feature
 	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
 	- allow for language (and maybe language version?) specific system prompt text to be inserted
+	- alternative: a docs:// vfs path where we store a set of basic instructions and documentation items
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
@@ -50,22 +51,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- code
 	- image
 
-
-
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
-
-- feature: become an A2A server for our agents
-	- **A2A Agent Card Synthesis & Sidecar Storage**: Hybrid 3-tier resolution policy (Local sidecar `<agent_name>.card.json` -> Global cache `~/.cache/turbostar/agent_cards/<hash>.json` -> LLM Synthesis).
-	- **Dedicated `:plugin:a2a` Tool Family**: Keep global namespace clean by grouping A2A tools (`a2a_validate_card`, `a2a_synthesize_card`, `a2a_publish_card`) under the `a2a` family.
-	- **`a2a_validate_card` Tool**: Validates synthesized or user-edited `.card.json` files against the formal A2A Agent Card JSON Schema specification.
-
-- feature: become a client to A2A
-	we need to parse agent cards and hook them up to our subagent directory
-
-- feature: build an A2A directory
-	- maybe a .local style directory service? is there a protocol for autodiscovery?
-
-- feature: have a turboserver mode where we are headless but only serve A2A requests?
 
 - feature:a /command action that activates a tool family (via menu?)
 
@@ -240,6 +226,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # done items (sorted by date, newest first)
+
+## 31-07-2026
+- Bearer Token Authentication for Turboserver (`src/a2a/a2a_server.h/cpp`, `src/config_manager.h/cpp`, `src/main.cpp`, `src/ui/dialog_factories.cpp`, `tests/unit/test_a2a_server.cpp`): Added Bearer token authentication support to `turboserver` (A2A server mode). Configured `~/.turboserver` storage (POSIX `0600` permissions) with `token` and `enforce_token` keys, auto-generating a secure random token if empty. Added `--a2a-token` and `--a2a-enforce-token` CLI flags and `TURBOSERVER_TOKEN` / `TURBOSERVER_ENFORCE_TOKEN` environment variable overrides. Implemented HTTP `401 Unauthorized` pre-routing enforcement in `a2a_server::setup_routes()` and integrated token configuration into the TUI Preferences dialog. Added unit tests for valid, invalid, and missing Bearer tokens.
 
 ## 30-07-2026
 - Git Remote URL & Branch System Prompt Context (`src/git_manager.h/cpp`, `src/project_manager.cpp`, `src/tools/invoke_subagent/invoke_subagent_entry.cpp`): Added `get_remote_origin_url()` and `get_current_branch()` methods to `git_manager`. Updated `project_manager::get_project_knowledge_prompt()` to automatically inject the project's upstream Git repository URL and active branch into system prompt context across all agent types (main agent window, subagents, code review agents, security agents), so local agents know the repository URL and branch when delegating tasks to remote A2A subagents. Updated `invoke_subagent` auto-detection logic. Verified with unit test suite.

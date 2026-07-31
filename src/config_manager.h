@@ -196,6 +196,17 @@ class config_manager
 	std::string get_mcp_server_when_to_activate(const std::string &server_name, bool is_system) const;
 	void set_mcp_server_when_to_activate(const std::string &server_name, bool is_system, const std::string &text);
 
+	/*
+	 * Turboserver configuration API (~/.turboserver)
+	 */
+	std::string get_turboserver_config_path() const;
+	std::string get_a2a_server_token() const;
+	bool is_a2a_server_token_enforced() const;
+	void set_a2a_server_token(const std::string &token);
+	void set_a2a_server_token_enforced(bool enforce);
+	void load_turboserver_config();
+	void save_turboserver_config();
+
       private:
 	config_manager() = default;
 	std::string get_config_file_path() const;
@@ -222,6 +233,8 @@ class config_manager
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
 	bool gdb_auto_continue_{true};
+	std::string a2a_server_token_{""};
+	bool a2a_server_token_enforced_{false};
 
 	std::map<std::string, bool> mcp_servers_enabled_;
 	std::map<std::string, bool> mcp_tools_enabled_;

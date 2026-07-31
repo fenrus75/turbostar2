@@ -1,5 +1,6 @@
 #include "a2a_server.h"
 #include "agentlib/subagent_manager.h"
+#include "config_manager.h"
 #include "event_logger.h"
 #include "git_manager.h"
 #include "project_manager.h"
@@ -45,6 +46,11 @@ bool a2a_server::start(int base_port, int *out_bound_port)
 	if (running_) {
 		if (out_bound_port) *out_bound_port = bound_port_;
 		return true;
+	}
+
+	if (auth_token_.empty()) {
+		auth_token_ = config_manager::get_instance().get_a2a_server_token();
+		enforce_token_ = config_manager::get_instance().is_a2a_server_token_enforced();
 	}
 
 	setup_routes();
@@ -110,12 +116,48 @@ std::string a2a_server::get_default_model() const
 	return default_model_;
 }
 
+void a2a_server::set_auth_token(const std::string &token)
+{
+	std::lock_guard<std::mutex> lock(tasks_mutex_);
+	auth_token_ = token;
+}
+
+std::string a2a_server::get_auth_token() const
+{
+	std::lock_guard<std::mutex> lock(tasks_mutex_);
+	return auth_token_;
+}
+
+void a2a_server::set_enforce_token(bool enforce)
+{
+	enforce_token_ = enforce;
+}
+
+bool a2a_server::is_enforce_token() const
+{
+	return enforce_token_;
+}
+
 void a2a_server::setup_routes()
 {
-	// Log incoming requests before routing
-	server_->set_pre_routing_handler([](const httplib::Request &req, httplib::Response &) {
+	// Log incoming requests before routing and enforce Bearer token if enabled
+	server_->set_pre_routing_handler([this](const httplib::Request &req, httplib::Response &res) {
 		event_logger::get_instance().log("a2a_server: Incoming {} request for '{}' from {}:{}",
 			req.method, req.path, req.remote_addr, req.remote_port);
+
+		if (is_enforce_token()) {
+			std::string auth_header = req.get_header_value("Authorization");
+			std::string token = get_auth_token();
+			std::string expected_bearer = "Bearer " + token;
+			if (token.empty() || auth_header != expected_bearer) {
+				event_logger::get_instance().log("a2a_server: Rejected unauthorized {} request for '{}' from {}:{}",
+					req.method, req.path, req.remote_addr, req.remote_port);
+				res.status = 401;
+				res.set_content(R"({"error": "Unauthorized", "detail": "Valid Bearer token required."})", "application/json");
+				return httplib::Server::HandlerResponse::Handled;
+			}
+		}
+
 		return httplib::Server::HandlerResponse::Unhandled;
 	});
 

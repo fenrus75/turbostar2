@@ -68,6 +68,15 @@ class a2a_server
 	bool is_use_git_worktree() const;
 
 	/*
+	 * Authentication API
+	 */
+	void set_auth_token(const std::string &token);
+	std::string get_auth_token() const;
+
+	void set_enforce_token(bool enforce);
+	bool is_enforce_token() const;
+
+	/*
 	 * Task management API
 	 */
 	std::string create_task(const std::string &agent_name, const nlohmann::json &input_params, std::string &out_error);
@@ -85,7 +94,9 @@ class a2a_server
 	std::atomic<bool> running_{false};
 	std::atomic<int> bound_port_{0};
 	std::atomic<bool> use_git_worktree_{false};
+	std::atomic<bool> enforce_token_{false};
 	std::string default_model_;
+	std::string auth_token_;
 
 	/*
 	 * tasks_mutex_ protects access to the tasks_ unordered_map when creating,

@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <format>
 #include <ncurses.h>
+#include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
 #include "a2a/a2a_client.h"
 #include "agentlib/ai_model.h"
@@ -854,6 +855,16 @@ std::unique_ptr<dialog> create_settings_dialog()
 							      nullptr, "Model ID:  "));
 	flow->add_child(std::move(textboxes_row));
 
+	// A2A Server security settings row
+	auto a2a_sec_row = std::make_unique<ui_horizontal_flow>("a2a_sec_row", 0, 0, 0, 0);
+	a2a_sec_row->add_child(std::make_unique<ui_textbox>("a2a_server_token", 30,
+		config_manager::get_instance().get_a2a_server_token(), nullptr, "A2A Token:  "));
+	auto a2a_grp = std::make_unique<ui_checkbox_group>("a2a_grp");
+	a2a_grp->add_child(std::make_unique<ui_checkbox>("a2a_enforce_token", "Enforce A2A Token", 'T',
+		config_manager::get_instance().is_a2a_server_token_enforced()));
+	a2a_sec_row->add_child(std::move(a2a_grp));
+	flow->add_child(std::move(a2a_sec_row));
+
 	// Toggles split into two columns (side-by-side checkbox groups) to optimize layout height.
 	auto toggles_row = std::make_unique<ui_horizontal_flow>("toggles_row", 0, 0, 0, 0);
 
@@ -928,6 +939,21 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto def_model = dlg.get_value("default_model_id");
 	if (def_model)
 		cfg.set_default_model_id(*def_model);
+
+	auto a2a_tok = dlg.get_value("a2a_server_token");
+	if (a2a_tok) {
+		cfg.set_a2a_server_token(*a2a_tok);
+		a2a::a2a_server::get_instance().set_auth_token(*a2a_tok);
+	}
+
+	auto a2a_enf = dlg.get_value("a2a_enforce_token");
+	if (a2a_enf) {
+		bool enf = (*a2a_enf == "true");
+		cfg.set_a2a_server_token_enforced(enf);
+		a2a::a2a_server::get_instance().set_enforce_token(enf);
+	}
+
+	cfg.save_turboserver_config();
 
 	auto lsp = dlg.get_value("lsp_enabled");
 	if (lsp)

@@ -63,6 +63,9 @@ int main(int argc, char **argv)
 	std::vector<std::string> filenames;
 	std::vector<std::string> a2a_connect_servers;
 
+	std::string a2a_token;
+	bool a2a_enforce_token = false;
+
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
@@ -72,6 +75,8 @@ int main(int argc, char **argv)
 	app.add_flag("--a2a-server, --server", a2a_server_mode, "Run in headless A2A server mode");
 	app.add_flag("--git-worktree, --a2a-worktree", a2a_worktree, "Pre-seed remote A2A task workspaces using private git worktrees from local repository");
 	app.add_option("--a2a-port", a2a_port, "Port to listen on for A2A server mode (default 7820)");
+	app.add_option("--a2a-token", a2a_token, "Bearer authentication token for A2A server mode");
+	app.add_flag("--a2a-enforce-token", a2a_enforce_token, "Enforce Bearer token authentication on A2A server");
 	app.add_option("--a2a-connect", a2a_connect_servers, "Connect to remote A2A server (format: name=url or url)");
 	app.add_option("--agent-name", agent_name, "Name of the subagent to execute");
 	app.add_option("--agent-file", agent_file, "Path to the agent definition file (.md or .json)");
@@ -113,6 +118,15 @@ int main(int argc, char **argv)
 			std::cerr << "[Turbostar] Command-line parsing failed with exit code " << res_code << std::endl;
 		}
 		return res_code;
+	}
+
+	if (!a2a_token.empty()) {
+		config_manager::get_instance().set_a2a_server_token(a2a_token);
+		a2a::a2a_server::get_instance().set_auth_token(a2a_token);
+	}
+	if (a2a_enforce_token) {
+		config_manager::get_instance().set_a2a_server_token_enforced(true);
+		a2a::a2a_server::get_instance().set_enforce_token(true);
 	}
 
 	std::string binary_name = fs::path(argv[0]).filename().string();

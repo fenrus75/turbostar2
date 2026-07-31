@@ -9,8 +9,17 @@
 
 #include <algorithm>
 #include <cctype>
+#include <random>
+#include <sys/stat.h>
 
 namespace fs = std::filesystem;
+
+static std::string generate_random_auth_token()
+{
+	static std::mt19937_64 rng(std::random_device{}());
+	std::uniform_int_distribution<uint64_t> dist;
+	return std::format("ts_sec_{:016x}{:016x}{:016x}", dist(rng), dist(rng), dist(rng));
+}
 
 config_manager &config_manager::get_instance()
 {
@@ -42,6 +51,113 @@ void config_manager::load()
 	// 1. Load global config
 	std::string global_path = get_config_file_path();
 	load_from_file(global_path);
+
+	// 2. Load turboserver config
+	load_turboserver_config();
+}
+
+std::string config_manager::get_turboserver_config_path() const
+{
+	const char *home = getenv("HOME");
+	if (home) {
+		return std::string(home) + "/.turboserver";
+	}
+	return ".turboserver";
+}
+
+std::string config_manager::get_a2a_server_token() const
+{
+	return a2a_server_token_;
+}
+
+bool config_manager::is_a2a_server_token_enforced() const
+{
+	return a2a_server_token_enforced_;
+}
+
+void config_manager::set_a2a_server_token(const std::string &token)
+{
+	a2a_server_token_ = token;
+}
+
+void config_manager::set_a2a_server_token_enforced(bool enforce)
+{
+	a2a_server_token_enforced_ = enforce;
+}
+
+void config_manager::load_turboserver_config()
+{
+	std::string path = get_turboserver_config_path();
+	std::ifstream file(path);
+
+	bool need_rewrite = false;
+	std::string token;
+	bool enforce = false;
+
+	if (file.is_open()) {
+		std::string line;
+		while (std::getline(file, line)) {
+			if (line.empty() || line[0] == '#' || line[0] == ';')
+				continue;
+			size_t eq = line.find('=');
+			if (eq == std::string::npos)
+				continue;
+			std::string key = line.substr(0, eq);
+			std::string value = line.substr(eq + 1);
+
+			key.erase(0, key.find_first_not_of(" \t"));
+			key.erase(key.find_last_not_of(" \t") + 1);
+			value.erase(0, value.find_first_not_of(" \t"));
+			value.erase(value.find_last_not_of(" \t") + 1);
+
+			if (key == "token") {
+				token = value;
+			} else if (key == "enforce_token") {
+				enforce = (value == "true" || value == "1");
+			}
+		}
+		file.close();
+	} else {
+		need_rewrite = true;
+	}
+
+	if (token.empty()) {
+		token = generate_random_auth_token();
+		need_rewrite = true;
+	}
+
+	// Environment variable overrides
+	const char *env_tok = getenv("TURBOSERVER_TOKEN");
+	if (env_tok && *env_tok) {
+		token = env_tok;
+	}
+	const char *env_enf = getenv("TURBOSERVER_ENFORCE_TOKEN");
+	if (env_enf && *env_enf) {
+		enforce = (std::string(env_enf) == "true" || std::string(env_enf) == "1");
+	}
+
+	a2a_server_token_ = token;
+	a2a_server_token_enforced_ = enforce;
+
+	if (need_rewrite) {
+		save_turboserver_config();
+	}
+}
+
+void config_manager::save_turboserver_config()
+{
+	std::string path = get_turboserver_config_path();
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		return;
+	}
+
+	file << "# Turboserver Configuration File\n";
+	file << "token = " << a2a_server_token_ << "\n";
+	file << "enforce_token = " << (a2a_server_token_enforced_ ? "true" : "false") << "\n";
+	file.close();
+
+	chmod(path.c_str(), 0600);
 }
 
 void config_manager::load_from_file(const std::string &path)
