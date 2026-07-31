@@ -54,6 +54,18 @@ class git_manager
 	std::string get_repository_root() const;
 
 	/**
+	 * @brief Synchronously returns the remote origin URL for the git repository.
+	 * If no remote origin is configured or not in a git repo, returns an empty string.
+	 */
+	std::string get_remote_origin_url() const;
+
+	/**
+	 * @brief Synchronously returns the active git branch name (e.g. "main").
+	 * If detached or not in a git repo, returns an empty string.
+	 */
+	std::string get_current_branch() const;
+
+	/**
 	 * @brief Validates if a string is a safe and valid Git branch name.
 	 */
 	static bool is_valid_branch_name(const std::string &name);

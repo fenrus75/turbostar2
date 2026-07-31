@@ -62,18 +62,12 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 		std::string repo_url = args_.repository_url;
 		std::string git_ref = args_.git_ref;
 		if (repo_url.empty()) {
-			std::string repo_root = git_manager::get_instance().get_repository_root();
-			if (!repo_root.empty()) {
-				std::string origin_url = fs_utils::execute_command_sync("git config --get remote.origin.url");
-				origin_url.erase(origin_url.find_last_not_of(" \n\r\t") + 1);
-				if (!origin_url.empty() && (origin_url.find("http") != std::string::npos || origin_url.find("git") != std::string::npos)) {
-					repo_url = origin_url;
-				}
-				std::string branch_name = fs_utils::execute_command_sync("git rev-parse --abbrev-ref HEAD");
-				branch_name.erase(branch_name.find_last_not_of(" \n\r\t") + 1);
-				if (!branch_name.empty() && branch_name != "HEAD") {
-					git_ref = branch_name;
-				}
+			std::string origin_url = git_manager::get_instance().get_remote_origin_url();
+			if (!origin_url.empty() && (origin_url.find("http") != std::string::npos || origin_url.find("git") != std::string::npos)) {
+				repo_url = origin_url;
+			}
+			if (git_ref.empty()) {
+				git_ref = git_manager::get_instance().get_current_branch();
 			}
 		}
 

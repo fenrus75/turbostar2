@@ -292,4 +292,31 @@ bool git_manager::is_valid_revision(const std::string &revision)
 	return true;
 }
 
+std::string git_manager::get_remote_origin_url() const
+{
+	std::string root = get_repository_root();
+	if (root.empty()) {
+		return "";
+	}
+	std::string url = fs_utils::execute_command_sync("git -C '" + root + "' config --get remote.origin.url");
+	size_t start = url.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) return "";
+	size_t end = url.find_last_not_of(" \t\r\n");
+	return url.substr(start, end - start + 1);
+}
+
+std::string git_manager::get_current_branch() const
+{
+	std::string root = get_repository_root();
+	if (root.empty()) {
+		return "";
+	}
+	std::string branch = fs_utils::execute_command_sync("git -C '" + root + "' rev-parse --abbrev-ref HEAD");
+	size_t start = branch.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) return "";
+	size_t end = branch.find_last_not_of(" \t\r\n");
+	std::string res = branch.substr(start, end - start + 1);
+	return (res == "HEAD") ? "" : res;
+}
+
 

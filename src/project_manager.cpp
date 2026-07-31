@@ -18,6 +18,7 @@
 #include "fs_utils.h"
 #include "git_manager.h"
 #include "codereview_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -382,6 +383,17 @@ std::string project_manager::get_project_knowledge_prompt() const
 		for (const auto &pair : mapped_deps) {
 			prompt += std::format("| {} | {} |\n", pair.first, pair.second);
 		}
+	}
+
+	std::string repo_url = git_manager::get_instance().get_remote_origin_url();
+	std::string repo_branch = git_manager::get_instance().get_current_branch();
+	if (!repo_url.empty()) {
+		prompt += "\n\nProject Repository & Git Information:\n";
+		prompt += std::format("- Upstream Git Repository URL: {}\n", repo_url);
+		if (!repo_branch.empty()) {
+			prompt += std::format("- Active Git Branch: {}\n", repo_branch);
+		}
+		prompt += "When delegating tasks to remote A2A agents or referencing the project repository, you can provide this repository URL and branch.\n";
 	}
 
 	return prompt;
