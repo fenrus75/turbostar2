@@ -273,7 +273,7 @@ bool mcp_server::start()
 	// 2. Build command
 	std::string raw_command = "";
 	for (const auto &[key, val] : env_) {
-		raw_command += fs_utils::escape_shell_arg(key) + "=" + fs_utils::escape_shell_arg(val) + " ";
+		raw_command += key + "=" + fs_utils::escape_shell_arg(val) + " ";
 	}
 	raw_command += fs_utils::escape_shell_arg(command_);
 	for (const auto &arg : args_) {
