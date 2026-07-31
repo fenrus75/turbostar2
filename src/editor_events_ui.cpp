@@ -252,11 +252,27 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::settings) {
-		logger.log("Dispatching settings event.");
-		active_dialog_ = create_settings_dialog();
+	if (ev.type == event_type::editor_settings_config || ev.type == event_type::settings) {
+		logger.log("Dispatching editor_settings_config event.");
+		active_dialog_ = create_editor_settings_dialog();
 		active_dialog_mode_ = dialog_mode::settings;
-		set_focus(focus_target::dialog, "settings");
+		set_focus(focus_target::dialog, "editor_settings");
+		return;
+	}
+
+	if (ev.type == event_type::ai_settings_config) {
+		logger.log("Dispatching ai_settings_config event.");
+		active_dialog_ = create_ai_settings_dialog();
+		active_dialog_mode_ = dialog_mode::settings;
+		set_focus(focus_target::dialog, "ai_settings");
+		return;
+	}
+
+	if (ev.type == event_type::a2a_settings_config) {
+		logger.log("Dispatching a2a_settings_config event.");
+		active_dialog_ = create_a2a_settings_dialog();
+		active_dialog_mode_ = dialog_mode::settings;
+		set_focus(focus_target::dialog, "a2a_settings");
 		return;
 	}
 

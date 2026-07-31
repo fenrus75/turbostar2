@@ -15,7 +15,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
-#include <ncurses.h>
+#include "ncurses.h"
+#include "ui/components/ui_tabbed_container.h"
 #include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
 #include "a2a/a2a_client.h"
@@ -980,6 +981,251 @@ void apply_settings_from_dialog(const dialog &dlg)
 		cfg.set_shell_display_access(*shell_display == "true");
 
 	// Note: We don't save here anymore. The key event handler does it so it knows whether to save global or project.
+}
+
+std::unique_ptr<dialog> create_editor_settings_dialog()
+{
+	auto dlg = std::make_unique<dialog>("Editor & Workspace Settings", 62, 22);
+	auto main_flow = std::make_unique<ui_vertical_flow>("main_flow", 0, 0, 1, 1);
+
+	auto tabbed = std::make_unique<ui_tabbed_container>("editor_tabbed", 0, 0, 58, 16);
+
+	// --- Tab 1: General & Code ---
+	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
+	auto style_group = std::make_unique<ui_group_box>("style_group", 36, " Clang Format Style ");
+	auto style_radio = std::make_unique<ui_radiobutton_group>("style");
+	std::vector<std::pair<std::string, char>> style_labels = {{"LLVM", 'L'},    {"Google", 'G'},	   {"Chromium", 'C'},
+								  {"Mozilla", 'M'}, {"WebKit", 'W'},	   {"Microsoft", 's'},
+								  {"GNU", 'N'},	    {"Linux Kernel", 'K'}, {".clang-format file", 'f'}};
+	std::string current_style = config_manager::get_instance().get_clang_format_style();
+	for (const auto &pair : style_labels) {
+		bool selected = (current_style == pair.first);
+		style_radio->add_child(std::make_unique<ui_radio_choice>(pair.first, pair.first, pair.second, selected));
+	}
+	style_group->add_child(std::move(style_radio));
+	tab1_flow->add_child(std::move(style_group));
+
+	auto tab1_chk = std::make_unique<ui_checkbox_group>("tab1_chk");
+	tab1_chk->add_child(std::make_unique<ui_checkbox>("compile_on_save", "Compile file on save", 'i',
+							  config_manager::get_instance().is_compile_on_save()));
+	tab1_flow->add_child(std::move(tab1_chk));
+	tabbed->add_tab_page("general", "General & Code", std::move(tab1_flow));
+
+	// --- Tab 2: Build & Run ---
+	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
+	auto build_group = std::make_unique<ui_group_box>("build_group", 36, " Build System ");
+	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system");
+	std::vector<std::pair<std::string, char>> system_labels = {{"meson", 'm'}, {"cmake", 'k'}, {"make", 'a'}};
+	std::string current_system = config_manager::get_instance().get_build_system();
+	for (const auto &pair : system_labels) {
+		bool selected = (current_system == pair.first);
+		build_radio->add_child(std::make_unique<ui_radio_choice>(pair.first, pair.first, pair.second, selected));
+	}
+	build_group->add_child(std::move(build_radio));
+	tab2_flow->add_child(std::move(build_group));
+
+	tab2_flow->add_child(std::make_unique<ui_textbox>("build_dir", 26, config_manager::get_instance().get_build_directory(), nullptr, "Build Dir: "));
+	tab2_flow->add_child(std::make_unique<ui_textbox>("main_executable", 26, config_manager::get_instance().get_main_executable(), nullptr, "Exe Path:  "));
+	tab2_flow->add_child(std::make_unique<ui_textbox>("run_arguments", 26, config_manager::get_instance().get_run_arguments(), nullptr, "Run Args:  "));
+	tabbed->add_tab_page("build_run", "Build & Run", std::move(tab2_flow));
+
+	// --- Tab 3: LSP & Features ---
+	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
+	auto lsp_grp = std::make_unique<ui_checkbox_group>("lsp_grp");
+	lsp_grp->add_child(std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
+	lsp_grp->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u', config_manager::get_instance().is_auto_open_error_files()));
+	lsp_grp->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd', config_manager::get_instance().is_shell_display_access()));
+	tab3_flow->add_child(std::move(lsp_grp));
+	tabbed->add_tab_page("lsp", "LSP & Features", std::move(tab3_flow));
+
+	main_flow->add_child(std::move(tabbed));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_global", "Save Global", 'v', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("save_global");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'C', [d = dlg.get()]() {
+		d->set_result("cancel");
+		d->set_action(dialog_result::cancelled);
+	}, true));
+	main_flow->add_child(std::move(btns));
+
+	auto flow_ptr = main_flow.get();
+	dlg->add_child(std::move(main_flow));
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	return dlg;
+}
+
+void apply_editor_settings_from_dialog(const dialog &dlg)
+{
+	apply_settings_from_dialog(dlg);
+}
+
+std::unique_ptr<dialog> create_ai_settings_dialog()
+{
+	auto dlg = std::make_unique<dialog>("AI & Agent Settings", 62, 22);
+	auto main_flow = std::make_unique<ui_vertical_flow>("main_flow", 0, 0, 1, 1);
+
+	auto tabbed = std::make_unique<ui_tabbed_container>("ai_tabbed", 0, 0, 58, 16);
+
+	// --- Tab 1: General AI ---
+	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
+	tab1_flow->add_child(std::make_unique<ui_textbox>("default_model_id", 28, config_manager::get_instance().get_default_model_id(), nullptr, "Model ID:  "));
+
+	auto ai_grp = std::make_unique<ui_checkbox_group>("ai_grp");
+	ai_grp->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g', config_manager::get_instance().is_log_all_tool_calls()));
+	ai_grp->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M', config_manager::get_instance().is_software_map_enabled()));
+	ai_grp->add_child(std::make_unique<ui_checkbox>("paranoid_mode", "Paranoid Security Mode", 'P', config_manager::get_instance().is_paranoid_mode()));
+	tab1_flow->add_child(std::move(ai_grp));
+	tabbed->add_tab_page("general_ai", "General AI", std::move(tab1_flow));
+
+	// --- Tab 2: Model Providers ---
+	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
+	tab2_flow->add_child(std::make_unique<ui_text_label>("lbl_providers", "Configured LLM Provider Servers:"));
+	auto servers_list = std::make_unique<ui_listbox>("server_list", 36, 6, nullptr, nullptr);
+	std::vector<std::string> server_names;
+	for (const auto &srv : agentlib::model_server_registry::get_instance().get_all_servers()) {
+		server_names.push_back(srv->get_name() + " (" + srv->get_url() + ")");
+	}
+	servers_list->set_items(server_names);
+	tab2_flow->add_child(std::move(servers_list));
+	tabbed->add_tab_page("providers", "Model Providers", std::move(tab2_flow));
+
+	// --- Tab 3: Task Assignment ---
+	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
+	tab3_flow->add_child(std::make_unique<ui_text_label>("lbl_tasks", "Task-Specific Model Mappings:"));
+	tab3_flow->add_child(std::make_unique<ui_textbox>("task_model_planning", 26, config_manager::get_instance().get_task_model_id("planning"), nullptr, "Planning: "));
+	tab3_flow->add_child(std::make_unique<ui_textbox>("task_model_coding", 26, config_manager::get_instance().get_task_model_id("coding"), nullptr, "Coding:   "));
+	tab3_flow->add_child(std::make_unique<ui_textbox>("task_model_fast", 26, config_manager::get_instance().get_task_model_id("fast"), nullptr, "Fast:     "));
+	tabbed->add_tab_page("tasks", "Task Models", std::move(tab3_flow));
+
+	// --- Tab 4: MCP & Plugins ---
+	auto tab4_flow = std::make_unique<ui_vertical_flow>("tab4_flow", 0, 0, 1, 1);
+	tab4_flow->add_child(std::make_unique<ui_text_label>("lbl_mcp", "Active MCP Tool Servers:"));
+	auto mcp_list = std::make_unique<ui_listbox>("mcp_list", 36, 6, nullptr, nullptr);
+	std::vector<std::string> mcp_names;
+	for (const auto &srv : agentlib::mcp_manager::get_instance().get_servers()) {
+		mcp_names.push_back(srv->get_name() + (srv->is_enabled() ? " [Enabled]" : " [Disabled]"));
+	}
+	mcp_list->set_items(mcp_names);
+	tab4_flow->add_child(std::move(mcp_list));
+	tabbed->add_tab_page("mcp", "MCP & Plugins", std::move(tab4_flow));
+
+	main_flow->add_child(std::move(tabbed));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_global", "Save Global", 'v', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("save_global");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'C', [d = dlg.get()]() {
+		d->set_result("cancel");
+		d->set_action(dialog_result::cancelled);
+	}, true));
+	main_flow->add_child(std::move(btns));
+
+	auto flow_ptr = main_flow.get();
+	dlg->add_child(std::move(main_flow));
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	return dlg;
+}
+
+void apply_ai_settings_from_dialog(const dialog &dlg)
+{
+	apply_settings_from_dialog(dlg);
+	auto &cfg = config_manager::get_instance();
+	auto plan_m = dlg.get_value("task_model_planning");
+	if (plan_m) cfg.set_task_model_id("planning", *plan_m);
+	auto code_m = dlg.get_value("task_model_coding");
+	if (code_m) cfg.set_task_model_id("coding", *code_m);
+	auto fast_m = dlg.get_value("task_model_fast");
+	if (fast_m) cfg.set_task_model_id("fast", *fast_m);
+}
+
+std::unique_ptr<dialog> create_a2a_settings_dialog()
+{
+	auto dlg = std::make_unique<dialog>("A2A & Remote Settings", 62, 22);
+	auto main_flow = std::make_unique<ui_vertical_flow>("main_flow", 0, 0, 1, 1);
+
+	auto tabbed = std::make_unique<ui_tabbed_container>("a2a_tabbed", 0, 0, 58, 16);
+
+	// --- Tab 1: Server Security ---
+	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
+	tab1_flow->add_child(std::make_unique<ui_textbox>("a2a_server_token", 30,
+		config_manager::get_instance().get_a2a_server_token(), nullptr, "A2A Token:  "));
+	auto a2a_grp = std::make_unique<ui_checkbox_group>("a2a_grp");
+	a2a_grp->add_child(std::make_unique<ui_checkbox>("a2a_enforce_token", "Enforce Bearer Token Authentication", 'T',
+		config_manager::get_instance().is_a2a_server_token_enforced()));
+	tab1_flow->add_child(std::move(a2a_grp));
+	tabbed->add_tab_page("security", "Server Security", std::move(tab1_flow));
+
+	// --- Tab 2: Server Runtime ---
+	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
+	tab2_flow->add_child(std::make_unique<ui_textbox>("a2a_server_port", 12, "7820", nullptr, "Server Port: "));
+	auto runtime_grp = std::make_unique<ui_checkbox_group>("runtime_grp");
+	runtime_grp->add_child(std::make_unique<ui_checkbox>("git_worktree_mode", "Pre-seed Task Workspaces with Git Worktrees", 'W', true));
+	tab2_flow->add_child(std::move(runtime_grp));
+	tabbed->add_tab_page("runtime", "Server Runtime", std::move(tab2_flow));
+
+	// --- Tab 3: Remote Servers ---
+	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
+	tab3_flow->add_child(std::make_unique<ui_text_label>("lbl_a2a_remotes", "Registered Remote A2A Servers:"));
+	auto remotes_list = std::make_unique<ui_listbox>("remote_list", 36, 6, nullptr, nullptr);
+	std::vector<std::string> remote_names;
+	for (const auto &srv : a2a::a2a_server_manager::get_instance().get_all_servers()) {
+		remote_names.push_back(srv.name + " (" + srv.url + ")");
+	}
+	remotes_list->set_items(remote_names);
+	tab3_flow->add_child(std::move(remotes_list));
+	tabbed->add_tab_page("remote", "Remote Servers", std::move(tab3_flow));
+
+	main_flow->add_child(std::move(tabbed));
+
+	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
+	btns->set_centered(true);
+	btns->add_child(std::make_unique<ui_button>("btn_ok", "OK (Save Project)", 'O', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("ok");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_global", "Save Global", 'v', [d = dlg.get()]() {
+		d->set_action(dialog_result::confirmed);
+		d->set_result("save_global");
+	}));
+	btns->add_child(std::make_unique<ui_button>("btn_cancel", "Cancel", 'C', [d = dlg.get()]() {
+		d->set_result("cancel");
+		d->set_action(dialog_result::cancelled);
+	}, true));
+	main_flow->add_child(std::move(btns));
+
+	auto flow_ptr = main_flow.get();
+	dlg->add_child(std::move(main_flow));
+	dlg->flow();
+	dlg->set_width(flow_ptr->width());
+	dlg->set_height(flow_ptr->height());
+
+	return dlg;
+}
+
+void apply_a2a_settings_from_dialog(const dialog &dlg)
+{
+	apply_settings_from_dialog(dlg);
 }
 // Ensure the #include "config_manager.h" is not duplicated if it's already there
 

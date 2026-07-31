@@ -761,6 +761,12 @@ test_ui_tabbed_container = executable('test_ui_tabbed_container',
   include_directories: inc)
 test('unit_test_ui_tabbed_container', test_ui_tabbed_container, suite: 'ui')
 
+test_options_dialogs = executable('test_options_dialogs',
+  'tests/unit/test_options_dialogs.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_options_dialogs', test_options_dialogs, suite: 'ui')
+
 test_latency_spike = executable('test_latency_spike',
   'tests/unit/test_latency_spike.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

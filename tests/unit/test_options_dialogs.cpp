@@ -1,0 +1,36 @@
+#include <cassert>
+#include <iostream>
+#include <memory>
+#include "../../src/ui/dialog.h"
+#include "../../src/ui/dialog_factories.h"
+#include "test_watchdog.h"
+
+int main()
+{
+	test_watchdog::setup_watchdog(30);
+	std::cout << "Testing restructured 3 Options tabbed dialogs..." << std::endl;
+
+	// 1. Test Editor & Workspace Settings Dialog
+	auto editor_dlg = create_editor_settings_dialog();
+	assert(editor_dlg != nullptr);
+	assert(editor_dlg->get_title() == "Editor & Workspace Settings");
+	editor_dlg->flow();
+	apply_editor_settings_from_dialog(*editor_dlg);
+
+	// 2. Test AI & Agent Settings Dialog
+	auto ai_dlg = create_ai_settings_dialog();
+	assert(ai_dlg != nullptr);
+	assert(ai_dlg->get_title() == "AI & Agent Settings");
+	ai_dlg->flow();
+	apply_ai_settings_from_dialog(*ai_dlg);
+
+	// 3. Test A2A & Remote Settings Dialog
+	auto a2a_dlg = create_a2a_settings_dialog();
+	assert(a2a_dlg != nullptr);
+	assert(a2a_dlg->get_title() == "A2A & Remote Settings");
+	a2a_dlg->flow();
+	apply_a2a_settings_from_dialog(*a2a_dlg);
+
+	std::cout << "All 3 Options tabbed dialogs created and verified successfully!" << std::endl;
+	return 0;
+}

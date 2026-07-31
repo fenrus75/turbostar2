@@ -145,6 +145,9 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::new_project:
 		case event_type::plugins:
 		case event_type::settings:
+		case event_type::editor_settings_config:
+		case event_type::ai_settings_config:
+		case event_type::a2a_settings_config:
 		case event_type::syntax_colors_config:
 		case event_type::models_config:
 		case event_type::model_servers_config:

@@ -39,6 +39,9 @@ enum class event_type {
 	replace,		    ///< Request to replace text (triggers dialog)
 	format_doc,		    ///< Request to format document/range
 	settings,		    ///< Request to show settings dialog
+	editor_settings_config,	    ///< Request to show Editor & Workspace settings tabbed dialog
+	ai_settings_config,	    ///< Request to show AI & Agent settings tabbed dialog
+	a2a_settings_config,	    ///< Request to show A2A & Remote settings tabbed dialog
 	models_config,		    ///< Request to show AI models configuration dialog
 	help,			    ///< Request to show help window
 	git_status_updated,	    ///< Notification that git status has changed
