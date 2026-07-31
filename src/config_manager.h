@@ -202,6 +202,7 @@ class config_manager
 	std::string get_turboserver_config_path() const;
 	std::string get_a2a_server_token() const;
 	bool is_a2a_server_token_enforced() const;
+	std::string generate_a2a_server_token();
 	void set_a2a_server_token(const std::string &token);
 	void set_a2a_server_token_enforced(bool enforce);
 	void load_turboserver_config();

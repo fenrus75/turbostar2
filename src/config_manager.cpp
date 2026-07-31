@@ -75,6 +75,11 @@ bool config_manager::is_a2a_server_token_enforced() const
 	return a2a_server_token_enforced_;
 }
 
+std::string config_manager::generate_a2a_server_token()
+{
+	return generate_random_auth_token();
+}
+
 void config_manager::set_a2a_server_token(const std::string &token)
 {
 	a2a_server_token_ = token;

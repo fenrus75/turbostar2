@@ -5,6 +5,7 @@
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
+#include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
 #include "a2a/a2a_client.h"
 #include "agentlib/ai_agent.h"
@@ -210,7 +211,67 @@ void editor::resolve_dialog(dialog_result res)
 			}
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
 			std::string res_str = active_dialog_->get_result();
+			if (res_str == "select_model") {
+				active_dialog_ = create_model_list_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "models");
+				return;
+			}
+			if (res_str == "add_model_server") {
+				active_dialog_ = create_model_server_edit_dialog(nullptr);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "model_server_edit");
+				return;
+			}
+			if (res_str.starts_with("edit_model_server:")) {
+				std::string srv_id = res_str.substr(18);
+				auto srv = agentlib::model_server_registry::get_instance().get_server(srv_id);
+				active_dialog_ = create_model_server_edit_dialog(srv);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "model_server_edit");
+				return;
+			}
+			if (res_str == "add_a2a_server") {
+				active_dialog_ = create_a2a_server_edit_dialog("", "", "");
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_server_edit");
+				return;
+			}
+			if (res_str.starts_with("edit_a2a_server:")) {
+				std::string srv_name = res_str.substr(16);
+				auto srv_opt = a2a::a2a_server_manager::get_instance().find_server(srv_name);
+				if (srv_opt) {
+					active_dialog_ = create_a2a_server_edit_dialog(srv_opt->name, srv_opt->url, srv_opt->auth_token);
+					active_dialog_mode_ = dialog_mode::settings;
+					set_focus(focus_target::dialog, "a2a_server_edit");
+					return;
+				}
+			}
+			if (res_str == "gen_a2a_token") {
+				std::string new_tok = config_manager::get_instance().generate_a2a_server_token();
+				config_manager::get_instance().set_a2a_server_token(new_tok);
+				a2a::a2a_server::get_instance().set_auth_token(new_tok);
+				active_dialog_ = create_a2a_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_settings");
+				return;
+			}
+			if (res_str == "reopen_ai_settings") {
+				active_dialog_ = create_ai_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "ai_settings");
+				return;
+			}
+			if (res_str == "reopen_a2a_settings") {
+				active_dialog_ = create_a2a_settings_dialog();
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_settings");
+				return;
+			}
 			if (res_str == "ok" || res_str == "save_global") {
+				apply_editor_settings_from_dialog(*active_dialog_);
+				apply_ai_settings_from_dialog(*active_dialog_);
+				apply_a2a_settings_from_dialog(*active_dialog_);
 				apply_settings_from_dialog(*active_dialog_);
 
 				// Handle Linux Kernel formatting style special case
