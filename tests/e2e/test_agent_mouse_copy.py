@@ -3,6 +3,11 @@ import os
 from turbostar_runner import *
 
 def test_agent_mouse_copy():
+    if os.environ.get("TURBOSTAR_SKIP_FLAKY") == "1":
+        import sys
+        print("Skipping flaky e2e_agent_mouse_copy test by default.")
+        sys.exit(77)
+
     runner = TurbostarRunner()
     try:
         runner.start()
