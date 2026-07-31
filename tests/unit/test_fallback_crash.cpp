@@ -10,6 +10,7 @@
 #include <fstream>
 #include <format>
 #include "../../src/crash_handler.h"
+#include "../../src/fs_utils.h"
 
 static void run_child_and_verify(const std::string &child_mode, const std::string &expected_signal_name, const std::string &expected_file_snippet, const std::string &argv0)
 {
@@ -64,9 +65,7 @@ static void run_child_and_verify(const std::string &child_mode, const std::strin
 
 	// Verify that the crash file was written to
 	namespace fs = std::filesystem;
-	const char *home = std::getenv("HOME");
-	std::string home_dir = home ? std::string(home) : ".";
-	fs::path test_cache_dir = fs::path(home_dir) / ".cache" / std::format("turbostar_test_cache_{}", pid);
+	fs::path test_cache_dir = fs_utils::get_global_cache_dir();
 	fs::path crash_dir = test_cache_dir / "crashes";
 
 	assert(fs::exists(crash_dir));

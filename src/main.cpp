@@ -108,7 +108,11 @@ int main(int argc, char **argv)
 	try {
 		app.parse(argc, argv);
 	} catch (const CLI::ParseError &e) {
-		return app.exit(e);
+		int res_code = app.exit(e);
+		if (res_code != 0) {
+			std::cerr << "[Turbostar] Command-line parsing failed with exit code " << res_code << std::endl;
+		}
+		return res_code;
 	}
 
 	std::string binary_name = fs::path(argv[0]).filename().string();

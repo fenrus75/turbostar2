@@ -112,7 +112,16 @@ static void cleanup_crash_file()
 		crash_fd = -1;
 	}
 	if (safe_strlen(crash_filepath) > 0) {
-		unlink(crash_filepath);
+		std::error_code ec;
+		if (std::filesystem::exists(crash_filepath, ec)) {
+			auto sz = std::filesystem::file_size(crash_filepath, ec);
+			if (sz > 0) {
+				fprintf(stderr, "\n[Turbostar] Preserving crash diagnostic log (%llu bytes): %s\n",
+					static_cast<unsigned long long>(sz), crash_filepath);
+			} else {
+				unlink(crash_filepath);
+			}
+		}
 		crash_filepath[0] = '\0';
 	}
 }
