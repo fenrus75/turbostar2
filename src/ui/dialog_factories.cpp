@@ -1319,7 +1319,7 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 
 	// --- Tab 2: Server Runtime ---
 	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
-	tab2_flow->add_child(std::make_unique<ui_textbox>("a2a_server_port", 12,
+	tab2_flow->add_child(std::make_unique<ui_textbox>("a2a_server_port", 26,
 		std::to_string(config_manager::get_instance().get_a2a_server_port()), nullptr, "Server Port: "));
 	auto runtime_grp = std::make_unique<ui_checkbox_group>("runtime_grp");
 	runtime_grp->add_child(std::make_unique<ui_checkbox>("git_worktree_mode", "Pre-seed Task Workspaces with Git Worktrees", 'W', true));
