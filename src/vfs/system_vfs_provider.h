@@ -8,12 +8,12 @@
 
 namespace turbostar {
 
-using vfs_generator_fn = std::function<std::string()>;
+using vfs_generator_fn = std::function<std::string(const std::string &query)>;
 
 /**
  * @brief VFS provider for the system:// scheme.
  * Serves embedded static markdown documents (e.g. system://languages/cpp23.md)
- * and dynamic runtime generators (e.g. system://agents.md, system://tools.md, system://mcp.md).
+ * and dynamic runtime generators (e.g. system://agents.md, system://tools.md, system://tools_detailed.md, system://mcp.md).
  */
 class system_vfs_provider : public agentlib::vfs_provider
 {
@@ -32,7 +32,7 @@ class system_vfs_provider : public agentlib::vfs_provider
 	void register_generator(const std::string &path, vfs_generator_fn generator);
 
       private:
-	std::string resolve_path(const std::string &uri) const;
+	std::string resolve_path(const std::string &uri, std::string *out_query = nullptr) const;
 
 	/*
 	 * generators_mutex_ protects the generators_ map from concurrent registration or invocation.

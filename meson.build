@@ -539,14 +539,6 @@ test_list_skills = executable('test_list_skills',
   include_directories: inc)
 test('unit_test_list_skills', test_list_skills, suite: 'agent')
 
-test_list_tool_calls = executable('test_list_tool_calls',
-  ['tests/unit/test_list_tool_calls.cpp',
-   'src/tools/list_tool_calls/list_tool_calls_entry.cpp',
-   'src/tools/list_tool_calls/list_tool_calls_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_list_tool_calls', test_list_tool_calls, suite: 'agent')
-
 test_send_message = executable('test_send_message',
   ['tests/unit/test_send_message.cpp',
    'src/tools/send_message/send_message_entry.cpp',

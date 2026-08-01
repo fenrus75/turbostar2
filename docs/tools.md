@@ -256,11 +256,10 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
 
-### `list_tool_calls`
-*   **Description:** Lists all available LLM tools and their descriptions as a Markdown table. Allows filtering and listing parameter schemas.
-*   **Arguments:**
-    *   `search` *(string, optional)*: Optional. A case-insensitive substring pattern to filter tools by name.
-    *   `show_details` *(boolean, optional)*: Optional. If true, outputs detailed information for each tool's parameters (types, descriptions, and required status). Default is false.
+### Tool & Schema Discovery via `system://` VFS
+Tool discovery and parameter schema inspection are performed via the Virtual Filesystem (`system://`) scheme rather than extra function calls:
+*   `system://tools.md` (or `system://tools.md?search=pattern`): Reads a Markdown table summarizing all active tools (`| Tool Name | Description |`).
+*   `system://tools_detailed.md` (or `system://tools/details.md`): Reads full parameter schemas (types, descriptions, required fields) for deep inspection.
 
 ### `run_python`
 *   **Description:** Executes Python code in a sandboxed environment.

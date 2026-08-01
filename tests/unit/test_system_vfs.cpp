@@ -1,10 +1,34 @@
 #include "test_watchdog.h"
 #include "agentlib/virtual_file_system.h"
+#include "agentlib/tool_registry.h"
 #include "vfs/system_vfs_provider.h"
 #include <cassert>
 #include <iostream>
 
 using namespace agentlib;
+
+class test_system_vfs_validator : public tool_validator {
+public:
+	std::string get_name() const override { return "fs_read_lines"; }
+	std::string get_description() const override { return "Reads lines from a file"; }
+	nlohmann::json get_parameters_schema() const override {
+		return {
+			{"type", "object"},
+			{"properties", {
+				{"path", {{"type", "string"}, {"description", "Path to file"}}}
+			}},
+			{"required", nlohmann::json::array({"path"})}
+		};
+	}
+	bool validate_args_impl(const nlohmann::json &, const tool_context &, std::string &) const override {
+		return true;
+	}
+	std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json &) const override {
+		return nullptr;
+	}
+};
+
+REGISTER_TOOL(test_system_vfs_validator)
 
 int main()
 {
@@ -43,6 +67,8 @@ int main()
 	// 3. Test dynamic generators
 	assert(vfs.exists("system://agents.md"));
 	assert(vfs.exists("system://tools.md"));
+	assert(vfs.exists("system://tools_detailed.md"));
+	assert(vfs.exists("system://tools/details.md"));
 	assert(vfs.exists("system://mcp.md"));
 
 	auto agents_doc = vfs.read_file("system://agents.md");
@@ -55,6 +81,21 @@ int main()
 	assert(tools_doc.has_value());
 	std::string tools_text = std::string((*tools_doc)->view());
 	assert(tools_text.find("# Registered System Tools") != std::string::npos);
+
+	auto tools_detailed_doc = vfs.read_file("system://tools_detailed.md");
+	assert(tools_detailed_doc.has_value());
+	std::string tools_detailed_text = std::string((*tools_detailed_doc)->view());
+	assert(tools_detailed_text.find("# Detailed System Tool Schemas") != std::string::npos);
+	assert(tools_detailed_text.find("* **Description:**") != std::string::npos);
+
+	auto tools_alias_doc = vfs.read_file("system://tools/details.md");
+	assert(tools_alias_doc.has_value());
+	assert(std::string((*tools_alias_doc)->view()) == tools_detailed_text);
+
+	auto tools_search_doc = vfs.read_file("system://tools.md?search=fs_read_lines");
+	assert(tools_search_doc.has_value());
+	std::string search_text = std::string((*tools_search_doc)->view());
+	assert(search_text.find("fs_read_lines") != std::string::npos);
 
 	// 4. Test directory listing
 	auto root_list = vfs.list_directory("system://");

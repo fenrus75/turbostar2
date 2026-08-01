@@ -4,8 +4,12 @@
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -14,7 +18,7 @@ namespace turbostar {
 system_vfs_provider::system_vfs_provider()
 {
 	// 1. Dynamic Generator: system://agents.md
-	register_generator("agents.md", []() -> std::string {
+	register_generator("agents.md", [](const std::string &) -> std::string {
 		auto &sm = agentlib::subagent_manager::get_instance();
 		auto agents = sm.get_subagents();
 		std::string out = "# Available Subagents\n\n";
@@ -26,23 +30,112 @@ system_vfs_provider::system_vfs_provider()
 		return out;
 	});
 
-	// 2. Dynamic Generator: system://tools.md
-	register_generator("tools.md", []() -> std::string {
-		auto &tr = agentlib::tool_registry::get_instance();
-		auto tools = tr.get_active_tools();
-		std::string out = "# Registered System Tools\n\n";
-		out += "| Tool Name | Description |\n";
-		out += "| :--- | :--- |\n";
-		for (const auto &t : tools) {
-			if (t) {
-				out += "| `" + t->get_name() + "` | " + t->get_description() + " |\n";
+	// 2. Dynamic Generator: system://tools.md (Summary Table)
+	register_generator("tools.md", [](const std::string &query) -> std::string {
+		auto tools_json = agentlib::tool_registry::get_instance().get_tools_json();
+		std::string search = query;
+		if (search.starts_with("search=")) {
+			search = search.substr(7);
+		}
+		std::string search_lower = search;
+		std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+		std::ostringstream oss;
+		oss << "# Registered System Tools\n\n";
+		oss << "| Tool Name | Description |\n";
+		oss << "| :--- | :--- |\n";
+
+		for (const auto &tool_node : tools_json) {
+			if (tool_node.contains("function")) {
+				auto func = tool_node["function"];
+				std::string name = func.value("name", "unknown");
+				std::string desc = func.value("description", "");
+
+				if (!search_lower.empty()) {
+					std::string name_lower = name;
+					std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+					if (name_lower.find(search_lower) == std::string::npos) {
+						continue;
+					}
+				}
+
+				for (char &c : desc) {
+					if (c == '\n' || c == '\r') c = ' ';
+					else if (c == '|') c = '/';
+				}
+
+				oss << "| `" << name << "` | " << desc << " |\n";
 			}
 		}
-		return out;
+		return oss.str();
 	});
 
-	// 3. Dynamic Generator: system://mcp.md
-	register_generator("mcp.md", []() -> std::string {
+	// 3. Dynamic Generator: system://tools_detailed.md (Full Parameter Schema Inspection)
+	register_generator("tools_detailed.md", [](const std::string &query) -> std::string {
+		auto tools_json = agentlib::tool_registry::get_instance().get_tools_json();
+		std::string search = query;
+		if (search.starts_with("search=")) {
+			search = search.substr(7);
+		}
+		std::string search_lower = search;
+		std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+		std::ostringstream oss;
+		oss << "# Detailed System Tool Schemas\n\n";
+
+		for (const auto &tool_node : tools_json) {
+			if (tool_node.contains("function")) {
+				auto func = tool_node["function"];
+				std::string name = func.value("name", "unknown");
+				std::string desc = func.value("description", "");
+
+				if (!search_lower.empty()) {
+					std::string name_lower = name;
+					std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+					if (name_lower.find(search_lower) == std::string::npos) {
+						continue;
+					}
+				}
+
+				for (char &c : desc) {
+					if (c == '\n' || c == '\r') c = ' ';
+				}
+
+				oss << "### `" << name << "`\n";
+				oss << "* **Description:** " << desc << "\n";
+				if (func.contains("parameters") && func["parameters"].contains("properties") && func["parameters"]["properties"].is_object()) {
+					oss << "* **Arguments:**\n";
+					auto props = func["parameters"]["properties"];
+					nlohmann::json req_array = nlohmann::json::array();
+					if (func["parameters"].contains("required") && func["parameters"]["required"].is_array()) {
+						req_array = func["parameters"]["required"];
+					}
+					for (auto it = props.begin(); it != props.end(); ++it) {
+						std::string param_name = it.key();
+						auto param_info = it.value();
+						std::string p_type = param_info.value("type", "unknown");
+						std::string p_desc = param_info.value("description", "");
+						bool is_required = false;
+						for (const auto &req_item : req_array) {
+							if (req_item == param_name) {
+								is_required = true;
+								break;
+							}
+						}
+						std::string req_str = is_required ? "required" : "optional";
+						oss << "    * `" << param_name << "` *(" << p_type << ", " << req_str << ")*: " << p_desc << "\n";
+					}
+				} else {
+					oss << "* **Arguments:** None\n";
+				}
+				oss << "\n";
+			}
+		}
+		return oss.str();
+	});
+
+	// 4. Dynamic Generator: system://mcp.md
+	register_generator("mcp.md", [](const std::string &) -> std::string {
 		auto &mcp = agentlib::mcp_manager::get_instance();
 		auto servers = mcp.get_servers();
 		std::string out = "# Configured MCP Servers\n\n";
@@ -57,7 +150,7 @@ system_vfs_provider::system_vfs_provider()
 	});
 }
 
-std::string system_vfs_provider::resolve_path(const std::string &uri) const
+std::string system_vfs_provider::resolve_path(const std::string &uri, std::string *out_query) const
 {
 	std::string path = uri;
 
@@ -71,6 +164,17 @@ std::string system_vfs_provider::resolve_path(const std::string &uri) const
 	// Strip leading slashes
 	while (path.starts_with("/")) {
 		path = path.substr(1);
+	}
+
+	// Extract query string if present (e.g. system://tools.md?search=git)
+	size_t qpos = path.find('?');
+	if (qpos != std::string::npos) {
+		if (out_query) {
+			*out_query = path.substr(qpos + 1);
+		}
+		path = path.substr(0, qpos);
+	} else if (out_query) {
+		out_query->clear();
 	}
 
 	// Fallback alias resolution for root accesses
@@ -100,6 +204,9 @@ std::string system_vfs_provider::resolve_path(const std::string &uri) const
 	}
 	if (path == "crash_analysis.md") {
 		return "workflows/crash_analysis.md";
+	}
+	if (path == "tools_detailed.md" || path == "tools/details.md" || path == "tools_detail.md") {
+		return "tools_detailed.md";
 	}
 
 	return path;
@@ -133,14 +240,15 @@ bool system_vfs_provider::exists(const std::string &uri) const
 
 std::optional<agentlib::vfs_file_handle> system_vfs_provider::read_file(const std::string &uri)
 {
-	std::string path = resolve_path(uri);
+	std::string query;
+	std::string path = resolve_path(uri, &query);
 
 	// Check dynamic generators first
 	{
 		std::lock_guard<std::mutex> lock(generators_mutex_);
 		auto it = generators_.find(path);
 		if (it != generators_.end() && it->second) {
-			std::string gen_content = it->second();
+			std::string gen_content = it->second(query);
 			return std::make_shared<agentlib::string_content_buffer>(std::move(gen_content));
 		}
 	}
