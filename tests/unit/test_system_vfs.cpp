@@ -28,7 +28,7 @@ int main()
 	assert(cpp_doc.has_value());
 	std::string cpp_text = std::string((*cpp_doc)->view());
 	std::cout << "[system://languages/cpp23.md content snippet]:\n" << cpp_text.substr(0, 100) << "...\n" << std::endl;
-	assert(cpp_text.find("Modern C++23 Coding Guidelines") != std::string::npos);
+	assert(cpp_text.find("C++23 Development Guidelines") != std::string::npos);
 
 	// 2. Test fallback alias URIs
 	assert(vfs.exists("system://cpp23.md"));

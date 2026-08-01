@@ -310,7 +310,7 @@ int main()
 #ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
 #endif
-	test_watchdog::setup_watchdog(30, true, false);
+	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();
 	test_perform_code_review_splitting();

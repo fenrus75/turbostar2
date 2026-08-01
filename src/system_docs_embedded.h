@@ -52,46 +52,89 @@ Determine the correct location in the codebase for the fix based on Step 2.
 - **Read-Only Exploration**: While in plan mode, only read-only tools (and scratch `tmp://` writes) are available.
 - **Plan Presentation**: Formulate a clear, step-by-step plan, present it to the user, and call `exit_plan_mode` to begin implementation.
 )raw_embed"},
-        {"languages/c17.md", R"raw_embed(# C17 / C11 Coding Guidelines
+        {"languages/c17.md", R"raw_embed(# C17 Development Guidelines
 
-## Core Principles
-- **Standard Version**: Prefer ISO C17 / C11 standards (`-std=c17`).
-- **Memory Safety**: Check return values of `malloc`, `calloc`, and `realloc`. Always `free` dynamically allocated memory.
-- **Pointer Safety**: Check pointers for NULL before dereferencing. Avoid buffer overflows by using bounded string functions (`snprintf`, `strncpy`, `strncat`).
-- **Header Guards**: Use `#ifndef FILENAME_H` / `#define FILENAME_H` or `#pragma once`.
+## Code Conventions
+- **Language Standard**: ISO C17 (`-std=c17`).
+- **Include Guards**: Prefer `#pragma once` or standard `#ifndef` include guards for header files.
+- **Const Correctness**: Use `const` for read-only pointer arguments (`const char *`, `const uint8_t *`).
+- **Memory Management**: Check return values of `malloc`, `calloc`, and `realloc`. Ensure every allocated resource is freed and pointers cleared (`ptr = NULL`). Note that `free(NULL)` is valid, so avoid unnecessary `if (ptr) free(ptr)` wrappers.
+- **Initialization**: Always initialize variables and struct instances (e.g. `{0}` or `memset`) prior to use.
+- **File Organization**: Place each module/component in a dedicated `.c` file and matching `.h` header in the same directory.
+
+## Security Considerations
+- **Security-First Mindset**: Adopt a security-first mindset across all generated code.
+- **Untrusted Input**: Clearly label variables and parameters holding untrusted (user/network) data in comments.
+- **Early Validation**: Sanity-check and validate all untrusted input as early as possible.
+- **Bounds Checking**: Verify all buffer and array accesses against underflows and overflows.
+- **Buffer Size Parameters**: Always pass explicit buffer size parameters (`size_t buf_size`) alongside pointer arguments. Avoid unsafe string functions (`strcpy`, `sprintf`); use bounded alternatives (`snprintf`, `strncpy`).
+
+## Code Commenting Conventions
+- **Intent over Logic**: Focus comments on rationale (the "why") and design goals rather than restating code logic.
+- **Ownership & Constraints**: Document pointer ownership, memory lifecycles, thread-safety expectations, and function constraints.
+- **Mutex Declarations**: Precede every mutex declaration in header files with a comment block explaining:
+  1. What specific data or resources the mutex protects.
+  2. Locking rules, lifecycle, or ordering guidelines.
 )raw_embed"},
-        {"languages/cpp23.md", R"raw_embed(# Modern C++23 Coding Guidelines
+        {"languages/cpp23.md", R"raw_embed(# C++23 Development Guidelines
 
-## Core Principles
-- **Standard Version**: TurboStar uses C++23. Use modern language features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings) whenever appropriate.
-- **Memory & Resource Management**: Follow RAII strictly. Avoid raw `new` and `delete`; favor `std::make_unique` and `std::make_shared`.
-- **String & Sequence Parameters**: Prefer `std::string_view` for read-only string parameters over `const std::string &`. Prefer `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary allocations.
-- **Formatting**: Prefer `std::format` over raw C string concatenations or `sprintf`.
-- **Include Paths**: All `#include ""` directives must be relative to the `src/` directory (e.g., `#include "fs_utils.h"` instead of relative `../../` paths).
-- **Include Guards**: Use `#pragma once` for all header files.
+## Code Conventions
+- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings).
+- **Include Guards**: Prefer `#pragma once`.
+- **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`.
+- **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.
+- **Standard Library**: Prefer C++ Standard Library containers and algorithms over custom implementations.
+- **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory. All `#include ""` directives should be relative to `src/`.
+- **Constexpr & Qualifiers**: Label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` when appropriate.
 
-## Concurrency & Mutexes
-- **Mutex Documentation**: When declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining:
-  1. What specific member data or resources the mutex protects.
-  2. The general locking rules, lifecycle, or ordering guidelines associated with it.
+## Security Considerations
+- **Security-First Mindset**: Adopt a security-first mindset across all generated code.
+- **Untrusted Input**: Clearly label variables and parameters holding untrusted (user/network) data in comments.
+- **Early Validation**: Sanity-check and validate all untrusted input as early as possible.
+- **Bounds Checking**: Verify all buffer and array accesses against underflows and overflows.
+
+## Code Commenting Conventions
+- **Intent over Logic**: Focus comments on rationale (the "why") and design goals rather than restating code logic.
+- **Ownership & Constraints**: Document ownership, thread-safety expectations, and function constraints.
+- **Mutex Declarations**: Precede every mutex declaration in header files with a comment block explaining:
+  1. What specific data or resources the mutex protects.
+  2. Locking rules, lifecycle, or ordering guidelines.
+- **Subclass Header Documentation**: When creating a base class or adding a subclass, include or update a comment block table directly above the parent class definition detailing all derived subclasses and their file locations:
+```cpp
+/*
+
+# subclasses of <parent class>
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| <subclass 1> | <project relative path to the header for subclass 1> |
+
+*/
+```
 
 ## Unit Test Guidelines
 - **Test Isolation**: Every unit test MUST isolate the `HOME` environment variable to a temporary directory to prevent race conditions during parallel test execution. Call `test_watchdog::setup_watchdog()` at the start of `main()`.
 )raw_embed"},
-        {"languages/python311.md", R"raw_embed(# Python 3.11 Coding Guidelines
+        {"languages/python311.md", R"raw_embed(# Python 3.11 Development Guidelines
 
-## Core Principles
-- **Language Version**: Python 3.11+. Use modern type hinting (`type_a | type_b`, `list[str]`, `dict[str, int]`).
-- **Security Validation**: Code executed or created must pass `bandit` security checks (no `shell=True` in subprocess calls, no unvalidated `eval()`).
+## Code Conventions
+- **Language Standard**: Python 3.11+.
+- **Style Guide**: Follow PEP8 style guide and naming conventions.
+- **Type Annotations**: Consistently add PEP 484 type annotations (`type_a | type_b`, `list[str]`, `dict[str, int]`) to all function arguments, return values, and variable declarations.
 - **Virtual Environments**: Prefer running Python scripts within isolated environments or VFS `tmp://` scratch spaces.
-)raw_embed"},
-        {"languages/rust2021.md", R"raw_embed(# Rust 2021 Edition Guidelines
 
-## Core Principles
-- **Edition**: Use Rust 2021 Edition.
-- **Ownership & Borrowing**: Prefer explicit lifetime annotations, immutable borrows (`&T`), and RAII pattern (`Drop`).
-- **Error Handling**: Use `Result<T, E>` and `Option<T>` with `?` operator instead of `panic!` or `unwrap()` in library code.
-- **Safety**: Avoid `unsafe` blocks unless interfacing directly with foreign C APIs, and document all safety invariants.
+## Security Considerations
+- **Security Validation**: Code executed or created must pass `bandit` security checks (no `shell=True` in subprocess calls, no unvalidated `eval()` or `exec()`).
+- **Input Sanitization**: Validate all external paths, user input strings, and API payloads before processing.
+)raw_embed"},
+        {"languages/rust2021.md", R"raw_embed(# Rust 2021 Development Guidelines
+
+## Code Conventions
+- **Language Edition**: Rust 2021 Edition.
+- **Ownership & Borrowing**: Follow Rust ownership, borrowing, and lifetime rules strictly. Prefer immutable borrows (`&T`) and RAII (`Drop`).
+- **Error Handling**: Use `Result<T, E>` and `Option<T>` with `?` operator propagation. Avoid `panic!` or `unwrap()` in library code.
+- **Safety**: Avoid `unsafe` blocks unless interfacing directly with C FFI or OS primitives. Document all safety invariants with `# Safety` comments.
+- **Documentation**: Document all public types, traits, and functions with doc comments (`///`).
 )raw_embed"},
         {"languages/typescript.md", R"raw_embed(# TypeScript / JavaScript Guidelines
 
