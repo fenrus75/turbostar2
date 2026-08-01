@@ -224,6 +224,16 @@ if __name__ == "__main__":
 	config_manager::get_instance().load();
 	assert(config_manager::get_instance().is_mcp_server_enabled("project-local", false) == true);
 
+	// Test disabling a system server and saving to project config
+	auto s_system_test = manager.find_server("everything-system");
+	if (s_system_test) {
+		s_system_test->set_enabled(false);
+		config_manager::get_instance().set_mcp_server_enabled("everything-system", false, false);
+		manager.save_configs(temp_proj.string());
+		config_manager::get_instance().load();
+		assert(config_manager::get_instance().is_mcp_server_enabled("everything-system", false) == false);
+	}
+
 	// 6. Test Active Server Spawning & JSON-RPC Handshake / Tool Execution
 	std::cout << "Testing server start and execution..." << std::endl;
 	auto s_mock = manager.find_server("mock-python-server");

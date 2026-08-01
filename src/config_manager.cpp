@@ -240,7 +240,7 @@ void config_manager::load_from_file(const std::string &path)
 		} else if (key == "main_executable") {
 			main_executable_ = value;
 		} else if (key == "github_access_token") {
-			bool is_project = (path.find(".turbostar") == std::string::npos);
+			bool is_project = (path != get_config_file_path());
 			if (!is_project || !value.empty()) {
 				github_access_token_ = value;
 			}
@@ -261,7 +261,7 @@ void config_manager::load_from_file(const std::string &path)
 			} catch (...) {
 			}
 		} else if (key.starts_with("family.")) {
-			bool is_project = (path.find(".turbostar") == std::string::npos);
+			bool is_project = (path != get_config_file_path());
 			size_t dot1 = 7; // length of "family."
 			size_t dot2 = key.find('.', dot1);
 			if (dot2 != std::string::npos) {
@@ -276,7 +276,7 @@ void config_manager::load_from_file(const std::string &path)
 				}
 			}
 		} else if (key.starts_with("mcp.")) {
-			bool is_project = (path.find(".turbostar") == std::string::npos);
+			bool is_project = (path != get_config_file_path());
 			size_t dot1 = 4; // length of "mcp."
 			size_t dot2 = key.find('.', dot1);
 			if (dot2 != std::string::npos) {
@@ -341,7 +341,7 @@ void config_manager::save_project(const std::string &target_path)
 		return;
 	}
 
-	bool is_project = (target_path.find(".turbostar") == std::string::npos);
+	bool is_project = (target_path != get_config_file_path());
 
 	file << "# Turbostar Configuration File\n";
 	file << "clang_format_style=" << clang_format_style_ << "\n";
