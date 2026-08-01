@@ -1238,7 +1238,10 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 		int idx = mcp_ptr->get_selected_index();
 		auto servers = agentlib::mcp_manager::get_instance().get_servers();
 		if (idx >= 0 && idx < (int)servers.size()) {
-			servers[idx]->set_enabled(!servers[idx]->is_enabled());
+			bool new_state = !servers[idx]->is_enabled();
+			servers[idx]->set_enabled(new_state);
+			config_manager::get_instance().set_mcp_server_enabled(
+				servers[idx]->get_name(), servers[idx]->is_system(), new_state);
 			std::vector<std::string> updated_names;
 			for (const auto &srv : servers) {
 				updated_names.push_back(srv->get_name() + (srv->is_enabled() ? " [Enabled]" : " [Disabled]"));
@@ -1290,6 +1293,10 @@ void apply_ai_settings_from_dialog(const dialog &dlg)
 		if (model_val) {
 			cfg.set_task_model_id(id, *model_val);
 		}
+	}
+
+	for (const auto &srv : agentlib::mcp_manager::get_instance().get_servers()) {
+		cfg.set_mcp_server_enabled(srv->get_name(), srv->is_system(), srv->is_enabled());
 	}
 }
 
