@@ -315,8 +315,6 @@ void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool 
 			if (cfg.is_mcp_server_enabled(name, false, true) == false) {
 				enabled = false;
 			}
-			event_logger::get_instance().log("[DIAG] mcp_manager discovery: server '{}', is_system={}, default_enabled={}, resolved_enabled={}",
-				name, is_system, default_enabled, enabled);
 			server->set_enabled(enabled);
 
 			auto existing = find_server_unlocked(name);

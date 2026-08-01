@@ -284,7 +284,6 @@ void config_manager::load_from_file(const std::string &path)
 				std::string subkey = key.substr(dot2 + 1);
 				if (subkey == "enabled") {
 					bool val_bool = (value == "true" || value == "1");
-					event_logger::get_instance().log("[DIAG] load_from_file (is_project={}): parsed mcp.{}.enabled={}", is_project, server_name, val_bool);
 					if (is_project) {
 						project_mcp_servers_enabled_[server_name] = val_bool;
 					} else {
@@ -374,10 +373,7 @@ void config_manager::save_project(const std::string &target_path)
 	}
 
 	if (is_project) {
-		event_logger::get_instance().log("[DIAG] save_project: Writing {} project MCP server entries to {}",
-			project_mcp_servers_enabled_.size(), path);
 		for (const auto &[server, enabled] : project_mcp_servers_enabled_) {
-			event_logger::get_instance().log("[DIAG] save_project writing: mcp.{}.enabled={}", server, enabled);
 			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
 		}
 		for (const auto &[server, text] : project_mcp_servers_when_to_activate_) {
@@ -397,10 +393,7 @@ void config_manager::save_project(const std::string &target_path)
 			file << "family." << family << ".enabled=" << (enabled ? "true" : "false") << "\n";
 		}
 	} else {
-		event_logger::get_instance().log("[DIAG] save_project: Writing {} global MCP server entries to {}",
-			mcp_servers_enabled_.size(), path);
 		for (const auto &[server, enabled] : mcp_servers_enabled_) {
-			event_logger::get_instance().log("[DIAG] save_project writing global: mcp.{}.enabled={}", server, enabled);
 			file << "mcp." << server << ".enabled=" << (enabled ? "true" : "false") << "\n";
 		}
 		for (const auto &[server, text] : mcp_servers_when_to_activate_) {
