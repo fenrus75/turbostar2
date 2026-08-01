@@ -93,12 +93,27 @@ int main()
 			assert(root_res.find("languages | D |") != std::string::npos);
 			assert(root_res.find("workflows | D |") != std::string::npos);
 			assert(root_res.find("tools.md | F |") != std::string::npos);
+			// Verify non-zero size for tools.md in listing
+			assert(root_res.find("tools.md | F | 0 | 0 |") == std::string::npos);
 
 			std::string args = "{\"path\": \"system://languages/\", \"rich_metadata\": true}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "VFS Subdirectory list with rich_metadata:\n" << res << std::endl;
 			assert(res.find("cpp23.md") != std::string::npos);
 			assert(res.find("Read when writing or refactoring C++23 code.") != std::string::npos);
+
+			// Test fs_file_size on VFS path
+			std::string size_args = "{\"path\": \"system://agents.md\"}";
+			std::string size_res = registry.execute_tool("fs_file_size", size_args, ctx);
+			std::cout << "fs_file_size on system://agents.md: " << size_res << std::endl;
+			assert(size_res.find("bytes") != std::string::npos);
+			assert(size_res.find("0 bytes") == std::string::npos);
+
+			// Test fs_grep_files on VFS path
+			std::string grep_args = "{\"search_path\": \"system://\", \"pattern\": \"tools\"}";
+			std::string grep_res = registry.execute_tool("fs_grep_files", grep_args, ctx);
+			std::cout << "fs_grep_files on system:// for 'tools':\n" << grep_res << std::endl;
+			assert(grep_res.find("system://tools.md") != std::string::npos);
 		}
 
 		std::cout << "fs_list_dir tool verified successfully." << std::endl;

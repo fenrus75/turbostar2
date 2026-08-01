@@ -17,6 +17,20 @@ bool fs_file_size_tool::validate_runtime(const agentlib::tool_context & /*ctx*/,
 std::string fs_file_size_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
+		// VFS ROUTER: Check virtual file system if available
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs && (safe_path_.find("://") != std::string::npos || vfs->exists(safe_path_))) {
+			auto info = vfs->get_file_info(safe_path_);
+			if (info) {
+				if (info->type == 'D') {
+					set_failure(ctx, "Path is not a regular file");
+					return "Error: The specified path is not a regular file (it may be a directory, device, or special file)";
+				}
+				set_success(ctx, std::to_string(info->size) + " bytes");
+				return std::to_string(info->size) + " bytes";
+			}
+		}
+
 		std::error_code ec;
 
 		// SECURITY CHECK: Verify the path points to a regular file

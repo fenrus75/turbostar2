@@ -389,11 +389,23 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 	info.size = 0;
 	info.size_in_lines = 0;
 
-	const auto &docs = get_embedded_system_docs();
-	auto it = docs.find(clean_path);
-	if (it != docs.end()) {
-		info.size = it->second.size();
-		info.size_in_lines = std::count(it->second.begin(), it->second.end(), '\n') + 1;
+	{
+		std::lock_guard<std::mutex> lock(generators_mutex_);
+		auto git = generators_.find(clean_path);
+		if (git != generators_.end() && git->second) {
+			std::string gen_content = git->second("");
+			info.size = gen_content.size();
+			info.size_in_lines = std::count(gen_content.begin(), gen_content.end(), '\n') + 1;
+		}
+	}
+
+	if (info.size == 0) {
+		const auto &docs = get_embedded_system_docs();
+		auto it = docs.find(clean_path);
+		if (it != docs.end()) {
+			info.size = it->second.size();
+			info.size_in_lines = std::count(it->second.begin(), it->second.end(), '\n') + 1;
+		}
 	}
 
 	{
@@ -484,7 +496,14 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 
 	// 1. Process dynamic generator URIs
 	for (const auto &[p, fn] : generators_) {
-		process_path(p, 0, 0);
+		size_t size = 0;
+		size_t lines = 0;
+		if (fn) {
+			std::string gen_content = fn("");
+			size = gen_content.size();
+			lines = std::count(gen_content.begin(), gen_content.end(), '\n') + 1;
+		}
+		process_path(p, size, lines);
 	}
 
 	// 2. Process embedded static docs URIs

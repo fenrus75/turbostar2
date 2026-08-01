@@ -313,7 +313,103 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			}
 		};
 
-		if (fs::is_regular_file(search_path)) {
+		auto vfs = ctx.fs_security.get_vfs();
+		std::string raw_search_path = args_.safe_search_path;
+		if (raw_search_path.empty() && args_.search_path) {
+			raw_search_path = *args_.search_path;
+		}
+
+		bool is_vfs = (raw_search_path.find("://") != std::string::npos);
+		if (!is_vfs && vfs && !fs::exists(raw_search_path) && vfs->exists(raw_search_path)) {
+			is_vfs = true;
+		}
+
+		if (is_vfs && vfs) {
+			std::vector<std::string> file_uris;
+			std::function<void(const std::string &)> collect_uris = [&](const std::string &uri) {
+				auto info = vfs->get_file_info(uri);
+				if (info && info->type == 'F') {
+					file_uris.push_back(uri);
+					return;
+				}
+				auto entries = vfs->list_directory(uri);
+				for (const auto &entry : entries) {
+					if (entry.type == 'F') {
+						file_uris.push_back(entry.uri);
+					} else if (entry.type == 'D') {
+						collect_uris(entry.uri);
+					}
+				}
+			};
+
+			collect_uris(raw_search_path);
+
+			for (const auto &file_uri : file_uris) {
+				if (args_.include_ext) {
+					fs::path p(file_uri);
+					if (p.extension().string() != *args_.include_ext) {
+						continue;
+					}
+				}
+
+				auto handle = vfs->read_file(file_uri);
+				if (!handle) {
+					continue;
+				}
+
+				std::string content = std::string((*handle)->view());
+				std::vector<std::string> file_lines;
+				std::string line;
+				std::istringstream iss(content);
+				while (std::getline(iss, line)) {
+					if (!line.empty() && line.back() == '\r') {
+						line.pop_back();
+					}
+					file_lines.push_back(line);
+				}
+
+				std::vector<int> match_lines;
+				for (size_t i = 0; i < file_lines.size(); ++i) {
+					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
+						if (total_detailed_matches < args_.limit) {
+							match_lines.push_back(i + 1);
+							total_detailed_matches++;
+						} else {
+							overflow_files.insert(file_uri);
+							break;
+						}
+					}
+				}
+
+				if (!match_lines.empty()) {
+					auto &matches = detailed_matches[file_uri];
+					std::vector<std::pair<int, int>> merged_blocks;
+					for (int match_line : match_lines) {
+						int block_start = std::max(1, match_line - args_.context_lines);
+						int block_end = std::min(static_cast<int>(file_lines.size()), match_line + args_.context_lines);
+
+						if (merged_blocks.empty()) {
+							merged_blocks.push_back({block_start, block_end});
+						} else {
+							auto &last_block = merged_blocks.back();
+							if (block_start <= last_block.second + 1) {
+								last_block.second = std::max(last_block.second, block_end);
+							} else {
+								merged_blocks.push_back({block_start, block_end});
+							}
+						}
+					}
+
+					for (const auto &block : merged_blocks) {
+						std::stringstream block_ss;
+						for (int i = block.first; i <= block.second; ++i) {
+							block_ss << i << ": " << file_lines[i - 1] << "\n";
+						}
+						matches.push_back({block.first, block_ss.str()});
+					}
+				}
+			}
+		} else if (fs::is_regular_file(search_path)) {
 			process_file(search_path);
 		} else {
 			for (auto it = fs::recursive_directory_iterator(search_path, fs::directory_options::skip_permission_denied);
