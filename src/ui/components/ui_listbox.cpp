@@ -58,10 +58,11 @@ void ui_listbox::draw(int abs_x, int abs_y) const
 				display_text = display_text.substr(0, width_);
 			}
 
-			if (item_idx == selected_index_ && has_focus_) {
-				attron(COLOR_PAIR(8));
+			if (item_idx == selected_index_) {
+				int pair = has_focus_ ? 8 : 17;
+				attron(COLOR_PAIR(pair));
 				mvprintw(start_y + i, start_x, "%s", display_text.c_str());
-				attroff(COLOR_PAIR(8));
+				attroff(COLOR_PAIR(pair));
 			} else {
 				attron(COLOR_PAIR(12));
 				mvprintw(start_y + i, start_x, "%s", display_text.c_str());
