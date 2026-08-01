@@ -47,6 +47,11 @@ self_agent_h = custom_target('self_agent.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'self_agent_md']
 )
 
+system_docs_embedded_h = custom_target('system_docs_embedded.h',
+  output : 'system_docs_embedded.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_system_docs.py'), join_paths(meson.project_source_root(), 'system'), '@OUTPUT@']
+)
+
 httplib_dep = dependency('cpp-httplib', required : true)
 curl_dep = dependency('libcurl', required : true)
 openssl_dep = dependency('openssl', required : true)
@@ -1036,6 +1041,12 @@ test_primary_language_setting = executable('test_primary_language_setting',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_primary_language_setting', test_primary_language_setting, suite: 'agent')
+
+test_system_vfs = executable('test_system_vfs',
+  ['tests/unit/test_system_vfs.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_system_vfs', test_system_vfs, suite: 'agent')
 
 test_fallback_crash = executable('test_fallback_crash',
   ['tests/unit/test_fallback_crash.cpp', 'src/crash_handler.cpp', git_version_h],

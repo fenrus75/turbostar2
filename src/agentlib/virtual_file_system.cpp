@@ -1,3 +1,4 @@
+#include "vfs/system_vfs_provider.h"
 #include "virtual_file_system.h"
 #include "images/image_manager.h"
 #include "fs_utils.h"
@@ -221,6 +222,9 @@ virtual_file_system::virtual_file_system()
 
 	auto images_prov = std::make_shared<images_vfs_provider>();
 	register_provider("images", images_prov);
+
+	auto system_prov = std::make_shared<turbostar::system_vfs_provider>();
+	register_provider("system", system_prov);
 }
 
 bool virtual_file_system::mount_file(const std::string &uri, const std::string &disk_path)

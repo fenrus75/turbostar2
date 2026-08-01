@@ -70,6 +70,7 @@ agentlib_sources = files(
   'agentlib/replay_transport.cpp',
   'agentlib/file_security_manager.cpp',
   'agentlib/virtual_file_system.cpp',
+  'vfs/system_vfs_provider.cpp',
   'agentlib/interactions/action.cpp',
   'agentlib/interactions/image_tool.cpp',
   'agentlib/interactions/base.cpp',

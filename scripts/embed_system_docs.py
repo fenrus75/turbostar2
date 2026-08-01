@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: embed_system_docs.py <system_dir> <output_header>")
+        sys.exit(1)
+
+    system_dir = os.path.abspath(sys.argv[1])
+    output_header = os.path.abspath(sys.argv[2])
+
+    os.makedirs(os.path.dirname(output_header), exist_ok=True)
+
+    entries = []
+    for root, _, files in os.walk(system_dir):
+        for file in sorted(files):
+            if file.endswith(".md"):
+                abs_path = os.path.join(root, file)
+                rel_path = os.path.relpath(abs_path, system_dir)
+                with open(abs_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                entries.append((rel_path, content))
+
+    with open(output_header, "w", encoding="utf-8") as f:
+        f.write("#pragma once\n")
+        f.write("#include <unordered_map>\n")
+        f.write("#include <string>\n")
+        f.write("#include <string_view>\n\n")
+        f.write("namespace turbostar {\n\n")
+        f.write("inline const std::unordered_map<std::string, std::string_view> &get_embedded_system_docs()\n{\n")
+        f.write("    static const std::unordered_map<std::string, std::string_view> docs = {\n")
+        for rel_path, content in entries:
+            f.write(f'        {{"{rel_path}", R"raw_embed({content})raw_embed"}},\n')
+        f.write("    };\n")
+        f.write("    return docs;\n")
+        f.write("}\n\n")
+        f.write("} // namespace turbostar\n")
+
+if __name__ == "__main__":
+    main()

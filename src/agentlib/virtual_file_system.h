@@ -111,6 +111,7 @@ using vfs_write_handle = std::unique_ptr<vfs_writer>;
 | github_vfs_provider | src/agentlib/virtual_file_system.h |
 | file_vfs_provider   | src/agentlib/virtual_file_system.h |
 | images_vfs_provider | src/agentlib/virtual_file_system.h |
+| system_vfs_provider | src/vfs/system_vfs_provider.h      |
 
 */
 

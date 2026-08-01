@@ -50,6 +50,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "| Prefix | Description |\n"
 	    "| :--- | :--- |\n"
 	    "| `skills://` | Access custom tools, metadata, and specialized rule catalogs configured for the agent. |\n"
+	    "| `system://` | Read system guidelines, dynamic subagent/tool/MCP indexes, and workflow pointers (e.g. `system://agents.md`, `system://languages/cpp23.md`). |\n"
 	    "| `agent://` | Read internal session data, completion reports, and local agent workspace files. |\n"
 	    "| `tmp://` | Scratch directory for the agent to store temporary files, diagnostic dumps, and intermediate run data to avoid cluttering the main project. |\n"
 	    "| `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., "
@@ -79,6 +80,24 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	system_prompt += "\n\n*** DIRECTIVE: SUBAGENTS ***\n"
 	                 "For complex, specialized, or concurrent sub-tasks, you should consider creating helper subagents using the `invoke_subagent` tool.\n"
 	                 "You can find the list of pre-configured subagent profiles (such as 'research', 'self') in the `subagent_name` parameter description of the `invoke_subagent` tool.\n";
+
+	// Auto-inject Primary Language System Guidelines from system:// VFS
+	std::string prim_lang = config_manager::get_instance().get_primary_language();
+	std::string vfs_lang_uri = "";
+	if (prim_lang == "C++" || prim_lang == "cpp") {
+		vfs_lang_uri = "system://languages/cpp23.md";
+	} else if (prim_lang == "Python" || prim_lang == "py") {
+		vfs_lang_uri = "system://languages/python311.md";
+	}
+
+	if (!vfs_lang_uri.empty()) {
+		agentlib::virtual_file_system vfs;
+		auto lang_doc = vfs.read_file(vfs_lang_uri);
+		if (lang_doc.has_value()) {
+			system_prompt += "\n\n*** PRIMARY LANGUAGE GUIDELINES (" + prim_lang + ") ***\n";
+			system_prompt += std::string((*lang_doc)->view());
+		}
+	}
 
 	agent_->inject_context("system", system_prompt);
 
