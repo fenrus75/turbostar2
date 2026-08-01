@@ -1132,13 +1132,15 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	// --- Tab 1: General AI ---
 	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
-	auto model_row = std::make_unique<ui_horizontal_flow>("model_row", 0, 0);
-	model_row->add_child(std::make_unique<ui_textbox>("default_model_id", 24, config_manager::get_instance().get_default_model_id(), nullptr, "Model ID:  "));
-	model_row->add_child(std::make_unique<ui_button>("btn_select_model", "Browse...", 'B', [d = dlg.get()]() {
+	tab1_flow->add_child(std::make_unique<ui_textbox>("default_model_id", 38,
+		config_manager::get_instance().get_default_model_id(), nullptr, "Default model: "));
+
+	auto model_btns = std::make_unique<ui_buttons_horizontal>("model_btns");
+	model_btns->add_child(std::make_unique<ui_button>("btn_select_model", "Browse...", 'B', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("select_model");
 	}));
-	tab1_flow->add_child(std::move(model_row));
+	tab1_flow->add_child(std::move(model_btns));
 
 	auto ai_grp = std::make_unique<ui_checkbox_group>("ai_grp");
 	ai_grp->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g', config_manager::get_instance().is_log_all_tool_calls()));
