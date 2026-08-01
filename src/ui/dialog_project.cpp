@@ -566,6 +566,8 @@ bool apply_new_project_from_dialog(const dialog &dlg, std::string &out_error)
 	bool ok = turbostar::project_template_manager::get_instance().create_project(opts, out_error);
 	if (ok) {
 		config_manager::get_instance().set_build_system(opts.buildsystem);
+		config_manager::get_instance().set_primary_language(opts.language);
+		config_manager::get_instance().set_primary_language_version(opts.language_standard);
 
 		std::string cache_root = fs_utils::get_project_cache_root();
 		if (!cache_root.empty()) {

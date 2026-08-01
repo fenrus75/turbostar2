@@ -239,6 +239,10 @@ void config_manager::load_from_file(const std::string &path)
 			shell_display_access_ = (value == "true" || value == "1");
 		} else if (key == "main_executable") {
 			main_executable_ = value;
+		} else if (key == "primary_language") {
+			primary_language_ = value;
+		} else if (key == "primary_language_version") {
+			primary_language_version_ = value;
 		} else if (key == "github_access_token") {
 			bool is_project = (path != get_config_file_path());
 			if (!is_project || !value.empty()) {
@@ -357,6 +361,8 @@ void config_manager::save_project(const std::string &target_path)
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";
 	file << "shell_display_access=" << (shell_display_access_ ? "true" : "false") << "\n";
 	file << "main_executable=" << main_executable_ << "\n";
+	file << "primary_language=" << primary_language_ << "\n";
+	file << "primary_language_version=" << primary_language_version_ << "\n";
 	if (!is_project) {
 		file << "github_access_token=" << github_access_token_ << "\n";
 	}

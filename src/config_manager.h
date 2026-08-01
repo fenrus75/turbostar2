@@ -147,6 +147,24 @@ class config_manager
 		main_executable_ = exe;
 	}
 
+	std::string get_primary_language() const
+	{
+		return primary_language_;
+	}
+	void set_primary_language(const std::string &lang)
+	{
+		primary_language_ = lang;
+	}
+
+	std::string get_primary_language_version() const
+	{
+		return primary_language_version_;
+	}
+	void set_primary_language_version(const std::string &ver)
+	{
+		primary_language_version_ = ver;
+	}
+
 	std::string get_github_access_token() const
 	{
 		return github_access_token_;
@@ -232,6 +250,8 @@ class config_manager
 	bool shell_display_access_{false};
 
 	mutable std::string main_executable_{""};
+	std::string primary_language_{"C++"};
+	std::string primary_language_version_{"C++23"};
 	std::string github_access_token_{""};
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};

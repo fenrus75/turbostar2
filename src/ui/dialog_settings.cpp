@@ -79,6 +79,14 @@ std::unique_ptr<dialog> create_settings_dialog()
 							      nullptr, "Model ID:  "));
 	flow->add_child(std::move(textboxes_row));
 
+	// Primary Language and Standard Inputs placed side-by-side.
+	auto lang_row = std::make_unique<ui_horizontal_flow>("lang_row", 0, 0, 0, 0);
+	lang_row->add_child(
+	    std::make_unique<ui_textbox>("primary_language", 26, config_manager::get_instance().get_primary_language(), nullptr, "Language:  "));
+	lang_row->add_child(std::make_unique<ui_textbox>("primary_language_version", 28, config_manager::get_instance().get_primary_language_version(),
+							      nullptr, "Standard:  "));
+	flow->add_child(std::move(lang_row));
+
 	// A2A Server security settings row
 	auto a2a_sec_row = std::make_unique<ui_horizontal_flow>("a2a_sec_row", 0, 0, 0, 0);
 	a2a_sec_row->add_child(std::make_unique<ui_textbox>("a2a_server_token", 30,
@@ -163,6 +171,14 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto def_model = dlg.get_value("default_model_id");
 	if (def_model)
 		cfg.set_default_model_id(*def_model);
+
+	auto prim_lang = dlg.get_value("primary_language");
+	if (prim_lang)
+		cfg.set_primary_language(*prim_lang);
+
+	auto prim_ver = dlg.get_value("primary_language_version");
+	if (prim_ver)
+		cfg.set_primary_language_version(*prim_ver);
 
 	auto a2a_tok = dlg.get_value("a2a_server_token");
 	if (a2a_tok) {

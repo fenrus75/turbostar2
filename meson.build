@@ -1031,6 +1031,12 @@ test_watchdog_assert = executable('test_watchdog_assert',
   include_directories: inc)
 test('unit_test_watchdog_assert', test_watchdog_assert, suite: 'agent')
 
+test_primary_language_setting = executable('test_primary_language_setting',
+  ['tests/unit/test_primary_language_setting.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_primary_language_setting', test_primary_language_setting, suite: 'agent')
+
 test_fallback_crash = executable('test_fallback_crash',
   ['tests/unit/test_fallback_crash.cpp', 'src/crash_handler.cpp', git_version_h],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
