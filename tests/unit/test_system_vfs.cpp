@@ -81,6 +81,8 @@ int main()
 	assert(tools_doc.has_value());
 	std::string tools_text = std::string((*tools_doc)->view());
 	assert(tools_text.find("# Registered System Tools") != std::string::npos);
+	assert(tools_text.find("system://tools_detailed.md") != std::string::npos);
+	assert(tools_text.find("?search=<pattern>") != std::string::npos);
 
 	auto tools_detailed_doc = vfs.read_file("system://tools_detailed.md");
 	assert(tools_detailed_doc.has_value());

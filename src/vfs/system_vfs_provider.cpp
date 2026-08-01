@@ -42,6 +42,9 @@ system_vfs_provider::system_vfs_provider()
 
 		std::ostringstream oss;
 		oss << "# Registered System Tools\n\n";
+		oss << "> [!TIP]\n";
+		oss << "> - For complete parameter schemas (types, descriptions, required fields), read [`system://tools_detailed.md`](system://tools_detailed.md).\n";
+		oss << "> - To filter tools by name or keyword, append `?search=<pattern>` (e.g., `fs_read_lines(\"system://tools.md?search=git\")` or `fs_read_lines(\"system://tools_detailed.md?search=git\")`).\n\n";
 		oss << "| Tool Name | Description |\n";
 		oss << "| :--- | :--- |\n";
 
@@ -82,6 +85,8 @@ system_vfs_provider::system_vfs_provider()
 
 		std::ostringstream oss;
 		oss << "# Detailed System Tool Schemas\n\n";
+		oss << "> [!TIP]\n";
+		oss << "> - To filter tool schemas by name or keyword, append `?search=<pattern>` (e.g., `fs_read_lines(\"system://tools_detailed.md?search=git\")`).\n\n";
 
 		for (const auto &tool_node : tools_json) {
 			if (tool_node.contains("function")) {
