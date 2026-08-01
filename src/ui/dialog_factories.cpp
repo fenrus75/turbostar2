@@ -1311,7 +1311,7 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 
 	// --- Tab 3: Remote Servers ---
 	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
-	tab3_flow->add_child(std::make_unique<ui_text_label>("lbl_a2a_remotes", "Registered Remote A2A Servers:"));
+	tab3_flow->add_child(std::make_unique<ui_text_label>("Registered Remote A2A Servers:"));
 	auto remotes_list = std::make_unique<ui_listbox>("remote_list", 38, 5, nullptr, nullptr);
 	std::vector<std::string> remote_names;
 	for (const auto &srv : a2a::a2a_server_manager::get_instance().get_all_servers()) {
