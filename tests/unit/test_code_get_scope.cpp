@@ -10,6 +10,9 @@ using namespace agentlib;
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	std::string temp_home = (std::filesystem::temp_directory_path() / "test_code_get_scope_home").string();
+	std::filesystem::create_directories(temp_home + "/.cache/turbostar");
+	setenv("HOME", temp_home.c_str(), 1);
 	project_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();

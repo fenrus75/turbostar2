@@ -4,30 +4,46 @@
 #include "document.h"
 #include "ui/dialog.h"
 
-// Factory functions
+struct review_item;
+
+// ============================================================================
+// Domain 1: Basic & Editor Dialogs (Implemented in src/ui/dialog_basic.cpp)
+// ============================================================================
 std::unique_ptr<dialog> create_save_prompt_dialog(const std::string &filename);
 std::unique_ptr<dialog> create_input_dialog(const std::string &title, const std::string &prompt, const std::string &initial_value = "");
-std::unique_ptr<dialog> create_search_dialog(const std::string &title, const search_params &initial_params, bool is_replace);
-
-search_params extract_search_params(const dialog &dlg, const search_params &initial_params);
 std::unique_ptr<dialog> create_message_dialog(const std::string &title, const std::vector<std::string> &lines, int spacer = 0);
 std::unique_ptr<dialog> create_welcome_dialog();
 std::unique_ptr<dialog> create_crash_dialog(const std::string &crash_text, const std::string &crash_file_path);
 std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, const std::vector<std::string> &options);
 std::unique_ptr<dialog> create_plan_approval_dialog(const std::string &plan_text);
 std::unique_ptr<dialog> create_force_quit_dialog();
+std::unique_ptr<dialog> create_search_dialog(const std::string &title, const search_params &initial_params, bool is_replace);
+search_params extract_search_params(const dialog &dlg, const search_params &initial_params);
+std::unique_ptr<dialog> create_maybe_binary_prompt_dialog(const std::string &filename);
+std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename);
+
+// ============================================================================
+// Domain 2: Configuration & Settings Dialogs (Implemented in src/ui/dialog_settings.cpp)
+// ============================================================================
 std::unique_ptr<dialog> create_settings_dialog();
 void apply_settings_from_dialog(const dialog &dlg);
+
 std::unique_ptr<dialog> create_editor_settings_dialog();
 void apply_editor_settings_from_dialog(const dialog &dlg);
+
+std::unique_ptr<dialog> create_run_settings_dialog();
+void apply_run_settings_from_dialog(const dialog &dlg);
+
+std::unique_ptr<dialog> create_syntax_colors_dialog();
+
+// ============================================================================
+// Domain 3: AI & Agent Dialogs (Implemented in src/ui/dialog_ai.cpp)
+// ============================================================================
 std::unique_ptr<dialog> create_ai_settings_dialog();
 void apply_ai_settings_from_dialog(const dialog &dlg);
-std::unique_ptr<dialog> create_a2a_settings_dialog();
-void apply_a2a_settings_from_dialog(const dialog &dlg);
+
 std::unique_ptr<dialog> create_task_models_dialog();
 void apply_task_models_from_dialog(const dialog &dlg);
-std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path);
-std::unique_ptr<dialog> create_maybe_binary_prompt_dialog(const std::string &filename);
 
 std::unique_ptr<dialog> create_model_list_dialog();
 std::unique_ptr<dialog> create_model_selection_dialog();
@@ -38,20 +54,24 @@ std::unique_ptr<dialog> create_model_server_list_dialog();
 std::unique_ptr<dialog> create_model_server_edit_dialog(std::shared_ptr<agentlib::model_server> server);
 void apply_model_server_edit_from_dialog(const dialog &dlg, const std::string &original_id);
 
-std::unique_ptr<dialog> create_run_settings_dialog();
-void apply_run_settings_from_dialog(const dialog &dlg);
-
-std::unique_ptr<dialog> create_tool_status_dialog();
-std::unique_ptr<dialog> create_reload_prompt_dialog(const std::string &filename);
-std::unique_ptr<dialog> create_syntax_colors_dialog();
-
 std::unique_ptr<dialog> create_mcp_config_dialog(int initial_selection = 0);
 std::unique_ptr<dialog> create_mcp_tools_dialog(const std::string &server_name, int initial_selection = 0);
 std::unique_ptr<dialog> create_copilot_connect_dialog();
+std::unique_ptr<dialog> create_tool_status_dialog();
+
+// ============================================================================
+// Domain 4: Agent-to-Agent Dialogs (Implemented in src/ui/dialog_a2a.cpp)
+// ============================================================================
+std::unique_ptr<dialog> create_a2a_settings_dialog();
+void apply_a2a_settings_from_dialog(const dialog &dlg);
+
 std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection = 0);
 std::unique_ptr<dialog> create_a2a_server_edit_dialog(const std::string &initial_name = "", const std::string &initial_url = "", const std::string &initial_auth = "");
 
-struct review_item;
+// ============================================================================
+// Domain 5: Project & File Dialogs (Implemented in src/ui/dialog_project.cpp)
+// ============================================================================
+std::unique_ptr<dialog> create_file_dialog(const std::string &title, const std::string &initial_path);
 std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item);
 std::unique_ptr<dialog> create_image_manager_dialog();
 

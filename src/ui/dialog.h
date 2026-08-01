@@ -16,13 +16,13 @@ enum class dialog_result {
 
 # subclasses of dialog
 
-| subclass                    | filename                     |
-| --------------------------- | ---------------------------- |
-| welcome_dialog_impl         | src/ui/dialog_factories.cpp  |
-| force_quit_dialog_impl      | src/ui/dialog_factories.cpp  |
-| file_dialog_impl            | src/ui/dialog_factories.cpp  |
-| copilot_connect_dialog_impl | src/ui/dialog_factories.cpp  |
-| image_manager_dialog_impl   | src/ui/dialog_factories.cpp  |
+| subclass                    | filename                  |
+| --------------------------- | ------------------------- |
+| welcome_dialog_impl         | src/ui/dialog_basic.cpp   |
+| force_quit_dialog_impl      | src/ui/dialog_basic.cpp   |
+| file_dialog_impl            | src/ui/dialog_project.cpp |
+| copilot_connect_dialog_impl | src/ui/dialog_ai.cpp      |
+| image_manager_dialog_impl   | src/ui/dialog_project.cpp |
 
 */
 class dialog : public ui_container{
