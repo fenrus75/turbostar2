@@ -49,7 +49,6 @@ core_sources = files(
   'history_manager.cpp',
   'input_history_manager.cpp',
   'utf8.cpp',
-  'crash_handler.cpp',
   'ansi.cpp',
   'pluginloader.cpp',
   'images/image_manager.cpp',
@@ -207,7 +206,7 @@ project_templates_embedded_h = custom_target('project_templates_embedded.h',
 
 # Define static libraries
 libturbostar_core = static_library('turbostar_core',
-  core_sources + [git_version_h, project_templates_embedded_h],
+  core_sources + [project_templates_embedded_h],
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
   dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep])

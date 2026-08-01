@@ -151,7 +151,7 @@ libturbocatch = shared_library('turbocatch',
 subdir('src')
 
 turbostar_exe = executable('turbostar',
-  'src/main.cpp',
+  ['src/main.cpp', 'src/crash_handler.cpp', git_version_h],
   dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true,
@@ -1026,7 +1026,7 @@ test_assert_fail = executable('test_assert_fail',
 test('unit_test_assert_fail', test_assert_fail, suite: 'agent', depends: libturbocatch, env: ['TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()])
 
 test_fallback_crash = executable('test_fallback_crash',
-  'tests/unit/test_fallback_crash.cpp',
+  ['tests/unit/test_fallback_crash.cpp', 'src/crash_handler.cpp', git_version_h],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fallback_crash', test_fallback_crash, should_fail: true, suite: 'agent')

@@ -18,12 +18,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - our test case crash catcher should hook into the assert logging logic as well and more clearly print assert errors?
 
-- test case linking -- we have may test cases (good!) but linking them takes a lot of time, we may be "overlinking" stuff into them
-	- we need a better strategy
-	- a lot of this is somehow caused by git_version.h causing a lot of rebuilds for no reason!
-
 - language specific system prompt feature
-	- detect the language that the project uses -- or have our welcome dialog write it to the project level config file?
 	- allow for language (and maybe language version?) specific system prompt text to be inserted
 	- alternative: a docs:// vfs path where we store a set of basic instructions and documentation items
 
@@ -229,6 +224,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # done items (sorted by date, newest first)
 
 ## 31-07-2026
+- Build Optimization for `git_version.h` & `crash_handler.cpp` (`src/meson.build`, `meson.build`, `docs/todo.md`): Decoupled `src/crash_handler.cpp` from `core_sources` and `libturbostar_core.a`. `src/crash_handler.cpp` is the sole consumer of `git_version.h` (generated on every Git commit). Previously, including it in `libturbostar_core.a` caused all 164 unit test binaries to re-link on every git commit. Moving `src/crash_handler.cpp` and `git_version_h` to standalone executable sources (`turbostar` and `test_fallback_crash`) reduced post-commit rebuild re-linking from ~164 binaries to 1 binary (< 1s execution).
 - Bearer Token Authentication for Turboserver (`src/a2a/a2a_server.h/cpp`, `src/config_manager.h/cpp`, `src/main.cpp`, `src/ui/dialog_factories.cpp`, `tests/unit/test_a2a_server.cpp`): Added Bearer token authentication support to `turboserver` (A2A server mode). Configured `~/.turboserver` storage (POSIX `0600` permissions) with `token` and `enforce_token` keys, auto-generating a secure random token if empty. Added `--a2a-token` and `--a2a-enforce-token` CLI flags and `TURBOSERVER_TOKEN` / `TURBOSERVER_ENFORCE_TOKEN` environment variable overrides. Implemented HTTP `401 Unauthorized` pre-routing enforcement in `a2a_server::setup_routes()` and integrated token configuration into the TUI Preferences dialog. Added unit tests for valid, invalid, and missing Bearer tokens.
 
 ## 30-07-2026
