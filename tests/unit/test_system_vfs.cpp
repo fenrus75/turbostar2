@@ -108,14 +108,27 @@ int main()
 	auto root_list = vfs.list_directory("system://");
 	assert(!root_list.empty());
 	std::cout << "\nsystem:// directory listing count: " << root_list.size() << std::endl;
+	bool found_lang_dir = false;
+	bool found_wf_dir = false;
 	for (const auto &item : root_list) {
-		std::cout << "  - " << item.uri << " [" << item.details << "]" << std::endl;
+		std::cout << "  - " << item.uri << " (type: " << item.type << ") [" << item.details << "]" << std::endl;
 		assert(!item.details.empty());
+		if (item.uri == "system://languages/" && item.type == 'D') {
+			found_lang_dir = true;
+		}
+		if (item.uri == "system://workflows/" && item.type == 'D') {
+			found_wf_dir = true;
+		}
 	}
+	assert(found_lang_dir);
+	assert(found_wf_dir);
 
 	auto lang_list = vfs.list_directory("system://languages/");
 	assert(!lang_list.empty());
 	assert(lang_list.size() >= 2);
+	for (const auto &item : lang_list) {
+		assert(item.type == 'F');
+	}
 
 	std::cout << "test_system_vfs passed successfully!" << std::endl;
 	return 0;

@@ -170,6 +170,9 @@ system_vfs_provider::system_vfs_provider()
 	register_description("tools.md", "Read to discover available system tools and view their concise usage descriptions.");
 	register_description("tools_detailed.md", "Read when needing full parameter types, descriptions, and required argument schemas for system tools.");
 	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
+	// Register directory purpose descriptions
+	register_description("languages", "Directory containing language-specific development guidelines and standards.");
+	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
 }
 
 std::string system_vfs_provider::resolve_path(const std::string &uri, std::string *out_query) const
@@ -251,17 +254,36 @@ void system_vfs_provider::register_description(const std::string &path, std::str
 bool system_vfs_provider::exists(const std::string &uri) const
 {
 	std::string path = resolve_path(uri);
+	while (path.ends_with("/")) {
+		path = path.substr(0, path.length() - 1);
+	}
+
+	if (path.empty()) {
+		return true;
+	}
 
 	{
 		std::lock_guard<std::mutex> lock(generators_mutex_);
 		if (generators_.find(path) != generators_.end()) {
 			return true;
 		}
+		std::string dir_prefix = path + "/";
+		for (const auto &[gpath, fn] : generators_) {
+			if (gpath.starts_with(dir_prefix)) {
+				return true;
+			}
+		}
 	}
 
 	const auto &docs = get_embedded_system_docs();
 	if (docs.find(path) != docs.end()) {
 		return true;
+	}
+	std::string dir_prefix = path + "/";
+	for (const auto &[dpath, content] : docs) {
+		if (dpath.starts_with(dir_prefix)) {
+			return true;
+		}
 	}
 
 	return false;
@@ -311,20 +333,64 @@ std::optional<agentlib::vfs_file_handle> system_vfs_provider::read_file(const st
 
 std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const std::string &uri) const
 {
-	std::string path = resolve_path(uri);
-
 	if (!exists(uri)) {
 		return std::nullopt;
 	}
 
+	std::string path = resolve_path(uri);
+	std::string clean_path = path;
+	while (clean_path.ends_with("/")) {
+		clean_path = clean_path.substr(0, clean_path.length() - 1);
+	}
+
+	std::string dir_prefix = clean_path.empty() ? "" : (clean_path + "/");
+	bool is_directory = clean_path.empty();
+
+	if (!is_directory) {
+		std::lock_guard<std::mutex> lock(generators_mutex_);
+		for (const auto &[gpath, fn] : generators_) {
+			if (gpath.starts_with(dir_prefix) && gpath != clean_path) {
+				is_directory = true;
+				break;
+			}
+		}
+	}
+
+	if (!is_directory) {
+		const auto &docs = get_embedded_system_docs();
+		for (const auto &[dpath, content] : docs) {
+			if (dpath.starts_with(dir_prefix) && dpath != clean_path) {
+				is_directory = true;
+				break;
+			}
+		}
+	}
+
+	if (is_directory) {
+		agentlib::vfs_file_info info;
+		info.uri = "system://" + (clean_path.empty() ? "" : (clean_path + "/"));
+		info.type = 'D';
+		info.size = 0;
+		info.size_in_lines = 0;
+		std::lock_guard<std::mutex> lock(generators_mutex_);
+		auto dit = descriptions_.find(clean_path);
+		if (dit == descriptions_.end()) {
+			dit = descriptions_.find(clean_path + "/");
+		}
+		if (dit != descriptions_.end()) {
+			info.details = dit->second;
+		}
+		return info;
+	}
+
 	agentlib::vfs_file_info info;
-	info.uri = "system://" + path;
+	info.uri = "system://" + clean_path;
 	info.type = 'F';
 	info.size = 0;
 	info.size_in_lines = 0;
 
 	const auto &docs = get_embedded_system_docs();
-	auto it = docs.find(path);
+	auto it = docs.find(clean_path);
 	if (it != docs.end()) {
 		info.size = it->second.size();
 		info.size_in_lines = std::count(it->second.begin(), it->second.end(), '\n') + 1;
@@ -332,7 +398,7 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 
 	{
 		std::lock_guard<std::mutex> lock(generators_mutex_);
-		auto dit = descriptions_.find(path);
+		auto dit = descriptions_.find(clean_path);
 		if (dit != descriptions_.end()) {
 			info.details = dit->second;
 		}
@@ -344,7 +410,10 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const std::string &prefix) const
 {
 	std::string norm_prefix = resolve_path(prefix);
-	if (norm_prefix.length() > 0 && !norm_prefix.ends_with("/")) {
+	while (norm_prefix.starts_with("/")) {
+		norm_prefix = norm_prefix.substr(1);
+	}
+	if (!norm_prefix.empty() && !norm_prefix.ends_with("/")) {
 		norm_prefix += "/";
 	}
 
@@ -353,39 +422,76 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 
 	std::lock_guard<std::mutex> lock(generators_mutex_);
 
-	// Add dynamic generator URIs
-	for (const auto &[p, fn] : generators_) {
-		if (norm_prefix.empty() || p.starts_with(norm_prefix)) {
-			agentlib::vfs_file_info info;
-			info.uri = "system://" + p;
-			info.type = 'F';
-			info.size = 0;
-			info.size_in_lines = 0;
-			auto dit = descriptions_.find(p);
-			if (dit != descriptions_.end()) {
-				info.details = dit->second;
-			}
-			results.push_back(info);
-			seen[p] = true;
+	auto process_path = [&](const std::string &p, size_t size, size_t lines) {
+		if (!norm_prefix.empty() && !p.starts_with(norm_prefix)) {
+			return;
 		}
+
+		std::string_view remainder = p;
+		if (!norm_prefix.empty()) {
+			remainder = remainder.substr(norm_prefix.length());
+		}
+
+		if (remainder.empty()) {
+			return;
+		}
+
+		size_t slash_pos = remainder.find('/');
+		if (slash_pos != std::string_view::npos) {
+			std::string dir_name = std::string(remainder.substr(0, slash_pos));
+			std::string dir_rel_path = norm_prefix + dir_name;
+			std::string dir_uri = "system://" + dir_rel_path + "/";
+
+			if (!seen[dir_uri]) {
+				seen[dir_uri] = true;
+				agentlib::vfs_file_info info;
+				info.uri = dir_uri;
+				info.type = 'D';
+				info.size = 0;
+				info.size_in_lines = 0;
+
+				auto dit = descriptions_.find(dir_rel_path);
+				if (dit == descriptions_.end()) {
+					dit = descriptions_.find(dir_rel_path + "/");
+				}
+				if (dit != descriptions_.end()) {
+					info.details = dit->second;
+				} else if (dir_name == "languages") {
+					info.details = "Directory containing language-specific development guidelines and standards.";
+				} else if (dir_name == "workflows") {
+					info.details = "Directory containing subagent and system workflow guidelines.";
+				}
+				results.push_back(info);
+			}
+		} else {
+			std::string file_uri = "system://" + p;
+			if (!seen[file_uri]) {
+				seen[file_uri] = true;
+				agentlib::vfs_file_info info;
+				info.uri = file_uri;
+				info.type = 'F';
+				info.size = size;
+				info.size_in_lines = lines;
+
+				auto dit = descriptions_.find(p);
+				if (dit != descriptions_.end()) {
+					info.details = dit->second;
+				}
+				results.push_back(info);
+			}
+		}
+	};
+
+	// 1. Process dynamic generator URIs
+	for (const auto &[p, fn] : generators_) {
+		process_path(p, 0, 0);
 	}
 
-	// Add embedded static docs URIs
+	// 2. Process embedded static docs URIs
 	const auto &docs = get_embedded_system_docs();
 	for (const auto &[p, content] : docs) {
-		if ((norm_prefix.empty() || p.starts_with(norm_prefix)) && !seen[p]) {
-			agentlib::vfs_file_info info;
-			info.uri = "system://" + p;
-			info.type = 'F';
-			info.size = content.size();
-			info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
-			auto dit = descriptions_.find(p);
-			if (dit != descriptions_.end()) {
-				info.details = dit->second;
-			}
-			results.push_back(info);
-			seen[p] = true;
-		}
+		size_t lines = std::count(content.begin(), content.end(), '\n') + 1;
+		process_path(p, content.size(), lines);
 	}
 
 	return results;

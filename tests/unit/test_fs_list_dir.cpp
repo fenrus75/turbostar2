@@ -80,16 +80,23 @@ int main()
 		}
 #endif
 
-		// 5. Success case: list virtual directory system://languages/ with rich_metadata
+		// 5. Success case: list virtual directory system:// and system://languages/ with rich_metadata
 		{
 			virtual_file_system vfs;
 			auto sys_provider = std::make_shared<turbostar::system_vfs_provider>();
 			vfs.register_provider("system", sys_provider);
 			ctx.fs_security.set_vfs(&vfs);
 
+			std::string root_args = "{\"path\": \"system://\", \"rich_metadata\": true}";
+			std::string root_res = registry.execute_tool("fs_list_dir", root_args, ctx);
+			std::cout << "VFS Root Directory list with rich_metadata:\n" << root_res << std::endl;
+			assert(root_res.find("languages | D |") != std::string::npos);
+			assert(root_res.find("workflows | D |") != std::string::npos);
+			assert(root_res.find("tools.md | F |") != std::string::npos);
+
 			std::string args = "{\"path\": \"system://languages/\", \"rich_metadata\": true}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
-			std::cout << "VFS Directory list with rich_metadata:\n" << res << std::endl;
+			std::cout << "VFS Subdirectory list with rich_metadata:\n" << res << std::endl;
 			assert(res.find("cpp23.md") != std::string::npos);
 			assert(res.find("Read when writing or refactoring C++23 code.") != std::string::npos);
 		}

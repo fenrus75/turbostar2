@@ -136,6 +136,11 @@ list_dir_result fs_list_dir_tool::scan_vfs(agentlib::virtual_file_system *vfs, c
 				}
 				std::replace(meta.details.begin(), meta.details.end(), '|', ',');
 			}
+		} else if (entry.type == 'D' && args_.rich_metadata) {
+			if (!entry.details.empty()) {
+				meta.details = entry.details;
+				std::replace(meta.details.begin(), meta.details.end(), '|', ',');
+			}
 		}
 		meta.permissions = "R--";
 		result.entries.push_back(meta);

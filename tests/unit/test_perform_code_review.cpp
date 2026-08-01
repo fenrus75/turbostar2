@@ -19,8 +19,7 @@ void test_perform_code_review_execution()
 {
 	std::cout << "Testing perform_code_review tool..." << std::endl;
 
-	std::filesystem::path orig_path = std::filesystem::current_path();
-	std::filesystem::path temp_proj = orig_path / "test_temp_review_proj";
+	std::filesystem::path temp_proj = std::filesystem::temp_directory_path() / ("test_review_proj_" + std::to_string(getpid()));
 	std::filesystem::remove_all(temp_proj);
 	std::filesystem::create_directories(temp_proj);
 
@@ -43,7 +42,7 @@ void test_perform_code_review_execution()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	static event_queue q;
+	event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
@@ -141,8 +140,7 @@ void test_perform_code_review_splitting()
 {
 	std::cout << "Testing perform_code_review file splitting..." << std::endl;
 
-	std::filesystem::path orig_path = std::filesystem::current_path();
-	std::filesystem::path temp_proj = orig_path / "test_temp_review_split_proj";
+	std::filesystem::path temp_proj = std::filesystem::temp_directory_path() / ("test_split_proj_" + std::to_string(getpid()));
 	std::filesystem::remove_all(temp_proj);
 	std::filesystem::create_directories(temp_proj);
 
@@ -183,7 +181,7 @@ void test_perform_code_review_splitting()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	static event_queue q;
+	event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);

@@ -22,11 +22,13 @@ void write_file(const fs::path &path, const std::string &content)
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	test_watchdog::scoped_test_home home_guard("mcp_manager");
 	std::cout << "Testing MCP Manager..." << std::endl;
 
-	// 1. Isolate HOME environment
-	fs::path temp_home = fs::absolute("./test_mcp_home");
-	fs::path temp_proj = fs::absolute("./test_mcp_project");
+	// 1. Isolate HOME and Project environment in unique temp paths
+	fs::path temp_base = fs::temp_directory_path() / ("mcp_test_" + std::to_string(getpid()));
+	fs::path temp_home = temp_base / "home";
+	fs::path temp_proj = temp_base / "project";
 
 	if (fs::exists(temp_home)) {
 		fs::remove_all(temp_home);
