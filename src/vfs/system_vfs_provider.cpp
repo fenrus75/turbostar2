@@ -167,8 +167,8 @@ system_vfs_provider::system_vfs_provider()
 	register_description("workflows/crash_analysis.md", "Read when investigating crash reports, core dumps, log tracebacks, or test failures via What-How-Where protocol.");
 
 	register_description("agents.md", "Read to discover available subagent profiles and their specialization roles before invoking subagents.");
-	register_description("tools.md", "Read to discover available system tools and view their concise usage descriptions.");
-	register_description("tools_detailed.md", "Read when needing full parameter types, descriptions, and required argument schemas for system tools.");
+	register_description("tools.md", "Read to discover available system tools and concise usage descriptions (supports ?search=<query>).");
+	register_description("tools_detailed.md", "Read for full parameter types, descriptions, and schemas for system tools (supports ?search=<query>).");
 	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
 	// Register directory purpose descriptions
 	register_description("languages", "Directory containing language-specific development guidelines and standards.");
