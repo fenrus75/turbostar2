@@ -1132,7 +1132,7 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	// --- Tab 1: General AI ---
 	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
-	tab1_flow->add_child(std::make_unique<ui_textbox>("default_model_id", 38,
+	tab1_flow->add_child(std::make_unique<ui_textbox>("default_model_id", 48,
 		config_manager::get_instance().get_default_model_id(), nullptr, "Default model: "));
 
 	auto model_btns = std::make_unique<ui_buttons_horizontal>("model_btns");
