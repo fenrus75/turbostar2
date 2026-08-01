@@ -1296,20 +1296,21 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 
 	// --- Tab 1: Server Security ---
 	auto tab1_flow = std::make_unique<ui_vertical_flow>("tab1_flow", 0, 0, 1, 1);
-	auto tok_row = std::make_unique<ui_horizontal_flow>("tok_row", 0, 0);
-	tok_row->add_child(std::make_unique<ui_textbox>("a2a_server_token", 24,
+	tab1_flow->add_child(std::make_unique<ui_textbox>("a2a_server_token", 38,
 		config_manager::get_instance().get_a2a_server_token(), nullptr, "A2A Token:  "));
-	tok_row->add_child(std::make_unique<ui_button>("btn_gen_tok", "Generate", 'G', [d = dlg.get()]() {
+
+	auto tok_btns = std::make_unique<ui_buttons_horizontal>("tok_btns");
+	tok_btns->add_child(std::make_unique<ui_button>("btn_gen_tok", "Generate", 'G', [d = dlg.get()]() {
 		d->set_action(dialog_result::confirmed);
 		d->set_result("gen_a2a_token");
 	}));
-	tok_row->add_child(std::make_unique<ui_button>("btn_copy_tok", "Copy", 'C', [d = dlg.get()]() {
+	tok_btns->add_child(std::make_unique<ui_button>("btn_copy_tok", "Copy", 'C', [d = dlg.get()]() {
 		auto tok = d->get_value("a2a_server_token");
 		if (tok && !tok->empty()) {
 			ansi::copy_to_clipboard(*tok);
 		}
 	}));
-	tab1_flow->add_child(std::move(tok_row));
+	tab1_flow->add_child(std::move(tok_btns));
 
 	auto a2a_grp = std::make_unique<ui_checkbox_group>("a2a_grp");
 	a2a_grp->add_child(std::make_unique<ui_checkbox>("a2a_enforce_token", "Enforce Bearer Token Authentication", 'T',
