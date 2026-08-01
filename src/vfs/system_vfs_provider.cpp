@@ -155,12 +155,12 @@ system_vfs_provider::system_vfs_provider()
 	});
 
 	// Register file purpose descriptions ("when to read this file")
-	register_description("languages/cpp23.md", "Read when writing C++23 code, implementing RAII, formatting strings, or writing C++ unit tests.");
-	register_description("languages/c17.md", "Read when writing C17 code, allocating memory, managing pointers, or passing explicit buffer sizes.");
-	register_description("languages/python311.md", "Read when writing Python scripts, adding type annotations, or running security-validated execution.");
-	register_description("languages/rust2021.md", "Read when writing Rust 2021 code, managing ownership and lifetimes, or handling Result errors.");
-	register_description("languages/typescript.md", "Read when writing TypeScript/JavaScript modules, handling async promises, or configuring strict type checking.");
-	register_description("languages/verilog.md", "Read when writing Verilog/SystemVerilog hardware modules, separating combinational/sequential logic, or synthesis.");
+	register_description("languages/cpp23.md", "Read when writing or refactoring C++23 code.");
+	register_description("languages/c17.md", "Read when writing or refactoring C17 code.");
+	register_description("languages/python311.md", "Read when writing or refactoring Python code.");
+	register_description("languages/rust2021.md", "Read when writing or refactoring Rust 2021 code.");
+	register_description("languages/typescript.md", "Read when writing or refactoring TypeScript/JavaScript code.");
+	register_description("languages/verilog.md", "Read when writing or refactoring Verilog/SystemVerilog code.");
 
 	register_description("workflows/code_review.md", "Read before conducting multi-file code reviews, performing file slicing, or managing review item checklists.");
 	register_description("workflows/plan_mode.md", "Read when entering plan mode for complex multi-file tasks, executing read-only exploration, or forming plans.");

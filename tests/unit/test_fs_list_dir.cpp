@@ -91,7 +91,7 @@ int main()
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "VFS Directory list with rich_metadata:\n" << res << std::endl;
 			assert(res.find("cpp23.md") != std::string::npos);
-			assert(res.find("Read when writing C++23 code") != std::string::npos);
+			assert(res.find("Read when writing or refactoring C++23 code.") != std::string::npos);
 		}
 
 		std::cout << "fs_list_dir tool verified successfully." << std::endl;

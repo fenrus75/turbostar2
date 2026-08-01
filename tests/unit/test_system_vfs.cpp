@@ -103,7 +103,7 @@ int main()
 	auto info_cpp = vfs.get_file_info("system://languages/cpp23.md");
 	assert(info_cpp.has_value());
 	assert(!info_cpp->details.empty());
-	assert(info_cpp->details.find("Read when writing C++23 code") != std::string::npos);
+	assert(info_cpp->details.find("Read when writing or refactoring C++23 code.") != std::string::npos);
 
 	auto root_list = vfs.list_directory("system://");
 	assert(!root_list.empty());
