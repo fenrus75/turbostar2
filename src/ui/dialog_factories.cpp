@@ -1232,13 +1232,17 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	tab4_flow->add_child(std::move(mcp_list));
 
 	auto mcp_btns = std::make_unique<ui_buttons_horizontal>("mcp_btns");
-	mcp_btns->add_child(std::make_unique<ui_button>("btn_toggle_mcp", "Toggle Enable", 't', [d = dlg.get(), mcp_ptr]() {
+	mcp_btns->add_child(std::make_unique<ui_button>("btn_toggle_mcp", "Toggle Enable", 't', [mcp_ptr]() {
 		int idx = mcp_ptr->get_selected_index();
 		auto servers = agentlib::mcp_manager::get_instance().get_servers();
 		if (idx >= 0 && idx < (int)servers.size()) {
 			servers[idx]->set_enabled(!servers[idx]->is_enabled());
-			d->set_action(dialog_result::confirmed);
-			d->set_result("reopen_ai_settings");
+			std::vector<std::string> updated_names;
+			for (const auto &srv : servers) {
+				updated_names.push_back(srv->get_name() + (srv->is_enabled() ? " [Enabled]" : " [Disabled]"));
+			}
+			mcp_ptr->set_items(updated_names);
+			mcp_ptr->set_selected_index(idx);
 		}
 	}));
 	tab4_flow->add_child(std::move(mcp_btns));
