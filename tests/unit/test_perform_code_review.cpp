@@ -6,6 +6,7 @@
 #include <set>
 #include <csignal>
 #include "../../src/agentlib/ai_agent.h"
+#include "../../src/agentlib/subagent_manager.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/codereview_manager.h"
 #include "../../src/event_queue.h"
@@ -311,6 +312,7 @@ int main()
 	signal(SIGPIPE, SIG_IGN);
 #endif
 	test_watchdog::setup_watchdog(30);
+	test_watchdog::scoped_test_home home_guard("perform_code_review");
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();
 	test_perform_code_review_splitting();

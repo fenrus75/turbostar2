@@ -153,6 +153,23 @@ system_vfs_provider::system_vfs_provider()
 		}
 		return out;
 	});
+
+	// Register file purpose descriptions ("when to read this file")
+	register_description("languages/cpp23.md", "Read when writing C++23 code, implementing RAII, formatting strings, or writing C++ unit tests.");
+	register_description("languages/c17.md", "Read when writing C17 code, allocating memory, managing pointers, or passing explicit buffer sizes.");
+	register_description("languages/python311.md", "Read when writing Python scripts, adding type annotations, or running security-validated execution.");
+	register_description("languages/rust2021.md", "Read when writing Rust 2021 code, managing ownership and lifetimes, or handling Result errors.");
+	register_description("languages/typescript.md", "Read when writing TypeScript/JavaScript modules, handling async promises, or configuring strict type checking.");
+	register_description("languages/verilog.md", "Read when writing Verilog/SystemVerilog hardware modules, separating combinational/sequential logic, or synthesis.");
+
+	register_description("workflows/code_review.md", "Read before conducting multi-file code reviews, performing file slicing, or managing review item checklists.");
+	register_description("workflows/plan_mode.md", "Read when entering plan mode for complex multi-file tasks, executing read-only exploration, or forming plans.");
+	register_description("workflows/crash_analysis.md", "Read when investigating crash reports, core dumps, log tracebacks, or test failures via What-How-Where protocol.");
+
+	register_description("agents.md", "Read to discover available subagent profiles and their specialization roles before invoking subagents.");
+	register_description("tools.md", "Read to discover available system tools and view their concise usage descriptions.");
+	register_description("tools_detailed.md", "Read when needing full parameter types, descriptions, and required argument schemas for system tools.");
+	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
 }
 
 std::string system_vfs_provider::resolve_path(const std::string &uri, std::string *out_query) const
@@ -222,6 +239,13 @@ void system_vfs_provider::register_generator(const std::string &path, vfs_genera
 	std::lock_guard<std::mutex> lock(generators_mutex_);
 	std::string resolved = resolve_path(path);
 	generators_[resolved] = std::move(generator);
+}
+
+void system_vfs_provider::register_description(const std::string &path, std::string description)
+{
+	std::lock_guard<std::mutex> lock(generators_mutex_);
+	std::string resolved = resolve_path(path);
+	descriptions_[resolved] = std::move(description);
 }
 
 bool system_vfs_provider::exists(const std::string &uri) const
@@ -306,6 +330,14 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 		info.size_in_lines = std::count(it->second.begin(), it->second.end(), '\n') + 1;
 	}
 
+	{
+		std::lock_guard<std::mutex> lock(generators_mutex_);
+		auto dit = descriptions_.find(path);
+		if (dit != descriptions_.end()) {
+			info.details = dit->second;
+		}
+	}
+
 	return info;
 }
 
@@ -319,19 +351,22 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 	std::vector<agentlib::vfs_file_info> results;
 	std::map<std::string, bool> seen;
 
+	std::lock_guard<std::mutex> lock(generators_mutex_);
+
 	// Add dynamic generator URIs
-	{
-		std::lock_guard<std::mutex> lock(generators_mutex_);
-		for (const auto &[p, fn] : generators_) {
-			if (norm_prefix.empty() || p.starts_with(norm_prefix)) {
-				agentlib::vfs_file_info info;
-				info.uri = "system://" + p;
-				info.type = 'F';
-				info.size = 0;
-				info.size_in_lines = 0;
-				results.push_back(info);
-				seen[p] = true;
+	for (const auto &[p, fn] : generators_) {
+		if (norm_prefix.empty() || p.starts_with(norm_prefix)) {
+			agentlib::vfs_file_info info;
+			info.uri = "system://" + p;
+			info.type = 'F';
+			info.size = 0;
+			info.size_in_lines = 0;
+			auto dit = descriptions_.find(p);
+			if (dit != descriptions_.end()) {
+				info.details = dit->second;
 			}
+			results.push_back(info);
+			seen[p] = true;
 		}
 	}
 
@@ -344,6 +379,10 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 			info.type = 'F';
 			info.size = content.size();
 			info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+			auto dit = descriptions_.find(p);
+			if (dit != descriptions_.end()) {
+				info.details = dit->second;
+			}
 			results.push_back(info);
 			seen[p] = true;
 		}

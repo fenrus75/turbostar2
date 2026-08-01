@@ -22,6 +22,7 @@ struct vfs_file_info {
 	size_t size;
 	char type; // 'F', 'D', 'L'
 	size_t size_in_lines;
+	std::string details{};
 };
 
 /**

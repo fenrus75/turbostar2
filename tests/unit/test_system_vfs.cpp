@@ -99,12 +99,18 @@ int main()
 	std::string search_text = std::string((*tools_search_doc)->view());
 	assert(search_text.find("fs_read_lines") != std::string::npos);
 
-	// 4. Test directory listing
+	// 4. Test directory listing and purpose descriptions
+	auto info_cpp = vfs.get_file_info("system://languages/cpp23.md");
+	assert(info_cpp.has_value());
+	assert(!info_cpp->details.empty());
+	assert(info_cpp->details.find("Read when writing C++23 code") != std::string::npos);
+
 	auto root_list = vfs.list_directory("system://");
 	assert(!root_list.empty());
-	std::cout << "system:// directory listing count: " << root_list.size() << std::endl;
+	std::cout << "\nsystem:// directory listing count: " << root_list.size() << std::endl;
 	for (const auto &item : root_list) {
-		std::cout << "  - " << item.uri << std::endl;
+		std::cout << "  - " << item.uri << " [" << item.details << "]" << std::endl;
+		assert(!item.details.empty());
 	}
 
 	auto lang_list = vfs.list_directory("system://languages/");

@@ -128,6 +128,14 @@ list_dir_result fs_list_dir_tool::scan_vfs(agentlib::virtual_file_system *vfs, c
 			if (entry.size_in_lines > 0 || entry.size == 0) {
 				meta.size_lines = std::to_string(entry.size_in_lines);
 			}
+			if (args_.rich_metadata) {
+				if (!entry.details.empty()) {
+					meta.details = entry.details;
+				} else {
+					meta.details = "Virtual Markdown document";
+				}
+				std::replace(meta.details.begin(), meta.details.end(), '|', ',');
+			}
 		}
 		meta.permissions = "R--";
 		result.entries.push_back(meta);

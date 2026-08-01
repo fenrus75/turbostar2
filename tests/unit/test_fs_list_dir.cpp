@@ -4,6 +4,7 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
+#include "../../src/vfs/system_vfs_provider.h"
 
 using namespace agentlib;
 
@@ -79,7 +80,21 @@ int main()
 		}
 #endif
 
-		std::cout << "fs_list_dir tool verified successfully!" << std::endl;
+		// 5. Success case: list virtual directory system://languages/ with rich_metadata
+		{
+			virtual_file_system vfs;
+			auto sys_provider = std::make_shared<turbostar::system_vfs_provider>();
+			vfs.register_provider("system", sys_provider);
+			ctx.fs_security.set_vfs(&vfs);
+
+			std::string args = "{\"path\": \"system://languages/\", \"rich_metadata\": true}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+			std::cout << "VFS Directory list with rich_metadata:\n" << res << std::endl;
+			assert(res.find("cpp23.md") != std::string::npos);
+			assert(res.find("Read when writing C++23 code") != std::string::npos);
+		}
+
+		std::cout << "fs_list_dir tool verified successfully." << std::endl;
 	}
 
 	return 0;

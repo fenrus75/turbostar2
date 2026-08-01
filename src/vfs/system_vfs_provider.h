@@ -31,16 +31,22 @@ class system_vfs_provider : public agentlib::vfs_provider
 	 */
 	void register_generator(const std::string &path, vfs_generator_fn generator);
 
+	/**
+	 * @brief Registers a human-readable purpose description ("when to read this file") for a system URI.
+	 */
+	void register_description(const std::string &path, std::string description);
+
       private:
 	std::string resolve_path(const std::string &uri, std::string *out_query = nullptr) const;
 
 	/*
-	 * generators_mutex_ protects the generators_ map from concurrent registration or invocation.
+	 * generators_mutex_ protects the generators_ and descriptions_ maps from concurrent modification.
 	 * Locking Rules:
-	 * - Read or write lock acquired when accessing or modifying registered generator lambdas.
+	 * - Read or write lock acquired when accessing or modifying registered generator lambdas or descriptions.
 	 */
 	mutable std::mutex generators_mutex_;
 	std::map<std::string, vfs_generator_fn> generators_;
+	std::map<std::string, std::string> descriptions_;
 };
 
 } // namespace turbostar
