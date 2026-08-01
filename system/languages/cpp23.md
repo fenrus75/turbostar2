@@ -1,17 +1,35 @@
-# Modern C++23 Coding Guidelines
+# C++23 Development Guidelines
 
-## Core Principles
-- **Standard Version**: TurboStar uses C++23. Use modern language features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings) whenever appropriate.
-- **Memory & Resource Management**: Follow RAII strictly. Avoid raw `new` and `delete`; favor `std::make_unique` and `std::make_shared`.
-- **String & Sequence Parameters**: Prefer `std::string_view` for read-only string parameters over `const std::string &`. Prefer `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary allocations.
-- **Formatting**: Prefer `std::format` over raw C string concatenations or `sprintf`.
-- **Include Paths**: All `#include ""` directives must be relative to the `src/` directory (e.g., `#include "fs_utils.h"` instead of relative `../../` paths).
-- **Include Guards**: Use `#pragma once` for all header files.
+## Code Conventions
+- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings).
+- **Include Guards**: Prefer `#pragma once`.
+- **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`.
+- **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.
+- **Standard Library**: Prefer C++ Standard Library containers and algorithms over custom implementations.
+- **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory. All `#include ""` directives should be relative to `src/`.
+- **Constexpr & Qualifiers**: Label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` when appropriate.
 
-## Concurrency & Mutexes
-- **Mutex Documentation**: When declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining:
-  1. What specific member data or resources the mutex protects.
-  2. The general locking rules, lifecycle, or ordering guidelines associated with it.
+## Security Considerations
+- **Security-First Mindset**: Adopt a security-first mindset across all generated code.
+- **Untrusted Input**: Clearly label variables and parameters holding untrusted (user/network) data in comments.
+- **Early Validation**: Sanity-check and validate all untrusted input as early as possible.
+- **Bounds Checking**: Verify all buffer and array accesses against underflows and overflows.
 
-## Unit Test Guidelines
-- **Test Isolation**: Every unit test MUST isolate the `HOME` environment variable to a temporary directory to prevent race conditions during parallel test execution. Call `test_watchdog::setup_watchdog()` at the start of `main()`.
+## Code Commenting Conventions
+- **Intent over Logic**: Focus comments on rationale (the "why") and design goals rather than restating code logic.
+- **Ownership & Constraints**: Document ownership, thread-safety expectations, and function constraints.
+- **Mutex Declarations**: Precede every mutex declaration in header files with a comment block explaining:
+  1. What specific data or resources the mutex protects.
+  2. Locking rules, lifecycle, or ordering guidelines.
+- **Subclass Header Documentation**: When creating a base class or adding a subclass, include or update a comment block table directly above the parent class definition detailing all derived subclasses and their file locations:
+```cpp
+/*
+
+# subclasses of <parent class>
+
+| subclass     | filename                                             |
+| ------------ | ---------------------------------------------------- | 
+| <subclass 1> | <project relative path to the header for subclass 1> |
+
+*/
+```
