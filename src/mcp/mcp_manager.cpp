@@ -312,6 +312,9 @@ void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool 
 				}
 			}
 			bool enabled = cfg.is_mcp_server_enabled(name, is_system, default_enabled);
+			if (cfg.is_mcp_server_enabled(name, false, true) == false) {
+				enabled = false;
+			}
 			event_logger::get_instance().log("[DIAG] mcp_manager discovery: server '{}', is_system={}, default_enabled={}, resolved_enabled={}",
 				name, is_system, default_enabled, enabled);
 			server->set_enabled(enabled);
@@ -319,8 +322,8 @@ void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool 
 			auto existing = find_server_unlocked(name);
 			if (existing) {
 				if (existing->is_system() && !is_system) {
-					bool global_enabled = existing->is_enabled();
-					bool local_enabled = enabled;
+					bool global_enabled = cfg.is_mcp_server_enabled(name, true, true);
+					bool local_enabled = cfg.is_mcp_server_enabled(name, false, false);
 					if (global_enabled && !local_enabled) {
 						event_logger::get_instance().log(
 						    "MCP Conflict: Keeping global server '{}' over disabled project server.", name);
