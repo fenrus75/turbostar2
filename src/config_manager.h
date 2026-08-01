@@ -200,9 +200,11 @@ class config_manager
 	 * Turboserver configuration API (~/.turboserver)
 	 */
 	std::string get_turboserver_config_path() const;
+	int get_a2a_server_port() const;
 	std::string get_a2a_server_token() const;
 	bool is_a2a_server_token_enforced() const;
 	std::string generate_a2a_server_token();
+	void set_a2a_server_port(int port);
 	void set_a2a_server_token(const std::string &token);
 	void set_a2a_server_token_enforced(bool enforce);
 	void load_turboserver_config();
@@ -234,6 +236,7 @@ class config_manager
 	std::string run_arguments_{""};
 	std::string run_target_mode_{"window"};
 	bool gdb_auto_continue_{true};
+	int a2a_server_port_{7820};
 	std::string a2a_server_token_{""};
 	bool a2a_server_token_enforced_{false};
 

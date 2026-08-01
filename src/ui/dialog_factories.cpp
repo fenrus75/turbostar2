@@ -954,6 +954,16 @@ void apply_settings_from_dialog(const dialog &dlg)
 		a2a::a2a_server::get_instance().set_enforce_token(enf);
 	}
 
+	auto a2a_port_str = dlg.get_value("a2a_server_port");
+	if (a2a_port_str) {
+		try {
+			int p = std::stoi(*a2a_port_str);
+			if (p > 0 && p < 65536) {
+				cfg.set_a2a_server_port(p);
+			}
+		} catch (...) {}
+	}
+
 	cfg.save_turboserver_config();
 
 	auto lsp = dlg.get_value("lsp_enabled");
@@ -1293,6 +1303,12 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 		d->set_action(dialog_result::confirmed);
 		d->set_result("gen_a2a_token");
 	}));
+	tok_row->add_child(std::make_unique<ui_button>("btn_copy_tok", "Copy", 'C', [d = dlg.get()]() {
+		auto tok = d->get_value("a2a_server_token");
+		if (tok && !tok->empty()) {
+			ansi::copy_to_clipboard(*tok);
+		}
+	}));
 	tab1_flow->add_child(std::move(tok_row));
 
 	auto a2a_grp = std::make_unique<ui_checkbox_group>("a2a_grp");
@@ -1303,7 +1319,8 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 
 	// --- Tab 2: Server Runtime ---
 	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
-	tab2_flow->add_child(std::make_unique<ui_textbox>("a2a_server_port", 12, "7820", nullptr, "Server Port: "));
+	tab2_flow->add_child(std::make_unique<ui_textbox>("a2a_server_port", 12,
+		std::to_string(config_manager::get_instance().get_a2a_server_port()), nullptr, "Server Port: "));
 	auto runtime_grp = std::make_unique<ui_checkbox_group>("runtime_grp");
 	runtime_grp->add_child(std::make_unique<ui_checkbox>("git_worktree_mode", "Pre-seed Task Workspaces with Git Worktrees", 'W', true));
 	tab2_flow->add_child(std::move(runtime_grp));

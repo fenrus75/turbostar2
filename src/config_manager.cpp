@@ -65,6 +65,11 @@ std::string config_manager::get_turboserver_config_path() const
 	return ".turboserver";
 }
 
+int config_manager::get_a2a_server_port() const
+{
+	return a2a_server_port_;
+}
+
 std::string config_manager::get_a2a_server_token() const
 {
 	return a2a_server_token_;
@@ -78,6 +83,13 @@ bool config_manager::is_a2a_server_token_enforced() const
 std::string config_manager::generate_a2a_server_token()
 {
 	return generate_random_auth_token();
+}
+
+void config_manager::set_a2a_server_port(int port)
+{
+	if (port > 0 && port < 65536) {
+		a2a_server_port_ = port;
+	}
 }
 
 void config_manager::set_a2a_server_token(const std::string &token)
@@ -98,6 +110,7 @@ void config_manager::load_turboserver_config()
 	bool need_rewrite = false;
 	std::string token;
 	bool enforce = false;
+	int port = 7820;
 
 	if (file.is_open()) {
 		std::string line;
@@ -119,6 +132,10 @@ void config_manager::load_turboserver_config()
 				token = value;
 			} else if (key == "enforce_token") {
 				enforce = (value == "true" || value == "1");
+			} else if (key == "port" || key == "server_port") {
+				try {
+					port = std::stoi(value);
+				} catch (...) {}
 			}
 		}
 		file.close();
@@ -140,9 +157,19 @@ void config_manager::load_turboserver_config()
 	if (env_enf && *env_enf) {
 		enforce = (std::string(env_enf) == "true" || std::string(env_enf) == "1");
 	}
+	const char *env_port = getenv("TURBOSERVER_PORT");
+	if (!env_port || !*env_port) {
+		env_port = getenv("TURBOSTAR_A2A_PORT");
+	}
+	if (env_port && *env_port) {
+		try {
+			port = std::stoi(env_port);
+		} catch (...) {}
+	}
 
 	a2a_server_token_ = token;
 	a2a_server_token_enforced_ = enforce;
+	a2a_server_port_ = port;
 
 	if (need_rewrite) {
 		save_turboserver_config();
@@ -158,6 +185,7 @@ void config_manager::save_turboserver_config()
 	}
 
 	file << "# Turboserver Configuration File\n";
+	file << "port = " << a2a_server_port_ << "\n";
 	file << "token = " << a2a_server_token_ << "\n";
 	file << "enforce_token = " << (a2a_server_token_enforced_ ? "true" : "false") << "\n";
 	file.close();
