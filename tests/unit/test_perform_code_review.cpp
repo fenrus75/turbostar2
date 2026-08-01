@@ -311,12 +311,8 @@ int main()
 	signal(SIGPIPE, SIG_IGN);
 #endif
 	test_watchdog::setup_watchdog(30);
-	std::string temp_home = (std::filesystem::temp_directory_path() / "test_perform_code_review_home").string();
-	std::filesystem::create_directories(temp_home + "/.cache/turbostar");
-	setenv("HOME", temp_home.c_str(), 1);
 	project_manager::get_instance().initialize();
 	test_perform_code_review_execution();
 	test_perform_code_review_splitting();
-	std::filesystem::remove_all(temp_home);
 	return 0;
 }

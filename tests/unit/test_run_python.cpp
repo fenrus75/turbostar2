@@ -21,7 +21,7 @@ void write_file(const std::filesystem::path &path, const std::string &content)
 
 int main()
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(30, true, false);
 	project_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();

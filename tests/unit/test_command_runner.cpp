@@ -46,7 +46,7 @@ void assert_not_contains(const std::string &str, const std::string &substr)
 
 int main()
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(30, true, false);
 	config_manager::get_instance().set_paranoid_mode(false);
 
 	// Force crashdump refresh
