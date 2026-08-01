@@ -16,8 +16,13 @@ int main()
 
 	// 1. Test static document existence & read
 	assert(vfs.exists("system://languages/cpp23.md"));
+	assert(vfs.exists("system://languages/c17.md"));
 	assert(vfs.exists("system://languages/python311.md"));
+	assert(vfs.exists("system://languages/rust2021.md"));
+	assert(vfs.exists("system://languages/typescript.md"));
+	assert(vfs.exists("system://languages/verilog.md"));
 	assert(vfs.exists("system://workflows/code_review.md"));
+	assert(vfs.exists("system://workflows/crash_analysis.md"));
 
 	auto cpp_doc = vfs.read_file("system://languages/cpp23.md");
 	assert(cpp_doc.has_value());
@@ -27,6 +32,10 @@ int main()
 
 	// 2. Test fallback alias URIs
 	assert(vfs.exists("system://cpp23.md"));
+	assert(vfs.exists("system://c.md"));
+	assert(vfs.exists("system://rust.md"));
+	assert(vfs.exists("system://ts.md"));
+	assert(vfs.exists("system://verilog.md"));
 	auto alias_doc = vfs.read_file("system://cpp23.md");
 	assert(alias_doc.has_value());
 	assert(std::string((*alias_doc)->view()) == cpp_text);

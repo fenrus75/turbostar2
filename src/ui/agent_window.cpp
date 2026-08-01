@@ -86,8 +86,16 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	std::string vfs_lang_uri = "";
 	if (prim_lang == "C++" || prim_lang == "cpp") {
 		vfs_lang_uri = "system://languages/cpp23.md";
+	} else if (prim_lang == "C" || prim_lang == "c") {
+		vfs_lang_uri = "system://languages/c17.md";
 	} else if (prim_lang == "Python" || prim_lang == "py") {
 		vfs_lang_uri = "system://languages/python311.md";
+	} else if (prim_lang == "Rust" || prim_lang == "rs") {
+		vfs_lang_uri = "system://languages/rust2021.md";
+	} else if (prim_lang == "TypeScript" || prim_lang == "ts" || prim_lang == "JavaScript" || prim_lang == "js") {
+		vfs_lang_uri = "system://languages/typescript.md";
+	} else if (prim_lang == "Verilog" || prim_lang == "v") {
+		vfs_lang_uri = "system://languages/verilog.md";
 	}
 
 	if (!vfs_lang_uri.empty()) {

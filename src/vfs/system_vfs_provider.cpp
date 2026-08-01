@@ -77,14 +77,29 @@ std::string system_vfs_provider::resolve_path(const std::string &uri) const
 	if (path == "cpp23.md" || path == "cpp.md") {
 		return "languages/cpp23.md";
 	}
-	if (path == "python311.md" || path == "python.md") {
+	if (path == "c17.md" || path == "c.md") {
+		return "languages/c17.md";
+	}
+	if (path == "python311.md" || path == "python.md" || path == "py.md") {
 		return "languages/python311.md";
+	}
+	if (path == "rust2021.md" || path == "rust.md" || path == "rs.md") {
+		return "languages/rust2021.md";
+	}
+	if (path == "typescript.md" || path == "ts.md" || path == "js.md") {
+		return "languages/typescript.md";
+	}
+	if (path == "verilog.md" || path == "v.md" || path == "sv.md") {
+		return "languages/verilog.md";
 	}
 	if (path == "code_review.md") {
 		return "workflows/code_review.md";
 	}
 	if (path == "plan_mode.md") {
 		return "workflows/plan_mode.md";
+	}
+	if (path == "crash_analysis.md") {
+		return "workflows/crash_analysis.md";
 	}
 
 	return path;
