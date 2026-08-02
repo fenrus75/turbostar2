@@ -3,6 +3,7 @@
 #include "agentlib/subagent_manager.h"
 #include "agentlib/tool_registry.h"
 #include "build_error_manager.h"
+#include "git_manager.h"
 #include "project_manager.h"
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
@@ -422,6 +423,12 @@ system_vfs_provider::system_vfs_provider()
 		ss << "# Project Workspace Overview\n\n";
 		ss << "- **Project Root**: `" << (proj_root.empty() ? "(none)" : proj_root) << "`\n";
 		
+		std::string remote_url = git_manager::get_instance().get_remote_origin_url();
+		ss << "- **Upstream Repository**: " << (remote_url.empty() ? "`none`" : "`" + remote_url + "`") << "\n";
+
+		std::string branch = git_manager::get_instance().get_current_branch();
+		ss << "- **Git Branch**: " << (branch.empty() ? "`none`" : "`" + branch + "`") << "\n";
+
 		std::string build_system = "Unknown / Custom";
 		if (fs::exists(fs::path(proj_root) / "meson.build")) {
 			build_system = "Meson";

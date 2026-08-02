@@ -299,6 +299,10 @@ std::string git_manager::get_remote_origin_url() const
 		return "";
 	}
 	std::string url = fs_utils::execute_command_sync("git -C '" + root + "' config --get remote.origin.url");
+	size_t pos = url.find('\n');
+	if (pos != std::string::npos) {
+		url = url.substr(0, pos);
+	}
 	size_t start = url.find_first_not_of(" \t\r\n");
 	if (start == std::string::npos) return "";
 	size_t end = url.find_last_not_of(" \t\r\n");
@@ -312,6 +316,10 @@ std::string git_manager::get_current_branch() const
 		return "";
 	}
 	std::string branch = fs_utils::execute_command_sync("git -C '" + root + "' rev-parse --abbrev-ref HEAD");
+	size_t pos = branch.find('\n');
+	if (pos != std::string::npos) {
+		branch = branch.substr(0, pos);
+	}
 	size_t start = branch.find_first_not_of(" \t\r\n");
 	if (start == std::string::npos) return "";
 	size_t end = branch.find_last_not_of(" \t\r\n");

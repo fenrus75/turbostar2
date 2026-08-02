@@ -165,6 +165,8 @@ int main()
 	std::string proj_info_text = std::string((*proj_info_doc)->view());
 	std::cout << "\nsystem://project/info.md content:\n" << proj_info_text << std::endl;
 	assert(proj_info_text.find("Project Workspace Overview") != std::string::npos);
+	assert(proj_info_text.find("Upstream Repository") != std::string::npos);
+	assert(proj_info_text.find("Git Branch") != std::string::npos);
 	assert(proj_info_text.find("Build System") != std::string::npos);
 
 	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
