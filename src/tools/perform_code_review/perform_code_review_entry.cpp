@@ -166,6 +166,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		}
 		reviewer_agent->set_role(agentlib::agent_role::reviewer);
 		reviewer_agent->set_model(reviewer_model);
+		reviewer_agent->add_active_tool_family("code_review");
 
 		if (!args_.result_file.empty()) {
 			reviewer_agent->set_allowed_write_file(args_.result_file);

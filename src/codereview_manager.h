@@ -67,6 +67,9 @@ class codereview_manager : public document_listener
 	std::vector<review_item> list_code_review_items(const std::string &filename_filter = "", const std::string &severity_filter = "",
 							bool include_resolved = false) const;
 
+	// Check if there are any active (unresolved) code review items
+	bool has_active_items() const;
+
 	// Clear all code review items and reset counters
 	void clear_all();
 

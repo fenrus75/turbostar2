@@ -58,6 +58,16 @@ tool_registry::tool_registry()
 		"   `sqlite_perform(database=\"todos\", query=\"SELECT * FROM todos WHERE completed = 0;\")` \n"
 		"   *Returns a formatted Markdown table of matching rows.*"
 	);
+
+	register_tool_family(
+		"code_review",
+		"Activate to inspect, confirm, update, or resolve code review findings and security audit items (auto-activates when review items exist)",
+		"The 'code_review' tool family enables agents to query, verify, and resolve code review findings and security audit items stored in the workspace review database.\n\n"
+		"### Key Concepts & Rules\n"
+		"- **Auto-Activation**: This tool family automatically activates whenever there are active (unresolved) code review items in the project workspace.\n"
+		"- **Creating Findings**: `create_code_review_item` is available by default so any agent can file a finding at any time.\n"
+		"- **Item Lifecycle**: `new` -> `confirmed` (or `disputed`, `stale`) -> `resolved` (with commit hash) -> `verified-fixed`."
+	);
 }
 
 tool_registry &tool_registry::get_instance()

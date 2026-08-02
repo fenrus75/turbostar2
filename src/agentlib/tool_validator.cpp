@@ -1,4 +1,5 @@
 #include "tool_validator.h"
+#include "../codereview_manager.h"
 #include <algorithm>
 
 namespace agentlib {
@@ -17,7 +18,13 @@ static std::vector<std::string> split_families(const std::string &s) {
 bool tool_validator::is_allowed_for_agent(const agent_properties &properties) const {
 	std::string family_str = get_family();
 	for (const auto &fam : split_families(family_str)) {
+		if (fam == "base") {
+			return true;
+		}
 		if (std::find(properties.active_families.begin(), properties.active_families.end(), fam) != properties.active_families.end()) {
+			return true;
+		}
+		if (fam == "code_review" && codereview_manager::get_instance().has_active_items()) {
 			return true;
 		}
 	}

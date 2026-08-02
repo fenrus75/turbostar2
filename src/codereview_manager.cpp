@@ -270,6 +270,17 @@ std::vector<review_item> codereview_manager::list_code_review_items(const std::s
 	return res;
 }
 
+bool codereview_manager::has_active_items() const
+{
+	std::shared_lock lock(mutex_);
+	for (const auto &item : items_) {
+		if (item.state != "resolved" && item.state != "verified-fixed") {
+			return true;
+		}
+	}
+	return false;
+}
+
 void codereview_manager::clear_all()
 {
 	std::unique_lock lock(mutex_);

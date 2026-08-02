@@ -27,6 +27,7 @@ private:
 
 class update_code_review_item_validator : public agentlib::tool_validator {
 public:
+	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "update_code_review_item"; }
 	std::string get_description() const override {
 		return "Updates one or more fields of an existing code review item in the database.";

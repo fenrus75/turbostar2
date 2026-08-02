@@ -23,6 +23,7 @@ private:
 
 class get_code_review_item_validator : public agentlib::tool_validator {
 public:
+	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "get_code_review_item"; }
 	std::string get_description() const override {
 		return "Retrieves the full details of a specific code review item by its unique ID.";

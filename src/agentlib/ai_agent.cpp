@@ -11,6 +11,7 @@
 #include <set>
 #include <unordered_map>
 #include "../config_manager.h"
+#include "../codereview_manager.h"
 #include "../event_logger.h"
 #include "../event_queue.h"
 #include "../fs_utils.h"
@@ -818,6 +819,13 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 {
 	if (family_name == "base") {
 		return true;
+	}
+
+	// Auto-activate code_review tool family when there are active review items
+	if (family_name == "code_review") {
+		if (codereview_manager::get_instance().has_active_items()) {
+			return true;
+		}
 	}
 
 	// Check if dynamically activated for this agent session

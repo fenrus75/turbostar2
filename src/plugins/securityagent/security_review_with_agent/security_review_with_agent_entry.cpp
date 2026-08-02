@@ -132,8 +132,9 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 		subagent->set_allowed_write_file(args_.output_path);
 	}
 
-	// 3. Equip with the securityagent tool family
+	// 3. Equip with securityagent and code_review tool families
 	subagent->add_active_tool_family(":plugin:securityagent");
+	subagent->add_active_tool_family("code_review");
 
 	// 4. Construct reporting instructions
 	std::string reporting_instr;
