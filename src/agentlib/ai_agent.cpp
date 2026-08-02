@@ -828,6 +828,13 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 		}
 	}
 
+	// Auto-activate editor tool family when running in interactive editor mode
+	if (family_name == "editor") {
+		if (project_manager::get_instance().is_editor_mode()) {
+			return true;
+		}
+	}
+
 	// Check if dynamically activated for this agent session
 	{
 		std::lock_guard<std::mutex> lock(properties_mutex_);

@@ -44,6 +44,19 @@ tool_registry::tool_registry()
 		"- **Creating Findings**: `create_code_review_item` is available by default so any agent can file a finding at any time.\n"
 		"- **Item Lifecycle**: `new` -> `confirmed` (or `disputed`, `stale`) -> `resolved` (with commit hash) -> `verified-fixed`."
 	);
+
+	register_tool_family(
+		"editor",
+		"Activate when running in interactive TurboStar editor UI mode to manage UI error highlighting, status bar messages, and editor tabs",
+		"The 'editor' tool family provides tools for interacting with the TurboStar UI editor environment.\n\n"
+		"### Key Concepts & Rules\n"
+		"- **Auto-Activation**: Automatically activated when running in interactive editor UI mode. Inactive in headless server mode.\n"
+		"- **Key Tools**:\n"
+		"  - `flag_as_error`: Flags a line in a file with an error or warning highlight overlay in the editor UI.\n"
+		"  - `clear_all_errors`: Clears all error overlays from the editor UI.\n"
+		"  - `agent_set_status`: Sets a brief status message in the editor status bar.\n"
+		"  - `open_in_editor`: Opens a workspace file in an editor tab window."
+	);
 }
 
 tool_registry &tool_registry::get_instance()

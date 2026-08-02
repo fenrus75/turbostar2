@@ -26,6 +26,7 @@ int main()
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
 	ctx.active_agent = agent.get();
+	ctx.properties.active_families.push_back("editor");
 
 	std::cout << "Testing agent_set_status..." << std::endl;
 	{

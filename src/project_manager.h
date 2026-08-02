@@ -53,6 +53,16 @@ class project_manager
 		}
 	}
 
+	bool is_editor_mode() const
+	{
+		return is_editor_mode_;
+	}
+
+	void set_editor_mode(bool editor_mode)
+	{
+		is_editor_mode_ = editor_mode;
+	}
+
 	/**
 	 * @brief Returns the content of AGENTS.md or GEMINI.md if found at the root.
 	 */
@@ -223,4 +233,5 @@ class project_manager
 	std::atomic<bool> is_exiting_{false};
 	std::atomic<bool> initialized_{false};
 	std::atomic<bool> enforce_initialization_{false};
+	std::atomic<bool> is_editor_mode_{false};
 };

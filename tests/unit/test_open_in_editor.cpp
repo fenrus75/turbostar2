@@ -23,6 +23,7 @@ int main()
 	}
 
 	agentlib::tool_context ctx;
+	ctx.properties.active_families.push_back("editor");
 	ctx.fs_security.set_working_directory(temp_dir);
 	ctx.fs_security.add_allowed_root(temp_dir, agentlib::access_type::read);
 

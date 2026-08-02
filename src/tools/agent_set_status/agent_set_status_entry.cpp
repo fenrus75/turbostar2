@@ -33,6 +33,10 @@ class agent_set_status_validator : public agentlib::tool_validator
 	{
 		return "agent_set_status";
 	}
+	std::string get_family() const override
+	{
+		return "editor";
+	}
 	std::string get_description() const override
 	{
 		return "Sets a brief status message in the editor's status bar to inform the user of progress.";

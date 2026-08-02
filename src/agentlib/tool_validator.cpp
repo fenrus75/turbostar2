@@ -1,5 +1,6 @@
 #include "tool_validator.h"
 #include "../codereview_manager.h"
+#include "../project_manager.h"
 #include <algorithm>
 
 namespace agentlib {
@@ -25,6 +26,9 @@ bool tool_validator::is_allowed_for_agent(const agent_properties &properties) co
 			return true;
 		}
 		if (fam == "code_review" && codereview_manager::get_instance().has_active_items()) {
+			return true;
+		}
+		if (fam == "editor" && project_manager::get_instance().is_editor_mode()) {
 			return true;
 		}
 	}

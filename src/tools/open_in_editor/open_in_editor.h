@@ -25,6 +25,10 @@ class open_in_editor_validator : public agentlib::single_file_tool_validator
 	{
 		return "open_in_editor";
 	}
+	std::string get_family() const override
+	{
+		return "editor";
+	}
 	std::string get_description() const override
 	{
 		return "Open a file in the editor UI for the user to view or edit.";

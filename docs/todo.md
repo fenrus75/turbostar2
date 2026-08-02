@@ -276,11 +276,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   4. Registered `"code_review"` tool family in `tool_registry` constructor.
   5. Equipped Security Review Agent (`security_review_with_agent`) and Code Reviewer subagents with `"code_review"` tool family.
   6. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
-- `test_watchdog` Singleton Initialization Helpers (`tests/unit/test_watchdog.h`, `tests/unit/`, `docs/todo.md`):
-  1. Added `test_watchdog::init_singletons()` and `test_watchdog::init_plugin_environment()` helper functions in [test_watchdog.h](file:///home/arjan/git/turbostar2/tests/unit/test_watchdog.h) to initialize core singletons (`command_registry`, `skill_manager`, `filter_registry`, `tool_registry`) in strict lifetime order before `plugin_loader`.
-  2. Prevents static destructor ordering bugs and double-free crashes during process exit when dynamic plugins call `unregister_tool_family()` or `unregister_filter()`.
-  3. Refactored all plugin unit tests (`test_hexinspect`, `test_html_extract_tables`, `test_image_tools`, `test_pluginloader`, `test_a2a_generate_card_with_agent`, `test_a2a_server`, `test_a2a_validate_card`, `test_sqlite_list_db`, `test_sqlite_validation`, `test_perform_code_review`) to use `test_watchdog::init_plugin_environment()` and `init_singletons()`.
-  4. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
+- `editor` Tool Family & Auto-Activation (`src/project_manager.h`, `src/editor.cpp`, `src/agentlib/`, `src/tools/`, `tests/unit/test_editor_tool_family.cpp`, `meson.build`, `docs/todo.md`):
+  1. Created `"editor"` tool family for UI-specific tools (`flag_as_error`, `clear_all_errors`, `agent_set_status`, `open_in_editor`). Kept `ask_user` in `"base"` family (always available).
+  2. Added `is_editor_mode()` / `set_editor_mode()` tracking to [project_manager.h](file:///home/arjan/git/turbostar2/src/project_manager.h) and set `set_editor_mode(true)` in `editor` constructor.
+  3. Added auto-activation logic in `ai_agent::is_tool_family_active()` and `tool_validator::is_allowed_for_agent()` to activate `"editor"` family automatically when in interactive editor UI mode (`is_editor_mode() == true`), while keeping it inactive in headless/server mode.
+  4. Registered `"editor"` tool family guidance and reasons in `tool_registry`.
+  5. Added unit test [test_editor_tool_family.cpp](file:///home/arjan/git/turbostar2/tests/unit/test_editor_tool_family.cpp) and verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
   1. Created `src/plugins/sqlite/` containing `plugin.cpp`, `sqlite_create_db.h/cpp/security.cpp`, `sqlite_delete_db.h/cpp/security.cpp`, `sqlite_list_db.h/cpp/security.cpp`, and `sqlite_perform.h/cpp/security.cpp`.
   2. Moved `sqlite` tool family registration and all 4 tools to `src/plugins/sqlite/plugin.cpp` (`plugin_run()` / `plugin_unload()`).
   3. Removed old built-in source directories `src/tools/sqlite_*` and updated `src/tools/meson.build`.

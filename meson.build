@@ -1481,6 +1481,12 @@ test_perform_code_review = executable('test_perform_code_review',
   include_directories: inc)
 test('unit_perform_code_review', test_perform_code_review, suite: 'agent', is_parallel: false)
 
+test_editor_tool_family = executable('test_editor_tool_family',
+  ['tests/unit/test_editor_tool_family.cpp'],
+  dependencies : [tools_dep, agent_dep, core_dep, httplib_dep, thread_dep, nlohmann_json_dep],
+  include_directories: inc)
+test('unit_editor_tool_family', test_editor_tool_family, suite: 'agent')
+
 test_security_review_with_agent = executable('test_security_review_with_agent',
   ['tests/unit/test_security_review_with_agent.cpp',
    'src/plugins/securityagent/security_review_with_agent/security_review_with_agent_entry.cpp',
