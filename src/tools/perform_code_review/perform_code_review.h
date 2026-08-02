@@ -11,7 +11,6 @@ namespace tools
 struct perform_code_review_args {
 	std::vector<std::string> files;
 	std::string instructions;
-	std::vector<std::string> todos;
 	std::string result_file;
 	bool async{false};
 };
@@ -52,10 +51,6 @@ class perform_code_review_validator : public agentlib::tool_validator
 			{"description", "List of file paths relative to the project root to perform code review on."}}},
 		      {"instructions",
 		       {{"type", "string"}, {"description", "Optional custom review instructions or specific focus areas."}}},
-		      {"todos",
-		       {{"type", "array"},
-			{"items", {{"type", "string"}}},
-			{"description", "Optional list of todo items to assign to the code review agent."}}},
 		      {"result_file",
 		       {{"type", "string"},
 			{"description", "Optional file path relative to project root where the final summary report will be written."}}},

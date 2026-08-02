@@ -204,20 +204,6 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 			reviews_section = "No previous code review items exist for these files.\n";
 		}
 
-		// Build todo list instructions
-		std::string todos_section;
-		if (!args_.todos.empty()) {
-			todos_section = "You are explicitly asked to address the following todo items and mark them complete using the "
-					"`agent_complete_todo` tool once completed:\n"
-					"| Todo Item |\n|---|\n";
-			for (const auto &t : args_.todos) {
-				todos_section += std::format("| {} |\n", t);
-				reviewer_agent->add_todo(t);
-			}
-		} else {
-			todos_section = "No specific todo items assigned.";
-		}
-
 		std::string files_list_str;
 		for (const auto &f : group_files) {
 			files_list_str += "- " + f + "\n";
@@ -234,13 +220,11 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 				"\n"
 				"### Previous Code Reviews:\n{}"
 				"\n"
-				"### assigned Tasks:\n"
-				"{}\n\n"
 				"### Final Output Guidelines:\n"
 				"Once and only once you have created/updated all code review items for all identified issues using the tools:\n"
 				"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
 				"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
-				files_list_str, reviews_section, todos_section, args_.result_file);
+				files_list_str, reviews_section, args_.result_file);
 
 		reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 		reviewer_agent->inject_context("system", system_prompt);

@@ -26,11 +26,6 @@ enum class agent_status { idle, thinking, tool_execution, waiting, error, dead }
 std::string agent_status_to_string(agent_status status, const std::string &tool_name = "");
 std::string agent_status_to_name(agent_status status);
 
-struct todo_item {
-	std::string text;
-	bool completed{false};
-	int reminder_count{0};
-};
 
 struct episode_index_entry {
 	std::string id;
@@ -96,12 +91,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return waiting_on_id_;
 	}
 
-	void add_todo(const std::string &task);
-	std::vector<todo_item> get_todos() const;
-	std::optional<std::string> pop_todo();
-	bool mark_todo_complete(const std::string &text_match, std::string &out_error);
-	bool delete_todo(const std::string &text_match, std::string &out_error);
-	std::string get_todo_reminder_msg();
 
 	std::shared_ptr<ai_agent> spawn_subagent(const std::string &task_description);
 	void remove_subagent(int id);
@@ -277,17 +266,16 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	/*
 	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
-	 * including todos_, subagents_, active_skills_, original_system_prompt_,
+	 * including subagents_, active_skills_, original_system_prompt_,
 	 * interactions_, final_result_, exit_implicitly_on_idle_, notify_parent_on_completion_,
 	 * and animation_name_.
 	 * Locking Rules:
-	 * - Held during status changes, subagent spawning/management, todo list modifications,
+	 * - Held during status changes, subagent spawning/management,
 	 *   modifications to the implicit exit and notification flags, and animation name changes.
 	 * - status_cv_ is used in conjunction with state_mutex_ for waiting until the agent is idle.
 	 */
 	mutable std::mutex state_mutex_;
 	std::condition_variable status_cv_;
-	std::vector<todo_item> todos_;
 	std::vector<std::shared_ptr<ai_agent>> subagents_;
 	std::vector<std::string> active_skills_;
 	std::string original_system_prompt_;
@@ -324,8 +312,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void update_system_prompt_with_families();
 	void set_conversation_unlocked(std::span<const message> c);
 	std::vector<message> get_conversation_unlocked() const;
-	void save_todos_internal() const;
-	void save_todos_internal_unlocked() const;
 
 	std::atomic<int> tokens_tx_{0};
 	std::atomic<int> tokens_rx_{0};

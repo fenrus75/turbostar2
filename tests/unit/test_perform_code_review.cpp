@@ -192,7 +192,7 @@ void test_perform_code_review_splitting()
 
 	// Test Scenario A: Split by lines (expecting 3 subagents)
 	{
-		auto agent = ai_agent::create(100, "DeveloperAgentA", model, &q, nullptr);
+		auto agent = ai_agent::create(98100, "DeveloperAgentA", model, &q, nullptr);
 		agent->set_role(agent_role::developer);
 		tool_context ctx_a = ctx;
 		ctx_a.active_agent = agent.get();
@@ -243,7 +243,7 @@ void test_perform_code_review_splitting()
 
 	// Test Scenario B: Split by count (expecting 2 subagents)
 	{
-		auto agent = ai_agent::create(200, "DeveloperAgentB", model, &q, nullptr);
+		auto agent = ai_agent::create(98200, "DeveloperAgentB", model, &q, nullptr);
 		agent->set_role(agent_role::developer);
 		tool_context ctx_b = ctx;
 		ctx_b.active_agent = agent.get();

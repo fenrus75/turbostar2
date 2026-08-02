@@ -65,7 +65,7 @@ class agent_window : public window
 	bool update_viewport() const override;
 
       private:
-	enum class sidebar_focus { input, todos, subagents };
+	enum class sidebar_focus { input, subagents };
 
 	mutable int scroll_offset_{0};
 	mutable int last_scroll_offset_{-1};
@@ -79,7 +79,6 @@ class agent_window : public window
 	std::shared_ptr<agentlib::ai_agent> agent_;
 	mutable std::vector<agentlib::interaction_line> visible_lines_;
 
-	std::unique_ptr<ui_listbox> todos_list_;
 	std::unique_ptr<ui_listbox> subagents_list_;
 
 	mutable std::map<std::string, cached_thumbnail> thumbnail_cache_;

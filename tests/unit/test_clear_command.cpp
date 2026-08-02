@@ -22,8 +22,8 @@ int main()
 	std::cout << "Testing /clear command..." << std::endl;
 
 	// Populate agent state
-	agent->add_todo("Test TODO item");
-	assert(!agent->get_todos().empty());
+	agent->add_active_skill("demo_skill");
+	assert(!agent->get_active_skills().empty());
 
 	agent->add_interaction(std::make_shared<interaction_user_message>("Hello agent"));
 	assert(!agent->get_interactions().empty());
@@ -40,7 +40,6 @@ int main()
 	cmd->execute(ctx);
 
 	// Verify state after clear
-	assert(agent->get_todos().empty());
 	assert(agent->get_subagents().empty());
 	assert(agent->get_model() == model);
 
