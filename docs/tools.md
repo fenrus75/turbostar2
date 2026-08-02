@@ -163,10 +163,6 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `path` *(string, required)*: The path to the file to compile, relative to the project root.
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
 
-### `fs_compile_summary`
-*   **Description:** Reports all files that currently have compilation errors/warnings or live LSP diagnostics. Returns a Markdown table.
-*   **Arguments:** None.
-
 ### `fs_compile_info`
 *   **Description:** Retrieves the exact compile command (from `compile_commands.json`), the last compile time, and any active build/LSP diagnostics for a specific file.
 *   **Arguments:**
@@ -247,10 +243,6 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Activates a specialized tool family by name. This makes all tools belonging to that family available in the agent's context. By default, only the 'base' family is active.
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the tool family to activate.
-
-### `list_skills`
-*   **Description:** Lists all available specialized agent skills. Returns a Markdown table containing the skill name, URI, and description. Use this to discover available skills.
-*   **Arguments:** None.
 
 ### `get_current_datetime`
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.

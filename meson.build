@@ -529,16 +529,6 @@ test_security_verify_html = executable('test_security_verify_html',
   include_directories: inc)
 test('unit_test_security_verify_html', test_security_verify_html, suite: 'plugins')
 
-
-
-test_list_skills = executable('test_list_skills',
-  ['tests/unit/test_list_skills.cpp',
-   'src/tools/list_skills/list_skills_entry.cpp',
-   'src/tools/list_skills/list_skills_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_list_skills', test_list_skills, suite: 'agent')
-
 test_send_message = executable('test_send_message',
   ['tests/unit/test_send_message.cpp',
    'src/tools/send_message/send_message_entry.cpp',
@@ -1137,14 +1127,6 @@ test_fs_compile_project = executable('test_fs_compile_project',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_compile_project', test_fs_compile_project, suite: 'agent')
-
-test_fs_compile_summary = executable('test_fs_compile_summary',
-  ['tests/unit/test_fs_compile_summary.cpp',
-   'src/tools/fs_compile_summary/fs_compile_summary_entry.cpp',
-   'src/tools/fs_compile_summary/fs_compile_summary_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_fs_compile_summary', test_fs_compile_summary, suite: 'agent')
 
 test_get_current_datetime = executable('test_get_current_datetime',
   ['tests/unit/test_get_current_datetime.cpp',
