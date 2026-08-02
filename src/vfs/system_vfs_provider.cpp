@@ -3,6 +3,7 @@
 #include "agentlib/subagent_manager.h"
 #include "agentlib/tool_registry.h"
 #include "build_error_manager.h"
+#include "project_manager.h"
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
@@ -349,8 +350,8 @@ system_vfs_provider::system_vfs_provider()
 		return ss.str();
 	});
 
-	// 6. Dynamic Generator: system://diagnostics.md
-	register_generator("diagnostics.md", [](const std::string &query) -> std::string {
+	// 6. Dynamic Generator: system://project/diagnostics.md
+	register_generator("project/diagnostics.md", [](const std::string &query) -> std::string {
 		struct file_stats {
 			int compiler_errors = 0;
 			int compiler_warnings = 0;
@@ -414,6 +415,27 @@ system_vfs_provider::system_vfs_provider()
 		return ss.str();
 	});
 
+	// 7. Dynamic Generator: system://project/info.md
+	register_generator("project/info.md", [](const std::string &) -> std::string {
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::stringstream ss;
+		ss << "# Project Workspace Overview\n\n";
+		ss << "- **Project Root**: `" << (proj_root.empty() ? "(none)" : proj_root) << "`\n";
+		
+		std::string build_system = "Unknown / Custom";
+		if (fs::exists(fs::path(proj_root) / "meson.build")) {
+			build_system = "Meson";
+		} else if (fs::exists(fs::path(proj_root) / "CMakeLists.txt")) {
+			build_system = "CMake";
+		} else if (fs::exists(fs::path(proj_root) / "Makefile")) {
+			build_system = "Make";
+		}
+		ss << "- **Build System**: " << build_system << "\n";
+		ss << "- **GEMINI.md Presence**: " << (fs::exists(fs::path(proj_root) / "GEMINI.md") ? "Yes" : "No") << "\n";
+		ss << "- **AGENTS.md Presence**: " << (fs::exists(fs::path(proj_root) / "AGENTS.md") ? "Yes" : "No") << "\n";
+		return ss.str();
+	});
+
 	// Register file purpose descriptions ("when to read this file")
 	register_description("languages/cpp23.md", "Read when writing or refactoring C++23 code.");
 	register_description("languages/c17.md", "Read when writing or refactoring C17 code.");
@@ -432,11 +454,13 @@ system_vfs_provider::system_vfs_provider()
 	register_description("tool-families.md", "Read to discover available tool families, activation criteria, and member tools.");
 	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
 	register_description("skills.md", "Read to discover available specialized agent skills and their instruction URIs (supports ?search=<query>).");
-	register_description("diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
+	register_description("project/diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
+	register_description("project/info.md", "Read to check project workspace root, build system type, and instruction file presence.");
 	// Register directory purpose descriptions
 	register_description("languages", "Directory containing language-specific development guidelines and standards.");
 	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
 	register_description("tool-families", "Directory containing tool family activation guides and member tool specifications.");
+	register_description("project", "Directory containing project-level build status, diagnostics, and workspace information.");
 
 	register_generator("tool-families.md", [](const std::string &query) {
 		return generate_tool_families_index(query);
@@ -507,8 +531,11 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	if (path == "skills" || path == "skill_list.md" || path == "skills.md") {
 		return "skills.md";
 	}
-	if (path == "diagnostics" || path == "diagnostics.md" || path == "compile_summary.md" || path == "compile-summary.md" || path == "build/summary.md") {
-		return "diagnostics.md";
+	if (path == "diagnostics" || path == "diagnostics.md" || path == "compile_summary.md" || path == "compile-summary.md" || path == "build/summary.md" || path == "project/summary.md" || path == "project/diagnostics" || path == "project/diagnostics.md") {
+		return "project/diagnostics.md";
+	}
+	if (path == "project/info" || path == "project/info.md" || path == "project/overview" || path == "project/overview.md" || path == "project_info.md") {
+		return "project/info.md";
 	}
 	if (path == "tool-families" || path == "tool-families.md" || path == "tool_families" || path == "tool_families.md") {
 		return "tool-families.md";
@@ -835,6 +862,8 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 					info.details = "Directory containing subagent and system workflow guidelines.";
 				} else if (dir_name == "tool-families") {
 					info.details = "Directory containing tool family activation guides and member tool specifications.";
+				} else if (dir_name == "project") {
+					info.details = "Directory containing project-level build status, diagnostics, and workspace information.";
 				}
 				results.push_back(info);
 			}

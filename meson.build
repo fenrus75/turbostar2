@@ -382,8 +382,6 @@ test('unit_test_agent_highlight', test_agent_highlight, suite: 'agent')
 
 test_tools = executable('test_tools',
   ['tests/unit/test_tools.cpp',
-   'src/tools/fs_list_tests/fs_list_tests_entry.cpp',
-   'src/tools/fs_list_tests/fs_list_tests_security.cpp',
    'src/tools/fs_run_tests/fs_run_tests_entry.cpp',
    'src/tools/fs_run_tests/fs_run_tests_security.cpp',
    'src/tools/agent_set_timer/agent_set_timer_entry.cpp',
@@ -545,7 +543,7 @@ test_run_python = executable('test_run_python',
    'src/tools/run_python/run_python_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_run_python', test_run_python, suite: 'agent')
+test('unit_test_run_python', test_run_python, is_parallel: false, suite: 'agent')
 
 test_run_shell_command = executable('test_run_shell_command',
   ['tests/unit/test_run_shell_command.cpp',

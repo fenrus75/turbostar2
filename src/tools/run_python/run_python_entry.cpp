@@ -154,7 +154,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	std::string base_cmd;
 
 	// Check if uv is available
-	if (system("which uv > /dev/null 2>&1") == 0) {
+	if (access("/usr/bin/uv", X_OK) == 0) {
 		base_cmd = "PYTHONUNBUFFERED=1 UV_HTTP_TIMEOUT=300 UV_NO_PROJECT=1 UV_CACHE_DIR=.turbostar/uv_cache UV_PROJECT_ENVIRONMENT=.turbostar/uv_env uv run ";
 		for (const auto &dep : args_.dependencies) {
 			base_cmd += "--with " + fs_utils::escape_shell_arg(dep) + " ";

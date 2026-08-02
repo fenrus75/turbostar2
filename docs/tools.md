@@ -253,7 +253,8 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   `system://tools.md` (or `system://tools.md?search=pattern`): Reads a Markdown table summarizing all active tools (`| Tool Name | Description |`).
 *   `system://tools_detailed.md` (or `system://tools/details.md`): Reads full parameter schemas (types, descriptions, required fields) for deep inspection.
 *   `system://skills.md` (or `system://skills.md?search=pattern`): Reads a Markdown table of all available agent skills, URIs, and descriptions (replacing `list_skills`).
-*   `system://diagnostics.md` (or `system://compile_summary.md`): Reads a Markdown summary of compiler errors, compiler warnings, and LSP diagnostics across workspace files (replacing `fs_compile_summary`).
+*   `system://project/diagnostics.md` (or `system://project/summary.md`, `system://diagnostics.md`): Reads a Markdown summary of compiler errors, compiler warnings, and LSP diagnostics across workspace files (replacing `fs_compile_summary`).
+*   `system://project/info.md` (or `system://project/overview.md`): Reads project workspace overview details, including root path, build system type, and instruction files (`GEMINI.md`, `AGENTS.md`).
 
 ### `run_python`
 *   **Description:** Executes Python code in a sandboxed environment.

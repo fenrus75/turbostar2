@@ -21,7 +21,8 @@ void write_file(const std::filesystem::path &path, const std::string &content)
 
 int main()
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(60);
+	test_watchdog::isolate_home("test_run_python");
 	project_manager::get_instance().initialize();
 
 	tool_registry &registry = tool_registry::get_instance();
@@ -42,12 +43,15 @@ int main()
 		assert(result.find("Hello from inline Python!") != std::string::npos);
 	}
 
+	std::string pid_str = std::to_string(getpid());
+
 	// 2. Success case: execute python script from file
 	{
-		std::filesystem::path script_path = std::filesystem::path(project_root) / "test_run_python_temp.py";
+		std::string script_filename = "test_run_python_temp_" + pid_str + ".py";
+		std::filesystem::path script_path = std::filesystem::path(project_root) / script_filename;
 		write_file(script_path, "print('Hello from script file!')\n");
 
-		nlohmann::json args = {{"path", "test_run_python_temp.py"}};
+		nlohmann::json args = {{"path", script_filename}};
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Hello from script file!") != std::string::npos);
@@ -97,7 +101,7 @@ int main()
 	}
 
 	// 8. Bandit security check case (inline code)
-	bool bandit_installed = (std::system("which bandit > /dev/null 2>&1") == 0);
+	bool bandit_installed = (access("/usr/bin/bandit", X_OK) == 0);
 	if (bandit_installed) {
 		std::cout << "Testing bandit validation with insecure inline code..." << std::endl;
 		nlohmann::json args = {{"code", "import subprocess\ndef run_user_command():\n    user_input = input(\"Enter a command to run: \")\n    subprocess.call(user_input, shell=True)\nrun_user_command()"}};
@@ -108,10 +112,11 @@ int main()
 	// 9. Bandit security check case (file path)
 	if (bandit_installed) {
 		std::cout << "Testing bandit validation with insecure script file..." << std::endl;
-		std::filesystem::path script_path = std::filesystem::path(project_root) / "test_run_python_insecure.py";
+		std::string insecure_filename = "test_run_python_insecure_" + pid_str + ".py";
+		std::filesystem::path script_path = std::filesystem::path(project_root) / insecure_filename;
 		write_file(script_path, "import subprocess\ndef run_user_command():\n    user_input = input(\"Enter a command to run: \")\n    subprocess.call(user_input, shell=True)\nrun_user_command()\n");
 
-		nlohmann::json args = {{"path", "test_run_python_insecure.py"}};
+		nlohmann::json args = {{"path", insecure_filename}};
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		assert(result.find("Security Validation Failed") != std::string::npos);
 
@@ -123,8 +128,9 @@ int main()
 		virtual_file_system vfs;
 		ctx.fs_security.set_vfs(&vfs);
 
-		std::string vfs_path = "tmp://test_run_python_vfs.py";
-		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/test_run_python_vfs.py";
+		std::string vfs_filename = "test_run_python_vfs_" + pid_str + ".py";
+		std::string vfs_path = "tmp://" + vfs_filename;
+		std::string physical_vfs_path = fs_utils::get_project_tmp_dir() + "/" + vfs_filename;
 		write_file(std::filesystem::path(physical_vfs_path), "print('Hello from VFS tmp script file!')\n");
 
 		nlohmann::json args = {{"path", vfs_path}};

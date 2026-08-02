@@ -10,13 +10,13 @@ def test_list_tests():
         runner.send_keys('\x1b' + 'a') # Alt-A
         time.sleep(1.0)
         
-        # Type a request to list tests
-        runner.send_keys("fs_list_tests()")
+        # Type a request to list tests via VFS
+        runner.send_keys("fs_read_lines('system://project/testlist.md')")
         runner.send_keys('\n')
         
         # Wait for agent to process and show the list
         # We expect a markdown table with test names
-        runner.assert_text_on_screen("Available Tests", timeout=10.0)
+        runner.assert_text_on_screen("Available Project Tests", timeout=10.0)
         runner.assert_text_on_screen("unit_event_logger", timeout=2.0)
         
     finally:

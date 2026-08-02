@@ -39,35 +39,6 @@ extern std::string troff2md(std::string troff_content);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 
-	std::cout << "Testing fs_list_tests..." << std::endl;
-	std::string list_result = registry.execute_tool("fs_list_tests", "{}", ctx);
-	std::cout << "Result:\n" << list_result << std::endl;
-
-	assert(list_result.find("Available Tests") != std::string::npos);
-	assert(list_result.find("unit_event_logger") != std::string::npos);
-
-	// Test 1: Pattern filtering success
-	std::string list_filtered = registry.execute_tool("fs_list_tests", "{\"pattern\": \"logger\"}", ctx);
-	assert(list_filtered.find("unit_event_logger") != std::string::npos);
-
-	// Test 2: Pattern filtering no matches
-	std::string list_none = registry.execute_tool("fs_list_tests", "{\"pattern\": \"nonexistent_pattern_xyz\"}", ctx);
-	assert(list_none.find("No tests matching the pattern") != std::string::npos);
-
-	// Test 3: Invalid regex pattern
-	{
-		auto prep = registry.prepare_tool("fs_list_tests", "{\"pattern\": \"[\"}", ctx);
-		assert(prep.tool == nullptr);
-		assert(!prep.error_message.empty());
-	}
-
-	// Test 4: Unexpected arguments
-	{
-		auto prep = registry.prepare_tool("fs_list_tests", "{\"pattern\": \"logger\", \"unexpected\": 123}", ctx);
-		assert(prep.tool == nullptr);
-		assert(!prep.error_message.empty());
-	}
-
 	std::cout << "\nTesting fs_run_tests with specific tests..." << std::endl;
 	// We'll run a fast test like unit_event_logger
 	std::string run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"]}", ctx);

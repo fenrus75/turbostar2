@@ -149,16 +149,23 @@ int main()
 	assert(skills_text.find("Available Agent Skills") != std::string::npos);
 	assert(skills_text.find("demo_skill") != std::string::npos);
 
-	auto diag_doc = vfs.read_file("system://diagnostics.md");
+	auto diag_doc = vfs.read_file("system://project/diagnostics.md");
 	assert(diag_doc.has_value());
 	std::string diag_text = std::string((*diag_doc)->view());
-	std::cout << "\nsystem://diagnostics.md content:\n" << diag_text << std::endl;
+	std::cout << "\nsystem://project/diagnostics.md content:\n" << diag_text << std::endl;
 	assert(diag_text.find("No compilation errors or warnings found.") != std::string::npos ||
 	       diag_text.find("Workspace Compilation Diagnostics") != std::string::npos);
 
 	auto diag_alias = vfs.read_file("system://compile_summary.md");
 	assert(diag_alias.has_value());
 	assert(std::string((*diag_alias)->view()) == diag_text);
+
+	auto proj_info_doc = vfs.read_file("system://project/info.md");
+	assert(proj_info_doc.has_value());
+	std::string proj_info_text = std::string((*proj_info_doc)->view());
+	std::cout << "\nsystem://project/info.md content:\n" << proj_info_text << std::endl;
+	assert(proj_info_text.find("Project Workspace Overview") != std::string::npos);
+	assert(proj_info_text.find("Build System") != std::string::npos);
 
 	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
 	assert(git_fam_doc.has_value());
