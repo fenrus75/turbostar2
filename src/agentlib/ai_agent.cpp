@@ -91,13 +91,45 @@ std::string agent_status_to_name(agent_status status)
 	}
 }
 
+namespace {
+static std::mutex g_agent_registry_mutex;
+static std::map<int, std::weak_ptr<ai_agent>> g_agent_registry;
+}
+
 std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue,
 					   document_provider *doc_provider)
 {
 	auto agent = std::shared_ptr<ai_agent>(new ai_agent(id, name, std::move(model), queue, doc_provider));
-	// Don't auto-load active state automatically here because it might overwrite system prompts injected right after creation.
-	// We'll let the window/caller decide when to load. Actually, if we load it here, it will be an empty shell if not found.
+	{
+		std::lock_guard<std::mutex> lock(g_agent_registry_mutex);
+		g_agent_registry[id] = agent;
+	}
 	return agent;
+}
+
+std::shared_ptr<ai_agent> ai_agent::find_agent_by_id(int id)
+{
+	std::lock_guard<std::mutex> lock(g_agent_registry_mutex);
+	auto it = g_agent_registry.find(id);
+	if (it != g_agent_registry.end()) {
+		return it->second.lock();
+	}
+	return nullptr;
+}
+
+std::vector<std::shared_ptr<ai_agent>> ai_agent::get_all_active_agents()
+{
+	std::lock_guard<std::mutex> lock(g_agent_registry_mutex);
+	std::vector<std::shared_ptr<ai_agent>> result;
+	for (auto it = g_agent_registry.begin(); it != g_agent_registry.end(); ) {
+		if (auto sp = it->second.lock()) {
+			result.push_back(sp);
+			++it;
+		} else {
+			it = g_agent_registry.erase(it);
+		}
+	}
+	return result;
 }
 
 bool ai_agent::is_mutation_possible() const
@@ -386,12 +418,12 @@ ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> mo
 	conversation_ = std::make_shared<Conversation>();
 	if (model_) {
 		conversation_->set_model(model_);
+		auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
+		if (model_->get_api_type() == api_type::copilot) {
+			http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
+		}
+		client_ = std::make_shared<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 	}
-	auto http_transport = std::make_shared<httplib_transport>(model_->get_url(), model_->get_api_key());
-	if (model_->get_api_type() == api_type::copilot) {
-		http_transport->set_token_provider([]() { return copilot_manager::get_instance().get_copilot_token(); });
-	}
-	client_ = std::make_shared<llm_client>(http_transport, model_->get_id(), model_->get_api_type());
 
 	summary_thread_ = std::thread(&ai_agent::summary_worker_loop, this);
 }
@@ -3525,6 +3557,18 @@ bool ai_agent::has_final_result() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
 	return !final_result_.empty();
+}
+
+std::string ai_agent::get_task_description() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return task_description_;
+}
+
+void ai_agent::set_task_description(const std::string &desc)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	task_description_ = desc;
 }
 
 void ai_agent::set_exit_implicitly_on_idle(bool val)

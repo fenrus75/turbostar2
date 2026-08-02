@@ -1,4 +1,5 @@
 #include "vfs/system_vfs_provider.h"
+#include "agentlib/ai_agent.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/subagent_manager.h"
 #include "agentlib/tool_registry.h"
@@ -182,6 +183,142 @@ static std::string generate_tool_family_detail(const std::string &fam_name)
 	}
 
 	ss << tools_ss.str();
+
+	return ss.str();
+}
+
+static std::string generate_subagents_index(const std::string &query)
+{
+	auto agents = agentlib::ai_agent::get_all_active_agents();
+	std::stringstream ss;
+	ss << "# Active & Recent Subagents\n\n";
+	ss << "| ID | Name / Role | Status | Model | Task Summary |\n";
+	ss << "| --- | ----------- | ------ | ----- | ------------ |\n";
+
+	int count = 0;
+	for (const auto &agent : agents) {
+		if (!agent) continue;
+		int id = agent->get_id();
+		std::string name = agent->get_name();
+		std::string status_str = agentlib::agent_status_to_string(agent->get_status());
+		std::string model_name = agent->get_model() ? agent->get_model()->get_name() : "default";
+		std::string task = agent->get_task_description();
+
+		if (!query.empty() && !contains_case_insensitive(std::to_string(id) + " " + name + " " + task + " " + status_str, query)) {
+			continue;
+		}
+
+		std::string short_task = task.length() > 60 ? (task.substr(0, 57) + "...") : task;
+		ss << "| [`" << id << "`](system://subagents/" << id << ".md) | `" << name << "` | `"
+		   << status_str << "` | " << model_name << " | " << short_task << " |\n";
+		count++;
+	}
+
+	if (count == 0) {
+		if (!query.empty()) {
+			return "No subagents match the query.";
+		}
+		return "No active or recent subagents found.";
+	}
+
+	return ss.str();
+}
+
+static std::string generate_subagent_summary(int id)
+{
+	auto agent = agentlib::ai_agent::find_agent_by_id(id);
+	if (!agent) {
+		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
+	}
+
+	std::stringstream ss;
+	ss << "# Subagent " << id << " (" << agent->get_name() << ")\n\n";
+	ss << "- **Subagent ID**: `" << id << "`\n";
+	ss << "- **Role / Profile**: `" << agent->get_name() << "`\n";
+	ss << "- **Status**: `" << agentlib::agent_status_to_string(agent->get_status()) << "`\n";
+	ss << "- **Model**: `" << (agent->get_model() ? agent->get_model()->get_name() : "default") << "`\n";
+	if (agent->has_final_result()) {
+		ss << "- **Has Final Result**: Yes (`system://subagents/" << id << "/final_result.md`)\n\n";
+	} else {
+		ss << "- **Has Final Result**: No\n\n";
+	}
+
+	ss << "## Target Task\n";
+	ss << (agent->get_task_description().empty() ? "(none specified)" : agent->get_task_description()) << "\n\n";
+
+	if (agent->has_final_result()) {
+		ss << "## Final Result Output Summary\n";
+		std::string res = agent->get_final_result();
+		if (res.length() > 300) {
+			ss << res.substr(0, 300) << "...\n*(Read [final_result.md](system://subagents/" << id << "/final_result.md) for full result)*\n\n";
+		} else {
+			ss << res << "\n\n";
+		}
+	}
+
+	ss << "## Navigation & Detailed Logs\n";
+	ss << "- [Final Result Output](system://subagents/" << id << "/final_result.md)\n";
+	ss << "- [Full Execution Transcript](system://subagents/" << id << "/transcript.md)\n";
+
+	return ss.str();
+}
+
+static std::string generate_subagent_final_result(int id)
+{
+	auto agent = agentlib::ai_agent::find_agent_by_id(id);
+	if (!agent) {
+		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
+	}
+
+	if (!agent->has_final_result()) {
+		return "Subagent " + std::to_string(id) + " (" + agent->get_name() + ") has not reported a final result yet.";
+	}
+
+	std::stringstream ss;
+	ss << "# Final Result for Subagent " << id << " (" << agent->get_name() << ")\n\n";
+	ss << agent->get_final_result() << "\n";
+	return ss.str();
+}
+
+static std::string generate_subagent_transcript(int id, const std::string &query)
+{
+	auto agent = agentlib::ai_agent::find_agent_by_id(id);
+	if (!agent) {
+		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
+	}
+
+	auto interactions = agent->get_interactions();
+	std::stringstream ss;
+	ss << "# Execution Transcript for Subagent " << id << " (" << agent->get_name() << ")\n\n";
+
+	if (interactions.empty()) {
+		ss << "No interaction turns recorded yet for subagent " << id << ".\n";
+		return ss.str();
+	}
+
+	int tail_count = 0;
+	if (query.starts_with("tail=")) {
+		try {
+			tail_count = std::stoi(query.substr(5));
+		} catch (...) {
+			tail_count = 0;
+		}
+	}
+
+	size_t start_idx = 0;
+	if (tail_count > 0 && static_cast<size_t>(tail_count) < interactions.size()) {
+		start_idx = interactions.size() - static_cast<size_t>(tail_count);
+	}
+
+	for (size_t i = start_idx; i < interactions.size(); ++i) {
+		const auto &inter = interactions[i];
+		std::string raw = inter ? inter->get_raw_text() : "";
+		if (!query.empty() && !query.starts_with("tail=") && !contains_case_insensitive(raw, query)) {
+			continue;
+		}
+		ss << "### Turn " << (i + 1) << "\n";
+		ss << raw << "\n\n";
+	}
 
 	return ss.str();
 }
@@ -443,6 +580,10 @@ system_vfs_provider::system_vfs_provider()
 		return ss.str();
 	});
 
+	register_generator("subagents.md", [](const std::string &query) -> std::string {
+		return generate_subagents_index(query);
+	});
+
 	// Register file purpose descriptions ("when to read this file")
 	register_description("languages/cpp23.md", "Read when writing or refactoring C++23 code.");
 	register_description("languages/c17.md", "Read when writing or refactoring C17 code.");
@@ -463,6 +604,8 @@ system_vfs_provider::system_vfs_provider()
 	register_description("skills.md", "Read to discover available specialized agent skills and their instruction URIs (supports ?search=<query>).");
 	register_description("project/diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
 	register_description("project/info.md", "Read to check project workspace root, build system type, and instruction file presence.");
+	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
+	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions
 	register_description("languages", "Directory containing language-specific development guidelines and standards.");
 	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
@@ -544,6 +687,39 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	if (path == "project/info" || path == "project/info.md" || path == "project/overview" || path == "project/overview.md" || path == "project_info.md") {
 		return "project/info.md";
 	}
+	if (path == "subagents" || path == "subagents.md" || path == "subagents/index.md" || path == "subagents_list.md") {
+		return "subagents.md";
+	}
+	if (path.starts_with("subagents/")) {
+		std::string sub = path.substr(10);
+		if (sub.empty()) {
+			return "subagents/";
+		}
+		size_t slash = sub.find('/');
+		if (slash == std::string::npos) {
+			if (sub.ends_with(".md")) {
+				return "subagents/" + sub;
+			} else {
+				return "subagents/" + sub + ".md";
+			}
+		} else {
+			std::string id_part = sub.substr(0, slash);
+			std::string file_part = sub.substr(slash + 1);
+			if (id_part.ends_with(".md")) {
+				id_part = id_part.substr(0, id_part.length() - 3);
+			}
+			if (file_part == "final_result" || file_part == "final_result.md" || file_part == "result" || file_part == "result.md") {
+				return "subagents/" + id_part + "/final_result.md";
+			}
+			if (file_part == "transcript" || file_part == "transcript.md" || file_part == "history" || file_part == "history.md" || file_part == "log.md") {
+				return "subagents/" + id_part + "/transcript.md";
+			}
+			if (file_part == "summary" || file_part == "summary.md" || file_part == "info" || file_part == "info.md") {
+				return "subagents/" + id_part + ".md";
+			}
+			return "subagents/" + id_part + "/" + file_part;
+		}
+	}
 	if (path == "tool-families" || path == "tool-families.md" || path == "tool_families" || path == "tool_families.md") {
 		return "tool-families.md";
 	}
@@ -582,7 +758,11 @@ bool system_vfs_provider::exists(const std::string &uri) const
 		path = path.substr(0, path.length() - 1);
 	}
 
-	if (path.empty() || path == "tool-families") {
+	if (path.empty() || path == "tool-families" || path == "subagents" || path == "subagents.md") {
+		return true;
+	}
+
+	if (path.starts_with("subagents/")) {
 		return true;
 	}
 
@@ -635,6 +815,32 @@ std::optional<agentlib::vfs_file_handle> system_vfs_provider::read_file(const st
 		std::string fam_name = path.substr(14);
 		std::string content = generate_tool_family_detail(fam_name);
 		return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+	}
+	if (path.starts_with("subagents/")) {
+		std::string sub = path.substr(10);
+		size_t slash = sub.find('/');
+		if (slash != std::string::npos) {
+			std::string id_str = sub.substr(0, slash);
+			std::string target_file = sub.substr(slash + 1);
+			try {
+				int id = std::stoi(id_str);
+				if (target_file == "final_result.md") {
+					std::string content = generate_subagent_final_result(id);
+					return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+				}
+				if (target_file == "transcript.md") {
+					std::string content = generate_subagent_transcript(id, query);
+					return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+				}
+			} catch (...) {}
+		} else if (sub.ends_with(".md")) {
+			std::string id_str = sub.substr(0, sub.length() - 3);
+			try {
+				int id = std::stoi(id_str);
+				std::string content = generate_subagent_summary(id);
+				return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+			} catch (...) {}
+		}
 	}
 
 	// Check dynamic generators first
@@ -717,6 +923,78 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 		if (fam_name.ends_with(".md")) fam_name = fam_name.substr(0, fam_name.length() - 3);
 		info.details = get_family_reason_helper(fam_name);
 		return info;
+	}
+
+	if (clean_path == "subagents") {
+		agentlib::vfs_file_info info;
+		info.uri = "system://subagents/";
+		info.type = 'D';
+		info.details = "Directory containing active subagent dashboards, final results, and execution transcripts.";
+		return info;
+	}
+	if (clean_path == "subagents.md") {
+		std::string content = generate_subagents_index("");
+		agentlib::vfs_file_info info;
+		info.uri = "system://subagents.md";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		info.details = "Read to check summary index of all active and recent subagents.";
+		return info;
+	}
+	if (clean_path.starts_with("subagents/")) {
+		std::string sub = clean_path.substr(10);
+		if (sub.ends_with("/")) sub = sub.substr(0, sub.length() - 1);
+		size_t slash = sub.find('/');
+		if (slash != std::string::npos) {
+			std::string id_str = sub.substr(0, slash);
+			std::string file_str = sub.substr(slash + 1);
+			try {
+				int id = std::stoi(id_str);
+				if (file_str == "final_result.md") {
+					std::string content = generate_subagent_final_result(id);
+					agentlib::vfs_file_info info;
+					info.uri = "system://subagents/" + std::to_string(id) + "/final_result.md";
+					info.type = 'F';
+					info.size = content.size();
+					info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+					info.details = "Output of report_final_result tool call for subagent " + std::to_string(id);
+					return info;
+				}
+				if (file_str == "transcript.md") {
+					std::string content = generate_subagent_transcript(id, "");
+					agentlib::vfs_file_info info;
+					info.uri = "system://subagents/" + std::to_string(id) + "/transcript.md";
+					info.type = 'F';
+					info.size = content.size();
+					info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+					info.details = "Step-by-step execution transcript for subagent " + std::to_string(id);
+					return info;
+				}
+			} catch (...) {}
+		} else if (sub.ends_with(".md")) {
+			std::string id_str = sub.substr(0, sub.length() - 3);
+			try {
+				int id = std::stoi(id_str);
+				std::string content = generate_subagent_summary(id);
+				agentlib::vfs_file_info info;
+				info.uri = "system://subagents/" + std::to_string(id) + ".md";
+				info.type = 'F';
+				info.size = content.size();
+				info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+				info.details = "Status dashboard & summary for subagent " + std::to_string(id);
+				return info;
+			} catch (...) {}
+		} else {
+			try {
+				int id = std::stoi(sub);
+				agentlib::vfs_file_info info;
+				info.uri = "system://subagents/" + std::to_string(id) + "/";
+				info.type = 'D';
+				info.details = "Directory for subagent " + std::to_string(id);
+				return info;
+			} catch (...) {}
+		}
 	}
 
 	std::string dir_prefix = clean_path.empty() ? "" : (clean_path + "/");
@@ -822,6 +1100,63 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 			results.push_back(info);
 		}
 		return results;
+	}
+
+	if (norm_prefix == "subagents/") {
+		std::vector<agentlib::vfs_file_info> results;
+		auto active_agents = agentlib::ai_agent::get_all_active_agents();
+		for (const auto &ag : active_agents) {
+			if (!ag) continue;
+			int id = ag->get_id();
+			std::string status_str = agentlib::agent_status_to_string(ag->get_status());
+			
+			agentlib::vfs_file_info dir_info;
+			dir_info.uri = "system://subagents/" + std::to_string(id) + "/";
+			dir_info.type = 'D';
+			dir_info.size = 0;
+			dir_info.size_in_lines = 0;
+			dir_info.details = "Subagent " + std::to_string(id) + " (" + ag->get_name() + ") - Status: " + status_str;
+			results.push_back(dir_info);
+
+			std::string content = generate_subagent_summary(id);
+			agentlib::vfs_file_info file_info;
+			file_info.uri = "system://subagents/" + std::to_string(id) + ".md";
+			file_info.type = 'F';
+			file_info.size = content.size();
+			file_info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+			file_info.details = "Status dashboard & summary for subagent " + std::to_string(id);
+			results.push_back(file_info);
+		}
+		return results;
+	}
+
+	if (norm_prefix.starts_with("subagents/")) {
+		std::string sub = norm_prefix.substr(10);
+		if (sub.ends_with("/")) sub = sub.substr(0, sub.length() - 1);
+		try {
+			int id = std::stoi(sub);
+			std::vector<agentlib::vfs_file_info> results;
+			
+			std::string fr_content = generate_subagent_final_result(id);
+			agentlib::vfs_file_info fr_info;
+			fr_info.uri = "system://subagents/" + std::to_string(id) + "/final_result.md";
+			fr_info.type = 'F';
+			fr_info.size = fr_content.size();
+			fr_info.size_in_lines = std::count(fr_content.begin(), fr_content.end(), '\n') + 1;
+			fr_info.details = "Output of report_final_result tool call for subagent " + std::to_string(id);
+			results.push_back(fr_info);
+
+			std::string tr_content = generate_subagent_transcript(id, "");
+			agentlib::vfs_file_info tr_info;
+			tr_info.uri = "system://subagents/" + std::to_string(id) + "/transcript.md";
+			tr_info.type = 'F';
+			tr_info.size = tr_content.size();
+			tr_info.size_in_lines = std::count(tr_content.begin(), tr_content.end(), '\n') + 1;
+			tr_info.details = "Step-by-step execution transcript for subagent " + std::to_string(id);
+			results.push_back(tr_info);
+
+			return results;
+		} catch (...) {}
 	}
 
 	std::vector<agentlib::vfs_file_info> results;

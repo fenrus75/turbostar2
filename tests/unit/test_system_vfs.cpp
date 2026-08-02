@@ -1,4 +1,5 @@
 #include "test_watchdog.h"
+#include "agentlib/ai_agent.h"
 #include "agentlib/virtual_file_system.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/tool_registry.h"
@@ -187,6 +188,47 @@ int main()
 		}
 	}
 	assert(found_git_fam);
+
+	// Test system://subagents/ endpoints
+	auto test_subagent = ai_agent::create(999, "research", nullptr, nullptr, nullptr);
+	test_subagent->set_final_result("Research findings: VFS subagents implementation is operational.");
+
+	auto subagents_idx_doc = vfs.read_file("system://subagents.md");
+	assert(subagents_idx_doc.has_value());
+	std::string subagents_idx_text = std::string((*subagents_idx_doc)->view());
+	std::cout << "\nsystem://subagents.md content:\n" << subagents_idx_text << std::endl;
+	assert(subagents_idx_text.find("Active & Recent Subagents") != std::string::npos);
+	assert(subagents_idx_text.find("999") != std::string::npos);
+
+	auto subagent_summary_doc = vfs.read_file("system://subagents/999.md");
+	assert(subagent_summary_doc.has_value());
+	std::string subagent_summary_text = std::string((*subagent_summary_doc)->view());
+	std::cout << "\nsystem://subagents/999.md content:\n" << subagent_summary_text << std::endl;
+	assert(subagent_summary_text.find("Subagent 999") != std::string::npos);
+	assert(subagent_summary_text.find("Has Final Result") != std::string::npos);
+
+	auto subagent_fr_doc = vfs.read_file("system://subagents/999/final_result.md");
+	assert(subagent_fr_doc.has_value());
+	std::string subagent_fr_text = std::string((*subagent_fr_doc)->view());
+	std::cout << "\nsystem://subagents/999/final_result.md content:\n" << subagent_fr_text << std::endl;
+	assert(subagent_fr_text.find("VFS subagents implementation is operational") != std::string::npos);
+
+	auto subagent_tr_doc = vfs.read_file("system://subagents/999/transcript.md");
+	assert(subagent_tr_doc.has_value());
+	std::string subagent_tr_text = std::string((*subagent_tr_doc)->view());
+	std::cout << "\nsystem://subagents/999/transcript.md content:\n" << subagent_tr_text << std::endl;
+	assert(subagent_tr_text.find("Execution Transcript for Subagent 999") != std::string::npos);
+
+	auto subagent_dir_list = vfs.list_directory("system://subagents/");
+	assert(!subagent_dir_list.empty());
+	bool found_sub999_dir = false;
+	for (const auto &item : subagent_dir_list) {
+		std::cout << "  - Subagent dir item: " << item.uri << " [" << item.details << "]" << std::endl;
+		if (item.uri == "system://subagents/999.md" || item.uri == "system://subagents/999/") {
+			found_sub999_dir = true;
+		}
+	}
+	assert(found_sub999_dir);
 
 	std::cout << "test_system_vfs passed successfully!" << std::endl;
 	return 0;

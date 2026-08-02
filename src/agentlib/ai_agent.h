@@ -107,6 +107,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void remove_subagent(int id);
 	std::vector<std::shared_ptr<ai_agent>> get_subagents() const;
 
+	static std::shared_ptr<ai_agent> find_agent_by_id(int id);
+	static std::vector<std::shared_ptr<ai_agent>> get_all_active_agents();
+
 	void clear_conversation();
 
 	void set_model(std::shared_ptr<ai_model> model);
@@ -226,6 +229,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_final_result(const std::string &result);
 	std::string get_final_result() const;
 	bool has_final_result() const;
+
+	std::string get_task_description() const;
+	void set_task_description(const std::string &desc);
 	void set_exit_implicitly_on_idle(bool val);
 	bool is_exit_implicitly_on_idle() const;
 	void set_notify_parent_on_completion(bool val);
@@ -372,6 +378,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<float> last_boundary_prob_{-1.0f};
 	std::atomic<double> last_inference_duration_ms_{-1.0};
 	std::atomic<long long> last_activity_time_ms_{0};
+
+	std::string task_description_;
 	mutable std::mutex properties_mutex_;
 	agent_properties properties_;
 	std::string allowed_write_file_;

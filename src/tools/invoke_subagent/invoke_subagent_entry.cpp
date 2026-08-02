@@ -92,6 +92,8 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Failed to create subagent.";
 	}
 
+	new_agent->set_task_description(args_.task);
+
 	// Always inject base project knowledge into subagents
 	new_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	new_agent->inject_context("system", "Instructions for subagent: When you have completed your task, you MUST call the `report_final_result` tool to report your final findings back to the parent agent. This ensures that the parent agent receives only your final response rather than your entire conversation history.");

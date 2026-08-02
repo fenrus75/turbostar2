@@ -21,7 +21,8 @@ int main()
 	auto templates = mgr.get_available_templates();
 	assert(templates.size() >= 6);
 
-	std::filesystem::path temp_dir = std::filesystem::absolute("./test_new_project_output");
+	test_watchdog::scoped_test_home guard("project_template_test");
+	std::filesystem::path temp_dir = std::filesystem::path(guard.get_path()) / "test_new_project_output";
 	if (std::filesystem::exists(temp_dir)) {
 		std::filesystem::remove_all(temp_dir);
 	}
