@@ -9,6 +9,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <nlohmann/json.hpp>
 #include <sstream>
 
@@ -46,6 +47,23 @@ static std::string get_family_reason_helper(const std::string &fam)
 	return reason;
 }
 
+static std::vector<std::string> extract_tool_families(const std::string &family_str)
+{
+	std::vector<std::string> result;
+	std::stringstream ss(family_str);
+	std::string item;
+	while (std::getline(ss, item, ',')) {
+		std::stringstream ss2(item);
+		std::string item2;
+		while (std::getline(ss2, item2, '|')) {
+			while (!item2.empty() && (item2.front() == ' ' || item2.front() == '\t')) item2.erase(item2.begin());
+			while (!item2.empty() && (item2.back() == ' ' || item2.back() == '\t')) item2.pop_back();
+			if (!item2.empty()) result.push_back(item2);
+		}
+	}
+	return result;
+}
+
 static std::string generate_tool_families_index(const std::string &query)
 {
 	std::stringstream ss;
@@ -55,8 +73,8 @@ static std::string generate_tool_families_index(const std::string &query)
 	ss << "> - If a tool belongs to an inactive family, you must call `activate_tool_family(family_name=\"<family>\")` before executing it.\n";
 	ss << "> - To inspect member tools and activation guidance for a specific family, read `system://tool-families/<family>.md`.\n\n";
 
-	ss << "| Tool Family | Activation Reason | Family Documentation |\n";
-	ss << "| ----------- | ----------------- | -------------------- |\n";
+	ss << "| Tool Family | Default Status | Activation Reason | Family Documentation |\n";
+	ss << "| ----------- | -------------- | ----------------- | -------------------- |\n";
 
 	auto families = agentlib::tool_registry::get_instance().get_all_registered_families();
 	std::sort(families.begin(), families.end());
@@ -71,8 +89,9 @@ static std::string generate_tool_families_index(const std::string &query)
 			}
 		}
 
+		std::string status_str = (fam == "base") ? "**Active**" : "*Inactive*";
 		std::string link = std::format("[system://tool-families/{}.md](system://tool-families/{}.md)", fam, fam);
-		ss << std::format("| `{}` | {} | {} |\n", fam, reason, link);
+		ss << std::format("| `{}` | {} | {} | {} |\n", fam, status_str, reason, link);
 	}
 
 	return ss.str();
@@ -91,9 +110,10 @@ static std::string generate_tool_family_detail(const std::string &fam_name)
 	std::string reason = get_family_reason_helper(clean_name);
 	ss << std::format("- **Activation Reason**: {}\n", reason);
 	if (clean_name != "base") {
+		ss << std::format("- **Activation Status**: *Inactive* (Run `activate_tool_family(family_name=\"{}\")` to enable)\n", clean_name);
 		ss << std::format("- **Activation Command**: `activate_tool_family(family_name=\"{}\")`\n", clean_name);
 	} else {
-		ss << "- **Activation Status**: Always active (core system tools)\n";
+		ss << "- **Activation Status**: **Active** (Always available core system tools)\n";
 	}
 
 	std::string guidance = agentlib::tool_registry::get_instance().get_tool_family_guidance(clean_name);
@@ -101,30 +121,26 @@ static std::string generate_tool_family_detail(const std::string &fam_name)
 		ss << "\n## Guidance & Overview\n" << guidance << "\n";
 	}
 
-	ss << "\n## Member Tools in `" << clean_name << "` Family\n\n";
-	ss << "| Tool Name | Description | Detailed Schema Link |\n";
-	ss << "| --------- | ----------- | -------------------- |\n";
-
-	auto all_validators = agentlib::tool_registry::get_instance().get_active_tools(true, {});
+	auto all_validators = agentlib::tool_registry::get_instance().get_all_registered_validators();
+	std::set<std::string> shared_families;
 	int tool_count = 0;
+
+	std::stringstream tools_ss;
+	tools_ss << "\n## Member Tools in `" << clean_name << "` Family\n\n";
+	tools_ss << "| Tool Name | Description | Detailed Schema Link |\n";
+	tools_ss << "| --------- | ----------- | -------------------- |\n";
 
 	for (const auto &val : all_validators) {
 		if (!val) continue;
 		std::string fam_str = val->get_family();
-		std::vector<std::string> val_fams;
-		std::stringstream fss(fam_str);
-		std::string item;
-		while (std::getline(fss, item, ',')) {
-			while (!item.empty() && item.front() == ' ') item.erase(item.begin());
-			while (!item.empty() && item.back() == ' ') item.pop_back();
-			if (!item.empty()) val_fams.push_back(item);
-		}
+		auto val_fams = extract_tool_families(fam_str);
 
 		bool belongs = false;
 		for (const auto &f : val_fams) {
 			if (f == clean_name) {
 				belongs = true;
-				break;
+			} else {
+				shared_families.insert(f);
 			}
 		}
 
@@ -142,13 +158,26 @@ static std::string generate_tool_family_detail(const std::string &fam_name)
 			std::replace(tdesc.begin(), tdesc.end(), '|', ',');
 
 			std::string link = std::format("[system://tools_detailed.md?search={}](system://tools_detailed.md?search={})", tname, tname);
-			ss << std::format("| `{}` | {} | {} |\n", tname, tdesc, link);
+			tools_ss << std::format("| `{}` | {} | {} |\n", tname, tdesc, link);
 		}
 	}
 
-	if (tool_count == 0) {
-		ss << "*No static tools explicitly declared under family '" << clean_name << "'.*\n";
+	if (!shared_families.empty() && tool_count > 0) {
+		ss << "- **Related / Shared Families**: ";
+		bool first = true;
+		for (const auto &sf : shared_families) {
+			if (!first) ss << ", ";
+			ss << std::format("[{}](system://tool-families/{}.md)", sf, sf);
+			first = false;
+		}
+		ss << "\n";
 	}
+
+	if (tool_count == 0) {
+		tools_ss << "*No static tools explicitly declared under family '" << clean_name << "'.*\n";
+	}
+
+	ss << tools_ss.str();
 
 	return ss.str();
 }

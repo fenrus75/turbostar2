@@ -35,6 +35,8 @@ class tool_registry
 
 	std::vector<std::string> get_all_registered_families() const;
 
+	std::vector<std::shared_ptr<tool_validator>> get_all_registered_validators() const;
+
 	// Checks if the tool should be silent in the UI by default
 	bool is_tool_silent(const std::string &name) const;
 

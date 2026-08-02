@@ -28,6 +28,11 @@ class a2a_connect_server_validator : public agentlib::tool_validator
 		return "a2a_connect_server";
 	}
 
+	std::string get_family() const override
+	{
+		return "base|a2a";
+	}
+
 	std::string get_description() const override
 	{
 		return "Connects to a remote A2A server and registers it for remote subagent invocation (`invoke_subagent`).";

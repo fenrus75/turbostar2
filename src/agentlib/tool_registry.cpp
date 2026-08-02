@@ -229,6 +229,21 @@ std::vector<std::string> tool_registry::get_all_registered_families() const
 	return families;
 }
 
+std::vector<std::shared_ptr<tool_validator>> tool_registry::get_all_registered_validators() const
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	std::vector<std::shared_ptr<tool_validator>> validators;
+	for (const auto &[name, factory] : validator_factories_) {
+		if (factory) {
+			auto v = factory();
+			if (v) {
+				validators.push_back(std::move(v));
+			}
+		}
+	}
+	return validators;
+}
+
 bool tool_registry::is_tool_silent(const std::string &name) const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
