@@ -1,5 +1,6 @@
 #include "test_watchdog.h"
 #include "agentlib/virtual_file_system.h"
+#include "agentlib/skill_manager.h"
 #include "agentlib/tool_registry.h"
 #include "vfs/system_vfs_provider.h"
 #include <cassert>
@@ -138,6 +139,26 @@ int main()
 	assert(families_text.find("Tool Families Overview") != std::string::npos);
 	assert(families_text.find("git") != std::string::npos);
 	assert(families_text.find("base") != std::string::npos);
+
+	// 6. Test skills.md and diagnostics.md VFS endpoints
+	agentlib::skill_manager::get_instance().register_skill("demo_skill", "Demo Skill Description", "skills://demo_skill/", true);
+	auto skills_doc = vfs.read_file("system://skills.md");
+	assert(skills_doc.has_value());
+	std::string skills_text = std::string((*skills_doc)->view());
+	std::cout << "\nsystem://skills.md content:\n" << skills_text << std::endl;
+	assert(skills_text.find("Available Agent Skills") != std::string::npos);
+	assert(skills_text.find("demo_skill") != std::string::npos);
+
+	auto diag_doc = vfs.read_file("system://diagnostics.md");
+	assert(diag_doc.has_value());
+	std::string diag_text = std::string((*diag_doc)->view());
+	std::cout << "\nsystem://diagnostics.md content:\n" << diag_text << std::endl;
+	assert(diag_text.find("No compilation errors or warnings found.") != std::string::npos ||
+	       diag_text.find("Workspace Compilation Diagnostics") != std::string::npos);
+
+	auto diag_alias = vfs.read_file("system://compile_summary.md");
+	assert(diag_alias.has_value());
+	assert(std::string((*diag_alias)->view()) == diag_text);
 
 	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
 	assert(git_fam_doc.has_value());

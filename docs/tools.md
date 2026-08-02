@@ -256,10 +256,12 @@ These tools provide semantic understanding of code by leveraging the Language Se
 *   **Description:** Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.
 *   **Arguments:** None.
 
-### Tool & Schema Discovery via `system://` VFS
-Tool discovery and parameter schema inspection are performed via the Virtual Filesystem (`system://`) scheme rather than extra function calls:
+### Tool, Skill & State Discovery via `system://` VFS
+Tool discovery, skill discovery, and workspace diagnostic summaries are performed via the Virtual Filesystem (`system://`) scheme rather than function calls:
 *   `system://tools.md` (or `system://tools.md?search=pattern`): Reads a Markdown table summarizing all active tools (`| Tool Name | Description |`).
 *   `system://tools_detailed.md` (or `system://tools/details.md`): Reads full parameter schemas (types, descriptions, required fields) for deep inspection.
+*   `system://skills.md` (or `system://skills.md?search=pattern`): Reads a Markdown table of all available agent skills, URIs, and descriptions (replacing `list_skills`).
+*   `system://diagnostics.md` (or `system://compile_summary.md`): Reads a Markdown summary of compiler errors, compiler warnings, and LSP diagnostics across workspace files (replacing `fs_compile_summary`).
 
 ### `run_python`
 *   **Description:** Executes Python code in a sandboxed environment.

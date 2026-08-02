@@ -1,6 +1,8 @@
 #include "vfs/system_vfs_provider.h"
+#include "agentlib/skill_manager.h"
 #include "agentlib/subagent_manager.h"
 #include "agentlib/tool_registry.h"
+#include "build_error_manager.h"
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
@@ -321,6 +323,97 @@ system_vfs_provider::system_vfs_provider()
 		return out;
 	});
 
+	// 5. Dynamic Generator: system://skills.md
+	register_generator("skills.md", [](const std::string &query) -> std::string {
+		auto &skills = agentlib::skill_manager::get_instance().get_skills();
+		std::stringstream ss;
+		ss << "# Available Agent Skills\n\n";
+		ss << "| Skill Name | URI | Description |\n";
+		ss << "| ---------- | --- | ----------- |\n";
+		int count = 0;
+		for (const auto &s : skills) {
+			if (s.visible) {
+				if (!query.empty() && !contains_case_insensitive(s.name + " " + s.description, query)) {
+					continue;
+				}
+				ss << "| `" << s.name << "` | `" << s.uri << "` | " << s.description << " |\n";
+				count++;
+			}
+		}
+		if (count == 0) {
+			if (!query.empty()) {
+				return "No skills match the query.";
+			}
+			return "No skills are currently available.";
+		}
+		return ss.str();
+	});
+
+	// 6. Dynamic Generator: system://diagnostics.md
+	register_generator("diagnostics.md", [](const std::string &query) -> std::string {
+		struct file_stats {
+			int compiler_errors = 0;
+			int compiler_warnings = 0;
+			int lsp_errors = 0;
+			int lsp_warnings = 0;
+		};
+		std::map<std::string, file_stats> workspace_stats;
+		std::set<std::string> unique_paths;
+
+		const auto &build_errors = build_error_manager::get_instance().get_errors();
+		for (const auto &err : build_errors) {
+			if (!err.filepath.empty()) {
+				unique_paths.insert(err.filepath);
+			}
+		}
+
+		for (const auto &raw_path : unique_paths) {
+			file_stats stats;
+			bool has_issues = false;
+
+			for (const auto &err : build_errors) {
+				if (err.filepath == raw_path) {
+					if (err.is_warning)
+						stats.compiler_warnings++;
+					else
+						stats.compiler_errors++;
+					has_issues = true;
+				}
+			}
+
+			if (has_issues) {
+				if (!query.empty() && !contains_case_insensitive(raw_path, query)) {
+					continue;
+				}
+				workspace_stats[raw_path] = stats;
+			}
+		}
+
+		if (workspace_stats.empty()) {
+			return "No compilation errors or warnings found.";
+		}
+
+		std::stringstream ss;
+		ss << "# Workspace Compilation Diagnostics\n\n";
+		ss << "| File | Compiler Errors | Compiler Warnings | LSP Errors | LSP Warnings |\n";
+		ss << "| ---- | --------------- | ----------------- | ---------- | ------------ |\n";
+
+		int total_ce = 0, total_cw = 0, total_le = 0, total_lw = 0;
+		for (const auto &[file, stats] : workspace_stats) {
+			ss << "| `" << file << "` | " << stats.compiler_errors << " | " << stats.compiler_warnings
+			   << " | " << stats.lsp_errors << " | " << stats.lsp_warnings << " |\n";
+			total_ce += stats.compiler_errors;
+			total_cw += stats.compiler_warnings;
+			total_le += stats.lsp_errors;
+			total_lw += stats.lsp_warnings;
+		}
+
+		ss << "| **Total** | **" << total_ce << "** | **" << total_cw << "** | **" << total_le
+		   << "** | **" << total_lw << "** |\n";
+
+		return ss.str();
+	});
+
 	// Register file purpose descriptions ("when to read this file")
 	register_description("languages/cpp23.md", "Read when writing or refactoring C++23 code.");
 	register_description("languages/c17.md", "Read when writing or refactoring C17 code.");
@@ -338,6 +431,8 @@ system_vfs_provider::system_vfs_provider()
 	register_description("tools_detailed.md", "Read for full parameter types, descriptions, and schemas for system tools (supports ?search=<query>).");
 	register_description("tool-families.md", "Read to discover available tool families, activation criteria, and member tools.");
 	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
+	register_description("skills.md", "Read to discover available specialized agent skills and their instruction URIs (supports ?search=<query>).");
+	register_description("diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
 	// Register directory purpose descriptions
 	register_description("languages", "Directory containing language-specific development guidelines and standards.");
 	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
@@ -408,6 +503,12 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	}
 	if (path == "tools_detailed.md" || path == "tools/details.md" || path == "tools_detail.md") {
 		return "tools_detailed.md";
+	}
+	if (path == "skills" || path == "skill_list.md" || path == "skills.md") {
+		return "skills.md";
+	}
+	if (path == "diagnostics" || path == "diagnostics.md" || path == "compile_summary.md" || path == "compile-summary.md" || path == "build/summary.md") {
+		return "diagnostics.md";
 	}
 	if (path == "tool-families" || path == "tool-families.md" || path == "tool_families" || path == "tool_families.md") {
 		return "tool-families.md";
