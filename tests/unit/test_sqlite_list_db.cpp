@@ -26,14 +26,9 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
+	test_watchdog::init_plugin_environment();
 
-	// Force initialization of singletons before plugin_loader to align shutdown lifetime
-	(void)command_registry::get_instance();
-	(void)skill_manager::get_instance();
-	(void)filter_registry::get_instance();
 	tool_registry &registry = tool_registry::get_instance();
-
-	plugin_loader::get_instance().load_all_plugins();
 	tool_context ctx;
 	ctx.properties.active_families.push_back("sqlite");
 

@@ -61,14 +61,7 @@ void test_tool_object_creation()
 int main()
 {
 	test_watchdog::setup_watchdog(30);
-
-	// Force initialization of singletons before plugin_loader to align shutdown lifetime
-	(void)::command_registry::get_instance();
-	(void)agentlib::skill_manager::get_instance();
-	(void)agentlib::filter_registry::get_instance();
-	(void)agentlib::tool_registry::get_instance();
-
-	plugin_loader::get_instance().load_all_plugins();
+	test_watchdog::init_plugin_environment();
 	test_is_valid_db_name();
 	test_tool_object_creation();
 	std::cout << "SQLite validation unit tests passed successfully!\n";
