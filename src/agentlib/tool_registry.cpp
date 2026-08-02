@@ -34,6 +34,17 @@ tool_registry::tool_registry()
 		"- git_commit: Commit staged changes.\n"
 		"- git_blame: View commit-level line history."
 	);
+
+	register_tool_family(
+		"sqlite",
+		"Activate when inspecting, creating, or querying local SQLite databases, or if you want to keep a todo list in a database",
+		"The 'sqlite' tool family contains tools to manage and execute SQL queries against SQLite database files.\n\n"
+		"Key Tools:\n"
+		"- sqlite_list_db: List all persistent SQLite databases in the project.\n"
+		"- sqlite_create_db: Create a new SQLite database file.\n"
+		"- sqlite_delete_db: Delete an existing SQLite database file.\n"
+		"- sqlite_perform: Execute SQL queries against a database."
+	);
 }
 
 tool_registry &tool_registry::get_instance()

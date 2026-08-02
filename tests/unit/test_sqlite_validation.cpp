@@ -31,6 +31,7 @@ void test_tool_object_creation()
 {
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::tool_context ctx;
+	ctx.properties.active_families.push_back("sqlite");
 	auto &registry = agentlib::tool_registry::get_instance();
 
 	std::vector<std::string> bad_names = {

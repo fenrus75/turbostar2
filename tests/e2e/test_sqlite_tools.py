@@ -14,7 +14,7 @@ def run_test():
     traffic_file = os.path.join(data_dir, 'sqlite_traffic.json')
     prompt = "Create database 'testdb', list databases, perform 'CREATE TABLE test(id INT);', then delete 'testdb'"
     
-    cmd = [agentcli_path, prompt, traffic_file]
+    cmd = [agentcli_path, prompt, traffic_file, "--activate-family", "sqlite"]
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     

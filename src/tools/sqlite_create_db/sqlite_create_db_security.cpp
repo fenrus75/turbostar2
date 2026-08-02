@@ -9,6 +9,10 @@ namespace tools
 class sqlite_create_db_validator : public agentlib::single_string_tool_validator
 {
       public:
+	std::string get_family() const override
+	{
+		return "sqlite";
+	}
 	std::string get_name() const override
 	{
 		return "sqlite_create_db";

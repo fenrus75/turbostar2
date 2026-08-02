@@ -25,6 +25,7 @@ int main()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	ctx.properties.active_families.push_back("sqlite");
 
 	std::string db_dir = fs_utils::get_project_db_dir();
 	std::filesystem::path db1_path = std::filesystem::path(db_dir) / "test_sqlite_list_db_1.db";

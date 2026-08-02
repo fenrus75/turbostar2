@@ -31,11 +31,13 @@ int main(int argc, char **argv)
 	std::string replay_file = "tests/data/todo_traffic.json";
 	std::string dump_state_file = "";
 	std::string project_dir = "";
+	std::vector<std::string> active_families;
 
 	app.add_option("prompt,-p,--prompt", prompt, "The initial user prompt to send to the agent");
 	app.add_option("replay,-r,--replay", replay_file, "Traffic file for replay/record modes");
 	app.add_option("--dump-state", dump_state_file, "Dump the final conversation state to this JSON file before exiting");
 	app.add_option("--project-dir", project_dir, "Override the project root directory for isolated sandboxing");
+	app.add_option("--activate-family", active_families, "Activate specific tool families for the test agent");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -92,6 +94,9 @@ int main(int argc, char **argv)
 	event_queue q;
 	auto model = std::make_shared<ai_model>(default_model_id, default_name, url, "CLI Test", cost_tx, cost_rx, api_key, default_type, 250000, cost_type);
 	auto test_agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
+	for (const auto &fam : active_families) {
+		test_agent->add_active_tool_family(fam);
+	}
 	ctx.active_agent = test_agent.get();
 	ctx.properties = test_agent->get_properties();
 	ctx.is_family_active = [&](const std::string &family) { return test_agent->is_tool_family_active(family); };

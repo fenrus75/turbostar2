@@ -8,6 +8,11 @@ namespace tools
 class sqlite_list_db_validator : public agentlib::tool_validator
 {
       public:
+	std::string get_family() const override
+	{
+		return "sqlite";
+	}
+
 	bool is_pure() const override
 	{
 		return true;

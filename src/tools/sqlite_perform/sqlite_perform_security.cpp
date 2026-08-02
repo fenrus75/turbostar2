@@ -63,6 +63,10 @@ namespace tools
 class sqlite_perform_validator : public agentlib::tool_validator
 {
       public:
+	std::string get_family() const override
+	{
+		return "sqlite";
+	}
 	std::string get_name() const override
 	{
 		return "sqlite_perform";
