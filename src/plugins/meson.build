@@ -162,3 +162,22 @@ a2a_plugin = shared_module('a2a',
   install_dir: plugin_dir
 )
 
+if sqlite3_dep.found()
+  sqlite_plugin = shared_module('sqlite',
+    ['sqlite/plugin.cpp',
+     'sqlite/sqlite_create_db_entry.cpp',
+     'sqlite/sqlite_create_db_security.cpp',
+     'sqlite/sqlite_delete_db_entry.cpp',
+     'sqlite/sqlite_delete_db_security.cpp',
+     'sqlite/sqlite_list_db_entry.cpp',
+     'sqlite/sqlite_list_db_security.cpp',
+     'sqlite/sqlite_perform_entry.cpp',
+     'sqlite/sqlite_perform_security.cpp'],
+    dependencies: [nlohmann_json_dep, sqlite3_dep],
+    include_directories: inc,
+    install: true,
+    name_prefix: '',
+    install_dir: plugin_dir
+  )
+endif
+

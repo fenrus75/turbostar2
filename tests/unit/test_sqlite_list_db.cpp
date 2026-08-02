@@ -5,8 +5,12 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
+#include "../../src/agentlib/command_registry.h"
+#include "../../src/filter_registry.h"
+#include "../../src/agentlib/skill_manager.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
+#include "../../src/pluginloader.h"
 #include "../../src/fs_utils.h"
 
 using namespace agentlib;
@@ -23,7 +27,13 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
+	// Force initialization of singletons before plugin_loader to align shutdown lifetime
+	(void)command_registry::get_instance();
+	(void)skill_manager::get_instance();
+	(void)filter_registry::get_instance();
 	tool_registry &registry = tool_registry::get_instance();
+
+	plugin_loader::get_instance().load_all_plugins();
 	tool_context ctx;
 	ctx.properties.active_families.push_back("sqlite");
 

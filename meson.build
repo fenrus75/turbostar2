@@ -552,12 +552,13 @@ test_run_shell_command = executable('test_run_shell_command',
 test('unit_test_run_shell_command', test_run_shell_command, suite: 'agent')
 
 test_sqlite_list_db = executable('test_sqlite_list_db',
-  ['tests/unit/test_sqlite_list_db.cpp',
-   'src/tools/sqlite_list_db/sqlite_list_db_entry.cpp',
-   'src/tools/sqlite_list_db/sqlite_list_db_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_sqlite_list_db', test_sqlite_list_db, suite: 'agent')
+  'tests/unit/test_sqlite_list_db.cpp',
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true)
+test('unit_test_sqlite_list_db', test_sqlite_list_db, suite: 'agent',
+  depends: [sqlite_plugin],
+  env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 test_git_branch_create = executable('test_git_branch_create',
   ['tests/unit/test_git_branch_create.cpp',
@@ -1337,10 +1338,13 @@ test('unit_hex_highlighter', test_hex_highlighter, suite: 'editor')
 
 
 test_sqlite_validation = executable('test_sqlite_validation',
-  ['tests/unit/test_sqlite_validation.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_entry.cpp', 'src/tools/sqlite_create_db/sqlite_create_db_security.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_entry.cpp', 'src/tools/sqlite_delete_db/sqlite_delete_db_security.cpp', 'src/tools/sqlite_perform/sqlite_perform_entry.cpp', 'src/tools/sqlite_perform/sqlite_perform_security.cpp'],
-  dependencies : [agent_dep, core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep],
-  include_directories: inc)
-test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent')
+  'tests/unit/test_sqlite_validation.cpp',
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, re2_dep, lsp_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep, dl_dep],
+  include_directories: inc,
+  export_dynamic: true)
+test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent',
+  depends: [sqlite_plugin],
+  env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 test_crashdump_clear = executable('test_crashdump_clear',
   ['tests/unit/test_crashdump_clear.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp'],

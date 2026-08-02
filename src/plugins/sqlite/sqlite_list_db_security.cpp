@@ -1,6 +1,6 @@
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
-#include "sqlite_list_db.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "plugins/sqlite/sqlite_list_db.h"
 
 namespace tools
 {
@@ -45,6 +45,16 @@ class sqlite_list_db_validator : public agentlib::tool_validator
 	}
 };
 
-REGISTER_TOOL(sqlite_list_db_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_sqlite_list_db(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::sqlite_list_db_validator>(); });
+}
+
+void unregister_sqlite_list_db(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("sqlite_list_db");
+}
+}

@@ -1,7 +1,7 @@
-#include "../../agentlib/single_string_tool_validator.h"
-#include "../../agentlib/tool_registry.h"
-#include "../../fs_utils.h"
-#include "sqlite_create_db.h"
+#include "agentlib/single_string_tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "fs_utils.h"
+#include "plugins/sqlite/sqlite_create_db.h"
 
 namespace tools
 {
@@ -45,6 +45,16 @@ class sqlite_create_db_validator : public agentlib::single_string_tool_validator
 	}
 };
 
-REGISTER_TOOL(sqlite_create_db_validator)
-
 } // namespace tools
+
+extern "C" {
+void register_sqlite_create_db(void)
+{
+	agentlib::tool_registry::get_instance().register_validator([]() { return std::make_unique<tools::sqlite_create_db_validator>(); });
+}
+
+void unregister_sqlite_create_db(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("sqlite_create_db");
+}
+}

@@ -276,6 +276,15 @@ remember to describe features in terms of the benefit to the user or the agent, 
   4. Registered `"code_review"` tool family in `tool_registry` constructor.
   5. Equipped Security Review Agent (`security_review_with_agent`) and Code Reviewer subagents with `"code_review"` tool family.
   6. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
+- `sqlite` Tool Family & Plugin Migration (`src/plugins/sqlite/`, `src/tools/meson.build`, `src/plugins/meson.build`, `src/meson.build`, `meson.build`, `tests/unit/`, `docs/todo.md`):
+  1. Created `src/plugins/sqlite/` containing `plugin.cpp`, `sqlite_create_db.h/cpp/security.cpp`, `sqlite_delete_db.h/cpp/security.cpp`, `sqlite_list_db.h/cpp/security.cpp`, and `sqlite_perform.h/cpp/security.cpp`.
+  2. Moved `sqlite` tool family registration and all 4 tools to `src/plugins/sqlite/plugin.cpp` (`plugin_run()` / `plugin_unload()`).
+  3. Removed old built-in source directories `src/tools/sqlite_*` and updated `src/tools/meson.build`.
+  4. Added `sqlite_plugin` shared module target (`sqlite.so`) in `src/plugins/meson.build` linked with `sqlite3_dep`.
+  5. Removed `sqlite3_dep` from core library dependencies in `src/meson.build` (`libturbostar_core`, `libagentlib`, `tools_deps`).
+  6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
+  7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
+  8. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
 - `sqlite` Non-Default Tool Family Migration (`src/tools/sqlite_*/`, `src/agentlib/tool_registry.cpp`, `src/agentcli/main.cpp`, `tests/unit/`, `tests/e2e/`, `docs/todo.md`):
   1. Updated `sqlite_create_db_validator`, `sqlite_delete_db_validator`, `sqlite_list_db_validator`, and `sqlite_perform_validator` to return tool family `"sqlite"`.
   2. Registered `sqlite` tool family in `tool_registry` constructor with custom activation reason (*"Activate when inspecting, creating, or querying local SQLite databases, or if you want to keep a todo list in a database"*) and detailed guidance.

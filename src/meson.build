@@ -215,14 +215,14 @@ libturbostar_core = static_library('turbostar_core',
   core_sources + [project_templates_embedded_h],
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
-  dependencies : [nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep])
+  dependencies : [nlohmann_json_dep, thread_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep])
 
 libagentlib = static_library('agentlib',
   agentlib_sources + [research_agent_h, self_agent_h],
   include_directories : inc,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep, openssl_dep, yaml_cpp_dep])
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, curl_dep, openssl_dep, yaml_cpp_dep])
 
-tools_deps = [nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
+tools_deps = [nlohmann_json_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
 if graphicsmagick_dep.found()
   tools_deps += [graphicsmagick_dep]
 endif

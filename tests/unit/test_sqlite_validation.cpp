@@ -2,9 +2,12 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include "../../src/agentlib/command_registry.h"
+#include "../../src/filter_registry.h"
 #include "../../src/agentlib/skill_manager.h"
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/pluginloader.h"
 #include "../../src/fs_utils.h"
 
 void test_is_valid_db_name()
@@ -58,6 +61,14 @@ void test_tool_object_creation()
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+
+	// Force initialization of singletons before plugin_loader to align shutdown lifetime
+	(void)::command_registry::get_instance();
+	(void)agentlib::skill_manager::get_instance();
+	(void)agentlib::filter_registry::get_instance();
+	(void)agentlib::tool_registry::get_instance();
+
+	plugin_loader::get_instance().load_all_plugins();
 	test_is_valid_db_name();
 	test_tool_object_creation();
 	std::cout << "SQLite validation unit tests passed successfully!\n";
