@@ -210,6 +210,11 @@ std::vector<std::string> tool_registry::get_all_registered_families() const
 {
 	std::lock_guard<std::recursive_mutex> lock(mutex_);
 	std::vector<std::string> families;
+	for (const auto &[fam, reason] : family_reasons_) {
+		if (std::find(families.begin(), families.end(), fam) == families.end()) {
+			families.push_back(fam);
+		}
+	}
 	for (const auto &[name, factory] : validator_factories_) {
 		auto validator = factory();
 		if (validator) {

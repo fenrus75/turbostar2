@@ -130,6 +130,34 @@ int main()
 		assert(item.type == 'F');
 	}
 
+	// 5. Test tool-families VFS space
+	auto families_doc = vfs.read_file("system://tool-families.md");
+	assert(families_doc.has_value());
+	std::string families_text = std::string((*families_doc)->view());
+	std::cout << "\nsystem://tool-families.md content:\n" << families_text << std::endl;
+	assert(families_text.find("Tool Families Overview") != std::string::npos);
+	assert(families_text.find("git") != std::string::npos);
+	assert(families_text.find("base") != std::string::npos);
+
+	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
+	assert(git_fam_doc.has_value());
+	std::string git_fam_text = std::string((*git_fam_doc)->view());
+	std::cout << "\nsystem://tool-families/git.md content:\n" << git_fam_text << std::endl;
+	assert(git_fam_text.find("Tool Family: `git`") != std::string::npos);
+	assert(git_fam_text.find("git_status") != std::string::npos);
+
+	auto fam_list = vfs.list_directory("system://tool-families/");
+	assert(!fam_list.empty());
+	bool found_git_fam = false;
+	for (const auto &item : fam_list) {
+		std::cout << "  - Family item: " << item.uri << " [" << item.details << "]" << std::endl;
+		if (item.uri == "system://tool-families/git.md") {
+			found_git_fam = true;
+			assert(!item.details.empty());
+		}
+	}
+	assert(found_git_fam);
+
 	std::cout << "test_system_vfs passed successfully!" << std::endl;
 	return 0;
 }

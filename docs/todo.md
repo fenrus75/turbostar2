@@ -16,9 +16,16 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- language specific system prompt feature
-	- allow for language (and maybe language version?) specific system prompt text to be inserted
-	- alternative: a docs:// vfs path where we store a set of basic instructions and documentation items
+- we need to allow for plugin settings somehow, to ask for API keys and such
+	- maybe just allow string <-> string settings (so a std::map basically)
+		- well we need tupple: plugin, name -> value, so it's slightly more complex
+			- we could encode as plugin:name
+		- ideally we have a display priority/order integer as well so we can sort the UI into a logical order
+	- plugins can register and ask for a setting
+	- the TUI will build tabs per "plugin"
+		- then sorts the fields by priority, then name
+		- then builds input fields
+	- persistence: a plugin-settings.json file per project/global?
 
 - agent connection keepalive -- if the request takes a long time, is there a way to do a keepalive to keep the connection from dropping
 
@@ -39,7 +46,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - feature: subagent creation wizzard dialog
 
 - feature: model aliases -- have a set of aliases we can map to actual models, and we can have our "Task Models" UI to select models 
-   for specific tasks set up these aliases. We have a preferences UI for this now? We just need to get to a good list!
+   for specific tasks set up these aliases. We have a preferences UI for this now! We just need to get to a good list!
 	- base
 	- plan
 	- review
@@ -51,8 +58,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - feature: have a separate model option for "plan mode" phase
 	- same feature as the aliases feature
 
-
-
 - feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
 
 - feature:a /command action that activates a tool family (via menu?)
@@ -60,8 +65,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - feature: separate model name database of famous models for default properties
   should investigate the compile time json-to-struct stuff
 	- https://raw.githubusercontent.com/BerriAI/litellm/refs/heads/litellm_internal_staging/model_prices_and_context_window.json
-
-
 
 - feature: code review enhancements
 	- we can provide upfront a set of static analysis data to the code review agent
@@ -109,6 +112,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 		- [ ] markdown manipulators
 
 	- homeassistent / home automation
+		- needs the plugin config management for asking the API cookie
 
 	- code review
 
@@ -265,6 +269,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
 ## 01-08-2026
+- `system://tool-families.md` & `system://tool-families/<family>.md` VFS Endpoints (`src/vfs/system_vfs_provider.cpp`, `src/agentlib/tool_registry.cpp`, `tests/unit/test_system_vfs.cpp`): Implemented dynamic VFS documentation endpoints for tool families.
+  1. `system://tool-families.md`: Dynamic index listing all registered tool families (`base`, `git`, MCP servers, etc.), active/activation status, activation reason, and documentation links (supports `?search=<query>`).
+  2. `system://tool-families/<family>.md`: Dynamic specification endpoint rendering activation commands, teaser guidance prompts, and member tool schemas with links to `system://tools_detailed.md?search=<tool>`.
+  3. `system://tool-families/` Directory Listing: Updated `list_directory()` to synthesize directory entries and populate family activation reasons into the `Details` column when called with `rich_metadata=true`.
+  4. `tool_registry`: Updated `get_all_registered_families()` to include registered family reasons (`family_reasons_`). Added unit test assertions in `test_system_vfs.cpp`. Verified 100% test suite pass rate (255 OK, 1 Expected Fail, 2 Skipped).
 - Add `?search=` Query Hint to `tools.md` & `tools_detailed.md` Purpose Descriptions (`src/vfs/system_vfs_provider.cpp`): Added `(supports ?search=<query>)` directly to the `Details` metadata for `tools.md` and `tools_detailed.md` in `system_vfs_provider`. Enables LLMs calling `fs_list_dir("system://", rich_metadata=true)` to immediately discover query-string filtering before reading the files.
 - VFS Path Routing for `fs_grep_files` & `fs_file_size` and Dynamic File Metadata Fix (`src/vfs/system_vfs_provider.cpp`, `src/tools/fs_file_size/fs_file_size_entry.cpp`, `src/tools/fs_grep_files/fs_grep_files_entry.cpp`, `tests/unit/test_fs_list_dir.cpp`, `meson.build`):
   1. **Dynamic File Metadata**: Updated `get_file_info()` and `list_directory()` in `system_vfs_provider` to evaluate dynamic generator functions `fn("")`, populating non-zero byte size and line count metadata for top-level dynamic files (`agents.md`, `mcp.md`, `tools.md`, `tools_detailed.md`).

@@ -4,6 +4,7 @@
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
+#include "config_manager.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -14,6 +15,143 @@
 namespace fs = std::filesystem;
 
 namespace turbostar {
+
+static bool contains_case_insensitive(const std::string &haystack, const std::string &needle)
+{
+	if (needle.empty()) return true;
+	auto it = std::search(
+		haystack.begin(), haystack.end(),
+		needle.begin(), needle.end(),
+		[](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+	);
+	return it != haystack.end();
+}
+
+static std::string get_family_reason_helper(const std::string &fam)
+{
+	std::string reason = agentlib::tool_registry::get_instance().get_tool_family_reason(fam);
+	if (reason.empty()) {
+		std::string cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
+		if (cached.empty()) {
+			cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
+		}
+		if (!cached.empty()) {
+			reason = cached;
+		} else if (fam == "base") {
+			reason = "Always active core system tools.";
+		} else {
+			reason = std::format("Activate when needing tools from the {} family.", fam);
+		}
+	}
+	return reason;
+}
+
+static std::string generate_tool_families_index(const std::string &query)
+{
+	std::stringstream ss;
+	ss << "# Tool Families Overview\n\n";
+	ss << "> [!TIP]\n";
+	ss << "> - Tools in TurboStar are organized into tool families. `base` tools are always active.\n";
+	ss << "> - If a tool belongs to an inactive family, you must call `activate_tool_family(family_name=\"<family>\")` before executing it.\n";
+	ss << "> - To inspect member tools and activation guidance for a specific family, read `system://tool-families/<family>.md`.\n\n";
+
+	ss << "| Tool Family | Activation Reason | Family Documentation |\n";
+	ss << "| ----------- | ----------------- | -------------------- |\n";
+
+	auto families = agentlib::tool_registry::get_instance().get_all_registered_families();
+	std::sort(families.begin(), families.end());
+
+	for (const auto &fam : families) {
+		if (fam.starts_with(':')) continue;
+
+		std::string reason = get_family_reason_helper(fam);
+		if (!query.empty()) {
+			if (!contains_case_insensitive(fam, query) && !contains_case_insensitive(reason, query)) {
+				continue;
+			}
+		}
+
+		std::string link = std::format("[system://tool-families/{}.md](system://tool-families/{}.md)", fam, fam);
+		ss << std::format("| `{}` | {} | {} |\n", fam, reason, link);
+	}
+
+	return ss.str();
+}
+
+static std::string generate_tool_family_detail(const std::string &fam_name)
+{
+	std::string clean_name = fam_name;
+	if (clean_name.ends_with(".md")) {
+		clean_name = clean_name.substr(0, clean_name.length() - 3);
+	}
+
+	std::stringstream ss;
+	ss << std::format("# Tool Family: `{}`\n\n", clean_name);
+
+	std::string reason = get_family_reason_helper(clean_name);
+	ss << std::format("- **Activation Reason**: {}\n", reason);
+	if (clean_name != "base") {
+		ss << std::format("- **Activation Command**: `activate_tool_family(family_name=\"{}\")`\n", clean_name);
+	} else {
+		ss << "- **Activation Status**: Always active (core system tools)\n";
+	}
+
+	std::string guidance = agentlib::tool_registry::get_instance().get_tool_family_guidance(clean_name);
+	if (!guidance.empty()) {
+		ss << "\n## Guidance & Overview\n" << guidance << "\n";
+	}
+
+	ss << "\n## Member Tools in `" << clean_name << "` Family\n\n";
+	ss << "| Tool Name | Description | Detailed Schema Link |\n";
+	ss << "| --------- | ----------- | -------------------- |\n";
+
+	auto all_validators = agentlib::tool_registry::get_instance().get_active_tools(true, {});
+	int tool_count = 0;
+
+	for (const auto &val : all_validators) {
+		if (!val) continue;
+		std::string fam_str = val->get_family();
+		std::vector<std::string> val_fams;
+		std::stringstream fss(fam_str);
+		std::string item;
+		while (std::getline(fss, item, ',')) {
+			while (!item.empty() && item.front() == ' ') item.erase(item.begin());
+			while (!item.empty() && item.back() == ' ') item.pop_back();
+			if (!item.empty()) val_fams.push_back(item);
+		}
+
+		bool belongs = false;
+		for (const auto &f : val_fams) {
+			if (f == clean_name) {
+				belongs = true;
+				break;
+			}
+		}
+
+		if (belongs) {
+			tool_count++;
+			std::string tname = val->get_name();
+			std::string tdesc = val->get_description();
+			while (!tdesc.empty() && (tdesc.front() == '\n' || tdesc.front() == '\r')) {
+				tdesc.erase(tdesc.begin());
+			}
+			size_t first_nl = tdesc.find('\n');
+			if (first_nl != std::string::npos) {
+				tdesc = tdesc.substr(0, first_nl);
+			}
+			std::replace(tdesc.begin(), tdesc.end(), '|', ',');
+
+			std::string link = std::format("[system://tools_detailed.md?search={}](system://tools_detailed.md?search={})", tname, tname);
+			ss << std::format("| `{}` | {} | {} |\n", tname, tdesc, link);
+		}
+	}
+
+	if (tool_count == 0) {
+		ss << "*No static tools explicitly declared under family '" << clean_name << "'.*\n";
+	}
+
+	return ss.str();
+}
 
 system_vfs_provider::system_vfs_provider()
 {
@@ -169,10 +307,19 @@ system_vfs_provider::system_vfs_provider()
 	register_description("agents.md", "Read to discover available subagent profiles and their specialization roles before invoking subagents.");
 	register_description("tools.md", "Read to discover available system tools and concise usage descriptions (supports ?search=<query>).");
 	register_description("tools_detailed.md", "Read for full parameter types, descriptions, and schemas for system tools (supports ?search=<query>).");
+	register_description("tool-families.md", "Read to discover available tool families, activation criteria, and member tools.");
 	register_description("mcp.md", "Read to check active Model Context Protocol (MCP) server connections, transport types, and status.");
 	// Register directory purpose descriptions
 	register_description("languages", "Directory containing language-specific development guidelines and standards.");
 	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
+	register_description("tool-families", "Directory containing tool family activation guides and member tool specifications.");
+
+	register_generator("tool-families.md", [](const std::string &query) {
+		return generate_tool_families_index(query);
+	});
+	register_generator("tool-families/base.md", [](const std::string &query) {
+		return generate_tool_family_detail("base");
+	});
 }
 
 std::string system_vfs_provider::resolve_path(const std::string &uri, std::string *out_query) const
@@ -233,6 +380,19 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	if (path == "tools_detailed.md" || path == "tools/details.md" || path == "tools_detail.md") {
 		return "tools_detailed.md";
 	}
+	if (path == "tool-families" || path == "tool-families.md" || path == "tool_families" || path == "tool_families.md") {
+		return "tool-families.md";
+	}
+	if (path.starts_with("tool-families/") || path.starts_with("tool_families/")) {
+		std::string sub = path.substr(path.find('/') + 1);
+		if (sub.empty()) {
+			return "tool-families/";
+		}
+		if (!sub.ends_with(".md")) {
+			sub += ".md";
+		}
+		return "tool-families/" + sub;
+	}
 
 	return path;
 }
@@ -258,8 +418,17 @@ bool system_vfs_provider::exists(const std::string &uri) const
 		path = path.substr(0, path.length() - 1);
 	}
 
-	if (path.empty()) {
+	if (path.empty() || path == "tool-families") {
 		return true;
+	}
+
+	if (path.starts_with("tool-families/")) {
+		std::string fam = path.substr(14);
+		if (fam.ends_with(".md")) {
+			fam = fam.substr(0, fam.length() - 3);
+		}
+		auto families = agentlib::tool_registry::get_instance().get_all_registered_families();
+		return std::find(families.begin(), families.end(), fam) != families.end() || fam == "base";
 	}
 
 	{
@@ -293,6 +462,16 @@ std::optional<agentlib::vfs_file_handle> system_vfs_provider::read_file(const st
 {
 	std::string query;
 	std::string path = resolve_path(uri, &query);
+
+	if (path == "tool-families.md") {
+		std::string content = generate_tool_families_index(query);
+		return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+	}
+	if (path.starts_with("tool-families/")) {
+		std::string fam_name = path.substr(14);
+		std::string content = generate_tool_family_detail(fam_name);
+		return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+	}
 
 	// Check dynamic generators first
 	{
@@ -341,6 +520,39 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 	std::string clean_path = path;
 	while (clean_path.ends_with("/")) {
 		clean_path = clean_path.substr(0, clean_path.length() - 1);
+	}
+
+	if (clean_path == "tool-families") {
+		agentlib::vfs_file_info info;
+		info.uri = "system://tool-families/";
+		info.type = 'D';
+		info.size = 0;
+		info.size_in_lines = 0;
+		info.details = "Directory containing tool family activation guides and member tool specifications.";
+		return info;
+	}
+	if (clean_path == "tool-families.md") {
+		std::string content = generate_tool_families_index("");
+		agentlib::vfs_file_info info;
+		info.uri = "system://tool-families.md";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		info.details = "Read to discover available tool families, activation criteria, and member tools.";
+		return info;
+	}
+	if (clean_path.starts_with("tool-families/")) {
+		std::string fam_name = clean_path.substr(14);
+		std::string content = generate_tool_family_detail(fam_name);
+		agentlib::vfs_file_info info;
+		info.uri = "system://tool-families/" + fam_name;
+		if (!info.uri.ends_with(".md")) info.uri += ".md";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		if (fam_name.ends_with(".md")) fam_name = fam_name.substr(0, fam_name.length() - 3);
+		info.details = get_family_reason_helper(fam_name);
+		return info;
 	}
 
 	std::string dir_prefix = clean_path.empty() ? "" : (clean_path + "/");
@@ -429,6 +641,25 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 		norm_prefix += "/";
 	}
 
+	if (norm_prefix == "tool-families/") {
+		std::vector<agentlib::vfs_file_info> results;
+		auto families = agentlib::tool_registry::get_instance().get_all_registered_families();
+		std::sort(families.begin(), families.end());
+		for (const auto &fam : families) {
+			if (fam.starts_with(':')) continue;
+			std::string file_uri = "system://tool-families/" + fam + ".md";
+			std::string content = generate_tool_family_detail(fam);
+			agentlib::vfs_file_info info;
+			info.uri = file_uri;
+			info.type = 'F';
+			info.size = content.size();
+			info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+			info.details = get_family_reason_helper(fam);
+			results.push_back(info);
+		}
+		return results;
+	}
+
 	std::vector<agentlib::vfs_file_info> results;
 	std::map<std::string, bool> seen;
 
@@ -472,6 +703,8 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 					info.details = "Directory containing language-specific development guidelines and standards.";
 				} else if (dir_name == "workflows") {
 					info.details = "Directory containing subagent and system workflow guidelines.";
+				} else if (dir_name == "tool-families") {
+					info.details = "Directory containing tool family activation guides and member tool specifications.";
 				}
 				results.push_back(info);
 			}
