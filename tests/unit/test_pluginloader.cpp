@@ -11,13 +11,8 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 
-	// Force initialization of tool_registry, command_registry, and skill_manager before plugin_loader
-	(void)agentlib::tool_registry::get_instance();
-	(void)command_registry::get_instance();
-	(void)agentlib::skill_manager::get_instance();
-
+	test_watchdog::init_plugin_environment();
 	auto &loader = plugin_loader::get_instance();
-	loader.load_all_plugins();
 
 	const auto &plugins = loader.get_plugins();
 	(void)plugins;

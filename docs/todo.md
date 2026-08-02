@@ -276,10 +276,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
   4. Registered `"code_review"` tool family in `tool_registry` constructor.
   5. Equipped Security Review Agent (`security_review_with_agent`) and Code Reviewer subagents with `"code_review"` tool family.
   6. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
-- `test_watchdog` Singleton Initialization Helpers (`tests/unit/test_watchdog.h`, `tests/unit/test_sqlite_list_db.cpp`, `tests/unit/test_sqlite_validation.cpp`, `docs/todo.md`):
+- `test_watchdog` Singleton Initialization Helpers (`tests/unit/test_watchdog.h`, `tests/unit/`, `docs/todo.md`):
   1. Added `test_watchdog::init_singletons()` and `test_watchdog::init_plugin_environment()` helper functions in [test_watchdog.h](file:///home/arjan/git/turbostar2/tests/unit/test_watchdog.h) to initialize core singletons (`command_registry`, `skill_manager`, `filter_registry`, `tool_registry`) in strict lifetime order before `plugin_loader`.
   2. Prevents static destructor ordering bugs and double-free crashes during process exit when dynamic plugins call `unregister_tool_family()` or `unregister_filter()`.
-  3. Simplified plugin unit tests (`test_sqlite_list_db` and `test_sqlite_validation`) to use `test_watchdog::init_plugin_environment()`.
+  3. Refactored all plugin unit tests (`test_hexinspect`, `test_html_extract_tables`, `test_image_tools`, `test_pluginloader`, `test_a2a_generate_card_with_agent`, `test_a2a_server`, `test_a2a_validate_card`, `test_sqlite_list_db`, `test_sqlite_validation`, `test_perform_code_review`) to use `test_watchdog::init_plugin_environment()` and `init_singletons()`.
   4. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
   1. Created `src/plugins/sqlite/` containing `plugin.cpp`, `sqlite_create_db.h/cpp/security.cpp`, `sqlite_delete_db.h/cpp/security.cpp`, `sqlite_list_db.h/cpp/security.cpp`, and `sqlite_perform.h/cpp/security.cpp`.
   2. Moved `sqlite` tool family registration and all 4 tools to `src/plugins/sqlite/plugin.cpp` (`plugin_run()` / `plugin_unload()`).

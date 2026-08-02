@@ -20,15 +20,9 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
-	// Force initialization of singletons before plugin_loader to align shutdown lifetime
-	(void)command_registry::get_instance();
-	(void)skill_manager::get_instance();
-	tool_registry &registry = tool_registry::get_instance();
 	(void)hex_highlighter_registry::get_instance();
-
-	// Load the dynamic plugins (including hexedit)
-	auto &loader = plugin_loader::get_instance();
-	loader.load_all_plugins();
+	test_watchdog::init_plugin_environment();
+	tool_registry &registry = tool_registry::get_instance();
 
 	tool_context ctx;
 	ctx.properties.active_families = {"hexedit", "x86"};

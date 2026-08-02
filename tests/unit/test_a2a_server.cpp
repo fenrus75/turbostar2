@@ -24,11 +24,7 @@ int main()
 	setenv("HOME", temp_home.c_str(), 1);
 
 	project_manager::get_instance().initialize();
-
-	(void)command_registry::get_instance();
-	(void)agentlib::skill_manager::get_instance();
-
-	plugin_loader::get_instance().load_all_plugins();
+	test_watchdog::init_plugin_environment();
 	agentlib::subagent_manager::get_instance().initialize();
 
 	std::cout << "Testing a2a_server..." << std::endl;

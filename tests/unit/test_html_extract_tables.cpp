@@ -17,14 +17,8 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
-	// Force initialization of singletons before plugin_loader to align shutdown lifetime
-	(void)command_registry::get_instance();
-	(void)skill_manager::get_instance();
+	test_watchdog::init_plugin_environment();
 	tool_registry &registry = tool_registry::get_instance();
-
-	// Load the dynamic plugins (including html if lexbor is found)
-	auto &loader = plugin_loader::get_instance();
-	loader.load_all_plugins();
 
 	// If the html plugin wasn't loaded (e.g. lexbor not found during compilation), skip test
 	if (!registry.has_tool_family("html")) {

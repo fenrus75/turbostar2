@@ -40,16 +40,8 @@ int main()
 	setenv("HOME", temp_home.c_str(), 1);
 
 	// Force initialization of singletons
-	(void)tool_registry::get_instance();
-	(void)command_registry::get_instance();
-	(void)skill_manager::get_instance();
-	(void)filter_registry::get_instance();
-
 	project_manager::get_instance().initialize();
-
-	// Load dynamic plugins (registers image_basic tools & filter)
-	auto &loader = plugin_loader::get_instance();
-	loader.load_all_plugins();
+	test_watchdog::init_plugin_environment();
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;

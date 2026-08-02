@@ -17,12 +17,8 @@ int main()
 	test_watchdog::setup_watchdog(30);
 	project_manager::get_instance().initialize();
 
-	(void)command_registry::get_instance();
-	(void)skill_manager::get_instance();
+	test_watchdog::init_plugin_environment();
 	tool_registry &registry = tool_registry::get_instance();
-
-	// Load dynamic plugins
-	plugin_loader::get_instance().load_all_plugins();
 
 	// Verify subagent was registered
 	auto subagent_opt = subagent_manager::get_instance().find_subagent_by_name("a2acardgenerator");
