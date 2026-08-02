@@ -14,7 +14,6 @@
 #include "../../src/git_manager.h"
 #include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
-#include "tools/agent_add_todo/agent_add_todo.h"
 #include "filter_registry.h"
 
 using namespace agentlib;
@@ -292,47 +291,7 @@ extern std::string troff2md(std::string troff_content);
 		std::cout << "Tool call boundary protection verified successfully!" << std::endl;
 	}
 
-	std::cout << "\nTesting agent_add_todo..." << std::endl;
-	{
-		// Valid todo addition
-		std::string add_todo_res = registry.execute_tool("agent_add_todo", "{\"text\": \"My valid todo\"}", ctx);
-		std::cout << "Result: " << add_todo_res << std::endl;
-		assert(add_todo_res.find("Added todo: My valid todo") != std::string::npos);
 
-		// Rejection of empty text (validation fails)
-		auto prep_todo = registry.prepare_tool("agent_add_todo", "{\"text\": \"\"}", ctx);
-		assert(prep_todo.tool == nullptr);
-		assert(!prep_todo.error_message.empty());
-
-		// Rejection of overly long text (> 1024 characters)
-		std::string long_text(1025, 'a');
-		prep_todo = registry.prepare_tool("agent_add_todo", "{\"text\": \"" + long_text + "\"}", ctx);
-		assert(prep_todo.tool == nullptr);
-		assert(!prep_todo.error_message.empty());
-
-		// Rejection of control characters (ESC \x1b)
-		prep_todo = registry.prepare_tool("agent_add_todo", "{\"text\": \"unsafe\\u001btodo\"}", ctx);
-		assert(prep_todo.tool == nullptr);
-		assert(!prep_todo.error_message.empty());
-
-		// Rejection if agent is read-only
-		auto original_ro = agent->is_read_only();
-		agent->set_read_only(true);
-		prep_todo = registry.prepare_tool("agent_add_todo", "{\"text\": \"Valid but RO\"}", ctx);
-		assert(prep_todo.tool == nullptr);
-		assert(prep_todo.error_message.find("read-only") != std::string::npos);
-
-		// Directly test validate_runtime on the tool under read-only state
-		{
-			tools::agent_add_todo_tool direct_tool("Valid but RO");
-			std::string direct_err;
-			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
-			assert(direct_err.find("read-only") != std::string::npos);
-		}
-
-		agent->set_read_only(original_ro);
-		std::cout << "agent_add_todo tool verified successfully!" << std::endl;
-	}
 
 	std::cout << "\nTesting fs_read_lines boundary heuristics..." << std::endl;
 	{
@@ -506,8 +465,8 @@ extern std::string troff2md(std::string troff_content);
 		tool_call t4;
 		t4.id = "call4";
 		t4.type = "function";
-		t4.function.name = "agent_add_todo";
-		t4.function.arguments = "{\"text\": \"hello\"}";
+		t4.function.name = "fs_mkdir";
+		t4.function.arguments = "{\"path\": \"tmp/testdir\"}";
 		calls.push_back(t4);
 
 		std::unordered_map<std::string, std::string> merged_to_parent;

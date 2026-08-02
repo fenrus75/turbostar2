@@ -173,8 +173,7 @@ inline void normalize_tool_call(tool_call &call)
 		{"agent_get_output", "get_subagent_output"},
 		{"agent_report_final_result", "report_final_result"},
 		{"end_agent", "kill_subagent"},
-		{"agent_end", "kill_subagent"},
-		{"agent_todo_status", "get_subagent_todo_status"}
+		{"agent_end", "kill_subagent"}
 	};
 
 	std::string official_name = alias;

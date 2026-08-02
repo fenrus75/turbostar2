@@ -288,25 +288,6 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 
 ## 7. Agent State & To-Do Management
 
-### `agent_add_todo`
-*   **Description:** Adds one or more tasks to the AI agent's internal todo list. Use this to track steps during complex multi-part requests. Multiple tasks can be added at once by separating them with newlines (`\n`).
-*   **Arguments:**
-    *   `text` *(string, required)*: The description of the task or tasks to add. Multiple items can be added by separating them with newlines (`\n`).
-
-### `agent_list_todos`
-*   **Description:** Lists all tasks currently in the AI agent's internal todo list, formatted as markdown checkboxes.
-*   **Arguments:** None.
-
-### `agent_complete_todo`
-*   **Description:** Marks a task as complete in the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to complete all tasks. Upon successful completion, the tool response includes a reminder message listing the number of remaining outstanding todos and the text of the next todo item (repetition-limited to 2 reminders per item).
-*   **Arguments:**
-    *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to complete all tasks.
-
-### `agent_delete_todo`
-*   **Description:** Deletes a task from the AI agent's internal todo list. Provide an exact match, a unique substring (excluding leading list numbers/indices like '1.'), or '*' to delete all tasks.
-*   **Arguments:**
-    *   `text` *(string, required)*: The task text or unique substring to match. Do not include leading list numbers or prefixes (e.g., match 'Read README' instead of '1. Read README'). Use '*' to delete all tasks.
-
 ### `agent_mark_milestone`
 *   **Description:** Used to signal that a major task is complete or that you are pivoting to a completely new area. This helps the system manage long-term memory and context windows efficiently by compressing old history. Upon success, the tool response includes a reminder message listing the number of remaining outstanding todos and the text of the next todo item (repetition-limited to 2 reminders per item).
 *   **Arguments:**
@@ -330,10 +311,6 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 
 ### `agent_list_episodes`
 *   **Description:** Lists all archived/paged-out episodes, returning a markdown table showing the Episode ID and their 'when to resume' reactivation hint.
-*   **Arguments:** None.
-
-### `pop_todo`
-*   **Description:** Removes and returns the first item from the agent's todo list. Useful for treating the todo list as a sequential task queue.
 *   **Arguments:** None.
 
 ### `agent_set_timer`
@@ -402,11 +379,6 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   **Description:** Closes and terminates a specific subagent.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to terminate.
-
-### `get_subagent_todo_status`
-*   **Description:** Returns the todo list with completion status of a specific subagent.
-*   **Arguments:**
-    *   `id` *(integer, required)*: The ID of the subagent to query.
 
 ---
 

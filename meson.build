@@ -388,8 +388,6 @@ test_tools = executable('test_tools',
    'src/tools/agent_set_timer/agent_set_timer_security.cpp',
    'src/tools/agent_list_episodes/agent_list_episodes_entry.cpp',
    'src/tools/agent_list_episodes/agent_list_episodes_security.cpp',
-   'src/tools/agent_add_todo/agent_add_todo_entry.cpp',
-   'src/tools/agent_add_todo/agent_add_todo_security.cpp',
    'src/tools/apply_text_filter/apply_text_filter_entry.cpp',
    'src/tools/apply_text_filter/apply_text_filter_security.cpp',
    'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
@@ -706,13 +704,7 @@ test_web_fetch = executable('test_web_fetch',
 test('unit_test_web_fetch', test_web_fetch, suite: 'agent')
 
 
-test_agent_add_todo = executable('test_agent_add_todo',
-  ['tests/unit/test_agent_add_todo.cpp',
-   'src/tools/agent_add_todo/agent_add_todo_entry.cpp',
-   'src/tools/agent_add_todo/agent_add_todo_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_agent_add_todo', test_agent_add_todo, suite: 'agent')
+
 
 test_exit_plan_mode = executable('test_exit_plan_mode',
   ['tests/unit/test_exit_plan_mode.cpp',
@@ -760,13 +752,7 @@ test('unit_test_latency_spike', test_latency_spike, suite: 'agent')
 
 
 
-test_agent_complete_todo = executable('test_agent_complete_todo',
-  ['tests/unit/test_agent_complete_todo.cpp',
-   'src/tools/agent_complete_todo/agent_complete_todo_entry.cpp',
-   'src/tools/agent_complete_todo/agent_complete_todo_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_agent_complete_todo', test_agent_complete_todo, suite: 'agent')
+
 
 test_agent_compress_history = executable('test_agent_compress_history',
   ['tests/unit/test_agent_compress_history.cpp',
@@ -806,13 +792,7 @@ test_crashdump_window = executable('test_crashdump_window',
   include_directories: inc)
 test('unit_test_crashdump_window', test_crashdump_window, suite: 'editor')
 
-test_agent_delete_todo = executable('test_agent_delete_todo',
-  ['tests/unit/test_agent_delete_todo.cpp',
-   'src/tools/agent_delete_todo/agent_delete_todo_entry.cpp',
-   'src/tools/agent_delete_todo/agent_delete_todo_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_agent_delete_todo', test_agent_delete_todo, suite: 'agent')
+
 
 test_kill_subagent = executable('test_kill_subagent',
   ['tests/unit/test_kill_subagent.cpp',
@@ -864,13 +844,7 @@ test_list_subagents = executable('test_list_subagents',
   include_directories: inc)
 test('unit_test_list_subagents', test_list_subagents, suite: 'agent')
 
-test_agent_list_todos = executable('test_agent_list_todos',
-  ['tests/unit/test_agent_list_todos.cpp',
-   'src/tools/agent_list_todos/agent_list_todos_entry.cpp',
-   'src/tools/agent_list_todos/agent_list_todos_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_agent_list_todos', test_agent_list_todos, suite: 'agent')
+
 
 test_agent_mark_episode = executable('test_agent_mark_episode',
   ['tests/unit/test_agent_mark_episode.cpp',
@@ -940,13 +914,7 @@ test_agent_wait_for_app = executable('test_agent_wait_for_app',
   include_directories: inc)
 test('unit_test_agent_wait_for_app', test_agent_wait_for_app, suite: 'agent')
 
-test_get_subagent_todo_status = executable('test_get_subagent_todo_status',
-  ['tests/unit/test_get_subagent_todo_status.cpp',
-   'src/tools/get_subagent_todo_status/get_subagent_todo_status_entry.cpp',
-   'src/tools/get_subagent_todo_status/get_subagent_todo_status_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_get_subagent_todo_status', test_get_subagent_todo_status, suite: 'agent')
+
 
 test_agent_write_to_run = executable('test_agent_write_to_run',
   ['tests/unit/test_agent_write_to_run.cpp',
@@ -1380,11 +1348,7 @@ test_crashdump_clear = executable('test_crashdump_clear',
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')
 
-test_pop_todo = executable('test_pop_todo',
-  ['tests/unit/test_pop_todo.cpp'],
-  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, yaml_cpp_dep, openssl_dep, dl_dep],
-  include_directories: 'src')
-test('unit_pop_todo', test_pop_todo, suite: 'agent')
+
 
 test_httplib_transport = executable('test_httplib_transport',
   ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
@@ -2085,15 +2049,7 @@ if uv.found() or python.found()
     timeout: 60,
     suite: 'editor'
   )
-  test('e2e_agent_todos', e2e_exe,
-    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_agent_todos.py')],
-    env: e2e_env,
-    depends: e2e_depends,
-    workdir: meson.project_build_root(),
-    timeout: 60,
-    is_parallel: false,
-    suite: 'agent'
-  )
+
   test('e2e_elf_tools_replay', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_elf_tools_replay.py')],
     env: e2e_env,

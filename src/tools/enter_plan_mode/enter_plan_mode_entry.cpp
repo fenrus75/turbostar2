@@ -43,8 +43,7 @@ std::string enter_plan_mode_tool::execute(agentlib::tool_context& ctx)
     return "Plan Mode entered. You may now explore the codebase using read-only tools to formulate a plan.\n"
            "You are ALSO allowed to use file writing tools (e.g. fs_write_file, fs_replace_content, fs_replace_lines) ONLY on the designated plan file: " + plan_file + "\n"
            "Additionally, files under the 'tmp://' virtual filesystem (e.g. tmp://plan.md) remain fully writable during Plan Mode and are a great place to draft your plan.\n"
-           "Additionally, you may use agent_add_todo to track your planned steps.\n"
-           "Use these files and your todo list to draft, detail, and refine your plan.";
+           "Use these files to draft, detail, and refine your plan.";
 }
 
 } // namespace tools

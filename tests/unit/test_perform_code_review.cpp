@@ -50,13 +50,13 @@ void test_perform_code_review_execution()
 	ctx.queue = &q;
 
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
-	auto agent = ai_agent::create(1, "DeveloperAgent", model, &q, nullptr);
+	auto agent = ai_agent::create(98001, "DeveloperAgent", model, &q, nullptr);
 	agent->set_role(agent_role::developer);
 	ctx.active_agent = agent.get();
 	ctx.properties = agent->get_properties();
 
 	// Test 1: Role gating (reviewer role should be blocked from calling this tool to avoid recursion)
-	auto reviewer_temp = ai_agent::create(2, "TempReviewer", model, &q, nullptr);
+	auto reviewer_temp = ai_agent::create(98002, "TempReviewer", model, &q, nullptr);
 	reviewer_temp->set_role(agent_role::reviewer);
 	tool_context reviewer_ctx = ctx;
 	reviewer_ctx.active_agent = reviewer_temp.get();
