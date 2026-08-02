@@ -1,5 +1,6 @@
 #pragma once
 #define UNW_LOCAL_ONLY
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <libunwind.h>
@@ -9,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #if __has_include(<cxxabi.h>)
@@ -17,6 +19,28 @@
 #endif
 
 namespace test_watchdog {
+
+static inline std::chrono::steady_clock::time_point &get_test_start_time()
+{
+	static std::chrono::steady_clock::time_point start_tp = std::chrono::steady_clock::now();
+	return start_tp;
+}
+
+static inline double get_elapsed_seconds()
+{
+	auto now = std::chrono::steady_clock::now();
+	std::chrono::duration<double> dur = now - get_test_start_time();
+	return dur.count();
+}
+
+static inline long get_current_tid()
+{
+#if defined(__linux__) && defined(SYS_gettid)
+	return static_cast<long>(syscall(SYS_gettid));
+#else
+	return static_cast<long>(getpid());
+#endif
+}
 
 class scoped_test_home {
       public:
@@ -100,7 +124,9 @@ static inline void print_stack_trace()
 static void alarm_handler(int sig, siginfo_t *info, void *ucontext)
 {
 	(void)sig; (void)info; (void)ucontext;
-	const char *msg = "\n*** WATCHDOG TIMEOUT ***\nStack trace:\n";
+	char msg[256];
+	snprintf(msg, sizeof(msg), "\n*** WATCHDOG TIMEOUT (Thread ID: %ld, Elapsed: %.3fs) ***\nStack trace:\n",
+		 get_current_tid(), get_elapsed_seconds());
 	write(STDOUT_FILENO, msg, strlen(msg));
 	print_stack_trace();
 	_exit(128 + SIGALRM);
@@ -117,7 +143,8 @@ static void crash_handler(int sig, siginfo_t *info, void *ucontext)
 	else if (sig == SIGBUS) sig_name = "SIGBUS - Bus Error";
 
 	char msg[256];
-	snprintf(msg, sizeof(msg), "\n*** TEST CRASHED (Signal %d: %s) ***\nStack trace:\n", sig, sig_name);
+	snprintf(msg, sizeof(msg), "\n*** TEST CRASHED (Signal %d: %s, Thread ID: %ld, Elapsed: %.3fs) ***\nStack trace:\n",
+		 sig, sig_name, get_current_tid(), get_elapsed_seconds());
 	write(STDOUT_FILENO, msg, strlen(msg));
 	print_stack_trace();
 
@@ -178,12 +205,16 @@ void __assert_fail(const char *assertion, const char *file, unsigned int line, c
 		 "File:       %s:%u\n"
 		 "Function:   %s\n"
 		 "Assertion:  assert(%s)\n"
+		 "Thread ID:  %ld\n"
+		 "Elapsed:    %.3fs\n"
 		 "================================================================================\n"
 		 "Call Stack:\n",
 		 file ? file : "unknown",
 		 line,
 		 function ? function : "unknown",
-		 assertion ? assertion : "unknown");
+		 assertion ? assertion : "unknown",
+		 test_watchdog::get_current_tid(),
+		 test_watchdog::get_elapsed_seconds());
 	write(STDOUT_FILENO, header, strlen(header));
 
 	test_watchdog::print_stack_trace();
@@ -213,13 +244,17 @@ void __assert_perror_fail(int errnum, const char *file, unsigned int line, const
 		 "File:       %s:%u\n"
 		 "Function:   %s\n"
 		 "Errno:      %d (%s)\n"
+		 "Thread ID:  %ld\n"
+		 "Elapsed:    %.3fs\n"
 		 "================================================================================\n"
 		 "Call Stack:\n",
 		 file ? file : "unknown",
 		 line,
 		 function ? function : "unknown",
 		 errnum,
-		 strerror(errnum));
+		 strerror(errnum),
+		 test_watchdog::get_current_tid(),
+		 test_watchdog::get_elapsed_seconds());
 	write(STDOUT_FILENO, header, strlen(header));
 
 	test_watchdog::print_stack_trace();
