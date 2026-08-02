@@ -286,7 +286,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 
 	file_read_result read_res;
 
-	// Check if the path belongs to a Virtual File System (e.g. agent:// or github:// schemes).
+	// Check if the path belongs to a Virtual File System (e.g. system:// or github:// schemes).
 	if (args_.safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {

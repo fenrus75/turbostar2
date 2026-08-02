@@ -1511,7 +1511,7 @@ test_perform_code_review = executable('test_perform_code_review',
    'src/tools/perform_code_review/perform_code_review_security.cpp'],
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_perform_code_review', test_perform_code_review, suite: 'agent')
+test('unit_perform_code_review', test_perform_code_review, suite: 'agent', is_parallel: false)
 
 test_security_review_with_agent = executable('test_security_review_with_agent',
   ['tests/unit/test_security_review_with_agent.cpp',

@@ -1920,7 +1920,8 @@ void ai_agent::start_processing()
 		// Notify parent agent asynchronously
 		if (auto parent = self->parent_agent_.lock()) {
 			std::string agent_id_str = std::to_string(self->id_);
-			std::string uri = "agent://" + agent_id_str + "/completion_report.json";
+			std::string transcript_uri = "system://subagents/" + agent_id_str + "/transcript.md";
+			std::string final_result_uri = "system://subagents/" + agent_id_str + "/final_result.md";
 
 			std::string summary_text;
 			if (!final_response.empty()) {
@@ -1942,27 +1943,19 @@ void ai_agent::start_processing()
 				summary_text = "Task completed with no final response text.";
 			}
 
+			std::string target_uri = self->has_final_result() ? final_result_uri : transcript_uri;
+
 			nlohmann::json notification_json = {{"event", "SubagentStop"},
 							    {"agent_id", std::to_string(self->id_)},
 							    {"name", self->name_},
 							    {"status", "completed"},
-							    {"result", {{"summary", summary_text}, {"output_path", "`" + uri + "`"}}}};
-
-			// Generate full history buffer for the virtual file
-			std::string full_history = "Interaction History for Agent " + agent_id_str + " (" + self->name_ +
-						   ")\n=======================================================\n\n";
-			for (const auto &interaction : self->get_interactions()) {
-				full_history += interaction->get_raw_text() + "\n\n";
-			}
-
-			// Mount to global VFS
-			skill_manager::get_instance().get_vfs()->mount_buffer(uri, full_history);
+							    {"result", {{"summary", summary_text}, {"output_path", "`" + target_uri + "`"}}}};
 
 			if (self->is_notify_parent_on_completion()) {
 				std::string system_msg =
 				    "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
 				system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
-				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + uri + "`";
+				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + transcript_uri + "`";
 
 				parent->inject_context("user", system_msg, true);
 			}
