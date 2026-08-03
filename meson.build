@@ -722,21 +722,6 @@ test('unit_test_web_fetch', test_web_fetch, suite: 'agent')
 
 
 
-
-test_exit_plan_mode = executable('test_exit_plan_mode',
-  ['tests/unit/test_exit_plan_mode.cpp',
-   'src/tools/enter_plan_mode/enter_plan_mode_entry.cpp',
-   'src/tools/enter_plan_mode/enter_plan_mode_security.cpp',
-   'src/tools/exit_plan_mode/exit_plan_mode_entry.cpp',
-   'src/tools/exit_plan_mode/exit_plan_mode_security.cpp',
-   'src/tools/fs_write_file/fs_write_file_entry.cpp',
-   'src/tools/fs_write_file/fs_write_file_security.cpp',
-   'src/tools/fs_replace_content/fs_replace_content_entry.cpp',
-   'src/tools/fs_replace_content/fs_replace_content_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_exit_plan_mode', test_exit_plan_mode, suite: 'agent')
-
 test_ai_model_scoring = executable('test_ai_model_scoring',
   'tests/unit/test_ai_model_scoring.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

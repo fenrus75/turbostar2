@@ -146,7 +146,8 @@ void image_manager::initialize()
 std::string image_manager::get_cache_dir()
 {
 	auto path = std::filesystem::path(fs_utils::get_project_cache_root()) / "images";
-	std::filesystem::create_directories(path);
+	std::error_code ec;
+	std::filesystem::create_directories(path, ec);
 	return path.string();
 }
 

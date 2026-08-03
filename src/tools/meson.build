@@ -1,8 +1,4 @@
 tools_sources = files(
-  'enter_plan_mode/enter_plan_mode_entry.cpp',
-  'enter_plan_mode/enter_plan_mode_security.cpp',
-  'exit_plan_mode/exit_plan_mode_entry.cpp',
-  'exit_plan_mode/exit_plan_mode_security.cpp',
   'agent_mark_episode/agent_mark_episode_entry.cpp',
   'agent_mark_episode/agent_mark_episode_security.cpp',
   'agent_compress_history/agent_compress_history_entry.cpp',

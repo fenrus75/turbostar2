@@ -67,6 +67,12 @@ class scoped_test_home {
 		if (xdg_runtime && *xdg_runtime) {
 			setenv("XDG_RUNTIME_DIR", xdg_runtime, 1);
 		}
+
+		// Ensure git identity is available in isolated test home directories
+		setenv("GIT_AUTHOR_NAME", "Test User", 1);
+		setenv("GIT_AUTHOR_EMAIL", "test@example.com", 1);
+		setenv("GIT_COMMITTER_NAME", "Test User", 1);
+		setenv("GIT_COMMITTER_EMAIL", "test@example.com", 1);
 	}
 
 	~scoped_test_home()

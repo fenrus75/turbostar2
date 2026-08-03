@@ -230,38 +230,38 @@ extern std::string troff2md(std::string troff_content);
 		sys_msg.content = "System prompt";
 		convo.push_back(sys_msg);
 
-		// 1: enter_plan_mode assistant message with tool call
+		// 1: tool_a assistant message with tool call
 		message ast_enter;
 		ast_enter.role = "assistant";
-		ast_enter.content = "Enter plan mode";
+		ast_enter.content = "Call tool a";
 		tool_call tc_enter;
 		tc_enter.id = "call_enter";
-		tc_enter.function.name = "enter_plan_mode";
+		tc_enter.function.name = "tool_a";
 		tc_enter.function.arguments = "{}";
 		ast_enter.tool_calls = {tc_enter};
 		convo.push_back(ast_enter);
 
-		// 2: enter_plan_mode tool response
+		// 2: tool_a tool response
 		message tool_enter;
 		tool_enter.role = "tool";
 		tool_enter.tool_call_id = "call_enter";
-		tool_enter.name = "enter_plan_mode";
-		tool_enter.content = "Entered plan mode.";
+		tool_enter.name = "tool_a";
+		tool_enter.content = "Output a.";
 		convo.push_back(tool_enter);
 
-		// 3: user message inside plan mode
+		// 3: user message inside exploration
 		message user_msg;
 		user_msg.role = "user";
 		user_msg.content = "Some research";
 		convo.push_back(user_msg);
 
-		// 4: exit_plan_mode assistant message with tool call
+		// 4: tool_b assistant message with tool call
 		message ast_exit;
 		ast_exit.role = "assistant";
-		ast_exit.content = "Exit plan mode";
+		ast_exit.content = "Call tool b";
 		tool_call tc_exit;
 		tc_exit.id = "call_exit";
-		tc_exit.function.name = "exit_plan_mode";
+		tc_exit.function.name = "tool_b";
 		tc_exit.function.arguments = "{}";
 		ast_exit.tool_calls = {tc_exit};
 		convo.push_back(ast_exit);
@@ -269,8 +269,6 @@ extern std::string troff2md(std::string troff_content);
 		agent3->set_conversation(convo);
 
 		// Page out context from index 2 to 5.
-		// Index 2 is the tool response of enter_plan_mode (part of [1, 2]).
-		// Index 4 is the assistant message of exit_plan_mode (part of [4, 5] since response is pending).
 		agent3->page_out_context(2, 5, "Plan Archive", "Testing plan archiving", {"test"});
 
 		auto resulting_convo = agent3->get_conversation();

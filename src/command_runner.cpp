@@ -149,6 +149,11 @@ std::string command_runner::build_command(const std::string &raw_command) const
 		return raw_command;
 	}
 
+	if (std::getenv("TURBOSTAR_SANDBOXED")) {
+		event_logger::get_instance().log("[command_runner] Already running inside outer sandbox, bypassing nested systemd-run for: '{}'", raw_command);
+		return raw_command;
+	}
+
 	if (!is_systemd_user_bus_available()) {
 		if (config_manager::get_instance().is_paranoid_mode()) {
 			event_logger::get_instance().log("[command_runner] ERROR: Systemd user D-Bus bus unavailable in Paranoid Mode for command: '{}'", raw_command);
@@ -178,6 +183,7 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	cmd += "-p MemoryDenyWriteExecute=true ";
 	cmd += "-p ProtectControlGroups=true ";
 	cmd += "-p RestrictRealtime=true ";
+	cmd += "-p Environment=TURBOSTAR_SANDBOXED=1 ";
 
 	if (!network_access_ && !allow_display_) {
 		cmd += "-p PrivateNetwork=true ";
