@@ -47,8 +47,22 @@ self_agent_h = custom_target('self_agent.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'self_agent_md']
 )
 
+system_docs_files = files(
+  'system/languages/c17.md',
+  'system/languages/cpp23.md',
+  'system/languages/cpp23_short.md',
+  'system/languages/python311.md',
+  'system/languages/rust2021.md',
+  'system/languages/typescript.md',
+  'system/languages/verilog.md',
+  'system/workflows/code_review.md',
+  'system/workflows/crash_analysis.md',
+  'system/workflows/plan_mode.md',
+)
+
 system_docs_embedded_h = custom_target('system_docs_embedded.h',
   output : 'system_docs_embedded.h',
+  depend_files : system_docs_files,
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_system_docs.py'), join_paths(meson.project_source_root(), 'system'), '@OUTPUT@']
 )
 

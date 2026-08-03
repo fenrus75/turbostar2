@@ -586,6 +586,7 @@ system_vfs_provider::system_vfs_provider()
 
 	// Register file purpose descriptions ("when to read this file")
 	register_description("languages/cpp23.md", "Read when writing or refactoring C++23 code.");
+	register_description("languages/cpp23_short.md", "Abbreviated summary of C++23 development guidelines.");
 	register_description("languages/c17.md", "Read when writing or refactoring C17 code.");
 	register_description("languages/python311.md", "Read when writing or refactoring Python code.");
 	register_description("languages/rust2021.md", "Read when writing or refactoring Rust 2021 code.");

@@ -92,6 +92,13 @@ inline void init_singletons()
 inline void init_plugin_environment()
 {
 	init_singletons();
+	if (!getenv("TURBOSTAR_PLUGIN_DIR")) {
+		if (std::filesystem::exists("./src/plugins")) {
+			setenv("TURBOSTAR_PLUGIN_DIR", "./src/plugins", 1);
+		} else if (std::filesystem::exists("../src/plugins")) {
+			setenv("TURBOSTAR_PLUGIN_DIR", "../src/plugins", 1);
+		}
+	}
 	plugin_loader::get_instance().load_all_plugins();
 }
 

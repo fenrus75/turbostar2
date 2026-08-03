@@ -6,7 +6,7 @@
 - **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`.
 - **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.
 - **Standard Library**: Prefer C++ Standard Library containers and algorithms over custom implementations.
-- **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory. All `#include ""` directives should be relative to `src/`.
+- **File Organization**: Place each class in a dedicated `.cpp` file and matching header in the same directory.
 - **Constexpr & Qualifiers**: Label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` when appropriate.
 
 ## Security Considerations

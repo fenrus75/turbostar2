@@ -61,7 +61,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	std::string prim_lang = config_manager::get_instance().get_primary_language();
 	std::string vfs_lang_uri = "";
 	if (prim_lang == "C++" || prim_lang == "cpp") {
-		vfs_lang_uri = "system://languages/cpp23.md";
+		vfs_lang_uri = "system://languages/cpp23_short.md";
 	} else if (prim_lang == "C" || prim_lang == "c") {
 		vfs_lang_uri = "system://languages/c17.md";
 	} else if (prim_lang == "Python" || prim_lang == "py") {
