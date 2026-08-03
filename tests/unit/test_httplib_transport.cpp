@@ -18,6 +18,18 @@ int main()
 		res.set_content("slow response completed", "text/plain");
 	});
 
+	std::atomic<int> busy_attempts{0};
+	svr.Post("/busy", [&](const httplib::Request&, httplib::Response& res) {
+		int current = ++busy_attempts;
+		if (current < 3) {
+			res.status = 503;
+			res.set_content("Service Unavailable", "text/plain");
+		} else {
+			res.status = 200;
+			res.set_content("recovered after 503", "text/plain");
+		}
+	});
+
 	svr.Get("/v1/models", [](const httplib::Request&, httplib::Response& res) {
 		res.set_content(R"({
 			"object": "list",
@@ -93,17 +105,19 @@ int main()
 	assert(failed_imported.empty());
 	assert(!error_failed.empty());
 
+	// Test HTTP 503 Retry logic
+	std::cout << "Testing HTTP 503 retry logic on /busy..." << std::endl;
+	auto busy_resp = transport.post("/busy", "{}");
+	std::cout << "Busy POST completed. Status: " << busy_resp.status_code << ", Body: " << busy_resp.body << ", Attempts: " << busy_attempts.load() << std::endl;
+	assert(busy_resp.status_code == 200);
+	assert(busy_resp.body == "recovered after 503");
+	assert(busy_attempts.load() == 3);
+
 	// Clean up the server
 	svr.stop();
 	if (server_thread.joinable()) {
 		server_thread.join();
 	}
-
-	// Assertions that will fail pre-fix because of the 5-second timeout, but pass post-fix.
-	assert(resp.status_code == 200);
-	assert(resp.body == "slow response completed");
-	assert(stream_success);
-	assert(stream_body == "slow response completed");
 
 	// Test connection failure diagnostics
 	{

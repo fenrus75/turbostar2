@@ -1,4 +1,5 @@
 #include "httplib_transport.h"
+#include "event_logger.h"
 
 #include <cerrno>
 #include <chrono>
@@ -8,6 +9,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
+#include <thread>
 
 namespace agentlib
 {
@@ -119,6 +121,7 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 			cli_->set_read_timeout(std::chrono::seconds(300));
 		}
 		cli_->set_follow_location(true);
+		cli_->set_keep_alive(false);
 		cli_->enable_server_certificate_verification(false);
 	}
 
@@ -165,51 +168,71 @@ void httplib_transport::cancel()
 
 transport_response httplib_transport::post(const std::string &path, const std::string &json_body)
 {
-	cancelled_ = false;
-	httplib::Result res;
-	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		if (!cli_)
-			return {-1, "Client destroyed"};
-
-		httplib::Headers headers;
-		if (token_provider_) {
-			std::string copilot_token = token_provider_();
-			if (!copilot_token.empty()) {
-				headers.emplace("Authorization", "Bearer " + copilot_token);
-			}
-		} else if (!api_key_.empty()) {
-			if (base_url_.find("googleapis.com") != std::string::npos) {
-				headers.emplace("x-goog-api-key", api_key_);
-			} else if (base_url_.find("anthropic.com") != std::string::npos) {
-				headers.emplace("x-api-key", api_key_);
-				headers.emplace("anthropic-version", "2023-06-01");
-			} else {
-				headers.emplace("Authorization", "Bearer " + api_key_);
-			}
-		}
-
-		std::string full_path = path;
-		if (!path_prefix_.empty()) {
-			if (path.starts_with(path_prefix_)) {
-				full_path = path;
-			} else {
-				full_path = path_prefix_ + path;
-			}
-		}
-		res = cli_->Post(full_path.c_str(), headers, json_body, "application/json");
-	}
+	constexpr int MAX_RETRIES = 3;
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	int wait_seconds = (in_testsuite && std::string(in_testsuite) == "1") ? 1 : 60;
 
 	transport_response response;
-	if (res) {
-		response.status_code = res->status;
-		response.body = res->body;
-		last_error_ = "";
-	} else {
-		int err_num = errno;
-		response.status_code = -1;
-		last_error_ = error_to_string(res.error()) + format_rich_diagnostics(res.error(), err_num);
-		response.body = "Connection failed or cancelled: " + last_error_;
+	for (int attempt = 0; attempt <= MAX_RETRIES; ++attempt) {
+		cancelled_ = false;
+		httplib::Result res;
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			if (!cli_)
+				return {-1, "Client destroyed"};
+
+			httplib::Headers headers;
+			if (token_provider_) {
+				std::string copilot_token = token_provider_();
+				if (!copilot_token.empty()) {
+					headers.emplace("Authorization", "Bearer " + copilot_token);
+				}
+			} else if (!api_key_.empty()) {
+				if (base_url_.find("googleapis.com") != std::string::npos) {
+					headers.emplace("x-goog-api-key", api_key_);
+				} else if (base_url_.find("anthropic.com") != std::string::npos) {
+					headers.emplace("x-api-key", api_key_);
+					headers.emplace("anthropic-version", "2023-06-01");
+				} else {
+					headers.emplace("Authorization", "Bearer " + api_key_);
+				}
+			}
+
+			std::string full_path = path;
+			if (!path_prefix_.empty()) {
+				if (path.starts_with(path_prefix_)) {
+					full_path = path;
+				} else {
+					full_path = path_prefix_ + path;
+				}
+			}
+			res = cli_->Post(full_path.c_str(), headers, json_body, "application/json");
+		}
+
+		if (res) {
+			response.status_code = res->status;
+			response.body = res->body;
+			last_error_ = "";
+
+			if (res->status == 503 && attempt < MAX_RETRIES && !cancelled_.load()) {
+				event_logger::get_instance().log(std::format(
+					"HTTP 503 Service Unavailable for {}. Waiting {}s before retry (attempt {}/{})...",
+					path, wait_seconds, attempt + 1, MAX_RETRIES));
+				for (int s = 0; s < wait_seconds && !cancelled_.load(); ++s) {
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				if (cancelled_.load()) {
+					break;
+				}
+				continue;
+			}
+		} else {
+			int err_num = errno;
+			response.status_code = -1;
+			last_error_ = error_to_string(res.error()) + format_rich_diagnostics(res.error(), err_num);
+			response.body = "Connection failed or cancelled: " + last_error_;
+		}
+		break;
 	}
 	return response;
 }
@@ -217,88 +240,107 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 bool httplib_transport::post_stream(const std::string &path, const std::string &json_body,
 				    std::function<bool(const char *data, size_t len, size_t off, size_t total)> callback)
 {
-	cancelled_ = false;
-	httplib::Result res;
-	std::string error_body;
-	std::string requested_path;
-	int status_code = 0;
-	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		if (!cli_)
-			return false;
+	constexpr int MAX_RETRIES = 3;
+	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
+	int wait_seconds = (in_testsuite && std::string(in_testsuite) == "1") ? 1 : 60;
 
-		httplib::Request req;
-		req.method = "POST";
-
-		std::string full_path = path;
-		if (!path_prefix_.empty()) {
-			if (path.starts_with(path_prefix_)) {
-				full_path = path;
-			} else {
-				full_path = path_prefix_ + path;
-			}
-		}
-		requested_path = full_path;
-		req.path = full_path;
-
-		req.body = json_body;
-		req.set_header("Content-Type", "application/json");
-		if (token_provider_) {
-			std::string copilot_token = token_provider_();
-			if (!copilot_token.empty()) {
-				req.set_header("Authorization", "Bearer " + copilot_token);
-			}
-		} else if (!api_key_.empty()) {
-			if (base_url_.find("googleapis.com") != std::string::npos) {
-				req.set_header("x-goog-api-key", api_key_);
-			} else if (base_url_.find("anthropic.com") != std::string::npos) {
-				req.set_header("x-api-key", api_key_);
-				req.set_header("anthropic-version", "2023-06-01");
-			} else {
-				req.set_header("Authorization", "Bearer " + api_key_);
-			}
-		}
-
-		req.response_handler = [&](const httplib::Response &response) {
-			if (cancelled_.load()) {
+	for (int attempt = 0; attempt <= MAX_RETRIES; ++attempt) {
+		cancelled_ = false;
+		httplib::Result res;
+		std::string error_body;
+		std::string requested_path;
+		int status_code = 0;
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			if (!cli_)
 				return false;
-			}
-			status_code = response.status;
-			return true;
-		};
 
-		req.content_receiver = [&](const char *data, size_t len, size_t off, size_t total) {
-			if (cancelled_.load()) {
-				return false;
+			httplib::Request req;
+			req.method = "POST";
+
+			std::string full_path = path;
+			if (!path_prefix_.empty()) {
+				if (path.starts_with(path_prefix_)) {
+					full_path = path;
+				} else {
+					full_path = path_prefix_ + path;
+				}
 			}
-			if (status_code != 200) {
-				error_body.append(data, len);
+			requested_path = full_path;
+			req.path = full_path;
+
+			req.body = json_body;
+			req.set_header("Content-Type", "application/json");
+			if (token_provider_) {
+				std::string copilot_token = token_provider_();
+				if (!copilot_token.empty()) {
+					req.set_header("Authorization", "Bearer " + copilot_token);
+				}
+			} else if (!api_key_.empty()) {
+				if (base_url_.find("googleapis.com") != std::string::npos) {
+					req.set_header("x-goog-api-key", api_key_);
+				} else if (base_url_.find("anthropic.com") != std::string::npos) {
+					req.set_header("x-api-key", api_key_);
+					req.set_header("anthropic-version", "2023-06-01");
+				} else {
+					req.set_header("Authorization", "Bearer " + api_key_);
+				}
+			}
+
+			req.response_handler = [&](const httplib::Response &response) {
+				if (cancelled_.load()) {
+					return false;
+				}
+				status_code = response.status;
 				return true;
-			}
-			return callback(data, len, off, total);
-		};
+			};
 
-		res = cli_->send(req);
-	}
+			req.content_receiver = [&](const char *data, size_t len, size_t off, size_t total) {
+				if (cancelled_.load()) {
+					return false;
+				}
+				if (status_code != 200) {
+					error_body.append(data, len);
+					return true;
+				}
+				return callback(data, len, off, total);
+			};
 
-	if (!res) {
-		int err_num = errno;
-		last_error_ =
-		    error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
-		return false;
-	}
-
-	if (res->status != 200) {
-		last_error_ = "HTTP " + std::to_string(res->status) + " [Path: " + requested_path + "]";
-		if (!error_body.empty()) {
-			last_error_ += "\nBody: " + error_body;
-		} else if (!res->body.empty()) {
-			last_error_ += "\nBody: " + res->body;
+			res = cli_->send(req);
 		}
-		return false;
+
+		if (!res) {
+			int err_num = errno;
+			last_error_ =
+			    error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
+			return false;
+		}
+
+		if (res->status != 200) {
+			if (res->status == 503 && attempt < MAX_RETRIES && !cancelled_.load()) {
+				event_logger::get_instance().log(std::format(
+					"HTTP 503 Service Unavailable for {}. Waiting {}s before retry (attempt {}/{})...",
+					requested_path, wait_seconds, attempt + 1, MAX_RETRIES));
+				for (int s = 0; s < wait_seconds && !cancelled_.load(); ++s) {
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				if (cancelled_.load()) {
+					return false;
+				}
+				continue;
+			}
+			last_error_ = "HTTP " + std::to_string(res->status) + " [Path: " + requested_path + "]";
+			if (!error_body.empty()) {
+				last_error_ += "\nBody: " + error_body;
+			} else if (!res->body.empty()) {
+				last_error_ += "\nBody: " + res->body;
+			}
+			return false;
+		}
+		last_error_ = "";
+		return true;
 	}
-	last_error_ = "";
-	return true;
+	return false;
 }
 
 std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::string &server_url, std::string &error_out, const std::string &api_key, const std::string &server_id, api_type type)

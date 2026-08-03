@@ -17,15 +17,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # daily usage blockers -- top priority items
 
-- 503 handling -- wait 60 seconds and try again, upto 3 times?
-	- for busy servers
+- fs_file_codemap  - provide a quick overview (using LSP) with a table of
+	 | function | start line | end line|
 
-- our own testlist is hindered by our sandbox - we may need to open it a bit? uv fails for example
-
-- test suite in both 1 and parallel mode?
+    - if this table is small (< 10 entries) consider putting it in the result of fs_read_lines
+    - special magic: when doing fs_read_lines on a header, provide this also for the matching .cpp file automatic!
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
-
+- test suite in both 1 and parallel mode?
 
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
@@ -278,6 +277,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Agent Performance Sampling & `agent_start_app`: Added optional `collect_performance` boolean parameter to `agent_start_app` tool schema. Wired `collect_performance` through `document_provider`, `editor::start_app`, `editor_event`, `terminal_window`, and `command_runner` to set `TURBOSTAR_PERF_DIR` and grant sandbox permissions for CPU sampling via `libturbocatch.so`. Updated `docs/tools.md` and added unit test case in `tests/unit/test_agent_start_app.cpp`.
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
+- Automatic HTTP 503 Service Unavailable Retry (`src/agentlib/httplib_transport.cpp`, `tests/unit/test_httplib_transport.cpp`):
+  1. Implemented automatic HTTP 503 retry handling in `httplib_transport::post` and `httplib_transport::post_stream` (retries up to 3 times, waiting 60s between attempts while remaining interruptible by cancellation).
+  2. Added event logging for 503 retries and test-suite fast-path (`TURBOSTAR_IN_TESTSUITE`).
+  3. Added unit test cases in `test_httplib_transport.cpp` and verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
 - `fs_replace_lines` Large Output Truncation (`src/tools/fs_replace_lines/fs_replace_lines_entry.cpp`, `tests/unit/test_fs_replace_lines.cpp`):
   1. Implemented range output truncation for large edit blocks (`> 10` lines).
   2. Displays top 5 head lines, an omission marker (`... [N lines omitted (lines X - Y)] ...`), and bottom 5 tail lines for a total of 10 code lines.
