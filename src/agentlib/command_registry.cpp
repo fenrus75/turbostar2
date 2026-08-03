@@ -2,6 +2,7 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
 #include "agentlib/skill_manager.h"
+#include "agentlib/subagent_manager.h"
 #include "event_queue.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -300,6 +301,21 @@ class clear_command : public agent_command
 	}
 };
 
+class rescan_command : public agent_command
+{
+      public:
+	std::string get_name() const override { return "rescan"; }
+	std::string get_description() const override { return "Hot-reload custom subagents from disk"; }
+	void execute(const context &ctx) override
+	{
+		size_t count = subagent_manager::get_instance().rescan();
+		if (ctx.agent) {
+			ctx.agent->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+			    std::format("Rescanned subagents: {} loaded.", count)));
+		}
+	}
+};
+
 } // namespace
 
 command_registry &command_registry::get_instance()
@@ -324,6 +340,7 @@ command_registry::command_registry()
 	register_command(std::make_unique<pageout_command>());
 	register_command(std::make_unique<pagein_command>());
 	register_command(std::make_unique<clear_command>());
+	register_command(std::make_unique<rescan_command>());
 }
 
 void command_registry::register_command(std::unique_ptr<agent_command> cmd)
