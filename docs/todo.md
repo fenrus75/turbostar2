@@ -16,6 +16,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- exit plan mode is rather terrible -- the plan does not scroll in the dialog nor can it open it in a document
+
+- fs_run_tests also needs to run the meson filter
+
+- our own testlist is hindered by our sandbox - we may need to open it a bit? uv fails for example
+
+- fs_edit_lines -- code after edits may be large! need to ponder what to do
+
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
 		- well we need tupple: plugin, name -> value, so it's slightly more complex
@@ -58,8 +66,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - feature: have a separate model option for "plan mode" phase
 	- same feature as the aliases feature
 
-- feature: add a /rescan TUI slash command/shortcut to hot-reload custom subagents inside subagent_manager during runtime.
-
 - feature:a /command action that activates a tool family (via menu?)
 
 - feature: separate model name database of famous models for default properties
@@ -80,6 +86,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- 
 
 - bug: the "view review items" overview box is still terrible due to lack of working word wrap on long lines -- we may need to just cut these off instead?
+	- should we kill the feature instead?
 
 - meta feature: helper agents
 	- well rounded subagents that have custom tools available to it for specific higher level tasks, can be used by the main agent as if they are fancy tool calls
@@ -268,6 +275,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Agent Performance Sampling & `agent_start_app`: Added optional `collect_performance` boolean parameter to `agent_start_app` tool schema. Wired `collect_performance` through `document_provider`, `editor::start_app`, `editor_event`, `terminal_window`, and `command_runner` to set `TURBOSTAR_PERF_DIR` and grant sandbox permissions for CPU sampling via `libturbocatch.so`. Updated `docs/tools.md` and added unit test case in `tests/unit/test_agent_start_app.cpp`.
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
+## 03-08-2026
+- `/rescan` TUI Slash Command & Menu Subagent Hot-Reloading (`src/agentlib/subagent_manager.h/cpp`, `src/agentlib/command_registry.cpp`, `src/ui/menu_bar.cpp`, `src/editor_events.cpp`, `src/editor_events_ui.cpp`, `src/ui/agent_window.cpp`, `tests/unit/test_subagent_manager.cpp`, `docs/todo.md`):
+  1. Implemented `/rescan` slash command in `command_registry` and added `Rescan Subagents` menu item under Options menu.
+  2. Implemented `subagent_manager::rescan()` to hot-reload custom subagent definitions from disk (`agents/` directory) at runtime without requiring an editor restart.
+  3. Added `event_type::rescan_subagents` event routing in central dispatch (`src/editor_events.cpp`) and UI event handler (`src/editor_events_ui.cpp`).
+  4. Added `test_subagent_manager_rescan()` unit test suite in `tests/unit/test_subagent_manager.cpp`.
+  5. Verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
+
 ## 01-08-2026
 - Dynamic `code_review` Non-Default Tool Family Migration (`src/tools/`, `src/agentlib/ai_agent.cpp`, `src/agentlib/tool_validator.cpp`, `src/agentlib/tool_registry.cpp`, `src/codereview_manager.h/cpp`, `src/plugins/securityagent/`, `docs/todo.md`):
   1. Added thread-safe `has_active_items()` helper method to `codereview_manager`.
