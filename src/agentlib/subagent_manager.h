@@ -18,6 +18,7 @@ class __attribute__((visibility("default"))) subagent_manager
 	static subagent_manager &get_instance();
 
 	void initialize();
+	size_t rescan();
 	const std::vector<subagent> &get_subagents() const;
 	std::vector<subagent> get_a2a_subagents() const;
 	std::optional<subagent> find_subagent_by_name(const std::string &name) const;

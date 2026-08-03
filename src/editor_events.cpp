@@ -160,6 +160,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::open_agent:
 		case event_type::open_agent_center:
 		case event_type::open_subagent:
+		case event_type::rescan_subagents:
 		case event_type::open_crashdump_viewer:
 		case event_type::agent_response:
 		case event_type::agent_tool_update:

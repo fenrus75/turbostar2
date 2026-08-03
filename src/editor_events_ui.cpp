@@ -15,6 +15,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include "agentlib/ai_agent.h"
+#include "agentlib/subagent_manager.h"
 #include "agentlib/copilot_manager.h"
 #include "build_error_manager.h"
 #include "codereview_manager.h"
@@ -715,6 +716,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		} else {
 			logger.log("Error: Could not find agent with ID " + std::to_string(target_id) + " to open.");
 		}
+		return;
+	}
+
+	if (ev.type == event_type::rescan_subagents) {
+		logger.log("Dispatching rescan_subagents event.");
+		size_t count = agentlib::subagent_manager::get_instance().rescan();
+		set_status_message(std::format("Rescanned subagents: {} loaded.", count));
 		return;
 	}
 

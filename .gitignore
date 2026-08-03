@@ -16,3 +16,4 @@ format_tmp.cpp
 .antigravitycli/
 perf.data*
 agent*json
+.turbostar_tmp

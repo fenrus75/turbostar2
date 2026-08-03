@@ -177,11 +177,82 @@ void test_subagent_manager_dynamic()
 	assert(anim_gone == nullptr);
 }
 
+void test_subagent_manager_rescan()
+{
+	std::filesystem::path temp_home = std::filesystem::absolute("./test_rescan_home");
+	if (std::filesystem::exists(temp_home)) {
+		std::filesystem::remove_all(temp_home);
+	}
+	std::filesystem::create_directories(temp_home);
+	setenv("HOME", temp_home.c_str(), 1);
+
+	auto& manager = subagent_manager::get_instance();
+	manager.initialize();
+
+	// 1. Register a plugin agent and verify it persists across rescan
+	std::string plugin_md = 
+		"---\n"
+		"name: rescan-plugin-agent\n"
+		"description: Rescan plugin agent\n"
+		"read_only: true\n"
+		"---\n"
+		"Plugin prompt.\n";
+	manager.register_subagent("rescan-plugin-agent", plugin_md);
+
+	// 2. Add a new disk agent file
+	std::filesystem::path agents_dir = temp_home / ".agents";
+	std::filesystem::create_directories(agents_dir);
+	std::string new_agent_md =
+		"---\n"
+		"name: disk-hotreload-agent\n"
+		"description: Hot-reloaded subagent from disk\n"
+		"read_only: false\n"
+		"---\n"
+		"Disk system prompt.\n";
+	write_file(agents_dir / "disk_hotreload.md", new_agent_md);
+
+	// Perform rescan
+	size_t count = manager.rescan();
+	assert(count >= 3); // builtins + plugin + disk
+
+	// Verify plugin subagent preserved
+	auto plug_opt = manager.find_subagent_by_name("rescan-plugin-agent");
+	assert(plug_opt.has_value());
+	assert(plug_opt->description == "Rescan plugin agent");
+
+	// Verify disk subagent hot-reloaded
+	auto disk_opt = manager.find_subagent_by_name("disk-hotreload-agent");
+	assert(disk_opt.has_value());
+	assert(disk_opt->description == "Hot-reloaded subagent from disk");
+
+	// 3. Modify existing disk agent and rescan
+	std::string updated_agent_md =
+		"---\n"
+		"name: disk-hotreload-agent\n"
+		"description: Updated hot-reloaded description\n"
+		"read_only: true\n"
+		"---\n"
+		"Updated disk system prompt.\n";
+	write_file(agents_dir / "disk_hotreload.md", updated_agent_md);
+
+	manager.rescan();
+	auto updated_opt = manager.find_subagent_by_name("disk-hotreload-agent");
+	assert(updated_opt.has_value());
+	assert(updated_opt->description == "Updated hot-reloaded description");
+	assert(updated_opt->read_only == true);
+	assert(updated_opt->system_prompt == "Updated disk system prompt.");
+
+	// Clean up
+	manager.unregister_subagent("rescan-plugin-agent");
+	std::filesystem::remove_all(temp_home);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_subagent_manager_basic();
 	test_subagent_manager_dynamic();
+	test_subagent_manager_rescan();
 	std::cout << "subagent_manager tests passed.\n";
 	return 0;
 }

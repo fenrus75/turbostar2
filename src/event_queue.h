@@ -103,7 +103,8 @@ enum class event_type {
 	open_prompt_editor,	    ///< Request to edit a multiline edit buffer in a full editor window
 	prompt_insert_file,	    ///< Request to insert a file into a multiline edit buffer
 	image_manager,		    ///< Request to show the image VFS manager dialog
-	a2a_config		    ///< Request to show A2A server configuration dialog
+	a2a_config,		    ///< Request to show A2A server configuration dialog
+	rescan_subagents	    ///< Request to hot-reload custom subagents from disk
 };
 
 namespace status_priorities

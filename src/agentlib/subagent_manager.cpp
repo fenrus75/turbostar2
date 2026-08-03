@@ -170,7 +170,21 @@ subagent_manager &subagent_manager::get_instance()
 
 void subagent_manager::initialize()
 {
+	rescan();
+}
+
+size_t subagent_manager::rescan()
+{
 	std::unique_lock lock(subagents_mutex_);
+
+	// Preserve plugin-registered subagents
+	std::vector<subagent> plugin_subagents;
+	for (const auto &sa : subagents_) {
+		if (sa.file_path.starts_with("plugin://")) {
+			plugin_subagents.push_back(sa);
+		}
+	}
+
 	subagents_.clear();
 	load_builtins();
 
@@ -185,6 +199,19 @@ void subagent_manager::initialize()
 	if (!root.empty()) {
 		scan_directory(std::filesystem::path(root) / ".agents");
 	}
+
+	// Re-add plugin subagents (overriding builtins or disk subagents if matching name)
+	for (const auto &plugin_sa : plugin_subagents) {
+		auto it = std::remove_if(subagents_.begin(), subagents_.end(),
+			[&](const subagent &s) { return s.name == plugin_sa.name; });
+		if (it != subagents_.end()) {
+			subagents_.erase(it, subagents_.end());
+		}
+		subagents_.push_back(plugin_sa);
+	}
+
+	event_logger::get_instance().log("subagent_manager: Rescanned subagents, total count: {}", subagents_.size());
+	return subagents_.size();
 }
 
 const std::vector<subagent> &subagent_manager::get_subagents() const
