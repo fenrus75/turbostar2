@@ -340,8 +340,13 @@ std::string command_runner::build_command(const std::string &raw_command) const
 			}
 		}
 
-		std::vector<std::string> sensitive = {home + "/.ssh",	home + "/.env",		home + "/.aws",
-						      home + "/.gnupg", home + "/.gemini/keys", home + "/.cache/turbostar/models.json"};
+		std::vector<std::string> sensitive = {home + "/.ssh",
+						      home + "/.env",
+						      home + "/.aws",
+						      home + "/.gnupg",
+						      home + "/.gemini/keys",
+						      home + "/.cache/turbostar/servers.json",
+						      home + "/.cache/turbostar/models.json"};
 		for (const auto &s : sensitive) {
 			if (fs::exists(s)) {
 				inaccessible_paths.push_back("-" + s);

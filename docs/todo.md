@@ -286,6 +286,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Automatic HTTP 503 Service Unavailable Retry (`src/agentlib/httplib_transport.cpp`, `tests/unit/test_httplib_transport.cpp`):
   1. Implemented automatic HTTP 503 retry handling in `httplib_transport::post` and `httplib_transport::post_stream` (retries up to 3 times, waiting 60s between attempts while remaining interruptible by cancellation).
   2. Added event logging for 503 retries and test-suite fast-path (`TURBOSTAR_IN_TESTSUITE`).
+- `command_runner` Inaccessible Paths Update (`src/command_runner.cpp`): Added `~/.cache/turbostar/servers.json` to systemd sandbox `InaccessiblePaths` list alongside `~/.cache/turbostar/models.json` to prevent subshell command execution from reading active API keys.
   3. Added unit test cases in `test_httplib_transport.cpp` and verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
 - `fs_replace_lines` Large Output Truncation (`src/tools/fs_replace_lines/fs_replace_lines_entry.cpp`, `tests/unit/test_fs_replace_lines.cpp`):
   1. Implemented range output truncation for large edit blocks (`> 10` lines).
