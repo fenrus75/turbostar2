@@ -126,10 +126,36 @@ void command_runner::apply_strict_agent_profile()
 	add_cache_rw_exceptions();
 }
 
+static bool is_systemd_user_bus_available()
+{
+	const char *bus = std::getenv("DBUS_SESSION_BUS_ADDRESS");
+	if (bus && *bus) {
+		return true;
+	}
+	const char *runtime = std::getenv("XDG_RUNTIME_DIR");
+	if (runtime && *runtime) {
+		std::error_code ec;
+		std::string bus_path = std::string(runtime) + "/bus";
+		if (std::filesystem::exists(bus_path, ec)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 std::string command_runner::build_command(const std::string &raw_command) const
 {
 	if (bypass_sandbox_ && !config_manager::get_instance().is_paranoid_mode()) {
 		return raw_command;
+	}
+
+	if (!is_systemd_user_bus_available()) {
+		if (config_manager::get_instance().is_paranoid_mode()) {
+			event_logger::get_instance().log("[command_runner] ERROR: Systemd user D-Bus bus unavailable in Paranoid Mode for command: '{}'", raw_command);
+		} else {
+			event_logger::get_instance().log("[command_runner] WARNING: Systemd user D-Bus bus unavailable. Fallback execution triggered for command: '{}'", raw_command);
+			return raw_command;
+		}
 	}
 
 	static std::atomic<int> unit_counter{0};

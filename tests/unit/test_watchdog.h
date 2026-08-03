@@ -57,6 +57,16 @@ class scoped_test_home {
 		temp_home_ = (std::filesystem::temp_directory_path() / (test_prefix + pid_buf)).string();
 		std::filesystem::create_directories(temp_home_ + "/.cache/turbostar");
 		setenv("HOME", temp_home_.c_str(), 1);
+
+		// Preserve DBUS and XDG_RUNTIME_DIR so systemd-run --user connects to user session bus in test home
+		const char *dbus = std::getenv("DBUS_SESSION_BUS_ADDRESS");
+		if (dbus && *dbus) {
+			setenv("DBUS_SESSION_BUS_ADDRESS", dbus, 1);
+		}
+		const char *xdg_runtime = std::getenv("XDG_RUNTIME_DIR");
+		if (xdg_runtime && *xdg_runtime) {
+			setenv("XDG_RUNTIME_DIR", xdg_runtime, 1);
+		}
 	}
 
 	~scoped_test_home()
