@@ -59,27 +59,41 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 
 	// Auto-inject Primary Language System Guidelines from system:// VFS
 	std::string prim_lang = config_manager::get_instance().get_primary_language();
-	std::string vfs_lang_uri = "";
+	std::string vfs_lang_full_uri = "";
+	std::string vfs_lang_short_uri = "";
 	if (prim_lang == "C++" || prim_lang == "cpp") {
-		vfs_lang_uri = "system://languages/cpp23_short.md";
+		vfs_lang_full_uri = "system://languages/cpp23.md";
+		vfs_lang_short_uri = "system://languages/cpp23_short.md";
 	} else if (prim_lang == "C" || prim_lang == "c") {
-		vfs_lang_uri = "system://languages/c17.md";
+		vfs_lang_full_uri = "system://languages/c17.md";
+		vfs_lang_short_uri = "system://languages/c17.md";
 	} else if (prim_lang == "Python" || prim_lang == "py") {
-		vfs_lang_uri = "system://languages/python311.md";
+		vfs_lang_full_uri = "system://languages/python311.md";
+		vfs_lang_short_uri = "system://languages/python311.md";
 	} else if (prim_lang == "Rust" || prim_lang == "rs") {
-		vfs_lang_uri = "system://languages/rust2021.md";
+		vfs_lang_full_uri = "system://languages/rust2021.md";
+		vfs_lang_short_uri = "system://languages/rust2021.md";
 	} else if (prim_lang == "TypeScript" || prim_lang == "ts" || prim_lang == "JavaScript" || prim_lang == "js") {
-		vfs_lang_uri = "system://languages/typescript.md";
+		vfs_lang_full_uri = "system://languages/typescript.md";
+		vfs_lang_short_uri = "system://languages/typescript.md";
 	} else if (prim_lang == "Verilog" || prim_lang == "v") {
-		vfs_lang_uri = "system://languages/verilog.md";
+		vfs_lang_full_uri = "system://languages/verilog.md";
+		vfs_lang_short_uri = "system://languages/verilog.md";
 	}
 
-	if (!vfs_lang_uri.empty()) {
-		agentlib::virtual_file_system vfs;
-		auto lang_doc = vfs.read_file(vfs_lang_uri);
-		if (lang_doc.has_value()) {
-			system_prompt += "\n\n*** PRIMARY LANGUAGE GUIDELINES (" + prim_lang + ") ***\n";
-			system_prompt += std::string((*lang_doc)->view());
+	bool has_agents_md = !project_manager::get_instance().get_project_instructions().empty();
+	if (has_agents_md) {
+		if (!vfs_lang_full_uri.empty()) {
+			system_prompt += "\n\nLanguage guidelines available at " + vfs_lang_full_uri + "\n";
+		}
+	} else {
+		if (!vfs_lang_short_uri.empty()) {
+			agentlib::virtual_file_system vfs;
+			auto lang_doc = vfs.read_file(vfs_lang_short_uri);
+			if (lang_doc.has_value()) {
+				system_prompt += "\n\n*** PRIMARY LANGUAGE GUIDELINES (" + prim_lang + ") ***\n";
+				system_prompt += std::string((*lang_doc)->view());
+			}
 		}
 	}
 
