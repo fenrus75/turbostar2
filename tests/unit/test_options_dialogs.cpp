@@ -32,6 +32,7 @@ int main()
 	assert(ai_dlg->get_title() == "AI & Agent Settings");
 	ai_dlg->flow();
 	assert(ai_dlg->get_value("paranoid_mode").has_value());
+	assert(ai_dlg->get_value("run_outside_sandbox").has_value());
 	assert(ai_dlg->get_value("shell_display_access").has_value());
 	apply_ai_settings_from_dialog(*ai_dlg);
 

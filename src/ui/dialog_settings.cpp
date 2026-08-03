@@ -232,6 +232,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto paranoid = dlg.get_value("paranoid_mode");
 	if (paranoid)
 		cfg.set_paranoid_mode(*paranoid == "true");
+
+	auto run_outside = dlg.get_value("run_outside_sandbox");
+	if (run_outside)
+		cfg.set_run_outside_sandbox(*run_outside == "true");
 }
 
 std::unique_ptr<dialog> create_editor_settings_dialog()

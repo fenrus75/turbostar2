@@ -12,6 +12,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include "../command_runner.h"
+#include "config_manager.h"
 #include "../event_logger.h"
 #include "build_error_manager.h"
 #include "gcc_log_parser.h"
@@ -106,6 +107,9 @@ bool terminal_window::start_process(const std::string &raw_command, std::unique_
 	}
 	if (allow_display) {
 		runner_.set_allow_display(true);
+	}
+	if (config_manager::get_instance().is_run_outside_sandbox()) {
+		runner_.set_bypass_sandbox(true);
 	}
 	std::string sandboxed_cmd = runner_.build_command(raw_command);
 	perf_resolved_ = false;

@@ -36,6 +36,9 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	runner.set_enable_crash_catcher(true);
 	runner.set_timeout(timeout_);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+	if (config_manager::get_instance().is_run_outside_sandbox()) {
+		runner.set_bypass_sandbox(true);
+	}
 
 	std::string build_system = config_manager::get_instance().get_build_system();
 	std::string build_dir = config_manager::get_instance().get_build_directory();

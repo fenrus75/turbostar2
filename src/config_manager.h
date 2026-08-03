@@ -97,6 +97,15 @@ class config_manager
 		paranoid_mode_ = paranoid;
 	}
 
+	bool is_run_outside_sandbox() const
+	{
+		return run_outside_sandbox_;
+	}
+	void set_run_outside_sandbox(bool run_outside)
+	{
+		run_outside_sandbox_ = run_outside;
+	}
+
 
 
 	bool is_force_ascii() const
@@ -246,6 +255,7 @@ class config_manager
 	bool compile_on_save_{false};
 	bool software_map_enabled_{false};
 	bool paranoid_mode_{false};
+	bool run_outside_sandbox_{false};
 	bool log_all_tool_calls_{false};
 	bool shell_display_access_{false};
 
