@@ -39,7 +39,7 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	auto symbols = get_document_codemap_symbols(args_.safe_path, ctx);
+	auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, args_.min_lines);
 	if (symbols.empty()) {
 		return "No functions, classes, or symbols found in " + args_.requested_path + ".";
 	}
@@ -49,7 +49,7 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 	// Check if this is a header file with a matching implementation file
 	std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
 	if (!matching_impl.empty()) {
-		auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx);
+		auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, args_.min_lines);
 		if (!impl_symbols.empty()) {
 			std::filesystem::path ip(matching_impl);
 			table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true);

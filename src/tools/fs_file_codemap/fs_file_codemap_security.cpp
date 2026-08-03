@@ -29,7 +29,8 @@ public:
 	{
 		return {{"type", "object"},
 			{"properties",
-			 {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}}}},
+			 {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
+			  {"min_lines", {{"type", "integer"}, {"description", "Optional. Minimum line length threshold to filter out trivial 1-line declarations (default: 1)."}}}}},
 			{"required", nlohmann::json::array({"path"})}};
 	}
 
@@ -47,6 +48,15 @@ protected:
 			return false;
 		}
 
+		int min_lines_arg = 1;
+		if (raw_json.contains("min_lines")) {
+			if (!raw_json["min_lines"].is_number_integer()) {
+				out_error = "Invalid 'min_lines' integer parameter.";
+				return false;
+			}
+			min_lines_arg = std::max(1, raw_json["min_lines"].get<int>());
+		}
+
 		std::string canonical_path;
 		if (!ctx.fs_security.validate_access(path_arg, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
@@ -54,6 +64,7 @@ protected:
 
 		args_.requested_path = path_arg;
 		args_.safe_path = canonical_path;
+		args_.min_lines = min_lines_arg;
 
 		return true;
 	}

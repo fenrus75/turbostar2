@@ -372,7 +372,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (!read_whole_file) {
-			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx);
+			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/3);
 			if (!symbols.empty() && symbols.size() < 10) {
 				ss << "\n" << format_codemap_table(args_.requested_path, symbols, /*rich_format=*/false);
 			}
@@ -381,7 +381,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		if (is_header) {
 			std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
 			if (!matching_impl.empty()) {
-				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx);
+				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, /*min_lines=*/3);
 				if (!impl_symbols.empty()) {
 					std::filesystem::path ip(matching_impl);
 					ss << "\n" << format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/false);

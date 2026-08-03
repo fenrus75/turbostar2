@@ -9,6 +9,7 @@ namespace tools {
 struct fs_file_codemap_args {
     std::string requested_path;
     std::string safe_path; // Resolved and validated by Stage 1 security
+    int min_lines{1};
 };
 
 class fs_file_codemap_tool : public agentlib::llm_tool {

@@ -71,9 +71,15 @@ int main()
 	assert(read_hdr_res.find("Codemap for `test_sample_impl.cpp`") != std::string::npos);
 	assert(read_hdr_res.find("`sample_foo`") != std::string::npos);
 
-	// 7. Test LSP symbol caching (Second call retrieves cached results)
-	auto symbols1 = tools::get_document_codemap_symbols(impl_file, ctx);
-	auto symbols2 = tools::get_document_codemap_symbols(impl_file, ctx);
+	// 7. Test min_lines filter parameter
+	nlohmann::json min_lines_args = {{"path", impl_file}, {"min_lines", 100}};
+	std::string min_lines_res = registry.execute_tool("fs_file_codemap", min_lines_args.dump(), ctx);
+	std::cout << "fs_file_codemap min_lines=100 output:\n" << min_lines_res << "\n";
+	assert(min_lines_res.find("No functions, classes, or symbols found") != std::string::npos);
+
+	// 8. Test LSP symbol caching (Second call retrieves cached results)
+	auto symbols1 = tools::get_document_codemap_symbols(impl_file, ctx, 1);
+	auto symbols2 = tools::get_document_codemap_symbols(impl_file, ctx, 1);
 	assert(!symbols1.empty());
 	assert(symbols1.size() == symbols2.size());
 

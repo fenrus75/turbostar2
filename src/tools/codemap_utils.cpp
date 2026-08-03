@@ -26,49 +26,87 @@ static std::string lsp_kind_to_string(int kind)
 	}
 }
 
-static void collect_symbols_recursive(const lsp_manager::symbol_node &node, const std::string &prefix, std::vector<codemap_symbol_info> &out)
+static void collect_symbols_recursive(const lsp_manager::symbol_node &node, const std::string &prefix, int depth, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::string full_name = prefix.empty() ? node.name : prefix + "::" + node.name;
+	std::string display_name = (depth == 0) ? node.name : std::string(depth * 4, ' ') + "::" + node.name;
 	int start = node.range.start_y + 1;
 	int end = node.range.end_y + 1;
 	int len = std::max(1, end - start + 1);
 
 	// Only include functions, methods, classes, structs, enums, interfaces
 	if (node.kind == 5 || node.kind == 6 || node.kind == 9 || node.kind == 10 || node.kind == 11 || node.kind == 23 || node.kind == 26 || prefix.empty()) {
-		out.push_back({full_name, lsp_kind_to_string(node.kind), start, end, len});
+		if (len >= min_lines) {
+			out.push_back({full_name, display_name, lsp_kind_to_string(node.kind), start, end, len, depth});
+		}
 	}
 
 	for (const auto &child : node.children) {
-		collect_symbols_recursive(child, full_name, out);
+		collect_symbols_recursive(child, full_name, depth + 1, min_lines, out);
 	}
 }
 
-static void fallback_find_symbols(const std::string &safe_path, std::vector<codemap_symbol_info> &out)
+static void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::ifstream in(safe_path);
 	if (!in.is_open())
 		return;
 
-	std::string line;
-	int line_num = 0;
+	std::vector<std::string> lines;
+	std::string l;
+	while (std::getline(in, l)) {
+		lines.push_back(l);
+	}
+
 	static const std::regex func_regex(R"(^\s*(?:[\w:\<\>]+\s+)+([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
 	static const std::regex class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
 
-	std::smatch match;
-	while (std::getline(in, line)) {
-		line_num++;
-		if (std::regex_search(line, match, class_regex)) {
-			out.push_back({match[1].str(), "Class/Struct", line_num, line_num, 1});
-		} else if (std::regex_search(line, match, func_regex)) {
+	for (size_t i = 0; i < lines.size(); ++i) {
+		int line_num = static_cast<int>(i + 1);
+		std::smatch match;
+		if (std::regex_search(lines[i], match, class_regex)) {
+			int end_line = line_num;
+			int depth = 0;
+			for (size_t j = i; j < lines.size(); ++j) {
+				for (char c : lines[j]) {
+					if (c == '{') depth++;
+					else if (c == '}') depth--;
+				}
+				if (depth == 0 && j > i) {
+					end_line = static_cast<int>(j + 1);
+					break;
+				}
+			}
+			int len = end_line - line_num + 1;
+			if (len >= min_lines) {
+				out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0});
+			}
+		} else if (std::regex_search(lines[i], match, func_regex)) {
 			std::string name = match[1].str();
 			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch") {
-				out.push_back({name, "Function", line_num, line_num, 1});
+				int end_line = line_num;
+				int depth = 0;
+				bool started = false;
+				for (size_t j = i; j < lines.size(); ++j) {
+					for (char c : lines[j]) {
+						if (c == '{') { depth++; started = true; }
+						else if (c == '}') { depth--; }
+					}
+					if (started && depth == 0) {
+						end_line = static_cast<int>(j + 1);
+						break;
+					}
+				}
+				int len = std::max(1, end_line - line_num + 1);
+				if (len >= min_lines) {
+					out.push_back({name, name, "Function", line_num, end_line, len, 0});
+				}
 			}
 		}
 	}
 }
 
-std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx)
+std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines)
 {
 	std::vector<codemap_symbol_info> symbols;
 
@@ -100,10 +138,10 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 
 	if (!root_symbols.empty()) {
 		for (const auto &root : root_symbols) {
-			collect_symbols_recursive(root, "", symbols);
+			collect_symbols_recursive(root, "", 0, min_lines, symbols);
 		}
 	} else {
-		fallback_find_symbols(safe_path, symbols);
+		fallback_find_symbols(safe_path, min_lines, symbols);
 	}
 
 	// Sort symbols by start line
@@ -130,14 +168,14 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 		ss << "| Symbol | Kind | Start Line | End Line | Lines |\n";
 		ss << "| :--- | :--- | :---: | :---: | :---: |\n";
 		for (const auto &sym : symbols) {
-			ss << std::format("| `{}` | {} | {} | {} | {} |\n", sym.name, sym.kind_str, sym.start_line, sym.end_line, sym.line_count);
+			ss << std::format("| `{}` | {} | {} | {} | {} |\n", sym.display_name, sym.kind_str, sym.start_line, sym.end_line, sym.line_count);
 		}
 	} else {
 		ss << std::format("### Codemap for `{}`:\n\n", display_path);
 		ss << "| Function | Start Line | End Line |\n";
 		ss << "| :--- | :---: | :---: |\n";
 		for (const auto &sym : symbols) {
-			ss << std::format("| `{}` | {} | {} |\n", sym.name, sym.start_line, sym.end_line);
+			ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
 		}
 	}
 	ss << "\n";
