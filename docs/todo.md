@@ -16,7 +16,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # daily usage blockers -- top priority items
-- exit plan mode is rather terrible -- the plan does not scroll in the dialog nor can it open it in a document
+- exit_plan_mode is rather terrible -- the plan does not scroll in the dialog nor can it open it in a document
 
 - fs_run_tests also needs to run the meson filter
 
@@ -281,7 +281,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
 ## 03-08-2026
-- `system/languages/default.md` / `default_short.md` Generic Fallbacks (`system/languages/default.md`, `system/languages/default_short.md`, `src/vfs/system_vfs_provider.cpp`, `src/ui/agent_window.cpp`, `meson.build`, `docs/todo.md`):
+- `command_runner` Writable `uv` Cache Exception & Project Path Fallback (`src/command_runner.cpp`, `docs/todo.md`):
+  1. Configured `apply_build_profile()` in `src/command_runner.cpp` to create and add `~/.cache/uv`, `~/.uv`, `$UV_CACHE_DIR`, and `$XDG_CACHE_HOME/uv` to `extra_rw_paths_` to allow write access during python/uv build and test execution.
+  2. Added check preventing addition of `/tmp` or `/var/tmp` paths to `extra_rw_paths_` when running inside `test_watchdog` isolated `HOME` (where `PrivateTmp=true` provides a private writeable `tmpfs`).
+  3. Added fallback to `std::filesystem::current_path()` when `project_dir_` is empty in `apply_build_profile()` and `apply_strict_agent_profile()`, ensuring working directories are properly mounted read-write in sandboxed `systemd-run` units.
+  4. Verified 100% test suite pass rate (248 OK, 1 Expected Fail, 2 Skipped).
   1. Created generic guidelines `system/languages/default.md` and `system/languages/default_short.md` containing universal security-first input validation and code commenting rationale standards.
   2. Registered `languages/default.md` and `languages/default_short.md` descriptions in `system_vfs_provider.cpp` and added files to `meson.build` system docs embedding dependencies.
   3. Updated `agent_window.cpp` so projects without a built-in primary language match default to `system://languages/default.md` (or `system://languages/default_short.md` when no `AGENTS.md` is present).
