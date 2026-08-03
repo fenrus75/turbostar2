@@ -77,7 +77,22 @@ int main()
 	std::cout << "fs_file_codemap min_lines=100 output:\n" << min_lines_res << "\n";
 	assert(min_lines_res.find("No functions, classes, or symbols found") != std::string::npos);
 
-	// 8. Test LSP symbol caching (Second call retrieves cached results)
+	// 8. Test Option B scope indentation for qualified C++ method definitions (Class::method)
+	std::string class_file = "test_class_impl.cpp";
+	std::ofstream out_class(class_file);
+	out_class << "void my_class::foo()\n{\n    int a = 1;\n}\n\n"
+		  << "void my_class::bar()\n{\n    int b = 2;\n}\n";
+	out_class.close();
+
+	nlohmann::json class_args = {{"path", class_file}};
+	std::string class_res = registry.execute_tool("fs_file_codemap", class_args.dump(), ctx);
+	std::cout << "fs_file_codemap class methods output:\n" << class_res << "\n";
+	assert(class_res.find("`my_class`") != std::string::npos);
+	assert(class_res.find("`    ::foo`") != std::string::npos);
+	assert(class_res.find("`    ::bar`") != std::string::npos);
+	std::remove(class_file.c_str());
+
+	// 9. Test LSP symbol caching (Second call retrieves cached results)
 	auto symbols1 = tools::get_document_codemap_symbols(impl_file, ctx, 1);
 	auto symbols2 = tools::get_document_codemap_symbols(impl_file, ctx, 1);
 	assert(!symbols1.empty());
