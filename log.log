@@ -1,0 +1,1333 @@
+[000037ms] Application started.
+[000037ms] UI initialized.
+[000037ms] Configuration loaded from /home/arjan/.cache/turbostar/projects/13068894668828675981/config.ini
+[000037ms] Session loaded from /home/arjan/.cache/turbostar/projects/13068894668828675981/session.json
+[000037ms] Loaded history: 50 searches, 50 files, 25 cursor positions.
+[000037ms] Discovered and loaded MCP servers from: /home/arjan/.gemini/config/mcp_config.json
+[000037ms] Thread started: git_manager worker_loop
+[000038ms] Document loaded from: docs/todo.md (382 lines)
+[000038ms] State: C=19:13 S=none E=none
+[000038ms] [command_runner] Executing raw_command: 'git -C docs rev-parse --abbrev-ref HEAD 2>/dev/null'
+[000038ms] [command_runner] Sandboxed final_command: 'git -C docs rev-parse --abbrev-ref HEAD 2>/dev/null'
+[000038ms] State: C=19:13 S=none E=none
+[000038ms] Selecting window: 0
+[000038ms] Updating window layout: COLS=211, LINES=41, total_h=39
+[000039ms] Thread started: document highlighter_thread_loop (docs/todo.md)
+[000039ms] update_window_menu: 3 items
+[000040ms] [command_runner] Finished command (exit_code=0, elapsed=2ms): 'git -C docs rev-parse --abbrev-ref HEAD 2>/dev/null'
+[000040ms] [command_runner] Executing raw_command: 'git -C docs status --porcelain -u todo.md 2>/dev/null'
+[000040ms] [command_runner] Sandboxed final_command: 'git -C docs status --porcelain -u todo.md 2>/dev/null'
+[000043ms] [command_runner] Finished command (exit_code=0, elapsed=3ms): 'git -C docs status --porcelain -u todo.md 2>/dev/null'
+[000043ms] [command_runner] Executing raw_command: 'git -C docs rev-parse --is-inside-work-tree 2>/dev/null'
+[000043ms] [command_runner] Sandboxed final_command: 'git -C docs rev-parse --is-inside-work-tree 2>/dev/null'
+[000045ms] [command_runner] Finished command (exit_code=0, elapsed=1ms): 'git -C docs rev-parse --is-inside-work-tree 2>/dev/null'
+[000045ms] Git: Detected branch 'main' for docs/todo.md
+[000092ms] Dispatching redraw event.
+[000092ms] Dispatching git_status_updated event.
+[000810ms] Dispatching key_press event: -97
+[000811ms] Menu activated: Agent
+[000811ms] Focus change: alt_key -> menu_bar
+[000811ms] update_window_menu: 3 items
+[001262ms] Dispatching key_press event: 13
+[001262ms] Menu handle_key: 13
+[001262ms] Menu pushing event: 46
+[001262ms] Focus change: menu_close -> window
+[001262ms] Dispatching open_agent event.
+[001266ms] Loaded 54 models from /home/arjan/.cache/turbostar/models.json
+[001267ms] Loaded 5 servers from /home/arjan/.cache/turbostar/servers.json
+[001267ms] [command_runner] Executing raw_command: 'git rev-parse --show-toplevel 2>/dev/null'
+[001267ms] [command_runner] Sandboxed final_command: 'git rev-parse --show-toplevel 2>/dev/null'
+[001268ms] Thread started: ai_agent summary worker
+[001269ms] [command_runner] Finished command (exit_code=0, elapsed=2ms): 'git rev-parse --show-toplevel 2>/dev/null'
+[001270ms] [command_runner] Executing raw_command: 'git -C '/home/arjan/git/turbostar2' config --get remote.origin.url 2>&1'
+[001270ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-13068894668828675981-1882808043419649-0' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p ProtectHome=read-only -p WorkingDirectory='/home/arjan/git/turbostar2' -p ReadWritePaths='/home/arjan/git/turbostar2' -p ReadWritePaths='/home/arjan/.cache/ccache' -p ReadWritePaths='/home/arjan/.cache' -p ReadWritePaths='/home/arjan/.cache/uv' -p ReadWritePaths='/home/arjan/.uv' -p ReadWritePaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'git -C '\''/home/arjan/git/turbostar2'\'' config --get remote.origin.url 2>&1''
+[001323ms] [command_runner] Finished command (exit_code=0, elapsed=53ms): 'git -C '/home/arjan/git/turbostar2' config --get remote.origin.url 2>&1'
+[001323ms] [command_runner] Executing raw_command: 'git rev-parse --show-toplevel 2>/dev/null'
+[001323ms] [command_runner] Sandboxed final_command: 'git rev-parse --show-toplevel 2>/dev/null'
+[001325ms] [command_runner] Finished command (exit_code=0, elapsed=2ms): 'git rev-parse --show-toplevel 2>/dev/null'
+[001325ms] [command_runner] Executing raw_command: 'git -C '/home/arjan/git/turbostar2' rev-parse --abbrev-ref HEAD 2>&1'
+[001325ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-13068894668828675981-1882808098875266-1' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p ProtectHome=read-only -p WorkingDirectory='/home/arjan/git/turbostar2' -p ReadWritePaths='/home/arjan/git/turbostar2' -p ReadWritePaths='/home/arjan/.cache/ccache' -p ReadWritePaths='/home/arjan/.cache' -p ReadWritePaths='/home/arjan/.cache/uv' -p ReadWritePaths='/home/arjan/.uv' -p ReadWritePaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'git -C '\''/home/arjan/git/turbostar2'\'' rev-parse --abbrev-ref HEAD 2>&1''
+[001345ms] Project inventory complete in 1232ms. Indexed 165 directories.
+[001345ms] Thread exited: project_manager inventory_thread
+[001350ms] [command_runner] Finished command (exit_code=0, elapsed=25ms): 'git -C '/home/arjan/git/turbostar2' rev-parse --abbrev-ref HEAD 2>&1'
+[001371ms] [debug page_in_history_auto] current_tokens=67078, max_tokens=250000, limit_tokens=75000, paged_out count=2
+[001371ms]   [debug page_in_history_auto] entry=episode_2, ep_tokens=46926, old_tokens=74, net_change=46852, sum=113930
+[001372ms] Agent Agent restored active state from /home/arjan/.cache/turbostar/projects/13068894668828675981/history/Agent/active_state.json
+[001372ms] Updating window layout: COLS=211, LINES=41, total_h=39
+[001372ms] Selecting window: 1
+[001372ms] Updating window layout: COLS=211, LINES=41, total_h=39
+[001372ms] update_window_menu: 4 items
+[001374ms] LATENCY SPIKE: event 'Char code 13' took 112.315 ms. Captured 29 trace log lines.
+[004078ms] Dispatching key_press event: 119
+[004180ms] Dispatching key_press event: 101
+[005832ms] Dispatching key_press event: 32
+[006094ms] Dispatching key_press event: 115
+[006212ms] Dispatching key_press event: 116
+[006311ms] Dispatching key_press event: 105
+[006370ms] Dispatching key_press event: 108
+[006572ms] Dispatching key_press event: 108
+[006811ms] Dispatching key_press event: 32
+[007075ms] Dispatching key_press event: 104
+[007151ms] Dispatching key_press event: 97
+[007358ms] Dispatching key_press event: 118
+[007435ms] Dispatching key_press event: 101
+[007465ms] Dispatching key_press event: 32
+[007545ms] Dispatching key_press event: 105
+[007665ms] Dispatching key_press event: 115
+[007846ms] Dispatching key_press event: 115
+[007866ms] Dispatching key_press event: 117
+[008031ms] Dispatching key_press event: 101
+[008246ms] Dispatching key_press event: 115
+[008388ms] Dispatching key_press event: 32
+[008510ms] Dispatching key_press event: 99
+[008568ms] Dispatching key_press event: 108
+[008697ms] Dispatching key_press event: 101
+[008744ms] Dispatching key_press event: 100
+[008806ms] Dispatching key_press event: 97
+[008906ms] Dispatching key_press event: 114
+[009158ms] Dispatching key_press event: 108
+[009378ms] Dispatching key_press event: 263
+[009515ms] Dispatching key_press event: 263
+[009697ms] Dispatching key_press event: 263
+[010038ms] Dispatching key_press event: 263
+[010144ms] Dispatching key_press event: 97
+[010222ms] Dispatching key_press event: 114
+[010322ms] Dispatching key_press event: 108
+[010449ms] Dispatching key_press event: 121
+[010660ms] Dispatching key_press event: 32
+[010836ms] Dispatching key_press event: 45
+[011197ms] Dispatching key_press event: 32
+[011339ms] Dispatching key_press event: 119
+[011421ms] Dispatching key_press event: 101
+[011523ms] Dispatching key_press event: 39
+[011638ms] Dispatching key_press event: 114
+[011719ms] Dispatching key_press event: 101
+[011780ms] Dispatching key_press event: 32
+[011897ms] Dispatching key_press event: 110
+[011977ms] Dispatching key_press event: 111
+[012097ms] Dispatching key_press event: 119
+[012237ms] Dispatching key_press event: 32
+[012545ms] Dispatching key_press event: 114
+[012662ms] Dispatching key_press event: 117
+[012801ms] Dispatching key_press event: 110
+[012987ms] Dispatching key_press event: 110
+[013107ms] Dispatching key_press event: 105
+[013177ms] Dispatching key_press event: 110
+[013269ms] Dispatching key_press event: 103
+[013363ms] Dispatching key_press event: 32
+[013502ms] Dispatching key_press event: 119
+[013583ms] Dispatching key_press event: 105
+[013661ms] Dispatching key_press event: 116
+[013722ms] Dispatching key_press event: 104
+[013842ms] Dispatching key_press event: 32
+[013944ms] Dispatching key_press event: 108
+[014103ms] Dispatching key_press event: 111
+[014220ms] Dispatching key_press event: 116
+[014595ms] Dispatching key_press event: 115
+[014692ms] Dispatching key_press event: 32
+[014751ms] Dispatching key_press event: 111
+[014832ms] Dispatching key_press event: 102
+[014953ms] Dispatching key_press event: 32
+[015032ms] Dispatching key_press event: 108
+[015234ms] Dispatching key_press event: 111
+[015314ms] Dispatching key_press event: 103
+[015498ms] Dispatching key_press event: 103
+[015516ms] Dispatching key_press event: 105
+[015619ms] Dispatching key_press event: 110
+[015762ms] Dispatching key_press event: 103
+[015983ms] Dispatching key_press event: 32
+[016069ms] Dispatching key_press event: 101
+[016166ms] Dispatching key_press event: 110
+[016321ms] Dispatching key_press event: 97
+[016400ms] Dispatching key_press event: 98
+[016600ms] Dispatching key_press event: 108
+[016679ms] Dispatching key_press event: 101
+[016800ms] Dispatching key_press event: 100
+[017286ms] Dispatching key_press event: 46
+[017343ms] Dispatching key_press event: 32
+[017523ms] Dispatching key_press event: 67
+[017776ms] Dispatching key_press event: 97
+[017858ms] Dispatching key_press event: 110
+[017975ms] Dispatching key_press event: 32
+[018103ms] Dispatching key_press event: 121
+[018200ms] Dispatching key_press event: 111
+[018303ms] Dispatching key_press event: 117
+[018318ms] Dispatching key_press event: 32
+[018455ms] Dispatching key_press event: 114
+[018534ms] Dispatching key_press event: 117
+[018596ms] Dispatching key_press event: 110
+[018742ms] Dispatching key_press event: 32
+[019523ms] Dispatching key_press event: 79
+[019578ms] Dispatching key_press event: 78
+[019640ms] Dispatching key_press event: 69
+[019807ms] Dispatching key_press event: 32
+[019912ms] Dispatching key_press event: 111
+[020013ms] Dispatching key_press event: 102
+[020094ms] Dispatching key_press event: 32
+[020236ms] Dispatching key_press event: 116
+[020252ms] Dispatching key_press event: 104
+[020355ms] Dispatching key_press event: 101
+[020452ms] Dispatching key_press event: 32
+[020530ms] Dispatching key_press event: 102
+[020671ms] Dispatching key_press event: 97
+[020731ms] Dispatching key_press event: 105
+[020830ms] Dispatching key_press event: 108
+[021153ms] Dispatching key_press event: 105
+[021265ms] Dispatching key_press event: 110
+[021382ms] Dispatching key_press event: 103
+[021564ms] Dispatching key_press event: 32
+[022567ms] Dispatching key_press event: 117
+[022665ms] Dispatching key_press event: 118
+[023524ms] Dispatching key_press event: 32
+[023647ms] Dispatching key_press event: 116
+[023739ms] Dispatching key_press event: 101
+[023944ms] Dispatching key_press event: 115
+[023984ms] Dispatching key_press event: 116
+[024113ms] Dispatching key_press event: 115
+[024631ms] Dispatching key_press event: 32
+[024897ms] Dispatching key_press event: 115
+[024957ms] Dispatching key_press event: 111
+[025066ms] Dispatching key_press event: 32
+[025124ms] Dispatching key_press event: 116
+[025223ms] Dispatching key_press event: 104
+[025325ms] Dispatching key_press event: 97
+[025406ms] Dispatching key_press event: 116
+[025493ms] Dispatching key_press event: 32
+[025645ms] Dispatching key_press event: 119
+[025692ms] Dispatching key_press event: 101
+[025795ms] Dispatching key_press event: 32
+[025913ms] Dispatching key_press event: 99
+[025990ms] Dispatching key_press event: 97
+[026053ms] Dispatching key_press event: 110
+[026151ms] Dispatching key_press event: 32
+[026229ms] Dispatching key_press event: 97
+[026368ms] Dispatching key_press event: 99
+[026587ms] Dispatching key_press event: 263
+[026726ms] Dispatching key_press event: 263
+[026808ms] Dispatching key_press event: 99
+[026893ms] Dispatching key_press event: 97
+[026969ms] Dispatching key_press event: 112
+[027206ms] Dispatching key_press event: 116
+[027344ms] Dispatching key_press event: 117
+[027741ms] Dispatching key_press event: 263
+[027881ms] Dispatching key_press event: 263
+[028234ms] Dispatching key_press event: 116
+[028353ms] Dispatching key_press event: 117
+[028471ms] Dispatching key_press event: 114
+[028573ms] Dispatching key_press event: 101
+[028649ms] Dispatching key_press event: 32
+[028827ms] Dispatching key_press event: 97
+[028845ms] Dispatching key_press event: 32
+[029025ms] Dispatching key_press event: 103
+[029132ms] Dispatching key_press event: 111
+[029265ms] Dispatching key_press event: 111
+[029323ms] Dispatching key_press event: 100
+[029410ms] Dispatching key_press event: 32
+[029494ms] Dispatching key_press event: 108
+[029680ms] Dispatching key_press event: 111
+[029749ms] Dispatching key_press event: 103
+[030051ms] Dispatching key_press event: 63
+[030326ms] Dispatching key_press event: 13
+[030327ms] Thread started: ai_agent main loop (2)
+[030329ms] Context size exceeds 64000 tokens (274532 chars). Forcing auto-episode boundary.
+[030329ms] Triggering auto-episode boundary split: Heuristic context character limit reached (64000 tokens)
+[030333ms] Snapshot written to episode_2
+[030334ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[030384ms] Dispatching agent_tool_update event.
+[030384ms] Dispatching agent_tool_update event.
+[075809ms] Dispatching agent_tool_update event.
+[075809ms] Dispatching agent_tool_update event.
+[075863ms] Dispatching agent_tool_update event.
+[075917ms] Dispatching agent_tool_update event.
+[075969ms] Dispatching agent_tool_update event.
+[076023ms] Dispatching agent_tool_update event.
+[076077ms] Dispatching agent_tool_update event.
+[076131ms] Dispatching agent_tool_update event.
+[076185ms] Dispatching agent_tool_update event.
+[076239ms] Dispatching agent_tool_update event.
+[076344ms] Dispatching agent_tool_update event.
+[077939ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[077940ms] update_window_menu: 4 items
+[077940ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_command_registry''
+[077940ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882884713583072-2' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''unit_command_registry'\''' 2>&1'
+[077953ms] Dispatching agent_tool_update event.
+[077953ms] Dispatching agent_tool_update event.
+[077953ms] Dispatching agent_tool_update event.
+[078141ms] [command_runner] Finished command (exit_code=1, elapsed=201ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_command_registry''
+[078142ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[078142ms] Successfully loaded Milestone Boundary DNN weights from ./dnn_training/weights.bin
+[078143ms] Milestone classifier evaluated in 368 us (prob=0.0005)
+[078143ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[078156ms] Dispatching agent_tool_update event.
+[078156ms] Dispatching agent_tool_update event.
+[078156ms] Dispatching agent_tool_update event.
+[078156ms] Dispatching agent_tool_update event.
+[078509ms] Dispatching agent_tool_update event.
+[078509ms] Dispatching agent_tool_update event.
+[078564ms] Dispatching agent_tool_update event.
+[078619ms] Dispatching agent_tool_update event.
+[078671ms] Dispatching agent_tool_update event.
+[078726ms] Dispatching agent_tool_update event.
+[078781ms] Dispatching agent_tool_update event.
+[078835ms] Dispatching agent_tool_update event.
+[078888ms] Dispatching agent_tool_update event.
+[078940ms] Dispatching agent_tool_update event.
+[078995ms] Dispatching agent_tool_update event.
+[079047ms] Dispatching agent_tool_update event.
+[079099ms] Dispatching agent_tool_update event.
+[079151ms] Dispatching agent_tool_update event.
+[079203ms] Dispatching agent_tool_update event.
+[079257ms] Dispatching agent_tool_update event.
+[079311ms] Dispatching agent_tool_update event.
+[079364ms] Dispatching agent_tool_update event.
+[079419ms] Dispatching agent_tool_update event.
+[079471ms] Dispatching agent_tool_update event.
+[079526ms] Dispatching agent_tool_update event.
+[079580ms] Dispatching agent_tool_update event.
+[079635ms] Dispatching agent_tool_update event.
+[079687ms] Dispatching agent_tool_update event.
+[079739ms] Dispatching agent_tool_update event.
+[079794ms] Dispatching agent_tool_update event.
+[079846ms] Dispatching agent_tool_update event.
+[079898ms] Dispatching agent_tool_update event.
+[080001ms] Dispatching agent_tool_update event.
+[080055ms] Dispatching agent_tool_update event.
+[080109ms] Dispatching agent_tool_update event.
+[080161ms] Dispatching agent_tool_update event.
+[080213ms] Dispatching agent_tool_update event.
+[080265ms] Dispatching agent_tool_update event.
+[080317ms] Dispatching agent_tool_update event.
+[080370ms] Dispatching agent_tool_update event.
+[080422ms] Dispatching agent_tool_update event.
+[080474ms] Dispatching agent_tool_update event.
+[080529ms] Dispatching agent_tool_update event.
+[080582ms] Dispatching agent_tool_update event.
+[080634ms] Dispatching agent_tool_update event.
+[080686ms] Dispatching agent_tool_update event.
+[080738ms] Dispatching agent_tool_update event.
+[081601ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[081602ms] update_window_menu: 4 items
+[081602ms] [command_runner] Executing raw_command: 'export LC_ALL=C.UTF-8 LANG=C.UTF-8 && meson compile -C build'
+[081602ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882888375483209-3' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'export LC_ALL=C.UTF-8 LANG=C.UTF-8 && meson compile -C build' 2>&1'
+[081644ms] Dispatching agent_tool_update event.
+[081644ms] Dispatching agent_tool_update event.
+[081644ms] Dispatching agent_tool_update event.
+[081948ms] Dispatching agent_tool_update event.
+[081948ms] Dispatching agent_tool_update event.
+[082000ms] Dispatching agent_tool_update event.
+[082102ms] Dispatching agent_tool_update event.
+[082102ms] Dispatching agent_tool_update event.
+[082112ms] [command_runner] Finished command (exit_code=0, elapsed=510ms): 'export LC_ALL=C.UTF-8 LANG=C.UTF-8 && meson compile -C build'
+[082112ms] fs_compile_project context minimizer: removed 1 lines (0.1 KB), kept 4 lines (0.2 KB)
+[082113ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[082114ms] Milestone classifier evaluated in 317 us (prob=0.0005)
+[082114ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[082155ms] Dispatching agent_tool_update event.
+[082155ms] Dispatching agent_tool_update event.
+[082155ms] Dispatching agent_tool_update event.
+[082561ms] Dispatching agent_tool_update event.
+[082561ms] Dispatching agent_tool_update event.
+[082561ms] Dispatching agent_tool_update event.
+[082663ms] Dispatching agent_tool_update event.
+[082715ms] Dispatching agent_tool_update event.
+[082768ms] Dispatching agent_tool_update event.
+[082820ms] Dispatching agent_tool_update event.
+[082873ms] Dispatching agent_tool_update event.
+[082928ms] Dispatching agent_tool_update event.
+[082981ms] Dispatching agent_tool_update event.
+[083035ms] Dispatching agent_tool_update event.
+[083089ms] Dispatching agent_tool_update event.
+[083142ms] Dispatching agent_tool_update event.
+[083196ms] Dispatching agent_tool_update event.
+[083249ms] Dispatching agent_tool_update event.
+[083302ms] Dispatching agent_tool_update event.
+[083354ms] Dispatching agent_tool_update event.
+[083406ms] Dispatching agent_tool_update event.
+[083459ms] Dispatching agent_tool_update event.
+[083511ms] Dispatching agent_tool_update event.
+[083562ms] Dispatching agent_tool_update event.
+[083614ms] Dispatching agent_tool_update event.
+[083666ms] Dispatching agent_tool_update event.
+[083718ms] Dispatching agent_tool_update event.
+[083770ms] Dispatching agent_tool_update event.
+[085303ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[085303ms] update_window_menu: 4 items
+[085303ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'agent''
+[085303ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882892077196205-4' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''agent'\''' 2>&1'
+[085327ms] Dispatching agent_tool_update event.
+[085327ms] Dispatching agent_tool_update event.
+[085327ms] Dispatching agent_tool_update event.
+[085512ms] [command_runner] Finished command (exit_code=1, elapsed=208ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'agent''
+[085513ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[085513ms] Milestone classifier evaluated in 301 us (prob=0.0005)
+[085514ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[085532ms] Dispatching agent_tool_update event.
+[085532ms] Dispatching agent_tool_update event.
+[085532ms] Dispatching agent_tool_update event.
+[085532ms] Dispatching agent_tool_update event.
+[085935ms] Dispatching agent_tool_update event.
+[085935ms] Dispatching agent_tool_update event.
+[086090ms] Dispatching agent_tool_update event.
+[086144ms] Dispatching agent_tool_update event.
+[086298ms] Dispatching agent_tool_update event.
+[086352ms] Dispatching agent_tool_update event.
+[086406ms] Dispatching agent_tool_update event.
+[086460ms] Dispatching agent_tool_update event.
+[086513ms] Dispatching agent_tool_update event.
+[086565ms] Dispatching agent_tool_update event.
+[086617ms] Dispatching agent_tool_update event.
+[086669ms] Dispatching agent_tool_update event.
+[086720ms] Dispatching agent_tool_update event.
+[086772ms] Dispatching agent_tool_update event.
+[089565ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[089567ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[089568ms] Milestone classifier evaluated in 414 us (prob=0.0005)
+[089568ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089583ms] Dispatching agent_tool_update event.
+[089988ms] Dispatching agent_tool_update event.
+[089988ms] Dispatching agent_tool_update event.
+[090042ms] Dispatching agent_tool_update event.
+[090096ms] Dispatching agent_tool_update event.
+[090148ms] Dispatching agent_tool_update event.
+[090200ms] Dispatching agent_tool_update event.
+[090253ms] Dispatching agent_tool_update event.
+[090307ms] Dispatching agent_tool_update event.
+[090361ms] Dispatching agent_tool_update event.
+[090413ms] Dispatching agent_tool_update event.
+[092547ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[092574ms] Dispatching agent_tool_update event.
+[092574ms] Dispatching agent_tool_update event.
+[092709ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[092710ms] Milestone classifier evaluated in 299 us (prob=0.0005)
+[092710ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[092728ms] Dispatching agent_tool_update event.
+[092728ms] Dispatching agent_tool_update event.
+[092728ms] Dispatching agent_tool_update event.
+[093081ms] Dispatching agent_tool_update event.
+[093081ms] Dispatching agent_tool_update event.
+[093135ms] Dispatching agent_tool_update event.
+[093189ms] Dispatching agent_tool_update event.
+[093243ms] Dispatching agent_tool_update event.
+[093345ms] Dispatching agent_tool_update event.
+[093399ms] Dispatching agent_tool_update event.
+[093452ms] Dispatching agent_tool_update event.
+[093504ms] Dispatching agent_tool_update event.
+[093558ms] Dispatching agent_tool_update event.
+[093611ms] Dispatching agent_tool_update event.
+[093665ms] Dispatching agent_tool_update event.
+[093719ms] Dispatching agent_tool_update event.
+[093773ms] Dispatching agent_tool_update event.
+[093827ms] Dispatching agent_tool_update event.
+[093880ms] Dispatching agent_tool_update event.
+[093934ms] Dispatching agent_tool_update event.
+[093988ms] Dispatching agent_tool_update event.
+[094042ms] Dispatching agent_tool_update event.
+[094096ms] Dispatching agent_tool_update event.
+[094936ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[094937ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[094939ms] Milestone classifier evaluated in 647 us (prob=0.0005)
+[094939ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[094952ms] Dispatching agent_tool_update event.
+[094952ms] Dispatching agent_tool_update event.
+[094952ms] Dispatching agent_tool_update event.
+[094952ms] Dispatching agent_tool_update event.
+[095405ms] Dispatching agent_tool_update event.
+[095405ms] Dispatching agent_tool_update event.
+[095405ms] Dispatching agent_tool_update event.
+[095457ms] Dispatching agent_tool_update event.
+[095509ms] Dispatching agent_tool_update event.
+[095611ms] Dispatching agent_tool_update event.
+[095664ms] Dispatching agent_tool_update event.
+[096269ms] Dispatching agent_tool_update event.
+[096972ms] Dispatching agent_tool_update event.
+[097726ms] Dispatching agent_tool_update event.
+[098481ms] Dispatching agent_tool_update event.
+[099288ms] Dispatching agent_tool_update event.
+[100144ms] Dispatching agent_tool_update event.
+[100399ms] Dispatching agent_tool_update event.
+[100453ms] Dispatching agent_tool_update event.
+[100506ms] Dispatching agent_tool_update event.
+[100560ms] Dispatching agent_tool_update event.
+[100614ms] Dispatching agent_tool_update event.
+[100668ms] Dispatching agent_tool_update event.
+[100772ms] Dispatching agent_tool_update event.
+[103255ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[103255ms] update_window_menu: 4 items
+[103255ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_clear_command' 'unit_agent_window' 'unit_command_registry''
+[103255ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882910028887886-5' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''unit_clear_command'\'' '\''unit_agent_window'\'' '\''unit_command_registry'\''' 2>&1'
+[103284ms] Dispatching agent_tool_update event.
+[103284ms] Dispatching agent_tool_update event.
+[103284ms] Dispatching agent_tool_update event.
+[103473ms] [command_runner] Finished command (exit_code=1, elapsed=217ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_clear_command' 'unit_agent_window' 'unit_command_registry''
+[103474ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[103474ms] Milestone classifier evaluated in 292 us (prob=0.0005)
+[103475ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[103488ms] Dispatching agent_tool_update event.
+[103488ms] Dispatching agent_tool_update event.
+[103488ms] Dispatching agent_tool_update event.
+[103488ms] Dispatching agent_tool_update event.
+[104042ms] Dispatching agent_tool_update event.
+[104042ms] Dispatching agent_tool_update event.
+[104096ms] Dispatching agent_tool_update event.
+[104150ms] Dispatching agent_tool_update event.
+[104204ms] Dispatching agent_tool_update event.
+[104258ms] Dispatching agent_tool_update event.
+[104362ms] Dispatching agent_tool_update event.
+[104416ms] Dispatching agent_tool_update event.
+[104469ms] Dispatching agent_tool_update event.
+[104523ms] Dispatching agent_tool_update event.
+[104577ms] Dispatching agent_tool_update event.
+[104631ms] Dispatching agent_tool_update event.
+[104735ms] Dispatching agent_tool_update event.
+[104789ms] Dispatching agent_tool_update event.
+[104843ms] Dispatching agent_tool_update event.
+[104897ms] Dispatching agent_tool_update event.
+[104950ms] Dispatching agent_tool_update event.
+[105004ms] Dispatching agent_tool_update event.
+[105108ms] Dispatching agent_tool_update event.
+[105162ms] Dispatching agent_tool_update event.
+[105216ms] Dispatching agent_tool_update event.
+[105269ms] Dispatching agent_tool_update event.
+[105323ms] Dispatching agent_tool_update event.
+[105377ms] Dispatching agent_tool_update event.
+[105482ms] Dispatching agent_tool_update event.
+[105535ms] Dispatching agent_tool_update event.
+[105589ms] Dispatching agent_tool_update event.
+[105642ms] Dispatching agent_tool_update event.
+[105696ms] Dispatching agent_tool_update event.
+[105800ms] Dispatching agent_tool_update event.
+[105852ms] Dispatching agent_tool_update event.
+[105904ms] Dispatching agent_tool_update event.
+[105958ms] Dispatching agent_tool_update event.
+[106012ms] Dispatching agent_tool_update event.
+[106066ms] Dispatching agent_tool_update event.
+[106170ms] Dispatching agent_tool_update event.
+[107767ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[107769ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[107770ms] Milestone classifier evaluated in 528 us (prob=0.0005)
+[107771ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[107780ms] Dispatching agent_tool_update event.
+[107780ms] Dispatching agent_tool_update event.
+[107780ms] Dispatching agent_tool_update event.
+[107780ms] Dispatching agent_tool_update event.
+[108335ms] Dispatching agent_tool_update event.
+[108335ms] Dispatching agent_tool_update event.
+[108389ms] Dispatching agent_tool_update event.
+[108443ms] Dispatching agent_tool_update event.
+[108547ms] Dispatching agent_tool_update event.
+[108601ms] Dispatching agent_tool_update event.
+[108655ms] Dispatching agent_tool_update event.
+[108709ms] Dispatching agent_tool_update event.
+[108762ms] Dispatching agent_tool_update event.
+[108816ms] Dispatching agent_tool_update event.
+[108920ms] Dispatching agent_tool_update event.
+[108974ms] Dispatching agent_tool_update event.
+[109028ms] Dispatching agent_tool_update event.
+[109082ms] Dispatching agent_tool_update event.
+[109136ms] Dispatching agent_tool_update event.
+[109240ms] Dispatching agent_tool_update event.
+[109292ms] Dispatching agent_tool_update event.
+[109347ms] Dispatching agent_tool_update event.
+[109402ms] Dispatching agent_tool_update event.
+[109454ms] Dispatching agent_tool_update event.
+[109509ms] Dispatching agent_tool_update event.
+[109614ms] Dispatching agent_tool_update event.
+[109669ms] Dispatching agent_tool_update event.
+[109723ms] Dispatching agent_tool_update event.
+[109778ms] Dispatching agent_tool_update event.
+[109833ms] Dispatching agent_tool_update event.
+[109887ms] Dispatching agent_tool_update event.
+[109942ms] Dispatching agent_tool_update event.
+[110047ms] Dispatching agent_tool_update event.
+[110102ms] Dispatching agent_tool_update event.
+[110156ms] Dispatching agent_tool_update event.
+[110211ms] Dispatching agent_tool_update event.
+[110266ms] Dispatching agent_tool_update event.
+[110320ms] Dispatching agent_tool_update event.
+[110425ms] Dispatching agent_tool_update event.
+[110479ms] Dispatching agent_tool_update event.
+[110534ms] Dispatching agent_tool_update event.
+[110589ms] Dispatching agent_tool_update event.
+[110643ms] Dispatching agent_tool_update event.
+[110698ms] Dispatching agent_tool_update event.
+[110802ms] Dispatching agent_tool_update event.
+[110855ms] Dispatching agent_tool_update event.
+[110910ms] Dispatching agent_tool_update event.
+[110963ms] Dispatching agent_tool_update event.
+[111018ms] Dispatching agent_tool_update event.
+[111073ms] Dispatching agent_tool_update event.
+[111178ms] Dispatching agent_tool_update event.
+[111233ms] Dispatching agent_tool_update event.
+[111287ms] Dispatching agent_tool_update event.
+[111342ms] Dispatching agent_tool_update event.
+[111397ms] Dispatching agent_tool_update event.
+[111452ms] Dispatching agent_tool_update event.
+[111507ms] Dispatching agent_tool_update event.
+[111610ms] Dispatching agent_tool_update event.
+[111665ms] Dispatching agent_tool_update event.
+[111720ms] Dispatching agent_tool_update event.
+[111775ms] Dispatching agent_tool_update event.
+[111830ms] Dispatching agent_tool_update event.
+[111935ms] Dispatching agent_tool_update event.
+[111989ms] Dispatching agent_tool_update event.
+[112044ms] Dispatching agent_tool_update event.
+[112099ms] Dispatching agent_tool_update event.
+[112154ms] Dispatching agent_tool_update event.
+[112209ms] Dispatching agent_tool_update event.
+[112313ms] Dispatching agent_tool_update event.
+[112368ms] Dispatching agent_tool_update event.
+[112423ms] Dispatching agent_tool_update event.
+[112477ms] Dispatching agent_tool_update event.
+[112532ms] Dispatching agent_tool_update event.
+[112586ms] Dispatching agent_tool_update event.
+[112641ms] Dispatching agent_tool_update event.
+[112746ms] Dispatching agent_tool_update event.
+[112799ms] Dispatching agent_tool_update event.
+[112854ms] Dispatching agent_tool_update event.
+[112908ms] Dispatching agent_tool_update event.
+[112961ms] Dispatching agent_tool_update event.
+[113066ms] Dispatching agent_tool_update event.
+[113121ms] Dispatching agent_tool_update event.
+[113176ms] Dispatching agent_tool_update event.
+[113231ms] Dispatching agent_tool_update event.
+[113286ms] Dispatching agent_tool_update event.
+[113341ms] Dispatching agent_tool_update event.
+[113396ms] Dispatching agent_tool_update event.
+[113501ms] Dispatching agent_tool_update event.
+[113556ms] Dispatching agent_tool_update event.
+[113611ms] Dispatching agent_tool_update event.
+[113664ms] Dispatching agent_tool_update event.
+[113720ms] Dispatching agent_tool_update event.
+[113772ms] Dispatching agent_tool_update event.
+[113877ms] Dispatching agent_tool_update event.
+[113932ms] Dispatching agent_tool_update event.
+[113987ms] Dispatching agent_tool_update event.
+[114042ms] Dispatching agent_tool_update event.
+[114096ms] Dispatching agent_tool_update event.
+[114151ms] Dispatching agent_tool_update event.
+[114256ms] Dispatching agent_tool_update event.
+[114311ms] Dispatching agent_tool_update event.
+[114366ms] Dispatching agent_tool_update event.
+[114421ms] Dispatching agent_tool_update event.
+[114475ms] Dispatching agent_tool_update event.
+[114530ms] Dispatching agent_tool_update event.
+[114585ms] Dispatching agent_tool_update event.
+[114690ms] Dispatching agent_tool_update event.
+[114745ms] Dispatching agent_tool_update event.
+[114798ms] Dispatching agent_tool_update event.
+[114852ms] Dispatching agent_tool_update event.
+[114907ms] Dispatching agent_tool_update event.
+[114963ms] Dispatching agent_tool_update event.
+[115068ms] Dispatching agent_tool_update event.
+[115123ms] Dispatching agent_tool_update event.
+[115178ms] Dispatching agent_tool_update event.
+[115232ms] Dispatching agent_tool_update event.
+[115287ms] Dispatching agent_tool_update event.
+[115340ms] Dispatching agent_tool_update event.
+[115392ms] Dispatching agent_tool_update event.
+[115494ms] Dispatching agent_tool_update event.
+[115547ms] Dispatching agent_tool_update event.
+[115599ms] Dispatching agent_tool_update event.
+[115651ms] Dispatching agent_tool_update event.
+[115706ms] Dispatching agent_tool_update event.
+[115759ms] Dispatching agent_tool_update event.
+[115813ms] Dispatching agent_tool_update event.
+[115865ms] Dispatching agent_tool_update event.
+[115920ms] Dispatching agent_tool_update event.
+[115974ms] Dispatching agent_tool_update event.
+[116029ms] Dispatching agent_tool_update event.
+[116083ms] Dispatching agent_tool_update event.
+[116138ms] Dispatching agent_tool_update event.
+[116194ms] Dispatching agent_tool_update event.
+[116249ms] Dispatching agent_tool_update event.
+[116304ms] Dispatching agent_tool_update event.
+[116359ms] Dispatching agent_tool_update event.
+[116414ms] Dispatching agent_tool_update event.
+[116468ms] Dispatching agent_tool_update event.
+[116523ms] Dispatching agent_tool_update event.
+[116576ms] Dispatching agent_tool_update event.
+[116629ms] Dispatching agent_tool_update event.
+[116681ms] Dispatching agent_tool_update event.
+[116736ms] Dispatching agent_tool_update event.
+[116789ms] Dispatching agent_tool_update event.
+[116844ms] Dispatching agent_tool_update event.
+[116897ms] Dispatching agent_tool_update event.
+[116952ms] Dispatching agent_tool_update event.
+[117008ms] Dispatching agent_tool_update event.
+[117060ms] Dispatching agent_tool_update event.
+[117115ms] Dispatching agent_tool_update event.
+[117170ms] Dispatching agent_tool_update event.
+[117224ms] Dispatching agent_tool_update event.
+[119170ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[119170ms] update_window_menu: 4 items
+[119170ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_list_subagents' 'unit_command_registry''
+[119170ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882925944153316-6' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''unit_list_subagents'\'' '\''unit_command_registry'\''' 2>&1'
+[119185ms] Dispatching agent_tool_update event.
+[119185ms] Dispatching agent_tool_update event.
+[119185ms] Dispatching agent_tool_update event.
+[119423ms] [command_runner] Finished command (exit_code=1, elapsed=252ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_list_subagents' 'unit_command_registry''
+[119424ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[119425ms] Milestone classifier evaluated in 307 us (prob=0.0005)
+[119425ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[119438ms] Dispatching agent_tool_update event.
+[119438ms] Dispatching agent_tool_update event.
+[119438ms] Dispatching agent_tool_update event.
+[119438ms] Dispatching agent_tool_update event.
+[119790ms] Dispatching agent_tool_update event.
+[119791ms] Dispatching agent_tool_update event.
+[119842ms] Dispatching agent_tool_update event.
+[119895ms] Dispatching agent_tool_update event.
+[119997ms] Dispatching agent_tool_update event.
+[120051ms] Dispatching agent_tool_update event.
+[120103ms] Dispatching agent_tool_update event.
+[120158ms] Dispatching agent_tool_update event.
+[120211ms] Dispatching agent_tool_update event.
+[120264ms] Dispatching agent_tool_update event.
+[120318ms] Dispatching agent_tool_update event.
+[120371ms] Dispatching agent_tool_update event.
+[120425ms] Dispatching agent_tool_update event.
+[121822ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[121823ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[121825ms] Milestone classifier evaluated in 642 us (prob=0.0005)
+[121825ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[121833ms] Dispatching agent_tool_update event.
+[121833ms] Dispatching agent_tool_update event.
+[121833ms] Dispatching agent_tool_update event.
+[121833ms] Dispatching agent_tool_update event.
+[122188ms] Dispatching agent_tool_update event.
+[122188ms] Dispatching agent_tool_update event.
+[122242ms] Dispatching agent_tool_update event.
+[122296ms] Dispatching agent_tool_update event.
+[122350ms] Dispatching agent_tool_update event.
+[122403ms] Dispatching agent_tool_update event.
+[122457ms] Dispatching agent_tool_update event.
+[122511ms] Dispatching agent_tool_update event.
+[122615ms] Dispatching agent_tool_update event.
+[122669ms] Dispatching agent_tool_update event.
+[122723ms] Dispatching agent_tool_update event.
+[122776ms] Dispatching agent_tool_update event.
+[122776ms] Dispatching agent_tool_update event.
+[122880ms] Dispatching agent_tool_update event.
+[124417ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[124427ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[124428ms] Milestone classifier evaluated in 381 us (prob=0.0005)
+[124429ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124439ms] Dispatching agent_tool_update event.
+[124845ms] Dispatching agent_tool_update event.
+[124845ms] Dispatching agent_tool_update event.
+[124845ms] Dispatching agent_tool_update event.
+[124898ms] Dispatching agent_tool_update event.
+[124952ms] Dispatching agent_tool_update event.
+[125056ms] Dispatching agent_tool_update event.
+[125108ms] Dispatching agent_tool_update event.
+[125162ms] Dispatching agent_tool_update event.
+[125216ms] Dispatching agent_tool_update event.
+[125270ms] Dispatching agent_tool_update event.
+[125324ms] Dispatching agent_tool_update event.
+[125377ms] Dispatching agent_tool_update event.
+[125432ms] Dispatching agent_tool_update event.
+[125485ms] Dispatching agent_tool_update event.
+[125539ms] Dispatching agent_tool_update event.
+[125593ms] Dispatching agent_tool_update event.
+[125646ms] Dispatching agent_tool_update event.
+[125700ms] Dispatching agent_tool_update event.
+[125754ms] Dispatching agent_tool_update event.
+[125806ms] Dispatching agent_tool_update event.
+[125860ms] Dispatching agent_tool_update event.
+[125913ms] Dispatching agent_tool_update event.
+[125967ms] Dispatching agent_tool_update event.
+[127691ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[127727ms] Dispatching agent_tool_update event.
+[127727ms] Dispatching agent_tool_update event.
+[127853ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[127854ms] Milestone classifier evaluated in 285 us (prob=0.0005)
+[127854ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[127881ms] Dispatching agent_tool_update event.
+[127881ms] Dispatching agent_tool_update event.
+[128234ms] Dispatching agent_tool_update event.
+[128234ms] Dispatching agent_tool_update event.
+[128289ms] Dispatching agent_tool_update event.
+[128342ms] Dispatching agent_tool_update event.
+[128396ms] Dispatching agent_tool_update event.
+[128450ms] Dispatching agent_tool_update event.
+[128504ms] Dispatching agent_tool_update event.
+[128558ms] Dispatching agent_tool_update event.
+[128612ms] Dispatching agent_tool_update event.
+[128666ms] Dispatching agent_tool_update event.
+[128719ms] Dispatching agent_tool_update event.
+[128773ms] Dispatching agent_tool_update event.
+[128827ms] Dispatching agent_tool_update event.
+[128881ms] Dispatching agent_tool_update event.
+[128935ms] Dispatching agent_tool_update event.
+[128988ms] Dispatching agent_tool_update event.
+[129042ms] Dispatching agent_tool_update event.
+[129096ms] Dispatching agent_tool_update event.
+[129150ms] Dispatching agent_tool_update event.
+[129204ms] Dispatching agent_tool_update event.
+[129258ms] Dispatching agent_tool_update event.
+[129312ms] Dispatching agent_tool_update event.
+[129364ms] Dispatching agent_tool_update event.
+[129416ms] Dispatching agent_tool_update event.
+[129467ms] Dispatching agent_tool_update event.
+[131713ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[131713ms] update_window_menu: 4 items
+[131713ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_subagent_manager' 'unit_command_registry' 'unit_agent_window''
+[131713ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882938486768566-7' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''unit_subagent_manager'\'' '\''unit_command_registry'\'' '\''unit_agent_window'\''' 2>&1'
+[131722ms] Dispatching agent_tool_update event.
+[131722ms] Dispatching agent_tool_update event.
+[131722ms] Dispatching agent_tool_update event.
+[131965ms] [command_runner] Finished command (exit_code=1, elapsed=252ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_subagent_manager' 'unit_command_registry' 'unit_agent_window''
+[131966ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[131967ms] Milestone classifier evaluated in 321 us (prob=0.0005)
+[131967ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[131982ms] Dispatching agent_tool_update event.
+[131982ms] Dispatching agent_tool_update event.
+[131982ms] Dispatching agent_tool_update event.
+[131982ms] Dispatching agent_tool_update event.
+[132381ms] Dispatching agent_tool_update event.
+[132381ms] Dispatching agent_tool_update event.
+[132436ms] Dispatching agent_tool_update event.
+[132489ms] Dispatching agent_tool_update event.
+[132543ms] Dispatching agent_tool_update event.
+[132597ms] Dispatching agent_tool_update event.
+[132650ms] Dispatching agent_tool_update event.
+[132705ms] Dispatching agent_tool_update event.
+[132758ms] Dispatching agent_tool_update event.
+[132816ms] Dispatching agent_tool_update event.
+[132872ms] Dispatching agent_tool_update event.
+[132947ms] Dispatching agent_tool_update event.
+[133001ms] Dispatching agent_tool_update event.
+[133055ms] Dispatching agent_tool_update event.
+[133108ms] Dispatching agent_tool_update event.
+[133162ms] Dispatching agent_tool_update event.
+[133216ms] Dispatching agent_tool_update event.
+[133270ms] Dispatching agent_tool_update event.
+[133324ms] Dispatching agent_tool_update event.
+[133378ms] Dispatching agent_tool_update event.
+[133432ms] Dispatching agent_tool_update event.
+[133486ms] Dispatching agent_tool_update event.
+[133541ms] Dispatching agent_tool_update event.
+[133595ms] Dispatching agent_tool_update event.
+[133649ms] Dispatching agent_tool_update event.
+[135870ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[135873ms] Thread started: lsp_manager message_thread
+[135877ms] Dispatching agent_tool_update event.
+[135877ms] Dispatching agent_tool_update event.
+[135889ms] clangd started and initialized successfully.
+[135890ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[135891ms] Milestone classifier evaluated in 381 us (prob=0.0005)
+[135892ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[135932ms] Dispatching agent_tool_update event.
+[135932ms] Dispatching agent_tool_update event.
+[136316ms] Dispatching agent_tool_update event.
+[136316ms] Dispatching agent_tool_update event.
+[136324ms] Dispatching agent_tool_update event.
+[136386ms] Dispatching agent_tool_update event.
+[136443ms] Dispatching agent_tool_update event.
+[136513ms] Dispatching agent_tool_update event.
+[136539ms] Dispatching agent_tool_update event.
+[136614ms] Dispatching agent_tool_update event.
+[136668ms] Dispatching agent_tool_update event.
+[136722ms] Dispatching agent_tool_update event.
+[136776ms] Dispatching agent_tool_update event.
+[136830ms] Dispatching agent_tool_update event.
+[136884ms] Dispatching agent_tool_update event.
+[136938ms] Dispatching agent_tool_update event.
+[136992ms] Dispatching agent_tool_update event.
+[137046ms] Dispatching agent_tool_update event.
+[140153ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[140154ms] update_window_menu: 4 items
+[140192ms] Dispatching agent_tool_update event.
+[140192ms] Dispatching agent_tool_update event.
+[140192ms] Dispatching agent_tool_update event.
+[140192ms] Dispatching prompt_user event.
+[140192ms] focus_elements_ item: name=btn_ok, focusable=true
+[140192ms] focus_elements_ item: name=btn_cancel, focusable=true
+[140192ms] Focus change: prompt_user -> dialog
+[142756ms] Dispatching key_press event: 13
+[142756ms] Focus change: dialog_close -> window
+[142756ms] Dispatching redraw event.
+[142756ms] [command_runner] Executing raw_command: 'cd /home/arjan/git/turbostar2/build && cat meson-logs/testlog.txt | grep -A 20 "e2e_agent_create"'
+[142756ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-13068894668828675981-1882949529829517-8' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p BindPaths='/home/arjan/.cache' -p BindPaths='/home/arjan/.cache/uv' -p BindPaths='/home/arjan/.uv' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'cd /home/arjan/git/turbostar2/build && cat meson-logs/testlog.txt | grep -A 20 "e2e_agent_create"' 2>&1'
+[142815ms] [command_runner] Finished command (exit_code=1, elapsed=58ms): 'cd /home/arjan/git/turbostar2/build && cat meson-logs/testlog.txt | grep -A 20 "e2e_agent_create"'
+[142815ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[142816ms] Milestone classifier evaluated in 383 us (prob=0.0005)
+[142817ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[142862ms] Dispatching agent_tool_update event.
+[142862ms] Dispatching agent_tool_update event.
+[142862ms] Dispatching agent_tool_update event.
+[142862ms] Dispatching agent_tool_update event.
+[143265ms] Dispatching agent_tool_update event.
+[143265ms] Dispatching agent_tool_update event.
+[143317ms] Dispatching agent_tool_update event.
+[143368ms] Dispatching agent_tool_update event.
+[143420ms] Dispatching agent_tool_update event.
+[143472ms] Dispatching agent_tool_update event.
+[143524ms] Dispatching agent_tool_update event.
+[143576ms] Dispatching agent_tool_update event.
+[143618ms] Dispatching agent_tool_update event.
+[143661ms] Dispatching agent_tool_update event.
+[143727ms] Dispatching agent_tool_update event.
+[143766ms] Dispatching agent_tool_update event.
+[143819ms] Dispatching agent_tool_update event.
+[143921ms] Dispatching agent_tool_update event.
+[143975ms] Dispatching agent_tool_update event.
+[144028ms] Dispatching agent_tool_update event.
+[144082ms] Dispatching agent_tool_update event.
+[144135ms] Dispatching agent_tool_update event.
+[144181ms] Dispatching agent_tool_update event.
+[144207ms] Dispatching agent_tool_update event.
+[146398ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[146399ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[146399ms] Dispatching agent_tool_update event.
+[146399ms] Dispatching agent_tool_update event.
+[146399ms] Dispatching agent_tool_update event.
+[146399ms] Dispatching agent_tool_update event.
+[146400ms] Dispatching agent_tool_update event.
+[146400ms] Dispatching agent_tool_update event.
+[146400ms] Dispatching key_press event: 106
+[146400ms] Milestone classifier evaluated in 383 us (prob=0.0005)
+[146401ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[146452ms] Dispatching agent_tool_update event.
+[146589ms] Dispatching key_press event: 117
+[146611ms] Dispatching key_press event: 115
+[146694ms] Dispatching key_press event: 116
+[146796ms] Dispatching agent_tool_update event.
+[146826ms] Dispatching agent_tool_update event.
+[146826ms] Dispatching key_press event: 32
+[146878ms] Dispatching agent_tool_update event.
+[146897ms] Dispatching key_press event: 114
+[146949ms] Dispatching agent_tool_update event.
+[146982ms] Dispatching agent_tool_update event.
+[146982ms] Dispatching key_press event: 117
+[147034ms] Dispatching agent_tool_update event.
+[147083ms] Dispatching agent_tool_update event.
+[147083ms] Dispatching key_press event: 110
+[147135ms] Dispatching agent_tool_update event.
+[147165ms] Dispatching key_press event: 32
+[147217ms] Dispatching agent_tool_update event.
+[147269ms] Dispatching agent_tool_update event.
+[147321ms] Dispatching agent_tool_update event.
+[147373ms] Dispatching agent_tool_update event.
+[147425ms] Dispatching agent_tool_update event.
+[147460ms] Dispatching agent_tool_update event.
+[147460ms] Dispatching key_press event: 97
+[147512ms] Dispatching agent_tool_update event.
+[147564ms] Dispatching agent_tool_update event.
+[147616ms] Dispatching agent_tool_update event.
+[147632ms] Dispatching key_press event: 108
+[147684ms] Dispatching agent_tool_update event.
+[147736ms] Dispatching agent_tool_update event.
+[147788ms] Dispatching agent_tool_update event.
+[147809ms] Dispatching key_press event: 108
+[147861ms] Dispatching agent_tool_update event.
+[147909ms] Dispatching agent_tool_update event.
+[147909ms] Dispatching key_press event: 32
+[147961ms] Dispatching agent_tool_update event.
+[148013ms] Dispatching agent_tool_update event.
+[148016ms] Dispatching key_press event: 116
+[148068ms] Dispatching agent_tool_update event.
+[148110ms] Dispatching agent_tool_update event.
+[148110ms] Dispatching key_press event: 101
+[148162ms] Dispatching agent_tool_update event.
+[148264ms] Dispatching agent_tool_update event.
+[148316ms] Dispatching agent_tool_update event.
+[148368ms] Dispatching agent_tool_update event.
+[148372ms] Dispatching key_press event: 115
+[148424ms] Dispatching agent_tool_update event.
+[148453ms] Dispatching agent_tool_update event.
+[148453ms] Dispatching key_press event: 116
+[148505ms] Dispatching agent_tool_update event.
+[148557ms] Dispatching agent_tool_update event.
+[148605ms] Dispatching agent_tool_update event.
+[148605ms] Dispatching key_press event: 115
+[148657ms] Dispatching agent_tool_update event.
+[148760ms] Dispatching agent_tool_update event.
+[149485ms] Dispatching key_press event: 13
+[150355ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[150355ms] update_window_menu: 4 items
+[150356ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_command_registry''
+[150356ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882957129232575-9' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build '\''unit_command_registry'\''' 2>&1'
+[150392ms] Dispatching agent_tool_update event.
+[150392ms] Dispatching agent_tool_update event.
+[150392ms] Dispatching agent_tool_update event.
+[150576ms] [command_runner] Finished command (exit_code=1, elapsed=220ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build 'unit_command_registry''
+[150577ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[150577ms] Milestone classifier evaluated in 241 us (prob=0.0007)
+[150577ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[150597ms] Dispatching agent_tool_update event.
+[150597ms] Dispatching agent_tool_update event.
+[150597ms] Dispatching agent_tool_update event.
+[150597ms] Dispatching agent_tool_update event.
+[151051ms] Dispatching agent_tool_update event.
+[151105ms] Dispatching agent_tool_update event.
+[151160ms] Dispatching agent_tool_update event.
+[151214ms] Dispatching agent_tool_update event.
+[151268ms] Dispatching agent_tool_update event.
+[151322ms] Dispatching agent_tool_update event.
+[151377ms] Dispatching agent_tool_update event.
+[151431ms] Dispatching agent_tool_update event.
+[151485ms] Dispatching agent_tool_update event.
+[151539ms] Dispatching agent_tool_update event.
+[151593ms] Dispatching agent_tool_update event.
+[151648ms] Dispatching agent_tool_update event.
+[151702ms] Dispatching agent_tool_update event.
+[151756ms] Dispatching agent_tool_update event.
+[151810ms] Dispatching agent_tool_update event.
+[152598ms] Agent 2 (Agent) status: thinking -> tool_execution (parent_id=-1)
+[152598ms] update_window_menu: 4 items
+[152598ms] [command_runner] Executing raw_command: 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build'
+[152598ms] [command_runner] Sandboxed final_command: 'systemd-run --user --pipe --wait --quiet --unit='turbostar-project-default-1882959372123701-10' -p ProtectSystem=strict -p PrivateTmp=true -p PrivateDevices=true -p ProtectKernelTunables=true -p ProtectKernelModules=true -p MemoryDenyWriteExecute=true -p ProtectControlGroups=true -p RestrictRealtime=true -p PrivateNetwork=true -p ProtectHome=tmpfs -p WorkingDirectory='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/git/turbostar2' -p BindPaths='/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p 'Environment=LD_PRELOAD=/home/arjan/.local/libexec/turbostar/libturbocatch.so' -p 'Environment=TURBOSTAR_DUMP_DIR=/home/arjan/.cache/turbostar/projects/13068894668828675981/dumps' -p BindReadOnlyPaths='/home/arjan/.local/libexec/turbostar' -p BindPaths='/home/arjan/.cache/ccache' -p InaccessiblePaths='-/home/arjan/.ssh' -p InaccessiblePaths='-/home/arjan/.cache/turbostar/models.json' -- bash -c 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build' 2>&1'
+[152617ms] Dispatching agent_tool_update event.
+[152617ms] Dispatching agent_tool_update event.
+[152617ms] Dispatching agent_tool_update event.
+[152823ms] Dispatching agent_tool_update event.
+[152875ms] Dispatching agent_tool_update event.
+[152875ms] Dispatching agent_tool_update event.
+[152979ms] Dispatching agent_tool_update event.
+[153032ms] Dispatching agent_tool_update event.
+[153032ms] Dispatching agent_tool_update event.
+[153032ms] Dispatching agent_tool_update event.
+[153032ms] Dispatching agent_tool_update event.
+[153032ms] Dispatching agent_tool_update event.
+[153087ms] Dispatching agent_tool_update event.
+[153087ms] Dispatching agent_tool_update event.
+[153140ms] Dispatching agent_tool_update event.
+[153242ms] Dispatching agent_tool_update event.
+[153242ms] Dispatching agent_tool_update event.
+[153297ms] Dispatching agent_tool_update event.
+[153352ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153407ms] Dispatching agent_tool_update event.
+[153460ms] Dispatching agent_tool_update event.
+[153460ms] Dispatching agent_tool_update event.
+[153460ms] Dispatching agent_tool_update event.
+[153515ms] Dispatching agent_tool_update event.
+[153515ms] Dispatching agent_tool_update event.
+[153515ms] Dispatching agent_tool_update event.
+[153620ms] Dispatching agent_tool_update event.
+[153621ms] Dispatching agent_tool_update event.
+[153621ms] Dispatching agent_tool_update event.
+[153621ms] Dispatching agent_tool_update event.
+[153621ms] Dispatching agent_tool_update event.
+[153677ms] Dispatching agent_tool_update event.
+[153677ms] Dispatching agent_tool_update event.
+[153732ms] Dispatching agent_tool_update event.
+[153785ms] Dispatching agent_tool_update event.
+[153785ms] Dispatching agent_tool_update event.
+[153785ms] Dispatching agent_tool_update event.
+[153840ms] Dispatching agent_tool_update event.
+[153840ms] Dispatching agent_tool_update event.
+[153840ms] Dispatching agent_tool_update event.
+[153896ms] Dispatching agent_tool_update event.
+[153896ms] Dispatching agent_tool_update event.
+[153952ms] Dispatching agent_tool_update event.
+[154007ms] Dispatching agent_tool_update event.
+[154007ms] Dispatching agent_tool_update event.
+[154062ms] Dispatching agent_tool_update event.
+[154062ms] Dispatching agent_tool_update event.
+[154118ms] Dispatching agent_tool_update event.
+[154118ms] Dispatching agent_tool_update event.
+[154118ms] Dispatching agent_tool_update event.
+[154173ms] Dispatching agent_tool_update event.
+[154173ms] Dispatching agent_tool_update event.
+[154229ms] Dispatching agent_tool_update event.
+[154229ms] Dispatching agent_tool_update event.
+[154286ms] Dispatching agent_tool_update event.
+[154286ms] Dispatching agent_tool_update event.
+[154286ms] Dispatching agent_tool_update event.
+[154286ms] Dispatching agent_tool_update event.
+[154286ms] Dispatching agent_tool_update event.
+[154341ms] Dispatching agent_tool_update event.
+[154396ms] Dispatching agent_tool_update event.
+[154396ms] Dispatching agent_tool_update event.
+[154396ms] Dispatching agent_tool_update event.
+[154450ms] Dispatching agent_tool_update event.
+[154507ms] Dispatching agent_tool_update event.
+[154561ms] Dispatching agent_tool_update event.
+[154561ms] Dispatching agent_tool_update event.
+[154561ms] Dispatching agent_tool_update event.
+[154561ms] Dispatching agent_tool_update event.
+[154617ms] Dispatching agent_tool_update event.
+[154617ms] Dispatching agent_tool_update event.
+[154617ms] Dispatching agent_tool_update event.
+[154617ms] Dispatching agent_tool_update event.
+[154720ms] Dispatching agent_tool_update event.
+[154876ms] Dispatching agent_tool_update event.
+[155078ms] Dispatching agent_tool_update event.
+[155184ms] Dispatching agent_tool_update event.
+[155239ms] Dispatching agent_tool_update event.
+[155295ms] Dispatching agent_tool_update event.
+[155295ms] Dispatching agent_tool_update event.
+[155295ms] Dispatching agent_tool_update event.
+[155349ms] Dispatching agent_tool_update event.
+[155404ms] Dispatching agent_tool_update event.
+[155509ms] Dispatching agent_tool_update event.
+[155509ms] Dispatching agent_tool_update event.
+[155509ms] Dispatching agent_tool_update event.
+[155509ms] Dispatching agent_tool_update event.
+[155564ms] Dispatching agent_tool_update event.
+[155564ms] Dispatching agent_tool_update event.
+[155670ms] Dispatching agent_tool_update event.
+[155670ms] Dispatching agent_tool_update event.
+[155725ms] Dispatching agent_tool_update event.
+[155725ms] Dispatching agent_tool_update event.
+[155781ms] Dispatching agent_tool_update event.
+[155781ms] Dispatching agent_tool_update event.
+[155781ms] Dispatching agent_tool_update event.
+[155886ms] Dispatching agent_tool_update event.
+[155886ms] Dispatching agent_tool_update event.
+[155941ms] Dispatching agent_tool_update event.
+[155941ms] Dispatching agent_tool_update event.
+[155996ms] Dispatching agent_tool_update event.
+[155996ms] Dispatching agent_tool_update event.
+[156101ms] Dispatching agent_tool_update event.
+[156101ms] Dispatching agent_tool_update event.
+[156101ms] Dispatching agent_tool_update event.
+[156157ms] Dispatching agent_tool_update event.
+[156360ms] Dispatching agent_tool_update event.
+[156563ms] Dispatching agent_tool_update event.
+[156563ms] Dispatching agent_tool_update event.
+[156563ms] Dispatching agent_tool_update event.
+[156666ms] Dispatching agent_tool_update event.
+[156969ms] Dispatching agent_tool_update event.
+[157071ms] Dispatching agent_tool_update event.
+[157124ms] Dispatching agent_tool_update event.
+[157124ms] Dispatching agent_tool_update event.
+[157177ms] Dispatching agent_tool_update event.
+[157280ms] Dispatching agent_tool_update event.
+[157280ms] Dispatching agent_tool_update event.
+[157333ms] Dispatching agent_tool_update event.
+[157385ms] Dispatching agent_tool_update event.
+[157441ms] Dispatching agent_tool_update event.
+[157496ms] Dispatching agent_tool_update event.
+[157496ms] Dispatching agent_tool_update event.
+[157549ms] Dispatching agent_tool_update event.
+[157549ms] Dispatching agent_tool_update event.
+[157702ms] Dispatching agent_tool_update event.
+[157702ms] Dispatching agent_tool_update event.
+[157757ms] Dispatching agent_tool_update event.
+[157757ms] Dispatching agent_tool_update event.
+[157757ms] Dispatching agent_tool_update event.
+[157812ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157864ms] Dispatching agent_tool_update event.
+[157920ms] Dispatching agent_tool_update event.
+[157920ms] Dispatching agent_tool_update event.
+[157972ms] Dispatching agent_tool_update event.
+[158075ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158128ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158180ms] Dispatching agent_tool_update event.
+[158181ms] Dispatching agent_tool_update event.
+[158181ms] Dispatching agent_tool_update event.
+[158233ms] Dispatching agent_tool_update event.
+[158233ms] Dispatching agent_tool_update event.
+[158233ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158339ms] Dispatching agent_tool_update event.
+[158394ms] Dispatching agent_tool_update event.
+[158394ms] Dispatching agent_tool_update event.
+[158449ms] Dispatching agent_tool_update event.
+[158449ms] Dispatching agent_tool_update event.
+[158503ms] Dispatching agent_tool_update event.
+[158504ms] Dispatching agent_tool_update event.
+[158658ms] Dispatching agent_tool_update event.
+[158964ms] Dispatching agent_tool_update event.
+[159269ms] Dispatching agent_tool_update event.
+[159574ms] Dispatching agent_tool_update event.
+[159879ms] Dispatching agent_tool_update event.
+[160034ms] Dispatching agent_tool_update event.
+[160034ms] Dispatching agent_tool_update event.
+[160140ms] Dispatching agent_tool_update event.
+[160140ms] Dispatching agent_tool_update event.
+[160140ms] Dispatching agent_tool_update event.
+[160140ms] Dispatching agent_tool_update event.
+[160195ms] Dispatching agent_tool_update event.
+[160195ms] Dispatching agent_tool_update event.
+[160195ms] Dispatching agent_tool_update event.
+[160300ms] Dispatching agent_tool_update event.
+[160355ms] Dispatching agent_tool_update event.
+[160411ms] Dispatching agent_tool_update event.
+[160411ms] Dispatching agent_tool_update event.
+[160516ms] Dispatching agent_tool_update event.
+[160516ms] Dispatching agent_tool_update event.
+[160572ms] Dispatching agent_tool_update event.
+[160572ms] Dispatching agent_tool_update event.
+[160677ms] Dispatching agent_tool_update event.
+[160931ms] Dispatching agent_tool_update event.
+[160985ms] Dispatching agent_tool_update event.
+[160985ms] Dispatching agent_tool_update event.
+[160985ms] Dispatching agent_tool_update event.
+[161240ms] Dispatching agent_tool_update event.
+[161345ms] Dispatching agent_tool_update event.
+[161345ms] Dispatching agent_tool_update event.
+[161498ms] Dispatching agent_tool_update event.
+[161601ms] Dispatching agent_tool_update event.
+[161601ms] Dispatching agent_tool_update event.
+[161654ms] Dispatching agent_tool_update event.
+[161654ms] Dispatching agent_tool_update event.
+[161710ms] Dispatching agent_tool_update event.
+[161816ms] Dispatching agent_tool_update event.
+[161921ms] Dispatching agent_tool_update event.
+[161921ms] Dispatching agent_tool_update event.
+[161922ms] Dispatching agent_tool_update event.
+[162025ms] Dispatching agent_tool_update event.
+[162025ms] Dispatching agent_tool_update event.
+[162129ms] Dispatching agent_tool_update event.
+[162129ms] Dispatching agent_tool_update event.
+[162183ms] Dispatching agent_tool_update event.
+[162183ms] Dispatching agent_tool_update event.
+[162183ms] Dispatching agent_tool_update event.
+[162183ms] Dispatching agent_tool_update event.
+[162240ms] Dispatching agent_tool_update event.
+[162296ms] Dispatching agent_tool_update event.
+[162350ms] Dispatching agent_tool_update event.
+[162457ms] Dispatching agent_tool_update event.
+[162457ms] Dispatching agent_tool_update event.
+[162563ms] Dispatching agent_tool_update event.
+[162666ms] Dispatching agent_tool_update event.
+[162722ms] Dispatching agent_tool_update event.
+[162722ms] Dispatching agent_tool_update event.
+[162776ms] Dispatching agent_tool_update event.
+[162832ms] Dispatching agent_tool_update event.
+[162832ms] Dispatching agent_tool_update event.
+[162937ms] Dispatching agent_tool_update event.
+[162937ms] Dispatching agent_tool_update event.
+[163042ms] Dispatching agent_tool_update event.
+[163042ms] Dispatching agent_tool_update event.
+[163042ms] Dispatching agent_tool_update event.
+[163099ms] Dispatching agent_tool_update event.
+[163099ms] Dispatching agent_tool_update event.
+[163202ms] Dispatching agent_tool_update event.
+[163203ms] Dispatching agent_tool_update event.
+[163309ms] Dispatching agent_tool_update event.
+[163309ms] Dispatching agent_tool_update event.
+[163309ms] Dispatching agent_tool_update event.
+[163365ms] Dispatching agent_tool_update event.
+[163365ms] Dispatching agent_tool_update event.
+[163472ms] Dispatching agent_tool_update event.
+[163472ms] Dispatching agent_tool_update event.
+[163578ms] Dispatching agent_tool_update event.
+[163578ms] Dispatching agent_tool_update event.
+[163578ms] Dispatching agent_tool_update event.
+[163685ms] Dispatching agent_tool_update event.
+[163685ms] Dispatching agent_tool_update event.
+[163685ms] Dispatching agent_tool_update event.
+[163741ms] Dispatching agent_tool_update event.
+[163742ms] Dispatching agent_tool_update event.
+[163798ms] Dispatching agent_tool_update event.
+[163798ms] Dispatching agent_tool_update event.
+[163854ms] Dispatching agent_tool_update event.
+[163910ms] Dispatching agent_tool_update event.
+[163910ms] Dispatching agent_tool_update event.
+[164017ms] Dispatching agent_tool_update event.
+[164017ms] Dispatching agent_tool_update event.
+[164124ms] Dispatching agent_tool_update event.
+[164124ms] Dispatching agent_tool_update event.
+[164124ms] Dispatching agent_tool_update event.
+[164180ms] Dispatching agent_tool_update event.
+[164180ms] Dispatching agent_tool_update event.
+[164286ms] Dispatching agent_tool_update event.
+[164286ms] Dispatching agent_tool_update event.
+[164342ms] Dispatching agent_tool_update event.
+[164343ms] Dispatching agent_tool_update event.
+[164343ms] Dispatching agent_tool_update event.
+[164449ms] Dispatching agent_tool_update event.
+[164449ms] Dispatching agent_tool_update event.
+[164506ms] Dispatching agent_tool_update event.
+[164506ms] Dispatching agent_tool_update event.
+[164611ms] Dispatching agent_tool_update event.
+[164611ms] Dispatching agent_tool_update event.
+[164668ms] Dispatching agent_tool_update event.
+[164668ms] Dispatching agent_tool_update event.
+[164975ms] Dispatching agent_tool_update event.
+[165077ms] Dispatching agent_tool_update event.
+[165281ms] Dispatching agent_tool_update event.
+[165483ms] Dispatching agent_tool_update event.
+[165590ms] Dispatching agent_tool_update event.
+[165590ms] Dispatching agent_tool_update event.
+[165590ms] Dispatching agent_tool_update event.
+[165696ms] Dispatching agent_tool_update event.
+[165752ms] Dispatching agent_tool_update event.
+[165858ms] Dispatching agent_tool_update event.
+[165859ms] Dispatching agent_tool_update event.
+[165912ms] Dispatching agent_tool_update event.
+[166016ms] Dispatching agent_tool_update event.
+[166069ms] Dispatching agent_tool_update event.
+[166127ms] Dispatching agent_tool_update event.
+[166127ms] Dispatching agent_tool_update event.
+[166183ms] Dispatching agent_tool_update event.
+[166183ms] Dispatching agent_tool_update event.
+[166183ms] Dispatching agent_tool_update event.
+[166183ms] Dispatching agent_tool_update event.
+[166183ms] Dispatching agent_tool_update event.
+[166196ms] [command_runner] Finished command (exit_code=1, elapsed=13597ms): 'MESON_TESTTHREADS=2 meson test -C /home/arjan/git/turbostar2/build'
+[166803ms] Agent 2 (Agent) status: tool_execution -> thinking (parent_id=-1)
+[166803ms] Agent 2 (Agent) status: thinking -> thinking (parent_id=-1)
+[166840ms] Dispatching agent_tool_update event.
+[166840ms] Dispatching agent_tool_update event.
+[166840ms] Dispatching agent_tool_update event.
+[167251ms] Dispatching key_press event: -102
+[167251ms] Menu activated: File
+[167251ms] Focus change: alt_key -> menu_bar
+[167251ms] update_window_menu: 4 items
+[168851ms] Dispatching key_press event: 120
+[168851ms] Menu handle_key: 120
+[168851ms] Menu pushing hotkey event: 1
+[168851ms] Focus change: menu_close -> window
+[168851ms] Dispatching quit event.
+[168851ms] Application exit requested (source: quit clean, no dirty docs).
+[168856ms] agent_animation_registry: Unregistered animation 'securityagent'
+[168856ms] agent_animation_registry: Unregistered animation 'securityagent'
+[168856ms] agent_animation_registry: Unregistered animation 'a2acardgenerator'
+[168857ms] Exiting application loop.
+[168857ms] Thread exited: lsp_manager message_thread
+[168857ms] Application exiting main().
+[168857ms] Thread exited: git_manager worker_loop
+[168858ms] [page_out_prior_context] called. target_episode_id=, include_all_prior=true, flat_convo.size()=128
+[168858ms] [page_out_prior_context] start_index=1, end_index=123
+[168858ms] [page_out_prior_context] Delegating to page_out_context...
+[168858ms] [page_out_context] start_index=1, end_index=123, flat_convo.size()=128
+[168871ms] Paged out 122 turns to episode_4
+[168872ms] Thread exited: document highlighter_thread_loop (docs/todo.md)
+[168873ms] Thread exited: ai_agent main loop (2) [closed early]
+[168873ms] Thread exited: ai_agent summary worker
+[168923ms] Thread exited: project_manager software_map_thread

@@ -30,7 +30,6 @@ systemd-run --user --pty --pipe --wait \
   --unit="turbostar-project-<project_hash>-<random>" \
   -p ProtectSystem=strict \
   -p PrivateTmp=true \
-  -p PrivateDevices=true \
   -p ProtectKernelTunables=true \
   -p ProtectKernelModules=true \
   -p MemoryDenyWriteExecute=true \

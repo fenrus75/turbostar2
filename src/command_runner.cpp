@@ -147,7 +147,6 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	cmd += "--unit=" + fs_utils::escape_shell_arg(unit_name) + " ";
 	cmd += "-p ProtectSystem=strict ";
 	cmd += "-p PrivateTmp=true ";
-	cmd += "-p PrivateDevices=true ";
 	cmd += "-p ProtectKernelTunables=true ";
 	cmd += "-p ProtectKernelModules=true ";
 	cmd += "-p MemoryDenyWriteExecute=true ";
