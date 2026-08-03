@@ -47,7 +47,7 @@ int main()
 	std::string codemap_res = registry.execute_tool("fs_file_codemap", codemap_args.dump(), ctx);
 	std::cout << "fs_file_codemap output:\n" << codemap_res << "\n";
 	assert(codemap_res.find("Codemap for `test_sample_impl.cpp`") != std::string::npos);
-	assert(codemap_res.find("| Symbol | Kind | Start Line | End Line | Lines |") != std::string::npos);
+	assert(codemap_res.find("| Symbol | Start Line | End Line | Lines |") != std::string::npos);
 	assert(codemap_res.find("`sample_foo`") != std::string::npos);
 	assert(codemap_res.find("`sample_bar`") != std::string::npos);
 

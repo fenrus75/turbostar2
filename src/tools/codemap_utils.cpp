@@ -216,10 +216,10 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 		} else {
 			ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, symbols.size());
 		}
-		ss << "| Symbol | Kind | Start Line | End Line | Lines |\n";
-		ss << "| :--- | :--- | :---: | :---: | :---: |\n";
+		ss << "| Symbol | Start Line | End Line | Lines |\n";
+		ss << "| :--- | :---: | :---: | :---: |\n";
 		for (const auto &sym : symbols) {
-			ss << std::format("| `{}` | {} | {} | {} | {} |\n", sym.display_name, sym.kind_str, sym.start_line, sym.end_line, sym.line_count);
+			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 		}
 	} else {
 		ss << std::format("### Codemap for `{}`:\n\n", display_path);
