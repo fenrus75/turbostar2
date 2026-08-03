@@ -596,7 +596,6 @@ system_vfs_provider::system_vfs_provider()
 	register_description("languages/verilog.md", "Read when writing or refactoring Verilog/SystemVerilog code.");
 
 	register_description("workflows/code_review.md", "Read before conducting multi-file code reviews, performing file slicing, or managing review item checklists.");
-	register_description("workflows/plan_mode.md", "Read when entering plan mode for complex multi-file tasks, executing read-only exploration, or forming plans.");
 	register_description("workflows/crash_analysis.md", "Read when investigating crash reports, core dumps, log tracebacks, or test failures via What-How-Where protocol.");
 
 	register_description("agents.md", "Read to discover available subagent profiles and their specialization roles before invoking subagents.");
@@ -671,9 +670,6 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	}
 	if (path == "code_review.md") {
 		return "workflows/code_review.md";
-	}
-	if (path == "plan_mode.md") {
-		return "workflows/plan_mode.md";
 	}
 	if (path == "crash_analysis.md") {
 		return "workflows/crash_analysis.md";

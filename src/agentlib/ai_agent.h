@@ -163,27 +163,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	bool is_mutation_possible() const;
 
-	bool is_planning() const
-	{
-		return is_planning_.load();
-	}
-	void set_planning(bool planning, size_t start_index = 0);
-	size_t get_planning_start_index() const
-	{
-		return planning_start_index_;
-	}
-
-	std::string get_plan_file() const
-	{
-		std::lock_guard<std::mutex> lock(planning_mutex_);
-		return plan_file_;
-	}
-	void set_plan_file(const std::string &file)
-	{
-		std::lock_guard<std::mutex> lock(planning_mutex_);
-		plan_file_ = file;
-	}
-
 	void set_parent(std::weak_ptr<ai_agent> parent)
 	{
 		parent_agent_ = std::move(parent);
@@ -297,16 +276,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void summary_worker_loop();
 
 	std::string current_tool_;
-	std::atomic<bool> is_planning_{false};
-	size_t planning_start_index_{0};
-
-	/*
-	 * planning_mutex_ protects the plan_file_ path string.
-	 * Locking Rules:
-	 * - Held briefly during get_plan_file() and set_plan_file() accesses.
-	 */
-	mutable std::mutex planning_mutex_;
-	std::string plan_file_;
 
 	std::weak_ptr<ai_agent> parent_agent_;
 

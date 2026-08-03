@@ -77,7 +77,6 @@ enum class event_type {
 	agent_show_sidebar,	    ///< Request to show the active agent window's sidebar status pane
 	apply_edits,		    ///< Request to apply JSON-serialized LLM edits to the live document
 	prompt_user,		    ///< Request to prompt the user with a question and options
-	approve_plan,		    ///< Request to prompt the user to approve a plan
 	paste,			    ///< A bracketed paste event
 	set_transient_status,	    ///< Set a temporary message in the status bar
 	inline_agent_request,	    ///< Request for a headless agent operation

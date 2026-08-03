@@ -4,15 +4,6 @@
 
 namespace tools {
 
-bool fs_replace_content_validator::is_allowed_in_plan_mode(const nlohmann::json& args, const agentlib::tool_context& ctx) const {
-    if (!args.contains("path") || !args["path"].is_string()) return false;
-    std::string path = args["path"].get<std::string>();
-    if (path.starts_with("tmp://") || path.starts_with("tmp:/")) return true;
-    if (!ctx.active_agent) return false;
-    std::string plan_file = ctx.active_agent->get_plan_file();
-    return !plan_file.empty() && path == plan_file;
-}
-
 bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const {
     try {
         if (!raw_args.contains("path") || !raw_args["path"].is_string()) {

@@ -246,16 +246,6 @@ void claude_connection::send_prompt(
 	auto active_tools = tool_registry::get_instance().get_active_tools(true, properties);
 	for (const auto &validator : active_tools) {
 		std::string desc = validator->get_description();
-		if (validator->is_allowed_in_plan_mode_statically()) {
-			if (validator->is_pure()) {
-				desc += " [Read-Only: Safe for Plan Mode]";
-			} else {
-				desc += " [State-Modifying: Allowed in Plan Mode]";
-			}
-		} else {
-			desc += " [State-Modifying: Blocked in Plan Mode]";
-		}
-
 		std::string tool_name = validator->get_name();
 		if (tool_name.starts_with("mcp:")) {
 			std::string res = tool_name;

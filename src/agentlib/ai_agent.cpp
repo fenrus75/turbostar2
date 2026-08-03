@@ -468,18 +468,6 @@ bool ai_agent::load_active_state(bool fresh_agent)
 			final_result_ = root["final_result"].get<std::string>();
 		}
 
-		if (root.contains("is_planning") && root["is_planning"].is_boolean()) {
-			bool planning = root["is_planning"].get<bool>();
-			size_t start_idx = 0;
-			if (root.contains("planning_start_index") && root["planning_start_index"].is_number_integer()) {
-				start_idx = root["planning_start_index"].get<size_t>();
-			}
-			set_planning(planning, start_idx);
-		}
-		if (root.contains("plan_file") && root["plan_file"].is_string()) {
-			set_plan_file(root["plan_file"].get<std::string>());
-		}
-
 		if (root.contains("conversation")) {
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
 			if (root["conversation"].is_object()) {
@@ -693,12 +681,6 @@ void ai_agent::clear_conversation()
 	{
 		std::lock_guard<std::mutex> lock(state_mutex_);
 		subagents_.clear();
-		is_planning_ = false;
-		{
-			std::lock_guard<std::mutex> plan_lock(planning_mutex_);
-			plan_file_.clear();
-		}
-		planning_start_index_ = 0;
 		status_ = agent_status::idle;
 	}
 
@@ -1993,10 +1975,6 @@ void ai_agent::save_conversation(const std::string &filepath) const
 	} else {
 		root["conversation"] = nlohmann::json::object();
 	}
-
-	root["is_planning"] = is_planning_.load();
-	root["planning_start_index"] = planning_start_index_;
-	root["plan_file"] = get_plan_file();
 
 	std::ofstream file(filepath);
 	if (file.is_open()) {
@@ -3507,18 +3485,6 @@ void ai_agent::set_properties(const agent_properties &props)
 {
 	std::lock_guard<std::mutex> lock(properties_mutex_);
 	properties_ = props;
-}
-
-void ai_agent::set_planning(bool planning, size_t start_index)
-{
-	is_planning_.store(planning);
-	if (planning) {
-		planning_start_index_ = start_index;
-		set_read_only(true);
-	} else {
-		set_plan_file("");
-		set_read_only(get_role() == agent_role::summarizer);
-	}
 }
 
 } // namespace agentlib

@@ -57,17 +57,6 @@ public:
     // Indicates if the tool's execution should be hidden from the UI by default.
     virtual bool is_silent_by_default() const { return is_pure(); }
 
-    // Indicates if the tool can be executed while the agent is in plan mode.
-    // By default, pure tools are allowed.
-    virtual bool is_allowed_in_plan_mode(const nlohmann::json& /*args*/, const tool_context& /*ctx*/) const {
-        return is_pure();
-    }
-
-    // Indicates if the tool is generally allowed in plan mode, used for model descriptions.
-    virtual bool is_allowed_in_plan_mode_statically() const {
-        return is_pure();
-    }
-
     // Indicates if the tool can be executed by the given agent properties.
     // By default, summarizers are allowed no tools, while other roles can run any tool.
     virtual bool is_allowed_for_agent(const agent_properties &properties) const;

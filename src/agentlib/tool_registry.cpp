@@ -162,16 +162,6 @@ nlohmann::json tool_registry::get_tools_json(bool mutation_possible, const agent
 		}
 
 		std::string desc = validator->get_description();
-		if (validator->is_allowed_in_plan_mode_statically()) {
-			if (validator->is_pure()) {
-				desc += " [Read-Only: Safe for Plan Mode]";
-			} else {
-				desc += " [State-Modifying: Allowed in Plan Mode]";
-			}
-		} else {
-			desc += " [State-Modifying: Blocked in Plan Mode]";
-		}
-
 		tool_name = validator->get_name();
 		if (tool_name.starts_with("mcp:")) {
 			tool_name = serialize_mcp_name(tool_name);
@@ -318,12 +308,9 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	}
 
 	if (ctx.properties.read_only && !validator->is_pure()) {
-		bool allowed_in_plan = (ctx.active_agent && ctx.active_agent->is_planning() && validator->is_allowed_in_plan_mode_statically());
-		if (!allowed_in_plan) {
-			res.error_message =
-			    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
-			return res;
-		}
+		res.error_message =
+		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
+		return res;
 	}
 
 	nlohmann::json args;
@@ -334,14 +321,7 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (ctx.active_agent && ctx.active_agent->is_planning()) {
-		if (!validator->is_allowed_in_plan_mode(args, ctx)) {
-			res.error_message =
-			    "Security Violation: Agent is currently in Plan Mode and cannot execute state-modifying tool '" + name +
-			    "'. You must call exit_plan_mode first, or only edit the designated plan file.";
-			return res;
-		}
-	}
+
 
 	// Stage 1 Security: Pre-invocation validation
 	std::string security_error;

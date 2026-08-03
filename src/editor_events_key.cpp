@@ -141,7 +141,7 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (val == "hex") {
 				open_file_as_binary(pending_open_filename_);
 			}
-		} else if (active_dialog_mode_ == dialog_mode::ask_user || active_dialog_mode_ == dialog_mode::approve_plan) {
+		} else if (active_dialog_mode_ == dialog_mode::ask_user) {
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value(active_dialog_->get_result());
 				active_ask_user_promise_.reset();
@@ -917,7 +917,7 @@ void editor::resolve_dialog(dialog_result res)
 			set_focus(focus_target::dialog, "image_manager");
 			return;
 		}
-		if (active_dialog_mode_ == dialog_mode::ask_user || active_dialog_mode_ == dialog_mode::approve_plan) {
+		if (active_dialog_mode_ == dialog_mode::ask_user) {
 			if (active_ask_user_promise_) {
 				active_ask_user_promise_->set_value("");
 				active_ask_user_promise_.reset();

@@ -199,7 +199,6 @@ class editor : public agentlib::document_provider
 		reload_prompt,
 		force_quit_prompt,
 		ask_user,
-		approve_plan,
 		model_list,
 		model_edit,
 		model_selection,

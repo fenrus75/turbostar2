@@ -838,14 +838,6 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::approve_plan) {
-		logger.log("Dispatching approve_plan event.");
-		active_ask_user_promise_ = ev.prompt_promise;
-		active_dialog_ = create_plan_approval_dialog(ev.payload);
-		active_dialog_mode_ = dialog_mode::approve_plan;
-		set_focus(focus_target::dialog, "approve_plan");
-		return;
-	}
 
 	if (ev.type == event_type::set_transient_status) {
 		set_status_message(ev.payload, ev.priority, std::chrono::seconds(5));

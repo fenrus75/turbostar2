@@ -26,9 +26,6 @@ public:
     agentlib::access_type get_required_permission() const override { return agentlib::access_type::write; }
     bool is_pure() const override { return false; }
     
-    bool is_allowed_in_plan_mode(const nlohmann::json& args, const agentlib::tool_context& ctx) const override;
-    bool is_allowed_in_plan_mode_statically() const override { return true; }
-
     std::unique_ptr<agentlib::llm_tool> create_tool_from_resolved_path(const std::string& safe_path) const override;
 };
 
