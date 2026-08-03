@@ -1,7 +1,7 @@
 # C++23 Development Guidelines
 
 ## Code Conventions
-- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings).
+- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings, ranged for loops).
 - **Include Guards**: Prefer `#pragma once`.
 - **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`.
 - **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.

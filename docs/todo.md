@@ -15,17 +15,7 @@
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
 
-# daily usage blockers -- top priority items
-
-- fs_file_codemap  - provide a quick overview (using LSP) with a table of
-	 | function | start line | end line|
-
-    - if this table is small (< 10 entries) consider putting it in the result of fs_read_lines
-    - special magic: when doing fs_read_lines on a header, provide this also for the matching .cpp file automatic!
-
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
-- test suite in both 1 and parallel mode?
-
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
 		- well we need tupple: plugin, name -> value, so it's slightly more complex
