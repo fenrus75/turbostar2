@@ -36,7 +36,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.
 
 ### `fs_read_lines`
-*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format.
+*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
@@ -112,7 +112,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 *Note: All mutation tools enforce write-access permissions and strictly prevent modifying files currently active in an editor buffer to avoid race conditions.*
 
 ### `fs_replace_lines`
-*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets.
+*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets. Large edit blocks (> 10 lines) report head and tail context lines with omitted line counts to conserve context space.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `edits` *(array of objects, required)*: A list of edit operations.
