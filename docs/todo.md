@@ -16,12 +16,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # daily usage blockers -- top priority items
-- fs_run_tests also needs to run the meson filter
+
+- 503 handling -- wait 60 seconds and try again, upto 3 times?
+	- for busy servers
 
 - our own testlist is hindered by our sandbox - we may need to open it a bit? uv fails for example
-
-- fs_edit_lines -- code after edits may be large! need to ponder what to do
-	- option: show few lines at the start of the edit and few lines at the end of the edit only
 
 - test suite in both 1 and parallel mode?
 
@@ -279,7 +278,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Agent Performance Sampling & `agent_start_app`: Added optional `collect_performance` boolean parameter to `agent_start_app` tool schema. Wired `collect_performance` through `document_provider`, `editor::start_app`, `editor_event`, `terminal_window`, and `command_runner` to set `TURBOSTAR_PERF_DIR` and grant sandbox permissions for CPU sampling via `libturbocatch.so`. Updated `docs/tools.md` and added unit test case in `tests/unit/test_agent_start_app.cpp`.
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
-## 03-08-2026
+- `fs_replace_lines` Large Output Truncation (`src/tools/fs_replace_lines/fs_replace_lines_entry.cpp`, `tests/unit/test_fs_replace_lines.cpp`):
+  1. Implemented range output truncation for large edit blocks (`> 10` lines).
+  2. Displays top 5 head lines, an omission marker (`... [N lines omitted (lines X - Y)] ...`), and bottom 5 tail lines for a total of 10 code lines.
+  3. Added unit test assertion in `test_fs_replace_lines.cpp` and verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
 - Dedicated "Security" Tab in AI & Agent Settings Dialog (`src/ui/dialog_ai.cpp`, `src/ui/dialog_settings.cpp`, `src/config_manager.h/cpp`, `src/tools/fs_run_tests/`, `src/ui/terminal_window.cpp`, `tests/unit/test_options_dialogs.cpp`):
   1. Created a dedicated "Security" tab in `create_ai_settings_dialog()` (`src/ui/dialog_ai.cpp`).
   2. Moved `paranoid_mode` ("Paranoid Security Mode") and `shell_display_access` ("Shell display access") to the new "Security" tab.

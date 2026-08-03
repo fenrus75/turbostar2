@@ -566,10 +566,28 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 
 	int current_shift = 0;
 	size_t hunk_idx = 0;
+	constexpr int MAX_FULL_DISPLAY_LINES = 10;
+	constexpr int CONTEXT_HALF = MAX_FULL_DISPLAY_LINES / 2;
+
 	for (const auto &r : merged_ranges) {
-		result_msg += std::format("Code after edit for lines {} - {}:\n", r.first, r.second);
-		for (int l = r.first; l <= r.second; ++l) {
-			result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+		int range_len = r.second - r.first + 1;
+		if (range_len <= MAX_FULL_DISPLAY_LINES) {
+			result_msg += std::format("Code after edit for lines {} - {}:\n", r.first, r.second);
+			for (int l = r.first; l <= r.second; ++l) {
+				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+			}
+		} else {
+			result_msg += std::format("Code after edit for lines {} - {} ({} lines, truncated):\n", r.first, r.second, range_len);
+			for (int l = r.first; l < r.first + CONTEXT_HALF; ++l) {
+				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+			}
+			int omitted_start = r.first + CONTEXT_HALF;
+			int omitted_end = r.second - CONTEXT_HALF;
+			int omitted_count = omitted_end - omitted_start + 1;
+			result_msg += std::format("... [{} lines omitted (lines {} - {})] ...\n", omitted_count, omitted_start, omitted_end);
+			for (int l = r.second - CONTEXT_HALF + 1; l <= r.second; ++l) {
+				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
+			}
 		}
 
 		// Find current shift at the end of this range
