@@ -43,6 +43,7 @@ public:
     void apply_internal_profile();
     void apply_build_profile();
     void apply_strict_agent_profile();
+    void add_cache_rw_exceptions();
 
 
     // The core execution engine.

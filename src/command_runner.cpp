@@ -40,6 +40,52 @@ void command_runner::apply_internal_profile()
 	bypass_crashdump_check_ = true;
 }
 
+void command_runner::add_cache_rw_exceptions()
+{
+	const char *home = std::getenv("HOME");
+	if (!home)
+		return;
+
+	std::string home_str(home);
+	if (home_str.starts_with("/tmp") || home_str.starts_with("/var/tmp"))
+		return;
+
+	std::string ccache_dir = home_str + "/.ccache";
+	if (std::filesystem::exists(ccache_dir)) {
+		extra_rw_paths_.push_back(ccache_dir);
+	}
+	std::string xdg_ccache_dir = home_str + "/.cache/ccache";
+	if (std::filesystem::exists(xdg_ccache_dir)) {
+		extra_rw_paths_.push_back(xdg_ccache_dir);
+	}
+
+	// Allow uv cache write access for python/uv builds and test execution
+	std::vector<std::string> uv_dirs = {
+		home_str + "/.cache/uv",
+		home_str + "/.uv"
+	};
+	const char *uv_cache_env = std::getenv("UV_CACHE_DIR");
+	if (uv_cache_env && *uv_cache_env) {
+		uv_dirs.push_back(uv_cache_env);
+	}
+	const char *xdg_cache_env = std::getenv("XDG_CACHE_HOME");
+	if (xdg_cache_env && *xdg_cache_env) {
+		uv_dirs.push_back(std::string(xdg_cache_env) + "/uv");
+	}
+
+	for (const auto &dir : uv_dirs) {
+		std::error_code ec;
+		if (!dir.starts_with("/tmp") && !dir.starts_with("/var/tmp")) {
+			if (!std::filesystem::exists(dir, ec)) {
+				std::filesystem::create_directories(dir, ec);
+			}
+			if (std::filesystem::exists(dir, ec)) {
+				extra_rw_paths_.push_back(dir);
+			}
+		}
+	}
+}
+
 void command_runner::apply_build_profile()
 {
 	apply_default_profile();
@@ -52,47 +98,7 @@ void command_runner::apply_build_profile()
 	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 
-	// Allow ccache and uv write access if the user has them configured
-	const char *home = std::getenv("HOME");
-	if (home) {
-		std::string home_str(home);
-		if (!home_str.starts_with("/tmp") && !home_str.starts_with("/var/tmp")) {
-			std::string ccache_dir = home_str + "/.ccache";
-			if (std::filesystem::exists(ccache_dir)) {
-				extra_rw_paths_.push_back(ccache_dir);
-			}
-			std::string xdg_ccache_dir = home_str + "/.cache/ccache";
-			if (std::filesystem::exists(xdg_ccache_dir)) {
-				extra_rw_paths_.push_back(xdg_ccache_dir);
-			}
-
-			// Allow uv cache write access for python/uv builds and test execution
-			std::vector<std::string> uv_dirs = {
-				home_str + "/.cache/uv",
-				home_str + "/.uv"
-			};
-			const char *uv_cache_env = std::getenv("UV_CACHE_DIR");
-			if (uv_cache_env && *uv_cache_env) {
-				uv_dirs.push_back(uv_cache_env);
-			}
-			const char *xdg_cache_env = std::getenv("XDG_CACHE_HOME");
-			if (xdg_cache_env && *xdg_cache_env) {
-				uv_dirs.push_back(std::string(xdg_cache_env) + "/uv");
-			}
-
-			for (const auto &dir : uv_dirs) {
-				std::error_code ec;
-				if (!dir.starts_with("/tmp") && !dir.starts_with("/var/tmp")) {
-					if (!std::filesystem::exists(dir, ec)) {
-						std::filesystem::create_directories(dir, ec);
-					}
-					if (std::filesystem::exists(dir, ec)) {
-						extra_rw_paths_.push_back(dir);
-					}
-				}
-			}
-		}
-	}
+	add_cache_rw_exceptions();
 }
 
 void command_runner::apply_strict_agent_profile()
@@ -106,6 +112,8 @@ void command_runner::apply_strict_agent_profile()
 		project_dir_ = std::filesystem::current_path(ec).string();
 	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
+
+	add_cache_rw_exceptions();
 }
 
 std::string command_runner::build_command(const std::string &raw_command) const
