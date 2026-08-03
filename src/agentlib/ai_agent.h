@@ -123,6 +123,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return active_tokens_.load();
 	}
 	std::vector<compaction_segment> get_compaction_segments() const;
+	std::string get_current_system_prompt() const;
 	double get_estimated_cost() const
 	{
 		return estimated_cost_;

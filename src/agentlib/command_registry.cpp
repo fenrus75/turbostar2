@@ -6,7 +6,9 @@
 #include "event_queue.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include <algorithm>
+#include <fstream>
 #include <format>
 
 using namespace agentlib;
@@ -316,6 +318,50 @@ class rescan_command : public agent_command
 	}
 };
 
+class sysprompt_command : public agent_command
+{
+      public:
+	std::string get_name() const override { return "sysprompt"; }
+	std::string get_description() const override { return "Dump the full system prompt to a file (optional: [filename])"; }
+	void execute(const context &ctx) override
+	{
+		if (!ctx.agent) {
+			return;
+		}
+
+		std::string filename = ctx.arguments;
+		size_t start = filename.find_first_not_of(" \t\r\n");
+		if (start == std::string::npos) {
+			filename = "system_prompt_dump.md";
+		} else {
+			size_t end = filename.find_last_not_of(" \t\r\n");
+			filename = filename.substr(start, end - start + 1);
+		}
+
+		std::filesystem::path target_path(filename);
+		if (target_path.is_relative()) {
+			std::string proj_root = project_manager::get_instance().get_project_root();
+			if (!proj_root.empty()) {
+				target_path = std::filesystem::path(proj_root) / target_path;
+			}
+		}
+
+		std::string sys_prompt = ctx.agent->get_current_system_prompt();
+		std::ofstream out(target_path);
+		if (!out.is_open()) {
+			ctx.agent->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+			    std::format("Failed to write system prompt to: {}", target_path.string())));
+			return;
+		}
+
+		out << sys_prompt;
+		out.close();
+
+		ctx.agent->add_interaction(std::make_shared<agentlib::interaction_system_message>(
+		    std::format("Full system prompt written to: {} ({} characters)", target_path.string(), sys_prompt.length())));
+	}
+};
+
 } // namespace
 
 command_registry &command_registry::get_instance()
@@ -341,6 +387,7 @@ command_registry::command_registry()
 	register_command(std::make_unique<pagein_command>());
 	register_command(std::make_unique<clear_command>());
 	register_command(std::make_unique<rescan_command>());
+	register_command(std::make_unique<sysprompt_command>());
 }
 
 void command_registry::register_command(std::unique_ptr<agent_command> cmd)

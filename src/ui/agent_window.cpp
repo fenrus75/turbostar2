@@ -182,7 +182,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 			editor_event status_ev;
 			status_ev.type = event_type::set_transient_status;
 			status_ev.payload =
-			    "Commands: /help /info /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact /rescan /clear";
+			    "Commands: /help /info /quit /save /stats /memory /episode /pageout /pagein /model /mcp /skills /compact /rescan /sysprompt /clear";
 			status_ev.priority = status_priorities::INFO;
 			if (agent_->get_global_queue()) {
 				agent_->get_global_queue()->push(status_ev);

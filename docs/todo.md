@@ -14,8 +14,8 @@
 ## Style note for the website
 remember to describe features in terms of the benefit to the user or the agent, not the implementation details
 
-# short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+# daily usage blockers -- top priority items
 - exit plan mode is rather terrible -- the plan does not scroll in the dialog nor can it open it in a document
 
 - fs_run_tests also needs to run the meson filter
@@ -23,6 +23,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - our own testlist is hindered by our sandbox - we may need to open it a bit? uv fails for example
 
 - fs_edit_lines -- code after edits may be large! need to ponder what to do
+
+- our system prompt is too large by far -- need a full scrub
+
+# short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+
 
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
@@ -276,6 +281,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
 ## 03-08-2026
+- `/sysprompt` TUI Slash Command for System Prompt Inspection (`src/agentlib/ai_agent.h/cpp`, `src/agentlib/command_registry.cpp`, `src/ui/agent_window.cpp`, `tests/unit/test_sysprompt_command.cpp`, `meson.build`, `docs/todo.md`):
+  1. Implemented `/sysprompt [filename]` slash command in `command_registry` to dump the current agent's full system prompt to a file (defaulting to `system_prompt_dump.md` in project root).
+  2. Added `ai_agent::get_current_system_prompt()` to extract the exact active system prompt turn content or original system prompt text.
+  3. Added `/sysprompt` to slash command completion help hints in `agent_window`.
+  4. Added `test_sysprompt_command.cpp` unit test suite to verify default and custom file dumping.
+  5. Verified 100% test suite pass rate (248 OK, 1 Expected Fail, 2 Skipped).
 - `/rescan` TUI Slash Command & Menu Subagent Hot-Reloading (`src/agentlib/subagent_manager.h/cpp`, `src/agentlib/command_registry.cpp`, `src/ui/menu_bar.cpp`, `src/editor_events.cpp`, `src/editor_events_ui.cpp`, `src/ui/agent_window.cpp`, `tests/unit/test_subagent_manager.cpp`, `docs/todo.md`):
   1. Implemented `/rescan` slash command in `command_registry` and added `Rescan Subagents` menu item under Options menu.
   2. Implemented `subagent_manager::rescan()` to hot-reload custom subagent definitions from disk (`agents/` directory) at runtime without requiring an editor restart.

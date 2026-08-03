@@ -955,6 +955,32 @@ void ai_agent::update_system_prompt_with_families()
 	}
 }
 
+std::string ai_agent::get_current_system_prompt() const
+{
+	std::lock_guard<std::mutex> lock(conversation_mutex_);
+	if (conversation_) {
+		if (auto curr_ep = conversation_->get_current_episode()) {
+			for (const auto &tx : curr_ep->get_transactions()) {
+				for (const auto &turn : tx->get_turns()) {
+					if (turn->get_type() == turn_type::system) {
+						return turn->get_content();
+					}
+				}
+			}
+		}
+		for (const auto &ep : conversation_->get_episodes()) {
+			for (const auto &tx : ep->get_transactions()) {
+				for (const auto &turn : tx->get_turns()) {
+					if (turn->get_type() == turn_type::system) {
+						return turn->get_content();
+					}
+				}
+			}
+		}
+	}
+	return original_system_prompt_;
+}
+
 void ai_agent::increment_stat(const std::string &key, int amount)
 {
 	std::lock_guard<std::mutex> lock(stats_mutex_);

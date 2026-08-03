@@ -1487,6 +1487,12 @@ test_editor_tool_family = executable('test_editor_tool_family',
   include_directories: inc)
 test('unit_editor_tool_family', test_editor_tool_family, suite: 'agent')
 
+test_sysprompt_command = executable('test_sysprompt_command',
+  ['tests/unit/test_sysprompt_command.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, thread_dep, nlohmann_json_dep],
+  include_directories: inc)
+test('unit_sysprompt_command', test_sysprompt_command, suite: 'agent')
+
 test_security_review_with_agent = executable('test_security_review_with_agent',
   ['tests/unit/test_security_review_with_agent.cpp',
    'src/plugins/securityagent/security_review_with_agent/security_review_with_agent_entry.cpp',
