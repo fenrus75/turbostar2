@@ -228,6 +228,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto shell_display = dlg.get_value("shell_display_access");
 	if (shell_display)
 		cfg.set_shell_display_access(*shell_display == "true");
+
+	auto paranoid = dlg.get_value("paranoid_mode");
+	if (paranoid)
+		cfg.set_paranoid_mode(*paranoid == "true");
 }
 
 std::unique_ptr<dialog> create_editor_settings_dialog()

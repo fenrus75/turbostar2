@@ -26,11 +26,13 @@ int main()
 	editor_dlg->flow();
 	apply_editor_settings_from_dialog(*editor_dlg);
 
-	// 2. Test AI & Agent Settings Dialog
+	// 2. Test AI & Agent Settings Dialog (with dedicated Security tab)
 	auto ai_dlg = create_ai_settings_dialog();
 	assert(ai_dlg != nullptr);
 	assert(ai_dlg->get_title() == "AI & Agent Settings");
 	ai_dlg->flow();
+	assert(ai_dlg->get_value("paranoid_mode").has_value());
+	assert(ai_dlg->get_value("shell_display_access").has_value());
 	apply_ai_settings_from_dialog(*ai_dlg);
 
 	// 3. Test A2A & Remote Settings Dialog

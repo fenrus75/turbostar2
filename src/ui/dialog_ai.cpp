@@ -54,9 +54,18 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	auto ai_grp = std::make_unique<ui_checkbox_group>("ai_grp");
 	ai_grp->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g', config_manager::get_instance().is_log_all_tool_calls()));
 	ai_grp->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M', config_manager::get_instance().is_software_map_enabled()));
-	ai_grp->add_child(std::make_unique<ui_checkbox>("paranoid_mode", "Paranoid Security Mode", 'P', config_manager::get_instance().is_paranoid_mode()));
 	tab1_flow->add_child(std::move(ai_grp));
 	tabbed->add_tab_page("general_ai", "General AI", std::move(tab1_flow));
+
+	// --- Tab 2: Security ---
+	auto sec_flow = std::make_unique<ui_vertical_flow>("sec_flow", 0, 0, 1, 1);
+	sec_flow->add_child(std::make_unique<ui_text_label>("Agent & Execution Security:"));
+
+	auto sec_grp = std::make_unique<ui_checkbox_group>("sec_grp");
+	sec_grp->add_child(std::make_unique<ui_checkbox>("paranoid_mode", "Paranoid Security Mode", 'P', config_manager::get_instance().is_paranoid_mode()));
+	sec_grp->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd', config_manager::get_instance().is_shell_display_access()));
+	sec_flow->add_child(std::move(sec_grp));
+	tabbed->add_tab_page("security", "Security", std::move(sec_flow));
 
 	// --- Tab 2: Model Providers ---
 	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);

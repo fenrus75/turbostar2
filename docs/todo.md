@@ -16,8 +16,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # daily usage blockers -- top priority items
-- exit_plan_mode is rather terrible -- the plan does not scroll in the dialog nor can it open it in a document
-
 - fs_run_tests also needs to run the meson filter
 
 - our own testlist is hindered by our sandbox - we may need to open it a bit? uv fails for example
@@ -282,10 +280,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Host `perf_manager` Post-Processor (`src/perf_manager.h/cpp`): Implemented host C++ profiling post-processing pipeline (`turbostar::perf_manager`). Reads raw `perf_samples_<pid>.dat` and `perf_maps_<pid>.txt`, merges partial sample counts, invokes `turbostar::address_lookup::resolve_addresses()`, computes line and function CPU cycle percentages, cleans up temporary raw `/tmp` files, and maintains thread-safe active profile state (`perf_profile_report`). Updated `src/meson.build`, `meson.build`, and added unit test `tests/unit/test_perf_manager.cpp`.
 - Pure C `perf_catcher` Preload Module (`src/crash_catcher/perf_catcher.h/c`): Implemented lightweight CPU sampling in `libturbocatch.so` triggered by `TURBOSTAR_PERF_DIR`. Uses `perf_event_open(2)` with hardware PMU cycles and fallback to software CPU clock, zero-thread demand-paged `mmap` ring buffer, static BSS direct-mapped cache (`cache[2048]`), and zero-allocation `write()` system call flushing to write `perf_samples_<pid>.dat` and `/proc/self/maps` to `perf_maps_<pid>.txt`. Updated `meson.build` and added unit test in `tests/unit/test_perf_catcher.cpp`.
 ## 03-08-2026
-- `plan_mode` Complete Removal - Step 1 & Step 2 (`src/tools/`, `src/agentlib/`, `src/vfs/`, `src/ui/`, `system/`, `meson.build`, `tests/`):
-  1. Step 1: Removed `enter_plan_mode` and `exit_plan_mode` tools, validators, and unit/e2e tests.
-  2. Step 2: Removed Plan Mode infrastructure including validator hooks (`is_allowed_in_plan_mode`), `is_planning()` agent state & serialization, UI plan approval dialogs (`create_plan_approval_dialog`), and embedded workflow document `system/workflows/plan_mode.md`.
-  3. Verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
+- Dedicated "Security" Tab in AI & Agent Settings Dialog (`src/ui/dialog_ai.cpp`, `src/ui/dialog_settings.cpp`, `tests/unit/test_options_dialogs.cpp`):
+  1. Created a dedicated "Security" tab in `create_ai_settings_dialog()` (`src/ui/dialog_ai.cpp`).
+  2. Moved `paranoid_mode` ("Paranoid Security Mode") and `shell_display_access` ("Shell display access") to the new "Security" tab.
+  3. Preserved A2A token enforcement exclusively in the A2A & Remote Settings dialog.
+  4. Updated `apply_settings_from_dialog` in `src/ui/dialog_settings.cpp` to save `paranoid_mode`.
+  5. Verified 100% test suite pass rate (247 OK, 1 Expected Fail, 2 Skipped).
   1. Created generic guidelines `system/languages/default.md` and `system/languages/default_short.md` containing universal security-first input validation and code commenting rationale standards.
   2. Registered `languages/default.md` and `languages/default_short.md` descriptions in `system_vfs_provider.cpp` and added files to `meson.build` system docs embedding dependencies.
   3. Updated `agent_window.cpp` so projects without a built-in primary language match default to `system://languages/default.md` (or `system://languages/default_short.md` when no `AGENTS.md` is present).
