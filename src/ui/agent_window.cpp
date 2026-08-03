@@ -79,6 +79,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	} else if (prim_lang == "Verilog" || prim_lang == "v") {
 		vfs_lang_full_uri = "system://languages/verilog.md";
 		vfs_lang_short_uri = "system://languages/verilog.md";
+	} else {
+		vfs_lang_full_uri = "system://languages/default.md";
+		vfs_lang_short_uri = "system://languages/default_short.md";
 	}
 
 	bool has_agents_md = !project_manager::get_instance().get_project_instructions().empty();

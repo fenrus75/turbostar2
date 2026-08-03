@@ -51,6 +51,8 @@ system_docs_files = files(
   'system/languages/c17.md',
   'system/languages/cpp23.md',
   'system/languages/cpp23_short.md',
+  'system/languages/default.md',
+  'system/languages/default_short.md',
   'system/languages/python311.md',
   'system/languages/rust2021.md',
   'system/languages/typescript.md',
