@@ -1,6 +1,7 @@
 #include "command_runner.h"
 #include <array>
 #include <atomic>
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -14,6 +15,7 @@
 #include <unistd.h>
 #include "config_manager.h"
 #include "crashdump_manager.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "perf_manager.h"
@@ -52,15 +54,20 @@ void command_runner::add_cache_rw_exceptions()
 
 	std::string ccache_dir = home_str + "/.ccache";
 	if (std::filesystem::exists(ccache_dir)) {
-		extra_rw_paths_.push_back(ccache_dir);
+		if (std::find(extra_rw_paths_.begin(), extra_rw_paths_.end(), ccache_dir) == extra_rw_paths_.end()) {
+			extra_rw_paths_.push_back(ccache_dir);
+		}
 	}
 	std::string xdg_ccache_dir = home_str + "/.cache/ccache";
 	if (std::filesystem::exists(xdg_ccache_dir)) {
-		extra_rw_paths_.push_back(xdg_ccache_dir);
+		if (std::find(extra_rw_paths_.begin(), extra_rw_paths_.end(), xdg_ccache_dir) == extra_rw_paths_.end()) {
+			extra_rw_paths_.push_back(xdg_ccache_dir);
+		}
 	}
 
-	// Allow uv cache write access for python/uv builds and test execution
+	// Ensure ~/.cache, ~/.cache/uv, and ~/.uv exist on the host so systemd-run BindPaths source exists
 	std::vector<std::string> uv_dirs = {
+		home_str + "/.cache",
 		home_str + "/.cache/uv",
 		home_str + "/.uv"
 	};
@@ -70,6 +77,7 @@ void command_runner::add_cache_rw_exceptions()
 	}
 	const char *xdg_cache_env = std::getenv("XDG_CACHE_HOME");
 	if (xdg_cache_env && *xdg_cache_env) {
+		uv_dirs.push_back(xdg_cache_env);
 		uv_dirs.push_back(std::string(xdg_cache_env) + "/uv");
 	}
 
@@ -80,7 +88,9 @@ void command_runner::add_cache_rw_exceptions()
 				std::filesystem::create_directories(dir, ec);
 			}
 			if (std::filesystem::exists(dir, ec)) {
-				extra_rw_paths_.push_back(dir);
+				if (std::find(extra_rw_paths_.begin(), extra_rw_paths_.end(), dir) == extra_rw_paths_.end()) {
+					extra_rw_paths_.push_back(dir);
+				}
 			}
 		}
 	}
@@ -334,6 +344,9 @@ int command_runner::execute(const std::string &command)
 		final_command += " 2>&1";
 	}
 
+	event_logger::get_instance().log("[command_runner] Executing raw_command: '{}'", command);
+	event_logger::get_instance().log("[command_runner] Sandboxed final_command: '{}'", final_command);
+
 	int pipefd[2];
 	if (pipe(pipefd) < 0) {
 		return -1;
@@ -430,6 +443,9 @@ int command_runner::execute(const std::string &command)
 	} else if (WIFSIGNALED(status)) {
 		final_exit_code = 128 + WTERMSIG(status);
 	}
+
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_).count();
+	event_logger::get_instance().log("[command_runner] Finished command (exit_code={}, elapsed={}ms): '{}'", final_exit_code, elapsed, command);
 
 	on_child_exit();
 
