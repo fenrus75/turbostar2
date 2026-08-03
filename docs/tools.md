@@ -49,6 +49,11 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
 
+### `fs_file_codemap`
+*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/ui/terminal_window.cpp').
+
 ### `fs_grep_files`
 *   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**

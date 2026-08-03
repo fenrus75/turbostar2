@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include "../../fs_utils.h"
 #include "fs_read_lines.h"
+#include "tools/codemap_utils.h"
 
 #include "../../agentlib/document_provider.h"
 #include "../../agentlib/interactions/action.h"
@@ -356,6 +357,38 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			current_line++;
 		}
 		ss << std::format("{}\n", fence);
+
+		// Codemap integration rules:
+		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip codemap for this file.
+		// Rule 2: If partial read and total file symbols < 10, append compact 3-column codemap.
+		// Rule 3: If reading a header file (.h / .hpp), find matching implementation file (.cpp) and append its compact codemap.
+		bool read_whole_file = (start == 1 && static_cast<size_t>(adjusted_end) >= read_res.total_file_lines);
+		bool is_header = false;
+		std::filesystem::path p(args_.safe_path);
+		std::string ext = p.extension().string();
+		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+		if (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx") {
+			is_header = true;
+		}
+
+		if (!read_whole_file) {
+			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx);
+			if (!symbols.empty() && symbols.size() < 10) {
+				ss << "\n" << format_codemap_table(args_.requested_path, symbols, /*rich_format=*/false);
+			}
+		}
+
+		if (is_header) {
+			std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
+			if (!matching_impl.empty()) {
+				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx);
+				if (!impl_symbols.empty()) {
+					std::filesystem::path ip(matching_impl);
+					ss << "\n" << format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/false);
+				}
+			}
+		}
+
 		result_text = ss.str();
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 			custom_interaction->set_status(interaction_fs_read_lines::status::success);

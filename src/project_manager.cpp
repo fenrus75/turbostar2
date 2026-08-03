@@ -532,6 +532,12 @@ std::vector<lsp_manager::symbol_node> project_manager::lsp_query_document_symbol
 	return {};
 }
 
+void project_manager::lsp_invalidate_symbol_cache(const std::string &filepath)
+{
+	if (lsp_manager_)
+		lsp_manager_->invalidate_symbol_cache(filepath);
+}
+
 std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
 												 int character)
 {

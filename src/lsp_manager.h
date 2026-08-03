@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <thread>
@@ -59,6 +60,7 @@ class lsp_manager
 		std::vector<symbol_node> children;
 	};
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath);
+	void invalidate_symbol_cache(const std::string &filepath);
 
 	struct call_hierarchy_item {
 		std::string name;
@@ -111,4 +113,18 @@ class lsp_manager
 	 */
 	std::mutex doc_mutex_;
 	std::unordered_map<std::string, int> doc_versions_;
+
+	struct symbol_cache_entry {
+		std::filesystem::file_time_type last_mtime;
+		std::vector<symbol_node> symbols;
+	};
+
+	/*
+	 * symbol_cache_mutex_ protects symbol_cache_ map of filepaths to cached symbol_node ASTs.
+	 * Locking Rules:
+	 * - Held briefly when reading or writing symbol cache entries in query_document_symbols()
+	 *   and invalidate_symbol_cache().
+	 */
+	std::mutex symbol_cache_mutex_;
+	std::unordered_map<std::string, symbol_cache_entry> symbol_cache_;
 };

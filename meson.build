@@ -405,6 +405,7 @@ test_tools = executable('test_tools',
    'src/tools/agent_list_episodes/agent_list_episodes_security.cpp',
    'src/tools/apply_text_filter/apply_text_filter_entry.cpp',
    'src/tools/apply_text_filter/apply_text_filter_security.cpp',
+   'src/tools/codemap_utils.cpp',
    'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
    'src/tools/fs_read_lines/fs_read_lines_security.cpp',
    'src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
@@ -1128,6 +1129,12 @@ test_fs_replace_lines = executable('test_fs_replace_lines',
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: 'src')
 test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
+
+test_fs_file_codemap = executable('test_fs_file_codemap',
+  ['tests/unit/test_fs_file_codemap.cpp', 'src/tools/codemap_utils.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_entry.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_security.cpp', 'src/tools/fs_read_lines/fs_read_lines_entry.cpp', 'src/tools/fs_read_lines/fs_read_lines_security.cpp'],
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: 'src')
+test('unit_fs_file_codemap', test_fs_file_codemap, suite: 'agent')
 
 test_virtual_file_system = executable('test_virtual_file_system',
   ['tests/unit/test_virtual_file_system.cpp'],

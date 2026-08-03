@@ -837,8 +837,30 @@ std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_
 	return {};
 }
 
+void lsp_manager::invalidate_symbol_cache(const std::string &filepath)
+{
+	std::string abs_path = std::filesystem::absolute(filepath).string();
+	std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+	symbol_cache_.erase(abs_path);
+}
+
 std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const std::string &filepath)
 {
+	std::string abs_path = std::filesystem::absolute(filepath).string();
+	std::filesystem::file_time_type current_mtime{};
+	std::error_code ec;
+	if (std::filesystem::exists(abs_path, ec)) {
+		current_mtime = std::filesystem::last_write_time(abs_path, ec);
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		auto it = symbol_cache_.find(abs_path);
+		if (it != symbol_cache_.end() && it->second.last_mtime == current_mtime && !it->second.symbols.empty()) {
+			return it->second.symbols;
+		}
+	}
+
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return {};
@@ -848,7 +870,7 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 
 	try {
 		auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
-		params.textDocument.uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+		params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
 
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
 		    std::move(params),
@@ -922,8 +944,14 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 		} catch (...) {}
 	}
 
-	if (future.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
-		return future.get();
+	if (future.wait_for(std::chrono::seconds(2)) == std::future_status::ready) {
+		auto result = future.get();
+		if (!result.empty()) {
+			std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+			symbol_cache_[abs_path] = {current_mtime, result};
+		}
+		return result;
 	}
+
 	return {};
 }
