@@ -8,13 +8,14 @@
 #include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../../fs_utils.h"
+#include "fs_utils.h"
+#include "mime.h"
 #include "fs_read_lines.h"
 #include "tools/codemap_utils.h"
 
-#include "../../agentlib/document_provider.h"
-#include "../../agentlib/interactions/action.h"
-#include "../../agentlib/virtual_file_system.h"
+#include "agentlib/document_provider.h"
+#include "agentlib/interactions/action.h"
+#include "agentlib/virtual_file_system.h"
 
 namespace tools
 {
@@ -37,44 +38,6 @@ size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
 		}
 	}
 	return max_count;
-}
-
-std::string get_language_from_extension(const std::string &path)
-{
-	std::filesystem::path p(path);
-	std::string ext = p.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
-	if (ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc") {
-		return "cpp";
-	}
-	if (ext == ".py") {
-		return "python";
-	}
-	if (ext == ".json") {
-		return "json";
-	}
-	if (ext == ".md") {
-		return "markdown";
-	}
-	if (ext == ".sh" || ext == ".bash") {
-		return "bash";
-	}
-	if (ext == ".js" || ext == ".ts" || ext == ".jsx" || ext == ".tsx") {
-		return "javascript";
-	}
-	if (ext == ".html" || ext == ".htm") {
-		return "html";
-	}
-	if (ext == ".css") {
-		return "css";
-	}
-	if (ext == ".yaml" || ext == ".yml") {
-		return "yaml";
-	}
-	if (ext == ".xml") {
-		return "xml";
-	}
-	return "";
 }
 
 int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path)
@@ -346,7 +309,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		size_t max_backticks = count_max_consecutive_backticks(read_res.lines);
 		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
 		std::string fence(fence_len, '`');
-		std::string lang = get_language_from_extension(args_.requested_path);
+		std::string lang = mime::get_language_from_extension(args_.requested_path);
 
 		std::stringstream ss;
 		ss << std::format("Code for lines {} - {} of {} (total {} lines):\n{}{}\n", start, adjusted_end, args_.requested_path,

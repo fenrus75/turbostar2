@@ -1312,6 +1312,12 @@ test_utf8 = executable('test_utf8',
   include_directories: 'src')
 test('unit_utf8', test_utf8, suite: 'editor')
 
+test_mime = executable('test_mime',
+  ['tests/unit/test_mime.cpp', 'src/mime.cpp', 'src/utf8.cpp'],
+  dependencies : [],
+  include_directories: 'src')
+test('unit_mime', test_mime, suite: 'editor')
+
 test_context_dnn = executable('test_context_dnn',
   'tests/unit/test_context_dnn.cpp',
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep],

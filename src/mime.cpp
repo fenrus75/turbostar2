@@ -43,6 +43,79 @@ std::string from_extension(std::string_view filename_or_ext)
 	return "application/octet-stream";
 }
 
+std::string get_language_from_extension(std::string_view path)
+{
+	std::filesystem::path p(path);
+	std::string ext = p.extension().string();
+	if (ext.empty() && !path.empty()) {
+		if (path.find('/') == std::string_view::npos && path.find('\\') == std::string_view::npos) {
+			ext = std::string(path);
+		}
+	}
+	if (!ext.empty() && ext.front() == '.') {
+		ext.erase(0, 1);
+	}
+	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	});
+
+	if (ext == "cpp" || ext == "cxx" || ext == "cc" || ext == "c" || ext == "h" || ext == "hpp" || ext == "hh" || ext == "hxx") {
+		return "cpp";
+	}
+	if (ext == "py" || ext == "pyw" || ext == "pyi") {
+		return "python";
+	}
+	if (ext == "json" || ext == "jsonc") {
+		return "json";
+	}
+	if (ext == "md" || ext == "markdown") {
+		return "markdown";
+	}
+	if (ext == "sh" || ext == "bash" || ext == "zsh") {
+		return "bash";
+	}
+	if (ext == "js" || ext == "ts" || ext == "jsx" || ext == "tsx" || ext == "cjs" || ext == "mjs") {
+		return "javascript";
+	}
+	if (ext == "html" || ext == "htm") {
+		return "html";
+	}
+	if (ext == "css" || ext == "scss" || ext == "sass" || ext == "less") {
+		return "css";
+	}
+	if (ext == "yaml" || ext == "yml") {
+		return "yaml";
+	}
+	if (ext == "xml" || ext == "svg") {
+		return "xml";
+	}
+	if (ext == "rs") {
+		return "rust";
+	}
+	if (ext == "go") {
+		return "go";
+	}
+	if (ext == "java") {
+		return "java";
+	}
+	if (ext == "rb") {
+		return "ruby";
+	}
+	if (ext == "php") {
+		return "php";
+	}
+	if (ext == "sql") {
+		return "sql";
+	}
+	if (ext == "toml" || ext == "ini" || ext == "conf") {
+		return "ini";
+	}
+	if (ext == "lua") {
+		return "lua";
+	}
+	return "";
+}
+
 std::string detect_file_type(std::string_view path)
 {
 	std::string path_str(path);

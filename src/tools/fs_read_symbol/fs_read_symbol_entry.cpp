@@ -3,10 +3,11 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
-#include "../../agentlib/document_provider.h"
-#include "../../agentlib/interactions/action.h"
-#include "../../agentlib/virtual_file_system.h"
-#include "../../project_manager.h"
+#include "mime.h"
+#include "agentlib/document_provider.h"
+#include "agentlib/interactions/action.h"
+#include "agentlib/virtual_file_system.h"
+#include "project_manager.h"
 #include "fs_read_symbol.h"
 
 namespace tools
@@ -54,20 +55,6 @@ size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
 		}
 	}
 	return max_count;
-}
-
-std::string get_language_from_extension(const std::string &path)
-{
-	std::filesystem::path p(path);
-	std::string ext = p.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
-	if (ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc") {
-		return "cpp";
-	}
-	if (ext == ".py") {
-		return "python";
-	}
-	return "";
 }
 
 size_t count_total_lines(const std::string &path, agentlib::tool_context &ctx)
@@ -168,7 +155,7 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	// 4. Find all matching symbols
-	bool is_py = get_language_from_extension(args_.safe_path) == "python";
+	bool is_py = mime::get_language_from_extension(args_.safe_path) == "python";
 	std::vector<lsp_manager::symbol_node> matches;
 	for (const auto &root : root_symbols) {
 		find_symbols_recursive(root, "", args_.symbol_name, matches, is_py);
@@ -221,7 +208,7 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		size_t max_backticks = count_max_consecutive_backticks(lines);
 		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
 		std::string fence(fence_len, '`');
-		std::string lang = get_language_from_extension(args_.requested_path);
+		std::string lang = mime::get_language_from_extension(args_.requested_path);
 
 		if (matches.size() > 1) {
 			ss << "### Match " << (i + 1) << ": Symbol '" << match.name << "'\n";

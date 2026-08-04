@@ -7,10 +7,11 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../../config_manager.h"
+#include "config_manager.h"
 #include "fs_grep_files.h"
+#include "mime.h"
 #include "tools/codemap_utils.h"
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "project_manager.h"
 #include <format>
 #include <algorithm>
@@ -588,11 +589,13 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				} else {
 					// New multi-line block format
 					ss << "**Match near Line " << match.first << "**" << scope_hint << ":\n";
-					// Optionally extract extension for syntax highlighting
-					std::string ext = "";
-					size_t dot_pos = file.find_last_of('.');
-					if (dot_pos != std::string::npos && dot_pos < file.length() - 1) {
-						ext = file.substr(dot_pos + 1);
+					// Optionally extract extension/language for syntax highlighting
+					std::string ext = mime::get_language_from_extension(file);
+					if (ext.empty()) {
+						size_t dot_pos = file.find_last_of('.');
+						if (dot_pos != std::string::npos && dot_pos < file.length() - 1) {
+							ext = file.substr(dot_pos + 1);
+						}
 					}
 					ss << "```" << ext << "\n" << content;
 					if (!content.empty() && content.back() != '\n')

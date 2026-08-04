@@ -30,6 +30,12 @@ std::string detect_buffer_description(std::string_view buffer);
 std::string from_extension(std::string_view filename_or_ext);
 
 /**
+ * @brief Detects Markdown syntax highlighting language identifier from file path or extension.
+ * Returns language string (e.g., "cpp", "python", "javascript", "markdown", etc.) or empty string if unknown.
+ */
+std::string get_language_from_extension(std::string_view path);
+
+/**
  * @brief Detects a human-readable description of the file type (e.g. "ELF 64-bit LSB shared object").
  * Uses libmagic (via magic_file with MAGIC_NONE) if available.
  */

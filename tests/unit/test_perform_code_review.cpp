@@ -42,7 +42,7 @@ void test_perform_code_review_execution()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	event_queue q;
+	static event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
@@ -181,7 +181,7 @@ void test_perform_code_review_splitting()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
-	event_queue q;
+	static event_queue q;
 
 	ctx.fs_security.set_working_directory(temp_proj.string());
 	ctx.fs_security.add_allowed_root(temp_proj.string(), access_type::read);
