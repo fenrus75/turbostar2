@@ -16,6 +16,17 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
+
+- interaction bug: pasting a tab into the agent multiline edit box destroys the cursor
+
+- `fs_replace_lines` dry-run verification: perform dry-run verification against `original_text` for all batch edits in `fs_replace_lines` before applying any mutations. If any line check fails after accounting for previous edits, reject the batch cleanly to prevent partial line-drift edits.
+
+- `fs_replace_symbol` / AST-scoped code edits: add a symbol or scope-based edit tool (or parameter) that targets a named method or class scope (e.g. `Class::method`) and applies replacements relative to the function boundaries, preventing global file line shifts from affecting edits.
+
+- would be nice to have a recent files entry in the file menu for quick opening
+
+- we need a File->Close option
+
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
 		- well we need tupple: plugin, name -> value, so it's slightly more complex
