@@ -2941,6 +2941,9 @@ void ai_agent::evaluate_compaction()
 					last_response_id_ = compacted_id;
 
 					if (conversation_) {
+						if (auto curr_ep = conversation_->get_current_episode()) {
+							curr_ep->set_compaction_level(COMPACTION_LEVEL_PAGED_OUT);
+						}
 						conversation_->archive_current_episode("Compacted History", "Compacted stateful session");
 						conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
 					}
