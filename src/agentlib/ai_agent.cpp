@@ -2876,12 +2876,12 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 
 		{
 			std::lock_guard<std::mutex> lock(conversation_mutex_);
-			std::string content = "[SYSTEM MEMORY: Episode Archived]\nTitle: Auto-Episode\nSummary: " + reason_msg + "\nTags: [auto-episode]";
+			std::string content = "[SYSTEM MEMORY: Auto-Episode Boundary]\nTitle: Auto-Episode\nSummary: " + reason_msg;
 			
 			std::string tx_id = "tx_auto_split_" + std::to_string(std::rand());
 			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::system_injection);
 			std::string turn_id = "turn_auto_split_" + std::to_string(std::rand());
-			auto turn = std::make_shared<system_turn>(turn_id, content, "episode_archival");
+			auto turn = std::make_shared<system_turn>(turn_id, content, "episode_boundary");
 			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			tx->add_turn(turn);
 			

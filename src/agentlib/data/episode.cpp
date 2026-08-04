@@ -26,7 +26,7 @@ std::vector<message> Episode::to_messages(const model_capabilities& caps, bool i
 		return {anchor};
 	} else {
 		std::vector<message> messages;
-		if (include_anchor) {
+		if (include_anchor && compaction_level_ != 0) {
 			pointer_msg << "Raw history page-in: " << id_ << " level: " << compaction_level_;
 			message anchor;
 			anchor.role = "system";

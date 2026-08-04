@@ -39,7 +39,7 @@ void Conversation::archive_current_episode(const std::string& title, const std::
 	if (current_episode_) {
 		current_episode_->set_title(title);
 		current_episode_->set_summary(summary);
-		current_episode_->set_compaction_level(COMPACTION_LEVEL_PAGED_OUT); // paged-out/archived
+		// Keep compaction level as-is (level 0 / paged-in). Token-driven compaction engine handles paging out under memory pressure.
 		/*
 		 * Enforce the episode invariant: when archiving the current active episode,
 		 * it transitions to a historical/archived state and becomes finalized.

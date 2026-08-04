@@ -180,7 +180,7 @@ int main()
 			updated_convo = test_agent->get_conversation();
 			has_archive_msg = false;
 			for (const auto &msg : updated_convo) {
-				if (msg.role == "system" && msg.content.find("Episode Archived") != std::string::npos) {
+				if (msg.role == "system" && msg.content.find("Auto-Episode") != std::string::npos) {
 					has_archive_msg = true;
 				}
 			}
