@@ -104,7 +104,8 @@ int main()
 		assert(payload.contains("systemInstruction"));
 		std::string combined_text = payload["systemInstruction"]["parts"][0]["text"].get<std::string>();
 		assert(combined_text.find("First system instruction.") != std::string::npos);
-		assert(combined_text.find("Second system instruction.") != std::string::npos);
+		std::string contents_str = payload["contents"].dump();
+		assert(contents_str.find("Second system instruction.") != std::string::npos);
 	}
 
 	// 2. Test OpenAI Completion/Copilot/Response paths
@@ -134,9 +135,10 @@ int main()
 		c.send_prompt(*convo, agent_properties{}, [](const stream_event&){});
 		json payload_resp = json::parse(t->last_body);
 		assert(payload_resp.contains("instructions"));
-		assert(payload_resp["instructions"].get<std::string>() == "First system instruction.\n\nSecond system instruction.");
+		assert(payload_resp["instructions"].get<std::string>() == "First system instruction.");
 		assert(payload_resp.contains("input"));
 		assert(payload_resp["input"].is_array());
+		assert(payload_resp["input"].dump().find("Second system instruction.") != std::string::npos);
 		
 		assert(payload_resp.contains("tools"));
 		bool found_compress = false;

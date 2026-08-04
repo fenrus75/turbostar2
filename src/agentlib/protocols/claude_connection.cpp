@@ -155,12 +155,17 @@ void claude_connection::send_prompt(
 	std::string system_instruction;
 	nlohmann::json messages_json = nlohmann::json::array();
 
-	for (const auto &msg : normalized) {
+	for (size_t i = 0; i < normalized.size(); ++i) {
+		const auto &msg = normalized[i];
 		if (msg.role == "system") {
-			if (!system_instruction.empty()) {
-				system_instruction += "\n\n";
+			if (i == 0) {
+				system_instruction = msg.content;
+			} else {
+				nlohmann::json claude_msg;
+				claude_msg["role"] = "user";
+				claude_msg["content"] = "[System Note]\n" + msg.content;
+				messages_json.push_back(claude_msg);
 			}
-			system_instruction += msg.content;
 			continue;
 		}
 

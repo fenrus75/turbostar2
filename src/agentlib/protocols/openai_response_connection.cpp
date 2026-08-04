@@ -174,10 +174,14 @@ void openai_response_connection::send_prompt(
 	for (auto it = start_it; it != normalized.end(); ++it) {
 		const auto &msg = *it;
 		if (msg.role == "system") {
-			if (!instructions_str.empty()) {
-				instructions_str += "\n\n";
+			if (it == normalized.begin()) {
+				instructions_str = msg.content;
+			} else {
+				nlohmann::json m_json = {{"type", "message"},
+							   {"role", "user"},
+							   {"content", process_user_content_openai_response("[System Note]\n" + msg.content)}};
+				input_json.push_back(m_json);
 			}
-			instructions_str += msg.content;
 			continue;
 		}
 

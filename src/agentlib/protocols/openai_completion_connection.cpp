@@ -88,19 +88,16 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 	std::vector<message> normalized_convo;
 	std::vector<bool> consumed(conversation.size(), false);
 
-	std::string merged_system;
-	for (const auto& msg : conversation) {
-		if (msg.role == "system") {
-			if (!merged_system.empty()) {
-				merged_system += "\n\n";
-			}
-			merged_system += msg.content;
-		}
+	std::string base_system;
+	size_t start_idx = 0;
+	if (!conversation.empty() && conversation[0].role == "system") {
+		base_system = conversation[0].content;
+		start_idx = 1;
 	}
 
-	for (size_t i = 0; i < conversation.size(); ++i) {
+	for (size_t i = start_idx; i < conversation.size(); ++i) {
 		const auto& msg = conversation[i];
-		if (msg.role == "tool" || msg.role == "system") {
+		if (msg.role == "tool") {
 			continue;
 		}
 
@@ -130,10 +127,10 @@ static std::vector<message> normalize_history(const std::vector<message>& conver
 		}
 	}
 
-	if (!merged_system.empty()) {
+	if (!base_system.empty()) {
 		message sys_msg;
 		sys_msg.role = "system";
-		sys_msg.content = merged_system;
+		sys_msg.content = base_system;
 		normalized_convo.insert(normalized_convo.begin(), sys_msg);
 	}
 

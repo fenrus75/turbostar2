@@ -168,12 +168,16 @@ void gemini_connection::send_prompt(
 	nlohmann::json contents = nlohmann::json::array();
 	std::string system_instruction;
 
-	for (const auto &msg : normalized) {
+	for (size_t i = 0; i < normalized.size(); ++i) {
+		const auto &msg = normalized[i];
 		if (msg.role == "system") {
-			if (!system_instruction.empty()) {
-				system_instruction += "\n\n";
+			if (i == 0) {
+				system_instruction = msg.content;
+			} else {
+				nlohmann::json parts_array = nlohmann::json::array();
+				parts_array.push_back({{"text", "[System Note]\n" + msg.content}});
+				contents.push_back({{"role", "user"}, {"parts", parts_array}});
 			}
-			system_instruction += msg.content;
 			continue;
 		}
 
