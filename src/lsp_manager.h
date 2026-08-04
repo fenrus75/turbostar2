@@ -82,6 +82,9 @@ class lsp_manager
 	};
 	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
 
+	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &filepath);
+	void store_file_diagnostics(const std::string &filepath, const std::vector<diagnostic_info> &diags);
+
       private:
 	struct server_instance {
 		std::string language_id;
@@ -125,6 +128,15 @@ class lsp_manager
 	 * - Held briefly when reading or writing symbol cache entries in query_document_symbols()
 	 *   and invalidate_symbol_cache().
 	 */
-	std::mutex symbol_cache_mutex_;
+	mutable std::mutex symbol_cache_mutex_;
 	std::unordered_map<std::string, symbol_cache_entry> symbol_cache_;
+
+	/*
+	 * diagnostics_mutex_ protects file_diagnostics_ map of filepaths to active LSP diagnostic lists.
+	 * Locking Rules:
+	 * - Held briefly when storing incoming PublishDiagnostics notifications or querying diagnostics
+	 *   in store_file_diagnostics() and query_file_diagnostics().
+	 */
+	mutable std::mutex diagnostics_mutex_;
+	std::unordered_map<std::string, std::vector<diagnostic_info>> file_diagnostics_;
 };

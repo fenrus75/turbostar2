@@ -128,6 +128,7 @@ class project_manager
 											int character);
 	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											  int character);
+	std::optional<std::vector<diagnostic_info>> lsp_query_file_diagnostics(const std::string &filepath);
 
 	// Test management
 	std::vector<std::string> get_available_tests();

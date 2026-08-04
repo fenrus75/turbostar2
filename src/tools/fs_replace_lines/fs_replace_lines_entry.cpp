@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include "../../agentlib/file_health_utils.h"
 #include "../../agentlib/interactions/base.h"
 #include "../../project_manager.h"
 #include "../../utf8.h"
@@ -706,7 +707,8 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	total_drift += turn_abs_shift;
 	bool show_shift_zones = (total_drift < 15);
 
-	std::string result_msg = std::format("Successfully applied {} edits to {}\n\n", args_.edits.size(), args_.path);
+	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
+	std::string result_msg = std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
 	std::string brace_warnings = check_brace_warnings(args_.safe_path, before_lines, lines, args_.edits);
 	if (!brace_warnings.empty()) {
 		result_msg += brace_warnings + "\n";

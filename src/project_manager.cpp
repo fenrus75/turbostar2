@@ -558,6 +558,13 @@ std::vector<lsp_manager::type_hierarchy_item> project_manager::lsp_query_type_hi
 	return {};
 }
 
+std::optional<std::vector<diagnostic_info>> project_manager::lsp_query_file_diagnostics(const std::string &filepath)
+{
+	if (lsp_manager_)
+		return lsp_manager_->query_file_diagnostics(filepath);
+	return std::nullopt;
+}
+
 std::vector<std::string> project_manager::get_available_tests()
 {
 	if (!tests_ready_) {

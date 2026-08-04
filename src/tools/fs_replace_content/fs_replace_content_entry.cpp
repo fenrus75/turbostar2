@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include "../../agentlib/file_health_utils.h"
 #include "../../agentlib/interactions/base.h"
 #include "../../markdown_utils.h"
 #include "../../project_manager.h"
@@ -334,7 +335,13 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
                 line_num++;
             }
         }
-        if (line_num >= scope_start && line_num <= scope_end) {
+        bool is_mid_indentation = false;
+        if (pos > 0 && (file_content[pos - 1] == ' ' || file_content[pos - 1] == '\t') &&
+            !args_.target_content.empty() && (args_.target_content[0] == ' ' || args_.target_content[0] == '\t')) {
+            is_mid_indentation = true;
+        }
+
+        if (!is_mid_indentation && line_num >= scope_start && line_num <= scope_end) {
             match_indices.push_back(pos);
             match_lines.push_back(line_num);
         }
@@ -378,7 +385,10 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
             return "Error: target_content not found in the file. Check spelling and formatting.";
         }
 
-        std::vector<int> relaxed_matches;
+        std::vector<int> level_b_matches;
+        std::vector<int> level_c_matches;
+        std::vector<int> level_d_matches;
+
         for (size_t i = 0; i + target_count <= file_lines.size(); ++i) {
             int line_num = static_cast<int>(i + 1);
             if (line_num < scope_start || line_num > scope_end) {
@@ -387,6 +397,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
 
             bool match_level_b = true;
             bool match_level_c = (target_count >= 3);
+            bool match_level_d = (target_count < 3);
 
             for (size_t j = 0; j < target_count; ++j) {
                 std::string file_norm_b = normalize_line_for_relaxed(file_lines[i + j], false);
@@ -395,19 +406,25 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
                     match_level_b = false;
                 }
 
-                if (match_level_c) {
-                    std::string file_norm_c = normalize_line_for_relaxed(file_lines[i + j], true);
-                    std::string targ_norm_c = normalize_line_for_relaxed(target_lines[j], true);
-                    if (file_norm_c != targ_norm_c) {
-                        match_level_c = false;
-                    }
+                std::string file_norm_c = normalize_line_for_relaxed(file_lines[i + j], true);
+                std::string targ_norm_c = normalize_line_for_relaxed(target_lines[j], true);
+                if (file_norm_c != targ_norm_c) {
+                    match_level_c = false;
+                    match_level_d = false;
                 }
             }
 
-            if (match_level_b || match_level_c) {
-                relaxed_matches.push_back(line_num);
+            if (match_level_b) {
+                level_b_matches.push_back(line_num);
+            } else if (match_level_c) {
+                level_c_matches.push_back(line_num);
+            } else if (match_level_d) {
+                level_d_matches.push_back(line_num);
             }
         }
+
+        const auto& relaxed_matches = !level_b_matches.empty() ? level_b_matches :
+                                       (!level_c_matches.empty() ? level_c_matches : level_d_matches);
 
         if (relaxed_matches.empty()) {
             if (args_.function_hint.has_value()) {
@@ -448,7 +465,11 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
             while (target_indent_len < target_lines[0].size() && (target_lines[0][target_indent_len] == ' ' || target_lines[0][target_indent_len] == '\t')) {
                 target_indent_len++;
             }
-            if (file_indent_len > target_indent_len) {
+            size_t replacement_indent_len = 0;
+            while (replacement_indent_len < args_.replacement_content.size() && (args_.replacement_content[replacement_indent_len] == ' ' || args_.replacement_content[replacement_indent_len] == '\t')) {
+                replacement_indent_len++;
+            }
+            if (file_indent_len > target_indent_len && replacement_indent_len < file_indent_len) {
                 size_t diff_indent = file_indent_len - target_indent_len;
                 if (match_byte_len >= diff_indent) {
                     match_start_byte += diff_indent;
@@ -467,7 +488,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     std::vector<std::string> after_lines = split_lines(new_content);
 
     // 7. Write substituted content back to disk
-    std::ofstream out(path_to_use, std::ios::binary);
+    std::ofstream out(path_to_use, std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {
         return "Error: Could not open file for writing during execution.";
     }
@@ -491,7 +512,8 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     }
 
     // 9. Update UI and return status
-    std::string result_msg = std::format("Successfully replaced target_content in {} starting at line {}.", args_.path, start_line);
+    std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
+    std::string result_msg = std::format("Successfully replaced target_content in {} starting at line {} [Edit ID: {}].", args_.path, start_line, edit_id);
     if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_content>(interaction_)) {
         custom_interaction->set_target_type(args_.path, is_buffer);
         custom_interaction->set_diff(before_lines, after_lines);

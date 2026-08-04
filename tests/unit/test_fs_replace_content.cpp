@@ -36,7 +36,7 @@ int main()
 	{
 		// Helper to write content
 		auto write_file = [&](const std::string& content) {
-			std::ofstream out(temp_file, std::ios::binary);
+			std::ofstream out(temp_file, std::ios::binary | std::ios::trunc);
 			out.write(content.data(), content.length());
 			out.close();
 		};
@@ -195,6 +195,20 @@ int main()
 			std::cout << "function_hint combo 2 result: " << res << std::endl;
 			assert(res.find("Multiple occurrences exist even within function/scope 'double_return'") != std::string::npos);
 			assert(res.find("Please pass 'line_hint'") != std::string::npos);
+		}
+
+		// 12. Level D relaxed matching case (1-line target with leading space mismatch)
+		{
+			write_file("void level_d_test() {\n    do_single_work();\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "  do_single_work();"}, // 2 spaces target vs 4 spaces file
+				{"replacement_content", "    do_single_work_updated();"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Level D relaxed result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(read_file() == "void level_d_test() {\n    do_single_work_updated();\n}\n");
 		}
 
 		// Clean up

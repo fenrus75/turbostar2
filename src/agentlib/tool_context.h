@@ -17,6 +17,17 @@ struct file_drift_state {
 	int edit_turns = 0;
 };
 
+enum class lsp_health_state {
+	unknown,
+	clean,
+	dirty
+};
+
+struct file_health_state {
+	lsp_health_state state = lsp_health_state::unknown;
+	std::string originating_edit_id;
+};
+
 // A placeholder for the context that tools will receive.
 // In a full integration, this would hold references to the active document,
 // event queue, or other Turbostar editor state.
@@ -39,7 +50,10 @@ class tool_context
 
 	// File drift tracking state across a session
 	std::unordered_map<std::string, file_drift_state> file_drift_tracker;
-	// ... other contextual methods will be added here ...
+
+	// File health tracking state machine (CLEAN / DIRTY / UNKNOWN) across a session
+	std::unordered_map<std::string, file_health_state> file_health_tracker;
+	size_t edit_sequence_counter = 0;
 };
 
 } // namespace agentlib

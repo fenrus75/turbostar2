@@ -80,26 +80,29 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 
 		server->message_handler->add<lsp::notifications::TextDocument_PublishDiagnostics>(
 		    [this](const lsp::notifications::TextDocument_PublishDiagnostics::Params &params) {
+			    std::vector<diagnostic_info> diagnostics;
+			    for (const auto &diag : params.diagnostics) {
+				    diagnostic_info info;
+				    info.range = {
+					static_cast<int>(diag.range.start.line), static_cast<int>(diag.range.start.character),
+					static_cast<int>(diag.range.end.line), static_cast<int>(diag.range.end.character)};
+				    info.severity = diag.severity.value_or(lsp::DiagnosticSeverity::Error);
+				    info.message = diag.message;
+				    diagnostics.push_back(info);
+			    }
+
+			    std::sort(diagnostics.begin(), diagnostics.end(),
+				      [](const diagnostic_info &a, const diagnostic_info &b) {
+					      if (a.range.start_y != b.range.start_y) {
+						      return a.range.start_y < b.range.start_y;
+					      }
+					      return a.range.start_x < b.range.start_x;
+				      });
+
+			    std::string path_str = std::string(params.uri.path());
+			    store_file_diagnostics(path_str, diagnostics);
+
 			    if (global_queue_) {
-				    std::vector<diagnostic_info> diagnostics;
-				    for (const auto &diag : params.diagnostics) {
-					    diagnostic_info info;
-					    info.range = {
-						static_cast<int>(diag.range.start.line), static_cast<int>(diag.range.start.character),
-						static_cast<int>(diag.range.end.line), static_cast<int>(diag.range.end.character)};
-					    info.severity = diag.severity.value_or(lsp::DiagnosticSeverity::Error);
-					    info.message = diag.message;
-					    diagnostics.push_back(info);
-				    }
-
-				    std::sort(diagnostics.begin(), diagnostics.end(),
-					      [](const diagnostic_info &a, const diagnostic_info &b) {
-						      if (a.range.start_y != b.range.start_y) {
-							      return a.range.start_y < b.range.start_y;
-						      }
-						      return a.range.start_x < b.range.start_x;
-					      });
-
 				    editor_event ev;
 				    ev.type = event_type::lsp_diagnostics_result;
 				    ev.diagnostics = diagnostics;
@@ -954,4 +957,34 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 	}
 
 	return {};
+}
+
+void lsp_manager::store_file_diagnostics(const std::string &filepath, const std::vector<diagnostic_info> &diags)
+{
+	std::lock_guard<std::mutex> lock(diagnostics_mutex_);
+	file_diagnostics_[filepath] = diags;
+}
+
+std::optional<std::vector<diagnostic_info>> lsp_manager::query_file_diagnostics(const std::string &filepath)
+{
+	if (!is_supported_file(filepath)) {
+		return std::nullopt;
+	}
+	auto server = get_server_for_file(filepath);
+	if (!server || !server->is_running.load()) {
+		return std::nullopt;
+	}
+
+	std::lock_guard<std::mutex> lock(diagnostics_mutex_);
+	std::string abs_path = std::filesystem::absolute(filepath).string();
+	auto it = file_diagnostics_.find(abs_path);
+	if (it != file_diagnostics_.end()) {
+		return it->second;
+	}
+	it = file_diagnostics_.find(filepath);
+	if (it != file_diagnostics_.end()) {
+		return it->second;
+	}
+
+	return std::vector<diagnostic_info>{};
 }
