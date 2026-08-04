@@ -15,6 +15,7 @@ menu_bar::menu_bar()
 	      {"Save", event_type::save, 's', "^KS", false},
 	      {"Save as...", event_type::save_as, 'a', "^KW", false},
 	      {"Save All", event_type::save_all, 'v', "^KA", false},
+	      {"Close", event_type::close_window, 'c', "Alt+F3", false},
 	      {"", event_type::key_press, 0, "", true},
 	      menu_item("Exit", event_type::quit, 'x', "^KQ", false)}},
 	    {"Edit",

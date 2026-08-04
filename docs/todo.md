@@ -23,7 +23,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - would be nice to have a recent files entry in the file menu for quick opening
 
-- we need a File->Close option
 
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
@@ -238,6 +237,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # done items (sorted by date, newest first)
+
+## 04-08-2026
+- File -> Close Menu Item (`src/ui/menu_bar.cpp`, `meson.build`, `tests/e2e/test_file_close_menu.py`): Added "Close" option to the File menu (`event_type::close_window`, mnemonic key 'c', shortcut Alt+F3) to allow closing active document windows directly from the File menu. Added E2E test suite in `tests/e2e/test_file_close_menu.py` verifying menu trigger and event routing.
 
 ## 31-07-2026
 - Build Optimization for `git_version.h` & `crash_handler.cpp` (`src/meson.build`, `meson.build`, `docs/todo.md`): Decoupled `src/crash_handler.cpp` from `core_sources` and `libturbostar_core.a`. `src/crash_handler.cpp` is the sole consumer of `git_version.h` (generated on every Git commit). Previously, including it in `libturbostar_core.a` caused all 164 unit test binaries to re-link on every git commit. Moving `src/crash_handler.cpp` and `git_version_h` to standalone executable sources (`turbostar` and `test_fallback_crash`) reduced post-commit rebuild re-linking from ~164 binaries to 1 binary (< 1s execution).
