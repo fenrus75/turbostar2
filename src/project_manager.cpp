@@ -2,10 +2,12 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <condition_variable>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <re2/re2.h>
 #include <regex>
@@ -27,6 +29,22 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(lsp_manager::location_info, path, range);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(project_manager::software_map_symbol, name, kind, location, looked_up_count, accumulated_count, is_seed,
 				   is_sampled, base_classes);
+
+namespace {
+
+/**
+ * @brief Waits for the specified duration unless interrupted by a stop_token.
+ * @return true if interrupted by stop request; false if slept full duration.
+ */
+bool interruptible_sleep(std::stop_token stop, std::chrono::milliseconds duration)
+{
+	std::condition_variable_any cv;
+	std::mutex dummy_mutex;
+	std::unique_lock lock(dummy_mutex);
+	return cv.wait_for(lock, stop, duration, [&] { return stop.stop_requested(); });
+}
+
+} // namespace
 
 project_manager &project_manager::get_instance()
 {
@@ -78,14 +96,7 @@ void project_manager::initialize()
 	// Start the inventory thread with a 100ms delay
 	inventory_thread_ = std::jthread([this](std::stop_token stop) {
 		event_logger::get_instance().log("Thread started: project_manager inventory_thread");
-		// Sleep in 10ms increments to allow fast exit
-		for (int i = 0; i < 10; ++i) {
-			if (stop.stop_requested())
-				break;
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		}
-
-		if (!stop.stop_requested()) {
+		if (!interruptible_sleep(stop, std::chrono::milliseconds(100))) {
 			inventory_project(stop);
 		}
 		event_logger::get_instance().log("Thread exited: project_manager inventory_thread");
@@ -94,14 +105,7 @@ void project_manager::initialize()
 	// Start the software map thread with a 2000ms delay to let the LSP warm up
 	software_map_thread_ = std::jthread([this](std::stop_token stop) {
 		event_logger::get_instance().log("Thread started: project_manager software_map_thread");
-		// Sleep in 50ms increments to allow fast exit during the 2000ms wait
-		for (int i = 0; i < 40; ++i) {
-			if (stop.stop_requested())
-				break;
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		}
-
-		if (!stop.stop_requested()) {
+		if (!interruptible_sleep(stop, std::chrono::milliseconds(2000))) {
 			software_map_loop(stop);
 		}
 		event_logger::get_instance().log("Thread exited: project_manager software_map_thread");
@@ -800,11 +804,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 
 	while (!stop.stop_requested()) {
 		if (!config_manager::get_instance().is_software_map_enabled()) {
-			for (int i = 0; i < 50; ++i) {
-				if (stop.stop_requested())
-					return;
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}
+			if (interruptible_sleep(stop, std::chrono::milliseconds(5000)))
+				return;
 			continue;
 		}
 
@@ -919,7 +920,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 					return;
 				auto symbols = lsp_query_workspace_symbols(name);
 				process_symbols(symbols);
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				if (interruptible_sleep(stop, std::chrono::milliseconds(50)))
+					return;
 			}
 
 			// Phase 3: Broad LSP scan fallback
@@ -933,11 +935,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 			save_software_map();
 			update_software_map_markdown();
 
-			for (int i = 0; i < 50; ++i) {
-				if (stop.stop_requested())
-					return;
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}
+			if (interruptible_sleep(stop, std::chrono::milliseconds(5000)))
+				return;
 			continue;
 		}
 
@@ -961,11 +960,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 			if (target_idx == (size_t)-1) {
 				// All symbols sampled. We could reset them all if there was file churn,
 				// but for now we'll just wait.
-				for (int i = 0; i < 50; ++i) {
-					if (stop.stop_requested())
-						return;
-					std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				}
+				if (interruptible_sleep(stop, std::chrono::milliseconds(5000)))
+					return;
 				continue;
 			}
 
@@ -1056,7 +1052,8 @@ void project_manager::software_map_loop(std::stop_token stop)
 		}
 
 		// Rate limit sampling
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		if (interruptible_sleep(stop, std::chrono::milliseconds(30)))
+			return;
 	}
 }
 void project_manager::shutdown()
