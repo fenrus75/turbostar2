@@ -237,6 +237,12 @@ test_event_logger = executable('test_event_logger',
   include_directories: 'src')
 test('unit_event_logger', test_event_logger, suite: 'agent')
 
+test_file_health_tracker = executable('test_file_health_tracker',
+  ['tests/unit/test_file_health_tracker.cpp', 'src/event_logger.cpp', 'src/lsp_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  dependencies: [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, thread_dep],
+  include_directories: inc)
+test('unit_file_health_tracker', test_file_health_tracker, suite: 'agent')
+
 test_project_template_manager = executable('test_project_template_manager',
   ['tests/unit/test_project_template_manager.cpp'],
   dependencies : [core_dep],
