@@ -203,6 +203,62 @@ int main()
 		assert(events[4].usage.total_tokens == 30);
 	}
 
+	// 5. Test tool call sequence protection against interleaved system messages
+	{
+		auto convo_seq = std::make_shared<Conversation>();
+		auto ep_seq = convo_seq->create_new_episode("ep_seq", "seq_title", "seq_summary");
+		auto tx_base = std::make_shared<Transaction>("tx_base", transaction_type::user_exchange);
+		ep_seq->add_transaction(tx_base);
+		tx_base->add_turn(std::make_shared<system_turn>("sys_0", "Base System Prompt.", "base"));
+		tx_base->add_turn(std::make_shared<user_turn>("u_1", "Read file"));
+
+		tool_call tc;
+		tc.id = "call_abc";
+		tc.type = "function";
+		tc.function.name = "fs_read_lines";
+		tc.function.arguments = "{}";
+
+		auto tx_ast = std::make_shared<Transaction>("tx_ast", transaction_type::user_exchange);
+		ep_seq->add_transaction(tx_ast);
+		tx_ast->add_turn(std::make_shared<model_response_turn>("ast_2", "", std::nullopt, std::vector<tool_call>{tc}));
+
+		// Inject mid-stream system message directly between assistant tool call and tool result
+		auto tx_sys = std::make_shared<Transaction>("tx_sys", transaction_type::system_injection);
+		ep_seq->add_transaction(tx_sys);
+		tx_sys->add_turn(std::make_shared<system_turn>("sys_interleaved", "Auto-Episode Boundary", "boundary"));
+
+		// Tool response turn comes after the system message
+		tool_result tr;
+		tr.call_id = "call_abc";
+		tr.name = "fs_read_lines";
+		tr.content = "file content line 1";
+		auto tx_tool = std::make_shared<Transaction>("tx_tool", transaction_type::user_exchange);
+		ep_seq->add_transaction(tx_tool);
+		tx_tool->add_turn(std::make_shared<tool_execution_turn>("tool_3", std::vector<tool_result>{tr}));
+
+		auto t_seq = std::make_shared<mock_transport>();
+		openai_completion_connection c_seq(t_seq, "gpt-4", api_type::openai);
+		c_seq.send_prompt(*convo_seq, agent_properties{}, [](const stream_event&){});
+
+		json payload = json::parse(t_seq->last_body);
+		auto msgs = payload["messages"];
+
+		// Verify strict sequence: assistant (tool_calls) MUST be immediately followed by tool result
+		size_t ast_idx = 0;
+		for (size_t i = 0; i < msgs.size(); ++i) {
+			if (msgs[i]["role"] == "assistant" && msgs[i].contains("tool_calls")) {
+				ast_idx = i;
+				break;
+			}
+		}
+		assert(ast_idx > 0);
+		assert(msgs[ast_idx + 1]["role"] == "tool");
+		assert(msgs[ast_idx + 1]["tool_call_id"] == "call_abc");
+		// The interleaved system message must appear AFTER the tool result
+		assert(msgs[ast_idx + 2]["role"] == "system");
+		assert(msgs[ast_idx + 2]["content"] == "Auto-Episode Boundary");
+	}
+
 	std::cout << "test_api_formatter passed successfully!" << std::endl;
 	return 0;
 }
