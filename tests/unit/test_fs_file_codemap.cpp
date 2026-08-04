@@ -110,6 +110,44 @@ int main()
 	const tools::codemap_symbol_info *enc_none = tools::find_enclosing_symbol(symbols1, 33);
 	assert(enc_none == nullptr);
 
+	// 11. Test select_prioritized_codemap_symbols and priority scoring
+	{
+		std::vector<tools::codemap_symbol_info> test_syms;
+		// 15 symbols
+		for (int i = 1; i <= 15; ++i) {
+			tools::codemap_symbol_info s;
+			s.name = (i == 5) ? "target_grep_function" : std::format("func_{}", i);
+			s.display_name = s.name;
+			s.start_line = i * 10;
+			s.end_line = i * 10 + 5;
+			s.line_count = (i == 1) ? 1 : 6; // i=1 is a 1-line getter
+			test_syms.push_back(s);
+		}
+
+		ctx.recent_grep_patterns.clear();
+		ctx.recent_grep_patterns.push_back("target_grep");
+
+		// Read range lines 45..55 (crosses func_5 start_line=50)
+		auto sel = tools::select_prioritized_codemap_symbols(test_syms, 45, 55, "dummy.cpp", ctx, /*max_items=*/5);
+		assert(sel.total_symbols == 15);
+		assert(sel.selected_symbols.size() == 5);
+		assert(sel.omitted_count == 10);
+
+		// target_grep_function (func_5) encloses boundary (line 45..55 vs 50..55) AND matches grep -> top score
+		bool found_grep_target = false;
+		for (const auto &s : sel.selected_symbols) {
+			if (s.name == "target_grep_function") {
+				found_grep_target = true;
+			}
+		}
+		assert(found_grep_target);
+
+		// Test header table formatting
+		std::string formatted_table = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count);
+		assert(formatted_table.find("### Codemap for `dummy.cpp` (Top 5 of 15 symbols):") != std::string::npos);
+		assert(formatted_table.find("*... [10 other symbols omitted]*") != std::string::npos);
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

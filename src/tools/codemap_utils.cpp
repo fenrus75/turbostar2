@@ -203,18 +203,152 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 	return structure_symbol_hierarchy(raw_symbols);
 }
 
-std::string format_codemap_table(const std::string &display_path, const std::vector<codemap_symbol_info> &symbols, bool rich_format, size_t total_file_lines)
+codemap_selection_result select_prioritized_codemap_symbols(
+	const std::vector<codemap_symbol_info> &all_symbols,
+	int read_start,
+	int read_end,
+	const std::string &safe_path,
+	agentlib::tool_context &ctx,
+	size_t max_items)
+{
+	codemap_selection_result res;
+	res.total_symbols = all_symbols.size();
+	if (all_symbols.empty()) {
+		return res;
+	}
+
+	// Check mtime invalidation on codemap history
+	std::error_code ec;
+	auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
+	auto &history = ctx.codemap_history[safe_path];
+	if (!ec && history.last_mtime != current_mtime) {
+		history.reported_symbol_names.clear();
+		history.last_mtime = current_mtime;
+	}
+
+	// LRU eviction cap if history gets too large
+	if (ctx.codemap_history.size() > 64) {
+		ctx.codemap_history.clear();
+		ctx.codemap_history[safe_path] = history;
+	}
+
+	struct scored_symbol {
+		const codemap_symbol_info *info;
+		double score;
+		size_t original_index;
+	};
+
+	std::vector<scored_symbol> scored;
+	scored.reserve(all_symbols.size());
+
+	for (size_t idx = 0; idx < all_symbols.size(); ++idx) {
+		const auto &sym = all_symbols[idx];
+		double score = 0.0;
+
+		// 1. Boundary & Enclosing Scopes
+		bool encloses_start = (read_start >= sym.start_line && read_start <= sym.end_line);
+		bool encloses_end = (read_end >= sym.start_line && read_end <= sym.end_line);
+		bool encloses_entire = (sym.start_line <= read_start && sym.end_line >= read_end);
+		bool is_internal = (sym.start_line >= read_start && sym.end_line <= read_end);
+
+		if (encloses_start || encloses_end) {
+			score += 10.0;
+		} else if (encloses_entire) {
+			score += 8.0;
+		} else if (is_internal) {
+			score += 1.0;
+		} else {
+			// Proximity check (within 50 lines)
+			int dist_start = std::abs(sym.start_line - read_start);
+			int dist_end = std::abs(sym.end_line - read_end);
+			if (dist_start <= 50 || dist_end <= 50) {
+				score += 3.0;
+			}
+		}
+
+		// 2. Search Relevance (recent grep patterns)
+		double grep_weight = 5.0;
+		for (const auto &pattern : ctx.recent_grep_patterns) {
+			if (!pattern.empty()) {
+				std::string name_lower = sym.name;
+				std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				std::string pat_lower = pattern;
+				std::transform(pat_lower.begin(), pat_lower.end(), pat_lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+				if (name_lower.find(pat_lower) != std::string::npos || pat_lower.find(name_lower) != std::string::npos) {
+					score += grep_weight;
+					break;
+				}
+			}
+			grep_weight /= 2.0; // Decaying weight for older search terms
+		}
+
+		// 3. Short symbol penalty (getters/setters < 3 lines)
+		if (sym.line_count < 3) {
+			score -= 5.0;
+		}
+
+		// 4. Deduplication penalty if previously reported
+		if (history.reported_symbol_names.contains(sym.name)) {
+			score -= 3.0;
+		}
+
+		scored.push_back({&sym, score, idx});
+	}
+
+	// Sort by score descending; break ties by start_line ascending
+	std::stable_sort(scored.begin(), scored.end(), [](const scored_symbol &a, const scored_symbol &b) {
+		if (a.score != b.score) {
+			return a.score > b.score;
+		}
+		return a.info->start_line < b.info->start_line;
+	});
+
+	size_t take_count = std::min(max_items, scored.size());
+	res.selected_symbols.reserve(take_count);
+
+	for (size_t i = 0; i < take_count; ++i) {
+		res.selected_symbols.push_back(*scored[i].info);
+		history.reported_symbol_names.insert(scored[i].info->name);
+	}
+
+	// Re-sort selected symbols by start_line ascending for document order display
+	std::sort(res.selected_symbols.begin(), res.selected_symbols.end(), [](const codemap_symbol_info &a, const codemap_symbol_info &b) {
+		return a.start_line < b.start_line;
+	});
+
+	res.omitted_count = (res.total_symbols > res.selected_symbols.size()) ? (res.total_symbols - res.selected_symbols.size()) : 0;
+	return res;
+}
+
+std::string format_codemap_table(
+	const std::string &display_path,
+	const std::vector<codemap_symbol_info> &symbols,
+	bool rich_format,
+	size_t total_file_lines,
+	size_t total_symbols_count,
+	size_t omitted_count)
 {
 	if (symbols.empty()) {
 		return "";
 	}
 
+	size_t effective_total = (total_symbols_count > 0) ? total_symbols_count : symbols.size();
+
 	std::stringstream ss;
 	if (rich_format) {
 		if (total_file_lines > 0) {
-			ss << std::format("### Codemap for `{}` ({} symbols, {} lines):\n\n", display_path, symbols.size(), total_file_lines);
+			if (effective_total > symbols.size()) {
+				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, symbols.size(), effective_total, total_file_lines);
+			} else {
+				ss << std::format("### Codemap for `{}` ({} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
+			}
 		} else {
-			ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, symbols.size());
+			if (effective_total > symbols.size()) {
+				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, symbols.size(), effective_total);
+			} else {
+				ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, effective_total);
+			}
 		}
 		ss << "| Symbol | Start Line | End Line | Lines |\n";
 		ss << "| :--- | :---: | :---: | :---: |\n";
@@ -222,13 +356,22 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 		}
 	} else {
-		ss << std::format("### Codemap for `{}`:\n\n", display_path);
+		if (effective_total > symbols.size()) {
+			ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, symbols.size(), effective_total);
+		} else {
+			ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, symbols.size());
+		}
 		ss << "| Function | Start Line | End Line |\n";
 		ss << "| :--- | :---: | :---: |\n";
 		for (const auto &sym : symbols) {
 			ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
 		}
 	}
+
+	if (omitted_count > 0) {
+		ss << std::format("*... [{} other symbols omitted]*\n", omitted_count);
+	}
+
 	ss << "\n";
 	return ss.str();
 }

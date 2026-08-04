@@ -335,19 +335,25 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (!read_whole_file) {
-			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/3);
-			if (!symbols.empty() && symbols.size() < 10) {
-				ss << "\n" << format_codemap_table(args_.requested_path, symbols, /*rich_format=*/false);
+			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
+			if (!symbols.empty()) {
+				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx, /*max_items=*/10);
+				if (!selection.selected_symbols.empty()) {
+					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count);
+				}
 			}
 		}
 
 		if (is_header) {
 			std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
 			if (!matching_impl.empty()) {
-				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, /*min_lines=*/3);
+				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, /*min_lines=*/1);
 				if (!impl_symbols.empty()) {
 					std::filesystem::path ip(matching_impl);
-					ss << "\n" << format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/false);
+					auto selection = select_prioritized_codemap_symbols(impl_symbols, 1, 1000000, matching_impl, ctx, /*max_items=*/10);
+					if (!selection.selected_symbols.empty()) {
+						ss << "\n" << format_codemap_table(ip.filename().string(), selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count);
+					}
 				}
 			}
 		}

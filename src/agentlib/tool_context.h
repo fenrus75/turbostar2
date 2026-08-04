@@ -1,5 +1,8 @@
 #pragma once
+#include <deque>
+#include <filesystem>
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include "../event_queue.h"
@@ -28,6 +31,11 @@ struct file_health_state {
 	std::string originating_edit_id;
 };
 
+struct codemap_history_entry {
+	std::filesystem::file_time_type last_mtime{};
+	std::set<std::string> reported_symbol_names;
+};
+
 // A placeholder for the context that tools will receive.
 // In a full integration, this would hold references to the active document,
 // event queue, or other Turbostar editor state.
@@ -54,6 +62,12 @@ class tool_context
 	// File health tracking state machine (CLEAN / DIRTY / UNKNOWN) across a session
 	std::unordered_map<std::string, file_health_state> file_health_tracker;
 	size_t edit_sequence_counter = 0;
+
+	// Recent grep search patterns for codemap relevance boosting
+	std::deque<std::string> recent_grep_patterns;
+
+	// Per-file codemap history tracking for deduplication
+	std::unordered_map<std::string, codemap_history_entry> codemap_history;
 };
 
 } // namespace agentlib
