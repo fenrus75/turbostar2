@@ -5,11 +5,166 @@
 #include <fstream>
 #include <sstream>
 #include "../../agentlib/interactions/base.h"
+#include "../../project_manager.h"
 #include "../../utf8.h"
 #include "fs_replace_lines.h"
 
 namespace tools
 {
+
+namespace
+{
+
+static int calculate_brace_balance(const std::vector<std::string> &lines, int start_line_0, int end_line_0)
+{
+	int balance = 0;
+	bool in_block_comment = false;
+
+	for (int i = start_line_0; i <= end_line_0 && i < static_cast<int>(lines.size()); ++i) {
+		const std::string &line = lines[i];
+		size_t len = line.length();
+		size_t j = 0;
+		bool in_string = false;
+		char string_quote = '\0';
+
+		while (j < len) {
+			if (in_block_comment) {
+				if (j + 1 < len && line[j] == '*' && line[j + 1] == '/') {
+					in_block_comment = false;
+					j += 2;
+				} else {
+					j++;
+				}
+				continue;
+			}
+
+			if (in_string) {
+				if (line[j] == '\\' && j + 1 < len) {
+					j += 2;
+				} else if (line[j] == string_quote) {
+					in_string = false;
+					j++;
+				} else {
+					j++;
+				}
+				continue;
+			}
+
+			if (j + 1 < len && line[j] == '/' && line[j + 1] == '/') {
+				break;
+			}
+			if (j + 1 < len && line[j] == '/' && line[j + 1] == '*') {
+				in_block_comment = true;
+				j += 2;
+				continue;
+			}
+
+			if (line[j] == '"' || line[j] == '\'') {
+				in_string = true;
+				string_quote = line[j];
+				j++;
+				continue;
+			}
+
+			if (line[j] == '{') {
+				balance++;
+			} else if (line[j] == '}') {
+				balance--;
+			}
+			j++;
+		}
+	}
+	return balance;
+}
+
+static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes,
+                              std::vector<lsp_manager::symbol_node> &out_funcs)
+{
+	for (const auto &n : nodes) {
+		if (n.kind == 6 || n.kind == 12 || n.kind == 11) {
+			out_funcs.push_back(n);
+		}
+		collect_functions(n.children, out_funcs);
+	}
+}
+
+static std::string check_brace_warnings(const std::string &safe_path,
+                                        const std::vector<std::string> &before_lines,
+                                        const std::vector<std::string> &after_lines,
+                                        const std::vector<edit_operation> &edits)
+{
+	std::string warnings;
+	auto symbols = project_manager::get_instance().lsp_query_document_symbols(safe_path);
+	std::vector<lsp_manager::symbol_node> funcs;
+	collect_functions(symbols, funcs);
+
+	if (!funcs.empty()) {
+		for (const auto &func : funcs) {
+			int f_start = func.range.start_y;
+			int f_end = func.range.end_y;
+			if (f_start < 0 || f_end >= static_cast<int>(before_lines.size()) || f_start > f_end) {
+				continue;
+			}
+
+			bool intersects_edit = false;
+			int line_delta = 0;
+
+			for (const auto &edit : edits) {
+				int edit_line_0 = edit.line_number - 1;
+				if (edit_line_0 >= f_start && edit_line_0 <= f_end) {
+					intersects_edit = true;
+				}
+				if (edit_line_0 <= f_end) {
+					int new_l = 0;
+					if (edit.type == "add" || edit.type == "replace") {
+						if (edit.replace_with.empty()) {
+							new_l = 1;
+						} else {
+							new_l = std::count(edit.replace_with.begin(), edit.replace_with.end(), '\n') + 1;
+						}
+					}
+					int old_l = (edit.type == "remove" || edit.type == "replace") ? edit.lines_to_remove : 0;
+					line_delta += (new_l - old_l);
+				}
+			}
+
+			if (intersects_edit) {
+				int before_bal = calculate_brace_balance(before_lines, f_start, f_end);
+				int after_end = std::min(static_cast<int>(after_lines.size()) - 1, f_end + line_delta);
+				if (after_end >= f_start) {
+					int after_bal = calculate_brace_balance(after_lines, f_start, after_end);
+					if (before_bal == 0 && after_bal != 0) {
+						if (after_bal > 0) {
+							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' (net balance: +{}, missing {} closing '}}' brace{})\n",
+							                        func.name, after_bal, after_bal, (after_bal == 1 ? "" : "s"));
+						} else {
+							int abs_bal = std::abs(after_bal);
+							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' (net balance: {}, possible extra {} closing '}}' brace{})\n",
+							                        func.name, after_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
+						}
+					}
+				}
+			}
+		}
+	} else {
+		int before_bal = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
+		int after_bal = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
+		if (before_bal == 0 && after_bal != 0) {
+			if (after_bal > 0) {
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
+				                        after_bal, after_bal, (after_bal == 1 ? "" : "s"));
+			} else {
+				int abs_bal = std::abs(after_bal);
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} closing '}}' brace{})\n",
+				                        after_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
+			}
+		}
+	}
+
+	return warnings;
+}
+
+} // namespace
 
 class interaction_fs_replace_lines : public agentlib::agent_interaction
 {
@@ -552,6 +707,11 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	bool show_shift_zones = (total_drift < 15);
 
 	std::string result_msg = std::format("Successfully applied {} edits to {}\n\n", args_.edits.size(), args_.path);
+	std::string brace_warnings = check_brace_warnings(args_.safe_path, before_lines, lines, args_.edits);
+	if (!brace_warnings.empty()) {
+		result_msg += brace_warnings + "\n";
+	}
+
 	if (!args_.adjustment_notes.empty()) {
 		result_msg += "System Corrections Applied:\n";
 		for (const auto &note : args_.adjustment_notes) {

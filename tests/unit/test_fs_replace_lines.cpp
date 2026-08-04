@@ -333,6 +333,31 @@ int main()
 		std::remove(large_file.c_str());
 	}
 
+	// Test Brace Balance Checker Warning
+	{
+		std::string brace_file = "test_brace_check.cpp";
+		{
+			std::ofstream out(brace_file);
+			out << "void foo() {\n    int a = 1;\n    int b = 2;\n}\n";
+			out.close();
+		}
+
+		nlohmann::json brace_args = {
+		    {"path", brace_file},
+		    {"edits", nlohmann::json::array({
+			{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}
+		    })}
+		};
+
+		std::string brace_res = registry.execute_tool("fs_replace_lines", brace_args.dump(), ctx);
+		std::cout << "Brace check warning result:\n" << brace_res << "\n";
+		assert(brace_res.find("Successfully applied") != std::string::npos);
+		assert(brace_res.find("⚠️ Warning: Edit introduced unbalanced braces") != std::string::npos);
+		assert(brace_res.find("missing 1 closing '}' brace") != std::string::npos);
+
+		std::remove(brace_file.c_str());
+	}
+
 	std::remove(test_file.c_str());
 
 	std::cout << "fs_replace_lines unit test passed!\n";
