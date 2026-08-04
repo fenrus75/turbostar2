@@ -128,7 +128,7 @@ int main()
 
 	std::string res3 = tool3.execute(ctx);
 	std::cout << "RES3:\n" << res3 << std::endl;
-	assert(res3.find("Match near Line 1:") != std::string::npos);
+	assert(res3.find("**Match near Line 1**:") != std::string::npos);
 	assert(res3.find("1: line 1 modified") != std::string::npos);
 	assert(res3.find("3: line 3") != std::string::npos);
 
@@ -143,8 +143,8 @@ int main()
 	std::string res4 = tool4.execute(ctx);
 	std::cout << "RES4:\n" << res4 << std::endl;
 	// Should merge into a single block
-	assert(res4.find("Match near Line 1:") != std::string::npos);
-	assert(res4.find("Match near Line 3:") == std::string::npos); // Should be merged!
+	assert(res4.find("**Match near Line 1**:") != std::string::npos);
+	assert(res4.find("**Match near Line 3**:") == std::string::npos); // Should be merged!
 	assert(res4.find("4: line 4") != std::string::npos);
 
 	// Test 5: Duplicate query detection
@@ -189,6 +189,73 @@ int main()
 		assert(res6.find("### LSP Symbol Definitions:") != std::string::npos);
 		assert(res6.find("* **Function `hello`** is defined in `src/hello.cpp` at line 42") != std::string::npos);
 		assert(res6.find("* **Class `hello_world`** is defined in `src/hello.h` at line 10") != std::string::npos);
+	}
+
+	// Test 7: Exclude path, ext, and pattern
+	{
+		fs::path sub_dir = temp_dir / "build_output";
+		fs::create_directories(sub_dir);
+
+		fs::path f_log = temp_dir / "app.log";
+		std::ofstream(f_log) << "target_search_key inside app log\n";
+
+		fs::path f_build = sub_dir / "output.txt";
+		std::ofstream(f_build) << "target_search_key inside build output\n";
+
+		fs::path f_src = temp_dir / "main.cpp";
+		std::ofstream(f_src) << "target_search_key inside main cpp\n";
+
+		// Test 7a: exclude_ext = ".log"
+		tools::fs_grep_files_args args7a;
+		args7a.pattern = "target_search_key";
+		args7a.safe_search_path = temp_dir.string();
+		args7a.exclude_ext = ".log";
+		tools::fs_grep_files_tool tool7a(args7a);
+
+		std::string res7a = tool7a.execute(ctx);
+		assert(res7a.find("app.log") == std::string::npos);
+		assert(res7a.find("main.cpp") != std::string::npos);
+
+		// Test 7b: exclude_path = "build_output"
+		tools::fs_grep_files_args args7b;
+		args7b.pattern = "target_search_key";
+		args7b.safe_search_path = temp_dir.string();
+		args7b.exclude_path = "build_output";
+		tools::fs_grep_files_tool tool7b(args7b);
+
+		std::string res7b = tool7b.execute(ctx);
+		assert(res7b.find("output.txt") == std::string::npos);
+		assert(res7b.find("main.cpp") != std::string::npos);
+
+		// Test 7c: exclude_pattern = ".*main.*"
+		tools::fs_grep_files_args args7c;
+		args7c.pattern = "target_search_key";
+		args7c.safe_search_path = temp_dir.string();
+		args7c.exclude_pattern = ".*main.*";
+		tools::fs_grep_files_tool tool7c(args7c);
+
+		std::string res7c = tool7c.execute(ctx);
+		assert(res7c.find("main.cpp") == std::string::npos);
+	}
+
+	// Test 8: Tier priority sorting (Tier 1 core source vs Tier 4 backup tilde file)
+	{
+		fs::path backup_file = temp_dir / "target.cpp~";
+		std::ofstream(backup_file) << "priority_key line inside backup tilde file\n";
+
+		fs::path source_file = temp_dir / "target.cpp";
+		std::ofstream(source_file) << "priority_key line inside main source file\n";
+
+		tools::fs_grep_files_args args8;
+		args8.pattern = "priority_key";
+		args8.safe_search_path = temp_dir.string();
+		args8.limit = 1; // Limit to 1 match so only top tier file gets detailed snippet
+		tools::fs_grep_files_tool tool8(args8);
+
+		std::string res8 = tool8.execute(ctx);
+		assert(res8.find("### `target.cpp`") != std::string::npos);
+		assert(res8.find("target.cpp~") != std::string::npos); // Should be in overflow list
+		assert(res8.find("### `target.cpp~`") == std::string::npos); // Should NOT be in detailed matches header!
 	}
 
 	fs::remove_all(temp_dir);

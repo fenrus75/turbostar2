@@ -26,6 +26,18 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
                 {"type", "string"},
                 {"description", "Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted."}
             }},
+            {"exclude_path", {
+                {"type", "string"},
+                {"description", "Filter out files/directories containing this path substring or prefix (e.g. 'build/', 'vendor/'). Optional."}
+            }},
+            {"exclude_ext", {
+                {"type", "string"},
+                {"description", "Filter out files with specified extension(s), single (e.g. '.log') or comma-separated (e.g. '.log,.json'). Optional."}
+            }},
+            {"exclude_pattern", {
+                {"type", "string"},
+                {"description", "Regex or substring pattern to exclude matching file paths or lines. Optional."}
+            }},
             {"limit", {
                 {"type", "integer"},
                 {"description", "Cap the total number of detailed matches (line content + number) to prevent blowing out the context window. Defaults to 50."},
@@ -55,6 +67,24 @@ bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args,
             args_.search_path = raw_args["search_path"].get<std::string>();
         } else {
             args_.search_path = std::nullopt;
+        }
+
+        if (raw_args.contains("exclude_path") && raw_args["exclude_path"].is_string()) {
+            args_.exclude_path = raw_args["exclude_path"].get<std::string>();
+        } else {
+            args_.exclude_path = std::nullopt;
+        }
+
+        if (raw_args.contains("exclude_ext") && raw_args["exclude_ext"].is_string()) {
+            args_.exclude_ext = raw_args["exclude_ext"].get<std::string>();
+        } else {
+            args_.exclude_ext = std::nullopt;
+        }
+
+        if (raw_args.contains("exclude_pattern") && raw_args["exclude_pattern"].is_string()) {
+            args_.exclude_pattern = raw_args["exclude_pattern"].get<std::string>();
+        } else {
+            args_.exclude_pattern = std::nullopt;
         }
         
         args_.limit = raw_args.value("limit", 50);

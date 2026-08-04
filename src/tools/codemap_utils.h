@@ -28,4 +28,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 // Find matching implementation file for a header file (e.g. .h -> .cpp, .hpp -> .cpp)
 std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx);
 
+// Find the innermost symbol enclosing line_number in a list of codemap symbols
+const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number);
+
 } // namespace tools

@@ -98,10 +98,22 @@ int main()
 	assert(!symbols1.empty());
 	assert(symbols1.size() == symbols2.size());
 
+	// 10. Test find_enclosing_symbol helper
+	const tools::codemap_symbol_info *enc_foo = tools::find_enclosing_symbol(symbols1, 5);
+	assert(enc_foo != nullptr);
+	assert(enc_foo->name == "sample_foo");
+
+	const tools::codemap_symbol_info *enc_bar = tools::find_enclosing_symbol(symbols1, 10);
+	assert(enc_bar != nullptr);
+	assert(enc_bar->name == "sample_bar");
+
+	const tools::codemap_symbol_info *enc_none = tools::find_enclosing_symbol(symbols1, 33);
+	assert(enc_none == nullptr);
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());
 
-	std::cout << "test_fs_file_codemap passed successfully!\n";
+	std::cout << "All fs_file_codemap tests passed successfully!\n";
 	return 0;
 }

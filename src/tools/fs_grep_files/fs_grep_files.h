@@ -17,6 +17,9 @@ struct fs_grep_files_args {
     std::string pattern;
     std::optional<std::string> include_ext;
     std::optional<std::string> search_path;
+    std::optional<std::string> exclude_path;
+    std::optional<std::string> exclude_ext;
+    std::optional<std::string> exclude_pattern;
     bool is_regex{false};
     int limit{50};
     int context_lines{0};
@@ -39,6 +42,7 @@ protected:
 private:
     fs_grep_files_args args_;
     mutable std::unique_ptr<re2::RE2> compiled_regex_;
+    mutable std::unique_ptr<re2::RE2> compiled_exclude_regex_;
     std::shared_ptr<agentlib::interaction_fs_grep_files> interaction_;
     
     std::string escape_markdown(const std::string& text) const;

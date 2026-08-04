@@ -260,4 +260,21 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	return "";
 }
 
+const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number)
+{
+	const codemap_symbol_info *best_match = nullptr;
+	int smallest_span = std::numeric_limits<int>::max();
+
+	for (const auto &sym : symbols) {
+		if (line_number >= sym.start_line && line_number <= sym.end_line) {
+			int span = sym.end_line - sym.start_line + 1;
+			if (span < smallest_span) {
+				smallest_span = span;
+				best_match = &sym;
+			}
+		}
+	}
+	return best_match;
+}
+
 } // namespace tools

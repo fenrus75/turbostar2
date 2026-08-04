@@ -1030,6 +1030,7 @@ test_fs_list_dir = executable('test_fs_list_dir',
   ['tests/unit/test_fs_list_dir.cpp',
    'src/tools/fs_list_dir/fs_list_dir_entry.cpp',
    'src/tools/fs_list_dir/fs_list_dir_security.cpp',
+   'src/tools/codemap_utils.cpp',
    'src/tools/fs_file_size/fs_file_size_entry.cpp',
    'src/tools/fs_file_size/fs_file_size_security.cpp',
    'src/tools/fs_grep_files/fs_grep_files_entry.cpp',
@@ -1386,7 +1387,7 @@ test_model_server = executable('test_model_server',
 test('unit_model_server', test_model_server, suite: 'agent')
 
 test_fs_grep_files = executable('test_fs_grep_files',
-  ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp'],
+  ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp', 'src/tools/codemap_utils.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_fs_grep_files', test_fs_grep_files, suite: 'agent')

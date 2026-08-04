@@ -56,11 +56,14 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1).
 
 ### `fs_grep_files`
-*   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers and matches. Ideal for finding definitions, usages, or error messages across the codebase.
+*   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers, enclosing symbol context annotations (e.g. `[in function foo]`), and matches. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
     *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.
+    *   `exclude_path` *(string, optional)*: Filter out files/directories containing this path substring or prefix (e.g. 'build/', 'vendor/'). Optional.
+    *   `exclude_ext` *(string, optional)*: Filter out files with specified extension(s), single (e.g. '.log') or comma-separated (e.g. '.log,.json'). Optional.
+    *   `exclude_pattern` *(string, optional)*: Regex or substring pattern to exclude matching file paths or lines. Optional.
     *   `limit` *(integer, optional)*: Cap the total number of detailed matches to prevent blowing out the context window. Defaults to 50. If exceeded, only filenames are listed for the remaining matches.
 
 ### `fs_read_binary`

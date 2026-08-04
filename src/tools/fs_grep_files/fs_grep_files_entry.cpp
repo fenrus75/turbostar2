@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "../../config_manager.h"
 #include "fs_grep_files.h"
+#include "tools/codemap_utils.h"
 #include "../../fs_utils.h"
 #include "project_manager.h"
 #include <format>
@@ -78,10 +79,46 @@ static bool contains_case_insensitive(const std::string &haystack, const std::st
 	return it != haystack.end();
 }
 
+static bool is_source_extension(std::string_view ext)
+{
+	return ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc" ||
+	       ext == ".cxx" || ext == ".py" || ext == ".js" || ext == ".ts" || ext == ".rs" ||
+	       ext == ".go" || ext == ".java" || ext == ".cs" || ext == ".rb" || ext == ".sh";
+}
+
+static int calculate_file_priority_tier(const fs::path &path, bool is_open_buffer)
+{
+	std::string filename = path.filename().string();
+	std::string path_str = path.string();
+
+	// Tier 4: Backup / Temporary Files / Swp / Tilde files
+	if (!filename.empty() && (filename.back() == '~' || filename.ends_with(".bak") || filename.ends_with(".orig") ||
+	    filename.ends_with(".swp") || filename.starts_with("#") || filename.ends_with("#"))) {
+		return 4;
+	}
+
+	// Tier 3: Build outputs, vendor headers, log files
+	if (path_str.contains("/build/") || path_str.starts_with("build/") ||
+	    filename.ends_with(".log") || filename.ends_with(".out") || path_str.starts_with("/usr/")) {
+		return 3;
+	}
+
+	// Tier 1: Open buffers or primary source files
+	if (is_open_buffer || is_source_extension(path.extension().string())) {
+		return 1;
+	}
+
+	// Tier 2: General project files / docs / configs
+	return 2;
+}
+
 struct last_search_info {
 	std::string pattern;
 	std::string safe_search_path;
 	std::string include_ext;
+	std::string exclude_path;
+	std::string exclude_ext;
+	std::string exclude_pattern;
 	bool is_regex{false};
 };
 static last_search_info g_last_search;
@@ -96,6 +133,11 @@ fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::mov
 	RE2::Options options;
 	std::string final_pattern = args_.is_regex ? args_.pattern : RE2::QuoteMeta(args_.pattern);
 	compiled_regex_ = std::make_unique<RE2>(final_pattern, options);
+
+	if (args_.exclude_pattern && !args_.exclude_pattern->empty()) {
+		compiled_exclude_regex_ = std::make_unique<RE2>(*args_.exclude_pattern, options);
+	}
+
 	std::string display_path = "";
 	if (args_.search_path) {
 		display_path = *args_.search_path;
@@ -127,19 +169,24 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	bool is_duplicate = false;
-	std::string curr_ext = "";
-	if (args_.include_ext) {
-		curr_ext = *args_.include_ext;
-	}
+	std::string curr_ext = args_.include_ext ? *args_.include_ext : "";
+	std::string curr_ex_path = args_.exclude_path ? *args_.exclude_path : "";
+	std::string curr_ex_ext = args_.exclude_ext ? *args_.exclude_ext : "";
+	std::string curr_ex_pat = args_.exclude_pattern ? *args_.exclude_pattern : "";
 
 	if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
-	    g_last_search.include_ext == curr_ext && g_last_search.is_regex == args_.is_regex) {
+	    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
+	    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
+	    g_last_search.is_regex == args_.is_regex) {
 		is_duplicate = true;
 	}
 
 	g_last_search.pattern = args_.pattern;
 	g_last_search.safe_search_path = args_.safe_search_path;
 	g_last_search.include_ext = curr_ext;
+	g_last_search.exclude_path = curr_ex_path;
+	g_last_search.exclude_ext = curr_ex_ext;
+	g_last_search.exclude_pattern = curr_ex_pat;
 	g_last_search.is_regex = args_.is_regex;
 
 	if (is_duplicate) {
@@ -217,24 +264,77 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
+	struct raw_file_match {
+		int tier{1};
+		std::string rel_path_str;
+		std::vector<int> match_lines;
+		std::vector<std::string> file_lines;
+	};
+
+	std::vector<raw_file_match> raw_matches;
+
+	auto is_file_excluded = [&](const fs::path &path, const std::string &rel_path_str) {
+		std::string path_str = path.string();
+		std::string filename = path.filename().string();
+		std::string ext = path.extension().string();
+
+		if (args_.exclude_path && !args_.exclude_path->empty()) {
+			const std::string &ex_path = *args_.exclude_path;
+			if (path_str.contains(ex_path) || rel_path_str.contains(ex_path)) {
+				return true;
+			}
+		}
+
+		if (args_.exclude_ext && !args_.exclude_ext->empty()) {
+			const std::string &ex_ext = *args_.exclude_ext;
+			std::stringstream ss(ex_ext);
+			std::string token;
+			while (std::getline(ss, token, ',')) {
+				size_t first = token.find_first_not_of(" \t");
+				if (first == std::string::npos) continue;
+				size_t last = token.find_last_not_of(" \t");
+				token = token.substr(first, last - first + 1);
+				if (token.empty()) continue;
+				if (token.front() != '.') token = "." + token;
+				if (ext == token || filename.ends_with(token)) {
+					return true;
+				}
+			}
+		}
+
+		if (compiled_exclude_regex_ && compiled_exclude_regex_->ok()) {
+			if (RE2::PartialMatch(rel_path_str, *compiled_exclude_regex_) ||
+			    RE2::PartialMatch(path_str, *compiled_exclude_regex_)) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	int total_detailed_matches = 0;
 	std::map<std::string, std::vector<std::pair<int, std::string>>> detailed_matches;
 	std::set<std::string> overflow_files;
 
 	try {
 		auto process_file = [&](const fs::path &path) {
+			std::string abs_path_str = path.string();
+			std::string rel_path_str = fs::relative(path, root_path).string();
+
+			if (is_file_excluded(path, rel_path_str)) {
+				return;
+			}
+
 			if (args_.include_ext && path.extension().string() != *args_.include_ext) {
 				return;
 			}
 
-			std::string abs_path_str = path.string();
-			std::string rel_path_str = fs::relative(path, root_path).string();
-
 			std::vector<std::string> file_lines;
 			bool read_success = false;
+			bool is_open_buffer = open_files.contains(abs_path_str);
 
 			// 1. Check if the file is an open editor buffer
-			if (open_files.contains(abs_path_str) && ctx.doc_provider) {
+			if (is_open_buffer && ctx.doc_provider) {
 				auto snapshot = ctx.doc_provider->get_open_document(abs_path_str);
 				if (snapshot) {
 					for (size_t i = 0; i < snapshot->get_line_count(); ++i) {
@@ -269,46 +369,13 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
 					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
-						if (total_detailed_matches < args_.limit) {
-							match_lines.push_back(i + 1);
-							total_detailed_matches++;
-						} else {
-							overflow_files.insert(rel_path_str);
-							break;
-						}
+						match_lines.push_back(static_cast<int>(i + 1));
 					}
 				}
 
 				if (!match_lines.empty()) {
-					auto &matches = detailed_matches[rel_path_str];
-
-					// Merge overlapping match blocks
-					std::vector<std::pair<int, int>> merged_blocks; // start_line, end_line (1-based)
-					for (int match_line : match_lines) {
-						int block_start = std::max(1, match_line - args_.context_lines);
-						int block_end =
-						    std::min(static_cast<int>(file_lines.size()), match_line + args_.context_lines);
-
-						if (merged_blocks.empty()) {
-							merged_blocks.push_back({block_start, block_end});
-						} else {
-							auto &last_block = merged_blocks.back();
-							if (block_start <= last_block.second + 1) { // Overlaps or is adjacent
-								last_block.second = std::max(last_block.second, block_end);
-							} else {
-								merged_blocks.push_back({block_start, block_end});
-							}
-						}
-					}
-
-					// Format blocks
-					for (const auto &block : merged_blocks) {
-						std::stringstream block_ss;
-						for (int i = block.first; i <= block.second; ++i) {
-							block_ss << i << ": " << file_lines[i - 1] << "\n";
-						}
-						matches.push_back({block.first, block_ss.str()});
-					}
+					int tier = calculate_file_priority_tier(path, is_open_buffer);
+					raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
 				}
 			}
 		};
@@ -345,8 +412,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			collect_uris(raw_search_path);
 
 			for (const auto &file_uri : file_uris) {
+				fs::path p(file_uri);
+				if (is_file_excluded(p, file_uri)) {
+					continue;
+				}
 				if (args_.include_ext) {
-					fs::path p(file_uri);
 					if (p.extension().string() != *args_.include_ext) {
 						continue;
 					}
@@ -371,42 +441,13 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
 					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
-						if (total_detailed_matches < args_.limit) {
-							match_lines.push_back(i + 1);
-							total_detailed_matches++;
-						} else {
-							overflow_files.insert(file_uri);
-							break;
-						}
+						match_lines.push_back(static_cast<int>(i + 1));
 					}
 				}
 
 				if (!match_lines.empty()) {
-					auto &matches = detailed_matches[file_uri];
-					std::vector<std::pair<int, int>> merged_blocks;
-					for (int match_line : match_lines) {
-						int block_start = std::max(1, match_line - args_.context_lines);
-						int block_end = std::min(static_cast<int>(file_lines.size()), match_line + args_.context_lines);
-
-						if (merged_blocks.empty()) {
-							merged_blocks.push_back({block_start, block_end});
-						} else {
-							auto &last_block = merged_blocks.back();
-							if (block_start <= last_block.second + 1) {
-								last_block.second = std::max(last_block.second, block_end);
-							} else {
-								merged_blocks.push_back({block_start, block_end});
-							}
-						}
-					}
-
-					for (const auto &block : merged_blocks) {
-						std::stringstream block_ss;
-						for (int i = block.first; i <= block.second; ++i) {
-							block_ss << i << ": " << file_lines[i - 1] << "\n";
-						}
-						matches.push_back({block.first, block_ss.str()});
-					}
+					int tier = calculate_file_priority_tier(p, false);
+					raw_matches.push_back({tier, file_uri, std::move(match_lines), std::move(file_lines)});
 				}
 			}
 		} else if (fs::is_regular_file(search_path)) {
@@ -419,11 +460,13 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 				if (it->is_directory()) {
 					std::string name = path.filename().string();
+					std::string rel_p = fs::relative(path, root_path).string();
 					bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root_path;
 
-					// Skip hidden dirs, build dirs, and tmp/temp
+					// Skip hidden dirs, build dirs, tmp/temp, and explicit exclude_path matches
 					if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
-					    (is_top_level && name.starts_with("build"))) {
+					    (is_top_level && name.starts_with("build")) ||
+					    (args_.exclude_path && !args_.exclude_path->empty() && (path.string().contains(*args_.exclude_path) || rel_p.contains(*args_.exclude_path)))) {
 						it.disable_recursion_pending();
 					}
 					continue;
@@ -434,9 +477,56 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				process_file(path);
+			}
+		}
 
-				if (overflow_files.size() > 50) {
-					break; // Hard cap on overflow files to prevent infinite hangs
+		std::stable_sort(raw_matches.begin(), raw_matches.end(), [](const raw_file_match &a, const raw_file_match &b) {
+			if (a.tier != b.tier) {
+				return a.tier < b.tier; // Tier 1 (core) first, Tier 4 (backup ~) last
+			}
+			return a.rel_path_str < b.rel_path_str;
+		});
+
+		for (const auto &fm : raw_matches) {
+			std::vector<int> match_lines_detailed;
+			for (int match_line : fm.match_lines) {
+				if (total_detailed_matches < args_.limit) {
+					match_lines_detailed.push_back(match_line);
+					total_detailed_matches++;
+				} else {
+					overflow_files.insert(fm.rel_path_str);
+				}
+			}
+
+			if (!match_lines_detailed.empty()) {
+				auto &matches = detailed_matches[fm.rel_path_str];
+
+				// Merge overlapping match blocks
+				std::vector<std::pair<int, int>> merged_blocks; // start_line, end_line (1-based)
+				for (int match_line : match_lines_detailed) {
+					int block_start = std::max(1, match_line - args_.context_lines);
+					int block_end =
+					    std::min(static_cast<int>(fm.file_lines.size()), match_line + args_.context_lines);
+
+					if (merged_blocks.empty()) {
+						merged_blocks.push_back({block_start, block_end});
+					} else {
+						auto &last_block = merged_blocks.back();
+						if (block_start <= last_block.second + 1) { // Overlaps or is adjacent
+							last_block.second = std::max(last_block.second, block_end);
+						} else {
+							merged_blocks.push_back({block_start, block_end});
+						}
+					}
+				}
+
+				// Format blocks
+				for (const auto &block : merged_blocks) {
+					std::stringstream block_ss;
+					for (int i = block.first; i <= block.second; ++i) {
+						block_ss << i << ": " << fm.file_lines[i - 1] << "\n";
+					}
+					matches.push_back({block.first, block_ss.str()});
 				}
 			}
 		}
@@ -461,11 +551,28 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 		for (const auto &[file, matches] : detailed_matches) {
 			ss << "### `" << file << "`\n";
+
+			// Query document symbols for enclosing scope annotation
+			std::vector<codemap_symbol_info> file_symbols;
+			std::string safe_file_path;
+			std::string out_err;
+			if (ctx.fs_security.validate_access((root_path / file).string(), agentlib::access_type::read, safe_file_path, out_err)) {
+				file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
+			}
+
 			for (const auto &match : matches) {
 				std::string content = match.second;
 				// Truncate excessively long blocks to protect context window, but be generous for context
 				if (content.length() > 2000) {
 					content = content.substr(0, 1997) + "...";
+				}
+
+				std::string scope_hint;
+				if (!file_symbols.empty()) {
+					const codemap_symbol_info *enc_sym = find_enclosing_symbol(file_symbols, match.first);
+					if (enc_sym) {
+						scope_hint = std::format(" [in {} `{}`]", enc_sym->kind_str, enc_sym->name);
+					}
 				}
 
 				if (args_.context_lines == 0) {
@@ -477,10 +584,10 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					if (colon_pos != std::string::npos) {
 						single_line = single_line.substr(colon_pos + 2);
 					}
-					ss << "* **Line " << match.first << ":** `" << escape_markdown(single_line) << "`\n";
+					ss << "* **Line " << match.first << "**" << scope_hint << ": `" << escape_markdown(single_line) << "`\n";
 				} else {
 					// New multi-line block format
-					ss << "**Match near Line " << match.first << ":**\n";
+					ss << "**Match near Line " << match.first << "**" << scope_hint << ":\n";
 					// Optionally extract extension for syntax highlighting
 					std::string ext = "";
 					size_t dot_pos = file.find_last_of('.');
