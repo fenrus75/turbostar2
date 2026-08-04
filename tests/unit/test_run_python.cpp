@@ -142,6 +142,18 @@ int main()
 		ctx.fs_security.set_vfs(nullptr);
 	}
 
+	// 11. Dependencies parameter test
+	{
+		nlohmann::json args = {
+			{"code", "import sys\nprint('With dependencies test ok')"},
+			{"dependencies", nlohmann::json::array({"pip"})}
+		};
+		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
+		std::cout << "Dependencies Result: " << result << std::endl;
+		assert(result.find("With dependencies test ok") != std::string::npos ||
+		       result.find("Dependencies were requested but 'uv' is not installed") != std::string::npos);
+	}
+
 	std::cout << "run_python tests passed successfully.\n";
 	return 0;
 }
