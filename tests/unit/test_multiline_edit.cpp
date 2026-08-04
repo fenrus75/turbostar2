@@ -204,6 +204,33 @@ int main()
 	// "world" should be deleted, leaving "hello "
 	assert(edit.get_buffer() == "hello ");
 
+	// 8. Tab Expansion Verification (\t -> 4 spaces)
+	edit.set_buffer("line1\tline2");
+	assert(edit.get_buffer() == "line1    line2");
+
+	// Tab key press
+	editor_event ev_tab;
+	ev_tab.type = event_type::key_press;
+	ev_tab.key_code = '\t';
+	edit.handle_event(ev_tab, 0, 0);
+	assert(edit.get_buffer() == "line1    line2    ");
+
+	// 9. Multiline Paste Auto-Enclosure (```)
+	edit.set_buffer("");
+	editor_event ev_paste_multiline;
+	ev_paste_multiline.type = event_type::paste;
+	ev_paste_multiline.payload = "int main() {\n\treturn 0;\n}";
+	edit.handle_event(ev_paste_multiline, 0, 0);
+	assert(edit.get_buffer() == "```\nint main() {\n    return 0;\n}\n```\n");
+
+	// Paste already wrapped should not double-wrap
+	edit.set_buffer("");
+	editor_event ev_paste_wrapped;
+	ev_paste_wrapped.type = event_type::paste;
+	ev_paste_wrapped.payload = "```\nhello\nworld\n```";
+	edit.handle_event(ev_paste_wrapped, 0, 0);
+	assert(edit.get_buffer() == "```\nhello\nworld\n```");
+
 	std::cout << "ui_multiline_edit unit tests passed!\n";
 	return 0;
 }

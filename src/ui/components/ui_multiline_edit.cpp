@@ -52,10 +52,27 @@ void ui_multiline_edit::on_document_changed(const std::string &filename)
 	}
 }
 
+namespace {
+static std::string expand_tabs(std::string_view input)
+{
+	std::string result;
+	result.reserve(input.size());
+	for (char c : input) {
+		if (c == '\t') {
+			result.append("    ");
+		} else {
+			result.push_back(c);
+		}
+	}
+	return result;
+}
+} // namespace
+
 void ui_multiline_edit::insert_text(const std::string &text)
 {
-	buffer_.insert(cursor_pos_, text);
-	cursor_pos_ += text.length();
+	std::string expanded = expand_tabs(text);
+	buffer_.insert(cursor_pos_, expanded);
+	cursor_pos_ += expanded.length();
 	update_scroll();
 	if (on_change_) {
 		on_change_(buffer_);
@@ -64,7 +81,7 @@ void ui_multiline_edit::insert_text(const std::string &text)
 
 void ui_multiline_edit::set_buffer(const std::string &text)
 {
-	buffer_ = text;
+	buffer_ = expand_tabs(text);
 	cursor_pos_ = buffer_.length();
 	selection_start_ = -1;
 	selection_end_ = -1;
@@ -603,6 +620,13 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 					cursor_pos_++;
 					update_scroll();
 				}
+			} else if (key == '\t' || key == 9) {
+				if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
+					delete_selection();
+				}
+				buffer_.insert(cursor_pos_, "    ");
+				cursor_pos_ += 4;
+				update_scroll();
 				handled = true;
 			} else if (key >= 32 && key <= 126) {
 				if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
@@ -620,8 +644,33 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 			if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
 				delete_selection();
 			}
-			buffer_.insert(cursor_pos_, ev.payload);
-			cursor_pos_ += ev.payload.length();
+			std::string payload = expand_tabs(ev.payload);
+			if (payload.find('\n') != std::string::npos) {
+				std::string_view sv = payload;
+				while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\r' || sv.front() == '\n')) {
+					sv.remove_prefix(1);
+				}
+				while (!sv.empty() && (sv.back() == ' ' || sv.back() == '\r' || sv.back() == '\n')) {
+					sv.remove_suffix(1);
+				}
+				bool already_wrapped = (sv.starts_with("```") && sv.ends_with("```"));
+				if (!already_wrapped) {
+					std::string formatted;
+					bool at_start_of_line = (cursor_pos_ == 0 || buffer_[cursor_pos_ - 1] == '\n');
+					if (!at_start_of_line) {
+						formatted += "\n";
+					}
+					formatted += "```\n";
+					formatted += payload;
+					if (formatted.back() != '\n') {
+						formatted += "\n";
+					}
+					formatted += "```\n";
+					payload = std::move(formatted);
+				}
+			}
+			buffer_.insert(cursor_pos_, payload);
+			cursor_pos_ += payload.length();
 			update_scroll();
 			handled = true;
 		}
