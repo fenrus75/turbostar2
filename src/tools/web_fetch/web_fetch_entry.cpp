@@ -172,6 +172,19 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (!args_.safe_output_path.empty()) {
+		bool is_vfs = (args_.safe_output_path.find("://") != std::string::npos);
+		if (is_vfs) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (!vfs) {
+				return "Error: VFS is not initialized in security context.";
+			}
+			std::string desc = vfs->write_file(args_.safe_output_path, output.data(), output.size());
+			if (desc.empty()) {
+				return "Error: Failed to write output to VFS path " + args_.output_path;
+			}
+			return std::format("Success: Downloaded {} bytes and saved to {}.", output.size(), args_.output_path);
+		}
+
 		std::ofstream ofs(args_.safe_output_path, std::ios::binary);
 		if (!ofs.is_open()) {
 			return "Error: Failed to open output file " + args_.output_path + " for writing.";

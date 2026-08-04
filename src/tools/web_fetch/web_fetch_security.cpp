@@ -12,7 +12,7 @@ nlohmann::json web_fetch_validator::get_parameters_schema() const
 		 {{"url", {{"type", "string"}, {"description", "The full URL to fetch (must start with http:// or https://)."}}},
 		  {"output_path",
 		   {{"type", "string"},
-		    {"description", "Optional. The relative file path under the project workspace to save the fetched content."}}},
+		    {"description", "Optional. The relative file path under the project workspace or VFS URI (e.g., 'tmp://file.txt') to save the fetched content."}}},
 		  {"filter",
 		   {{"type", "string"},
 		    {"description", "Optional. A named content processing filter to apply (e.g. 'html_to_markdown' to reduce size/context)."}}},

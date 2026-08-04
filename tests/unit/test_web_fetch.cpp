@@ -42,6 +42,9 @@ int main()
 	event_queue q;
 	ctx.queue = &q;
 
+	auto global_vfs = std::make_unique<agentlib::virtual_file_system>();
+	ctx.fs_security.set_vfs(global_vfs.get());
+
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
@@ -225,6 +228,26 @@ int main()
 
 			// Clean up
 			std::filesystem::remove(full_out_fn);
+		}
+
+		// 3b. Download write to VFS tmp:// namespace
+		{
+			std::string tmp_uri = "tmp://web_fetch_test_out.txt";
+			std::filesystem::path domains_file = std::filesystem::path(fs_utils::get_global_cache_dir()) / "allowed_domains.txt";
+			write_file(domains_file, "A:127.0.0.1\n");
+
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", tmp_uri}};
+			std::string result = registry.execute_tool("web_fetch", args.dump(), ctx);
+			std::cout << "Result VFS download execution: " << result << std::endl;
+			assert(result.find("Success: Downloaded") != std::string::npos);
+			assert(result.find(tmp_uri) != std::string::npos);
+
+			// Verify VFS file was written
+			auto vfs = ctx.fs_security.get_vfs();
+			assert(vfs != nullptr);
+			auto reader_opt = vfs->read_file(tmp_uri);
+			assert(reader_opt.has_value());
+			assert(!(*reader_opt)->view().empty());
 		}
 
 		// 4. Test filter registration and application

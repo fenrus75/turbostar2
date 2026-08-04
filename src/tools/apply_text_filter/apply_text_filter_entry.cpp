@@ -18,7 +18,7 @@ bool apply_text_filter_tool::validate_runtime(const agentlib::tool_context & /*c
 	return true;
 }
 
-std::string apply_text_filter_tool::execute(agentlib::tool_context & /*ctx*/)
+std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 {
 	std::string input_text = args_.text;
 	if (input_text.empty() && !args_.safe_path.empty()) {
@@ -37,6 +37,19 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context & /*ctx*/)
 	}
 
 	if (!args_.safe_output_path.empty()) {
+		bool is_vfs = (args_.safe_output_path.find("://") != std::string::npos);
+		if (is_vfs) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (!vfs) {
+				return "Error: VFS is not initialized in security context.";
+			}
+			std::string desc = vfs->write_file(args_.safe_output_path, result.data(), result.size());
+			if (desc.empty()) {
+				return "Error: Failed to write output to VFS path '" + args_.output_path + "'.";
+			}
+			return "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.";
+		}
+
 		std::ofstream out(args_.safe_output_path, std::ios::binary);
 		if (!out.is_open()) {
 			return "Error: Failed to open output path '" + args_.output_path + "' for writing.";
