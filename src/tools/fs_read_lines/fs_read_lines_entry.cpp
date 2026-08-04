@@ -339,7 +339,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			if (!symbols.empty()) {
 				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx, /*max_items=*/10);
 				if (!selection.selected_symbols.empty()) {
-					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count);
+					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
 				}
 			}
 		}
@@ -352,7 +352,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 					std::filesystem::path ip(matching_impl);
 					auto selection = select_prioritized_codemap_symbols(impl_symbols, 1, 1000000, matching_impl, ctx, /*max_items=*/10);
 					if (!selection.selected_symbols.empty()) {
-						ss << "\n" << format_codemap_table(ip.filename().string(), selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count);
+						ss << "\n" << format_codemap_table(ip.filename().string(), selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
 					}
 				}
 			}

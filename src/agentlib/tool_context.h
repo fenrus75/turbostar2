@@ -68,6 +68,9 @@ class tool_context
 
 	// Per-file codemap history tracking for deduplication
 	std::unordered_map<std::string, codemap_history_entry> codemap_history;
+
+	// One-time session hint flag for fs_file_codemap tool availability in truncated codemaps
+	bool has_hinted_fs_file_codemap = false;
 };
 
 } // namespace agentlib

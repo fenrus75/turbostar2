@@ -44,7 +44,8 @@ std::string format_codemap_table(
 	bool rich_format,
 	size_t total_file_lines = 0,
 	size_t total_symbols_count = 0,
-	size_t omitted_count = 0);
+	size_t omitted_count = 0,
+	agentlib::tool_context *ctx = nullptr);
 
 // Find matching implementation file for a header file (e.g. .h -> .cpp, .hpp -> .cpp)
 std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx);

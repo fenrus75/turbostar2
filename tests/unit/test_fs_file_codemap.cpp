@@ -142,10 +142,17 @@ int main()
 		}
 		assert(found_grep_target);
 
-		// Test header table formatting
-		std::string formatted_table = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count);
-		assert(formatted_table.find("### Codemap for `dummy.cpp` (Top 5 of 15 symbols):") != std::string::npos);
-		assert(formatted_table.find("*... [10 other symbols omitted]*") != std::string::npos);
+		// Test 1st call table formatting with tool_context (should include one-time hint)
+		ctx.has_hinted_fs_file_codemap = false;
+		std::string formatted_table1 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		assert(formatted_table1.find("### Codemap for `dummy.cpp` (Top 5 of 15 symbols):") != std::string::npos);
+		assert(formatted_table1.find("*... [10 other symbols omitted (use fs_file_codemap if full symbol table is needed)]*") != std::string::npos);
+		assert(ctx.has_hinted_fs_file_codemap == true);
+
+		// Test 2nd call table formatting with tool_context (should NOT repeat hint)
+		std::string formatted_table2 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		assert(formatted_table2.find("*... [10 other symbols omitted]*") != std::string::npos);
+		assert(formatted_table2.find("use fs_file_codemap") == std::string::npos);
 	}
 
 	// Cleanup

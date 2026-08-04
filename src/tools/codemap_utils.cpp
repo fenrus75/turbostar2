@@ -327,7 +327,8 @@ std::string format_codemap_table(
 	bool rich_format,
 	size_t total_file_lines,
 	size_t total_symbols_count,
-	size_t omitted_count)
+	size_t omitted_count,
+	agentlib::tool_context *ctx)
 {
 	if (symbols.empty()) {
 		return "";
@@ -369,7 +370,12 @@ std::string format_codemap_table(
 	}
 
 	if (omitted_count > 0) {
-		ss << std::format("*... [{} other symbols omitted]*\n", omitted_count);
+		if (ctx && !ctx->has_hinted_fs_file_codemap) {
+			ss << std::format("*... [{} other symbols omitted (use fs_file_codemap if full symbol table is needed)]*\n", omitted_count);
+			ctx->has_hinted_fs_file_codemap = true;
+		} else {
+			ss << std::format("*... [{} other symbols omitted]*\n", omitted_count);
+		}
 	}
 
 	ss << "\n";
