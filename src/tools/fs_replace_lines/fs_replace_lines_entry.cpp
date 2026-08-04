@@ -566,7 +566,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 
 	int current_shift = 0;
 	size_t hunk_idx = 0;
-	constexpr int MAX_FULL_DISPLAY_LINES = 10;
+	constexpr int MAX_FULL_DISPLAY_LINES = 30;
 	constexpr int CONTEXT_HALF = MAX_FULL_DISPLAY_LINES / 2;
 
 	for (const auto &r : merged_ranges) {

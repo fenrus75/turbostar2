@@ -297,19 +297,19 @@ int main()
 		ctx.fs_security.set_vfs(nullptr);
 	}
 
-	// Test Large Range Truncation (> 10 lines)
+	// Test Large Range Truncation (> 30 lines)
 	{
 		std::string large_file = "test_large_truncation.txt";
 		std::ofstream out(large_file);
-		for (int i = 1; i <= 25; ++i) {
+		for (int i = 1; i <= 50; ++i) {
 			out << "Original Line " << i << "\n";
 		}
 		out.close();
 
 		std::string new_content;
-		for (int i = 1; i <= 20; ++i) {
+		for (int i = 1; i <= 40; ++i) {
 			new_content += "Inserted Line " + std::to_string(i);
-			if (i < 20) new_content += "\n";
+			if (i < 40) new_content += "\n";
 		}
 
 		nlohmann::json trunc_args = {
@@ -322,13 +322,13 @@ int main()
 		std::string trunc_res = registry.execute_tool("fs_replace_lines", trunc_args.dump(), ctx);
 		std::cout << "Truncated output result:\n" << trunc_res << "\n";
 		assert(trunc_res.find("Successfully applied") != std::string::npos);
-		assert(trunc_res.find("(24 lines, truncated)") != std::string::npos);
+		assert(trunc_res.find("(44 lines, truncated)") != std::string::npos);
 		assert(trunc_res.find("1: Original Line 1") != std::string::npos);
 		assert(trunc_res.find("2: Inserted Line 1") != std::string::npos);
-		assert(trunc_res.find("5: Inserted Line 4") != std::string::npos);
-		assert(trunc_res.find("... [14 lines omitted (lines 6 - 19)] ...") != std::string::npos);
-		assert(trunc_res.find("20: Inserted Line 19") != std::string::npos);
-		assert(trunc_res.find("24: Original Line 5") != std::string::npos);
+		assert(trunc_res.find("15: Inserted Line 14") != std::string::npos);
+		assert(trunc_res.find("... [14 lines omitted (lines 16 - 29)] ...") != std::string::npos);
+		assert(trunc_res.find("30: Inserted Line 29") != std::string::npos);
+		assert(trunc_res.find("44: Original Line 5") != std::string::npos);
 
 		std::remove(large_file.c_str());
 	}
