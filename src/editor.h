@@ -139,6 +139,7 @@ class editor : public agentlib::document_provider
 	void update_window_layout();
 	void activate_window(size_t index);
 	void update_window_menu();
+	void update_recent_files_menu();
 	std::shared_ptr<document> get_active_doc() const;
 	window *get_active_window() const;
 

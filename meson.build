@@ -752,6 +752,12 @@ test_options_dialogs = executable('test_options_dialogs',
   include_directories: inc)
 test('unit_test_options_dialogs', test_options_dialogs, suite: 'ui')
 
+test_menu_submenus = executable('test_menu_submenus',
+  'tests/unit/test_menu_submenus.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_menu_submenus', test_menu_submenus, suite: 'ui')
+
 test_latency_spike = executable('test_latency_spike',
   'tests/unit/test_latency_spike.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

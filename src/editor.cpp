@@ -411,8 +411,52 @@ void editor::activate_window(size_t index)
 	update_window_menu();
 }
 
+void editor::update_recent_files_menu()
+{
+	const auto &files = history_manager::get_instance().get_files();
+	std::vector<menu_item> recent_items;
+
+	size_t count = 0;
+	for (const auto &file_path : files) {
+		if (count >= 5)
+			break;
+		std::string filename = std::filesystem::path(file_path).filename().string();
+		if (filename.empty())
+			continue;
+
+		char hotkey = static_cast<char>('1' + count);
+		std::string label = std::format("{} ({})", filename, file_path);
+		menu_item item(label, event_type::open_file, file_path, hotkey, "", false);
+		recent_items.push_back(item);
+		count++;
+	}
+
+	if (recent_items.empty()) {
+		menu_item empty_item("(No Recent Files)", event_type::key_press, 0, "", false);
+		empty_item.is_disabled = true;
+		recent_items.push_back(empty_item);
+	}
+
+	std::vector<menu_item> file_items = {
+		{"New Project...", event_type::new_project, 'p', "", false},
+		{"New File", event_type::new_doc, 'n', "^KN", false},
+		{"Open...", event_type::load, 'o', "^KE", false},
+		menu_item("Open Recent...", recent_items, 'r'),
+		{"Save", event_type::save, 's', "^KS", false},
+		{"Save as...", event_type::save_as, 'a', "^KW", false},
+		{"Save All", event_type::save_all, 'v', "^KA", false},
+		{"Close", event_type::close_window, 'c', "Alt+F3", false},
+		{"", event_type::key_press, 0, "", true},
+		menu_item("Exit", event_type::quit, 'x', "^KQ", false)
+	};
+
+	top_menu_.set_category_items("File", file_items);
+}
+
 void editor::update_window_menu()
 {
+	update_recent_files_menu();
+
 	std::vector<menu_item> items;
 
 	items.push_back(menu_item("Close", event_type::close_window, 0, 'c', "Alt+F3", false));
