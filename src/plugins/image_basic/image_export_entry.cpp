@@ -1,6 +1,8 @@
 #include <filesystem>
+#include <format>
 #include "agentlib/tool_context.h"
 #include "images/image_manager.h"
+#include "mime.h"
 #include "image_export.h"
 
 #ifdef HAS_GRAPHICSMAGICK
@@ -43,12 +45,22 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 		std::filesystem::path dest_path(args_.safe_path);
 		std::filesystem::create_directories(dest_path.parent_path());
 
+		// Capture source dimensions for the success report (best-effort; stays 0 if not readable).
+		int src_w = 0;
+		int src_h = 0;
+
 #ifdef HAS_GRAPHICSMAGICK
+		// Attempt to decode-and-write via GraphicsMagick (which also yields dimensions
+		// for the report). If the source is not a decodable image (e.g. a raw copied
+		// blob), fall back to a byte-for-byte copy and leave dimensions unreported.
 		try {
 			Magick::InitializeMagick(nullptr);
 			Magick::Image img(src_path);
+			src_w = img.columns();
+			src_h = img.rows();
 			img.write(dest_path.string());
 		} catch (...) {
+			std::filesystem::create_directories(dest_path.parent_path());
 			std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing);
 		}
 #else
@@ -56,7 +68,18 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 #endif
 
 		set_success(ctx, "Exported image");
-		std::string result_msg = "Successfully exported image to " + args_.original_filename;
+
+		// Assemble a confidence-building report: resolved absolute destination path,
+		// byte size on disk, MIME type detected from the written file, and dimensions.
+		std::string dims;
+		if (src_w > 0 && src_h > 0) {
+			dims = std::format(" ({}x{})", src_w, src_h);
+		}
+
+		std::string result_msg = std::format("Successfully exported image{} ({} bytes, {}) to {}.",
+						    dims, std::filesystem::file_size(dest_path),
+						    mime::detect_file_type(dest_path.string()),
+						    std::filesystem::absolute(dest_path).string());
 		interaction_->set_result(result_msg);
 		return result_msg;
 	} catch (const std::exception &e) {

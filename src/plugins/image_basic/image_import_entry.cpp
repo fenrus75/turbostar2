@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <future>
 #include <regex>
@@ -95,6 +96,18 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 {
 	std::string cleaned_output = clean_alias_name(args_.output);
 
+	// Formats a human/agent-readable suffix describing the imported image from its
+	// VFS metadata (dimensions, byte size, MIME type) so the caller has confidence
+	// the source was decoded and registered. Returns empty if metadata unavailable.
+	auto describe_image = [](const std::string &uri) -> std::string {
+		images::image_metadata meta;
+		if (!images::image_manager::get_instance().get_metadata(uri, meta)) {
+			return "";
+		}
+		return std::format(" ({}x{}, {} bytes, {})", meta.width, meta.height, meta.size_bytes,
+				   meta.mime_type.empty() ? "unknown" : meta.mime_type);
+	};
+
 	if (args_.filename.has_value()) {
 		// Import from local file
 		std::string new_uri = images::image_manager::get_instance().ingest_image(*args_.filename, cleaned_output);
@@ -103,7 +116,7 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to ingest local image into VFS database.";
 		}
 		set_success(ctx, "Imported image");
-		std::string result_msg = "Successfully imported image. New URI: " + new_uri;
+		std::string result_msg = "Successfully imported image" + describe_image(new_uri) + ". New URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;
@@ -227,7 +240,7 @@ std::string image_import_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		set_success(ctx, "Imported image");
-		std::string result_msg = "Successfully downloaded and imported VFS URI: " + new_uri;
+		std::string result_msg = "Successfully downloaded and imported image" + describe_image(new_uri) + ". VFS URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;
