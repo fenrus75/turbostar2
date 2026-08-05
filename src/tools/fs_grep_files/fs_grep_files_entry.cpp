@@ -10,7 +10,7 @@
 #include "config_manager.h"
 #include "fs_grep_files.h"
 #include "mime.h"
-#include "tools/codemap_utils.h"
+#include "codemap_utils.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 #include <format>

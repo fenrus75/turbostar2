@@ -336,13 +336,13 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',
-  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
-  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner, suite: 'editor')
@@ -411,7 +411,7 @@ test_tools = executable('test_tools',
    'src/tools/agent_list_episodes/agent_list_episodes_security.cpp',
    'src/tools/apply_text_filter/apply_text_filter_entry.cpp',
    'src/tools/apply_text_filter/apply_text_filter_security.cpp',
-   'src/tools/codemap_utils.cpp',
+   'src/codemap_utils.cpp',
    'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
    'src/tools/fs_read_lines/fs_read_lines_security.cpp',
    'src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
@@ -599,7 +599,7 @@ test_git_branch_list = executable('test_git_branch_list',
 test('unit_test_git_branch_list', test_git_branch_list, suite: 'agent')
 
 test_git_manager = executable('test_git_manager',
-  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_manager', test_git_manager, suite: 'agent')
@@ -1036,7 +1036,7 @@ test_fs_list_dir = executable('test_fs_list_dir',
   ['tests/unit/test_fs_list_dir.cpp',
    'src/tools/fs_list_dir/fs_list_dir_entry.cpp',
    'src/tools/fs_list_dir/fs_list_dir_security.cpp',
-   'src/tools/codemap_utils.cpp',
+   'src/codemap_utils.cpp',
    'src/tools/fs_file_size/fs_file_size_entry.cpp',
    'src/tools/fs_file_size/fs_file_size_security.cpp',
    'src/tools/fs_grep_files/fs_grep_files_entry.cpp',
@@ -1144,7 +1144,7 @@ test_fs_replace_lines = executable('test_fs_replace_lines',
 test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
 
 test_fs_file_codemap = executable('test_fs_file_codemap',
-  ['tests/unit/test_fs_file_codemap.cpp', 'src/tools/codemap_utils.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_entry.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_security.cpp', 'src/tools/fs_read_lines/fs_read_lines_entry.cpp', 'src/tools/fs_read_lines/fs_read_lines_security.cpp'],
+  ['tests/unit/test_fs_file_codemap.cpp', 'src/codemap_utils.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_entry.cpp', 'src/tools/fs_file_codemap/fs_file_codemap_security.cpp', 'src/tools/fs_read_lines/fs_read_lines_entry.cpp', 'src/tools/fs_read_lines/fs_read_lines_security.cpp'],
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: 'src')
 test('unit_fs_file_codemap', test_fs_file_codemap, suite: 'agent')
@@ -1381,32 +1381,32 @@ test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')
 
 
 test_httplib_transport = executable('test_httplib_transport',
-  ['tests/unit/test_httplib_transport.cpp', 'src/agentlib/httplib_transport.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
+  ['tests/unit/test_httplib_transport.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_httplib_transport', test_httplib_transport, suite: 'agent')
 
 test_copilot_models = executable('test_copilot_models',
-  ['tests/unit/test_copilot_models.cpp', 'src/agentlib/copilot_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
+  ['tests/unit/test_copilot_models.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_copilot_models', test_copilot_models, suite: 'agent')
 
 test_model_server = executable('test_model_server',
-  ['tests/unit/test_model_server.cpp', 'src/agentlib/model_server.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/lsp_manager.cpp', 'src/project_manager.cpp', 'src/utf8.cpp', 'src/mime.cpp', 'src/codereview_manager.cpp', 'src/agentlib/ai_model.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
+  ['tests/unit/test_model_server.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep],
   include_directories: 'src')
 test('unit_model_server', test_model_server, suite: 'agent')
 
 test_fs_grep_files = executable('test_fs_grep_files',
-  ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp', 'src/tools/codemap_utils.cpp'],
+  ['tests/unit/test_fs_grep_files.cpp', 'src/tools/fs_grep_files/fs_grep_files_entry.cpp', 'src/tools/fs_grep_files/fs_grep_files_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_fs_grep_files', test_fs_grep_files, suite: 'agent')
 
 test_project_layout = executable('test_project_layout',
-  ['tests/unit/test_project_layout.cpp', 'src/project_manager.cpp', 'src/git_manager.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/lsp_manager.cpp', 'src/event_logger.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/fs_utils.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  ['tests/unit/test_project_layout.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_project_layout', test_project_layout, suite: 'agent')
 

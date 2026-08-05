@@ -11,7 +11,7 @@
 #include "fs_utils.h"
 #include "mime.h"
 #include "fs_read_lines.h"
-#include "tools/codemap_utils.h"
+#include "codemap_utils.h"
 
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"

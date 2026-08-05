@@ -157,14 +157,14 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 	}
 }
 
-std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines)
+std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::document_provider *doc_prov, int min_lines)
 {
 	std::vector<codemap_symbol_info> raw_symbols;
 
 	// 1. Read document content if open in doc_provider, else disk
 	std::string content;
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(safe_path)) {
-		auto doc_snapshot = ctx.doc_provider->get_open_document(safe_path);
+	if (doc_prov && doc_prov->get_open_document(safe_path)) {
+		auto doc_snapshot = doc_prov->get_open_document(safe_path);
 		size_t line_count = doc_snapshot->get_line_count();
 		for (size_t i = 0; i < line_count; ++i) {
 			content += doc_snapshot->get_line_text(i) + "\n";
@@ -201,6 +201,16 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 	});
 
 	return structure_symbol_hierarchy(raw_symbols);
+}
+
+std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines)
+{
+	return get_document_codemap_symbols(safe_path, ctx.doc_provider, min_lines);
+}
+
+std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines)
+{
+	return get_document_codemap_symbols(safe_path, static_cast<agentlib::document_provider *>(nullptr), min_lines);
 }
 
 codemap_selection_result select_prioritized_codemap_symbols(

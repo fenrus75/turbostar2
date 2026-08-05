@@ -87,7 +87,6 @@ tools_sources = files(
   'git_push/git_push_security.cpp',
   'fs_read_lines/fs_read_lines_entry.cpp',
   'fs_read_lines/fs_read_lines_security.cpp',
-  'codemap_utils.cpp',
   'fs_file_codemap/fs_file_codemap_entry.cpp',
   'fs_file_codemap/fs_file_codemap_security.cpp',
   'fs_read_symbol/fs_read_symbol_entry.cpp',

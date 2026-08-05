@@ -1,7 +1,7 @@
 #include "test_watchdog.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
-#include "tools/codemap_utils.h"
+#include "codemap_utils.h"
 #include "lsp_manager.h"
 #include <cassert>
 #include <fstream>

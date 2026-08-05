@@ -6,10 +6,13 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <set>
 #include <sstream>
+#include <tuple>
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "codemap_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -28,8 +31,10 @@ crashdump_manager &crashdump_manager::get_instance()
 struct memory_map {
 	uint64_t start;
 	uint64_t end;
+	std::string permissions;
 	uint64_t offset;
-	std::string perms;
+	std::string dev;
+	uint64_t inode;
 	std::string path;
 };
 
@@ -48,33 +53,23 @@ static std::vector<memory_map> parse_maps(const std::string &maps_file)
 {
 	std::vector<memory_map> maps;
 	std::ifstream in(maps_file);
-	if (!in) {
-		std::cerr << "Warning: failed to open maps file: " << maps_file << std::endl;
-		return maps;
-	}
 	std::string line;
-	constexpr int min_scanf_fields = 7;
 	while (std::getline(in, line)) {
+		std::istringstream iss(line);
+		std::string range;
 		memory_map m;
-		char perms[5];
-		char path[1024] = {0};
-		unsigned int dev_major, dev_minor;
-		int inode;
-
-		// Example: 555555554000-555555555000 r-xp 00000000 08:01 123456 /path
-		if (sscanf(line.c_str(), "%lx-%lx %4s %lx %x:%x %d %1023[^\n]", &m.start, &m.end, perms, &m.offset, &dev_major, &dev_minor,
-			   &inode, path) >= min_scanf_fields) {
-			m.perms = perms;
-			m.path = path;
-
-			// Trim leading spaces from path
-			size_t start_pos = m.path.find_first_not_of(" \t");
-			if (start_pos != std::string::npos) {
-				m.path = m.path.substr(start_pos);
-			} else {
-				m.path = "";
+		if (iss >> range >> m.permissions >> std::hex >> m.offset >> std::dec >> m.dev >> m.inode) {
+			size_t dash = range.find('-');
+			if (dash != std::string::npos) {
+				m.start = std::stoull(range.substr(0, dash), nullptr, 16);
+				m.end = std::stoull(range.substr(dash + 1), nullptr, 16);
 			}
-
+			std::string path;
+			std::getline(iss, path);
+			size_t first = path.find_first_not_of(" \t");
+			if (first != std::string::npos) {
+				m.path = path.substr(first);
+			}
 			maps.push_back(m);
 		}
 	}
@@ -84,8 +79,9 @@ static std::vector<memory_map> parse_maps(const std::string &maps_file)
 static std::string extract_executable_name(const std::vector<memory_map> &maps)
 {
 	for (const auto &m : maps) {
-		if (m.perms.find('x') != std::string::npos && m.offset == 0 && !m.path.empty() && m.path[0] == '/') {
-			if (m.path.ends_with(".so") || m.path.find(".so.") != std::string::npos) {
+		if (m.offset == 0 && m.permissions.find('x') != std::string::npos && !m.path.empty() && m.path[0] == '/') {
+			if (m.path.find("/lib/") != std::string::npos || m.path.find("/usr/lib") != std::string::npos ||
+			    m.path.find("ld-linux") != std::string::npos) {
 				continue;
 			}
 			return fs::path(m.path).filename().string();
@@ -160,6 +156,19 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 			prefix += "/";
 		}
 
+		struct codemap_report_row {
+			std::string rel_path;
+			std::string symbol_name;
+			int start_line;
+			int end_line;
+			int line_count;
+			int frame_idx;
+			int frame_line;
+		};
+
+		std::vector<codemap_report_row> codemap_rows;
+		std::set<std::tuple<std::string, std::string, int>> seen_symbols;
+
 		for (size_t i = 0; i < raw_ips.size(); ++i) {
 			const auto &res = resolved[i];
 			if (res.function_name == "__libc_start_main" || res.function_name == "__libc_start_call_main" ||
@@ -167,27 +176,71 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				break;
 			}
 
+			int frame_idx = frame++;
 			std::string location = res.location;
 			size_t colon_pos = location.find_last_of(':');
 			if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
-				std::string file_part = location.substr(0, colon_pos);
-				std::string line_part = location.substr(colon_pos);
+				size_t first_colon = location.find(':');
+				std::string raw_file = location.substr(0, first_colon);
+				std::string line_part = location.substr(first_colon);
 
-				fs::path p(file_part);
+				fs::path p(raw_file);
 				if (!p.is_absolute()) {
 					p = fs::path(project_root) / p;
 				}
-				file_part = p.lexically_normal().string();
+				p = p.lexically_normal();
+				std::string full_file_path = p.string();
 
-				if (file_part.starts_with(prefix)) {
-					file_part = file_part.substr(prefix.length());
+				bool is_project = false;
+				std::string rel_file_path = raw_file;
+				if (full_file_path.starts_with(prefix)) {
+					is_project = true;
+					rel_file_path = full_file_path.substr(prefix.length());
 				}
-				location = file_part + line_part;
+
+				location = rel_file_path + line_part;
+
+				// Extract line number for codemap symbol lookup
+				if (is_project && fs::exists(full_file_path)) {
+					size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
+					size_t num_end = line_part.find(':', num_start);
+					std::string line_num_str = (num_end != std::string::npos) ?
+						line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+					int line_num = 0;
+					try {
+						line_num = std::stoi(line_num_str);
+					} catch (...) {
+						line_num = 0;
+					}
+
+					if (line_num > 0) {
+						auto symbols = tools::get_document_codemap_symbols(full_file_path, /*min_lines=*/1);
+						const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
+						if (enc_sym) {
+							auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
+							if (!seen_symbols.contains(sym_key)) {
+								seen_symbols.insert(sym_key);
+								int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
+								codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame_idx, line_num});
+							}
+						}
+					}
+				}
 			} else if (location.starts_with(prefix)) {
 				location = location.substr(prefix.length());
 			}
 
-			report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame++, raw_ips[i], res.function_name, location);
+			report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame_idx, raw_ips[i], res.function_name, location);
+		}
+
+		if (!codemap_rows.empty()) {
+			report << "\n### Codemap Summary\n\n";
+			report << "| File | Symbol | Start Line | End Line | Lines | Frame Note |\n";
+			report << "|---|---|---|---|---|---|\n";
+			for (const auto &row : codemap_rows) {
+				report << std::format("| `{}` | `{}` | {} | {} | {} | Frame {} (Line {}) |\n",
+					row.rel_path, row.symbol_name, row.start_line, row.end_line, row.line_count, row.frame_idx, row.frame_line);
+			}
 		}
 	}
 
