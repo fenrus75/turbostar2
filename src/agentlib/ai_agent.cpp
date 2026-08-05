@@ -616,6 +616,14 @@ void ai_agent::clear_conversation()
 		}
 	}
 
+	// Wipe stored episode files from disk for this agent so restarting Turbostar does not resurrect cleared history
+	std::string history_dir = fs_utils::get_project_history_dir(name_);
+	if (std::filesystem::exists(history_dir)) {
+		std::error_code ec;
+		std::filesystem::remove_all(history_dir, ec);
+		std::filesystem::create_directories(history_dir, ec);
+	}
+
 	update_system_prompt_with_families();
 
 	add_interaction(std::make_shared<interaction_system_message>(

@@ -5,6 +5,7 @@
 #include "../../src/agentlib/command_registry.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 
@@ -52,6 +53,30 @@ int main()
 	assert(!msgs.empty());
 	assert(msgs[0].role == "system");
 	assert(!msgs[0].content.empty());
+
+	// Test restart persistence after /clear
+	// 1. Create episode archive
+	agent->inject_context("user", "Heavy work turn 1");
+	agent->inject_context("assistant", "Working on task");
+	agent->page_out_context(1, agent->get_conversation().size(), "Episode 1", "Heavy work done", {"test"});
+
+	std::string history_dir = fs_utils::get_project_history_dir("TestClearAgent");
+	assert(std::filesystem::exists(history_dir + "/episode_1.json"));
+
+	// 2. Clear history
+	cmd->execute(ctx);
+	assert(!std::filesystem::exists(history_dir + "/episode_1.json"));
+
+	// 3. Simulate application restart
+	auto agent2 = ai_agent::create(1, "TestClearAgent", model, &q, nullptr);
+	bool loaded = agent2->load_active_state();
+	assert(loaded);
+
+	auto restarted_msgs = agent2->get_conversation();
+	for (const auto &m : restarted_msgs) {
+		assert(m.content.find("Heavy work turn 1") == std::string::npos);
+		assert(m.content.find("Episode 1") == std::string::npos);
+	}
 
 	std::cout << "/clear command verified successfully!" << std::endl;
 	return 0;
