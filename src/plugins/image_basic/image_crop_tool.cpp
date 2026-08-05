@@ -49,8 +49,12 @@ std::string image_crop_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest cropped image into VFS cache.";
 		}
 
+		// Report original -> cropped dimensions along with the selected region so the caller
+		// can confirm the crop coordinates produced the expected extent.
+		std::string result_msg = std::format("Successfully cropped image from {}x{} to {}x{} (region x={}..{}, y={}..{}). New URI: {}",
+					    orig_w, orig_h, args_.width, args_.height, args_.x, args_.x + args_.width - 1,
+					    args_.y, args_.y + args_.height - 1, new_uri);
 		set_success(ctx, "Cropped image");
-		std::string result_msg = "Successfully cropped image. New URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;

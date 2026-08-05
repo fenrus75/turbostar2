@@ -65,8 +65,11 @@ std::string image_resize_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest resized image into VFS cache.";
 		}
 
-		set_success(ctx, "Resized image to " + std::to_string(target_w) + "x" + std::to_string(target_h));
-		std::string result_msg = "Successfully resized image to " + std::to_string(target_w) + "x" + std::to_string(target_h) + ". New URI: " + new_uri;
+		// Report both the original and new dimensions so the caller can confirm the
+		// operation (including any aspect-ratio-preserving adjustment) took effect.
+		std::string result_msg = std::format("Successfully resized image from {}x{} to {}x{}. New URI: {}",
+					    orig_w, orig_h, target_w, target_h, new_uri);
+		set_success(ctx, std::format("Resized image from {}x{} to {}x{}", orig_w, orig_h, target_w, target_h));
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;

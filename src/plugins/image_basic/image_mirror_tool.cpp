@@ -23,6 +23,8 @@ std::string image_mirror_tool::execute(agentlib::tool_context &ctx)
 		Magick::InitializeMagick(nullptr);
 
 		Magick::Image img(args_.safe_path);
+		int img_w = img.columns();
+		int img_h = img.rows();
 
 		if (args_.direction == "vertical") {
 			img.flip();
@@ -48,8 +50,11 @@ std::string image_mirror_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest mirrored image into VFS cache.";
 		}
 
+		// Mirroring preserves dimensions, so report the chosen direction and the unchanged
+		// size to confirm the requested flip applied.
+		std::string result_msg = std::format("Successfully mirrored image {} (size unchanged {}x{}). New URI: {}",
+					    args_.direction, img_w, img_h, new_uri);
 		set_success(ctx, "Mirrored image");
-		std::string result_msg = "Successfully mirrored image. New URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;

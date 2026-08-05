@@ -140,6 +140,9 @@ int main()
 		std::string result = registry.execute_tool("image_resize", args.dump(), ctx);
 		std::cout << "Resize result: " << result << std::endl;
 		assert(result.find("Successfully resized") != std::string::npos);
+		// Rich success text: must report original and target dimensions.
+		assert(result.find("360x274") != std::string::npos);
+		assert(result.find("100x100") != std::string::npos);
 
 		// Export and check existence
 		std::filesystem::path out_file = proj_root / "logo_resized.jpg";
@@ -156,6 +159,10 @@ int main()
 		std::string result = registry.execute_tool("image_crop", args.dump(), ctx);
 		std::cout << "Crop result: " << result << std::endl;
 		assert(result.find("Successfully cropped") != std::string::npos);
+		// Rich success text: must report original and cropped dimensions plus region.
+		assert(result.find("360x274") != std::string::npos);
+		assert(result.find("50x50") != std::string::npos);
+		assert(result.find("region x=10..59, y=10..59") != std::string::npos);
 
 		std::filesystem::path out_file = proj_root / "logo_cropped.jpg";
 		nlohmann::json export_args = {{"name", "logo_cropped.jpg"}, {"filename", "logo_cropped.jpg"}};
@@ -171,6 +178,10 @@ int main()
 		std::string result = registry.execute_tool("image_rotate", args.dump(), ctx);
 		std::cout << "Rotate result: " << result << std::endl;
 		assert(result.find("Successfully rotated") != std::string::npos);
+		// Rich success text: must report angle and resulting (swapped) dimensions.
+		assert(result.find("90 degrees") != std::string::npos);
+		assert(result.find("360x274") != std::string::npos);
+		assert(result.find("274x360") != std::string::npos);
 
 		std::filesystem::path out_file = proj_root / "logo_rotated.jpg";
 		nlohmann::json export_args = {{"name", "logo_rotated.jpg"}, {"filename", "logo_rotated.jpg"}};
@@ -186,6 +197,9 @@ int main()
 		std::string result = registry.execute_tool("image_mirror", args.dump(), ctx);
 		std::cout << "Mirror result: " << result << std::endl;
 		assert(result.find("Successfully mirrored") != std::string::npos);
+		// Rich success text: must echo the direction and confirm size is unchanged.
+		assert(result.find("horizontal") != std::string::npos);
+		assert(result.find("360x274") != std::string::npos);
 
 		std::filesystem::path out_file = proj_root / "logo_mirrored.jpg";
 		nlohmann::json export_args = {{"name", "logo_mirrored.jpg"}, {"filename", "logo_mirrored.jpg"}};

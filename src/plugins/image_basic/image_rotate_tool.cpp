@@ -23,7 +23,15 @@ std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 		Magick::InitializeMagick(nullptr);
 
 		Magick::Image img(args_.safe_path);
+		int orig_w = img.columns();
+		int orig_h = img.rows();
+
 		img.rotate(args_.degrees);
+
+		// Rotation (especially non-right-angle) can grow the canvas, so report the
+		// resulting dimensions to confirm the geometric change.
+		int new_w = img.columns();
+		int new_h = img.rows();
 
 		std::string temp_out = images::image_manager::get_instance().get_temp_image_path();
 		img.write(temp_out);
@@ -40,8 +48,11 @@ std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest rotated image into VFS cache.";
 		}
 
+		// Report the rotation angle and the before/after dimensions so the caller can
+		// confirm the rotation (including canvas growth for non-right-angles) took effect.
+		std::string result_msg = std::format("Successfully rotated image by {} degrees from {}x{} to {}x{}. New URI: {}",
+					    args_.degrees, orig_w, orig_h, new_w, new_h, new_uri);
 		set_success(ctx, "Rotated image");
-		std::string result_msg = "Successfully rotated image. New URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;
