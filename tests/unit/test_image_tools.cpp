@@ -311,6 +311,17 @@ int main()
 		std::cout << "image_getdata result: " << result.substr(0, 100) << "..." << std::endl;
 		assert(!result.empty());
 		assert(result.find("data:image/png;base64,") != std::string::npos);
+
+		// Test size limit rejection on large image (logo.jpg is 84KB > 50KB limit)
+		nlohmann::json large_args = {{"filename", "logo.jpg"}};
+		std::string large_result = registry.execute_tool("image_getdata", large_args.dump(), ctx);
+		std::cout << "Large image_getdata result: " << large_result << std::endl;
+		assert(large_result.find("exceeds maximum size limit") != std::string::npos);
+
+		// Test explicit custom max_bytes override (e.g. 100KB > 84KB)
+		nlohmann::json custom_args = {{"filename", "logo.jpg"}, {"max_bytes", 100000}};
+		std::string custom_result = registry.execute_tool("image_getdata", custom_args.dump(), ctx);
+		assert(custom_result.find("data:image/jpeg;base64,") != std::string::npos);
 	}
 
 	// 15. Test Image Provenance & Origin Chain Tracking

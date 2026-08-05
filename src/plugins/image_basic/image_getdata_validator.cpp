@@ -7,9 +7,10 @@ namespace tools
 
 struct image_getdata_raw_args {
 	std::string filename;
+	size_t max_bytes{51200};
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(image_getdata_raw_args, filename)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(image_getdata_raw_args, filename, max_bytes)
 
 bool image_getdata_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context & /*ctx*/,
 						 std::string &out_error) const
@@ -21,6 +22,7 @@ bool image_getdata_validator::validate_args_impl(const nlohmann::json &raw_json,
 			return false;
 		}
 		args_.filename = parsed.filename;
+		args_.max_bytes = (parsed.max_bytes > 0) ? parsed.max_bytes : 51200;
 		return true;
 	} catch (const std::exception &e) {
 		out_error = "Invalid arguments: " + std::string(e.what());

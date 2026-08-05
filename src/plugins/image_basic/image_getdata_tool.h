@@ -7,6 +7,7 @@ namespace tools
 
 struct image_getdata_args {
 	std::string filename;
+	size_t max_bytes{51200}; // Default 50 KB size limit
 };
 
 class image_getdata_tool : public agentlib::llm_tool_action

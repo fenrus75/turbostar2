@@ -4,6 +4,7 @@
 #include "fs_utils.h"
 #include "utf8.h"
 #include "mime.h"
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
@@ -38,6 +39,16 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Image could not be resolved in VFS database.";
 		}
 
+		size_t limit = args_.max_bytes > 0 ? args_.max_bytes : 51200;
+
+		std::error_code ec;
+		uint64_t file_size = std::filesystem::file_size(src_path, ec);
+		if (!ec && file_size > limit) {
+			std::string err = std::format("Error: Image size ({} bytes) exceeds maximum size limit of {} bytes (~{} KB). Use image_resize, image_crop, or image_thumbnail to reduce the image size before retrieving data.", file_size, limit, limit / 1024);
+			set_failure(ctx, err);
+			return err;
+		}
+
 		std::ifstream file(src_path, std::ios::binary);
 		if (!file.is_open()) {
 			set_failure(ctx, "Failed to open image file: " + src_path);
@@ -45,6 +56,11 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		if (buffer.size() > limit) {
+			std::string err = std::format("Error: Image size ({} bytes) exceeds maximum size limit of {} bytes (~{} KB). Use image_resize, image_crop, or image_thumbnail to reduce the image size before retrieving data.", buffer.size(), limit, limit / 1024);
+			set_failure(ctx, err);
+			return err;
+		}
 		std::string mime_type = utf8::detect_mime(std::string_view(reinterpret_cast<const char *>(buffer.data()), buffer.size()));
 		if (mime_type.empty() || mime_type == "application/octet-stream" || mime_type == "text/plain") {
 			std::string fallback_mime = mime::detect_file_type(args_.filename);
