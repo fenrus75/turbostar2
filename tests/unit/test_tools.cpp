@@ -340,10 +340,10 @@ extern std::string troff2md(std::string troff_content);
 			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 40}";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
-			assert(res.find("Code for lines 1 - 44 of " + temp_file + " (total 100 lines):") != std::string::npos);
+			assert(res.find("Code for lines 1 - 45 of " + temp_file + " (total 100 lines):") != std::string::npos);
 			assert(res.find("40: line 40") != std::string::npos);
 			assert(res.find("44:     line 44") != std::string::npos);
-			assert(res.find("45:") == std::string::npos);
+			assert(res.find("46: def next_func():") == std::string::npos);
 		}
 
 		std::filesystem::path temp_cpp_path = std::filesystem::path(proj_root) / "test_fs_read_lines_heuristics.cpp";

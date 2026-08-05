@@ -40,81 +40,79 @@ size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
 	return max_count;
 }
 
-int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path)
+int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path, agentlib::tool_context &ctx)
 {
 	int total_lines_read = static_cast<int>(lines.size());
 	int file_end_line = start + total_lines_read - 1;
 
-	// Case 1: If we reached the end of the file within the extra 25 lines, just return all the way to the end.
+	// Rule 1: If we reached EOF within the extra 25 lines, return file_end_line.
 	if (file_end_line < requested_end + 25) {
 		return file_end_line;
 	}
 
-	// Calculate indices inside the `lines` vector.
-	int requested_end_idx = requested_end - start;
-	if (requested_end_idx < 0 || requested_end_idx >= total_lines_read) {
-		return requested_end; // Fallback
-	}
-
-	// Helper to trim leading/trailing whitespace
-	auto trim = [](std::string_view s) -> std::string_view {
-		size_t first = s.find_first_not_of(" \t\r\n");
-		if (first == std::string_view::npos)
-			return "";
-		size_t last = s.find_last_not_of(" \t\r\n");
-		return s.substr(first, last - first + 1);
-	};
-
-	// Helper to check if string starts with prefix
-	auto starts_with = [](std::string_view s, std::string_view prefix) -> bool { return s.substr(0, prefix.size()) == prefix; };
-
-	// Scan from `requested_end_idx + 1` to `requested_end_idx + 25` (which is `total_lines_read - 1`).
-	for (int i = requested_end_idx + 1; i < total_lines_read; ++i) {
-		std::string_view line = lines[i];
-		std::string_view trimmed = trim(line);
-		int current_line_num = start + i;
-
-		// Rule 2: Scope End. If we see a line containing only a closing brace/delimiter, stop after this line.
-		if (trimmed == "}" || trimmed == "};" || trimmed == "]" || trimmed == ")" || trimmed == "end" || trimmed == "fi" ||
-		    trimmed == "done") {
-			return current_line_num;
-		}
-
-		// Rule 3: Next Function/Class Start. If we see a line declaring a new function, struct, class, or def,
-		// stop BEFORE this line.
-		if (starts_with(trimmed, "class ") || starts_with(trimmed, "struct ") || starts_with(trimmed, "def ") ||
-		    starts_with(trimmed, "fn ") || starts_with(trimmed, "namespace ") || starts_with(trimmed, "interface ")) {
-			return current_line_num - 1;
-		}
-
-		// Check C++ function signature start at column 0 (trimmed starting with type and having a '(' later)
-		if (!line.empty() && line[0] != ' ' && line[0] != '\t') {
-			if (starts_with(trimmed, "void ") || starts_with(trimmed, "int ") || starts_with(trimmed, "bool ") ||
-			    starts_with(trimmed, "double ") || starts_with(trimmed, "float ") || starts_with(trimmed, "std::") ||
-			    starts_with(trimmed, "template<") || starts_with(trimmed, "template <")) {
-				if (trimmed.find('(') != std::string_view::npos) {
-					return current_line_num - 1;
+	// Rule 2: Fetch exact document symbols from central codemap infrastructure
+	std::vector<codemap_symbol_info> symbols = get_document_codemap_symbols(path, ctx, 1);
+	if (!symbols.empty()) {
+		// Case A: If requested_end falls inside a symbol, extend to that symbol's end_line if <= requested_end + 25
+		const codemap_symbol_info *enclosing_sym = nullptr;
+		for (const auto &sym : symbols) {
+			if (sym.start_line <= requested_end && sym.end_line > requested_end) {
+				if (!enclosing_sym || (sym.end_line - sym.start_line < enclosing_sym->end_line - enclosing_sym->start_line)) {
+					enclosing_sym = &sym;
 				}
 			}
 		}
 
-		// Rule 3b: For Python files: check indentation drops to 0 on a non-comment line.
-		std::filesystem::path p(path);
-		std::string ext = p.extension().string();
-		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
-		if (ext == ".py") {
-			if (!line.empty() && line[0] != ' ' && line[0] != '\t' && line[0] != '#') {
-				return current_line_num - 1;
+		if (enclosing_sym) {
+			if (enclosing_sym->end_line <= requested_end + 25 && enclosing_sym->end_line <= file_end_line) {
+				return enclosing_sym->end_line;
 			}
 		}
 
-		// Rule 4: Logical Paragraph / Blank Line. Stop at this line (excluding the blank line itself).
-		if (trimmed.empty()) {
-			return current_line_num - 1;
+		// Case B: If a new symbol starts within [requested_end + 1, requested_end + 25], stop cleanly right before it!
+		const codemap_symbol_info *next_sym = nullptr;
+		for (const auto &sym : symbols) {
+			if (sym.start_line > requested_end && sym.start_line <= requested_end + 25) {
+				if (!next_sym || sym.start_line < next_sym->start_line) {
+					next_sym = &sym;
+				}
+			}
+		}
+
+		if (next_sym) {
+			int stop_line = next_sym->start_line - 1;
+			if (stop_line >= requested_end && stop_line <= file_end_line) {
+				return stop_line;
+			}
 		}
 	}
 
-	// Fallback: Default to stopping at the requested `end` line
+	// Fallback heuristic for plain text / unstructured files without codemap symbols
+	int requested_end_idx = requested_end - start;
+	if (requested_end_idx >= 0 && requested_end_idx < total_lines_read) {
+		auto trim = [](std::string_view s) -> std::string_view {
+			size_t first = s.find_first_not_of(" \t\r\n");
+			if (first == std::string_view::npos)
+				return "";
+			size_t last = s.find_last_not_of(" \t\r\n");
+			return s.substr(first, last - first + 1);
+		};
+
+		for (int i = requested_end_idx + 1; i < total_lines_read; ++i) {
+			std::string_view line = lines[i];
+			std::string_view trimmed = trim(line);
+			int current_line_num = start + i;
+
+			if (trimmed == "}" || trimmed == "};" || trimmed == "]" || trimmed == ")" || trimmed == "end" || trimmed == "fi" ||
+			    trimmed == "done") {
+				return current_line_num;
+			}
+			if (trimmed.empty()) {
+				return current_line_num - 1;
+			}
+		}
+	}
+
 	return requested_end;
 }
 
@@ -272,7 +270,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 
 	int adjusted_end = requested_end;
 	if (read_res.success && !read_res.lines.empty()) {
-		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, args_.requested_path);
+		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, args_.safe_path, ctx);
 		int keep_count = adjusted_end - start + 1;
 		if (keep_count < 0) {
 			keep_count = 0;
