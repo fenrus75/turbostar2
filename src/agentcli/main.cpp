@@ -143,10 +143,6 @@ int main(int argc, char **argv)
 			for (auto &call : *response.tool_calls) {
 				agentlib::normalize_tool_call(call);
 			}
-			std::unordered_map<std::string, std::string> merged_to_parent;
-			std::unordered_map<std::string, std::pair<int, int>> parent_ranges;
-			ai_agent::coalesce_tool_calls(*response.tool_calls, merged_to_parent, parent_ranges);
-
 			std::cout << "LLM requested tool calls." << std::endl;
 			// The LLM's assistant message needs to be added to the history
 			conversation.push_back(response);
@@ -157,24 +153,8 @@ int main(int argc, char **argv)
 				// Sync state to agent before execution (so tools can modify it)
 				test_agent->set_conversation(conversation);
 
-				std::string tool_result;
-				bool is_merged = (merged_to_parent.find(call.id) != merged_to_parent.end());
-				if (is_merged) {
-					std::string parent_id = merged_to_parent[call.id];
-					int p_start = 1;
-					int p_end = 1000000;
-					if (parent_ranges.find(parent_id) != parent_ranges.end()) {
-						p_start = parent_ranges[parent_id].first;
-						p_end = parent_ranges[parent_id].second;
-					}
-					tool_result = std::format("Note: This read request was adjacent to/overlapping with another read request in the same turn. "
-								  "To avoid redundant output and keep the code contiguous, it has been merged into tool call {} "
-								  "(which reads lines {} - {}). Please refer to the output of that tool call for the content.",
-								  parent_id, p_start, p_end);
-				} else {
-					ctx.properties = test_agent->get_properties();
-					tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
-				}
+				ctx.properties = test_agent->get_properties();
+				std::string tool_result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
 				
 				// Sync state back from agent (in case it paged out)
 				conversation = test_agent->get_conversation();
