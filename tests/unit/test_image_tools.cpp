@@ -102,6 +102,11 @@ int main()
 		nlohmann::json args = {{"filename", "test_logo.jpg"}, {"output", "logo.jpg"}};
 		std::string result = registry.execute_tool("image_import", args.dump(), ctx);
 		assert(result.find("Successfully imported") != std::string::npos);
+		// Rich success text: must report dimensions, byte size, and MIME for a real image.
+		assert(result.find("x") != std::string::npos);
+		assert(result.find("bytes") != std::string::npos);
+		assert(result.find("image/jpeg") != std::string::npos);
+		std::cout << "Import result (real image): " << result << std::endl;
 	}
 
 	// Export logo.jpg as a PNG file and verify format conversion
