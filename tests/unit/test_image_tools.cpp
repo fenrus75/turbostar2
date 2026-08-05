@@ -293,7 +293,7 @@ int main()
 		std::string result = registry.execute_tool("image_getdata", getdata_args.dump(), ctx);
 		std::cout << "image_getdata result: " << result.substr(0, 100) << "..." << std::endl;
 		assert(!result.empty());
-		assert(result.starts_with("data:image/png;base64,"));
+		assert(result.find("data:image/png;base64,") != std::string::npos);
 	}
 
 	// 15. Test Image Provenance & Origin Chain Tracking

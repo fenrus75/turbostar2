@@ -2265,6 +2265,18 @@ std::string ai_agent::get_memory_index() const
 	return out.str();
 }
 
+static bool is_episode_boundary_message(const message &msg)
+{
+	if (msg.role == "system") {
+		if (msg.content.find("Episode Archived") != std::string::npos ||
+		    msg.content.find("Auto-Episode Boundary") != std::string::npos ||
+		    msg.content.find("[SYSTEM MEMORY:") != std::string::npos) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
 				    std::string_view summary, const std::vector<std::string> &tags)
 {
@@ -2302,7 +2314,7 @@ void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool i
 				end_index = i + 1;
 				break;
 			}
-			if (i > 0 && flat_convo[i].role == "system" && flat_convo[i].content.find("Episode Archived") != std::string::npos) {
+			if (i > 0 && is_episode_boundary_message(flat_convo[i])) {
 				end_index = i;
 				break;
 			}
@@ -2505,7 +2517,7 @@ static std::vector<parsed_turn> parse_turns(const std::vector<message> &convo)
 	bool has_current = false;
 
 	for (const auto &msg : convo) {
-		if (msg.role == "system" && msg.content.find("[SYSTEM MEMORY: Episode Archived]") != std::string::npos) {
+		if (is_episode_boundary_message(msg)) {
 			if (has_current) {
 				turns.push_back(current_turn);
 				has_current = false;
@@ -2607,7 +2619,7 @@ void ai_agent::evaluate_auto_episode(std::vector<message> &convo)
 	for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
 		if (convo[i].role == "tool" && convo[i].name == "agent_mark_episode")
 			break;
-		if (i > 0 && convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos)
+		if (i > 0 && is_episode_boundary_message(convo[i]))
 			break;
 
 		recent_chars += convo[i].content.length();

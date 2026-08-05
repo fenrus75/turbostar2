@@ -177,7 +177,10 @@ class episode_command : public agent_command
 		size_t start_index = 1;
 		auto convo = ctx.agent->get_conversation();
 		for (int i = static_cast<int>(convo.size()) - 1; i >= 0; --i) {
-			if (convo[i].role == "system" && convo[i].content.find("Episode Archived") != std::string::npos) {
+			if (convo[i].role == "system" &&
+			    (convo[i].content.find("Episode Archived") != std::string::npos ||
+			     convo[i].content.find("Auto-Episode Boundary") != std::string::npos ||
+			     convo[i].content.find("[SYSTEM MEMORY:") != std::string::npos)) {
 				start_index = i + 1;
 				break;
 			}
