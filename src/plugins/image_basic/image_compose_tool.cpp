@@ -27,11 +27,21 @@ std::string image_compose_tool::execute(agentlib::tool_context &ctx)
 
 		int main_w = main_img.columns();
 		int main_h = main_img.rows();
+		int small_w = small_img.columns();
+		int small_h = small_img.rows();
 
 		if (args_.x >= main_w || args_.y >= main_h) {
 			return "Error: Composition offsets (x=" + std::to_string(args_.x) + ", y=" + std::to_string(args_.y) +
 			       ") are out of main image boundaries (" + std::to_string(main_w) + "x" + std::to_string(main_h) + ").";
 		}
+
+		int placed_w = std::min(small_w, main_w - args_.x);
+		int placed_h = std::min(small_h, main_h - args_.y);
+
+		int bbox_x_start = args_.x;
+		int bbox_x_end = args_.x + placed_w - 1;
+		int bbox_y_start = args_.y;
+		int bbox_y_end = args_.y + placed_h - 1;
 
 		main_img.composite(small_img, args_.x, args_.y, Magick::OverCompositeOp);
 
@@ -51,7 +61,19 @@ std::string image_compose_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		set_success(ctx, "Composed images");
-		std::string result_msg = "Successfully composed images. New URI: " + new_uri;
+
+		std::string bbox_info = std::format("Inserted 2nd image ({}x{}) onto main image ({}x{}) at bounding box (x={}..{}, y={}..{}) [width={}, height={}].",
+					small_w, small_h, main_w, main_h, bbox_x_start, bbox_x_end, bbox_y_start, bbox_y_end, placed_w, placed_h);
+
+		std::string fit_info;
+		if (placed_w < small_w || placed_h < small_h) {
+			fit_info = std::format("Note: 2nd image exceeded main image boundaries; pixel sub-range (x=0..{}, y=0..{}) of 2nd image was placed.",
+					placed_w - 1, placed_h - 1);
+		} else {
+			fit_info = "100% of 2nd image was placed.";
+		}
+
+		std::string result_msg = std::format("Successfully composed images. {} {} New URI: {}", bbox_info, fit_info, new_uri);
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;
