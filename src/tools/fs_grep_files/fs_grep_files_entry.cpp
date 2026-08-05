@@ -257,9 +257,33 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::string display_path = abs_path.is_absolute() ?
 					fs::relative(abs_path, root_path).string() : sym.location.path;
 				
-				// Format: * **<Kind> `name`** is defined in `path` at line <line>
-				lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
-					kind_str, sym.name, display_path, sym.location.range.start_y + 1);
+				int start_line = sym.location.range.start_y + 1;
+				int end_line = sym.location.range.end_y + 1;
+
+				if (end_line <= start_line) {
+					std::string safe_file_path;
+					std::string out_err;
+					fs::path full_path = abs_path.is_absolute() ? abs_path : (root_path / abs_path);
+					if (ctx.fs_security.validate_access(full_path.string(), agentlib::access_type::read, safe_file_path, out_err)) {
+						auto file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
+						for (const auto &csym : file_symbols) {
+							if (csym.start_line <= start_line && csym.end_line >= start_line) {
+								if (csym.end_line > start_line) {
+									end_line = csym.end_line;
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if (end_line > start_line) {
+					lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}\n",
+						kind_str, sym.name, display_path, start_line, end_line);
+				} else {
+					lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
+						kind_str, sym.name, display_path, start_line);
+				}
 			}
 			lsp_ss << "\n---\n\n";
 			lsp_section = lsp_ss.str();
@@ -581,7 +605,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				if (!file_symbols.empty()) {
 					const codemap_symbol_info *enc_sym = find_enclosing_symbol(file_symbols, match.first);
 					if (enc_sym) {
-						scope_hint = std::format(" [in {} `{}`]", enc_sym->kind_str, enc_sym->name);
+						if (enc_sym->end_line > enc_sym->start_line) {
+							scope_hint = std::format(" [in {} `{}` L{}-{}]", enc_sym->kind_str, enc_sym->name, enc_sym->start_line, enc_sym->end_line);
+						} else {
+							scope_hint = std::format(" [in {} `{}` L{}]", enc_sym->kind_str, enc_sym->name, enc_sym->start_line);
+						}
 					}
 				}
 

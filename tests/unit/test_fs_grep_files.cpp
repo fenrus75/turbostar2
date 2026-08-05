@@ -181,7 +181,13 @@ int main()
 		sym2.location.path = (temp_dir / "src/hello.h").string();
 		sym2.location.range = {9, 0, 9, 5}; // 0-indexed line 9 -> line 10
 
-		tool6.mock_symbols = {sym1, sym2};
+		lsp_manager::symbol_info sym3;
+		sym3.name = "hello_layout";
+		sym3.kind = 6; // Method
+		sym3.location.path = (temp_dir / "src/editor.cpp").string();
+		sym3.location.range = {268, 0, 311, 10}; // 0-indexed 268->269, 311->312
+
+		tool6.mock_symbols = {sym1, sym2, sym3};
 
 		std::string res6 = tool6.execute(ctx);
 		std::cout << "RES6:\n" << res6 << std::endl;
@@ -189,6 +195,7 @@ int main()
 		assert(res6.find("### LSP Symbol Definitions:") != std::string::npos);
 		assert(res6.find("* **Function `hello`** is defined in `src/hello.cpp` at line 42") != std::string::npos);
 		assert(res6.find("* **Class `hello_world`** is defined in `src/hello.h` at line 10") != std::string::npos);
+		assert(res6.find("* **Method `hello_layout`** is defined in `src/editor.cpp` at line 269 to 312") != std::string::npos);
 	}
 
 	// Test 7: Exclude path, ext, and pattern
@@ -256,6 +263,26 @@ int main()
 		assert(res8.find("### `target.cpp`") != std::string::npos);
 		assert(res8.find("target.cpp~") != std::string::npos); // Should be in overflow list
 		assert(res8.find("### `target.cpp~`") == std::string::npos); // Should NOT be in detailed matches header!
+	}
+
+	// Test 9: Enclosing scope annotation formatting with line range L{}-{}
+	{
+		fs::path cpp_file = temp_dir / "scope_test.cpp";
+		{
+			std::ofstream out(cpp_file);
+			out << "void my_target_function() {\n";
+			out << "    int val = 42;\n";
+			out << "    return_scope_key();\n";
+			out << "}\n";
+		}
+
+		tools::fs_grep_files_args args9;
+		args9.pattern = "return_scope_key";
+		args9.safe_search_path = temp_dir.string();
+		tools::fs_grep_files_tool tool9(args9);
+
+		std::string res9 = tool9.execute(ctx);
+		assert(res9.find("[in Function `my_target_function` L1-4]") != std::string::npos);
 	}
 
 	fs::remove_all(temp_dir);
