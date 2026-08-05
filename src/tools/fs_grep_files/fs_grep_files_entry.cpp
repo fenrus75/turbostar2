@@ -169,6 +169,15 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Invalid regular expression pattern. " + compiled_regex_->error();
 	}
 
+	if (!args_.pattern.empty()) {
+		auto &patterns = ctx.recent_grep_patterns;
+		patterns.erase(std::remove(patterns.begin(), patterns.end(), args_.pattern), patterns.end());
+		patterns.push_front(args_.pattern);
+		if (patterns.size() > 5) {
+			patterns.pop_back();
+		}
+	}
+
 	bool is_duplicate = false;
 	std::string curr_ext = args_.include_ext ? *args_.include_ext : "";
 	std::string curr_ex_path = args_.exclude_path ? *args_.exclude_path : "";

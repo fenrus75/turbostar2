@@ -36,6 +36,8 @@ int main()
 			std::cout << "Regex search result: " << res << std::endl;
 			assert(res.find("| Line Number | Content |") != std::string::npos);
 			assert(res.find("shines") != std::string::npos);
+			assert(!ctx.recent_grep_patterns.empty());
+			assert(ctx.recent_grep_patterns.front() == "sun.*");
 		}
 
 		// 1b. Success case: find matches for "SUN" case-insensitively

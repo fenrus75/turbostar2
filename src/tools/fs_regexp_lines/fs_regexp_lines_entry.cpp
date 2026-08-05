@@ -55,6 +55,15 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 	if (!compiled_regex_)
 		return "Error: Regex not compiled.";
 
+	if (!args_.pattern.empty()) {
+		auto &patterns = ctx.recent_grep_patterns;
+		patterns.erase(std::remove(patterns.begin(), patterns.end(), args_.pattern), patterns.end());
+		patterns.push_front(args_.pattern);
+		if (patterns.size() > 5) {
+			patterns.pop_back();
+		}
+	}
+
 	std::stringstream ss;
 	ss << "| Line Number | Content |\n";
 	ss << "| ----------- | ------- |\n";
