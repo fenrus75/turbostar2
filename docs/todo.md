@@ -17,11 +17,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- bug: the view crashdumps window has no working scroll bars
-	- and we should consider using our markdown table pretier in the crash dump, at least to align the table if not make it look nice on the screen
-
-- when you let apps/tests run without sandbox we also no longer get crashdumps -- we should still inject libturbocatch.so
-
 - `fs_replace_lines` dry-run verification: perform dry-run verification against `original_text` for all batch edits in `fs_replace_lines` before applying any mutations. If any line check fails after accounting for previous edits, reject the batch cleanly to prevent partial line-drift edits.
 
 - `fs_replace_symbol` / AST-scoped code edits: add a symbol or scope-based edit tool (or parameter) that targets a named method or class scope (e.g. `Class::method`) and applies replacements relative to the function boundaries, preventing global file line shifts from affecting edits.
@@ -238,6 +233,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # done items (sorted by date, newest first)
 
 ## 05-08-2026
+- Crashdump UI Scrollbars, Framed Markdown Table Formatting, and Unsandboxed Crash Catcher Injection (`src/ui/crashdump_window.h/cpp`, `src/command_runner.h/cpp`, `tests/unit/test_assert_fail.cpp`): Implemented comprehensive enhancements across the crashdump subsystem: (1) **Details Pane Vertical Scrollbar & Nav**: Added interactive vertical scrollbar track (`▒`), arrows (`▲`/`▼`), and thumb (`█`) for the crashdump details pane in `crashdump_window`. Added full keyboard (`KEY_UP`, `KEY_DOWN`, `KEY_PPAGE`, `KEY_NPAGE`, `Ctrl-U`, `Ctrl-V`) and mouse (wheel up/down, scrollbar track & arrow clicks) scrolling with bounds clamping, (2) **Framed Markdown Table Alignment**: Integrated `markdown_utils::align_all_tables(dump.raw_info, true, 0, max_width)` to format clean framed ASCII/Unicode borders for the Backtrace and `### Codemap Summary` tables aligned to the details pane width, (3) **Unsandboxed `libturbocatch.so` Injection**: Updated `command_runner::build_command` and added `inject_unsandboxed_environment` to inject `LD_PRELOAD`, `TURBOSTAR_DUMP_DIR`, `TURBOSTAR_CRASH_COOKIE`, and `TURBOSTAR_PERF_DIR` environment variables when running commands unsandboxed or when systemd fallback is triggered, ensuring crashdumps are captured even when sandboxing is bypassed.
 - Relocated `codemap_utils` to Core Subsystem (`src/codemap_utils.h/cpp`, `src/meson.build`, `src/tools/meson.build`, `meson.build`): Moved `codemap_utils.h` and `codemap_utils.cpp` out of `src/tools/` into the core `src/` directory. Added `codemap_utils.cpp` to `core_sources` in `src/meson.build`, eliminating the architectural layering anti-pattern where core editor components like `crashdump_manager` depended downwards on `src/tools/`. Updated all `#include` directives across tools and test suites to standard `#include "codemap_utils.h"`.
 - Codemap Summary in Crash Reports (`src/crashdump_manager.cpp`, `tests/unit/test_assert_fail.cpp`): Integrated codemap indexing into `crashdump_manager::generate_report_if_needed`. Formats a clean `### Codemap Summary` table at the end of generated crash reports (`report.md`) listing project file symbols, line ranges (`Start Line`, `End Line`, total lines), and stack frame references (`Frame Note`, e.g., `Frame 0 (Line 269)`). Automatically filters out non-project library frames and deduplicates symbols for recursive stack traces. Verified via unit test suite.
 
