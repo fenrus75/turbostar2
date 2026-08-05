@@ -1,5 +1,7 @@
 #include "plugins/image_basic/image_grayscale_tool.h"
 #include <Magick++.h>
+#include <cstddef>
+#include <format>
 #include "images/image_manager.h"
 #include <exception>
 
@@ -23,7 +25,25 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 		Magick::InitializeMagick(nullptr);
 
 		Magick::Image img(args_.safe_path);
+		int img_w = img.columns();
+		int img_h = img.rows();
 		img.type(Magick::GrayscaleType);
+
+		// Compute the average grayscale intensity (0-255 scale) across all pixels. Since
+		// grayscale is not binary, average luminance is the natural summary statistic (unlike
+		// the white/black percentage used for thresholding). Gamma-aware imaging is not assumed;
+		// this gives the mean decoded R=G=B value.
+		const size_t total_pixels = static_cast<size_t>(img_w) * static_cast<size_t>(img_h);
+		double luminance_sum = 0.0;
+		for (int y = 0; y < img_h; ++y) {
+			const Magick::PixelPacket *row = img.getConstPixels(0, y, img_w, 1);
+			if (!row)
+				continue;
+			for (int x = 0; x < img_w; ++x) {
+				luminance_sum += (static_cast<double>(row[x].red) / MaxRGB) * 255.0;
+			}
+		}
+		int avg_luminance = total_pixels > 0 ? static_cast<int>(luminance_sum / total_pixels + 0.5) : 0;
 
 		std::string temp_out = images::image_manager::get_instance().get_temp_image_path();
 		img.write(temp_out);
@@ -39,8 +59,11 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to re-ingest grayscale image into VFS cache.";
 		}
 
+		// Report the image dimensions and average luminance (0-255) so the caller can judge
+		// the brightness of the resulting grayscale image.
+		std::string result_msg = std::format("Successfully converted image to grayscale ({}x{}, average luminance {}/255). New URI: {}",
+					    img_w, img_h, avg_luminance, new_uri);
 		set_success(ctx, "Converted image to grayscale");
-		std::string result_msg = "Successfully converted image to grayscale. New URI: " + new_uri;
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
 		return result_msg;

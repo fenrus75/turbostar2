@@ -215,6 +215,9 @@ int main()
 		std::string result = registry.execute_tool("image_grayscale", args.dump(), ctx);
 		std::cout << "Grayscale result: " << result << std::endl;
 		assert(result.find("Successfully converted") != std::string::npos);
+		// Rich success text: grayscale reports average luminance (0-255) instead of white/black %.
+		assert(result.find("average luminance") != std::string::npos);
+		assert(result.find("/255") != std::string::npos);
 
 		std::filesystem::path out_file = proj_root / "logo_grayscale.jpg";
 		nlohmann::json export_args = {{"name", "logo_grayscale.jpg"}, {"filename", "logo_grayscale.jpg"}};
@@ -230,6 +233,9 @@ int main()
 		std::string result = registry.execute_tool("image_threshold", args.dump(), ctx);
 		std::cout << "Threshold result: " << result << std::endl;
 		assert(result.find("Successfully applied") != std::string::npos);
+		// Rich success text: threshold (binary) reports white/black pixel percentages.
+		assert(result.find("% white") != std::string::npos);
+		assert(result.find("% black") != std::string::npos);
 
 		std::filesystem::path out_file = proj_root / "logo_threshold.jpg";
 		nlohmann::json export_args = {{"name", "logo_threshold.jpg"}, {"filename", "logo_threshold.jpg"}};
