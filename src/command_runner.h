@@ -112,6 +112,7 @@ protected:
     int timeout_seconds_{0};
     mutable bool timed_out_{false};
     mutable std::chrono::time_point<std::chrono::steady_clock> start_time_;
+    std::string inject_unsandboxed_environment(const std::string &raw_command) const;
 
 
 private:

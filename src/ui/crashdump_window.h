@@ -30,7 +30,10 @@ class crashdump_window : public window
 	event_queue &global_queue_;
 	std::unique_ptr<ui_listbox> listbox_;
 	std::vector<crashdump_info> current_dumps_;
-	int detail_scroll_offset_{0};
+	mutable int detail_scroll_offset_{0};
 	mutable int last_detail_scroll_offset_{0};
 	int last_selected_index_{-1};
+	mutable int total_detail_lines_{0};
+	mutable int detail_view_height_{0};
+	mutable int details_top_y_{0};
 };

@@ -80,14 +80,15 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 		mvaddch(current_y, start_x + i, ACS_HLINE);
 	}
 	current_y++;
+	details_top_y_ = current_y;
 
 	// Draw details
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 	if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
 		const auto &dump = current_dumps_[selected_idx];
 
-		// Align markdown tables in raw_info first
-		std::string raw = markdown_utils::align_all_tables(dump.raw_info, false);
+		// Align markdown tables in raw_info first with framed borders to fit window max_width
+		std::string raw = markdown_utils::align_all_tables(dump.raw_info, true, 0, max_width);
 
 		// Split raw by newline
 		std::vector<std::string> lines;
@@ -102,8 +103,14 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 			start = end + 1;
 		}
 
-		// Draw lines with scrolling
 		int detail_height = (y_ + height_ - 1) - current_y;
+		detail_view_height_ = detail_height;
+		total_detail_lines_ = static_cast<int>(lines.size());
+
+		int max_scroll = std::max(0, total_detail_lines_ - detail_view_height_);
+		detail_scroll_offset_ = std::clamp(detail_scroll_offset_, 0, max_scroll);
+
+		// Draw lines with scrolling
 		for (int i = 0; i < detail_height; ++i) {
 			int line_idx = detail_scroll_offset_ + i;
 			if (line_idx < (int)lines.size()) {
@@ -115,6 +122,8 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 			}
 		}
 	} else {
+		total_detail_lines_ = 0;
+		detail_view_height_ = (y_ + height_ - 1) - current_y;
 		mvprintw(current_y, start_x, " No crashdump selected.");
 	}
 
@@ -124,6 +133,32 @@ void crashdump_window::draw_content(bool /*cursor_only*/) const
 void crashdump_window::draw_border() const
 {
 	::window::draw_border();
+
+	// Draw details scrollbar if detail lines exceed view height
+	int max_scroll = std::max(0, total_detail_lines_ - detail_view_height_);
+	if (total_detail_lines_ > detail_view_height_ && details_top_y_ > y_) {
+		int track_top = details_top_y_;
+		int track_bottom = y_ + height_ - 2;
+		int track_height = track_bottom - track_top + 1;
+
+		if (track_height >= 3) {
+			attron(COLOR_PAIR(4));
+			for (int y = track_top; y <= track_bottom; ++y) {
+				mvaddstr(y, x_ + width_ - 1, "▒");
+			}
+			mvaddstr(track_top, x_ + width_ - 1, "▲");
+			mvaddstr(track_bottom, x_ + width_ - 1, "▼");
+
+			int thumb_range = track_height - 2;
+			if (thumb_range > 0 && max_scroll > 0) {
+				double ratio = static_cast<double>(detail_scroll_offset_) / max_scroll;
+				int thumb_pos = static_cast<int>(ratio * (thumb_range - 1) + 0.5);
+				thumb_pos = std::clamp(thumb_pos, 0, thumb_range - 1);
+				mvaddstr(track_top + 1 + thumb_pos, x_ + width_ - 1, "█");
+			}
+			attroff(COLOR_PAIR(4));
+		}
+	}
 
 	// Draw "Go to Source" button on the bottom border
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
@@ -152,23 +187,27 @@ void crashdump_window::draw_border() const
 bool crashdump_window::process_events()
 {
 	bool needs_render = false;
+	int max_scroll = std::max(0, total_detail_lines_ - detail_view_height_);
 
 	while (auto ev = get_window_queue().pop()) {
 		if (ev->type == event_type::key_press && is_active()) {
 			int key = ev->key_code;
 
 			// Handle details scrolling
-			if (key == 21) { // Ctrl-U (Page up)
-				detail_scroll_offset_ -= 10;
-				if (detail_scroll_offset_ < 0)
-					detail_scroll_offset_ = 0;
+			if (key == 21 || key == KEY_PPAGE) { // Ctrl-U or PageUp
+				int page = std::max(1, detail_view_height_ - 2);
+				detail_scroll_offset_ = std::clamp(detail_scroll_offset_ - page, 0, max_scroll);
 				needs_render = true;
-			} else if (key == 22) { // Ctrl-V (Page down)
-				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
-				if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
-					detail_scroll_offset_ += 10;
-					needs_render = true;
-				}
+			} else if (key == 22 || key == KEY_NPAGE) { // Ctrl-V or PageDown
+				int page = std::max(1, detail_view_height_ - 2);
+				detail_scroll_offset_ = std::clamp(detail_scroll_offset_ + page, 0, max_scroll);
+				needs_render = true;
+			} else if (key == KEY_UP) {
+				detail_scroll_offset_ = std::clamp(detail_scroll_offset_ - 1, 0, max_scroll);
+				needs_render = true;
+			} else if (key == KEY_DOWN) {
+				detail_scroll_offset_ = std::clamp(detail_scroll_offset_ + 1, 0, max_scroll);
+				needs_render = true;
 			} else if (key == 's' || key == 'S' || key == 'g' || key == 'G') {
 				go_to_source();
 				needs_render = true;
@@ -178,9 +217,14 @@ bool crashdump_window::process_events()
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}
-		} else if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
-			   ev->type == event_type::mouse_scroll_down) {
-			if (ev->type == event_type::mouse_click && ev->mouse_y == y_ + height_ - 1) {
+		} else if (ev->type == event_type::mouse_scroll_up) {
+			detail_scroll_offset_ = std::clamp(detail_scroll_offset_ - 3, 0, max_scroll);
+			needs_render = true;
+		} else if (ev->type == event_type::mouse_scroll_down) {
+			detail_scroll_offset_ = std::clamp(detail_scroll_offset_ + 3, 0, max_scroll);
+			needs_render = true;
+		} else if (ev->type == event_type::mouse_click) {
+			if (ev->mouse_y == y_ + height_ - 1) {
 				int click_x = ev->mouse_x - x_;
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 				if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
@@ -192,6 +236,20 @@ bool crashdump_window::process_events()
 						needs_render = true;
 					}
 				}
+			} else if (ev->mouse_x == x_ + width_ - 1 && ev->mouse_y >= details_top_y_ && ev->mouse_y <= y_ + height_ - 2) {
+				int track_top = details_top_y_;
+				int track_bottom = y_ + height_ - 2;
+				if (ev->mouse_y == track_top) {
+					detail_scroll_offset_ = std::clamp(detail_scroll_offset_ - 1, 0, max_scroll);
+				} else if (ev->mouse_y == track_bottom) {
+					detail_scroll_offset_ = std::clamp(detail_scroll_offset_ + 1, 0, max_scroll);
+				} else if (max_scroll > 0 && (track_bottom - track_top - 1) > 0) {
+					int rel_y = ev->mouse_y - (track_top + 1);
+					int thumb_range = track_bottom - track_top - 1;
+					double ratio = static_cast<double>(rel_y) / thumb_range;
+					detail_scroll_offset_ = std::clamp(static_cast<int>(ratio * max_scroll + 0.5), 0, max_scroll);
+				}
+				needs_render = true;
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
 				needs_render = true;
 			}

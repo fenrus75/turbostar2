@@ -143,15 +143,41 @@ static bool is_systemd_user_bus_available()
 	return false;
 }
 
+std::string command_runner::inject_unsandboxed_environment(const std::string &raw_command) const
+{
+	if (!enable_crash_catcher_ && perf_dir_.empty()) {
+		return raw_command;
+	}
+
+	std::string env_prefix;
+	std::string dump_dir = fs_utils::get_project_dump_dir();
+	std::string lib_path = fs_utils::get_turbocatch_lib_path();
+
+	if (fs::exists(lib_path)) {
+		env_prefix += "LD_PRELOAD=" + fs_utils::escape_shell_arg(lib_path) + " ";
+	}
+	if (!dump_dir.empty()) {
+		env_prefix += "TURBOSTAR_DUMP_DIR=" + fs_utils::escape_shell_arg(dump_dir) + " ";
+	}
+	if (!crash_cookie_.empty()) {
+		env_prefix += "TURBOSTAR_CRASH_COOKIE=" + fs_utils::escape_shell_arg(crash_cookie_) + " ";
+	}
+	if (!perf_dir_.empty()) {
+		env_prefix += "TURBOSTAR_PERF_DIR=" + fs_utils::escape_shell_arg(perf_dir_) + " ";
+	}
+
+	return env_prefix + raw_command;
+}
+
 std::string command_runner::build_command(const std::string &raw_command) const
 {
 	if (bypass_sandbox_ && !config_manager::get_instance().is_paranoid_mode()) {
-		return raw_command;
+		return inject_unsandboxed_environment(raw_command);
 	}
 
 	if (std::getenv("TURBOSTAR_SANDBOXED")) {
 		event_logger::get_instance().log("[command_runner] Already running inside outer sandbox, bypassing nested systemd-run for: '{}'", raw_command);
-		return raw_command;
+		return inject_unsandboxed_environment(raw_command);
 	}
 
 	if (!is_systemd_user_bus_available()) {
@@ -159,7 +185,7 @@ std::string command_runner::build_command(const std::string &raw_command) const
 			event_logger::get_instance().log("[command_runner] ERROR: Systemd user D-Bus bus unavailable in Paranoid Mode for command: '{}'", raw_command);
 		} else {
 			event_logger::get_instance().log("[command_runner] WARNING: Systemd user D-Bus bus unavailable. Fallback execution triggered for command: '{}'", raw_command);
-			return raw_command;
+			return inject_unsandboxed_environment(raw_command);
 		}
 	}
 
