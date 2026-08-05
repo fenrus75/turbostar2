@@ -45,6 +45,8 @@ int main()
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
+	auto global_vfs = std::make_unique<agentlib::virtual_file_system>();
+	ctx.fs_security.set_vfs(global_vfs.get());
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
@@ -79,6 +81,21 @@ int main()
 	// 4. Verify contents match
 	assert(std::filesystem::exists(exported_img));
 	assert(read_file(exported_img) == dummy_data);
+
+	// 4b. Export dummy image from VFS to virtual tmp:// namespace
+	{
+		nlohmann::json args = {{"name", "vfs_logo.png"}, {"filename", "tmp://exported_logo.png"}};
+		std::string result = registry.execute_tool("image_export", args.dump(), ctx);
+		std::cout << "Export to VFS result: " << result << std::endl;
+		assert(result.find("Successfully exported") != std::string::npos);
+		assert(result.find("tmp://exported_logo.png") != std::string::npos);
+
+		auto vfs = ctx.fs_security.get_vfs();
+		assert(vfs != nullptr);
+		auto read_opt = vfs->read_file("tmp://exported_logo.png");
+		assert(read_opt.has_value());
+		assert((*read_opt)->view().size() > 0);
+	}
 
 	// 5. Test validation failures on import
 	{

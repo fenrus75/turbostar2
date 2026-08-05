@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <fstream>
 #include <format>
 #include "agentlib/tool_context.h"
 #include "images/image_manager.h"
@@ -41,13 +42,75 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Source image could not be resolved in VFS database.";
 		}
 
+		bool is_vfs = (args_.safe_path.find("://") != std::string::npos);
+		int src_w = 0;
+		int src_h = 0;
+
+		if (is_vfs) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (!vfs) {
+				set_failure(ctx, "VFS is not initialized in security context.");
+				return "Error: VFS is not initialized in security context.";
+			}
+
+			std::string file_content;
+#ifdef HAS_GRAPHICSMAGICK
+			try {
+				Magick::InitializeMagick(nullptr);
+				Magick::Image img(src_path);
+				src_w = img.columns();
+				src_h = img.rows();
+
+				std::string ext = std::filesystem::path(args_.original_filename).extension().string();
+				if (!ext.empty() && ext[0] == '.') ext = ext.substr(1);
+				if (!ext.empty()) {
+					img.magick(ext);
+				}
+				Magick::Blob blob;
+				img.write(&blob);
+				file_content = std::string(static_cast<const char *>(blob.data()), blob.length());
+			} catch (...) {
+				std::ifstream ifs(src_path, std::ios::binary);
+				if (ifs.is_open()) {
+					file_content = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+				}
+			}
+#else
+			std::ifstream ifs(src_path, std::ios::binary);
+			if (ifs.is_open()) {
+				file_content = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			}
+#endif
+			if (file_content.empty()) {
+				std::ifstream ifs(src_path, std::ios::binary);
+				if (ifs.is_open()) {
+					file_content = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+				}
+			}
+
+			std::string desc = vfs->write_file(args_.safe_path, file_content.data(), file_content.size());
+			if (desc.empty()) {
+				set_failure(ctx, "Failed to write output to VFS path: " + args_.original_filename);
+				return "Error: Failed to write output to VFS path: " + args_.original_filename;
+			}
+
+			set_success(ctx, "Exported image");
+			std::string dims;
+			if (src_w > 0 && src_h > 0) {
+				dims = std::format(" ({}x{})", src_w, src_h);
+			}
+
+			std::string result_msg = std::format("Successfully exported image{} ({} bytes, {}) to {}.",
+							    dims, file_content.size(),
+							    mime::detect_file_type(args_.original_filename),
+							    args_.original_filename);
+			interaction_->set_result(result_msg);
+			return result_msg;
+		}
+
 		// Ensure parent directory of output exists
 		std::filesystem::path dest_path(args_.safe_path);
 		std::filesystem::create_directories(dest_path.parent_path());
-
-		// Capture source dimensions for the success report (best-effort; stays 0 if not readable).
-		int src_w = 0;
-		int src_h = 0;
 
 #ifdef HAS_GRAPHICSMAGICK
 		// Attempt to decode-and-write via GraphicsMagick (which also yields dimensions
