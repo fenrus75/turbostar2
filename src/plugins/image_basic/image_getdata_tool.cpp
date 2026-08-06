@@ -70,18 +70,12 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 		}
 		std::string data_url = fs_utils::format_binary_output(buffer, "base64", mime_type);
 
-		// Prepend a compact summary (resolved name, dimensions, byte size, MIME) before the
-		// (potentially large) base64 payload so the caller gets bounded, confidence-building
-		// context even when the embedded image data is truncated by the environment.
-		images::image_metadata meta;
-		std::string dims = "(unknown dimensions)";
-		if (images::image_manager::get_instance().get_metadata(args_.filename, meta) && meta.width > 0 && meta.height > 0) {
-			dims = std::format("{}x{}", meta.width, meta.height);
-		}
-		std::string header = std::format("Image {} ({}, {} bytes, {})\n", args_.filename, dims, buffer.size(), mime_type);
-
+		// Return the raw data URL with no prepended prose. The OpenAI tool-image
+		// specification requires image payloads to be a strict "data URL" (the format
+		// produced by format_binary_output below). Any prefix breaks strict parsers and
+		// confuses some models/agents, so we return the data URL exactly as-is.
 		set_success(ctx, "Retrieved image data");
-		return header + data_url;
+		return data_url;
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
 		return "Error: " + std::string(e.what());
