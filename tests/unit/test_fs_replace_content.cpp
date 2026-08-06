@@ -211,6 +211,39 @@ int main()
 			assert(read_file() == "void level_d_test() {\n    do_single_work_updated();\n}\n");
 		}
 
+		// 13. Brace-balance warning case: replacement removes a closing brace.
+		// .txt files have no LSP function symbols, so the whole-file fallback runs.
+		{
+			write_file("void foo() {\n    x();\n}\n");
+			// Replace the closing brace line with empty text leaving an unbalanced brace.
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "}"},
+				{"replacement_content", "    // removed closing brace"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Brace-balance warning result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			// The edit still applies (warning, not failure), but the result must flag the imbalance.
+			assert(res.find("unbalanced braces") != std::string::npos);
+			assert(read_file() == "void foo() {\n    x();\n    // removed closing brace\n");
+		}
+
+		// 14. Brace-balance clean case: balanced replacement produces no warning.
+		{
+			write_file("void bar() {\n    y();\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "    y();"},
+				{"replacement_content", "    y_updated();"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Brace-balance clean result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(res.find("unbalanced braces") == std::string::npos);
+			assert(read_file() == "void bar() {\n    y_updated();\n}\n");
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;
