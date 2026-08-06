@@ -60,6 +60,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
+    *   `path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted. (Alias for `search_path`.)
     *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.
     *   `exclude_path` *(string, optional)*: Filter out files/directories containing this path substring or prefix (e.g. 'build/', 'vendor/'). Optional.
     *   `exclude_ext` *(string, optional)*: Filter out files with specified extension(s), single (e.g. '.log') or comma-separated (e.g. '.log,.json'). Optional.

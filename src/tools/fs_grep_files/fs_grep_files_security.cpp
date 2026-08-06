@@ -24,7 +24,11 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
             }},
             {"search_path", {
                 {"type", "string"},
-                {"description", "Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted."}
+                {"description", "Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted. Alias: 'path'."}
+            }},
+            {"path", {
+                {"type", "string"},
+                {"description", "Alias for 'search_path': restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted."}
             }},
             {"exclude_path", {
                 {"type", "string"},
@@ -63,8 +67,13 @@ bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args,
             args_.include_ext = std::nullopt;
         }
         
+        // 'path' is an accepted alias for 'search_path' (for consistency with other fs_*
+        // file tools that all use 'path'). Prefer explicit 'search_path' if provided,
+        // otherwise fall back to 'path'.
         if (raw_args.contains("search_path") && raw_args["search_path"].is_string()) {
             args_.search_path = raw_args["search_path"].get<std::string>();
+        } else if (raw_args.contains("path") && raw_args["path"].is_string()) {
+            args_.search_path = raw_args["path"].get<std::string>();
         } else {
             args_.search_path = std::nullopt;
         }

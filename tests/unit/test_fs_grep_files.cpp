@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include "../../src/agentlib/document_provider.h"
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/tools/fs_grep_files/fs_grep_files.h"
@@ -290,6 +291,40 @@ int main()
 	// Verify description mentions grep
 	tools::fs_grep_files_validator val;
 	assert(val.get_description().find("grep") != std::string::npos);
+
+	// Test 10: Phase-1 schema accepts both 'path' and 'search_path' aliases
+	{
+		fs::path tmp2 = temp_dir / "alias_test";
+		fs::create_directories(tmp2);
+		std::ofstream out(tmp2 / "target.txt");
+		out << "alias_keyword_match\n";
+		out.close();
+
+		agentlib::tool_context vctx;
+		vctx.fs_security.set_working_directory(tmp2);
+		vctx.fs_security.add_allowed_root(tmp2, agentlib::access_type::read);
+
+		// 10a. 'search_path' (original name) must still validate
+		nlohmann::json with_search_path = {{"pattern", "alias_keyword_match"}, {"search_path", "."}};
+		std::string err;
+		tools::fs_grep_files_validator v1;
+		assert(v1.validate_args(with_search_path, vctx, err));
+		assert(err.empty());
+
+		// 10b. 'path' alias must validate and carry through to execution
+		nlohmann::json with_path = {{"pattern", "alias_keyword_match"}, {"path", "."}};
+		std::string err2;
+		tools::fs_grep_files_validator v2;
+		assert(v2.validate_args(with_path, vctx, err2));
+		assert(err2.empty());
+		auto tool2 = v2.create_tool(with_path);
+		assert(tool2 != nullptr);
+		std::string res2 = tool2->execute(vctx);
+		assert(res2.find("Found 1 matches") != std::string::npos);
+		assert(res2.find("target.txt") != std::string::npos);
+
+		fs::remove_all(tmp2);
+	}
 
 	std::cout << "fs_grep_files unit test passed!\n";
 	return 0;
