@@ -200,6 +200,28 @@ int main()
 	}
 	assert(found_testlist);
 
+	// The ?search=<pattern> filter must be honored (case-insensitive substring).
+	// When the list is non-empty, the results must be a strict subset; when empty, the
+	// well-formed "no tests matching" message is returned.
+	auto testlist_filter_doc = vfs.read_file("system://project/testlist.md?search=unit_");
+	assert(testlist_filter_doc.has_value());
+	std::string testlist_filter_text = std::string((*testlist_filter_doc)->view());
+	std::cout << "\nsystem://project/testlist.md?search=unit_ content:\n" << testlist_filter_text << std::endl;
+	assert(testlist_filter_text.find("# Available Tests") != std::string::npos);
+	if (testlist_filter_text.find("No tests matching") == std::string::npos) {
+		// Non-empty filtered result: must not contain the full unfiltered header count mismatch,
+		// and every row must contain the filter substring "unit_".
+		size_t pos = testlist_filter_text.find("| ");
+		while (pos != std::string::npos && testlist_filter_text.substr(pos, 2) == "| ") {
+			size_t nl = testlist_filter_text.find('\n', pos);
+			std::string row = testlist_filter_text.substr(pos, (nl == std::string::npos ? std::string::npos : nl - pos));
+			if (row.find(":---") == std::string::npos && row.find("Test Name") == std::string::npos) {
+				assert(row.find("unit_") != std::string::npos);
+			}
+			pos = (nl == std::string::npos) ? std::string::npos : testlist_filter_text.find("| ", nl);
+		}
+	}
+
 	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
 	assert(git_fam_doc.has_value());
 	std::string git_fam_text = std::string((*git_fam_doc)->view());

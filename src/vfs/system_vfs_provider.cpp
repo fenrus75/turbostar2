@@ -584,9 +584,15 @@ system_vfs_provider::system_vfs_provider()
 	// Lists the project's available test names so the agent can discover exact test names to run via
 	// fs_run_tests (instead of calling `meson test --list` / `ctest --show-only` via the shell).
 	// Reuses project_manager::get_available_tests(), which lazily refreshes from the configured build
-	// system. Supports an optional ?query=<pattern> to filter tests by case-insensitive substring.
+	// system. Supports an optional ?search=<pattern> filter (case-insensitive substring), matching the
+	// convention used by tools.md / tools_detailed.md.
 	register_generator("project/testlist.md", [](const std::string &query) -> std::string {
 		std::vector<std::string> tests = project_manager::get_instance().get_available_tests();
+
+		std::string filter = query;
+		if (filter.starts_with("search=")) {
+			filter = filter.substr(7);
+		}
 
 		std::stringstream ss;
 		ss << "# Available Tests\n\n";
@@ -597,9 +603,9 @@ system_vfs_provider::system_vfs_provider()
 		}
 
 		std::vector<std::string> filtered;
-		if (!query.empty()) {
+		if (!filter.empty()) {
 			for (const auto &t : tests) {
-				if (contains_case_insensitive(t, query)) {
+				if (contains_case_insensitive(t, filter)) {
 					filtered.push_back(t);
 				}
 			}
@@ -608,7 +614,7 @@ system_vfs_provider::system_vfs_provider()
 		}
 
 		if (filtered.empty()) {
-			ss << "No tests matching the pattern `" << query << "` were found.\n";
+			ss << "No tests matching the pattern `" << filter << "` were found.\n";
 			return ss.str();
 		}
 
