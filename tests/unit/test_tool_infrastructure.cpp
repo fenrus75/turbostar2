@@ -117,7 +117,31 @@ int main()
 		assert(tc2.function.name == "fs_grep_files");
 		auto parsed2 = nlohmann::json::parse(tc2.function.arguments);
 		assert(parsed2["pattern"] == "foo");
-		assert(parsed2["dir_path"] == "src/");
+		// The directory arg must normalize to 'search_path' (the canonical name that
+		// fs_grep_files_validator::validate_args_impl reads). Normalizing to 'dir_path'
+		// would be silently dropped by the validator, causing the search to default to
+		// the project root instead of the requested subdirectory.
+		assert(parsed2["search_path"] == "src/");
+
+		// Test Group 2b: grep alias with a 'path' directory arg -> fs_grep_files
+		tool_call tc2b;
+		tc2b.function.name = "grep";
+		tc2b.function.arguments = "{\"pattern\": \"bar\", \"path\": \"src/lib/\"}";
+		normalize_tool_call(tc2b);
+		assert(tc2b.function.name == "fs_grep_files");
+		auto parsed2b = nlohmann::json::parse(tc2b.function.arguments);
+		assert(parsed2b["pattern"] == "bar");
+		assert(parsed2b["search_path"] == "src/lib/");
+
+		// Test Group 2c: find_in_files alias with a 'dir_path' directory arg -> fs_grep_files
+		tool_call tc2c;
+		tc2c.function.name = "find_in_files";
+		tc2c.function.arguments = "{\"text\": \"baz\", \"dir_path\": \"src/ui/\"}";
+		normalize_tool_call(tc2c);
+		assert(tc2c.function.name == "fs_grep_files");
+		auto parsed2c = nlohmann::json::parse(tc2c.function.arguments);
+		assert(parsed2c["pattern"] == "baz");
+		assert(parsed2c["search_path"] == "src/ui/");
 
 		// Test Group 3: list_dir -> fs_list_dir
 		tool_call tc3;

@@ -224,7 +224,10 @@ inline void normalize_tool_call(tool_call &call)
 				}
 			}
 			std::string dir_path_val;
-			for (const auto &key : {"dir_path", "path", "dir", "directory"}) {
+			// 'search_path' is the canonical argument name that fs_grep_files_validator reads.
+			// It is listed first here so that if the LLM already uses the canonical name it is
+			// preserved, with the remaining entries accepted as legacy/alias input names.
+			for (const auto &key : {"search_path", "path", "dir_path", "dir", "directory"}) {
 				if (args.contains(key) && args[key].is_string()) {
 					dir_path_val = args[key].get<std::string>();
 					break;
@@ -235,7 +238,7 @@ inline void normalize_tool_call(tool_call &call)
 				new_args["pattern"] = pattern_val;
 			}
 			if (!dir_path_val.empty()) {
-				new_args["dir_path"] = dir_path_val;
+				new_args["search_path"] = dir_path_val;
 			}
 			for (const auto &k : {"include_ext", "limit", "context_lines"}) {
 				if (args.contains(k)) {
