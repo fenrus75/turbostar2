@@ -28,6 +28,11 @@ void set_override_project_dir(std::string_view path)
 	g_override_project_dir = std::string(path);
 }
 
+std::string get_override_project_dir()
+{
+	return g_override_project_dir;
+}
+
 std::string get_project_dir()
 {
 	return !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
@@ -39,6 +44,15 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p)
 		return p;
 	}
 	try {
+		if (p.is_relative()) {
+			std::string proj = get_project_dir();
+			if (!proj.empty()) {
+				std::filesystem::path cand = (std::filesystem::path(proj) / p).lexically_normal();
+				if (std::filesystem::exists(cand)) {
+					return cand;
+				}
+			}
+		}
 		return std::filesystem::absolute(p).lexically_normal();
 	} catch (const std::filesystem::filesystem_error &e) {
 		event_logger::get_instance().log("Filesystem error resolving absolute path for '{}': {}", p.string(), e.what());

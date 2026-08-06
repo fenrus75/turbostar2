@@ -109,7 +109,9 @@ inline void init_plugin_environment()
 {
 	init_singletons();
 	if (!getenv("TURBOSTAR_PLUGIN_DIR")) {
-		if (std::filesystem::exists("./src/plugins")) {
+		if (std::filesystem::exists("./build/src/plugins")) {
+			setenv("TURBOSTAR_PLUGIN_DIR", "./build/src/plugins", 1);
+		} else if (std::filesystem::exists("./src/plugins")) {
 			setenv("TURBOSTAR_PLUGIN_DIR", "./src/plugins", 1);
 		} else if (std::filesystem::exists("../src/plugins")) {
 			setenv("TURBOSTAR_PLUGIN_DIR", "../src/plugins", 1);

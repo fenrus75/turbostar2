@@ -17,6 +17,11 @@ namespace fs_utils
 void set_override_project_dir(std::string_view path);
 
 /**
+ * @brief Returns any explicitly set override project directory.
+ */
+std::string get_override_project_dir();
+
+/**
  * @brief Returns the active project directory, resolving any override.
  */
 std::string get_project_dir();

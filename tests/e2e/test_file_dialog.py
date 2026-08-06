@@ -25,7 +25,7 @@ def test_file_dialog():
         runner.assert_text_on_screen('Open File', timeout=2.0)
 
         # 2. Type the directory name and enter it
-        runner.send_keys(test_dir + '\n')
+        runner.send_keys(os.path.join("testrun", test_dir) + '\n')
 
         # 3. Type the file name and confirm
         runner.send_keys(test_file)
@@ -71,7 +71,7 @@ def test_file_dialog_autocomplete():
         runner.send_keys('o') # Open
         runner.assert_text_on_screen('Open File', timeout=2.0)
 
-        runner.send_keys(test_dir + '\n')
+        runner.send_keys(os.path.join("testrun", test_dir) + '\n')
 
         # Type 'foo' and hit enter, it should autocomplete to 'foobar.txt'
         runner.send_keys('foo')

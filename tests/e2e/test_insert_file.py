@@ -27,7 +27,7 @@ def test_insert_file():
         # 4. Type filename and confirm
         # Clear default and type path
         runner.send_keys(KEY_CTRL_Y)
-        runner.send_keys(insert_filename + '\n')
+        runner.send_keys(insert_path + '\n')
 
         # 5. Verify text is inserted
         runner.assert_text_on_screen("Start-INSERTED_TEXT", timeout=1.5)

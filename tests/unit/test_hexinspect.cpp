@@ -166,7 +166,7 @@ int main()
 
 	// 8. Test real TAR file inspection and offset_by_name symbol resolution using tests/testtar.tar
 	{
-		std::string tar_path = "tests/testtar.tar";
+		std::string tar_path = project_root + "/tests/testtar.tar";
 		// Inspect real TAR header and verify the overview summary table is present
 		{
 			std::string args = "{\"path\": \"" + tar_path + "\", \"offset\": 0, \"size\": 16}";

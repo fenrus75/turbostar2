@@ -74,8 +74,18 @@ std::vector<uint8_t> resolve_input_data(const std::string& input_data, size_t of
     
     // Check if it's a file on local disk
     try {
-        if (std::filesystem::exists(fs_utils::safe_absolute(input_data))) {
-            return read_file(fs_utils::safe_absolute(input_data).string(), offset, length);
+        std::filesystem::path file_p = fs_utils::safe_absolute(input_data);
+        if (!file_p.is_absolute() || !std::filesystem::exists(file_p)) {
+            std::string proj = fs_utils::get_project_dir();
+            if (!proj.empty()) {
+                std::filesystem::path candidate = std::filesystem::path(proj) / input_data;
+                if (std::filesystem::exists(candidate)) {
+                    file_p = candidate;
+                }
+            }
+        }
+        if (std::filesystem::exists(file_p)) {
+            return read_file(file_p.string(), offset, length);
         }
     } catch (...) {}
 

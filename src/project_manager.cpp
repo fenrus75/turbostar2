@@ -68,15 +68,49 @@ project_manager::~project_manager()
 	}
 }
 
+/*
+ * Project Root Resolution Algorithm:
+ * 1. Direct environment variable or program override (`fs_utils::get_project_dir()` / `TURBOSTAR_PROJECT_ROOT`)
+ *    overrides everything.
+ * 2. In normal operation (when not running inside the test suite), pick the git repository root if possible.
+ * 3. If not running in a git repository, default to the current working directory (`fs::current_path()`).
+ * 4. When running as part of the test suite (`TURBOSTAR_IN_TESTSUITE` or `TURBOSTAR_IN_TESTS` set):
+ *    - First try to resolve git repository root.
+ *    - If git root is empty (e.g. isolated test process), attempt to discover the repository root by walking up parent
+ *      directories looking for `src/main.cpp` and `meson.build`.
+ *    - Fallback to current working directory if no project structure is found.
+ */
 void project_manager::initialize()
 {
-	const char *env_root = std::getenv("TURBOSTAR_PROJECT_ROOT");
-	if (env_root && *env_root) {
-		project_root_ = env_root;
+	std::string override_dir = fs_utils::get_override_project_dir();
+	if (!override_dir.empty()) {
+		project_root_ = override_dir;
 	} else {
-		project_root_ = git_manager::get_instance().get_repository_root();
-		if (project_root_.empty()) {
-			project_root_ = fs::current_path().string();
+		const char *env_root = std::getenv("TURBOSTAR_PROJECT_ROOT");
+		if (env_root && *env_root) {
+			project_root_ = env_root;
+		} else {
+			project_root_ = git_manager::get_instance().get_repository_root();
+			if (project_root_.empty()) {
+				const char *in_test = std::getenv("TURBOSTAR_IN_TESTSUITE");
+				if (!in_test || !*in_test) {
+					in_test = std::getenv("TURBOSTAR_IN_TESTS");
+				}
+				if (in_test && *in_test) {
+					// Test suite fallback: search upwards from current build directory for source root
+					fs::path cur = fs::current_path();
+					while (!cur.empty() && cur != cur.root_path()) {
+						if (fs::exists(cur / "src/main.cpp") && fs::exists(cur / "meson.build")) {
+							project_root_ = cur.string();
+							break;
+						}
+						cur = cur.parent_path();
+					}
+				}
+				if (project_root_.empty()) {
+					project_root_ = fs::current_path().string();
+				}
+			}
 		}
 	}
 

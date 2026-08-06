@@ -8,6 +8,7 @@
 #include "../../src/project_manager.h"
 #include "../../src/ui/components/ui_dropdown.h"
 #include "../../src/config_manager.h"
+#include "fs_utils.h"
 
 // Mock ncurses constants if needed, but they are included via ncurses.h in ui_dropdown.h
 #ifndef KEY_UP
@@ -35,13 +36,9 @@ void test_candidate_detection()
 	    << "executable('candidate_b', 'b.cpp')\n";
 	out.close();
 
-	// Change working directory to temp_dir
+	// Set override project dir and working directory so project_manager uses temp_dir
 	std::filesystem::current_path(temp_dir);
-
-	// Initialize a temporary git repo so git rev-parse returns this temp_dir
-	int res = std::system("git init >/dev/null 2>&1");
-	(void)res;
-
+	fs_utils::set_override_project_dir(temp_dir.string());
 	project_manager &pm = project_manager::get_instance();
 	pm.initialize();
 
@@ -53,7 +50,8 @@ void test_candidate_detection()
 
 	std::vector<std::string> candidates = pm.detect_executable_candidates();
 
-	// Restore original working directory
+	// Restore original working directory and project root override
+	fs_utils::set_override_project_dir("");
 	std::filesystem::current_path(orig_path);
 	std::filesystem::remove_all(temp_dir);
 
