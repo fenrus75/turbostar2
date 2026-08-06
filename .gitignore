@@ -17,3 +17,7 @@ format_tmp.cpp
 perf.data*
 agent*json
 .turbostar_tmp
+
+# Stray artifacts from tests/tools that may linger if a process crashes before cleanup
+.bandit_tmp_*.py
+tests/unit/tmp_git_*/
