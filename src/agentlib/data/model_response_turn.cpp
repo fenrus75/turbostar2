@@ -3,6 +3,7 @@
 #include <chrono>
 #include <sstream>
 #include <algorithm>
+#include "agentlib/interactions/interactions.h"
 
 namespace agentlib {
 
@@ -169,6 +170,12 @@ std::shared_ptr<model_response_turn> model_response_turn::deserialize(const nloh
 	turn->range_.start_time = j.value("start_time", 0ULL);
 	turn->range_.end_time = j.value("end_time", 0ULL);
 	turn->set_sequence_number(j.value("sequence_number", 0LL));
+	if (!content.empty()) {
+		turn->set_interaction(std::make_shared<interaction_llm_response>(content));
+	}
+	if (reasoning_content && !reasoning_content->empty()) {
+		turn->set_reasoning_interaction(std::make_shared<interaction_reasoning>(*reasoning_content));
+	}
 	
 	turn->extra_fields_ = j;
 	turn->extra_fields_.erase("turn_type");

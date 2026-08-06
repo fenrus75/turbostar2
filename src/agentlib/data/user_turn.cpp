@@ -1,4 +1,5 @@
 #include "user_turn.h"
+#include "agentlib/interactions/interactions.h"
 #include <format>
 #include <chrono>
 
@@ -57,6 +58,9 @@ std::shared_ptr<user_turn> user_turn::deserialize(const nlohmann::json& j) {
 	turn->range_.start_time = j.value("start_time", 0ULL);
 	turn->range_.end_time = j.value("end_time", 0ULL);
 	turn->set_sequence_number(j.value("sequence_number", 0LL));
+	if (!content.empty()) {
+		turn->set_interaction(std::make_shared<interaction_user_message>(content));
+	}
 	
 	turn->extra_fields_ = j;
 	turn->extra_fields_.erase("turn_type");

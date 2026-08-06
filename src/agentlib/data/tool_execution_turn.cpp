@@ -1,4 +1,5 @@
 #include "tool_execution_turn.h"
+#include "agentlib/interactions/interactions.h"
 #include <format>
 #include <chrono>
 #include <sstream>
@@ -83,6 +84,18 @@ std::shared_ptr<tool_execution_turn> tool_execution_turn::deserialize(const nloh
 	turn->range_.start_time = j.value("start_time", 0ULL);
 	turn->range_.end_time = j.value("end_time", 0ULL);
 	turn->set_sequence_number(j.value("sequence_number", 0LL));
+
+	for (const auto &res : results) {
+		if (!res.name.starts_with(":")) {
+			turn->add_tool_interaction(std::make_shared<interaction_tool_call>(
+			    res.name, res.name + "(...)"));
+			std::string preview = res.content;
+			if (preview.length() > 1024) {
+				preview = preview.substr(0, 1021) + "...";
+			}
+			turn->add_tool_interaction(std::make_shared<interaction_tool_result>(res.name, preview));
+		}
+	}
 	
 	turn->extra_fields_ = j;
 	turn->extra_fields_.erase("turn_type");
