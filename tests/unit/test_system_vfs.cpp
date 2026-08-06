@@ -170,6 +170,36 @@ int main()
 	assert(proj_info_text.find("Git Branch") != std::string::npos);
 	assert(proj_info_text.find("Build System") != std::string::npos);
 
+	// Test system://project/testlist.md endpoint (lists available test names).
+	// This tolerates both an empty and a populated list (depends on whether the build
+	// directory / test listing is configured), but must always resolve and produce a header.
+	assert(vfs.exists("system://project/testlist.md"));
+	auto testlist_doc = vfs.read_file("system://project/testlist.md");
+	assert(testlist_doc.has_value());
+	std::string testlist_text = std::string((*testlist_doc)->view());
+	std::cout << "\nsystem://project/testlist.md content:\n" << testlist_text << std::endl;
+	assert(testlist_text.find("# Available Tests") != std::string::npos);
+
+	// Alias resolution for testlist must work too.
+	auto testlist_alias = vfs.read_file("system://project/test-names.md");
+	assert(testlist_alias.has_value());
+	assert(std::string((*testlist_alias)->view()) == testlist_text);
+
+	// The project/ directory listing must include testlist.md.
+	std::vector<std::string> proj_listing;
+	auto proj_dir_list = vfs.list_directory("system://project/");
+	for (const auto &item : proj_dir_list) {
+		std::cout << "  - project item: " << item.uri << " [" << item.details << "]" << std::endl;
+		proj_listing.push_back(item.uri);
+	}
+	bool found_testlist = false;
+	for (const auto &u : proj_listing) {
+		if (u == "system://project/testlist.md") {
+			found_testlist = true;
+		}
+	}
+	assert(found_testlist);
+
 	auto git_fam_doc = vfs.read_file("system://tool-families/git.md");
 	assert(git_fam_doc.has_value());
 	std::string git_fam_text = std::string((*git_fam_doc)->view());

@@ -580,6 +580,47 @@ system_vfs_provider::system_vfs_provider()
 		return ss.str();
 	});
 
+	// 8. Dynamic Generator: system://project/testlist.md
+	// Lists the project's available test names so the agent can discover exact test names to run via
+	// fs_run_tests (instead of calling `meson test --list` / `ctest --show-only` via the shell).
+	// Reuses project_manager::get_available_tests(), which lazily refreshes from the configured build
+	// system. Supports an optional ?query=<pattern> to filter tests by case-insensitive substring.
+	register_generator("project/testlist.md", [](const std::string &query) -> std::string {
+		std::vector<std::string> tests = project_manager::get_instance().get_available_tests();
+
+		std::stringstream ss;
+		ss << "# Available Tests\n\n";
+
+		if (tests.empty()) {
+			ss << "No tests found, or the build system does not support test listing.\n";
+			return ss.str();
+		}
+
+		std::vector<std::string> filtered;
+		if (!query.empty()) {
+			for (const auto &t : tests) {
+				if (contains_case_insensitive(t, query)) {
+					filtered.push_back(t);
+				}
+			}
+		} else {
+			filtered = tests;
+		}
+
+		if (filtered.empty()) {
+			ss << "No tests matching the pattern `" << query << "` were found.\n";
+			return ss.str();
+		}
+
+		ss << "| Test Name |\n";
+		ss << "| :--- |\n";
+		for (const auto &t : filtered) {
+			ss << "| " << t << " |\n";
+		}
+
+		return ss.str();
+	});
+
 	register_generator("subagents.md", [](const std::string &query) -> std::string {
 		return generate_subagents_index(query);
 	});
@@ -606,6 +647,7 @@ system_vfs_provider::system_vfs_provider()
 	register_description("skills.md", "Read to discover available specialized agent skills and their instruction URIs (supports ?search=<query>).");
 	register_description("project/diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
 	register_description("project/info.md", "Read to check project workspace root, build system type, and instruction file presence.");
+	register_description("project/testlist.md", "Read to discover available test names to run via fs_run_tests (supports ?search=<query>).");
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions
@@ -685,6 +727,9 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	}
 	if (path == "project/info" || path == "project/info.md" || path == "project/overview" || path == "project/overview.md" || path == "project_info.md") {
 		return "project/info.md";
+	}
+	if (path == "project/testlist" || path == "project/testlist.md" || path == "project/tests.md" || path == "project_tests.md" || path == "project/test-names.md") {
+		return "project/testlist.md";
 	}
 	if (path == "subagents" || path == "subagents.md" || path == "subagents/index.md" || path == "subagents_list.md") {
 		return "subagents.md";
