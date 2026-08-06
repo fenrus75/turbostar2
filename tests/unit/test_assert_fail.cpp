@@ -10,7 +10,7 @@
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
 
-extern "C" void __assert_perror_fail(int errnum, const char *file, unsigned int line, const char *function);
+extern "C" void __assert_perror_fail(int errnum, const char *file, unsigned int line, const char *function) noexcept;
 
 namespace fs = std::filesystem;
 

@@ -90,30 +90,36 @@ void project_manager::initialize()
 		if (env_root && *env_root) {
 			project_root_ = env_root;
 		} else {
-			project_root_ = git_manager::get_instance().get_repository_root();
-			if (project_root_.empty()) {
-				const char *in_test = std::getenv("TURBOSTAR_IN_TESTSUITE");
-				if (!in_test || !*in_test) {
-					in_test = std::getenv("TURBOSTAR_IN_TESTS");
-				}
-				if (in_test && *in_test) {
-					// Test suite fallback: search upwards from current build directory for source root
-					fs::path cur = fs::current_path();
-					while (!cur.empty() && cur != cur.root_path()) {
-						if (fs::exists(cur / "src/main.cpp") && fs::exists(cur / "meson.build")) {
-							project_root_ = cur.string();
-							break;
-						}
-						cur = cur.parent_path();
+			const char *in_test = std::getenv("TURBOSTAR_IN_TESTSUITE");
+			if (!in_test || !*in_test) {
+				in_test = std::getenv("TURBOSTAR_IN_TESTS");
+			}
+
+			if (in_test && *in_test) {
+				// Test suite path resolution: search upwards from current working directory for source root
+				fs::path cur = fs::current_path();
+				while (!cur.empty() && cur != cur.root_path()) {
+					if (fs::exists(cur / "src/main.cpp") && fs::exists(cur / "meson.build")) {
+						project_root_ = cur.string();
+						break;
 					}
+					cur = cur.parent_path();
 				}
+				if (project_root_.empty()) {
+					project_root_ = git_manager::get_instance().get_repository_root();
+				}
+				if (project_root_.empty()) {
+					project_root_ = fs::current_path().string();
+				}
+			} else {
+				// Normal operation (outside test suite): pick git root if possible, fallback to current directory
+				project_root_ = git_manager::get_instance().get_repository_root();
 				if (project_root_.empty()) {
 					project_root_ = fs::current_path().string();
 				}
 			}
 		}
 	}
-
 	initialized_ = true;
 
 	// Clean up previous runs' crash dumps on startup

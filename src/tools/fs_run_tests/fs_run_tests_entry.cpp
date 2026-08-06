@@ -48,6 +48,9 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	if (build_path.is_relative()) {
 		build_path = std::filesystem::path(proj_root) / build_path;
 	}
+	if (!std::filesystem::exists(build_path / "build.ninja") && std::filesystem::exists(std::filesystem::path(proj_root) / "build.ninja")) {
+		build_path = proj_root;
+	}
 
 	std::string cmd;
 

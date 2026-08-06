@@ -67,6 +67,12 @@ class code_get_references_validator : public agentlib::tool_validator
 			out_error = "Missing required arguments.";
 			return false;
 		}
+		for (auto it = args.begin(); it != args.end(); ++it) {
+			if (it.key() != "path" && it.key() != "line" && it.key() != "character") {
+				out_error = "Unexpected property: " + it.key();
+				return false;
+			}
+		}
 		int line = args["line"].get<int>();
 		int character = args["character"].get<int>();
 		if (line < 1) {

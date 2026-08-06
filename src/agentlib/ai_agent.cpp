@@ -2518,7 +2518,7 @@ struct parsed_turn {
 	bool test = false;
 };
 
-static std::vector<parsed_turn> parse_turns(const std::vector<message> &convo)
+[[maybe_unused]] static std::vector<parsed_turn> parse_turns(const std::vector<message> &convo)
 {
 	std::vector<parsed_turn> turns;
 	parsed_turn current_turn;
@@ -2589,7 +2589,7 @@ static std::vector<parsed_turn> parse_turns(const std::vector<message> &convo)
 	return turns;
 }
 
-static std::string get_last_50_words(const std::string &text)
+[[maybe_unused]] static std::string get_last_50_words(const std::string &text)
 {
 	std::vector<std::string> words;
 	std::string current;

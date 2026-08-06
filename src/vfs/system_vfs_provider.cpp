@@ -665,7 +665,7 @@ system_vfs_provider::system_vfs_provider()
 	register_generator("tool-families.md", [](const std::string &query) {
 		return generate_tool_families_index(query);
 	});
-	register_generator("tool-families/base.md", [](const std::string &query) {
+	register_generator("tool-families/base.md", [](const std::string & /*query*/) {
 		return generate_tool_family_detail("base");
 	});
 }

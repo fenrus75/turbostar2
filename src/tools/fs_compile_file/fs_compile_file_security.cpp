@@ -7,6 +7,14 @@ namespace tools
 bool fs_compile_file_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	try {
+		if (args.is_object()) {
+			for (auto it = args.begin(); it != args.end(); ++it) {
+				if (it.key() != "path" && it.key() != "async") {
+					out_error = "Unexpected argument: " + it.key();
+					return false;
+				}
+			}
+		}
 		args_ = args.get<fs_compile_file_args>();
 		std::string resolved_path;
 		if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, resolved_path, out_error)) {

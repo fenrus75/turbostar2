@@ -17,7 +17,10 @@ int main()
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	static event_queue q;
 	auto agent = ai_agent::create(1, "TestClearAgent", model, &q, nullptr);
-	std::vector<message> init_msgs = {{"system", "System baseline prompt"}};
+	message sys_msg;
+	sys_msg.role = "system";
+	sys_msg.content = "System baseline prompt";
+	std::vector<message> init_msgs = {sys_msg};
 	agent->set_conversation(init_msgs);
 
 	std::cout << "Testing /clear command..." << std::endl;

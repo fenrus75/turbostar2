@@ -31,13 +31,7 @@ std::string read_file(const std::filesystem::path &path)
 int main()
 {
 	test_watchdog::setup_watchdog(30);
-
-	std::filesystem::path temp_home = std::filesystem::absolute("./test_image_tools_home");
-	if (std::filesystem::exists(temp_home)) {
-		std::filesystem::remove_all(temp_home);
-	}
-	std::filesystem::create_directories(temp_home);
-	setenv("HOME", temp_home.c_str(), 1);
+	test_watchdog::scoped_test_home test_home_guard("test_image_tools");
 
 	// Force initialization of singletons
 	project_manager::get_instance().initialize();
@@ -374,7 +368,6 @@ int main()
 	std::cout << "All basic image operation tests passed successfully!" << std::endl;
 
 	// Cleanup
-	std::filesystem::remove_all(temp_home);
 	std::filesystem::remove(dummy_img);
 	std::filesystem::remove(exported_img);
 	std::filesystem::remove(test_logo);

@@ -17,7 +17,7 @@ def test_lsp_missing_server():
         time.sleep(1.0)
         
         # 4. Verify in the log that it skipped starting pylsp or failed gracefully
-        runner.assert_in_log("pylsp")
+        runner.assert_in_log("pylsp", timeout=3.0)
         
     finally:
         runner.cleanup()

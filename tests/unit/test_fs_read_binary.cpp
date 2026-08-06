@@ -27,8 +27,7 @@ int main()
 	std::cout << "Testing fs_read_binary..." << std::endl;
 	{
 		std::string poem_path = "tests/unit/poem.txt";
-
-		// 1. Success case: read first 10 bytes of poem.txt
+		// 1. Read poem file in base64 format (default)
 		{
 			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 0, \"size\": 10}";
 			std::string res = registry.execute_tool("fs_read_binary", args, ctx);

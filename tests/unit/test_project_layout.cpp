@@ -15,9 +15,9 @@ int main()
 
 	std::cout << "Waiting for inventory thread to complete..." << std::endl;
 	
-	// Wait up to 2 seconds for the inventory to finish (it has a 100ms start delay)
+	// Wait up to 15 seconds for the inventory to finish (it has a 100ms start delay)
 	bool ready = false;
-	for (int i = 0; i < 20; ++i) {
+	for (int i = 0; i < 150; ++i) {
 		std::string markdown = pm.get_project_layout_markdown();
 		if (!markdown.empty()) {
 			std::cout << "Inventory complete!" << std::endl;

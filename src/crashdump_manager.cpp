@@ -38,7 +38,7 @@ struct memory_map {
 	std::string path;
 };
 
-static bool check_eu_addr2line_installed()
+[[maybe_unused]] static bool check_eu_addr2line_installed()
 {
 	static bool checked = false;
 	static bool installed = false;
