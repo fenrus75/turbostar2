@@ -9,6 +9,18 @@ int main(int argc, char **argv)
 {
 	test_watchdog::setup_watchdog(30, false, true);
 
+	// This test verifies the watchdog's OWN __assert_fail override (it checks for the
+	// "*** TEST ASSERTION FAILED ***" header on stdout). When libturbocatch.so is preloaded
+	// (via LD_PRELOAD, which the crash-catcher subsystem does), its interposed __assert_fail
+	// takes precedence over the executable's weak override, so this test cannot work as intended.
+	// The crash-catcher's behavior is separately covered by test_assert_fail.cpp. Skip here.
+	const char *preload = getenv("LD_PRELOAD");
+	if (preload && *preload && std::string(preload).find("turbocatch") != std::string::npos) {
+		std::cout << "Skipping test_watchdog_assert: libturbocatch.so is preloaded and "
+		             "interposes __assert_fail; covered by test_assert_fail instead." << std::endl;
+		return 77;
+	}
+
 	if (argc > 1 && std::string(argv[1]) == "child_assert") {
 		// Trigger an assertion failure
 		assert(10 == 20);
