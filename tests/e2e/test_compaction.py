@@ -210,17 +210,17 @@ def test_auto_episode(tmp_path):
         }
     ])
     
-    state, stdout = run_agentcli(tmp_path, "Trigger auto episode", traffic_file, )
+    state, stdout = run_agentcli(tmp_path, "Trigger auto episode", traffic_file)
     assert state is not None
     
     conv = state.get("conversation", [])
     
-    # We should see the [SYSTEM MEMORY: Episode Archived] in the conversation
+    # Automatic episode creation is disabled so no Auto-Episode marker should be injected automatically
     has_marker = False
     for msg in conv:
         if msg.get("role") == "system" and "Auto-Episode" in msg.get("content", ""):
             has_marker = True
             break
             
-    assert has_marker, f"Auto-Episode marker not injected. Stdout: {stdout}\nConversation: {json.dumps(conv, indent=2)}"
+    assert not has_marker, f"Auto-Episode marker should NOT be injected automatically. Conversation: {json.dumps(conv, indent=2)}"
 

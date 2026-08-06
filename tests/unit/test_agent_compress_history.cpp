@@ -144,63 +144,28 @@ int main()
 		}
 		assert(found_metadata);
 
-		// 8. Test 64k tokens (256,000 characters) hard limit in evaluate_auto_episode
+		// 8. Test disabled automatic episode creation in evaluate_auto_episode
 		{
 			auto test_model =
 			    std::make_shared<ai_model>("test-model-2", "Test Model 2", "http://localhost:1", "Test", 0.0, 0.0);
 			auto test_agent = ai_agent::create(2, "TestAgent2", test_model, &q, nullptr);
 
-			// We need at least two turns so parse_turns doesn't early exit or we just test the character limit check
 			test_agent->inject_context("user", "Start");
 			test_agent->inject_context("assistant", "Sure");
-			test_agent->inject_context("user", std::string(200000, 'a')); // > 192,000 but <= 256,000
+			test_agent->inject_context("user", std::string(300000, 'a'));
 
 			auto convo = test_agent->get_conversation();
 			test_agent->evaluate_auto_episode(convo);
 
-			// Under the old 48k limit (192,000 chars), this would have split, appending a system message "Episode Archived..."
-			// We assert that under the new 64k limit, it has NOT split yet.
+			// Verify auto-episode boundary is NOT inserted automatically
 			auto updated_convo = test_agent->get_conversation();
 			bool has_archive_msg = false;
 			for (const auto &msg : updated_convo) {
-				if (msg.role == "system" && msg.content.find("Episode Archived") != std::string::npos) {
+				if (msg.role == "system" && msg.content.find("Auto-Episode") != std::string::npos) {
 					has_archive_msg = true;
 				}
 			}
 			assert(!has_archive_msg);
-
-			// Now inject more characters to cross 256,000
-			test_agent->inject_context("assistant", "Understood");
-			test_agent->inject_context("user", std::string(60000, 'b')); // Total recent chars is now > 260,000
-
-			convo = test_agent->get_conversation();
-			test_agent->evaluate_auto_episode(convo);
-
-			// Under the new 64k limit, this must now trigger a split and append the archived message
-			updated_convo = test_agent->get_conversation();
-			int boundary_count = 0;
-			for (const auto &msg : updated_convo) {
-				if (msg.role == "system" && msg.content.find("Auto-Episode") != std::string::npos) {
-					boundary_count++;
-				}
-			}
-			assert(boundary_count == 1);
-
-			// Test that on the NEXT turn, the character counter resets and does NOT trigger repeatedly
-			test_agent->inject_context("assistant", "Ready");
-			test_agent->inject_context("user", "Hello next episode");
-
-			convo = test_agent->get_conversation();
-			test_agent->evaluate_auto_episode(convo);
-
-			updated_convo = test_agent->get_conversation();
-			int next_boundary_count = 0;
-			for (const auto &msg : updated_convo) {
-				if (msg.role == "system" && msg.content.find("Auto-Episode") != std::string::npos) {
-					next_boundary_count++;
-				}
-			}
-			assert(next_boundary_count == 1); // Remains 1, does NOT repeat!
 		}
 
 		// 9. Test fallback summary for large episode (> 250,000 characters)
