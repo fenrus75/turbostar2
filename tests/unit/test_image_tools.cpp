@@ -322,6 +322,21 @@ int main()
 		nlohmann::json custom_args = {{"filename", "logo.jpg"}, {"max_bytes", 100000}};
 		std::string custom_result = registry.execute_tool("image_getdata", custom_args.dump(), ctx);
 		assert(custom_result.find("data:image/jpeg;base64,") != std::string::npos);
+
+#ifdef HAS_GRAPHICSMAGICK
+		// Test ephemeral thumbnail: logo.jpg is 84KB (over the 50KB limit) at 360x274,
+		// so the default getdata call rejects it. With thumbnail=true the image is shrunk
+		// in-memory so its largest dimension is <= 96px, keeping the payload under the
+		// limit while the original VFS image is left completely untouched (pure read).
+		std::cout << "Testing image_getdata thumbnail..." << std::endl;
+		nlohmann::json thumb_args = {{"filename", "logo.jpg"}, {"thumbnail", true}};
+		std::string thumb_result = registry.execute_tool("image_getdata", thumb_args.dump(), ctx);
+		std::cout << "Image_getdata thumbnail result length: " << thumb_result.length() << std::endl;
+		assert(thumb_result.find("data:image/jpeg;base64,") != std::string::npos);
+		// Base64 of a <48KB image is ~ <64KB; ensure the thumbnail is well under the
+		// default 50KB byte limit (which would be ~68KB base64, so this bounds it).
+		assert(thumb_result.size() < 70000u);
+#endif // HAS_GRAPHICSMAGICK
 	}
 
 	// 15. Test Image Provenance & Origin Chain Tracking

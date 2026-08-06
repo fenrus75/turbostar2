@@ -722,9 +722,11 @@ These tools allow the agent to interact with the project's Git repository.
     *   `output` *(string, optional)*: Optional new friendly alias name or VFS URI to save the composed image as.
 
 ### `image_getdata` (Family: `image`)
-*   **Description:** Retrieves the binary content of a VFS image, returned as a Base64-encoded Data URL entity.
+*   **Description:** Retrieves the binary content of a VFS image, returned as a Base64-encoded Data URL entity. Optionally returns an ephemeral thumbnail to keep the payload small.
 *   **Arguments:**
     *   `filename` *(string, required)*: The friendly alias name or full VFS URI of the image.
+    *   `max_bytes` *(integer, optional, default: 51200)*: Maximum allowed byte size for returned image data.
+    *   `thumbnail` *(boolean, optional, default: false)*: If true, returns an ephemeral thumbnail with the largest dimension shrunk to 96px (aspect ratio preserved). This is a pure read: the VFS image is left unchanged and the thumbnail is computed on-the-fly and never persisted.
 
 ### `elf_list_sections` (Family: `x86`)
 *   **Description:** Lists all section headers of an ELF file, providing their index, name, type, offset, size, and address mapping.

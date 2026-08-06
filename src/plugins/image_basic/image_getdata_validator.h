@@ -24,7 +24,8 @@ class image_getdata_validator : public agentlib::tool_validator
 		    {"type", "object"},
 		    {"properties",
 		     {{"filename", {{"type", "string"}, {"description", "The friendly alias name (e.g. 'logo') or full VFS URI (e.g. 'images://by-sha256/<hash>') of the image."}}},
-		      {"max_bytes", {{"type", "integer"}, {"description", "Maximum allowed byte size for returned image data (default: 51200 bytes / 50 KB)."}}}}},
+		      {"max_bytes", {{"type", "integer"}, {"description", "Maximum allowed byte size for returned image data (default: 51200 bytes / 50 KB)."}}},
+		      {"thumbnail", {{"type", "boolean"}, {"description", "If true, returns an ephemeral thumbnail with the largest dimension shrunk to 96px (aspect ratio preserved). Fully read-only: the VFS image is unchanged and the thumbnail is computed on-the-fly."}}}}},
 		    {"required", nlohmann::json::array({"filename"})}};
 	}
 
