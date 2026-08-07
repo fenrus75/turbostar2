@@ -124,6 +124,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
         *   `type` *(string, required)*: The type of edit operation (`add`, `remove`, `replace`).
         *   `original_text` *(string, optional)*: Required for `remove` and `replace`. The exact full content of the original line(s) being modified. You MAY provide multiple lines separated by \n to replace entire blocks of code. Used for safety verification. Pass empty string for `add`.
         *   `replace_with` *(string, optional)*: Required for `add` and `replace`. The new content to insert or replace the line with. You MAY use newline characters (\n) here to insert multiple lines. Pass empty string for `remove`.
+    *   `strict` *(boolean, optional)*: If true, reject (and revert) the edits when they would leave braces unbalanced, instead of applying them and only issuing a warning. Defaults to false.
 
 ### `fs_replace_content`
 *   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. Supports staged relaxed matching (whitespace/CRLF normalization) and LSP/symbol scope resolution using `function_hint` or `line_hint` if multiple matches exist.
@@ -133,6 +134,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `replacement_content` *(string, required)*: The new content that will replace `target_content`.
     *   `line_hint` *(integer, optional)*: A 1-based line number hinting where the block starts. Required to resolve ambiguity if the target content appears multiple times.
     *   `function_hint` *(string, optional)*: The name of the enclosing function, method, or class (e.g., `'execute'`). Highly recommended for long files to restrict search scope and resolve ambiguity.
+    *   `strict` *(boolean, optional)*: If true, reject (and revert) the edit when it would leave braces unbalanced, instead of applying it and only issuing a warning. Defaults to false.
 
 ### `fs_write_file`
 *   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
