@@ -71,6 +71,14 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
         args_.line_hint = hint;
         args_.function_hint = func_hint;
 
+        if (raw_args.contains("strict")) {
+            if (!raw_args["strict"].is_boolean()) {
+                out_error = "Invalid 'strict' parameter (must be a boolean).";
+                return false;
+            }
+            args_.strict = raw_args["strict"].get<bool>();
+        }
+
         return true;
     } catch (const std::exception& e) {
         out_error = "Invalid arguments: " + std::string(e.what());

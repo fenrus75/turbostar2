@@ -533,7 +533,10 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	bool is_buffer = false;
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+	// Only apply the live edit to the editor buffer when the disk edit actually succeeded. In strict
+	// mode, a rejected (unbalanced-brace) edit already reverted the disk file, so we must NOT also apply
+	// the edit to the open buffer (leaving it in sync with the reverted disk state).
+	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) && result_msg.find("Successfully applied") == 0) {
 		is_buffer = true;
 		// The file is already modified on disk by the fallback, but the editor buffer needs to know.
 		// A better architecture would have the doc_provider return the diff, but for now we just
@@ -710,6 +713,28 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
 	std::string result_msg = std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
 	std::string brace_warnings = check_brace_warnings(args_.safe_path, before_lines, lines, args_.edits);
+
+	// Strict mode: if the edit left braces unbalanced, revert the disk file to its original
+	// content and return an error so the agent can retry, instead of applying a broken edit.
+	if (args_.strict && !brace_warnings.empty()) {
+		std::ofstream revert_out(path_to_use, std::ios::binary | std::ios::trunc);
+		if (revert_out.is_open()) {
+			for (size_t i = 0; i < before_lines.size(); ++i) {
+				revert_out << before_lines[i] << "\n";
+			}
+			revert_out.close();
+		}
+		std::string err = "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings + "\n";
+		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
+			custom_interaction->set_diff(before_lines, before_lines);
+			custom_interaction->set_result(err);
+			if (ctx.trigger_ui_update) {
+				ctx.trigger_ui_update();
+			}
+		}
+		return err;
+	}
+
 	if (!brace_warnings.empty()) {
 		result_msg += brace_warnings + "\n";
 	}

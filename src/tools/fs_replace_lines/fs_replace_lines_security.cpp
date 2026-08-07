@@ -109,6 +109,14 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 		args_.safe_path = canonical_path;
 		args_.edits = parsed_edits;
 
+		if (raw_json.contains("strict")) {
+			if (!raw_json["strict"].is_boolean()) {
+				out_error = "Invalid 'strict' parameter (must be a boolean).";
+				return false;
+			}
+			args_.strict = raw_json["strict"].get<bool>();
+		}
+
 		return true;
 	} catch (const std::exception &e) {
 		out_error = "Invalid arguments: " + std::string(e.what());

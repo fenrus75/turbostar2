@@ -244,6 +244,23 @@ int main()
 			assert(read_file() == "void bar() {\n    y_updated();\n}\n");
 		}
 
+		// 15. Strict mode: unbalanced-brace replacement must be rejected and file left unchanged.
+		{
+			write_file("void strict_foo() {\n    x();\n}\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "}"},
+				{"replacement_content", "    // removed closing brace"},
+				{"strict", true}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Strict brace result: " << res << std::endl;
+			assert(res.find("rejected (strict mode)") != std::string::npos);
+			assert(res.find("not applied") != std::string::npos);
+			// File must be unchanged.
+			assert(read_file() == "void strict_foo() {\n    x();\n}\n");
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

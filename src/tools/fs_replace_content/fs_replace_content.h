@@ -13,6 +13,7 @@ struct fs_replace_content_args {
     std::string replacement_content;
     std::optional<int> line_hint;
     std::optional<std::string> function_hint;
+    bool strict{false}; // If true, reject (and revert) edits that leave braces unbalanced instead of warning.
 };
 
 class fs_replace_content_tool : public agentlib::llm_tool {
@@ -60,6 +61,10 @@ public:
                 {"function_hint", {
                     {"type", "string"},
                     {"description", "Optional. The name of the enclosing function, method, or class (e.g. 'execute_disk_fallback'). Highly recommended for long files to restrict search scope and resolve ambiguity."}
+                }},
+                {"strict", {
+                    {"type", "boolean"},
+                    {"description", "Optional. If true, reject (and revert) the edit when it would leave braces unbalanced, instead of applying it and only issuing a warning. Defaults to false."}
                 }}
             }},
             {"required", nlohmann::json::array({"path", "target_content", "replacement_content"})}

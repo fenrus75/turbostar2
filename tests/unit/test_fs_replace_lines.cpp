@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <sstream>
 #include <string>
 #include <vector>
 #include "../../src/agentlib/tool_context.h"
@@ -356,6 +357,36 @@ int main()
 		assert(brace_res.find("missing 1 closing '}' brace") != std::string::npos);
 
 		std::remove(brace_file.c_str());
+	}
+
+	// Strict mode: unbalanced-brace edit must be rejected (not applied) and the file left unchanged.
+	{
+		std::string strict_file = "test_strict_brace.txt";
+		std::ofstream out(strict_file);
+		out << "void foo() {\n    int a = 1;\n    int b = 2;\n}\n";
+		out.close();
+
+		nlohmann::json strict_args = {
+		    {"path", strict_file},
+		    {"strict", true},
+		    {"edits", nlohmann::json::array({
+			{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}
+		    })}
+		};
+
+		std::string strict_res = registry.execute_tool("fs_replace_lines", strict_args.dump(), ctx);
+		std::cout << "Strict brace result:\n" << strict_res << "\n";
+		assert(strict_res.find("rejected (strict mode)") != std::string::npos);
+		assert(strict_res.find("not applied") != std::string::npos);
+
+		// File must be unchanged (closing brace still present).
+		std::ifstream in(strict_file);
+		std::stringstream body;
+		body << in.rdbuf();
+		in.close();
+		assert(body.str() == "void foo() {\n    int a = 1;\n    int b = 2;\n}\n");
+
+		std::remove(strict_file.c_str());
 	}
 
 	std::remove(test_file.c_str());

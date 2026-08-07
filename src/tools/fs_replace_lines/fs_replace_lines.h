@@ -19,6 +19,7 @@ struct fs_replace_args {
     std::string safe_path;
     std::vector<edit_operation> edits;
     std::vector<std::string> adjustment_notes;
+    bool strict{false}; // If true, reject (and revert) edits that leave braces unbalanced instead of warning.
 };
 
 class fs_replace_lines_tool : public agentlib::llm_tool {
@@ -75,6 +76,10 @@ public:
                         }},
                         {"required", nlohmann::json::array({"line_number"})}
                     }}
+                }},
+                {"strict", {
+                    {"type", "boolean"},
+                    {"description", "Optional. If true, reject (and revert) the edits when they would leave braces unbalanced, instead of applying them and only issuing a warning. Defaults to false."}
                 }}
             }},
             {"required", nlohmann::json::array({"path", "edits"})}

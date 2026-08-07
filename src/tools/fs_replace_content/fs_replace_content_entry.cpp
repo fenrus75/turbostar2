@@ -629,6 +629,34 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     std::vector<std::string> before_lines = split_lines(file_content);
     std::vector<std::string> after_lines = split_lines(new_content);
 
+    // Brace-balance check (same heuristic as fs_replace_lines). When 'strict' is set, reject the
+    // edit BEFORE writing anything if it would leave an enclosing function (or the whole file) with
+    // unbalanced braces, returning the diagnostic to the agent. Otherwise the edit proceeds and the warning
+    // is appended to the success result below.
+    int target_line_count = 1;
+    for (char c : args_.target_content) {
+        if (c == '\n') target_line_count++;
+    }
+    int replacement_line_count = 1;
+    for (char c : args_.replacement_content) {
+        if (c == '\n') replacement_line_count++;
+    }
+    int edit_start_0 = start_line - 1;
+    int edit_end_0 = edit_start_0 + target_line_count - 1;
+    int line_delta = replacement_line_count - target_line_count;
+    std::string brace_warnings = check_replace_brace_warnings(
+        args_.safe_path, before_lines, after_lines, edit_start_0, edit_end_0, line_delta);
+    if (args_.strict && !brace_warnings.empty()) {
+        std::string err = "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings;
+        if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_content>(interaction_)) {
+            custom_interaction->set_result(err);
+            if (ctx.trigger_ui_update) {
+                ctx.trigger_ui_update();
+            }
+        }
+        return err;
+    }
+
     // 7. Write substituted content back to disk
     std::ofstream out(path_to_use, std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {
@@ -658,24 +686,10 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     std::string result_msg = std::format("Successfully replaced target_content in {} starting at line {} [Edit ID: {}].", args_.path, start_line, edit_id);
 
     // Brace-balance check (same heuristic as fs_replace_lines): warn (do NOT fail)
-    // if the replacement left an enclosing function unbalanced.
-    {
-        int target_line_count = 1;
-        for (char c : args_.target_content) {
-            if (c == '\n') target_line_count++;
-        }
-        int replacement_line_count = 1;
-        for (char c : args_.replacement_content) {
-            if (c == '\n') replacement_line_count++;
-        }
-        int edit_start_0 = start_line - 1;
-        int edit_end_0 = edit_start_0 + target_line_count - 1;
-        int line_delta = replacement_line_count - target_line_count;
-        std::string brace_warnings = check_replace_brace_warnings(
-            args_.safe_path, before_lines, after_lines, edit_start_0, edit_end_0, line_delta);
-        if (!brace_warnings.empty()) {
-            result_msg += "\n" + brace_warnings;
-        }
+    // if the replacement left an enclosing function unbalanced. In strict mode we already
+    // returned an error above before writing, so this only appends the warning (non-strict).
+    if (!brace_warnings.empty()) {
+        result_msg += "\n" + brace_warnings;
     }
 
     if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_content>(interaction_)) {
