@@ -18,6 +18,11 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
                 {"description", "Set to true if the pattern is a regular expression. Defaults to false for literal string search."},
                 {"default", false}
             }},
+            {"case_insensitive", {
+                {"type", "boolean"},
+                {"description", "Set to true to ignore case during regex/literal matching. Defaults to false for case-sensitive search."},
+                {"default", false}
+            }},
             {"include_ext", {
                 {"type", "string"},
                 {"description", "Filter by file extension (e.g., '.cpp', '.py'). Optional."}
@@ -61,6 +66,7 @@ bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args,
     try {
         args_.pattern = raw_args.value("pattern", "");
         args_.is_regex = raw_args.value("is_regex", false);
+        args_.case_insensitive = raw_args.value("case_insensitive", false);
         if (raw_args.contains("include_ext") && raw_args["include_ext"].is_string()) {
             args_.include_ext = raw_args["include_ext"].get<std::string>();
         } else {

@@ -286,6 +286,49 @@ int main()
 		assert(res9.find("[in Function `my_target_function` L1-4]") != std::string::npos);
 	}
 
+	// Test 11: case_insensitive flag (mirrors fs_regexp_lines)
+	{
+		fs::path ci_file = temp_dir / "case_sense.txt";
+		std::ofstream out(ci_file);
+		out << "Hello TurboStar\n";
+		out << "goodbye world\n";
+		out.close();
+
+		// 10a. Literal, case-insensitive: matching "hello" should find the "Hello" line
+		{
+			tools::fs_grep_files_args args10a;
+			args10a.pattern = "hello";
+			args10a.case_insensitive = true;
+			args10a.safe_search_path = temp_dir.string();
+			tools::fs_grep_files_tool tool10a(args10a);
+			std::string res10a = tool10a.execute(ctx);
+			assert(res10a.find("Hello TurboStar") != std::string::npos);
+		}
+
+		// 10b. Literal, case-sensitive (default): "hello" should NOT match "Hello"
+		{
+			tools::fs_grep_files_args args10b;
+			args10b.pattern = "hello";
+			args10b.case_insensitive = false;
+			args10b.safe_search_path = temp_dir.string();
+			tools::fs_grep_files_tool tool10b(args10b);
+			std::string res10b = tool10b.execute(ctx);
+			assert(res10b.find("Hello TurboStar") == std::string::npos);
+		}
+
+		// 10c. Regex, case-insensitive with is_regex=true
+		{
+			tools::fs_grep_files_args args10c;
+			args10c.pattern = "TURBOSTAR";
+			args10c.is_regex = true;
+			args10c.case_insensitive = true;
+			args10c.safe_search_path = temp_dir.string();
+			tools::fs_grep_files_tool tool10c(args10c);
+			std::string res10c = tool10c.execute(ctx);
+			assert(res10c.find("Hello TurboStar") != std::string::npos);
+		}
+	}
+
 	fs::remove_all(temp_dir);
 
 	// Verify description mentions grep

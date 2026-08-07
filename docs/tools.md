@@ -59,6 +59,7 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 *   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers, enclosing symbol context annotations (e.g. `[in function foo]`), and matches. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
+    *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex/literal matching. Defaults to false (case-sensitive search).
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
     *   `path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted. (Alias for `search_path`.)
     *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.

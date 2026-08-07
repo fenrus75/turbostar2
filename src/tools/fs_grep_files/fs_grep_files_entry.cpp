@@ -121,6 +121,7 @@ struct last_search_info {
 	std::string exclude_ext;
 	std::string exclude_pattern;
 	bool is_regex{false};
+	bool case_insensitive{false};
 };
 static last_search_info g_last_search;
 
@@ -132,6 +133,9 @@ std::vector<lsp_manager::symbol_info> fs_grep_files_tool::get_lsp_symbols(const 
 fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::move(args))
 {
 	RE2::Options options;
+	if (args_.case_insensitive) {
+		options.set_case_sensitive(false);
+	}
 	std::string final_pattern = args_.is_regex ? args_.pattern : RE2::QuoteMeta(args_.pattern);
 	compiled_regex_ = std::make_unique<RE2>(final_pattern, options);
 
@@ -187,7 +191,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
 	    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
 	    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
-	    g_last_search.is_regex == args_.is_regex) {
+	    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive) {
 		is_duplicate = true;
 	}
 
@@ -198,6 +202,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	g_last_search.exclude_ext = curr_ex_ext;
 	g_last_search.exclude_pattern = curr_ex_pat;
 	g_last_search.is_regex = args_.is_regex;
+	g_last_search.case_insensitive = args_.case_insensitive;
 
 	if (is_duplicate) {
 		std::string display_path = "project root";
