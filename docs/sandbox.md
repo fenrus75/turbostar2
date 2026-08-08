@@ -25,7 +25,7 @@ Before defining rigid "profiles," the `command_runner` (or a subclass like `sand
 
 When `bypass_sandbox` is false, the runner will construct a command starting with a highly restrictive baseline.
 
-The `ProtectKernelTunables=true` property is **runtime-probed**: on some hosts (notably Ubuntu) requesting it makes the whole `systemd-run` unit fail to start with a security violation (exit code 218). Because this is a property of the *deployment* host (not the build host), it cannot be decided at compile time. The runner probes once at startup by launching a transient `systemd-run --user --wait --pipe -p ProtectKernelTunables=true true` unit and omits the property on hosts where it cannot be satisfied. Dropping it on such a host loses no real security, because the unit would otherwise fail entirely.
+The `ProtectKernelTunables=true` property is **runtime-probed**: on some hosts (notably Ubuntu) requesting it, when combined with the full runner hardening flag set, makes the whole `systemd-run` unit fail to start with a security violation (exit code 218). Because this is a property of the *deployment* host (not the build host), it cannot be decided at compile time. The runner probes once at startup by launching a transient unit with the **same full hardening flag set** it will actually use and omits this one property on hosts where that combination cannot be satisfied. Dropping the property on such a host loses no real security, because the unit would otherwise fail entirely.
 
 ```bash
 systemd-run --user --pty --pipe --wait \

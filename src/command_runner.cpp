@@ -155,6 +155,27 @@ static bool is_systemd_user_bus_available()
 // We only disable the feature when the failure is attributable to this specific property; the unit's
 // own child exit code (0) is what we actually expect on success. Once we have a determination,
 // the result is cached for the lifetime of the process.
+// Builds the static set of systemd-run hardening flags that the sandbox always applies.
+// ProbeKernelTunables is included only when requested. Both the runtime probe and the
+// real build_command use this same helper so the probe reproduces the exact flag combination
+// the runner will use; ProtectKernelTunables can fail when combined with the full set even
+// though it works in isolation (observed on some Ubuntu hosts).
+static std::string sandbox_hardening_flags(bool include_protect_kernel_tunables)
+{
+	std::string flags =
+		"-p ProtectSystem=strict "
+		"-p PrivateTmp=true ";
+	if (include_protect_kernel_tunables) {
+		flags += "-p ProtectKernelTunables=true ";
+	}
+	flags +=
+		"-p ProtectKernelModules=true "
+		"-p MemoryDenyWriteExecute=true "
+		"-p ProtectControlGroups=true "
+		"-p RestrictRealtime=true ";
+	return flags;
+}
+
 static bool is_protect_kernel_tunables_supported()
 {
 	// Guarantees the probe runs at most once per process, safely across threads.
@@ -165,9 +186,12 @@ static bool is_protect_kernel_tunables_supported()
 			return false;
 		}
 
+		// Probe using the SAME full hardening flag set as the real runner (with
+		// ProtectKernelTunables included). Probing it in isolation does not reproduce the
+		// combination-dependent failure, so we must reproduce the exact set.
 		const std::string probe_cmd =
-			"systemd-run --user --wait --pipe --quiet "
-			"-p ProtectKernelTunables=true true 2>&1";
+			"systemd-run --user --wait --pipe --quiet " +
+			sandbox_hardening_flags(true) + "true 2>&1";
 
 		event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: running '{}'", probe_cmd);
 
@@ -259,18 +283,11 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	}
 	cmd += "--wait --quiet ";
 	cmd += "--unit=" + fs_utils::escape_shell_arg(unit_name) + " ";
-	cmd += "-p ProtectSystem=strict ";
-	cmd += "-p PrivateTmp=true ";
-	// ProtectKernelTunables is a runtime capability: on some hosts (e.g. Ubuntu) it causes
-	// the whole unit to fail with a security violation (218). Gate it on a one-time runtime probe
-	// so it is kept wherever it works and omitted only where it cannot be satisfied.
-	if (is_protect_kernel_tunables_supported()) {
-		cmd += "-p ProtectKernelTunables=true ";
-	}
-	cmd += "-p ProtectKernelModules=true ";
-	cmd += "-p MemoryDenyWriteExecute=true ";
-	cmd += "-p ProtectControlGroups=true ";
-	cmd += "-p RestrictRealtime=true ";
+	// ProtectKernelTunables is a runtime capability: on some hosts (e.g. Ubuntu) it can
+	// fail with a security violation (218) when combined with the full hardening set. Gate it
+	// on a one-time runtime probe (which itself reproduces the full flag combination) so it is
+	// kept wherever it works and omitted only where it cannot be satisfied.
+	cmd += sandbox_hardening_flags(is_protect_kernel_tunables_supported());
 	cmd += "-p Environment=TURBOSTAR_SANDBOXED=1 ";
 
 	if (!network_access_ && !allow_display_) {
