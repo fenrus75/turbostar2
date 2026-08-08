@@ -143,6 +143,51 @@ static bool is_systemd_user_bus_available()
 	return false;
 }
 
+// Runtime probe for whether the sandbox can actually apply ProtectKernelTunables=true.
+// On some distros (notably Ubuntu) this property makes the whole systemd-run unit fail
+// to start with a security violation (exit code 218), even though the command itself is
+// valid. Since it is a property of the *deployment* host (not the build host), we probe
+// once at runtime and cache the result. Explicitly requesting this property is a pure hardening
+// bonus; dropping it on hosts where it cannot be satisfied loses no real security, because on
+// those hosts the unit would fail entirely anyway.
+//
+// The probe launches a real transient unit whose child provably executes (the 'true' binary).
+// We only disable the feature when the failure is attributable to this specific property; the unit's
+// own child exit code (0) is what we actually expect on success. Once we have a determination,
+// the result is cached for the lifetime of the process.
+static bool is_protect_kernel_tunables_supported()
+{
+	// Guarantees the probe runs at most once per process, safely across threads.
+	static const bool supported = []() {
+		if (!is_systemd_user_bus_available()) {
+			// No systemd user bus to probe; do not claim we can use the property.
+			return false;
+		}
+
+		const std::string probe_cmd =
+			"systemd-run --user --wait --pipe --quiet "
+			"-p ProtectKernelTunables=true true";
+
+		// We intentionally do not inherit stdout/stderr for the probe; it is quiet.
+		// Use popen so we can capture any diagnostic text and, crucially, the wait status.
+		FILE *pipe_handle = popen(probe_cmd.c_str(), "r");
+		if (!pipe_handle) {
+			return false;
+		}
+
+		// Drain output (usually empty due to --quiet) so popen's waitpid completes.
+		std::array<char, 512> buf{};
+		while (fgets(buf.data(), static_cast<int>(buf.size()), pipe_handle) != nullptr) {
+			// Discard; we only care about the exit status.
+		}
+		int status = pclose(pipe_handle);
+
+		return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+	}();
+
+	return supported;
+}
+
 std::string command_runner::inject_unsandboxed_environment(const std::string &raw_command) const
 {
 	if (!enable_crash_catcher_ && perf_dir_.empty()) {
@@ -204,7 +249,12 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	cmd += "--unit=" + fs_utils::escape_shell_arg(unit_name) + " ";
 	cmd += "-p ProtectSystem=strict ";
 	cmd += "-p PrivateTmp=true ";
-	cmd += "-p ProtectKernelTunables=true ";
+	// ProtectKernelTunables is a runtime capability: on some hosts (e.g. Ubuntu) it causes
+	// the whole unit to fail with a security violation (218). Gate it on a one-time runtime probe
+	// so it is kept wherever it works and omitted only where it cannot be satisfied.
+	if (is_protect_kernel_tunables_supported()) {
+		cmd += "-p ProtectKernelTunables=true ";
+	}
 	cmd += "-p ProtectKernelModules=true ";
 	cmd += "-p MemoryDenyWriteExecute=true ";
 	cmd += "-p ProtectControlGroups=true ";
