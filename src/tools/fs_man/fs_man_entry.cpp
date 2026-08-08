@@ -117,6 +117,163 @@ static std::filesystem::path find_redirect_file(const std::filesystem::path& bas
 	return "";
 }
 
+// Extracts a specific portion of a rendered man page Markdown document.
+//
+// The troff2md output has a consistent structure: top-level sections are rendered as
+// "# Name" headings and individual directives are rendered as "*Name=*" entries. This
+// function slices the document down to either:
+//   - A section (matches a "# <name>" / "## <name>" heading, returning that
+//     heading and everything up to the next same-or-higher-level heading), or
+//   - A directive (matches a "*<name>*" or "*<name>=*" entry, returning the
+//     block belonging to it).
+// If no match is found, returns an empty string so the caller can fall back to a
+// clear error.
+static std::string filter_markdown(const std::string& md, const std::string& filter) {
+	if (filter.empty()) {
+		return md;
+	}
+
+	std::vector<std::string> lines;
+	{
+		std::istringstream ss(md);
+		std::string line;
+		while (std::getline(ss, line)) {
+			lines.push_back(line);
+		}
+	}
+
+	// First pass: try to match a section heading ("#" or "##" prefix). We look
+	// for the first heading whose text contains the filter.
+	int heading_level = -1; // 1 for "#", 2 for "##" (or deeper)
+	int heading_index = -1;
+	for (size_t i = 0; i < lines.size(); ++i) {
+		const std::string& line = lines[i];
+		if (line.size() >= 2 && line[0] == '#') {
+			size_t j = 1;
+			while (j < line.size() && line[j] == '#') {
+				++j;
+			}
+			if (j == line.size() || line[j] != ' ') {
+				continue; // Not a heading (e.g. "###" code fence or malformed)
+			}
+			std::string heading_text = line.substr(j + 1);
+			// Normalize spaces for comparison
+			std::string normalized;
+			for (char c : heading_text) {
+				if (c != ' ') {
+					normalized += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+				}
+			}
+			std::string norm_filter;
+			for (char c : filter) {
+				if (c != ' ') {
+					norm_filter += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+				}
+			}
+			if (!norm_filter.empty() && normalized.find(norm_filter) != std::string::npos) {
+				heading_level = j;
+				heading_index = static_cast<int>(i);
+				break;
+			}
+		}
+	}
+
+	std::string result;
+	if (heading_index >= 0) {
+		result = lines[heading_index] + "\n";
+		size_t block_level = static_cast<size_t>(heading_level);
+		for (size_t i = heading_index + 1; i < lines.size(); ++i) {
+			const std::string& line = lines[i];
+			if (line.size() >= 2 && line[0] == '#') {
+				size_t j = 1;
+				while (j < line.size() && line[j] == '#') {
+					++j;
+				}
+				if (j != line.size() && line[j] == ' ' && j <= block_level) {
+					break; // Next heading at same or higher level ends this section
+				}
+			}
+			result += line + "\n";
+		}
+		return result;
+	}
+
+	// Second pass: try to match a directive entry. A directive renders as a marker
+	// consisting of an optional bullet "*" and/or bold "**" prefix followed by the
+	// directive name and a trailing "=" (e.g. "*ProtectKernelTunables=*").
+	auto is_directive_entry = [](const std::string& line) -> std::string {
+		size_t start = line.find_first_not_of(" \t");
+		if (start == std::string::npos || line[start] != '*') {
+			return "";
+		}
+		size_t pos = start + 1;
+		// Skip spaces and an optional bold "**" marker.
+		while (pos < line.size() && line[pos] == ' ') {
+			++pos;
+		}
+		if (pos + 1 < line.size() && line[pos] == '*' && line[pos + 1] == '*') {
+			pos += 2;
+		}
+		// Read the directive token until a '=', '*' or whitespace terminator.
+		std::string token;
+		while (pos < line.size()) {
+			char c = line[pos];
+			if (c == '=' || c == '*' || c == ' ' || c == '\t') {
+				break;
+			}
+			token += c;
+			++pos;
+		}
+		// A true directive entry must be followed by '=' (distinguishes bullet lists).
+		if (pos >= line.size() || line[pos] != '=') {
+			return "";
+		}
+		return token;
+	};
+
+	std::string norm_filter;
+	for (char c : filter) {
+		if (c != ' ') {
+			norm_filter += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+		}
+	}
+
+	// Locate the first directive whose token matches the requested filter.
+	int match_index = -1;
+	for (size_t i = 0; i < lines.size(); ++i) {
+		std::string token = is_directive_entry(lines[i]);
+		if (token.empty()) {
+			continue;
+		}
+		std::string norm_token;
+		for (char c : token) {
+			norm_token += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+		}
+		if (norm_token == norm_filter) {
+			match_index = static_cast<int>(i);
+			break;
+		}
+	}
+
+	if (match_index >= 0) {
+		result = lines[match_index] + "\n";
+		// Capture from this directive until the next directive entry or any heading.
+		for (size_t k = match_index + 1; k < lines.size(); ++k) {
+			const std::string& next = lines[k];
+			if (!next.empty() && next[0] == '#') {
+				break;
+			}
+			if (!is_directive_entry(next).empty()) {
+				break;
+			}
+			result += next + "\n";
+		}
+		return result;
+	}
+
+	return "";
+}
+
 fs_man_tool::fs_man_tool(fs_man_args args)
 	: agentlib::llm_tool_action(std::format("Man page lookup: {}", args.name))
 	, args_(std::move(args))
@@ -243,6 +400,51 @@ std::string fs_man_tool::execute(agentlib::tool_context& ctx) {
 
 	// Render troff format to Markdown
 	std::string md_content = troff2md(raw_content);
+
+	// Optionally slice the rendered Markdown down to the requested section/directive.
+	if (!args_.filter.empty()) {
+		std::string sliced = filter_markdown(md_content, args_.filter);
+		if (sliced.empty()) {
+			std::string err = std::format("Error: Filter '{}' did not match a section or directive in the man page for '{}'.", args_.filter, args_.name);
+			set_failure(ctx, err);
+			return err;
+		}
+		md_content = sliced;
+	}
+
+	if (!args_.safe_output_path.empty()) {
+		bool is_vfs = (args_.safe_output_path.find("://") != std::string::npos);
+		if (is_vfs) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (!vfs) {
+				std::string err = "Error: VFS is not initialized in security context.";
+				set_failure(ctx, err);
+				return err;
+			}
+			std::string desc = vfs->write_file(args_.safe_output_path, md_content.data(), md_content.size());
+			if (desc.empty()) {
+				std::string err = std::format("Error: Failed to write output to VFS path '{}'.", args_.output_path);
+				set_failure(ctx, err);
+				return err;
+			}
+		} else {
+			std::ofstream out(args_.safe_output_path, std::ios::binary);
+			if (!out.is_open()) {
+				std::string err = std::format("Error: Failed to open output path '{}' for writing.", args_.output_path);
+				set_failure(ctx, err);
+				return err;
+			}
+			out << md_content;
+			if (out.fail()) {
+				std::string err = std::format("Error: Failed to write output to '{}'.", args_.output_path);
+				set_failure(ctx, err);
+				return err;
+			}
+		}
+		set_success(ctx, std::format("Successfully loaded man page for {} and wrote output to '{}'.", args_.name, args_.output_path));
+		return "Successfully wrote man page for " + args_.name + " to '" + args_.output_path + "'.";
+	}
+
 	set_success(ctx, std::format("Successfully loaded man page for {}", args_.name));
 	return md_content;
 }

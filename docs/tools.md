@@ -103,6 +103,8 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the function, library call, system call, or command to lookup (e.g., `'malloc'`, `'mmap'`, `'open'`, `'printf'`, `'pthread_create'`).
     *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"2"` for system calls, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
+    *   `filter` *(string, optional)*: Optional. Extract only the portion of the rendered man page matching this directive or section name (e.g., `'ProtectKernelTunables'` or `'SANDBOXING'`). Use this to avoid returning a large man page when you only need a specific part.
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g., `'tmp://man.md'`) to save the rendered Markdown output to instead of returning it.
 
 ### `fs_man_search`
 *   **Description:** Search system manual page names and descriptions for a keyword (similar to 'man -k' or 'apropos'). Returns matching commands, system calls, or library functions with their section numbers and descriptions in a markdown table.

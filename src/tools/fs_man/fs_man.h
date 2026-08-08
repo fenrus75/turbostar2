@@ -10,6 +10,9 @@ namespace tools {
 struct fs_man_args {
 	std::string name;
 	std::optional<std::string> section;
+	std::string filter;
+	std::string output_path;
+	std::string safe_output_path;
 };
 
 class fs_man_tool : public agentlib::llm_tool_action {
@@ -41,6 +44,14 @@ public:
 				{"section", {
 					{"type", "string"},
 					{"description", "Optional man page section (e.g., '3' for library functions, '2' for system calls, '1' for commands). If omitted, prioritizes library calls (section 3) first."}
+				}},
+				{"filter", {
+					{"type", "string"},
+					{"description", "Optional. Extract only the portion of the rendered man page matching this directive or section name (e.g., 'ProtectKernelTunables' or 'SANDBOXING'). Use this to avoid returning a large man page when you only need a specific part."}
+				}},
+				{"output_path", {
+					{"type", "string"},
+					{"description", "Optional. The relative file path under the project workspace or VFS URI (e.g., 'tmp://man.md') to save the rendered Markdown output to instead of returning it."}
 				}}
 			}},
 			{"required", nlohmann::json::array({"name"})}

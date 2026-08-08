@@ -47,6 +47,19 @@ int main() {
 	// malloc in section 3 (C Library) as gzipped text
 	create_gzipped_file(temp_dir / "man3/malloc.3.gz", ".SH NAME\nmalloc - allocate memory\n");
 
+	// demo in section 3 with a multi-section, multi-directive structure for filter testing.
+	// Directives use .B so they render bold ("*Name=*") exactly like real systemd pages,
+	// exercising the same code path the filter matches against.
+	const std::string demo_content =
+	    ".SH NAME\ndemo - demonstration page\n"
+	    ".SH SYNOPSIS\ndemo(int x);\n"
+	    ".SH OPTIONS\n"
+	    ".TP\n.B \\-f\nflag option\n"
+	    ".SH SECURITY\n"
+	    ".TP\n.B ProtectKernelTunables=\nmake kernel tunables read-only\n"
+	    ".TP\n.B ProtectHome=\nprotect home dir\n";
+	create_gzipped_file(temp_dir / "man3/demo.3.gz", demo_content);
+
 	// circular loop redirect files
 	create_gzipped_file(temp_dir / "man3/loopA.3.gz", ".so man3/loopB.3");
 	create_gzipped_file(temp_dir / "man3/loopB.3.gz", ".so man3/loopA.3");
@@ -163,7 +176,88 @@ int main() {
 		std::cout << "Test 6 passed: traversal characters correctly rejected.\n";
 	}
 
-	// Test 7: fs_man_search on system man pages
+	// Test 7: output_path writes rendered markdown to a file and returns a short confirmation
+	{
+		// Grant write access to the temp dir so a filesystem output_path passes the security allowlist.
+		ctx.fs_security.add_allowed_root(temp_dir, agentlib::access_type::write);
+
+		tools::fs_man_validator validator;
+		fs::path out_file = temp_dir / "printf_out.md";
+		nlohmann::json args = {{"name", "printf"}, {"section", "3"}, {"output_path", out_file.string()}};
+		std::string error;
+		bool valid = validator.validate_args(args, ctx, error);
+		assert(valid);
+		// Validation stores both output_path and safe_output_path for filesystem paths
+		auto tool = validator.create_tool(args);
+		assert(tool != nullptr);
+
+		std::string result = tool->execute(ctx);
+		// The tool returns a short success message instead of the content when output_path is set
+		assert(result.find("Successfully wrote man page for printf to") != std::string::npos);
+		assert(result.find("formatted output conversion") == std::string::npos);
+
+		// The rendered markdown should have been written to the file
+		assert(fs::exists(out_file));
+		std::ifstream ifs(out_file, std::ios::binary);
+		assert(ifs.is_open());
+		std::string file_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(file_content.find("formatted output conversion") != std::string::npos);
+		std::cout << "Test 7 passed: output_path wrote markdown to file.\n";
+	}
+
+	// Test 8: filter by section (matches "# SECURITY" heading)
+	{
+		tools::fs_man_validator validator;
+		nlohmann::json args = {{"name", "demo"}, {"section", "3"}, {"filter", "SECURITY"}};
+		std::string error;
+		bool valid = validator.validate_args(args, ctx, error);
+		assert(valid);
+		auto tool = validator.create_tool(args);
+		assert(tool != nullptr);
+
+		std::string result = tool->execute(ctx);
+		assert(result.find("# SECURITY") != std::string::npos);
+		assert(result.find("ProtectKernelTunables=") != std::string::npos);
+		// Other sections should be excluded
+		assert(result.find("# SYNOPSIS") == std::string::npos);
+		assert(result.find("demo - demonstration page") == std::string::npos);
+		std::cout << "Test 8 passed: filter by section (SECURITY) returned only that section.\n";
+	}
+
+	// Test 9: filter by directive (matches "*ProtectKernelTunables=*")
+	{
+		tools::fs_man_validator validator;
+		nlohmann::json args = {{"name", "demo"}, {"section", "3"}, {"filter", "ProtectKernelTunables"}};
+		std::string error;
+		bool valid = validator.validate_args(args, ctx, error);
+		assert(valid);
+		auto tool = validator.create_tool(args);
+		assert(tool != nullptr);
+
+		std::string result = tool->execute(ctx);
+		assert(result.find("ProtectKernelTunables=") != std::string::npos);
+		// The directive's own body should be present but not the sibling directive
+		assert(result.find("make kernel tunables read-only") != std::string::npos);
+		assert(result.find("protect home dir") == std::string::npos);
+		std::cout << "Test 9 passed: filter by directive (ProtectKernelTunables) returned only that directive.\n";
+	}
+
+	// Test 10: filter that matches nothing returns an error
+	{
+		tools::fs_man_validator validator;
+		nlohmann::json args = {{"name", "demo"}, {"section", "3"}, {"filter", "NoSuchThing"}};
+		std::string error;
+		bool valid = validator.validate_args(args, ctx, error);
+		assert(valid);
+		auto tool = validator.create_tool(args);
+		assert(tool != nullptr);
+
+		std::string result = tool->execute(ctx);
+		assert(result.find("did not match") != std::string::npos);
+		std::cout << "Test 10 passed: filter with no match returns an error.\n";
+	}
+
+	// Test 11: fs_man_search on system man pages
 	{
 #ifdef _WIN32
 		_putenv_s("TURBOSTAR_MAN_DIR_OVERRIDE", "");
