@@ -16,7 +16,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
-
 - `fs_replace_lines` dry-run verification: perform dry-run verification against `original_text` for all batch edits in `fs_replace_lines` before applying any mutations. If any line check fails after accounting for previous edits, reject the batch cleanly to prevent partial line-drift edits.
 
 - `fs_replace_symbol` / AST-scoped code edits: add a symbol or scope-based edit tool (or parameter) that targets a named method or class scope (e.g. `Class::method`) and applies replacements relative to the function boundaries, preventing global file line shifts from affecting edits.
@@ -60,9 +59,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 	- small-and-fast?
 	- local
 
-- feature: have a separate model option for "plan mode" phase
-	- same feature as the aliases feature
-
 - feature:a /command action that activates a tool family (via menu?)
 
 - feature: separate model name database of famous models for default properties
@@ -90,7 +86,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 		- we started this with code review kind of
 	- should be able to suggest model names/capabilities to be run in -- say a vision model for image processing tasks
 	- [x] should be able to register /slash commands
-	- skills that plug into specific subagent types only
+	- [x] skills that plug into specific subagent types only
 	- should have prefered color set + logo for the grid view
 
 
