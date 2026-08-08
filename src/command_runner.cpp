@@ -160,29 +160,41 @@ static bool is_protect_kernel_tunables_supported()
 	// Guarantees the probe runs at most once per process, safely across threads.
 	static const bool supported = []() {
 		if (!is_systemd_user_bus_available()) {
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: systemd user bus unavailable; declaring unsupported");
 			// No systemd user bus to probe; do not claim we can use the property.
 			return false;
 		}
 
 		const std::string probe_cmd =
 			"systemd-run --user --wait --pipe --quiet "
-			"-p ProtectKernelTunables=true true";
+			"-p ProtectKernelTunables=true true 2>&1";
 
-		// We intentionally do not inherit stdout/stderr for the probe; it is quiet.
-		// Use popen so we can capture any diagnostic text and, crucially, the wait status.
+		event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: running '{}'", probe_cmd);
+
+		// Capture diagnostic output (stderr redirected to stdout above) and the wait status.
+		// Draining is required so popen's waitpid completes.
 		FILE *pipe_handle = popen(probe_cmd.c_str(), "r");
 		if (!pipe_handle) {
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: popen failed (errno={})", errno);
 			return false;
 		}
 
-		// Drain output (usually empty due to --quiet) so popen's waitpid completes.
 		std::array<char, 512> buf{};
 		while (fgets(buf.data(), static_cast<int>(buf.size()), pipe_handle) != nullptr) {
-			// Discard; we only care about the exit status.
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe output: {}", std::string(buf.data()));
 		}
 		int status = pclose(pipe_handle);
 
-		return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+		bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+		if (WIFEXITED(status)) {
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: exited with code {}", WEXITSTATUS(status));
+		} else if (WIFSIGNALED(status)) {
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: killed by signal {}", WTERMSIG(status));
+		} else {
+			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: abnormal wait status {}", status);
+		}
+		event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: {}", ok ? "SUPPORTED" : "NOT SUPPORTED");
+		return ok;
 	}();
 
 	return supported;
