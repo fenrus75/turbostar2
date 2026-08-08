@@ -143,82 +143,85 @@ static bool is_systemd_user_bus_available()
 	return false;
 }
 
-// Runtime probe for whether the sandbox can actually apply ProtectKernelTunables=true.
-// On some distros (notably Ubuntu) this property makes the whole systemd-run unit fail
-// to start with a security violation (exit code 218), even though the command itself is
-// valid. Since it is a property of the *deployment* host (not the build host), we probe
-// once at runtime and cache the result. Explicitly requesting this property is a pure hardening
-// bonus; dropping it on hosts where it cannot be satisfied loses no real security, because on
-// those hosts the unit would fail entirely anyway.
-//
-// The probe launches a real transient unit whose child provably executes (the 'true' binary).
-// We only disable the feature when the failure is attributable to this specific property; the unit's
-// own child exit code (0) is what we actually expect on success. Once we have a determination,
-// the result is cached for the lifetime of the process.
 // Builds the static set of systemd-run hardening flags that the sandbox always applies.
-// ProbeKernelTunables is included only when requested. Both the runtime probe and the
-// real build_command use this same helper so the probe reproduces the exact flag combination
-// the runner will use; ProtectKernelTunables can fail when combined with the full set even
-// though it works in isolation (observed on some Ubuntu hosts).
-static std::string sandbox_hardening_flags(bool include_protect_kernel_tunables)
+// The kernel-hardening pair (ProtectKernelTunables + ProtectKernelModules) is included
+// only when requested. Both the runtime probe and the real build_command use this same helper
+// so the probe reproduces the exact flag combination the runner will use; the kernel pair can
+// fail when combined with the full set even though each works in isolation (observed on some
+// Ubuntu hosts), so they are probed together.
+static std::string sandbox_hardening_flags(bool include_kernel_pair)
 {
 	std::string flags =
 		"-p ProtectSystem=strict "
 		"-p PrivateTmp=true ";
-	if (include_protect_kernel_tunables) {
+	if (include_kernel_pair) {
 		flags += "-p ProtectKernelTunables=true ";
+		flags += "-p ProtectKernelModules=true ";
 	}
 	flags +=
-		"-p ProtectKernelModules=true "
 		"-p MemoryDenyWriteExecute=true "
 		"-p ProtectControlGroups=true "
 		"-p RestrictRealtime=true ";
 	return flags;
 }
 
-static bool is_protect_kernel_tunables_supported()
+// Runs `systemd-run` with the given hardening flags and returns true iff the unit starts and
+// the child (the `true` binary) exits 0. All output is logged so failures are diagnosable.
+static bool probe_run_with_flags(const std::string &flags, const std::string &tag)
 {
-	// Guarantees the probe runs at most once per process, safely across threads.
+	if (!is_systemd_user_bus_available()) {
+		event_logger::get_instance().log("[command_runner] {} probe: systemd user bus unavailable", tag);
+		return false;
+	}
+
+	const std::string probe_cmd =
+		"systemd-run --user --wait --pipe --quiet " +
+		flags + "true 2>&1";
+
+	event_logger::get_instance().log("[command_runner] {} probe: running '{}'", tag, probe_cmd);
+
+	// Capture diagnostic output (stderr redirected to stdout above) and the wait status.
+	// Draining is required so popen's waitpid completes.
+	FILE *pipe_handle = popen(probe_cmd.c_str(), "r");
+	if (!pipe_handle) {
+		event_logger::get_instance().log("[command_runner] {} probe: popen failed (errno={})", tag, errno);
+		return false;
+	}
+
+	std::array<char, 512> buf{};
+	while (fgets(buf.data(), static_cast<int>(buf.size()), pipe_handle) != nullptr) {
+		event_logger::get_instance().log("[command_runner] {} probe output: {}", tag, std::string(buf.data()));
+	}
+	int status = pclose(pipe_handle);
+
+	bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+	if (WIFEXITED(status)) {
+		event_logger::get_instance().log("[command_runner] {} probe: exited with code {}", tag, WEXITSTATUS(status));
+	} else if (WIFSIGNALED(status)) {
+		event_logger::get_instance().log("[command_runner] {} probe: killed by signal {}", tag, WTERMSIG(status));
+	} else {
+		event_logger::get_instance().log("[command_runner] {} probe: abnormal wait status {}", tag, status);
+	}
+	event_logger::get_instance().log("[command_runner] {} probe: {}", tag, ok ? "SUPPORTED" : "NOT SUPPORTED");
+	return ok;
+}
+
+// Determines whether the kernel-hardening pair (ProtectKernelTunables + ProtectKernelModules)
+// can be used with the full sandbox flag set. Guarantees the combined probe runs at most once per
+// process, safely across threads.
+static bool is_kernel_pair_supported()
+{
 	static const bool supported = []() {
-		if (!is_systemd_user_bus_available()) {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: systemd user bus unavailable; declaring unsupported");
-			// No systemd user bus to probe; do not claim we can use the property.
-			return false;
+		// Positive probe (with the kernel pair present). If this works, we keep the pair.
+		if (probe_run_with_flags(sandbox_hardening_flags(true), "kernel-hardening")) {
+			return true;
 		}
 
-		// Probe using the SAME full hardening flag set as the real runner (with
-		// ProtectKernelTunables included). Probing it in isolation does not reproduce the
-		// combination-dependent failure, so we must reproduce the exact set.
-		const std::string probe_cmd =
-			"systemd-run --user --wait --pipe --quiet " +
-			sandbox_hardening_flags(true) + "true 2>&1";
-
-		event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: running '{}'", probe_cmd);
-
-		// Capture diagnostic output (stderr redirected to stdout above) and the wait status.
-		// Draining is required so popen's waitpid completes.
-		FILE *pipe_handle = popen(probe_cmd.c_str(), "r");
-		if (!pipe_handle) {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: popen failed (errno={})", errno);
-			return false;
-		}
-
-		std::array<char, 512> buf{};
-		while (fgets(buf.data(), static_cast<int>(buf.size()), pipe_handle) != nullptr) {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe output: {}", std::string(buf.data()));
-		}
-		int status = pclose(pipe_handle);
-
-		bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
-		if (WIFEXITED(status)) {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: exited with code {}", WEXITSTATUS(status));
-		} else if (WIFSIGNALED(status)) {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: killed by signal {}", WTERMSIG(status));
-		} else {
-			event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: abnormal wait status {}", status);
-		}
-		event_logger::get_instance().log("[command_runner] ProtectKernelTunables probe: {}", ok ? "SUPPORTED" : "NOT SUPPORTED");
-		return ok;
+		// Negative result: run a *positive control* without the kernel pair to confirm the rest of
+		// the flag set is fine, so we know it is specifically the kernel pair causing the failure and
+		// not the base flags. This is purely diagnostic.
+		probe_run_with_flags(sandbox_hardening_flags(false), "kernel-hardening-without-pair");
+		return false;
 	}();
 
 	return supported;
@@ -283,11 +286,12 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	}
 	cmd += "--wait --quiet ";
 	cmd += "--unit=" + fs_utils::escape_shell_arg(unit_name) + " ";
-	// ProtectKernelTunables is a runtime capability: on some hosts (e.g. Ubuntu) it can
-	// fail with a security violation (218) when combined with the full hardening set. Gate it
-	// on a one-time runtime probe (which itself reproduces the full flag combination) so it is
-	// kept wherever it works and omitted only where it cannot be satisfied.
-	cmd += sandbox_hardening_flags(is_protect_kernel_tunables_supported());
+	// The kernel-hardening pair (ProtectKernelTunables + ProtectKernelModules) is a runtime
+	// capability: on some hosts (e.g. Ubuntu) it can fail with a security violation (218) when
+	// combined with the full hardening set. Gate it on a one-time runtime probe (which itself
+	// reproduces the full flag combination) so it is kept wherever it works and omitted only where it
+	// cannot be satisfied.
+	cmd += sandbox_hardening_flags(is_kernel_pair_supported());
 	cmd += "-p Environment=TURBOSTAR_SANDBOXED=1 ";
 
 	if (!network_access_ && !allow_display_) {
