@@ -13,6 +13,7 @@ struct run_python_args {
     std::optional<std::string> code;
     std::optional<std::string> file_path;
     std::vector<std::string> dependencies;
+    std::optional<std::string> venv_dir; // Resolved path to a Python virtualenv; its bin/python is used to run the script and host any dependencies.
     int timeout = 300;
 };
 

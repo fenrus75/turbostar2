@@ -274,7 +274,8 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   **Arguments:**
     *   `code` *(string, optional)*: The raw Python code string to execute.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://script.py'). Path to a Python script to execute.
-    *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available).
+    *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available). If a `venv` is also provided, they are installed into that virtual environment instead.
+    *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
 ### `web_fetch`
 *   **Description:** Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.

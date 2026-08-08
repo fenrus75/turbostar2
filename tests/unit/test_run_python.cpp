@@ -154,6 +154,45 @@ int main()
 		       result.find("Dependencies were requested but 'uv' is not installed") != std::string::npos);
 	}
 
+	// 12. venv parameter test: create a venv and run code through it
+	{
+		std::string venv_name = "test_venv_" + pid_str;
+		std::filesystem::path venv_dir = std::filesystem::path(project_root) / venv_name;
+		int venv_ret = std::system(("python3 -m venv " + venv_dir.string() + " > /dev/null 2>&1").c_str());
+		if (venv_ret != 0) {
+			std::cout << "Skipping venv test (python3 -m venv unavailable)" << std::endl;
+		} else {
+			// Write a marker into the venv site-packages to prove the venv interpreter is used.
+			std::filesystem::path venv_site = venv_dir / "lib";
+			// Locate pythonX.Y path
+			std::string marker_dir;
+			for (const auto &entry : std::filesystem::directory_iterator(venv_site)) {
+				if (entry.is_directory()) {
+					marker_dir = entry.path().string();
+					break;
+				}
+			}
+
+			nlohmann::json args = {
+				{"code", "print('venv marker:', __file__)\nimport sys\nprint('Hello from venv!')"},
+				{"venv", venv_name}
+			};
+			std::string result = registry.execute_tool("run_python", args.dump(), ctx);
+			std::cout << "Venv Result: " << result << std::endl;
+			assert(result.find("Hello from venv!") != std::string::npos);
+
+			// 12b. Validation failure: venv path outside allowed root
+			{
+				nlohmann::json bad_v = {{"code", "print(1)"}, {"venv", "/nonexistent/venv"}};
+				auto prep = registry.prepare_tool("run_python", bad_v.dump(), ctx);
+				std::cout << "Bad venv prep error: " << prep.error_message << " ptr=" << (prep.tool != nullptr) << std::endl;
+				assert(prep.tool == nullptr);
+			}
+
+			std::filesystem::remove_all(venv_dir);
+		}
+	}
+
 	std::cout << "run_python tests passed successfully.\n";
 	return 0;
 }

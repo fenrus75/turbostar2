@@ -52,6 +52,15 @@ bool run_python_tool::validate_runtime(const agentlib::tool_context &ctx, std::s
 			return false;
 		}
 	}
+
+	// If a venv is requested, verify its interpreter exists.
+	if (args_.venv_dir) {
+		std::filesystem::path py = std::filesystem::path(*args_.venv_dir) / "bin" / "python";
+		if (!std::filesystem::exists(py)) {
+			out_error = "Virtual environment interpreter not found: " + py.string();
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -145,6 +154,11 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		runner.add_extra_rw_path(p.parent_path().string());
 	}
 
+	// If a venv is requested, expose it to the sandbox so its interpreter and site-packages are accessible.
+	if (args_.venv_dir) {
+		runner.add_extra_rw_path(*args_.venv_dir);
+	}
+
 	std::string script_path;
 
 	if (args_.code) {
@@ -154,10 +168,46 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		script_path = bandit_target_path;
 	}
 
-	std::string base_cmd;
+	std::string python_interp;
+	if (args_.venv_dir) {
+		python_interp = std::filesystem::path(*args_.venv_dir) / "bin" / "python";
+	} else {
+		python_interp = "python3";
+	}
 
-	// Check if uv is available
-	if (access("/usr/bin/uv", X_OK) == 0) {
+	// Install any requested dependencies into the active interpreter's environment before
+	// running the script. With an explicit venv we install into that venv; otherwise we rely on
+	// uv's ephemeral environment. If we have dependencies and no uv and no venv, we cannot satisfy them.
+	bool install_deps = !args_.dependencies.empty();
+	if (install_deps && args_.venv_dir) {
+		// Prefer 'uv pip install' into the venv; fall back to the venv's own pip.
+		std::string install_cmd;
+		if (access("/usr/bin/uv", X_OK) == 0) {
+			install_cmd = "uv pip install --python " + fs_utils::escape_shell_arg(python_interp) + " ";
+			for (const auto &dep : args_.dependencies) {
+				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
+			}
+		} else {
+			install_cmd = fs_utils::escape_shell_arg(python_interp) + " -m pip install ";
+			for (const auto &dep : args_.dependencies) {
+				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
+			}
+		}
+		sync_command_runner dep_runner;
+		dep_runner.apply_build_profile();
+		dep_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+		dep_runner.add_extra_rw_path(*args_.venv_dir);
+		dep_runner.set_timeout(args_.timeout);
+		std::string dep_output = dep_runner.execute_and_get_output(install_cmd);
+		if (dep_runner.get_exit_code() != 0) {
+			return "Dependency installation failed:\n" + dep_output;
+		}
+	}
+
+	std::string base_cmd;
+	if (args_.venv_dir) {
+		base_cmd = "PYTHONUNBUFFERED=1 " + fs_utils::escape_shell_arg(python_interp) + " -u ";
+	} else if (access("/usr/bin/uv", X_OK) == 0) {
 		base_cmd = "PYTHONUNBUFFERED=1 UV_HTTP_TIMEOUT=300 UV_NO_PROJECT=1 UV_CACHE_DIR=.turbostar/uv_cache UV_PROJECT_ENVIRONMENT=.turbostar/uv_env uv run ";
 		for (const auto &dep : args_.dependencies) {
 			base_cmd += "--with " + fs_utils::escape_shell_arg(dep) + " ";
