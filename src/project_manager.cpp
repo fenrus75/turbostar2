@@ -655,6 +655,16 @@ void project_manager::refresh_available_tests()
 		// Trim potential whitespace
 		line.erase(0, line.find_first_not_of(" \t\r\n"));
 		line.erase(line.find_last_not_of(" \t\r\n") + 1);
+		if (line.empty())
+			continue;
+		// `meson test --list` prefixes each test with a display-group label (e.g.
+		// "agent - turbostar:unit_..."). That prefix is not part of the runnable Meson
+		// test selector, so strip everything up to and including the first " - ". This keeps
+		// the returned names directly usable with `meson test <name>` (and by fs_run_tests).
+		auto sep = line.find(" - ");
+		if (sep != std::string::npos) {
+			line = line.substr(sep + 3);
+		}
 		if (!line.empty()) {
 			available_tests_.push_back(line);
 		}
