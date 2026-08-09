@@ -2,11 +2,13 @@
 
 #include "project_manager.h"
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <format>
 #include <regex>
 #include <sstream>
+#include <string_view>
 #include <thread>
 
 namespace tools {
@@ -157,6 +159,118 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 	}
 }
 
+// Parses Markdown headings into a hierarchical codemap symbol list.
+//
+// Markdown has no (cheap/external) LSP dependency here, but its section structure is
+// extremely predictable: lines starting with one or more '#' characters. We use these
+// as the "symbols" so agents looking at a Markdown document get the same outline
+// benefit that C++ files get from the LSP codemap. This is a tiny internal "mini-LSP".
+//
+// Heading level (number of leading '#') maps directly to outline depth, matching the
+// depth/indentation that structure_symbol_hierarchy produces for nested code symbols.
+static void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	std::vector<codemap_symbol_info> headings;
+	std::vector<int> stack; // heading levels forming the current ancestor chain
+
+	std::istringstream ss(content);
+	std::string line_text;
+	int line_no = 0;
+	while (std::getline(ss, line_text)) {
+		++line_no;
+		size_t first = line_text.find_first_not_of(" \t");
+		if (first == std::string::npos || line_text[first] != '#') {
+			continue;
+		}
+		// Count consecutive '#' to determine heading level.
+		size_t level = 0;
+		while (first + level < line_text.size() && line_text[first + level] == '#') {
+			++level;
+		}
+		if (level == 0 || level > 6) {
+			continue; // Not a valid ATX heading
+		}
+		// Must be followed by whitespace or end-of-line to be a heading (not a
+		// stray '#' inside a paragraph).
+		if (first + level < line_text.size() && line_text[first + level] != ' ' && line_text[first + level] != '\t') {
+			continue;
+		}
+		// Heading text: strip leading whitespace after the '#', trim trailing spaces
+		// and any trailing '#' set used for closing ATX headings (e.g. "## foo ##").
+		size_t text_start = first + level;
+		while (text_start < line_text.size() && (line_text[text_start] == ' ' || line_text[text_start] == '\t')) {
+			++text_start;
+		}
+		std::string heading = line_text.substr(text_start);
+		// Trim trailing whitespace. Also handle CRLF input (files read in binary mode
+		// leave a trailing '\r'), so a bare '\r' is treated as whitespace.
+		while (!heading.empty() && (heading.back() == ' ' || heading.back() == '\t' || heading.back() == '\r')) {
+			heading.pop_back();
+		}
+		// Strip a closing ATX hash sequence ("## foo #####"), which CommonMark allows:
+		// any run of trailing '#'s, as long as it's preceded by whitespace.
+		if (heading.ends_with('#')) {
+			size_t end_hashes = 0;
+			while (end_hashes < heading.size() && heading[heading.size() - 1 - end_hashes] == '#') {
+				++end_hashes;
+			}
+			// The hash run must be preceded by whitespace (or the very start) to count
+			// as a closing sequence.
+			if (end_hashes < heading.size() && (heading[heading.size() - 1 - end_hashes] == ' ' || heading[heading.size() - 1 - end_hashes] == '\t')) {
+				heading.resize(heading.size() - end_hashes);
+				while (!heading.empty() && (heading.back() == ' ' || heading.back() == '\t')) {
+					heading.pop_back();
+				}
+			}
+		}
+		if (heading.empty()) {
+			heading = line_text.substr(first, level);
+		}
+
+		// Compute depth as the heading level nested under shallower ancestors.
+		while (!stack.empty() && stack.back() >= static_cast<int>(level)) {
+			stack.pop_back();
+		}
+		int depth = static_cast<int>(stack.size());
+		stack.push_back(static_cast<int>(level));
+
+		headings.push_back({
+			.name = heading,
+			.display_name = (depth == 0) ? heading : std::string(depth * 4, ' ') + heading,
+			.kind_str = "Heading",
+			.start_line = line_no,
+			.end_line = line_no,
+			.line_count = 1,
+			.depth = depth,
+		});
+	}
+
+	// Apply min_lines. Every heading is a 1-line anchor, so the behavior is
+	// all-or-nothing: include the whole outline for min_lines <= 1, omit it entirely
+	// when min_lines > 1 (matching how tiny C++ getters are pruned at higher
+	// thresholds, and keeping the semantics simple/predictable).
+	if (min_lines <= 1) {
+		out.insert(out.end(), headings.begin(), headings.end());
+	} else {
+		for (const auto &h : headings) {
+			if (h.line_count >= min_lines) {
+				out.push_back(h);
+			}
+		}
+	}
+}
+
+// Returns true if a file path is a Markdown document by extension.
+static bool is_markdown_file(const std::string_view path)
+{
+	std::string ext = std::filesystem::path(path).extension().string();
+	// Lowercase for case-insensitive matching.
+	for (char &c : ext) {
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	}
+	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd";
+}
+
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::document_provider *doc_prov, int min_lines)
 {
 	std::vector<codemap_symbol_info> raw_symbols;
@@ -174,6 +288,16 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 		if (file.is_open()) {
 			content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 		}
+	}
+
+	// For Markdown, use our internal heading "mini-LSP" and skip the heavier generic
+	// LSP machinery entirely (there is typically no Markdown language server installed).
+	if (is_markdown_file(safe_path)) {
+		parse_markdown_headings(content, min_lines, raw_symbols);
+		std::sort(raw_symbols.begin(), raw_symbols.end(), [](const codemap_symbol_info &a, const codemap_symbol_info &b) {
+			return a.start_line < b.start_line;
+		});
+		return raw_symbols;
 	}
 
 	// Synchronize buffer with LSP

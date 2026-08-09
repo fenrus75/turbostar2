@@ -155,9 +155,71 @@ int main()
 		assert(formatted_table2.find("use fs_file_codemap") == std::string::npos);
 	}
 
+	// 12. Test Markdown mini-LSP: headings produce a codemap outline
+	std::string md_file = "test_sample.md";
+	{
+		std::ofstream out_md(md_file);
+		out_md << "# Top Heading\n\nSome intro text.\n\n"
+		       << "## Subsection A\n\nDetails about A.\n\n"
+		       << "### Deep Detail\n\nMore details.\n\n"
+		       << "## Subsection B\n\nDetails about B.\n"
+		       << "# Second Top\n\nText.\n";
+		out_md.close();
+	}
+
+	// Also create a file exercising closing ATX hash sequences and CRLF line endings,
+	// both of which must be stripped from heading text.
+	std::string md_edge_file = "test_sample_edges.md";
+	{
+		std::ofstream out_md(md_edge_file, std::ios::binary);
+		out_md << "## Closing Hashes ##\r\n"
+		       << "Intro line.\r\n"
+		       << "### Nested ###\r\n"
+		       << "Body.\r\n";
+		out_md.close();
+	}
+
+	nlohmann::json md_args = {{"path", md_file}};
+	std::string md_res = registry.execute_tool("fs_file_codemap", md_args.dump(), ctx);
+	std::cout << "fs_file_codemap markdown output:\n" << md_res << "\n";
+	assert(md_res.find("Codemap for `test_sample.md`") != std::string::npos);
+	assert(md_res.find("`Top Heading`") != std::string::npos);
+	assert(md_res.find("`    Subsection A`") != std::string::npos);
+	assert(md_res.find("`        Deep Detail`") != std::string::npos);
+	assert(md_res.find("`    Subsection B`") != std::string::npos);
+	assert(md_res.find("`Second Top`") != std::string::npos);
+	// Heading lines should be reported at their correct 1-based line numbers
+	assert(md_res.find("| `Top Heading` | 1 | 1 | 1 |") != std::string::npos);   // line 1
+	assert(md_res.find("| `    Subsection A` | 5 | 5 | 1 |") != std::string::npos); // line 5
+
+	// Test find_enclosing_symbol works on markdown headings
+	auto md_symbols = tools::get_document_codemap_symbols(md_file, ctx, 1);
+	assert(!md_symbols.empty());
+	const tools::codemap_symbol_info *enc_sub = tools::find_enclosing_symbol(md_symbols, 5); // line 5 in Subsection A region
+	assert(enc_sub != nullptr);
+
+	// Verify closing ATX hashes and CRLF are stripped from heading text
+	{
+		std::string md_edge_res = registry.execute_tool("fs_file_codemap", nlohmann::json{{"path", md_edge_file}}.dump(), ctx);
+		std::cout << "fs_file_codemap edge-case markdown output:\n" << md_edge_res << "\n";
+		// Closing hashes and '\r' must not leak into the symbol names
+		assert(md_edge_res.find("`Closing Hashes`") != std::string::npos);
+		assert(md_edge_res.find("`Closing Hashes##`") == std::string::npos);
+		assert(md_edge_res.find("\r`") == std::string::npos); // no stray CR before closing backtick
+		assert(md_edge_res.find("`    Nested`") != std::string::npos);
+	}
+
+	// Test a heading-only file has no false-positive class/function symbols
+	nlohmann::json md_empty_args = {{"path", md_file}, {"min_lines", 100}};
+	std::string md_empty_res = registry.execute_tool("fs_file_codemap", md_empty_args.dump(), ctx);
+	// With min_lines=100, 1-line headings are filtered out (matching the C++ behavior)
+	assert(md_empty_res.find("No functions, classes, or symbols found") != std::string::npos);
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());
+	std::remove(md_file.c_str());
+	std::remove(md_edge_file.c_str());
 
 	std::cout << "All fs_file_codemap tests passed successfully!\n";
 	return 0;
