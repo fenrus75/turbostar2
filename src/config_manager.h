@@ -150,6 +150,18 @@ class config_manager
 		shell_display_access_ = allow;
 	}
 
+	// When enabled, every approved `run_shell_command` execution is appended to a
+	// dedicated commands log file. This feeds the "you could have used <tool>" hint
+	// analysis (currently under development) by accumulating a corpus of real shell commands.
+	bool is_log_shell_commands() const
+	{
+		return log_shell_commands_;
+	}
+	void set_log_shell_commands(bool enabled)
+	{
+		log_shell_commands_ = enabled;
+	}
+
 	std::string get_main_executable() const;
 	void set_main_executable(const std::string &exe)
 	{
@@ -258,6 +270,7 @@ class config_manager
 	bool run_outside_sandbox_{false};
 	bool log_all_tool_calls_{false};
 	bool shell_display_access_{false};
+	bool log_shell_commands_{false};
 
 	mutable std::string main_executable_{""};
 	std::string primary_language_{"C++"};

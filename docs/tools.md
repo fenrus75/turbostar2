@@ -296,7 +296,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://out.md`) to save the converted output directly to disk.
 
 ### `run_shell_command`
-*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow.
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow. When the user is explicitly prompted for approval, the tool result includes the approval latency (e.g. `(approved by user in 2.4s)`) so the agent can gauge the interactive cost of shell access. If the "Log shell commands" preference is enabled, approved commands are appended to `~/.cache/turbostar/shell_commands.log`.
 *   **Arguments:**
     *   `command` *(string, required)*: The exact shell command to execute.
 

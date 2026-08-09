@@ -1,7 +1,13 @@
+#include <chrono>
+#include <cstring>
+#include <ctime>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <future>
+#include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include "../../agentlib/ai_agent.h"
 #include "../../agentlib/tool_context.h"
@@ -16,6 +22,78 @@ namespace tools
 // In-memory session permission manager
 static std::mutex g_perms_mutex;
 static std::unordered_map<std::string, char> g_command_perms; // 'A' = always allow, 'D' = deny always
+
+/*
+ * g_log_mutex protects the append-only command log file writes. The run_shell_command
+ * tool can be invoked concurrently (async worker thread + multiple agents), so all appends
+ * must be serialized to avoid interleaved/corrupt records and to make the shared
+ * std::localtime buffer access thread-safe.
+ */
+static std::mutex g_log_mutex;
+
+// Returns the path of the dedicated, append-only shell-command log file. Commands are
+// logged here (when cfg.is_log_shell_commands() is enabled) so that over time we can
+// build a corpus for the "you could have used <tool>" hint analysis.
+static std::filesystem::path get_shell_command_log_path()
+{
+	const char *home = std::getenv("HOME");
+	std::filesystem::path base = home ? std::filesystem::path(home) / ".cache" / "turbostar"
+					: std::filesystem::path(".cache") / "turbostar";
+	std::error_code ec;
+	std::filesystem::create_directories(base, ec); // best-effort; ignore errors
+	return base / "shell_commands.log";
+}
+
+// Escapes a value for the tab-separated, one-record-per-line log: tabs, newlines,
+// carriage returns, and backslashes are replaced with backslash escapes so a multi-line
+// command or a cwd containing these characters cannot break the record format or forge
+// extra records.
+static std::string escape_log_field(const std::string &value)
+{
+	std::string escaped;
+	escaped.reserve(value.size() + 8);
+	for (char c : value) {
+		switch (c) {
+		case '\\': escaped += "\\\\"; break;
+		case '\t': escaped += "\\t"; break;
+		case '\n': escaped += "\\n"; break;
+		case '\r': escaped += "\\r"; break;
+		default: escaped += c; break;
+		}
+	}
+	return escaped;
+}
+
+// Appends a single executed-command record (tab-separated) to the command log file.
+// Columns: date-time | approval label | working directory | command.
+// All fields are escaped so the corpus the "you could have used <tool>" analysis builds
+// stays well-formed. This is a best-effort telemetry side effect and must never throw: it
+// runs on the already-approved path, so any failure here must not abort the real command.
+static void append_command_to_log(const std::string &approval_label, const std::string &command)
+{
+	std::lock_guard<std::mutex> lock(g_log_mutex);
+
+	const std::time_t now = std::time(nullptr);
+	char time_buf[32];
+	if (const std::tm *tm_ptr = std::localtime(&now); tm_ptr != nullptr) {
+		std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", tm_ptr);
+	} else {
+		std::snprintf(time_buf, sizeof(time_buf), "unknown");
+	}
+
+	// current_path() can throw if the CWD was deleted; never let a logging side effect
+	// fail an approved command.
+	std::error_code ec;
+	std::filesystem::path cwd = std::filesystem::current_path(ec);
+	std::string cwd_str = ec ? std::string("(unknown)") : cwd.string();
+
+	std::ofstream log(get_shell_command_log_path(), std::ios::app);
+	if (!log.is_open()) {
+		return;
+	}
+	log << time_buf << '\t' << escape_log_field(approval_label) << '\t' << escape_log_field(cwd_str) << '\t'
+	    << escape_log_field(command) << '\n';
+}
 
 run_shell_command_tool::run_shell_command_tool(run_shell_command_args args) : args_(std::move(args))
 {
@@ -51,6 +129,10 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Permission denied by user to run this command (Blacklisted).";
 	}
 
+	// Measure how long the user takes to approve, so we can report it back to the LLM.
+	// We only time an actual prompt; a pre-approved ("Always") command skips the prompt.
+	std::string approval_label = "pre-approved";
+	std::string approval_note;
 	if (rule != 'A') {
 		if (!ctx.queue) {
 			return "Error: No event queue available to prompt the user for permission.";
@@ -65,6 +147,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		ev.prompt_options = {"Once", "Always", "Deny Always", "Deny"};
 		ev.prompt_promise = promise;
 
+		const auto t0 = std::chrono::steady_clock::now();
 		ctx.queue->push(ev);
 
 		std::string response;
@@ -73,6 +156,8 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		} catch (const std::exception &e) {
 			return std::string("Error: Failed to get user response - ") + e.what();
 		}
+		const auto t1 = std::chrono::steady_clock::now();
+		const double approve_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
 		if (response == "Deny") {
 			return "Error: Permission denied by user for this request.";
@@ -83,12 +168,23 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		} else if (response == "Always") {
 			std::lock_guard<std::mutex> lock(g_perms_mutex);
 			g_command_perms[args_.command] = 'A';
+			approval_label = "approved";
 		} else if (response != "Once") {
 			return "Error: Unknown response from user.";
+		} else {
+			approval_label = "approved";
 		}
+
+		// Report approval latency back to the LLM so it learns how disruptive a
+		// run_shell_command approval round-trip is (encouraging use of direct tools).
+		approval_note = std::format(" (approved by user in {:.1f}s)", approve_ms / 1000.0);
 	}
 
 	// Permission granted
+	if (config_manager::get_instance().is_log_shell_commands()) {
+		append_command_to_log(approval_label, args_.command);
+	}
+
 	auto runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update);
 	runner->apply_strict_agent_profile();
 	runner->set_allow_display(config_manager::get_instance().is_shell_display_access());
@@ -133,7 +229,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 						      true);
 			}
 		}).detach();
-		return "Command started in background. The output will be injected here when it completes.";
+		return "Command started in background. The output will be injected here when it completes." + approval_note;
 	}
 
 	// Execute directly: command_runner automatically escapes and wraps it via systemd-run ... -- bash -c '...'
@@ -157,7 +253,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return "```\n" + output + "\n```";
+	return "```\n" + output + "\n```" + approval_note;
 }
 
 } // namespace tools

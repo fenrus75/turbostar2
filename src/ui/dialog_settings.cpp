@@ -221,6 +221,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	if (log_tools)
 		cfg.set_log_all_tool_calls(*log_tools == "true");
 
+	auto log_shell = dlg.get_value("log_shell_commands");
+	if (log_shell)
+		cfg.set_log_shell_commands(*log_shell == "true");
+
 	auto sw_map = dlg.get_value("software_map");
 	if (sw_map)
 		cfg.set_software_map_enabled(*sw_map == "true");
@@ -290,6 +294,7 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	lsp_grp->add_child(std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
 	lsp_grp->add_child(std::make_unique<ui_checkbox>("auto_open_error", "Auto-open build errors", 'u', config_manager::get_instance().is_auto_open_error_files()));
 	lsp_grp->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd', config_manager::get_instance().is_shell_display_access()));
+	lsp_grp->add_child(std::make_unique<ui_checkbox>("log_shell_commands", "Log shell commands", 'h', config_manager::get_instance().is_log_shell_commands()));
 	tab3_flow->add_child(std::move(lsp_grp));
 	tabbed->add_tab_page("lsp", "LSP & Features", std::move(tab3_flow));
 
