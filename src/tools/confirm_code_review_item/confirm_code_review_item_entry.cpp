@@ -26,12 +26,14 @@ std::string confirm_code_review_item_tool::execute(agentlib::tool_context& ctx)
 
 	if (!success) {
 		set_failure(ctx, std::format("Error: Code review item with ID {} not found, or is not in a states allowed for confirmation/verification.", args_.id));
+		// Prefix with "Error: " so the agent run-loop classifies this as a failed tool result
+		// (is_error heuristic in ai_agent.cpp).
 		nlohmann::json err_json = {
 			{"id", args_.id},
 			{"status", "error"},
 			{"message", std::format("Code review item with ID {} not found or has invalid state for confirmation.", args_.id)}
 		};
-		return err_json.dump(2);
+		return "Error: " + err_json.dump(2);
 	}
 
 	// 2. Broadcast the codereview_updated event to the global event queue.

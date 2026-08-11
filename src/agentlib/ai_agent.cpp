@@ -1425,7 +1425,10 @@ void ai_agent::start_processing()
 						return;
 					}
 
-					self->current_tool_ = call.function.name;
+					{
+						std::lock_guard<std::mutex> lock(self->current_tool_mutex_);
+						self->current_tool_ = call.function.name;
+					}
 					self->set_status(agent_status::tool_execution);
 
 					std::string arg_preview;
@@ -1517,8 +1520,10 @@ void ai_agent::start_processing()
 						}
 					}
 
+					bool tool_failed = false;
 					if (!prep.error_message.empty()) {
 						tool_result = prep.error_message;
+						tool_failed = true;
 					} else {
 						try {
 							self->update_last_activity_time();
@@ -1529,6 +1534,7 @@ void ai_agent::start_processing()
 						} catch (const std::exception &e) {
 							self->update_last_activity_time();
 							tool_result = "Execution Error: " + std::string(e.what());
+							tool_failed = true;
 						}
 					}
 
@@ -1556,10 +1562,15 @@ void ai_agent::start_processing()
 					}
 
 					agentlib::tool_result res;
-					res.call_id = call.id;
-					res.name = call.function.name;
-					res.content = tool_result;
-					res.is_error = tool_result.starts_with("Error:") || tool_result.starts_with("Verification Error:");
+				res.call_id = call.id;
+				res.name = call.function.name;
+				res.content = tool_result;
+				// A tool result is an error if execution explicitly failed (exception or prep
+				// error) OR if the tool returned an error-prefixed string (the codebase convention
+				// for tools reporting failure without throwing). We include "Execution Error:" -
+				// the prefix used by the catch block - which the old heuristic missed.
+				res.is_error = tool_failed || tool_result.starts_with("Error:") ||
+					      tool_result.starts_with("Execution Error:") || tool_result.starts_with("Verification Error:");
 					
 					{
 						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
@@ -1570,7 +1581,10 @@ void ai_agent::start_processing()
 					auto temp_convo = self->get_conversation();
 					self->compact_ephemeral_errors(temp_convo);
 				}
-				self->current_tool_.clear();
+				{
+					std::lock_guard<std::mutex> lock(self->current_tool_mutex_);
+					self->current_tool_.clear();
+				}
 				self->set_status(agent_status::thinking);
 			} else {
 				auto msgs = response_turn->to_messages(model_capabilities{}, 0);

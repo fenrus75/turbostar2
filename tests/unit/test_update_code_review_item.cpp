@@ -94,7 +94,9 @@ void test_update_tool_execution()
 	                          "\"state\": \"confirmed\""
 	                          "}";
 	res_str = registry.execute_tool("update_code_review_item", bad_id_args, ctx);
-	nlohmann::json bad_id_res = nlohmann::json::parse(res_str);
+	// Failure returns are prefixed with "Error: " so the run-loop classifies them as failed
+	assert(res_str.starts_with("Error: "));
+	nlohmann::json bad_id_res = nlohmann::json::parse(res_str.substr(7));
 	assert(bad_id_res["status"].get<std::string>() == "error");
 
 	// Invalid state value

@@ -75,6 +75,9 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	}
 	std::string get_current_tool() const
 	{
+		// current_tool_ is written from the background processing thread and read from UI
+		// threads, so guard it against a read/write data race on std::string.
+		std::lock_guard<std::mutex> lock(current_tool_mutex_);
 		return current_tool_;
 	}
 
@@ -247,7 +250,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<agent_status> status_{agent_status::idle};
 	int waiting_on_id_{-1};
 	bool is_read_only_{false};
-	bool is_closed_{false};
+	std::atomic<bool> is_closed_{false};
 
 	/*
 	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
@@ -281,7 +284,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	};
 	void summary_worker_loop();
 
+	// current_tool_ is written from the background processing thread and read from UI threads;
+	// current_tool_mutex_ guards it against read/write races on the std::string.
 	std::string current_tool_;
+	mutable std::mutex current_tool_mutex_;
 
 	std::weak_ptr<ai_agent> parent_agent_;
 

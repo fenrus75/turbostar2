@@ -16,9 +16,36 @@
 namespace tools
 {
 
-static void run_verifier_async_thread(std::vector<std::shared_ptr<agentlib::ai_agent>> reviewer_agents, std::shared_ptr<agentlib::ai_agent> parent,
-				      perform_code_review_args args)
+// Boundary-aware file scoping: an item belongs to a reviewed file if its stored filename is
+// exactly the file, or lives under it as a directory prefix. A naive prefix match (starts_with)
+// wrongly attributes e.g. "src/foobar.h" to a review of "src/foo". Returns true if `item_file`
+// should be considered part of the reviewed `target_file`.
+static bool item_file_in_scope(const std::string &item_file, const std::string &target_file)
 {
+	if (item_file == target_file) {
+		return true;
+	}
+	return item_file.size() > target_file.size() && item_file.starts_with(target_file) &&
+	       item_file[target_file.size()] == '/';
+}
+
+static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak,
+				      std::weak_ptr<agentlib::ai_agent> parent_weak, perform_code_review_args args)
+{
+	// Lock the agents - they may have been destroyed by the time this thread runs if the
+	// caller/editor shut down in the meantime. Detached threads MUST NOT keep parent/context
+	// objects alive via strong shared_ptr (docs/thread-lifecycle.md Pattern C).
+	std::vector<std::shared_ptr<agentlib::ai_agent>> reviewer_agents;
+	for (const auto &w : reviewer_agents_weak) {
+		if (auto a = w.lock()) {
+			reviewer_agents.push_back(std::move(a));
+		}
+	}
+	auto parent = parent_weak.lock();
+	if (!parent || reviewer_agents.empty()) {
+		return;
+	}
+
 	// Wait for all reviewer agents to finish
 	for (auto &agent : reviewer_agents) {
 		agent->wait_until_idle();
@@ -54,6 +81,9 @@ static void run_verifier_async_thread(std::vector<std::shared_ptr<agentlib::ai_a
 	}
 	verifier_agent->set_role(agentlib::agent_role::verifier);
 	verifier_agent->set_model(verifier_model);
+	// The verifier uses confirm_code_review_item / list_code_review_items (code_review family);
+	// grant the family explicitly so availability does not depend on transient global state.
+	verifier_agent->add_active_tool_family("code_review");
 	// The verifier reports through report_final_result and its updates are bookkeeping;
 	// suppress noisy per-item parent injections (create stays terse but falls under this too
 	// for the background verifier).
@@ -171,6 +201,13 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		std::string agent_name = file_groups.size() > 1 ? std::format("Code Reviewer (Group {})", i + 1) : "Code Reviewer";
 		auto reviewer_agent = parent->spawn_subagent(agent_name);
 		if (!reviewer_agent) {
+			// A spawn failed partway through the groups: cancel/close any reviewers already
+			// started this iteration so they don't leak as orphaned background agents.
+			for (auto &started : reviewer_agents) {
+				started->cancel_current_task();
+				started->set_status(agentlib::agent_status::dead);
+				parent->remove_subagent(started->get_id());
+			}
 			return "Error: Failed to create code reviewer agent.";
 		}
 		reviewer_agent->set_role(agentlib::agent_role::reviewer);
@@ -190,7 +227,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		std::vector<review_item> relevant_items;
 		for (const auto &item : all_items) {
 			for (const auto &f : group_files) {
-				if (item.filename.starts_with(f)) {
+				if (item_file_in_scope(item.filename, f)) {
 					relevant_items.push_back(item);
 					break;
 				}
@@ -252,8 +289,15 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (args_.async) {
-		// Asynchronous: spawn all reviewers and the verifier in the background and return immediately
-		std::thread(run_verifier_async_thread, reviewer_agents, parent, args_).detach();
+		// Asynchronous: spawn all reviewers and the verifier in the background and return immediately.
+		// Pass weak refs so the detached thread does not keep the agents alive (Pattern C).
+		std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak;
+		for (const auto &a : reviewer_agents) {
+			reviewer_agents_weak.push_back(a);
+		}
+		std::thread(run_verifier_async_thread, std::move(reviewer_agents_weak), std::weak_ptr<agentlib::ai_agent>(parent),
+			    args_)
+		    .detach();
 		set_success(ctx);
 
 		std::string id_list;
@@ -277,8 +321,15 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	}
 	parent->set_status(old_status);
 
-	// Spawn Agent 2 (Verifier) asynchronously in the background as a sanity check
-	std::thread(run_verifier_async_thread, reviewer_agents, parent, args_).detach();
+	// Spawn Agent 2 (Verifier) asynchronously in the background as a sanity check.
+	// Pass weak refs so the detached thread does not keep the agents alive (Pattern C).
+	std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak;
+	for (const auto &a : reviewer_agents) {
+		reviewer_agents_weak.push_back(a);
+	}
+	std::thread(run_verifier_async_thread, std::move(reviewer_agents_weak), std::weak_ptr<agentlib::ai_agent>(parent),
+		    args_)
+	    .detach();
 
 	set_success(ctx);
 
@@ -305,7 +356,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		}
 		bool in_scope = false;
 		for (const auto &f : args_.files) {
-			if (item.filename.starts_with(f)) {
+			if (item_file_in_scope(item.filename, f)) {
 				in_scope = true;
 				break;
 			}
