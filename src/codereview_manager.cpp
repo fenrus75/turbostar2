@@ -135,6 +135,12 @@ std::string codereview_manager::get_current_git_hash() const
 	return result;
 }
 
+int codereview_manager::get_next_item_id() const
+{
+	std::shared_lock lock(mutex_);
+	return next_id_;
+}
+
 int codereview_manager::create_code_review_item(const std::string &summary, const std::string &filename, int line_number,
 						const std::string &line_content, const std::string &severity,
 						const std::string &description, const std::string &proposed_fix)

@@ -67,6 +67,11 @@ class codereview_manager : public document_listener
 	std::vector<review_item> list_code_review_items(const std::string &filename_filter = "", const std::string &severity_filter = "",
 							bool include_resolved = false) const;
 
+	// Returns the ID that will be assigned to the next created item. Callers can use this as a
+	// watermark to distinguish items created *after* a given point (e.g. by a single review run)
+	// from pre-existing/historical items.
+	int get_next_item_id() const;
+
 	// Check if there are any active (unresolved) code review items
 	bool has_active_items() const;
 

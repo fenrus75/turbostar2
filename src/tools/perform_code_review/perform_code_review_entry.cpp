@@ -104,6 +104,11 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 
 	auto parent = ctx.active_agent->shared_from_this();
 
+	// Watermark of the next item ID before we start spawning reviewers. The sync summary table
+	// uses this to report ONLY the findings created by this run, not pre-existing/historical
+	// items for the same files.
+	const int start_item_watermark = codereview_manager::get_instance().get_next_item_id();
+
 	// 1. Resolve reviewer model
 	std::string reviewer_model_id = config_manager::get_instance().get_task_model_id("code_reviewer");
 	auto reviewer_model = agentlib::ai_model_registry::get_instance().get_model(reviewer_model_id);
@@ -285,14 +290,19 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// Build a compact summary table of the findings created in this run, sourced from the
+	// Build a compact summary table of the findings created in THIS run, sourced from the
 	// review-item database (the reviewer persists every finding via create_code_review_item).
 	// This replaces the noisy per-item parent injections; the caller gets one clean result.
+	// The id watermark (captured before spawning reviewers) scopes the table to only the items
+	// created by this invocation, excluding pre-existing/historical findings for the same files.
 	auto all_items = codereview_manager::get_instance().list_code_review_items("", "", true);
 	std::string header = "Code review complete. Findings:\n";
 	std::string table = "| ID | severity | file:line | summary |\n|---|---|---|---|\n";
 	int shown = 0;
 	for (const auto &item : all_items) {
+		if (item.id < start_item_watermark) {
+			continue; // pre-existing item, not part of this run
+		}
 		bool in_scope = false;
 		for (const auto &f : args_.files) {
 			if (item.filename.starts_with(f)) {
@@ -309,7 +319,10 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		}
 		std::string clean_summary = item.summary;
 		std::replace(clean_summary.begin(), clean_summary.end(), '|', ' ');
-		clean_summary.erase(clean_summary.find_last_not_of(" \t\r\n") + 1);
+		auto last = clean_summary.find_last_not_of(" \t\r\n");
+		if (last != std::string::npos) {
+			clean_summary.erase(last + 1);
+		}
 		table += std::format("| {} | {} | {} | {} |\n", item.id, item.severity, location, clean_summary);
 		++shown;
 	}
