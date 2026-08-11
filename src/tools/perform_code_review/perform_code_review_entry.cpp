@@ -54,6 +54,10 @@ static void run_verifier_async_thread(std::vector<std::shared_ptr<agentlib::ai_a
 	}
 	verifier_agent->set_role(agentlib::agent_role::verifier);
 	verifier_agent->set_model(verifier_model);
+	// The verifier reports through report_final_result and its updates are bookkeeping;
+	// suppress noisy per-item parent injections (create stays terse but falls under this too
+	// for the background verifier).
+	verifier_agent->set_suppress_parent_injection(true);
 
 	std::string system_prompt =
 	    "You are a code review verification agent. Your task is to verify the code review findings reported by the reviewer agent.\n"
@@ -168,6 +172,10 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		reviewer_agent->set_model(reviewer_model);
 		reviewer_agent->add_active_tool_family("code_review");
 
+		// Findings are delivered via the toolcall result (sync) or report_final_result, so
+		// suppress per-item parent injections from the CRUD tools to avoid stream noise.
+		reviewer_agent->set_suppress_parent_injection(true);
+
 		if (!args_.result_file.empty()) {
 			reviewer_agent->set_allowed_write_file(args_.result_file);
 		}
@@ -269,57 +277,58 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 
 	set_success(ctx);
 
-	if (reviewer_agents.size() == 1) {
-		auto reviewer_agent = reviewer_agents[0];
+	// Gather per-reviewer failure status so we can surface any agent that errored out.
+	std::vector<std::string> failed_reviewers;
+	for (const auto &reviewer_agent : reviewer_agents) {
 		if (reviewer_agent->get_status() == agentlib::agent_status::error) {
-			return std::format("Code Reviewer Agent '{}' encountered an error during execution.", reviewer_agent->get_name());
+			failed_reviewers.push_back(reviewer_agent->get_name());
 		}
-
-		if (reviewer_agent->has_final_result()) {
-			return reviewer_agent->get_final_result();
-		}
-
-		const auto &interactions = reviewer_agent->get_interactions();
-		for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
-			auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
-			if (res) {
-				return res->get_text();
-			}
-		}
-
-		return std::format("Code Reviewer Agent '{}' completed successfully, but no final response was found.", reviewer_agent->get_name());
 	}
 
-	std::string combined_result;
-	for (const auto &reviewer_agent : reviewer_agents) {
-		if (!combined_result.empty()) {
-			combined_result += "\n\n---\n\n";
-		}
-		combined_result += std::format("### Reviewer Agent '{}' Result:\n", reviewer_agent->get_name());
-		if (reviewer_agent->get_status() == agentlib::agent_status::error) {
-			combined_result += "Encountered an error during execution.";
-			continue;
-		}
-		if (reviewer_agent->has_final_result()) {
-			combined_result += reviewer_agent->get_final_result();
-			continue;
-		}
-		bool found_resp = false;
-		const auto &interactions = reviewer_agent->get_interactions();
-		for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
-			auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
-			if (res) {
-				combined_result += res->get_text();
-				found_resp = true;
+	// Build a compact summary table of the findings created in this run, sourced from the
+	// review-item database (the reviewer persists every finding via create_code_review_item).
+	// This replaces the noisy per-item parent injections; the caller gets one clean result.
+	auto all_items = codereview_manager::get_instance().list_code_review_items("", "", true);
+	std::string header = "Code review complete. Findings:\n";
+	std::string table = "| ID | severity | file:line | summary |\n|---|---|---|---|\n";
+	int shown = 0;
+	for (const auto &item : all_items) {
+		bool in_scope = false;
+		for (const auto &f : args_.files) {
+			if (item.filename.starts_with(f)) {
+				in_scope = true;
 				break;
 			}
 		}
-		if (!found_resp) {
-			combined_result += "Completed successfully, but no final response was found.";
+		if (!in_scope) {
+			continue;
 		}
+		std::string location = item.filename;
+		if (item.line_number > 0) {
+			location = std::format("{}:{}", item.filename, item.line_number);
+		}
+		std::string clean_summary = item.summary;
+		std::replace(clean_summary.begin(), clean_summary.end(), '|', ' ');
+		clean_summary.erase(clean_summary.find_last_not_of(" \t\r\n") + 1);
+		table += std::format("| {} | {} | {} | {} |\n", item.id, item.severity, location, clean_summary);
+		++shown;
 	}
 
-	return combined_result;
+	if (shown == 0) {
+		header = "Code review complete. No findings were recorded for the reviewed files.\n";
+	}
+
+	if (!failed_reviewers.empty()) {
+		std::string errs;
+		for (size_t i = 0; i < failed_reviewers.size(); ++i) {
+			if (i > 0)
+				errs += ", ";
+			errs += "'" + failed_reviewers[i] + "'";
+		}
+		return header + table + "\nNote: reviewer agent(s) " + errs + " encountered an error.";
+	}
+
+	return header + table;
 }
 
 } // namespace tools

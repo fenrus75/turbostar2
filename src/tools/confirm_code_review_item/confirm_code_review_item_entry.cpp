@@ -34,16 +34,10 @@ std::string confirm_code_review_item_tool::execute(agentlib::tool_context& ctx)
 		return err_json.dump(2);
 	}
 
-	// 2. Thread-safe parent agent notification injection
-	if (ctx.active_agent) {
-		auto parent = ctx.active_agent->get_parent();
-		if (parent) {
-			std::string parent_msg = std::format("Subagent confirmed/verified code review item (ID: {}).", args_.id);
-			parent->inject_context("user", parent_msg, false);
-		}
-	}
-
-	// 3. Broadcast the codereview_updated event to the global event queue
+	// 2. Broadcast the codereview_updated event to the global event queue.
+	// NOTE: Deliberately no parent-context injection here. update/confirm/resolve are
+	// bookkeeping; per-item notifications were found to be noisy and redundant (the agent
+	// already gets results via toolcall returns / report_final_result).
 	if (ctx.queue) {
 		editor_event ev;
 		ev.type = event_type::codereview_updated;

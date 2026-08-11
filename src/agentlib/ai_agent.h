@@ -204,6 +204,13 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_notify_parent_on_completion(bool val);
 	bool is_notify_parent_on_completion() const;
 
+	// When set, agent tool calls made by this agent must not inject notifications into the
+	// parent's conversation stream. Used by orchestration (e.g. synchronous code review) where
+	// results are delivered via a toolcall return instead, so per-item injections would be
+	// redundant noise.
+	void set_suppress_parent_injection(bool val);
+	bool is_suppress_parent_injection() const;
+
 	std::string get_animation_name() const;
 	void set_animation_name(const std::string &name);
 
@@ -260,6 +267,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::string final_result_;
 	bool exit_implicitly_on_idle_{false};
 	bool notify_parent_on_completion_{true};
+	bool suppress_parent_injection_{false};
 	std::string animation_name_{"default"};
 
       private:

@@ -75,11 +75,11 @@ void test_update_tool_execution()
 	assert(item_opt->description == "Updated description");
 	assert(item_opt->proposed_fix == "Updated proposed fix");
 
-	// Verify parent agent received context injection
+	// Verify parent agent received NO context injection (update is silent bookkeeping by design)
 	auto parent_history = agent->get_conversation();
-	assert(!parent_history.empty());
-	assert(parent_history.back().role == "user");
-	assert(parent_history.back().content.find("Subagent updated code review item (ID: 1)") != std::string::npos);
+	for (const auto &msg : parent_history) {
+		assert(msg.content.find("Subagent updated code review item") == std::string::npos);
+	}
 
 	// Verify global event queue received codereview_updated event
 	auto ev_opt = q.pop();

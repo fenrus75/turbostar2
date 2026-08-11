@@ -3142,6 +3142,18 @@ bool ai_agent::is_notify_parent_on_completion() const
 	return notify_parent_on_completion_;
 }
 
+void ai_agent::set_suppress_parent_injection(bool val)
+{
+	std::lock_guard<std::mutex> lock(state_mutex_);
+	suppress_parent_injection_ = val;
+}
+
+bool ai_agent::is_suppress_parent_injection() const
+{
+	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
+	return suppress_parent_injection_;
+}
+
 std::string ai_agent::get_animation_name() const
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);

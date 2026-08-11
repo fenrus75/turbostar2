@@ -74,7 +74,8 @@ void test_create_tool_execution()
 	auto parent_history = agent->get_conversation();
 	assert(!parent_history.empty());
 	assert(parent_history.back().role == "user");
-	assert(parent_history.back().content.find("Subagent created a code review item (ID: 1)") != std::string::npos);
+	assert(parent_history.back().content.find("Subagent created code review item #1 (medium): src_test.cpp:3 - Lookout issue") !=
+	       std::string::npos);
 
 	// Verify global event queue received codereview_updated event
 	auto ev_opt = q.pop();
@@ -118,6 +119,37 @@ void test_create_tool_execution()
 	prep = registry.prepare_tool("create_code_review_item", bad_line_args, ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
+
+	// Test 3: Suppressed parent injection when the calling agent opts out
+	// (e.g. synchronous perform_code_review). The item must still be persisted and
+	// the UI event still broadcast, but no message may be injected into the parent.
+	size_t parent_msgs_before = agent->get_conversation().size();
+	subagent->set_suppress_parent_injection(true);
+	std::string suppressed_args = "{"
+				     "\"summary\": \"Silent issue\","
+				     "\"path\": \"src_test.cpp\","
+				     "\"line_number\": 5,"
+				     "\"severity\": \"low\","
+				     "\"description\": \"Should not notify parent\""
+				     "}";
+	std::string suppressed_res = registry.execute_tool("create_code_review_item", suppressed_args, ctx);
+	nlohmann::json suppressed_j = nlohmann::json::parse(suppressed_res);
+	assert(suppressed_j["id"].get<int>() == 2);
+	assert(suppressed_j["status"].get<std::string>() == "created");
+
+	// Item persisted despite suppression
+	auto suppressed_item = codereview_manager::get_instance().get_code_review_item(2);
+	assert(suppressed_item.has_value());
+	assert(suppressed_item->summary == "Silent issue");
+
+	// No new parent message injected
+	assert(agent->get_conversation().size() == parent_msgs_before);
+
+	// UI event still broadcast
+	auto ev_opt2 = q.pop();
+	assert(ev_opt2.has_value());
+	assert(ev_opt2->type == event_type::codereview_updated);
+	assert(ev_opt2->key_code == 2);
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");

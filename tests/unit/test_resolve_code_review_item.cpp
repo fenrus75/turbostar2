@@ -76,11 +76,11 @@ void test_resolve_tool_execution()
 	assert(item_opt->state == "resolved");
 	assert(item_opt->resolved_in_commit == "abcdef123456");
 
-	// Verify parent agent received context injection
+	// Verify parent agent received NO context injection (resolve is silent bookkeeping by design)
 	auto parent_history = agent->get_conversation();
-	assert(!parent_history.empty());
-	assert(parent_history.back().role == "user");
-	assert(parent_history.back().content.find("Subagent resolved code review item (ID: 1)") != std::string::npos);
+	for (const auto &msg : parent_history) {
+		assert(msg.content.find("Subagent resolved code review item") == std::string::npos);
+	}
 
 	// Verify global event queue received codereview_updated event
 	auto ev_opt = q.pop();

@@ -40,8 +40,8 @@ class perform_code_review_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Spawns a code reviewer agent to inspect a set of files, followed by an asynchronous verification agent to confirm "
-		       "findings.";
+		return "Spawns a code reviewer agent to inspect a set of files. In synchronous mode (default) the findings are returned "
+		       "directly as a summary-table toolcall result; set async=true to also launch a background verification agent.";
 	}
 
 	nlohmann::json get_parameters_schema() const override

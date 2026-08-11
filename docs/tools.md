@@ -751,7 +751,7 @@ These tools allow the agent to interact with the project's Git repository.
 ## 11. Code Review Tools
 
 ### `create_code_review_item`
-*   **Description:** Creates a new code review item in the database.
+*   **Description:** Creates a new code review item in the database. When called by a subagent, a single compact line is appended to the parent agent's context (format: `#ID (severity): file:line - summary`) unless the calling agent has parent-injection suppressed (e.g. inside a synchronous `perform_code_review`, where results arrive via the toolcall return instead).
 *   **Arguments:**
     *   `summary` *(string, required)*: Brief one-line summary of the issue.
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). File containing the issue.

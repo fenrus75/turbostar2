@@ -45,18 +45,16 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 	int item_id = codereview_manager::get_instance().create_code_review_item(
 	    args_.summary, args_.filename, args_.line_number, args_.line_content, args_.severity, args_.description, args_.proposed_fix);
 
-	// 3. Thread-safe parent agent notification injection
-	if (ctx.active_agent) {
+	// 3. Optional parent notification, kept deliberately SHORT (single line) so it serves as a
+	// lightweight "an item was filed" signal rather than duplicating the full finding (which is
+	// persisted in the DB and surfaced via list_code_review_items / toolcall returns).
+	// Suppressed entirely when the calling agent opts out via set_suppress_parent_injection()
+	// (e.g. synchronous perform_code_review, where results come back through the toolcall).
+	if (ctx.active_agent && !ctx.active_agent->is_suppress_parent_injection()) {
 		auto parent = ctx.active_agent->get_parent();
 		if (parent) {
-			std::string parent_msg =
-			    std::format("Subagent created a code review item (ID: {}):\n"
-					"- File: {}\n"
-					"- Line: {}\n"
-					"- Summary: {}\n"
-					"- Severity: {}\n"
-					"- Description: {}\n",
-					item_id, args_.filename, args_.line_number, args_.summary, args_.severity, args_.description);
+			std::string parent_msg = std::format("Subagent created code review item #{} ({}): {}:{} - {}", item_id,
+							     args_.severity, args_.filename, args_.line_number, args_.summary);
 			parent->inject_context("user", parent_msg, false);
 		}
 	}
