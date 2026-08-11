@@ -770,25 +770,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		needs_full_redraw_ = true;
 
-		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
-		if (item_opt) {
-			std::string msg = std::format("Notification: Code review item created/updated (ID: {}):\n"
-						      "- File: {}\n"
-						      "- Line: {}\n"
-						      "- Summary: {}\n"
-						      "- Severity: {}\n"
-						      "- Description: {}\n",
-						      item_opt->id, item_opt->filename, item_opt->line_number, item_opt->summary,
-						      item_opt->severity, item_opt->description);
-			for (auto &win : windows_) {
-				if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
-					auto agent = agent_win->get_agent();
-					if (agent) {
-						agent->inject_context("user", msg, false);
-					}
-				}
-			}
-		}
+		// NOTE: Deliberately no parent-context injection here. Findings are delivered to the
+		// agent via the toolcall result (synchronous perform_code_review) or the terse
+		// create_code_review_item notification. Broadcasting a verbose block to every agent
+		// window on every codereview_updated event was noisy and redundant.
 		return;
 	}
 
