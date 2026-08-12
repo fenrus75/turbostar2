@@ -1169,13 +1169,31 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 		}
 	}
 
-	if (status_ == agent_status::idle) {
+	// Wake a worker if we claimed the idle state. We deliberately wake ONLY from
+	// 'idle' and NOT from 'waiting': an agent in the waiting state is blocked
+	// inside a synchronously executing tool (e.g. wait_for_subagent /
+	// invoke_subagent wait=true) on its own run-loop thread, so starting a second
+	// worker here would process the same conversation concurrently (double
+	// response). That run-loop resumes on its own once the tool unblocks and
+	// picks up this prompt via its top-of-loop re-read, so queued prompts
+	// self-heal while waiting. start_processing()'s CAS claim is atomic
+	// (idle->thinking), so this cannot race the run-loop's own idle transition;
+	// and any prompt queued in the narrow window where the run-loop is finalizing
+	// a turn is caught by the drain guard inside start_processing()'s run loop.
+	if (status_.load(std::memory_order_acquire) == agent_status::idle) {
 		start_processing();
 	}
 }
 
 void ai_agent::start_processing()
 {
+	// Never spin up a fresh worker on a closed agent: close()/the destructor has
+	// already torn down the subagents and event queue, and any worker spawned
+	// after that would only exit immediately via its is_closed_ guard anyway.
+	if (is_closed_) {
+		return;
+	}
+
 	// Atomically check if we are already busy
 	agent_status expected = agent_status::idle;
 	if (!status_.compare_exchange_strong(expected, agent_status::thinking)) {
@@ -1227,6 +1245,14 @@ void ai_agent::start_processing()
 
 		std::string final_response;
 
+		// Drain-guard bookkeeping: last_processed_tx records the transaction this
+		// thread appended its response to. The drain guard at the bottom of the loop
+		// uses it to detect a user prompt queued (by submit_prompt) in the narrow
+		// window while the loop was finalizing a turn, so the prompt is never
+		// stranded. The outer for(;;) wraps while(true) purely so that the drain
+		// guard can 'continue' and restart a fresh turn.
+		std::shared_ptr<Transaction> last_processed_tx = nullptr;
+		for (;;) {
 		while (true) {
 			if (self->is_closed_) {
 				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
@@ -1484,14 +1510,20 @@ void ai_agent::start_processing()
 						is_silent = false;
 					}
 
-					// Provide UI update callback for long-running tools
-					ctx.trigger_ui_update = [this_ptr = self.get()]() {
-						this_ptr->update_last_activity_time();
-						if (this_ptr->global_queue_) {
+					// Provide UI update callback for long-running tools. Captures the
+					// strong reference (self) instead of a raw ai_agent*: async tools
+					// (e.g. fs_compile_project / fs_compile_file) copy
+					// ctx.trigger_ui_update into detached helper threads that can
+					// outlive this run-loop turn. With a raw pointer, a concurrent
+					// close()/destruction while the helper thread is still running
+					// would dereference freed memory (use-after-free).
+					ctx.trigger_ui_update = [self]() {
+						self->update_last_activity_time();
+						if (self->global_queue_) {
 							editor_event ev;
 							ev.type = event_type::agent_tool_update;
-							ev.key_code = this_ptr->id_;
-							this_ptr->global_queue_->push(ev);
+							ev.key_code = self->id_;
+							self->global_queue_->push(ev);
 						}
 					};
 
@@ -1622,6 +1654,10 @@ void ai_agent::start_processing()
 					continue; // Loop around to instantly process the queued user prompt!
 				}
 
+				// Record the transaction this turn finalized so the drain guard below
+				// can detect a prompt queued while the turn was winding down.
+				last_processed_tx = active_tx;
+
 				self->evaluate_compaction();
 				self->evaluate_auto_episode(convo);
 				break;
@@ -1644,14 +1680,40 @@ void ai_agent::start_processing()
 						 self->id_, self->name_, is_subagent, self->has_final_result(),
 						 self->is_exit_implicitly_on_idle());
 
-		// Subagents (ephemeral task agents) transition to the terminal 'dead' state upon recording a final result.
-		// Main interactive session agents must ALWAYS return to the 'idle' state so that the user can send follow-up prompts.
-		if (is_subagent && self->has_final_result()) {
-			self->set_status(agent_status::dead);
-		} else {
-			self->set_final_result(""); // Reset transient final result for interactive main agent turns
-			self->set_status(agent_status::idle);
+		// Drain guard: submit_prompt() can queue a user transaction concurrently
+		// with this thread deciding to exit the loop. Prompt insertion
+		// (submit_prompt) and this re-check both serialize on conversation_mutex_,
+		// so any prompt queued before the guard runs is observed here and the loop
+		// is restarted (via 'continue' on the outer for(;;)) instead of exiting -
+		// otherwise the prompt would be stranded with no worker left to process it.
+		//
+		// We also perform the idle/dead transition while still holding
+		// conversation_mutex_: this is the other half of the same handshake. A
+		// submit_prompt() that was blocked on the mutex and inserts *after* the
+		// guard releases will observe status idle and successfully wake a fresh
+		// worker via start_processing(). Lock order here is conversation-mutex then
+		// state-mutex, matching set_model(); this cannot deadlock.
+		{
+			std::lock_guard<std::mutex> guard(self->conversation_mutex_);
+			if (self->conversation_ && self->conversation_->get_current_episode() &&
+			    !self->conversation_->get_current_episode()->get_transactions().empty() &&
+			    self->conversation_->get_current_episode()->get_transactions().back() != last_processed_tx) {
+				continue; // restart the outer for(;;) -> re-run the turn loop to drain the queued prompt
+			}
+
+			// Subagents (ephemeral task agents) transition to the terminal 'dead' state upon
+			// recording a final result. Main interactive session agents must ALWAYS return to
+			// the 'idle' state so that the user can send follow-up prompts.
+			if (is_subagent && self->has_final_result()) {
+				self->set_status(agent_status::dead);
+			} else {
+				self->set_final_result(""); // Reset transient final result for interactive main agent turns
+				self->set_status(agent_status::idle);
+			}
+			break; // confirmed exit - no queued work pending
 		}
+		} // end outer for(;;) drain loop
+
 		event_logger::get_instance().log("Agent {} ended run loop. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
 						 self->tokens_tx_.load(), self->tokens_rx_.load(), self->tokens_cached_.load());
 

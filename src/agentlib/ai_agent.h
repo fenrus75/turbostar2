@@ -1,10 +1,14 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -177,9 +181,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return global_queue_;
 	}
 
-#include <span>
-#include <string_view>
-
 	void save_conversation(const std::string &filepath) const;
 	void page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
 			      const std::vector<std::string> &tags);
@@ -217,6 +218,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::string get_animation_name() const;
 	void set_animation_name(const std::string &name);
 
+	// Returns the last activity timestamp in milliseconds. NOTE: this is not a wall-clock
+	// timestamp; it is std::chrono::steady_clock::now().time_since_epoch() expressed in
+	// milliseconds (a monotonic relative tick count). Consumers (e.g. the UI) must only use
+	// it for relative comparisons against values produced by the same steady_clock basis.
 	long long get_last_activity_time_ms() const
 	{
 		return last_activity_time_ms_.load();
@@ -254,12 +259,13 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	/*
 	 * state_mutex_ protects the agent's interactive state and lifecycle resources,
-	 * including subagents_, active_skills_, original_system_prompt_,
-	 * interactions_, final_result_, exit_implicitly_on_idle_, notify_parent_on_completion_,
-	 * and animation_name_.
+	 * including subagents_, active_skills_, original_system_prompt_, interactions_,
+	 * final_result_, exit_implicitly_on_idle_, notify_parent_on_completion_,
+	 * animation_name_, and allowed_write_file_.
 	 * Locking Rules:
 	 * - Held during status changes, subagent spawning/management,
-	 *   modifications to the implicit exit and notification flags, and animation name changes.
+	 *   modifications to the implicit exit and notification flags, animation name changes,
+	 *   and reads/writes of the allowed_write_file_ restriction.
 	 * - status_cv_ is used in conjunction with state_mutex_ for waiting until the agent is idle.
 	 */
 	mutable std::mutex state_mutex_;
@@ -348,6 +354,15 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::atomic<long long> last_activity_time_ms_{0};
 
 	std::string task_description_;
+
+	/*
+	 * properties_mutex_ protects the agent's role/profile properties inside the
+	 * properties_ struct (properties_.read_only, properties_.role, and
+	 * properties_.active_families), accessed via get/set_properties(),
+	 * get/set_read_only(), get/set_role(), and the tool family helpers.
+	 * Locking Rules:
+	 * - Held briefly when reading or mutating the properties_ struct.
+	 */
 	mutable std::mutex properties_mutex_;
 	agent_properties properties_;
 	std::string allowed_write_file_;
