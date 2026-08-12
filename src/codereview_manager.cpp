@@ -78,8 +78,16 @@ void codereview_manager::load_project(const std::string &project_root_path)
 			next_id_ = j["next_id"].get<int>();
 		}
 		if (j.contains("items") && j["items"].is_array()) {
+			// Parse each record defensively: one malformed/truncated item must NOT discard the
+			// rest of the review history. Skip and log just the offending record, preserving the
+			// valid items that follow.
 			for (const auto &item_j : j["items"]) {
-				items_.push_back(item_j.get<review_item>());
+				try {
+					items_.push_back(item_j.get<review_item>());
+				} catch (const std::exception &e) {
+					event_logger::get_instance().log(
+					    std::format("Skipping malformed code review item during load: {}", e.what()));
+				}
 			}
 		}
 	} catch (const std::exception &e) {
