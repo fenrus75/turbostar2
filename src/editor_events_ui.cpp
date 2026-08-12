@@ -524,11 +524,16 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::agent_switch_model) {
+		// key_code carries the AGENT id (see command_registry model_command). Resolve
+		// the target using the active window's agent id for robustness against the
+		// window-id vs agent-id mismatch on subagent windows.
 		int target_id = ev.key_code;
 		if (target_id == 0) {
 			window *active_win = get_active_window();
-			if (dynamic_cast<agent_window *>(active_win)) {
-				target_id = active_win->get_id();
+			if (auto awin = dynamic_cast<agent_window *>(active_win)) {
+				if (auto agent = awin->get_agent()) {
+					target_id = agent->get_id();
+				}
 			}
 		}
 

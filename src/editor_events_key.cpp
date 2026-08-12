@@ -631,13 +631,15 @@ void editor::resolve_dialog(dialog_result res)
 			if (res_str != "cancel" && switching_agent_id_ != -1) {
 				auto new_model = agentlib::ai_model_registry::get_instance().get_model(res_str);
 				if (new_model) {
+					// switching_agent_id_ holds an AGENT id: find the window whose agent
+					// matches it. Window ids differ from agent ids on subagent windows,
+					// so matching against win->get_id() would miss them (or, with
+					// windows_.size()+1 id reuse, hit the wrong window).
 					for (auto &win : windows_) {
-						if (win->get_id() == switching_agent_id_) {
-							auto awin = dynamic_cast<agent_window *>(win.get());
-							if (awin && awin->get_agent()) {
-								awin->get_agent()->set_model(new_model);
-								break;
-							}
+						auto awin = dynamic_cast<agent_window *>(win.get());
+						if (awin && awin->get_agent() && awin->get_agent()->get_id() == switching_agent_id_) {
+							awin->get_agent()->set_model(new_model);
+							break;
 						}
 					}
 				}

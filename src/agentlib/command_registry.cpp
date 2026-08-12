@@ -38,7 +38,10 @@ class model_command : public agent_command
 	{
 		editor_event ev;
 		ev.type = event_type::agent_switch_model;
-		ev.key_code = ctx.window_id;
+		// Carry the AGENT id, not the window id: window ids (windows_.size()+1) differ
+		// from subagent ids and can be reused, so resolving against them is fragile.
+		// The dialog confirm handler matches against the agent id within each window.
+		ev.key_code = ctx.agent ? ctx.agent->get_id() : ctx.window_id;
 		ctx.global_queue->push(ev);
 	}
 };
