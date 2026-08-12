@@ -512,6 +512,7 @@ void ai_agent::set_status(agent_status s, int target_id)
 {
 	agent_status old_status = agent_status::idle;
 	int parent_id = -1;
+	std::vector<std::shared_ptr<ai_agent>> subs_to_kill;
 	{
 		std::lock_guard<std::mutex> lock(state_mutex_);
 		old_status = status_;
@@ -529,11 +530,22 @@ void ai_agent::set_status(agent_status s, int target_id)
 		// must also be terminated immediately to clean up background execution
 		// threads and prevent resource leaks. The termination must cascade
 		// recursively down the entire agent spawning hierarchy.
+		//
+		// IMPORTANT: Only collect the subagent references under state_mutex_; the
+		// actual close()/set_status() calls happen OUTSIDE the lock. close() acquires
+		// conversation_mutex_/background_transport_mutex_, and set_model() locks those
+		// in the opposite order (conversation_mutex_ then state_mutex_). Invoking
+		// close()/set_status() on subagents while still holding our own state_mutex_
+		// creates a lock-order inversion that can deadlock two threads mutating this
+		// agent and a subagent concurrently.
 		if (s == agent_status::dead) {
-			for (auto &sub : subagents_) {
-				sub->close();
-				sub->set_status(agent_status::dead);
-			}
+			subs_to_kill = subagents_;
+		}
+	}
+	if (!subs_to_kill.empty()) {
+		for (const auto &sub : subs_to_kill) {
+			sub->close();
+			sub->set_status(agent_status::dead);
 		}
 	}
 	status_cv_.notify_all();
