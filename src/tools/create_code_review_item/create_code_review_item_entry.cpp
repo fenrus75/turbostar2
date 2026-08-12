@@ -24,20 +24,48 @@ bool create_code_review_item_tool::validate_runtime(const agentlib::tool_context
 
 std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 {
-	// 1. Resolve line content from file if line number was specified but no content was supplied
+	// 1. Resolve line content from file if line number was specified but no content was supplied.
+	//    safe_path may be a plain disk path OR a VFS URI (tmp://, system://, github://, ...).
+	//    std::ifstream cannot open VFS URIs, so route those through the VFS reader.
 	if (args_.line_number > 0 && args_.line_content.empty() && !args_.safe_path.empty()) {
-		std::ifstream f(args_.safe_path);
-		if (f.is_open()) {
-			std::string line;
-			int current = 1;
-			while (std::getline(f, line)) {
-				if (current == args_.line_number) {
-					args_.line_content = line;
-					break;
+		std::string line_content;
+		if (args_.safe_path.find("://") != std::string::npos) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (vfs) {
+				auto view_opt = vfs->read_file(args_.safe_path);
+				if (view_opt) {
+					std::string_view view = view_opt.value()->view();
+					int current = 1;
+					for (size_t start = 0; start <= view.size();) {
+						size_t nl = view.find('\n', start);
+						std::string_view ln = (nl == std::string_view::npos) ? view.substr(start) : view.substr(start, nl - start);
+						if (current == args_.line_number) {
+							line_content = std::string(ln);
+							break;
+						}
+						if (nl == std::string_view::npos)
+							break;
+						current++;
+						start = nl + 1;
+					}
 				}
-				current++;
 			}
-			f.close();
+		} else {
+			std::ifstream f(args_.safe_path);
+			if (f.is_open()) {
+				std::string line;
+				int current = 1;
+				while (std::getline(f, line)) {
+					if (current == args_.line_number) {
+						line_content = line;
+						break;
+					}
+					current++;
+				}
+			}
+		}
+		if (!line_content.empty()) {
+			args_.line_content = line_content;
 		}
 	}
 
