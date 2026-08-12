@@ -103,7 +103,8 @@ enum class event_type {
 	prompt_insert_file,	    ///< Request to insert a file into a multiline edit buffer
 	image_manager,		    ///< Request to show the image VFS manager dialog
 	a2a_config,		    ///< Request to show A2A server configuration dialog
-	rescan_subagents	    ///< Request to hot-reload custom subagents from disk
+	rescan_subagents,	    ///< Request to hot-reload custom subagents from disk
+	run_on_main		    ///< Internal: execute a callable on the main UI thread (generic_promise carries a std::packaged_task)
 };
 
 namespace status_priorities

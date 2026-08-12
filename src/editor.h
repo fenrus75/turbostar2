@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <functional>
+#include <future>
 #include <limits>
 #include <map>
 #include <memory>
@@ -153,6 +154,31 @@ class editor : public agentlib::document_provider
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
+
+	// Executes the given lambda on the MAIN UI thread, blocking the caller until it
+	// completes. window_/document_/dialog state must only be touched from the main
+	// thread, but several run-control APIs (write_to_run, get_run_screenshot,
+	// wait_for_app, ...) are invoked directly from agent background threads when an
+	// LLM calls the corresponding tool. Routing these through this helper (which
+	// hands the lambda to the main thread via the global event queue and waits on a
+	// promise) removes that data race. No-op when already on the main thread.
+	template <typename T> T run_on_main_thread(std::function<T()> fn)
+	{
+		if (is_main_thread()) {
+			return fn();
+		}
+		// Hand the callable to the main UI thread inside a std::packaged_task. Its future
+		// is fulfilled when the main thread invokes the task (see dispatch's
+		// run_on_main handling), so blocking on fut.get() here is how the background
+		// thread waits for the result. Works for both void and non-void return types.
+		auto task = std::make_shared<std::packaged_task<T()>>(std::move(fn));
+		auto fut = task->get_future();
+		editor_event ev;
+		ev.type = event_type::run_on_main;
+		ev.generic_promise = task;
+		global_queue_.push(ev);
+		return fut.get();
+	}
 	void open_file_as_text(std::string_view filename);
 	void open_file_as_binary(std::string_view filename);
 	void open_prompt_in_editor(ui_multiline_edit *edit, std::string_view initial_text);

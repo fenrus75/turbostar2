@@ -128,6 +128,17 @@ void editor::dispatch(const editor_event &ev)
 		needs_full_redraw_ = true;
 	}
 	switch (ev.type) {
+		case event_type::run_on_main: {
+			// Execute a packaged task handed over from a background thread and let it
+			// fulfill its promise so the caller unblocks. Handled directly here because
+			// it must run on the main/UI thread (not dispatched to the generic UI
+			// handler, which may be entered from other contexts).
+			auto task = std::static_pointer_cast<std::packaged_task<void()>>(ev.generic_promise);
+			if (task) {
+				(*task)();
+			}
+			break;
+		}
 		case event_type::mouse_click:
 		case event_type::mouse_double_click:
 		case event_type::mouse_triple_click:

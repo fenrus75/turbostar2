@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <sstream>
 #include <sys/socket.h>
+#include <tuple>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -1005,6 +1006,10 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 ui::terminal_window *editor::find_terminal_window(int run_id)
 {
+	// NOTE: This returns a RAW pointer into windows_ and is only safe to call when the
+	// entire operation happens on the main/UI thread. Run-control public APIs route
+	// their full bodies through run_on_main_thread, so this helper is only invoked from
+	// the main thread in practice.
 	for (auto &win : windows_) {
 		if (win->get_id() == run_id) {
 			return dynamic_cast<ui::terminal_window *>(win.get());
@@ -1015,63 +1020,76 @@ ui::terminal_window *editor::find_terminal_window(int run_id)
 
 bool editor::write_to_run(int run_id, std::string_view data)
 {
-	auto *tw = find_terminal_window(run_id);
-	if (!tw)
-		return false;
-	int fd = tw->get_pty_master_fd();
-	if (fd < 0 || !tw->is_alive())
-		return false;
-	tw->reset_last_modified();
-	ssize_t w = write(fd, data.data(), data.size());
-	return (w == static_cast<ssize_t>(data.size()));
+	// Marshal the whole body onto the main thread so windows_ (and the window object
+	// reached through it) are only ever touched there, removing the data race with
+	// background agent threads. Fast path: already on the main thread.
+	return run_on_main_thread<bool>([this, run_id, data = std::string(data)]() {
+		auto *tw = find_terminal_window(run_id);
+		if (!tw)
+			return false;
+		int fd = tw->get_pty_master_fd();
+		if (fd < 0 || !tw->is_alive())
+			return false;
+		tw->reset_last_modified();
+		ssize_t w = write(fd, data.data(), data.size());
+		return (w == static_cast<ssize_t>(data.size()));
+	});
 }
 
 agentlib::run_screenshot_data editor::get_run_screenshot(int run_id)
 {
-	auto *tw = find_terminal_window(run_id);
-	agentlib::run_screenshot_data res;
-	if (tw) {
-		auto snap = tw->get_screenshot();
-		res.grid = snap.grid;
-		res.cursor_x = snap.cursor_x;
-		res.cursor_y = snap.cursor_y;
-		res.cursor_visible = snap.cursor_visible;
-		res.is_alive = tw->is_alive();
-	} else {
-		res.is_alive = false;
-	}
+	return run_on_main_thread<agentlib::run_screenshot_data>([this, run_id]() {
+		auto *tw = find_terminal_window(run_id);
+		agentlib::run_screenshot_data res;
+		if (tw) {
+			auto snap = tw->get_screenshot();
+			res.grid = snap.grid;
+			res.cursor_x = snap.cursor_x;
+			res.cursor_y = snap.cursor_y;
+			res.cursor_visible = snap.cursor_visible;
+			res.is_alive = tw->is_alive();
+		} else {
+			res.is_alive = false;
+		}
 
-	crashdump_manager::get_instance().refresh("");
-	auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
-	if (!dumps.empty()) {
-		res.crash_notification = crashdump_manager::format_crash_notification(dumps);
-	}
-	return res;
+		crashdump_manager::get_instance().refresh("");
+		auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+		if (!dumps.empty()) {
+			res.crash_notification = crashdump_manager::format_crash_notification(dumps);
+		}
+		return res;
+	});
 }
 
 int64_t editor::get_run_last_modified_age(int run_id)
 {
-	auto *tw = find_terminal_window(run_id);
-	if (!tw)
-		return -1;
-	return tw->get_milliseconds_since_last_modification();
+	return run_on_main_thread<int64_t>([this, run_id]() {
+		auto *tw = find_terminal_window(run_id);
+		if (!tw)
+			return int64_t{-1};
+		return tw->get_milliseconds_since_last_modification();
+	});
 }
 
 void editor::set_run_recording(int run_id, bool recording)
 {
-	auto *tw = find_terminal_window(run_id);
-	if (tw) {
-		tw->set_recording(recording);
-	}
+	run_on_main_thread<void>([this, run_id, recording]() {
+		auto *tw = find_terminal_window(run_id);
+		if (tw) {
+			tw->set_recording(recording);
+		}
+	});
 }
 
 std::vector<std::string> editor::get_run_recorded_data(int run_id)
 {
-	auto *tw = find_terminal_window(run_id);
-	if (tw) {
-		return tw->get_recorded_data();
-	}
-	return {};
+	return run_on_main_thread<std::vector<std::string>>([this, run_id]() {
+		auto *tw = find_terminal_window(run_id);
+		if (tw) {
+			return tw->get_recorded_data();
+		}
+		return std::vector<std::string>{};
+	});
 }
 
 bool editor::terminate_run(int run_id)
@@ -1135,39 +1153,54 @@ agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view 
 	auto start = std::chrono::steady_clock::now();
 	auto max_dur = std::chrono::seconds(timeout_sec);
 
+	// Snapshot the alive+age state on the main thread. windows_ and the terminal
+	// window objects must only be touched on the main thread, so even the is_alive
+	// check is marshaled rather than using the raw pointer from find_terminal_window.
+	// Returns {found, is_alive, age_ms}.
+	auto snapshot_run_state = [this, run_id]() -> std::tuple<bool, bool, int64_t> {
+		return run_on_main_thread<std::tuple<bool, bool, int64_t>>([this, run_id]() {
+			auto *tw = find_terminal_window(run_id);
+			if (!tw) {
+				return std::make_tuple(false, false, int64_t{-1});
+			}
+			return std::make_tuple(true, tw->is_alive(), tw->get_milliseconds_since_last_modification());
+		});
+	};
+
 	while (true) {
 		auto now = std::chrono::steady_clock::now();
 		if (now - start >= max_dur) {
 			res.status = "timeout";
-			res.age_ms = get_run_last_modified_age(run_id);
-			auto *tw = find_terminal_window(run_id);
-			if (tw) {
-				res.is_alive = tw->is_alive();
-			}
+			auto [found, alive, age] = snapshot_run_state();
+			res.age_ms = age;
+			res.is_alive = found ? alive : false;
 			break;
 		}
 
-		// Refresh crash dumps and check if any crashdump matches this run_id
+		// Refresh crash dumps and check if any crashdump matches this run_id.
+		// crashdump_manager is internally mutex-protected (thread-safe), so the refresh
+		// can run here on the agent thread; only the windows_ state is marshaled.
 		crashdump_manager::get_instance().refresh("");
 		auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
 		if (!dumps.empty()) {
 			res.status = "ended";
-			res.age_ms = get_run_last_modified_age(run_id);
-			res.is_alive = false;
+			auto [found, alive, age] = snapshot_run_state();
+			res.age_ms = age;
+			res.is_alive = found ? alive : false;
 			res.crash_notification = crashdump_manager::format_crash_notification(dumps);
 			break;
 		}
 
-		auto *tw = find_terminal_window(run_id);
-		if (!tw) {
+		auto [found, alive, age] = snapshot_run_state();
+		if (!found) {
 			res.status = "not_found";
 			break;
 		}
 
-		res.is_alive = tw->is_alive();
-		res.age_ms = tw->get_milliseconds_since_last_modification();
+		res.is_alive = alive;
+		res.age_ms = age;
 
-		if (!res.is_alive) {
+		if (!alive) {
 			res.status = "ended";
 			crashdump_manager::get_instance().refresh("");
 			auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
@@ -1177,7 +1210,7 @@ agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view 
 			break;
 		}
 
-		if (type == "settled" && res.age_ms >= 500) {
+		if (type == "settled" && age >= 500) {
 			res.status = "settled";
 			break;
 		}
