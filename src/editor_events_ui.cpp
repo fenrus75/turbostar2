@@ -816,6 +816,16 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::prompt_user) {
 		logger.log("Dispatching prompt_user event.");
+		// If a previous ask_user prompt is still pending (its promise has not been
+		// resolved), the calling agent thread is blocked on future.get() waiting for
+		// it. Overwriting active_ask_user_promise_ would strand that thread forever
+		// (silent deadlock of the agent's ask_user tool). Resolve the old promise
+		// with the established "cancel" result ("") so the blocked agent returns,
+		// then adopt the new prompt.
+		if (active_ask_user_promise_) {
+			active_ask_user_promise_->set_value("");
+			active_ask_user_promise_.reset();
+		}
 		active_ask_user_promise_ = ev.prompt_promise;
 		active_dialog_ = create_ask_user_dialog(ev.payload, ev.prompt_options);
 		active_dialog_mode_ = dialog_mode::ask_user;
