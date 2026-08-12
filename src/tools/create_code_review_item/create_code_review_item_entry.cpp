@@ -1,9 +1,9 @@
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/ai_agent.h"
-#include "../../agentlib/interactions/action.h"
-#include "../../codereview_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/interactions/action.h"
+#include "codereview_manager.h"
 #include "create_code_review_item.h"
 
 namespace tools
