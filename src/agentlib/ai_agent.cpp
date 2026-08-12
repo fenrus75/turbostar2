@@ -141,7 +141,12 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 	if (!is_mutation_possible())
 		return {};
 
-	std::vector<const episode_index_entry *> paged_out;
+	// Copy the candidate entries BY VALUE while holding the lock. Raw pointers into
+	// episode_index_ must not be retained past the lock scope: the map is mutated
+	// (clear_conversation, snapshot_episode, page_out_context, set_episode_state,
+	// load_episode_index) and could be rehashed/invalidated between the collection
+	// and the deferred use below, leaving dangling pointers.
+	std::vector<episode_index_entry> paged_out;
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
 		for (const auto &pair : episode_index_) {
@@ -153,13 +158,13 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 				}
 			}
 			if (is_paged_out) {
-				paged_out.push_back(&pair.second);
+				paged_out.push_back(pair.second);
 			}
 		}
 	}
 
 	std::sort(paged_out.begin(), paged_out.end(),
-		  [](const episode_index_entry *a, const episode_index_entry *b) { return a->episode_seq > b->episode_seq; });
+		  [](const episode_index_entry &a, const episode_index_entry &b) { return a.episode_seq > b.episode_seq; });
 
 	int current_tokens = calculate_current_tokens();
 	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
@@ -169,27 +174,27 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 
 	std::vector<std::string> paged_in_ids;
 
-	for (const auto *entry : paged_out) {
+	for (const auto &entry : paged_out) {
 		int ep_tokens = 0;
 		if (default_level == 0)
-			ep_tokens = entry->tokens_level_0;
+			ep_tokens = entry.tokens_level_0;
 		else if (default_level == 1)
-			ep_tokens = entry->tokens_level_1;
+			ep_tokens = entry.tokens_level_1;
 		else if (default_level == 2)
-			ep_tokens = entry->tokens_level_2;
+			ep_tokens = entry.tokens_level_2;
 		if (ep_tokens <= 0)
-			ep_tokens = entry->tokens_level_0;
+			ep_tokens = entry.tokens_level_0;
 
-		int old_tokens = static_cast<int>((entry->title.size() + entry->summary.size()) / 4 + 50);
+		int old_tokens = static_cast<int>((entry.title.size() + entry.summary.size()) / 4 + 50);
 		int net_change = ep_tokens - old_tokens;
 		if (net_change < 0) net_change = 0;
 
 		event_logger::get_instance().log(std::format("  [debug page_in_history_auto] entry={}, ep_tokens={}, old_tokens={}, net_change={}, sum={}",
-			entry->id, ep_tokens, old_tokens, net_change, current_tokens + net_change));
+			entry.id, ep_tokens, old_tokens, net_change, current_tokens + net_change));
 		if (current_tokens + net_change <= limit_tokens) {
-			if (set_episode_state(entry->id, default_level)) {
+			if (set_episode_state(entry.id, default_level)) {
 				current_tokens += net_change;
-				paged_in_ids.push_back(entry->id);
+				paged_in_ids.push_back(entry.id);
 			}
 		} else {
 			break;
