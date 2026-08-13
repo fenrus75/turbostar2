@@ -9,6 +9,28 @@
 namespace tools
 {
 
+// Sanitize untrusted (LLM-supplied) text before it is interpolated into the parent agent's
+// context. The summary/filename arrive from the model and could theoretically contain control
+// characters or newlines that would break out of the single-line notification or be interpreted
+// as instruction text (prompt-injection surface). We strip CR/LF/tabs and all C0 control chars,
+// keep the bytes printable, and clamp long summaries to a bounded length so the injected line
+// stays small and predictable.
+static std::string sanitize_for_parent_line(const std::string &text, size_t max_len = 200)
+{
+	std::string out;
+	out.reserve(text.size());
+	for (unsigned char c : text) {
+		if (c < 32 || c == 127) {
+			continue; // strip CR, LF, tab and all other C0 control characters
+		}
+		out.push_back(static_cast<char>(c));
+	}
+	if (out.size() > max_len) {
+		out.resize(max_len);
+	}
+	return out;
+}
+
 create_code_review_item_tool::create_code_review_item_tool(create_code_review_item_args args)
     : llm_tool_action("Creating code review item for " + args.filename), args_(std::move(args))
 {
@@ -81,8 +103,13 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 	if (ctx.active_agent && !ctx.active_agent->is_suppress_parent_injection()) {
 		auto parent = ctx.active_agent->get_parent();
 		if (parent) {
+			// file/summary are untrusted (model-supplied): strip control chars and clamp length
+			// before interpolation so the notification cannot smuggle instructions or newlines
+			// into the parent's context (prompt-injection hardening).
+			std::string safe_summary = sanitize_for_parent_line(args_.summary);
+			std::string safe_filename = sanitize_for_parent_line(args_.filename);
 			std::string parent_msg = std::format("Subagent created code review item #{} ({}): {}:{} - {}", item_id,
-							     args_.severity, args_.filename, args_.line_number, args_.summary);
+							     args_.severity, safe_filename, args_.line_number, safe_summary);
 			parent->inject_context("user", parent_msg, false);
 		}
 	}

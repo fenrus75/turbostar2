@@ -27,6 +27,13 @@ namespace agentlib {
 | image_export_tool | src/tools/image_export/image_export.h |
 | fs_purge_tmp_tool | src/tools/fs_purge_tmp/fs_purge_tmp.h |
 | agent_wait_for_app_tool | src/tools/agent_wait_for_app/agent_wait_for_app.h |
+| perform_code_review_tool | src/tools/perform_code_review/perform_code_review.h |
+| create_code_review_item_tool | src/tools/create_code_review_item/create_code_review_item.h |
+| update_code_review_item_tool | src/tools/update_code_review_item/update_code_review_item.h |
+| confirm_code_review_item_tool | src/tools/confirm_code_review_item/confirm_code_review_item.h |
+| resolve_code_review_item_tool | src/tools/resolve_code_review_item/resolve_code_review_item.h |
+| get_code_review_item_tool | src/tools/get_code_review_item/get_code_review_item.h |
+| list_code_review_items_tool | src/tools/list_code_review_items/list_code_review_items.h |
 */
 class llm_tool_action : public llm_tool {
 public:

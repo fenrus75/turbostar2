@@ -2,8 +2,10 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <thread>
+#include <utility>
 #include "../../agentlib/ai_agent.h"
 #include "../../agentlib/interactions/llm_response.h"
 #include "../../codereview_manager.h"
@@ -27,6 +29,30 @@ static bool item_file_in_scope(const std::string &item_file, const std::string &
 	}
 	return item_file.size() > target_file.size() && item_file.starts_with(target_file) &&
 	       item_file[target_file.size()] == '/';
+}
+
+// Filter out files that cannot be meaningfully reviewed (missing, directories, binary,
+// empty, or oversized - i.e. anything fs_utils::count_lines_in_file reports "" or 0 for).
+// Spawning a reviewer agent on such files wastes a subagent and yields no findings; the
+// grouping logic computes line counts from exactly this function, so screening here keeps
+// validate_runtime() and execute() consistent. The caller has already enforced read access
+// via fs_security in the validator; we additionally require is_regular_file at this layer so
+// we never hand a directory to the reviewer.
+static bool is_file_reviewable(const std::filesystem::path &full_path)
+{
+	std::error_code ec;
+	if (!std::filesystem::is_regular_file(full_path, ec) || ec) {
+		return false;
+	}
+	std::string line_count_str = fs_utils::count_lines_in_file(full_path.string());
+	if (line_count_str.empty()) {
+		return false; // missing, binary, empty, or > 20MB
+	}
+	try {
+		return std::stoi(line_count_str) > 0;
+	} catch (...) {
+		return false;
+	}
 }
 
 static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak,
@@ -106,6 +132,19 @@ static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_age
 		task_prompt += "- " + f + "\n";
 	}
 	verifier_agent->submit_prompt(task_prompt);
+
+	// The verifier — unlike reviewers spawned synchronously by the caller — is created on this
+	// detached thread and has NO owner that will reap it. spawn_subagent() appends it to the
+	// parent's subagents_ vector, and the framework has NO auto-removal: subagents transition to
+	// the terminal 'dead' state but stay in subagents_ until an explicit remove_subagent().
+	// Wait for it to finish, then detach it from the parent so it doesn't accumulate forever in
+	// parent->subagents_ and surface as a zombie subagent to the user. `parent` here is the
+	// shared_ptr locked from parent_weak at the top of this function and is still valid because
+	// the parent agent outlives this detached thread (we only hold weak refs to reviewers and
+	// re-lock parent each run). Removal is idempotent: the id simply won't match if the parent
+	// already reaped it via set_status(dead) cascade, in which case erase() is a no-op.
+	verifier_agent->wait_until_idle();
+	parent->remove_subagent(verifier_agent->get_id());
 }
 
 perform_code_review_tool::perform_code_review_tool(perform_code_review_args args)
@@ -137,7 +176,20 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	// Watermark of the next item ID before we start spawning reviewers. The sync summary table
 	// uses this to report ONLY the findings created by this run, not pre-existing/historical
 	// items for the same files.
+	//
+	// The watermark alone cannot perfectly isolate concurrent review runs: a reviewer from a
+	// *parallel* run could create items with ids >= start_item_watermark that do not belong to
+	// THIS run (item ids are strictly increasing and shared across all runs). To tighten this
+	// without touching the review_item schema (owned by codereview_manager), we additionally
+	// snapshot the exact set of ids that exist right now. Items in that set were definitely
+	// created by prior runs and are excluded even if they satisfy the watermark; the summary
+	// therefore only shows items that existed at neither watermark nor snapshot time. Perfect
+	// attribution would require a per-run token in the schema, which is out of scope here.
+	std::set<int> pre_existing_ids;
 	const int start_item_watermark = codereview_manager::get_instance().get_next_item_id();
+	for (const auto &item : codereview_manager::get_instance().list_code_review_items("", "", true)) {
+		pre_existing_ids.insert(item.id);
+	}
 
 	// 1. Resolve reviewer model
 	std::string reviewer_model_id = config_manager::get_instance().get_task_model_id("code_reviewer");
@@ -149,7 +201,27 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		reviewer_model = parent->get_model();
 	}
 
-	// Group the files: groups of at most 10 files OR cumulative line count of 1500 lines.
+	// Pre-screen the requested files: skip anything that cannot be meaningfully reviewed
+	// (missing, directories, binary, empty, or > 20MB). Reading/grouping these doomed files
+	// previously spawned reviewer agents that had nothing to review; we log each skip so the
+	// operator can see the file was intentionally excluded. The grouping below only ever sees
+	// validated, readable files. If everything was non-reviewable, fail loudly with a clear
+	// message instead of quietly returning a "no findings" table.
+	std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
+	std::vector<std::string> reviewable_files;
+	for (const auto &f : args_.files) {
+		if (is_file_reviewable(workspace_root / f)) {
+			reviewable_files.push_back(f);
+		} else {
+			event_logger::get_instance().log(
+			    std::format("Skipping non-reviewable file '{}': not a regular, readable, non-binary text file.", f));
+		}
+	}
+	if (reviewable_files.empty()) {
+		return "Error: None of the requested files can be reviewed (missing, unreadable, binary, empty, or oversized).";
+	}
+
+	// Group the reviewable files: groups of at most 10 files OR cumulative line count of 1500 lines.
 	// Scope Constraint: Do NOT split within a file (no intra-file splitting).
 	// If a single file itself has >1500 lines, it goes into its own group as-is.
 	std::vector<std::vector<std::string>> file_groups;
@@ -157,9 +229,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	int current_file_count = 0;
 	int current_line_count = 0;
 
-	std::filesystem::path workspace_root(project_manager::get_instance().get_project_root());
-
-	for (const auto &f : args_.files) {
+	for (const auto &f : reviewable_files) {
 		std::filesystem::path full_path = workspace_root / f;
 		int line_count = 0;
 		std::string line_count_str = fs_utils::count_lines_in_file(full_path.string());
@@ -296,7 +366,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 			reviewer_agents_weak.push_back(a);
 		}
 		std::thread(run_verifier_async_thread, std::move(reviewer_agents_weak), std::weak_ptr<agentlib::ai_agent>(parent),
-			    args_)
+			    std::move(args_))
 		    .detach();
 		set_success(ctx);
 
@@ -344,8 +414,11 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	// Build a compact summary table of the findings created in THIS run, sourced from the
 	// review-item database (the reviewer persists every finding via create_code_review_item).
 	// This replaces the noisy per-item parent injections; the caller gets one clean result.
-	// The id watermark (captured before spawning reviewers) scopes the table to only the items
-	// created by this invocation, excluding pre-existing/historical findings for the same files.
+	// Two complementary filters scope the table to items created by THIS invocation only:
+	//   (1) the id watermark captured before spawning reviewers, and
+	//   (2) the exact set of ids that existed before the run (pre_existing_ids), which catches
+	//       items a concurrent review run created with ids >= the watermark. Without schema-level
+	//       per-run attribution this is the tightest isolation available in this file.
 	auto all_items = codereview_manager::get_instance().list_code_review_items("", "", true);
 	std::string header = "Code review complete. Findings:\n";
 	std::string table = "| ID | severity | file:line | summary |\n|---|---|---|---|\n";
@@ -353,6 +426,9 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	for (const auto &item : all_items) {
 		if (item.id < start_item_watermark) {
 			continue; // pre-existing item, not part of this run
+		}
+		if (pre_existing_ids.contains(item.id)) {
+			continue; // created by a concurrent run after the watermark, not by this one
 		}
 		bool in_scope = false;
 		for (const auto &f : args_.files) {
