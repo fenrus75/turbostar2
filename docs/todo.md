@@ -17,6 +17,26 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- we need to update our internal testlist if meson.build changes (timestamp?)
+	- project_manager caches get_available_tests() behind tests_ready_ with no invalidation
+	- refresh when the meson.build mtime changes (and also refresh on a missed-lookup in fs_run_tests)
+	- the same cache feeds system://project/testlist.md, so fixing it at project_manager covers the VFS path too
+
+- agent read tools (fs_read_lines, fs_file_codemap, git_diff_*/git_status) can serve a STALE editor buffer for
+  files that were just written by tools; after an agent edits a file the buffer snapshot is not refreshed,
+  so reads may show pre-edit or missing content. Ideas: (a) invalidate the open-document snapshot for a path
+  after fs_write_file/fs_replace_content/fs_replace_lines writes; (b) compare file mtime vs buffer mtime and
+  log/read from disk when stale; (c) surface "read from disk vs read from open buffer" in fs_read_lines output.
+
+- fs_run_tests (and system://project/testlist.md) return false "No tests matched" for newly-added tests until
+  editor restart because the test list is cached; add a refresh-on-missed-lookup retry and/or an explicit
+  refresh parameter so newly registered tests are discoverable without restarting.
+
+- fs_file_codemap silently truncates to "Top N of total" symbols; add a full:true option (or make it default
+  for small files / markdown) so whole-file section indexes can be seen when auditing for duplicates/gaps.
+
+- dual launch race condition on the crash file
+
 - we should time and report how long the user took to respond to run_shell_command tools to discourage their use by the agent
 
 - we should have an option to keep a log of all run_shell_command strings
