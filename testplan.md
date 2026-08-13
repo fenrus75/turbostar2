@@ -1,6 +1,6 @@
 # agentlib Unit Test Plan
 
-> **Status**: Inventory & gap-analysis (initial)
+> **Status**: Inventory & gap-analysis complete; 3 of 12 priorities done (llm_client, ai_agent state surface, record/replay transports)
 > **Last updated**: 2026-08-12
 > **Purpose**: Restart point for the "add unit tests for key agentlib classes/methods" effort. If we crash or lose context, resume from here.
 
@@ -107,20 +107,20 @@ Public methods (from header):
 
 Free functions in ai_agent.cpp: `parse_turns`, `get_last_50_words`, `is_episode_boundary_message` — all 🔴 (internal/anonymous, hard to reach directly).
 
-**Key gap**: massive. The 30 existing agent tests cover mostly `create`, `inject_context`, `page_*`, conversation get/set, and a handful of flags. All the "session persistence" methods (save/load active state, episode index, memory index), stat/token accounting, interaction management, role/properties, subagent management, and status/activity helpers are essentially uncovered.
+**Gap status**: The state/accessor/admin surface is now covered by `test_ai_agent_state.cpp` (status transitions, waiting-on-id, model round-trip, token/cost defaults, `increment_stat`/`get_stats`, interactions, read_only/role/properties, allowed_write_file, state flags + animation, last-activity time, `get_current_tool`, registry lifecycle incl. `get_all_active_agents`/`find_agent_by_id`, conversation accessors, `clear_conversation`, spawn/remove subagent + parent linking). Still uncovered: the "session persistence" methods (`save_active_state`/`load_active_state`, `load_episode_index`, `get_memory_index`, `snapshot_episode`, `update_episode_hint`, `page_out_prior_context`, `set_episode_state`, `calculate_current_tokens`, `inject_archived_episodes_summary`, `force_compaction`/`evaluate_compaction`, `save_conversation`) — see priority #3 (`test_ai_agent_episodes.cpp`, not yet written).
 
 ### 1.2 llm_client (src/agentlib/llm_client.h / llm_client.cpp — 147 lines)
 
 | Method | Coverage | Where exercised |
 |---|---|---|
-| `llm_client` ctor | ⚠️ | `test_exit_summarization.cpp` includes header (via agent) but no direct unit test; agentcli main.cpp uses it |
+| `llm_client` ctor | ✅ | `test_llm_client.cpp` |
 | `~llm_client` | — | default dtor |
-| `send_chat` | 🔴 | NO direct unit test (only via agentcli E2E replay) |
-| `send_chat_stream` | 🔴 | NO direct unit test |
-| `cancel` | 🔴 | NO direct unit test |
-| `compact_response` | 🔴 | NO direct unit test |
+| `send_chat` | ✅ | `test_llm_client.cpp` (aggregation, empty convo, transport-failure, copilot routing) |
+| `send_chat_stream` | ✅ | `test_llm_client.cpp` (per-delta delivery, empty-content delta) |
+| `cancel` | ✅ | `test_llm_client.cpp` (no-op before connection; closes after) |
+| `compact_response` | ✅ | `test_llm_client.cpp` (unsupported path + Responses API success/failure) |
 
-**Key gap**: `llm_client` has *no* dedicated unit test despite being the central LLM-facing wrapper. Best approach: use `recording_transport`/`replay_transport` + the existing `mock_transport` pattern from `test_api_formatter.cpp` to drive `send_chat`, `send_chat_stream`, `cancel`, `compact_response`.
+**Note**: `test_llm_client.cpp` drives `send_chat`/`send_chat_stream` via the `mock_transport` pattern copied from `test_api_formatter.cpp`, with no network required. Recording/replay coverage is handled by `test_record_replay_transports.cpp` (section 1.7).
 
 ### 1.3 ai_model (src/agentlib/ai_model.h / ai_model.cpp — 346 lines)
 
@@ -193,15 +193,15 @@ Good coverage — low priority, but `cancel()` untested.
 
 | Method | Coverage |
 |---|---|
-| `recording_transport::post` | 🔴 |
-| `recording_transport::post_stream` | 🔴 |
-| `append_to_log` | 🔴 |
-| `replay_transport` ctor | 🔴 |
-| `replay_transport::post` | 🔴 |
-| `replay_transport::post_stream` | 🔴 |
-| `detect_api_type` | 🔴 |
+| `recording_transport::post` | ✅ `test_record_replay_transports.cpp` |
+| `recording_transport::post_stream` | ✅ `test_record_replay_transports.cpp` |
+| `append_to_log` | ✅ `test_record_replay_transports.cpp` (record→replay round-trip) |
+| `replay_transport` ctor | ✅ `test_record_replay_transports.cpp` (valid/missing/malformed file) |
+| `replay_transport::post` | ✅ `test_record_replay_transports.cpp` (sequencing, past-end 404) |
+| `replay_transport::post_stream` | ✅ `test_record_replay_transports.cpp` (single-chunk delivery, 404) |
+| `detect_api_type` | ✅ `test_record_replay_transports.cpp` |
 
-**Gap**: Entirely untested. These are the E2E record/replay backbone (used by `agentcli_record`/`agentcli_replay`). A test here enables testing llm_client without network.
+**Note**: Fully covered. These are the E2E record/replay backbone (used by `agentcli_record`/`agentcli_replay`); the round-trip test also enables testing llm_client without network.
 
 ### 1.8 file_security_manager (file_security_manager.cpp — 227 lines)
 
@@ -345,26 +345,27 @@ Medium — add serialization round-trip tests for each turn type, plus time-rang
 
 ## 2. Priority backlog (ordered)
 
-1. **`llm_client`** — new `tests/unit/test_llm_client.cpp`
-   - Cover: ctor, `send_chat`, `send_chat_stream`, `cancel`, `compact_response`.
-   - Strategy: local `mock_transport` (like `test_api_formatter.cpp`) that emits canned stream chunks for `post_stream` and canned bodies for `post`; verify `send_chat` aggregates content/reasoning/tool_calls/usage/response_id; `send_chat_stream` delivers deltas; `cancel` closes connection; `compact_response` with unsupported → error message; `compact_response` with response connection → function dispatched.
-   - Also exercise with `replay_transport` against a recorded traffic file (record via local LLM + `agentcli_record`).
+1. ~~**`llm_client`** — new `tests/unit/test_llm_client.cpp`~~ ✅ DONE (see Done section)
+   - ~~Cover: ctor, `send_chat`, `send_chat_stream`, `cancel`, `compact_response`.~~
+   - ~~Strategy: local `mock_transport` (like `test_api_formatter.cpp`) that emits canned stream chunks for `post_stream` and canned bodies for `post`; verify `send_chat` aggregates content/reasoning/tool_calls/usage/response_id; `send_chat_stream` delivers deltas; `cancel` closes connection; `compact_response` with unsupported → error message; `compact_response` with response connection → function dispatched.~~
+   - ~~Also exercise with `replay_transport` against a recorded traffic file (record via local LLM + `agentcli_record`).~~
 
-2. **`ai_agent` state/persistence/session methods** — new `tests/unit/test_ai_agent_state.cpp` (or extend existing)
-   - Cover (currently 🔴): `set_status`/`get_status` transitions, `get_current_tool`, `get_waiting_on_id`, `get_all_active_agents`/`find_agent_by_id` (registry), `get_tokens_tx/rx/cached/active`, `get_estimated_cost`, `get_compaction_segments`, `get_current_system_prompt`, `get_last_boundary_prob`, `get_last_inference_duration_ms`, `increment_stat`/`get_stats`, `get_interactions`/`add_interaction`, role/properties accessors, `get_allowed_write_file`/`set_allowed_write_file`, `is_mutation_possible`, task_description flags, animation name, activity time, `get_episode_index`, `get_conversation_data`, `agent_status_to_string/name`.
-   - Many are simple getters/setters → cheap, high value for a first pass.
+2. ~~**`ai_agent` state/persistence/session methods** — new `tests/unit/test_ai_agent_state.cpp`~~ ✅ DONE for the state/accessor/admin surface (see Done section). The persistence/episode sub-items listed below remain, now tracked under priority #3:
+   - ~~Cover (currently 🔴): `set_status`/`get_status` transitions, `get_current_tool`, `get_waiting_on_id`, `get_all_active_agents`/`find_agent_by_id` (registry), `get_tokens_tx/rx/cached/active`, `get_estimated_cost`, `get_compaction_segments`, `get_current_system_prompt`, `get_last_boundary_prob`, `get_last_inference_duration_ms`, `increment_stat`/`get_stats`, `get_interactions`/`add_interaction`, role/properties accessors, `get_allowed_write_file`/`set_allowed_write_file`, `is_mutation_possible`, task_description flags, animation name, activity time, `get_episode_index`, `get_conversation_data`, `agent_status_to_string/name`.~~
+   - ~~Many are simple getters/setters → cheap, high value for a first pass.~~
 
-3. **`ai_agent` session persistence & episode machinery** — new `tests/unit/test_ai_agent_episodes.cpp`
+3. **`ai_agent` session persistence & episode machinery** — new `tests/unit/test_ai_agent_episodes.cpp**
    - Cover: `save_active_state`/`load_active_state`/`load_episode_index`/`get_memory_index`, `snapshot_episode`, `update_episode_hint`, `page_out_prior_context`, `set_episode_state`, `calculate_current_tokens`, `inject_archived_episodes_summary`, `force_compaction`/`evaluate_compaction`, `save_conversation`.
+   - Also cover `get_episode_index`+`get_conversation_data` (were listed in priority #2 but moved here as session/episode-flavored).
    - Note: several of these write to `~/.cache/turbostar/` based on agent name — MUST use `test_watchdog::isolate_home()` / scoped home so parallel runs don't collide.
 
 4. **`ai_agent` lifecycle/subagent/admin** — extend existing tests (e.g. new `tests/unit/test_ai_agent_lifecycle.cpp`)
    - Cover: `replace_tool_result`, `cancel_current_task`, `close`, `remove_subagent`, `clear_conversation` behavior, `wait_until_idle` with status wires, `get_all_active_agents` cleanup after `close`.
    - `cancel_current_task` + `close` need a slow mock server (pattern from `test_exit_summarization.cpp`).
 
-5. **`recording_transport` / `replay_transport`** — new `tests/unit/test_record_replay_transports.cpp`
-   - Cover: replay ctor on valid/invalid/missing file; `post` sequential playback; `post_stream` chunk delivery; end-of-file → 404 + last_error; `detect_api_type` (responses/gemini/copilot/openai); recording_transport `post` forwards + `append_to_log` round-trip (write then replay-read).
-   - Directly unblocks llm_client replay testing.
+5. ~~**`recording_transport` / `replay_transport`** — new `tests/unit/test_record_replay_transports.cpp`~~ ✅ DONE (see Done section)
+   - ~~Cover: replay ctor on valid/invalid/missing file; `post` sequential playback; `post_stream` chunk delivery; end-of-file → 404 + last_error; `detect_api_type` (responses/gemini/copilot/openai); recording_transport `post` forwards + `append_to_log` round-trip (write then replay-read).~~
+   - ~~Directly unblocks llm_client replay testing.~~
 
 6. **`interactions/base.cpp` `wrap_text` + `render` + subclasses** — new `tests/unit/test_interactions_render.cpp`
    - Cover: `wrap_text` prefix/suffix/wrapping/color, `get_height`, `render` cache invalidation, `set_boxed`, `set_age`, `can_merge_with_previous`, and `format_lines` for action/image_tool/terminal/tool_interaction/reasoning/system_message/user_message/llm_response.
@@ -391,7 +392,15 @@ Medium — add serialization round-trip tests for each turn type, plus time-rang
 
 ## 3. Done
 
-(none yet — starting fresh)
+- ✅ **Priority 5 — recording/replay transports** — `tests/unit/test_record_replay_transports.cpp`
+  - 7 test fns covering: replay ctor (valid/missing/malformed file → no-throw), `post` sequential playback + string/object body handling + past-end 404 + `last_error`, `post_stream` single-chunk 200 delivery + 404, `detect_api_type` (responses/gemini/copilot/openai), recording `post` forward+append (streaming not logged), record→replay round-trip.
+  - Self-contained: generates all traffic JSON into a `test_watchdog::scoped_test_home` temp dir.
+- ✅ **Priority 1 — llm_client** — `tests/unit/test_llm_client.cpp`
+  - 10 scenarios: ctor, `send_chat` aggregation (content/reasoning/tool_calls/usage/response_id + path), per-delta `send_chat_stream` delivery, empty conversation, empty-content delta ignore, transport-failure error event, `cancel` no-op/close, copilot endpoint routing, `compact_response` unsupported + Responses API success/failure.
+  - Uses the `mock_transport` pattern from `test_api_formatter.cpp` — no network.
+- ✅ **Priority 2 (state/accessor/admin surface) — ai_agent** — `tests/unit/test_ai_agent_state.cpp`
+  - 15 scenarios covering `agent_status_to_string/name`, create getters, status transitions + waiting-on-id, model round-trip, token/cost defaults, `increment_stat`/`get_stats`, interactions, read_only/role/properties, allowed_write_file + `is_mutation_possible`, state flags + animation, last-activity time, `get_current_tool`, registry lifecycle (`get_all_active_agents`/`find_agent_by_id`, cleanup on drop), conversation accessors + `clear_conversation`, spawn/remove subagent + parent linking.
+  - Uses `test_watchdog::isolate_home("ai_agent_state")` for HOME isolation.
 
 ## 4. E2E / record-replay (deferred, secondary)
 

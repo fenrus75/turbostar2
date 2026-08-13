@@ -782,6 +782,26 @@ test_exit_summarization = executable('test_exit_summarization',
   include_directories: inc)
 test('unit_test_exit_summarization', test_exit_summarization, suite: 'agent')
 
+# agentlib unit tests added per testplan.md priorities 1, 2, 5
+# (llm_client, ai_agent state/admin surface, recording/replay transports)
+test_llm_client = executable('test_llm_client',
+  ['tests/unit/test_llm_client.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_llm_client', test_llm_client, suite: 'agent')
+
+test_ai_agent_state = executable('test_ai_agent_state',
+  ['tests/unit/test_ai_agent_state.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_ai_agent_state', test_ai_agent_state, is_parallel: false, suite: 'agent')
+
+test_record_replay_transports = executable('test_record_replay_transports',
+  ['tests/unit/test_record_replay_transports.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_record_replay_transports', test_record_replay_transports, suite: 'agent')
+
 test_invoke_subagent = executable('test_invoke_subagent',
   ['tests/unit/test_invoke_subagent.cpp'],
   dependencies : [agent_dep, core_dep, tools_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
