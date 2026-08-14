@@ -1368,6 +1368,12 @@ test_crash_handler_race = executable('test_crash_handler_race',
   include_directories: inc)
 test('unit_crash_handler_race', test_crash_handler_race, suite: 'editor')
 
+test_debugger_detection = executable('test_debugger_detection',
+  ['tests/unit/test_debugger_detection.cpp', 'src/crash_handler.cpp', git_version_h],
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep],
+  include_directories: inc)
+test('unit_debugger_detection', test_debugger_detection, suite: 'editor')
+
 test_window_scroll = executable('test_window_scroll',
   'tests/unit/test_window_scroll.cpp',
   dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

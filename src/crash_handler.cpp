@@ -27,6 +27,10 @@
 #define HAS_CXXABI
 #endif
 
+#include <fstream>
+#include <charconv>
+#include <string_view>
+
 namespace crash_handler
 {
 
@@ -34,6 +38,34 @@ int crash_fd = -1;
 static int reserved_fd = -1;
 static char crash_filepath[PATH_MAX + 1] = "";
 static char crashprocess_path[PATH_MAX + 1] = "";
+
+// [NOT Signal-Safe]
+// Checks /proc/self/status for TracerPid != 0 to detect if GDB or another debugger is attached.
+bool is_debugger_attached()
+{
+	std::ifstream status_file("/proc/self/status");
+	if (!status_file.is_open()) {
+		return false;
+	}
+
+	std::string line;
+	while (std::getline(status_file, line)) {
+		if (line.starts_with("TracerPid:")) {
+			std::string_view value_view(line);
+			value_view.remove_prefix(10); // Skip "TracerPid:"
+			while (!value_view.empty() && (value_view.front() == ' ' || value_view.front() == '\t')) {
+				value_view.remove_prefix(1);
+			}
+			int pid = 0;
+			auto [ptr, ec] = std::from_chars(value_view.data(), value_view.data() + value_view.size(), pid);
+			if (ec == std::errc{} && pid != 0) {
+				return true;
+			}
+			break;
+		}
+	}
+	return false;
+}
 
 // [Signal-Safe]
 // Computes string length using stack-only pointer traversal. Safe to call in signal handlers.
@@ -430,6 +462,11 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 // handlers and set_terminate handler.
 void install_fallback_handler()
 {
+	if (is_debugger_attached()) {
+		event_logger::get_instance().log("crash_handler: Debugger attached (TracerPid != 0); skipping fallback signal handler installation.");
+		return;
+	}
+
 	setup_crash_file();
 
 	// Install custom terminate handler to capture uncaught C++ exceptions before standard abort.
