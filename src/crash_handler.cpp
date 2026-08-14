@@ -28,6 +28,7 @@ namespace crash_handler
 int crash_fd = -1;
 static int reserved_fd = -1;
 static char crash_filepath[512] = "";
+static char crashprocess_path[512] = "";
 
 static size_t safe_strlen(const char *s)
 {
@@ -36,6 +37,39 @@ static size_t safe_strlen(const char *s)
 		len++;
 	}
 	return len;
+}
+
+static void resolve_crashprocess_path()
+{
+	namespace fs = std::filesystem;
+	std::error_code ec;
+
+	// 1. Try relative to current running executable
+	char exe_buf[512];
+	ssize_t len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
+	if (len > 0) {
+		exe_buf[len] = '\0';
+		fs::path bin_dir = fs::path(exe_buf).parent_path();
+		fs::path local_helper = bin_dir / "turbostar-crashprocess";
+		if (fs::exists(local_helper, ec) && access(local_helper.c_str(), X_OK) == 0) {
+			strncpy(crashprocess_path, local_helper.c_str(), sizeof(crashprocess_path) - 1);
+			crashprocess_path[sizeof(crashprocess_path) - 1] = '\0';
+			return;
+		}
+	}
+
+	// 2. Try the configured Meson install path
+#ifdef TURBOSTAR_CRASHPROCESS_PATH
+	if (fs::exists(TURBOSTAR_CRASHPROCESS_PATH, ec) && access(TURBOSTAR_CRASHPROCESS_PATH, X_OK) == 0) {
+		strncpy(crashprocess_path, TURBOSTAR_CRASHPROCESS_PATH, sizeof(crashprocess_path) - 1);
+		crashprocess_path[sizeof(crashprocess_path) - 1] = '\0';
+		return;
+	}
+#endif
+
+	// 3. Fallback to binary name for PATH lookup
+	strncpy(crashprocess_path, "turbostar-crashprocess", sizeof(crashprocess_path) - 1);
+	crashprocess_path[sizeof(crashprocess_path) - 1] = '\0';
 }
 
 static void safe_itoa(long val, char *buf, int buf_size)
@@ -178,7 +212,10 @@ static void setup_crash_file()
 			reserved_fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 		}
 
-		// 3. Format crash_filepath (with PID & timestamp) but DO NOT create the file yet (Option A)
+		// 3. Pre-resolve path to turbostar-crashprocess helper binary
+		resolve_crashprocess_path();
+
+		// 4. Format crash_filepath (with PID & timestamp) but DO NOT create the file yet (Option A)
 		pid_t pid = getpid();
 		long now_sec = static_cast<long>(time(nullptr));
 		std::string path_str = (crash_dir / ("crash_" + std::to_string(pid) + "_" + std::to_string(now_sec) + ".txt")).string();
@@ -364,42 +401,13 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		crash_fd = -1;
 	}
 
-	if (safe_strlen(crash_filepath) > 0) {
+	if (safe_strlen(crash_filepath) > 0 && safe_strlen(crashprocess_path) > 0) {
 		pid_t parent_pid = getpid();
 		pid_t helper_pid = fork();
 		if (helper_pid == 0) {
 			char pid_str[32];
 			safe_itoa(parent_pid, pid_str, sizeof(pid_str));
-
-			// Resolve helper binary absolute path relative to current running executable
-			char exe_dir[512];
-			ssize_t len = readlink("/proc/self/exe", exe_dir, sizeof(exe_dir) - 1);
-			if (len > 0) {
-				exe_dir[len] = '\0';
-				char *last_slash = nullptr;
-				for (int i = 0; i < len; ++i) {
-					if (exe_dir[i] == '/') {
-						last_slash = &exe_dir[i];
-					}
-				}
-				if (last_slash) {
-					*(last_slash + 1) = '\0';
-				}
-
-				char helper_path[1024];
-				helper_path[0] = '\0';
-				strncpy(helper_path, exe_dir, sizeof(helper_path) - 1);
-				strncat(helper_path, "turbostar-crashprocess", sizeof(helper_path) - strlen(helper_path) - 1);
-
-				execl(helper_path, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
-			}
-
-			// Try the configured install path defined by Meson
-#ifdef TURBOSTAR_CRASHPROCESS_PATH
-			execl(TURBOSTAR_CRASHPROCESS_PATH, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
-#endif
-
-			// Fallback if not found locally or at the install path
+			execl(crashprocess_path, "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
 			execlp("turbostar-crashprocess", "turbostar-crashprocess", crash_filepath, pid_str, nullptr);
 			_exit(1);
 		} else if (helper_pid > 0) {
