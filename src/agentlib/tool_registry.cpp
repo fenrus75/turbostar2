@@ -363,12 +363,23 @@ std::string tool_registry::execute_tool(const std::string &name, const std::stri
 	// Increment persistent statistics for the tool execution count
 	statistics_manager::get_instance().increment_stat(std::format("toolcall:{}", name));
 
+	if (ctx.doc_provider) {
+		ctx.doc_provider->save_all_documents();
+	}
+
+	std::string result;
 	// Execution
 	try {
-		return prep.tool->execute(ctx);
+		result = prep.tool->execute(ctx);
 	} catch (const std::exception &e) {
-		return "Execution Error: " + std::string(e.what());
+		result = "Execution Error: " + std::string(e.what());
 	}
+
+	if (ctx.doc_provider) {
+		ctx.doc_provider->check_files_changed();
+	}
+
+	return result;
 }
 
 } // namespace agentlib

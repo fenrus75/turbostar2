@@ -1356,6 +1356,12 @@ test_document = executable('test_document',
   include_directories: inc)
 test('unit_document', test_document, suite: 'editor')
 
+test_document_reload = executable('test_document_reload',
+  'tests/unit/test_document_reload.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_document_reload', test_document_reload, suite: 'editor')
+
 test_window_scroll = executable('test_window_scroll',
   'tests/unit/test_window_scroll.cpp',
   dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

@@ -75,6 +75,12 @@ bool document::load_from_file(const std::string &filename)
 		return false;
 	}
 
+	bool is_reload = has_last_disk_mtime_;
+	cursor_state state;
+	if (is_reload) {
+		state = capture_cursor_state_unlocked();
+	}
+
 	lines_.clear();
 	std::string line_text;
 	while (std::getline(file, line_text)) {
@@ -99,31 +105,34 @@ bool document::load_from_file(const std::string &filename)
 	refresh_highlighter();
 	modified_ = false;
 	ignore_disk_changes_ = false;
-	cursor_x_ = 0;
-	cursor_y_ = 0;
-	selection_start_x_ = selection_start_y_ = -1;
-	selection_end_x_ = selection_end_y_ = -1;
 
-	undo_stack_.clear();
-	redo_stack_.clear();
-	current_action_group_.actions.clear();
-	edit_group_depth_ = 0;
+	if (is_reload) {
+		restore_cursor_state_unlocked(state);
+	} else {
+		cursor_x_ = 0;
+		cursor_y_ = 0;
+		selection_start_x_ = selection_start_y_ = -1;
+		selection_end_x_ = selection_end_y_ = -1;
 
-	event_logger::get_instance().log("Document loaded from: {} ({} lines)", filename_, line_count_unlocked());
+		undo_stack_.clear();
+		redo_stack_.clear();
+		current_action_group_.actions.clear();
+		edit_group_depth_ = 0;
 
-	auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
-	if (pos_opt) {
-		cursor_x_ = pos_opt->x;
-		cursor_y_ = pos_opt->y;
-		if (cursor_y_ >= line_count_unlocked())
-			cursor_y_ = line_count_unlocked() - 1;
-		if (cursor_y_ < 0)
-			cursor_y_ = 0;
-		if (cursor_x_ > lines_[cursor_y_]->length_in_chars())
-			cursor_x_ = lines_[cursor_y_]->length_in_chars();
-		if (cursor_x_ < 0)
-			cursor_x_ = 0;
-		update_target_cursor_x_unlocked();
+		auto pos_opt = history_manager::get_instance().get_cursor_pos(filename_);
+		if (pos_opt) {
+			cursor_x_ = pos_opt->x;
+			cursor_y_ = pos_opt->y;
+			if (cursor_y_ >= line_count_unlocked())
+				cursor_y_ = line_count_unlocked() - 1;
+			if (cursor_y_ < 0)
+				cursor_y_ = 0;
+			if (cursor_x_ > lines_[cursor_y_]->length_in_chars())
+				cursor_x_ = lines_[cursor_y_]->length_in_chars();
+			if (cursor_x_ < 0)
+				cursor_x_ = 0;
+			update_target_cursor_x_unlocked();
+		}
 	}
 
 	std::vector<std::string> load_lines;
@@ -390,6 +399,96 @@ int document::get_cursor_y() const
 {
 	std::shared_lock lock(mutex_);
 	return cursor_y_;
+}
+
+cursor_state document::capture_cursor_state() const
+{
+	std::shared_lock lock(mutex_);
+	return capture_cursor_state_unlocked();
+}
+
+int document::restore_cursor_state(const cursor_state &state)
+{
+	std::unique_lock lock(mutex_);
+	int delta_y = restore_cursor_state_unlocked(state);
+	lock.unlock();
+	notify_cursor_changed();
+	request_redraw();
+	return delta_y;
+}
+
+cursor_state document::capture_cursor_state_unlocked() const
+{
+	cursor_state st;
+	st.cursor_x = cursor_x_;
+	st.cursor_y = cursor_y_;
+	st.target_cursor_x = target_cursor_x_;
+	st.selection_start_x = selection_start_x_;
+	st.selection_start_y = selection_start_y_;
+	st.selection_end_x = selection_end_x_;
+	st.selection_end_y = selection_end_y_;
+	if (cursor_y_ >= 0 && cursor_y_ < static_cast<int>(lines_.size())) {
+		st.current_line_text = lines_[cursor_y_]->get_text();
+	}
+	return st;
+}
+
+int document::restore_cursor_state_unlocked(const cursor_state &state)
+{
+	if (lines_.empty()) {
+		cursor_x_ = 0;
+		cursor_y_ = 0;
+		target_cursor_x_ = 0;
+		selection_start_x_ = selection_start_y_ = -1;
+		selection_end_x_ = selection_end_y_ = -1;
+		return 0;
+	}
+
+	int target_y = state.cursor_y;
+	int found_y = -1;
+	int total = static_cast<int>(lines_.size());
+
+	if (!state.current_line_text.empty()) {
+		if (target_y >= 0 && target_y < total && lines_[target_y]->get_text() == state.current_line_text) {
+			found_y = target_y;
+		} else {
+			for (int offset = 1; offset <= 100; ++offset) {
+				int down = target_y + offset;
+				if (down >= 0 && down < total && lines_[down]->get_text() == state.current_line_text) {
+					found_y = down;
+					break;
+				}
+				int up = target_y - offset;
+				if (up >= 0 && up < total && lines_[up]->get_text() == state.current_line_text) {
+					found_y = up;
+					break;
+				}
+			}
+		}
+	}
+
+	int delta_y = 0;
+	if (found_y != -1) {
+		delta_y = found_y - state.cursor_y;
+		cursor_y_ = found_y;
+	} else {
+		cursor_y_ = std::clamp(state.cursor_y, 0, total - 1);
+	}
+
+	cursor_x_ = std::clamp(state.cursor_x, 0, lines_[cursor_y_]->length_in_chars());
+	target_cursor_x_ = state.target_cursor_x;
+
+	if (state.selection_start_y != -1) {
+		selection_start_y_ = std::clamp(state.selection_start_y + delta_y, 0, total - 1);
+		selection_start_x_ = std::clamp(state.selection_start_x, 0, lines_[selection_start_y_]->length_in_chars());
+		selection_end_y_ = std::clamp(state.selection_end_y + delta_y, 0, total - 1);
+		selection_end_x_ = std::clamp(state.selection_end_x, 0, lines_[selection_end_y_]->length_in_chars());
+	} else {
+		selection_start_x_ = selection_start_y_ = -1;
+		selection_end_x_ = selection_end_y_ = -1;
+	}
+
+	return delta_y;
 }
 
 std::string document::get_text_all() const

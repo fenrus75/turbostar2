@@ -258,12 +258,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			read_res.error_message = "Error: Virtual file not found or not mounted.";
 		}
 	}
-	// Try reading from open document buffers in the editor, ensuring we reflect unsaved user modifications.
-	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-		read_res = read_from_document(doc_snapshot.get(), start, fetch_end);
-	}
-	// Fall back to direct file read from local disk.
+	// Read directly from local disk.
 	else {
 		read_res = read_from_disk(args_.safe_path, start, fetch_end);
 	}

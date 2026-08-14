@@ -17,12 +17,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- agent read tools (fs_read_lines, fs_file_codemap, git_diff_*/git_status) can serve a STALE editor buffer for
-  files that were just written by tools; after an agent edits a file the buffer snapshot is not refreshed,
-  so reads may show pre-edit or missing content. Ideas: (a) invalidate the open-document snapshot for a path
-  after fs_write_file/fs_replace_content/fs_replace_lines writes; (b) compare file mtime vs buffer mtime and
-  log/read from disk when stale; (c) surface "read from disk vs read from open buffer" in fs_read_lines output.
-
 - fs_file_codemap silently truncates to "Top N of total" symbols; add a full:true option (or make it default
   for small files / markdown) so whole-file section indexes can be seen when auditing for duplicates/gaps.
 
@@ -251,6 +245,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # done items (sorted by date, newest first)
 
 ## 14-08-2026
+- Unified Disk-First Tool Execution & Smart Auto-Reload (`src/document.h/cpp`, `src/editor.h/cpp`, `src/agentlib/document_provider.h`, `src/agentlib/tool_registry.cpp`, `src/tools/fs_read_lines/fs_read_lines_entry.cpp`, `src/tools/fs_replace_lines/fs_replace_lines_entry.cpp`, `src/tools/fs_replace_content/fs_replace_content_entry.cpp`, `tests/unit/test_document_reload.cpp`, `meson.build`): Implemented unified disk-first document management and smart auto-reloading: (1) **`cursor_state` Serialization & Restoration**: Added `cursor_state` struct and `capture_cursor_state()` / `restore_cursor_state()` in `document` to preserve cursor position, block selections, and window viewport bounds across file reloads, using smart line-text searching to adjust for line insertions/deletions, (2) **All-Document Auto-Reload & Git Refresh**: Upgraded `editor::check_files_changed()` to scan all open documents and silently auto-reload clean documents from disk while preserving cursor state and triggering `git_manager::request_status()`, (3) **Pre/Post-Tool Document Sync**: Updated `tool_registry::execute_tool()` to flush unsaved editor modifications (`save_all_documents()`) prior to tool execution and trigger `check_files_changed()` post-tool execution, (4) **Simplified Disk-First Tools**: Removed redundant `apply_live_edits` and buffer snapshot branches from `fs_read_lines`, `fs_replace_lines`, and `fs_replace_content`, ensuring tools operate strictly on disk files. Added unit test suite `test_document_reload.cpp`.
 - Dynamic Available-Test List Refresh & Invalidation (`src/project_manager.h/cpp`, `src/tools/fs_run_tests/fs_run_tests_entry.cpp`, `tests/unit/test_available_tests.cpp`, `meson.build`): Implemented automatic invalidation and refresh for `project_manager::get_available_tests()`: (1) **Build Definition mtime Tracking**: `project_manager` tracks the `last_write_time` of `meson.build` and automatically re-queries available tests when the build definition changes, (2) **Staleness Bound**: Refreshes test listings older than 5 minutes, (3) **Missed-Lookup Cache Invalidation in `fs_run_tests`**: Automatically invalidates cache and retries resolution when a test lookup misses, ensuring newly registered tests in `meson.build` are immediately discoverable without restarting Turbostar, (4) **Thread Safety & Hygiene**: Protected cache state with `available_tests_mutex_` and documented locking rules in `project_manager.h`, fixed relative `#include` directives to standard `src/`-relative paths, and added unit test suite `test_available_tests.cpp`.
 
 ## 05-08-2026

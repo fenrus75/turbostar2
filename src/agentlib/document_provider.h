@@ -76,6 +76,9 @@ public:
     // Useful before invoking external tools (compilers, git) that expect the disk to be up-to-date.
     virtual void save_all_documents() = 0;
 
+    // Checks open documents for external disk changes and reloads clean open documents.
+    virtual void check_files_changed() {}
+
     // Unified app execution and debugging agent APIs
     virtual start_app_result start_app(std::string_view /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true, bool /*collect_performance*/ = false) { return {-1, -1}; }
     virtual start_app_result start_coredump_gdb(std::string_view /*crash_id*/) { return {-1, -1}; }

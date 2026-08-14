@@ -1549,14 +1549,33 @@ void editor::save_all_documents()
 
 void editor::check_files_changed()
 {
-	auto doc = get_active_doc();
-	if (!doc || doc->get_filename().empty() || active_dialog_ || active_popup_)
+	if (active_dialog_ || active_popup_)
 		return;
 
-	if (doc->check_disk_changed()) {
-		active_dialog_ = create_reload_prompt_dialog(doc->get_filename());
-		active_dialog_mode_ = dialog_mode::reload_prompt;
-		set_focus(focus_target::dialog, "reload_prompt");
+	bool need_redraw = false;
+	auto active_doc = get_active_doc();
+
+	for (auto &doc : documents_) {
+		if (!doc || doc->get_filename().empty())
+			continue;
+
+		if (doc->check_disk_changed()) {
+			if (!doc->is_modified()) {
+				event_logger::get_instance().log("editor: auto-reloading clean document {}", doc->get_filename());
+				doc->load_from_file(doc->get_filename());
+				git_manager::get_instance().request_status(doc->get_filename());
+				need_redraw = true;
+			} else if (doc == active_doc && !active_dialog_ && !active_popup_) {
+				active_dialog_ = create_reload_prompt_dialog(doc->get_filename());
+				active_dialog_mode_ = dialog_mode::reload_prompt;
+				set_focus(focus_target::dialog, "reload_prompt");
+				need_redraw = true;
+				break;
+			}
+		}
+	}
+
+	if (need_redraw) {
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);

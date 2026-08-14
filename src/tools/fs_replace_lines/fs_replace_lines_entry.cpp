@@ -532,27 +532,7 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 		state.edit_turns += 1;
 	}
 
-	bool is_buffer = false;
-	// Only apply the live edit to the editor buffer when the disk edit actually succeeded. In strict
-	// mode, a rejected (unbalanced-brace) edit already reverted the disk file, so we must NOT also apply
-	// the edit to the open buffer (leaving it in sync with the reverted disk state).
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) && result_msg.find("Successfully applied") == 0) {
-		is_buffer = true;
-		// The file is already modified on disk by the fallback, but the editor buffer needs to know.
-		// A better architecture would have the doc_provider return the diff, but for now we just
-		// reload the file from disk if it was modified, or let the live_edits handle it.
-		// Actually, applying edits_json is the correct way for the editor.
-		nlohmann::json edits_json = nlohmann::json::array();
-		for (const auto &edit : args_.edits) {
-			nlohmann::json edit_json;
-			edit_json["line_number"] = edit.line_number;
-			edit_json["type"] = edit.type;
-			edit_json["original_text"] = edit.original_text;
-			edit_json["replace_with"] = edit.replace_with;
-			edits_json.push_back(edit_json);
-		}
-		ctx.doc_provider->apply_live_edits(args_.safe_path, edits_json.dump());
-	}
+	bool is_buffer = (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) != nullptr);
 
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
 		custom_interaction->set_target_type(args_.path, is_buffer);

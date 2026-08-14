@@ -114,6 +114,7 @@ class editor : public agentlib::document_provider
 	std::unique_ptr<agentlib::document_snapshot> get_open_document(std::string_view safe_path) const override;
 	bool apply_live_edits(std::string_view safe_path, std::string_view edits_json_payload) override;
 	void save_all_documents() override;
+	void check_files_changed() override;
 
 	void set_status_message(std::string_view message, int priority = 0,
 				std::chrono::milliseconds duration = std::chrono::milliseconds::max(),

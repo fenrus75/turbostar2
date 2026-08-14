@@ -665,21 +665,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     out.write(new_content.data(), new_content.length());
     out.close();
 
-    // 8. Sync with live editor buffer if open
-    bool is_buffer = false;
-    if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-        is_buffer = true;
-
-        nlohmann::json edits_json = nlohmann::json::array();
-        nlohmann::json edit_json;
-        edit_json["line_number"] = start_line;
-        edit_json["type"] = "replace";
-        edit_json["original_text"] = args_.target_content;
-        edit_json["replace_with"] = args_.replacement_content;
-        edits_json.push_back(edit_json);
-
-        ctx.doc_provider->apply_live_edits(args_.safe_path, edits_json.dump());
-    }
+    bool is_buffer = (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) != nullptr);
 
     // 9. Update UI and return status
     std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);

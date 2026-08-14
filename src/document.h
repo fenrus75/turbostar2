@@ -38,6 +38,17 @@ enum class undo_group_type {
 	delete_line, // Whole-line deletes (Ctrl-Y)
 };
 
+struct cursor_state {
+	int cursor_x{0};
+	int cursor_y{0};
+	int target_cursor_x{0};
+	int selection_start_x{-1};
+	int selection_start_y{-1};
+	int selection_end_x{-1};
+	int selection_end_y{-1};
+	std::string current_line_text;
+};
+
 // Represents a single, atomic line modification
 struct edit_action {
 	enum class action_type { replace_line, insert_line, delete_line };
@@ -119,6 +130,8 @@ class document
 
 	int get_cursor_x() const;
 	int get_cursor_y() const;
+	cursor_state capture_cursor_state() const;
+	int restore_cursor_state(const cursor_state &state);
 	std::string get_text_all() const;
 	std::string get_word_under_cursor() const;
 	void move_cursor(int dx, int dy);
@@ -221,6 +234,8 @@ class document
 	std::vector<line> get_selection_block() const;
 	void insert_block(std::span<const line> block, bool whole_lines = false);
 	void update_target_cursor_x_unlocked();
+	cursor_state capture_cursor_state_unlocked() const;
+	int restore_cursor_state_unlocked(const cursor_state &state);
 	void set_modified();
 	int line_count_unlocked() const;
 	void adjust_selection_for_insert(int y, int x, int count);
