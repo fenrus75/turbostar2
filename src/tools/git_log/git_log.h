@@ -23,7 +23,7 @@ private:
 class git_log_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_log"; }
-    std::string get_description() const override { return "View the last commit messages in the repository (git log -n <limit> --oneline)."; }
+    std::string get_description() const override { return "View the last commit messages in the repository (git log -n <limit> --oneline). Use this instead of running 'git log' or 'git show' via run_shell_command."; }
 
     nlohmann::json get_parameters_schema() const override {
         return {

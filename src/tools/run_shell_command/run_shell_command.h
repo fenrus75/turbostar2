@@ -28,7 +28,7 @@ private:
 class run_shell_command_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "run_shell_command"; }
-    std::string get_description() const override { return "Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow."; }
+    std::string get_description() const override { return "Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files or fs_find_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff (use git_status, git_diff_unstaged, git_log)."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {
