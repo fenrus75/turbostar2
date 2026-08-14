@@ -181,3 +181,22 @@ if sqlite3_dep.found()
   )
 endif
 
+markdown_extract_agent_h = custom_target('markdown_extract_agent.h',
+  input : 'markdown_extract/markdown_extract_agent.md',
+  output : 'markdown_extract_agent.h',
+  command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'markdown_extract_agent_md']
+)
+
+markdown_extract_plugin = shared_module('markdown_extract',
+  ['markdown_extract/plugin.cpp',
+   'markdown_extract/markdown_extract_tool.cpp',
+   'markdown_extract/markdown_extract_validator.cpp',
+   markdown_extract_agent_h],
+  dependencies: [nlohmann_json_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+
+

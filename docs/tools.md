@@ -305,6 +305,14 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `async` *(boolean, optional)*: Optional. If true, runs the command in the background. Default is false.
     *   `force` *(boolean, optional)*: Set to true ONLY if native specialized tools are genuinely insufficient and you require explicit user approval for a raw shell command.
 
+### `markdown_extract`
+*   **Description:** Dispatches a specialized subagent to extract specific sections, directives, or topics from a Markdown document or VFS manpage (e.g. `system://man/systemd.exec.md`) with full section context and fidelity. Utilizes `fs_file_codemap` structural outlines and line-search tools internally.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative file path under the project workspace or VFS URI (e.g., `docs/design.md` or `system://man/systemd.exec.md`).
+    *   `query` *(string, required)*: The specific topic, directive name (e.g., `ProtectKernelTunables`), question, or section heading to extract.
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://extract.md`) to save the extracted Markdown result.
+    *   `async` *(boolean, optional)*: Optional. If true, runs extraction in the background. Default is false (synchronous extraction).
+
 ---
 
 ## 7. Agent State & To-Do Management

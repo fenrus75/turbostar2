@@ -583,6 +583,16 @@ test_shell_command_resteer = executable('test_shell_command_resteer',
   include_directories: inc)
 test('unit_test_shell_command_resteer', test_shell_command_resteer, suite: 'agent')
 
+test_markdown_extract_plugin = executable('test_markdown_extract_plugin',
+  ['tests/unit/test_markdown_extract_plugin.cpp',
+   'src/plugins/markdown_extract/markdown_extract_tool.cpp',
+   'src/plugins/markdown_extract/markdown_extract_validator.cpp',
+   markdown_extract_agent_h],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_markdown_extract_plugin', test_markdown_extract_plugin, suite: 'plugins',
+  depends: [markdown_extract_plugin])
+
 test_sqlite_list_db = executable('test_sqlite_list_db',
   'tests/unit/test_sqlite_list_db.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, dl_dep],

@@ -1,0 +1,63 @@
+#include "markdown_extract_validator.h"
+#include "agentlib/tool_registry.h"
+
+namespace tools {
+
+bool markdown_extract_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context & /*ctx*/, std::string &out_error) const
+{
+	if (!args.contains("path") || !args["path"].is_string()) {
+		out_error = "Parameter 'path' is required and must be a string.";
+		return false;
+	}
+	args_.path = args["path"].get<std::string>();
+	if (args_.path.empty()) {
+		out_error = "Parameter 'path' cannot be empty.";
+		return false;
+	}
+
+	if (!args.contains("query") || !args["query"].is_string()) {
+		out_error = "Parameter 'query' is required and must be a string.";
+		return false;
+	}
+	args_.query = args["query"].get<std::string>();
+	if (args_.query.empty()) {
+		out_error = "Parameter 'query' cannot be empty.";
+		return false;
+	}
+
+	if (args.contains("output_path") && args["output_path"].is_string()) {
+		args_.output_path = args["output_path"].get<std::string>();
+	} else {
+		args_.output_path.clear();
+	}
+
+	if (args.contains("async") && args["async"].is_boolean()) {
+		args_.is_async = args["async"].get<bool>();
+	} else {
+		args_.is_async = false;
+	}
+
+	return true;
+}
+
+std::unique_ptr<agentlib::llm_tool> markdown_extract_validator::create_tool_impl(const nlohmann::json & /*args*/) const
+{
+	return std::make_unique<markdown_extract_tool>(args_);
+}
+
+} // namespace tools
+
+extern "C" {
+
+void register_markdown_extract(void)
+{
+	agentlib::tool_registry::get_instance().register_validator(
+	    []() { return std::make_unique<tools::markdown_extract_validator>(); });
+}
+
+void unregister_markdown_extract(void)
+{
+	agentlib::tool_registry::get_instance().unregister_validator("markdown_extract");
+}
+
+}

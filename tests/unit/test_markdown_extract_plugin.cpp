@@ -1,0 +1,53 @@
+// test_markdown_extract_plugin.cpp
+//
+// Unit tests for the markdown_extract tool & plugin.
+
+#include "test_watchdog.h"
+#include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
+#include "plugins/markdown_extract/markdown_extract_validator.h"
+#include <cassert>
+#include <iostream>
+#include <string>
+
+int main()
+{
+	test_watchdog::setup_watchdog(30);
+
+	tools::markdown_extract_validator validator;
+
+	// 1. Schema check
+	assert(validator.get_name() == "markdown_extract");
+	auto schema = validator.get_parameters_schema();
+	assert(schema["required"].size() == 2);
+
+	// 2. Validation failure: empty path
+	{
+		agentlib::tool_context ctx;
+		std::string err;
+		nlohmann::json invalid_args = {{"path", ""}, {"query", "ProtectKernelTunables"}};
+		bool ok = validator.validate_args(invalid_args, ctx, err);
+		assert(!ok);
+		assert(!err.empty());
+	}
+
+	// 3. Validation success: valid path and query
+	{
+		agentlib::tool_context ctx;
+		std::string err;
+		nlohmann::json valid_args = {
+			{"path", "system://man/systemd.exec.md"},
+			{"query", "ProtectKernelTunables"},
+			{"output_path", "tmp://extracted_tunables.md"},
+			{"async", false}
+		};
+		bool ok = validator.validate_args(valid_args, ctx, err);
+		assert(ok);
+		assert(err.empty());
+		auto tool = validator.create_tool(valid_args);
+		assert(tool != nullptr);
+	}
+
+	std::cout << "All test_markdown_extract_plugin tests passed successfully!\n";
+	return 0;
+}
