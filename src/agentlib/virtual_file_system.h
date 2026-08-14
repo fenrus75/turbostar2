@@ -301,7 +301,7 @@ class virtual_file_system
 	void unmount_prefix(const std::string &prefix);
 
 	bool exists(const std::string &uri) const;
-	std::optional<vfs_file_handle> read_file(const std::string &uri);
+	virtual std::optional<vfs_file_handle> read_file(const std::string &uri);
 	std::optional<vfs_file_info> get_file_info(const std::string &uri) const;
 	std::vector<vfs_file_info> list_directory(const std::string &prefix) const;
 

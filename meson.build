@@ -337,13 +337,13 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 test_history_manager = executable('test_history_manager',
   ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
   ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
-  dependencies : [lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner, suite: 'editor')
 

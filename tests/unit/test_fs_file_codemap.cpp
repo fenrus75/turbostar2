@@ -227,6 +227,21 @@ int main()
 		assert(max_sym_res.find("symbols omitted") != std::string::npos);
 	}
 
+	// 13. Test fs_file_codemap on VFS Markdown file (tmp://jfif.md)
+	{
+		auto vfs = std::make_shared<agentlib::virtual_file_system>();
+		ctx.fs_security.set_vfs(vfs.get());
+		std::string jfif_content = "# JFIF Format Specification\n\n## Section 1: Intro\nText.\n\n## Section 2: Headers\nHeader details.\n";
+		vfs->write_file("tmp://jfif.md", jfif_content.data(), jfif_content.size());
+		nlohmann::json vfs_md_args = {{"path", "tmp://jfif.md"}};
+		std::string vfs_md_res = registry.execute_tool("fs_file_codemap", vfs_md_args.dump(), ctx);
+		std::cout << "fs_file_codemap VFS markdown output:\n" << vfs_md_res << "\n";
+		assert(vfs_md_res.find("Codemap for `tmp://jfif.md`") != std::string::npos);
+		assert(vfs_md_res.find("`JFIF Format Specification`") != std::string::npos);
+		assert(vfs_md_res.find("`    Section 1: Intro`") != std::string::npos);
+		assert(vfs_md_res.find("`    Section 2: Headers`") != std::string::npos);
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

@@ -29,7 +29,19 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 	ctx.file_drift_tracker.erase(args_.safe_path);
 
 	size_t total_lines = 0;
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+	if (args_.safe_path.find("://") != std::string::npos) {
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs) {
+			auto view_opt = vfs->read_file(args_.safe_path);
+			if (view_opt && *view_opt) {
+				std::string_view view = (*view_opt)->view();
+				total_lines = std::count(view.begin(), view.end(), '\n');
+				if (!view.empty() && view.back() != '\n') {
+					total_lines++;
+				}
+			}
+		}
+	} else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
 		total_lines = ctx.doc_provider->get_open_document(args_.safe_path)->get_line_count();
 	} else {
 		std::ifstream file(args_.safe_path);

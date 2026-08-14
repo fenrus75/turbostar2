@@ -8,8 +8,7 @@
 #include <format>
 #include <regex>
 #include <sstream>
-#include <string_view>
-#include <thread>
+#include "agentlib/virtual_file_system.h"
 
 namespace tools {
 
@@ -271,22 +270,33 @@ static bool is_markdown_file(const std::string_view path)
 	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd";
 }
 
-std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::document_provider *doc_prov, int min_lines)
+static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const std::string &safe_path, agentlib::tool_context *ctx, agentlib::document_provider *doc_prov, int min_lines)
 {
 	std::vector<codemap_symbol_info> raw_symbols;
 
-	// 1. Read document content if open in doc_provider, else disk
+	// 1. Read document content if VFS URI, open in doc_provider, else disk
 	std::string content;
-	if (doc_prov && doc_prov->get_open_document(safe_path)) {
-		auto doc_snapshot = doc_prov->get_open_document(safe_path);
-		size_t line_count = doc_snapshot->get_line_count();
-		for (size_t i = 0; i < line_count; ++i) {
-			content += doc_snapshot->get_line_text(i) + "\n";
+	if (safe_path.find("://") != std::string::npos && ctx) {
+		auto vfs = ctx->fs_security.get_vfs();
+		if (vfs) {
+			auto view_opt = vfs->read_file(safe_path);
+			if (view_opt && *view_opt) {
+				content = std::string((*view_opt)->view());
+			}
 		}
-	} else {
-		std::ifstream file(safe_path, std::ios::binary);
-		if (file.is_open()) {
-			content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	}
+	if (content.empty()) {
+		if (doc_prov && doc_prov->get_open_document(safe_path)) {
+			auto doc_snapshot = doc_prov->get_open_document(safe_path);
+			size_t line_count = doc_snapshot->get_line_count();
+			for (size_t i = 0; i < line_count; ++i) {
+				content += doc_snapshot->get_line_text(i) + "\n";
+			}
+		} else {
+			std::ifstream file(safe_path, std::ios::binary);
+			if (file.is_open()) {
+				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			}
 		}
 	}
 
@@ -327,14 +337,19 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 	return structure_symbol_hierarchy(raw_symbols);
 }
 
+std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::document_provider *doc_prov, int min_lines)
+{
+	return get_document_codemap_symbols_impl(safe_path, nullptr, doc_prov, min_lines);
+}
+
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines)
 {
-	return get_document_codemap_symbols(safe_path, ctx.doc_provider, min_lines);
+	return get_document_codemap_symbols_impl(safe_path, &ctx, ctx.doc_provider, min_lines);
 }
 
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines)
 {
-	return get_document_codemap_symbols(safe_path, static_cast<agentlib::document_provider *>(nullptr), min_lines);
+	return get_document_codemap_symbols_impl(safe_path, nullptr, nullptr, min_lines);
 }
 
 codemap_selection_result select_prioritized_codemap_symbols(
