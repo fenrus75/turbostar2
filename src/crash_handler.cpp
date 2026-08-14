@@ -174,34 +174,6 @@ static void safe_write(const char *msg)
 	}
 }
 
-// [NOT Signal-Safe / atexit Handler]
-// Registered via atexit(). Runs on clean process shutdown to close open file descriptors and
-// remove unused zero-byte crash files.
-static void cleanup_crash_file()
-{
-	if (reserved_fd != -1) {
-		close(reserved_fd);
-		reserved_fd = -1;
-	}
-	if (crash_fd != -1) {
-		close(crash_fd);
-		crash_fd = -1;
-	}
-	if (safe_strlen(crash_filepath) > 0) {
-		std::error_code ec;
-		if (std::filesystem::exists(crash_filepath, ec)) {
-			auto sz = std::filesystem::file_size(crash_filepath, ec);
-			if (sz > 0) {
-				fprintf(stderr, "\n[Turbostar] Preserving crash diagnostic log (%llu bytes): %s\n",
-					static_cast<unsigned long long>(sz), crash_filepath);
-			} else {
-				unlink(crash_filepath);
-			}
-		}
-		crash_filepath[0] = '\0';
-	}
-}
-
 // [NOT Signal-Safe]
 // Runs during application startup (install_fallback_handler). Pre-allocates reserved_fd,
 // resolves crashprocess_path, and initializes crash_filepath without creating the file.
@@ -244,7 +216,6 @@ static void setup_crash_file()
 			strncpy(crash_filepath, path_str.c_str(), sizeof(crash_filepath));
 			crash_filepath[sizeof(crash_filepath) - 1] = '\0';
 			crash_fd = -1;
-			atexit(cleanup_crash_file);
 		}
 	} catch (...) {
 		// Ignore any filesystem errors to avoid crashing during crash handler setup
