@@ -183,7 +183,6 @@ class editor : public agentlib::document_provider
 	void open_file_as_text(std::string_view filename);
 	void open_file_as_binary(std::string_view filename);
 	void open_prompt_in_editor(ui_multiline_edit *edit, std::string_view initial_text);
-	void check_files_changed();
 	bool handle_k_block_key(int key);
 	bool handle_q_block_key(int key);
 	bool handle_p_block_key(int key);
