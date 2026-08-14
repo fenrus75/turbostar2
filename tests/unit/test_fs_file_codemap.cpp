@@ -215,6 +215,18 @@ int main()
 	// With min_lines=100, 1-line headings are filtered out (matching the C++ behavior)
 	assert(md_empty_res.find("No functions, classes, or symbols found") != std::string::npos);
 
+	// Test full:true and max_symbols parameters
+	{
+		nlohmann::json full_args = {{"path", impl_file}, {"full", true}};
+		std::string full_res = registry.execute_tool("fs_file_codemap", full_args.dump(), ctx);
+		assert(full_res.find("Codemap for `test_sample_impl.cpp` (Full ") != std::string::npos);
+
+		nlohmann::json max_sym_args = {{"path", impl_file}, {"max_symbols", 1}};
+		std::string max_sym_res = registry.execute_tool("fs_file_codemap", max_sym_args.dump(), ctx);
+		assert(max_sym_res.find("(Top 1 of ") != std::string::npos);
+		assert(max_sym_res.find("symbols omitted") != std::string::npos);
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

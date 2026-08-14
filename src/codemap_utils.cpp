@@ -476,13 +476,13 @@ std::string format_codemap_table(
 			if (effective_total > symbols.size()) {
 				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, symbols.size(), effective_total, total_file_lines);
 			} else {
-				ss << std::format("### Codemap for `{}` ({} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
+				ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
 			}
 		} else {
 			if (effective_total > symbols.size()) {
 				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, symbols.size(), effective_total);
 			} else {
-				ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, effective_total);
+				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
 			}
 		}
 		ss << "| Symbol | Start Line | End Line | Lines |\n";

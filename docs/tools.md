@@ -54,6 +54,8 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/ui/terminal_window.cpp').
     *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1).
+    *   `full` *(boolean, optional)*: Whether to return un-truncated whole-file symbols and section headings (default: true).
+    *   `max_symbols` *(integer, optional)*: Maximum symbol count cap (default: 0 for unlimited).
 
 ### `fs_grep_files`
 *   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers, enclosing symbol context annotations (e.g. `[in function foo]`), and matches. Ideal for finding definitions, usages, or error messages across the codebase.

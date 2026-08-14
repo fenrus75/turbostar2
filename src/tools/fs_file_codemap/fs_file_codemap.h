@@ -10,6 +10,8 @@ struct fs_file_codemap_args {
     std::string requested_path;
     std::string safe_path; // Resolved and validated by Stage 1 security
     int min_lines{1};
+    bool full{true};
+    int max_symbols{0}; // 0 = unlimited / no cap
 };
 
 class fs_file_codemap_tool : public agentlib::llm_tool {

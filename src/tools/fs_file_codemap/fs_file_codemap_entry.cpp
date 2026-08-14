@@ -44,15 +44,29 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 		return "No functions, classes, or symbols found in " + args_.requested_path + ".";
 	}
 
-	std::string table = format_codemap_table(args_.requested_path, symbols, /*rich_format=*/true, total_lines);
+	size_t total_symbols_count = symbols.size();
+	size_t omitted_count = 0;
+
+	if (args_.max_symbols > 0 && symbols.size() > static_cast<size_t>(args_.max_symbols)) {
+		omitted_count = symbols.size() - args_.max_symbols;
+		symbols.resize(args_.max_symbols);
+	}
+
+	std::string table = format_codemap_table(args_.requested_path, symbols, /*rich_format=*/true, total_lines, total_symbols_count, omitted_count, &ctx);
 
 	// Check if this is a header file with a matching implementation file
 	std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
 	if (!matching_impl.empty()) {
 		auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, args_.min_lines);
 		if (!impl_symbols.empty()) {
+			size_t impl_total = impl_symbols.size();
+			size_t impl_omitted = 0;
+			if (args_.max_symbols > 0 && impl_symbols.size() > static_cast<size_t>(args_.max_symbols)) {
+				impl_omitted = impl_symbols.size() - args_.max_symbols;
+				impl_symbols.resize(args_.max_symbols);
+			}
 			std::filesystem::path ip(matching_impl);
-			table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true);
+			table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true, 0, impl_total, impl_omitted, &ctx);
 		}
 	}
 

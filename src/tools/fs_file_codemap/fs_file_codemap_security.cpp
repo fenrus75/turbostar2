@@ -30,7 +30,9 @@ public:
 		return {{"type", "object"},
 			{"properties",
 			 {{"path", {{"type", "string"}, {"description", "The path to the file, relative to the project root."}}},
-			  {"min_lines", {{"type", "integer"}, {"description", "Optional. Minimum line length threshold to filter out trivial 1-line declarations (default: 1)."}}}}},
+			  {"min_lines", {{"type", "integer"}, {"description", "Optional. Minimum line length threshold to filter out trivial 1-line declarations (default: 1)."}}},
+			  {"full", {{"type", "boolean"}, {"description", "Optional. Whether to return un-truncated whole-file symbols and section headings (default: true)."}}},
+			  {"max_symbols", {{"type", "integer"}, {"description", "Optional. Maximum symbol count cap (default: 0 for unlimited)."}}}}},
 			{"required", nlohmann::json::array({"path"})}};
 	}
 
@@ -57,6 +59,24 @@ protected:
 			min_lines_arg = std::max(1, raw_json["min_lines"].get<int>());
 		}
 
+		bool full_arg = true;
+		if (raw_json.contains("full")) {
+			if (!raw_json["full"].is_boolean()) {
+				out_error = "Invalid 'full' boolean parameter.";
+				return false;
+			}
+			full_arg = raw_json["full"].get<bool>();
+		}
+
+		int max_symbols_arg = 0;
+		if (raw_json.contains("max_symbols")) {
+			if (!raw_json["max_symbols"].is_number_integer()) {
+				out_error = "Invalid 'max_symbols' integer parameter.";
+				return false;
+			}
+			max_symbols_arg = std::max(0, raw_json["max_symbols"].get<int>());
+		}
+
 		std::string canonical_path;
 		if (!ctx.fs_security.validate_access(path_arg, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
@@ -65,6 +85,8 @@ protected:
 		args_.requested_path = path_arg;
 		args_.safe_path = canonical_path;
 		args_.min_lines = min_lines_arg;
+		args_.full = full_arg;
+		args_.max_symbols = max_symbols_arg;
 
 		return true;
 	}
