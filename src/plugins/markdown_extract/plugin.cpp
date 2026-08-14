@@ -21,20 +21,12 @@ void plugin_run(void)
 {
 	register_markdown_extract();
 	agentlib::subagent_manager::get_instance().register_subagent("markdown_extractor", markdown_extract_agent_md);
-	agentlib::tool_registry::get_instance().register_tool_family(
-		"markdown_extract",
-		"Activate when extracting targeted information, directives, or section details from Markdown documents or VFS manpages",
-		"The 'markdown_extract' tool family provides structure-aware extraction tools for Markdown documents.\n\n"
-		"Key Tools:\n"
-		"- markdown_extract: Dispatches a subagent to extract specific sections or directives (e.g. ProtectKernelTunables) with full section context."
-	);
 }
 
 void plugin_unload(void)
 {
 	unregister_markdown_extract();
 	agentlib::subagent_manager::get_instance().unregister_subagent("markdown_extractor");
-	agentlib::tool_registry::get_instance().unregister_tool_family("markdown_extract");
 }
 
 }

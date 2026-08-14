@@ -8,6 +8,7 @@ namespace tools {
 class markdown_extract_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "markdown_extract"; }
+	std::string get_family() const override { return "base"; }
 	std::string get_description() const override {
 		return "Dispatches a specialized subagent to extract specific sections, directives, or topics from a Markdown document or VFS manpage (e.g. system://man/systemd.exec.md) with full section context and fidelity.";
 	}

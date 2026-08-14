@@ -114,6 +114,14 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
     *   `query` *(string, required)*: The keyword or search phrase (e.g., `'socket'`, `'pthread'`, `'printf'`).
     *   `section` *(string, optional)*: Optional section to filter results (e.g., `"1"` for commands, `"2"` for system calls, `"3"` for library functions).
 
+### `markdown_extract`
+*   **Description:** Dispatches a specialized subagent to extract specific sections, directives, or topics from a Markdown document or VFS manpage (e.g. `system://man/systemd.exec.md`) with full section context and fidelity. Utilizes `fs_file_codemap` structural outlines and line-search tools internally. Part of the `base` tool family (always active).
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative file path under the project workspace or VFS URI (e.g., `docs/design.md` or `system://man/systemd.exec.md`).
+    *   `query` *(string, required)*: The specific topic, directive name (e.g., `ProtectKernelTunables`), question, or section heading to extract.
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://extract.md`) to save the extracted Markdown result.
+    *   `async` *(boolean, optional)*: Optional. If true, runs extraction in the background. Default is false (synchronous extraction).
+
 ---
 
 ## 2. File System Mutation
@@ -304,14 +312,6 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `timeout` *(integer, optional)*: Optional timeout in seconds. Default is 300.
     *   `async` *(boolean, optional)*: Optional. If true, runs the command in the background. Default is false.
     *   `force` *(boolean, optional)*: Set to true ONLY if native specialized tools are genuinely insufficient and you require explicit user approval for a raw shell command.
-
-### `markdown_extract`
-*   **Description:** Dispatches a specialized subagent to extract specific sections, directives, or topics from a Markdown document or VFS manpage (e.g. `system://man/systemd.exec.md`) with full section context and fidelity. Utilizes `fs_file_codemap` structural outlines and line-search tools internally.
-*   **Arguments:**
-    *   `path` *(string, required)*: Relative file path under the project workspace or VFS URI (e.g., `docs/design.md` or `system://man/systemd.exec.md`).
-    *   `query` *(string, required)*: The specific topic, directive name (e.g., `ProtectKernelTunables`), question, or section heading to extract.
-    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://extract.md`) to save the extracted Markdown result.
-    *   `async` *(boolean, optional)*: Optional. If true, runs extraction in the background. Default is false (synchronous extraction).
 
 ---
 

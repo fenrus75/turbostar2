@@ -19,6 +19,7 @@ int main()
 
 	// 1. Schema check
 	assert(validator.get_name() == "markdown_extract");
+	assert(validator.get_family() == "base");
 	auto schema = validator.get_parameters_schema();
 	assert(schema["required"].size() == 2);
 
