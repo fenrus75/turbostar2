@@ -1560,12 +1560,14 @@ void editor::check_files_changed()
 			continue;
 
 		if (doc->check_disk_changed()) {
-			if (!doc->is_modified()) {
-				event_logger::get_instance().log("editor: auto-reloading clean document {}", doc->get_filename());
+			if (doc != active_doc && !doc->is_modified()) {
+				// Clean background document: auto-reload silently from disk
+				event_logger::get_instance().log("editor: auto-reloading clean background document {}", doc->get_filename());
 				doc->load_from_file(doc->get_filename());
 				git_manager::get_instance().request_status(doc->get_filename());
 				need_redraw = true;
 			} else if (doc == active_doc && !active_dialog_ && !active_popup_) {
+				// Foreground document: prompt user with reload dialog
 				active_dialog_ = create_reload_prompt_dialog(doc->get_filename());
 				active_dialog_mode_ = dialog_mode::reload_prompt;
 				set_focus(focus_target::dialog, "reload_prompt");
