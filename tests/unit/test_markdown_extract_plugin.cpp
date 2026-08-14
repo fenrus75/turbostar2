@@ -3,6 +3,7 @@
 // Unit tests for the markdown_extract tool & plugin.
 
 #include "test_watchdog.h"
+#include "agentlib/ai_agent.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
 #include "plugins/markdown_extract/markdown_extract_validator.h"
@@ -46,6 +47,21 @@ int main()
 		assert(err.empty());
 		auto tool = validator.create_tool(valid_args);
 		assert(tool != nullptr);
+	}
+
+	// 4. Verify report_final_result is pure and executable in read_only context
+	{
+		agentlib::tool_context ro_ctx;
+		ro_ctx.properties.read_only = true;
+		auto dummy_agent = agentlib::ai_agent::create(1, "MockAgent", nullptr, nullptr, nullptr);
+		ro_ctx.active_agent = dummy_agent.get();
+		nlohmann::json rfr_args = {{"result", "Extracted report content"}};
+		auto prep = agentlib::tool_registry::get_instance().prepare_tool("report_final_result", rfr_args.dump(), ro_ctx);
+		if (prep.tool == nullptr) {
+			std::cout << "Error message: " << prep.error_message << "\n";
+		}
+		assert(prep.tool != nullptr && "report_final_result must be executable in read_only mode");
+		assert(prep.error_message.empty());
 	}
 
 	std::cout << "All test_markdown_extract_plugin tests passed successfully!\n";

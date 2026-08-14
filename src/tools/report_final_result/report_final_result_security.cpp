@@ -17,7 +17,7 @@ class report_final_result_validator final : public agentlib::tool_validator
       public:
 	bool is_pure() const override
 	{
-		return false;
+		return true;
 	}
 
 	std::string get_name() const override
