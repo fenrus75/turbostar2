@@ -30,6 +30,8 @@ static int reserved_fd = -1;
 static char crash_filepath[512] = "";
 static char crashprocess_path[512] = "";
 
+// [Signal-Safe]
+// Computes string length using stack-only pointer traversal. Safe to call in signal handlers.
 static size_t safe_strlen(const char *s)
 {
 	size_t len = 0;
@@ -39,6 +41,10 @@ static size_t safe_strlen(const char *s)
 	return len;
 }
 
+// [NOT Signal-Safe]
+// Executed once during application setup (setup_crash_file). Resolves and caches the path
+// to the turbostar-crashprocess helper binary so signal handlers can invoke it directly without
+// dynamic path lookup or heap allocations at crash time.
 static void resolve_crashprocess_path()
 {
 	namespace fs = std::filesystem;
@@ -72,6 +78,8 @@ static void resolve_crashprocess_path()
 	crashprocess_path[sizeof(crashprocess_path) - 1] = '\0';
 }
 
+// [Signal-Safe]
+// Formats a signed long into a caller-supplied buffer using stack storage only.
 static void safe_itoa(long val, char *buf, int buf_size)
 {
 	if (buf_size < 2)
@@ -106,6 +114,8 @@ static void safe_itoa(long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
+// [Signal-Safe]
+// Formats an unsigned long hex value into a caller-supplied buffer using stack storage only.
 static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 {
 	if (buf_size < 2)
@@ -132,6 +142,9 @@ static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
+// [Signal-Safe]
+// Opens the crash log file lazily on demand when a crash occurs. POSIX open() is async-signal-safe.
+// Closes pre-allocated reserved_fd to recover an FD slot if EMFILE occurs.
 static void ensure_crash_file_open_signal_safe()
 {
 	if (crash_fd != -1 || safe_strlen(crash_filepath) == 0) {
@@ -148,6 +161,8 @@ static void ensure_crash_file_open_signal_safe()
 	}
 }
 
+// [Signal-Safe]
+// Writes a null-terminated string to STDERR_FILENO and crash_fd using POSIX write().
 static void safe_write(const char *msg)
 {
 	if (!msg) return;
@@ -159,6 +174,9 @@ static void safe_write(const char *msg)
 	}
 }
 
+// [NOT Signal-Safe / atexit Handler]
+// Registered via atexit(). Runs on clean process shutdown to close open file descriptors and
+// remove unused zero-byte crash files.
 static void cleanup_crash_file()
 {
 	if (reserved_fd != -1) {
@@ -184,6 +202,9 @@ static void cleanup_crash_file()
 	}
 }
 
+// [NOT Signal-Safe]
+// Runs during application startup (install_fallback_handler). Pre-allocates reserved_fd,
+// resolves crashprocess_path, and initializes crash_filepath without creating the file.
 static void setup_crash_file()
 {
 	namespace fs = std::filesystem;
@@ -230,6 +251,9 @@ static void setup_crash_file()
 	}
 }
 
+// [NOT Signal-Safe / Exception Handler]
+// Uncaught exception handler registered via std::set_terminate(). Runs before std::abort()
+// when a C++ exception is rethrown uncaught.
 static void fallback_terminate_handler()
 {
 	std::string exc_info = "Unknown uncaught exception";
@@ -259,6 +283,10 @@ static void fallback_terminate_handler()
 	std::abort();
 }
 
+// [MUST BE STRICTLY Signal-Safe]
+// Core crash signal handler for SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS.
+// MUST NOT perform heap allocations (malloc/new), standard stream I/O (printf/cout), or non-async-signal-safe calls.
+// Uses stack-only helpers (safe_write, safe_itoa, safe_hex_toa, libunwind) and direct POSIX syscalls (open, write, fork, execl, _exit).
 static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 {
 	int is_write = 0;
@@ -421,6 +449,9 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	_exit(128 + sig);
 }
 
+// [NOT Signal-Safe]
+// Public entry point called once during application initialization to install fallback signal
+// handlers and set_terminate handler.
 void install_fallback_handler()
 {
 	setup_crash_file();
