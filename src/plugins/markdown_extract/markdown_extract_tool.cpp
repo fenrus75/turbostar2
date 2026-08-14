@@ -102,6 +102,7 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 	system_prompt = replace_placeholder(system_prompt, "@@filename@@", args_.path);
 	system_prompt = replace_placeholder(system_prompt, "@@lines@@", line_count_str);
 	system_prompt = replace_placeholder(system_prompt, "@@query@@", args_.query);
+	system_prompt = replace_placeholder(system_prompt, "@@output_path@@", args_.output_path.empty() ? "None" : args_.output_path);
 
 	subagent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	subagent->inject_context("system", system_prompt);
