@@ -1362,6 +1362,12 @@ test_document_reload = executable('test_document_reload',
   include_directories: inc)
 test('unit_document_reload', test_document_reload, suite: 'editor')
 
+test_crash_handler_race = executable('test_crash_handler_race',
+  ['tests/unit/test_crash_handler_race.cpp', 'src/crash_handler.cpp', git_version_h],
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep],
+  include_directories: inc)
+test('unit_crash_handler_race', test_crash_handler_race, suite: 'editor')
+
 test_window_scroll = executable('test_window_scroll',
   'tests/unit/test_window_scroll.cpp',
   dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],

@@ -13,6 +13,8 @@
 #include <filesystem>
 #include <cstdlib>
 #include <exception>
+#include <fcntl.h>
+#include <cerrno>
 
 #if __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -24,6 +26,7 @@ namespace crash_handler
 {
 
 int crash_fd = -1;
+static int reserved_fd = -1;
 static char crash_filepath[512] = "";
 
 static size_t safe_strlen(const char *s)
@@ -95,11 +98,28 @@ static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
+static void ensure_crash_file_open_signal_safe()
+{
+	if (crash_fd != -1 || safe_strlen(crash_filepath) == 0) {
+		return;
+	}
+	int fd = open(crash_filepath, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+	if (fd == -1 && errno == EMFILE && reserved_fd != -1) {
+		close(reserved_fd);
+		reserved_fd = -1;
+		fd = open(crash_filepath, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+	}
+	if (fd != -1) {
+		crash_fd = fd;
+	}
+}
+
 static void safe_write(const char *msg)
 {
 	if (!msg) return;
 	size_t len = safe_strlen(msg);
 	write(STDERR_FILENO, msg, len);
+	ensure_crash_file_open_signal_safe();
 	if (crash_fd != -1) {
 		write(crash_fd, msg, len);
 	}
@@ -107,6 +127,10 @@ static void safe_write(const char *msg)
 
 static void cleanup_crash_file()
 {
+	if (reserved_fd != -1) {
+		close(reserved_fd);
+		reserved_fd = -1;
+	}
 	if (crash_fd != -1) {
 		close(crash_fd);
 		crash_fd = -1;
@@ -133,28 +157,36 @@ static void setup_crash_file()
 		std::string cache_dir = fs_utils::get_global_cache_dir();
 		fs::path crash_dir = fs::path(cache_dir) / "crashes";
 
-		// 1. Scan directory for size 0 files and delete them
+		// 1. Scan directory for stale 0-size files (e.g. >1 hour old)
+		auto now = std::filesystem::file_time_type::clock::now();
 		if (fs::exists(crash_dir)) {
 			for (auto &p : fs::directory_iterator(crash_dir)) {
-				if (p.is_regular_file() && fs::file_size(p.path()) == 0) {
-					fs::remove(p.path());
+				std::error_code ec;
+				if (p.is_regular_file(ec) && fs::file_size(p.path(), ec) == 0) {
+					auto last_write = fs::last_write_time(p.path(), ec);
+					if (!ec && (now - last_write) > std::chrono::hours(1)) {
+						fs::remove(p.path(), ec);
+					}
 				}
 			}
 		} else {
 			fs::create_directories(crash_dir);
 		}
 
-		// 2. Create temp file via mkstemp
-		std::string temp_template = (crash_dir / "crash_XXXXXX").string();
-		if (temp_template.size() < sizeof(crash_filepath)) {
-			strncpy(crash_filepath, temp_template.c_str(), sizeof(crash_filepath));
-			int fd = mkstemp(crash_filepath);
-			if (fd != -1) {
-				crash_fd = fd;
-				atexit(cleanup_crash_file);
-			} else {
-				crash_filepath[0] = '\0';
-			}
+		// 2. Pre-allocate dummy reserved_fd for EMFILE safety
+		if (reserved_fd == -1) {
+			reserved_fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		}
+
+		// 3. Format crash_filepath (with PID & timestamp) but DO NOT create the file yet (Option A)
+		pid_t pid = getpid();
+		long now_sec = static_cast<long>(time(nullptr));
+		std::string path_str = (crash_dir / ("crash_" + std::to_string(pid) + "_" + std::to_string(now_sec) + ".txt")).string();
+		if (path_str.size() < sizeof(crash_filepath)) {
+			strncpy(crash_filepath, path_str.c_str(), sizeof(crash_filepath));
+			crash_filepath[sizeof(crash_filepath) - 1] = '\0';
+			crash_fd = -1;
+			atexit(cleanup_crash_file);
 		}
 	} catch (...) {
 		// Ignore any filesystem errors to avoid crashing during crash handler setup
@@ -175,6 +207,7 @@ static void fallback_terminate_handler()
 		}
 	}
 
+	ensure_crash_file_open_signal_safe();
 	if (crash_fd != -1) {
 		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n";
 #ifdef TURBOSTAR_GIT_HASH
