@@ -95,6 +95,7 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 
 	if (!args_.output_path.empty()) {
 		subagent->set_allowed_write_file(args_.output_path);
+		subagent->set_read_only(false);
 	}
 
 	// 4. Inject prompt template variables
