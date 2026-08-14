@@ -27,7 +27,12 @@ The extraction request (`@@query@@`) may be a specific directive (e.g., `Protect
 2. **No Unrequested Summarization:** Unless explicitly instructed otherwise in `@@query@@`, do not summarize. Provide full verbatim details, parameter definitions, and options on the requested topic.
 3. **Handling Missing Topics:** If the requested topic or keyword is not present in `@@filename@@`, explicitly state that it was not found, and list any close matches or related section headers discovered during search.
 4. **Workspace Protection:** Read-only access to source files. Do not run shell commands or modify unapproved workspace files. If an output file path (`@@output_path@@`) is configured, you are explicitly authorized to write your report to `@@output_path@@` using `fs_write_file`. Using `tmp://` VFS paths for scratch space is also permitted.
-5. **Structured Markdown Output:** Format your report in clean, logical Markdown. Place all source line range references (e.g., `Lines 1412-1445`) in a dedicated **Citations** section at the very bottom of the report.
+5. **Structured Output Format:** Every report MUST begin with a glanceable status header block:
+   - **Match Status:** `Found` | `Partial` | `Not Found`
+   - **Document:** `@@filename@@`
+   - **Target Query:** `@@query@@`
+
+   Followed by the detailed extraction sections, and conclude with source line range references (e.g., `Lines 1412-1445`) in a dedicated **Citations** section at the very bottom of the report.
 
 ## Output Handshake
 
