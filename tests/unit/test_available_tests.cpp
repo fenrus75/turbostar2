@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "../../src/project_manager.h"
+#include "project_manager.h"
 
 int main()
 {

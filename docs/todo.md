@@ -17,20 +17,11 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- we need to update our internal testlist if meson.build changes (timestamp?)
-	- project_manager caches get_available_tests() behind tests_ready_ with no invalidation
-	- refresh when the meson.build mtime changes (and also refresh on a missed-lookup in fs_run_tests)
-	- the same cache feeds system://project/testlist.md, so fixing it at project_manager covers the VFS path too
-
 - agent read tools (fs_read_lines, fs_file_codemap, git_diff_*/git_status) can serve a STALE editor buffer for
   files that were just written by tools; after an agent edits a file the buffer snapshot is not refreshed,
   so reads may show pre-edit or missing content. Ideas: (a) invalidate the open-document snapshot for a path
   after fs_write_file/fs_replace_content/fs_replace_lines writes; (b) compare file mtime vs buffer mtime and
   log/read from disk when stale; (c) surface "read from disk vs read from open buffer" in fs_read_lines output.
-
-- fs_run_tests (and system://project/testlist.md) return false "No tests matched" for newly-added tests until
-  editor restart because the test list is cached; add a refresh-on-missed-lookup retry and/or an explicit
-  refresh parameter so newly registered tests are discoverable without restarting.
 
 - fs_file_codemap silently truncates to "Top N of total" symbols; add a full:true option (or make it default
   for small files / markdown) so whole-file section indexes can be seen when auditing for duplicates/gaps.
@@ -258,6 +249,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # done items (sorted by date, newest first)
+
+## 14-08-2026
+- Dynamic Available-Test List Refresh & Invalidation (`src/project_manager.h/cpp`, `src/tools/fs_run_tests/fs_run_tests_entry.cpp`, `tests/unit/test_available_tests.cpp`, `meson.build`): Implemented automatic invalidation and refresh for `project_manager::get_available_tests()`: (1) **Build Definition mtime Tracking**: `project_manager` tracks the `last_write_time` of `meson.build` and automatically re-queries available tests when the build definition changes, (2) **Staleness Bound**: Refreshes test listings older than 5 minutes, (3) **Missed-Lookup Cache Invalidation in `fs_run_tests`**: Automatically invalidates cache and retries resolution when a test lookup misses, ensuring newly registered tests in `meson.build` are immediately discoverable without restarting Turbostar, (4) **Thread Safety & Hygiene**: Protected cache state with `available_tests_mutex_` and documented locking rules in `project_manager.h`, fixed relative `#include` directives to standard `src/`-relative paths, and added unit test suite `test_available_tests.cpp`.
 
 ## 05-08-2026
 - Ephemeral Thumbnail Option in `image_getdata` (`src/plugins/image_basic/image_getdata_tool.h/cpp`, `src/plugins/image_basic/image_getdata_validator.h/cpp`, `docs/tools.md`, `tests/unit/test_image_tools.cpp`): Added an optional `thumbnail` (boolean) parameter to `image_getdata`. When true, the image is shrunk in-memory (via GraphicsMagick) so its largest dimension is at most 96px (`kThumbnailMaxDim`, other dimension scaled proportionally), keeping the returned base64 data URL comfortably under the default 50 KB size limit while remaining a reasonably sized preview. This satisfies the "read/get operations stay pure" principle: the shrink is computed entirely on-the-fly, never writes to the VFS cache or mappings, and the original image is left untouched. The validation schema and `docs/tools.md` documentation were updated, and unit test coverage verifies an oversized (84 KB `logo.jpg`) image that would normally be rejected now succeeds with `thumbnail: true`.

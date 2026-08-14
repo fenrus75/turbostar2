@@ -607,6 +607,7 @@ std::optional<std::vector<diagnostic_info>> project_manager::lsp_query_file_diag
 
 std::vector<std::string> project_manager::get_available_tests()
 {
+	std::lock_guard<std::mutex> lock(available_tests_mutex_);
 	if (!tests_ready_) {
 		refresh_available_tests();
 	} else if (build_definition_changed()) {
@@ -627,8 +628,9 @@ std::vector<std::string> project_manager::get_available_tests()
 	return available_tests_;
 }
 
-void project_manager::invalidate_available_tests_cache()
+void project_manager::invalidate_available_tests_cache() noexcept
 {
+	std::lock_guard<std::mutex> lock(available_tests_mutex_);
 	tests_ready_ = false;
 }
 
@@ -687,7 +689,7 @@ void project_manager::refresh_available_tests()
 	std::string cmd;
 
 	if (build_system == "meson") {
-		cmd = "meson test -C " + build_path.string() + " --list";
+		cmd = std::format("meson test -C {} --list", build_path.string());
 	} else {
 		// Fallback or not supported for other systems yet
 		tests_ready_ = true;

@@ -139,7 +139,7 @@ class project_manager
 	// get_available_tests(). Used when the build definition may have changed
 	// (e.g. meson.build edited) or when a lookup for a requested test name missed
 	// (so newly-registered tests become discoverable without a restart).
-	void invalidate_available_tests_cache();
+	void invalidate_available_tests_cache() noexcept;
 
 	// Executable candidate scanning
 	std::vector<std::string> detect_executable_candidates();
@@ -207,6 +207,13 @@ class project_manager
 	std::string clang_format_;
 	std::unique_ptr<lsp_manager> lsp_manager_;
 
+	/*
+	 * available_tests_mutex_ protects available_tests_, tests_ready_,
+	 * tests_meson_build_mtime_, and tests_list_refreshed_at_.
+	 * Locking Rules:
+	 * - Synchronizes access across queries, invalidations, and background/tool-driven refreshes.
+	 */
+	mutable std::mutex available_tests_mutex_;
 	std::vector<std::string> available_tests_;
 	bool tests_ready_{false};
 	// Last-modified time of the build definition file (meson.build) seen when the

@@ -2,14 +2,15 @@
 #include <cctype>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
-#include "../../config_manager.h"
-#include "../../crashdump_manager.h"
-#include "../../fs_utils.h"
-#include "../../project_manager.h"
-#include "../../agentlib/ai_agent.h"
-#include "../terminal_command_runner.h"
-#include "../output_filter.h"
+#include "config_manager.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
+#include "project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "tools/terminal_command_runner.h"
+#include "tools/output_filter.h"
 #include "fs_run_tests.h"
 
 namespace tools
@@ -17,14 +18,14 @@ namespace tools
 
 // Case-insensitive substring match used to resolve a partial test name against the full names
 // returned by project_manager::get_available_tests().
-static bool contains_case_insensitive(const std::string &haystack, const std::string &needle)
+static bool contains_case_insensitive(std::string_view haystack, std::string_view needle)
 {
 	if (needle.empty()) {
 		return true;
 	}
 	auto to_lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
-	std::string hay = haystack;
-	std::string ned = needle;
+	std::string hay(haystack);
+	std::string ned(needle);
 	std::transform(hay.begin(), hay.end(), hay.begin(), to_lower);
 	std::transform(ned.begin(), ned.end(), ned.begin(), to_lower);
 	return hay.find(ned) != std::string::npos;
@@ -43,7 +44,9 @@ static std::vector<std::string> resolve_test_names(std::span<const std::string> 
 		bool matched = false;
 		for (const auto &candidate : available) {
 			if (candidate == t) {
-				resolved.push_back(t);
+				if (std::find(resolved.begin(), resolved.end(), t) == resolved.end()) {
+					resolved.push_back(t);
+				}
 				matched = true;
 				break;
 			}
@@ -54,7 +57,9 @@ static std::vector<std::string> resolve_test_names(std::span<const std::string> 
 		// No exact match: expand the substring to every available test containing it.
 		for (const auto &candidate : available) {
 			if (contains_case_insensitive(candidate, t)) {
-				resolved.push_back(candidate);
+				if (std::find(resolved.begin(), resolved.end(), candidate) == resolved.end()) {
+					resolved.push_back(candidate);
+				}
 				if (did_substring_expand) {
 					*did_substring_expand = true;
 				}
