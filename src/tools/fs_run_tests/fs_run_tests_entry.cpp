@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <span>
 #include <string>
 #include <vector>
 #include "../../config_manager.h"
@@ -27,6 +28,40 @@ static bool contains_case_insensitive(const std::string &haystack, const std::st
 	std::transform(hay.begin(), hay.end(), hay.begin(), to_lower);
 	std::transform(ned.begin(), ned.end(), ned.begin(), to_lower);
 	return hay.find(ned) != std::string::npos;
+}
+
+// Resolves the requested test names (which may be exact full names or substrings) against the
+// project's current available-test list. Returns the concrete test names to run. Sets
+// did_substring_expand to true if at least one requested name was a substring expansion rather
+// than an exact match.
+static std::vector<std::string> resolve_test_names(std::span<const std::string> test_names,
+						    bool *did_substring_expand)
+{
+	std::vector<std::string> resolved;
+	const std::vector<std::string> available = project_manager::get_instance().get_available_tests();
+	for (const auto &t : test_names) {
+		bool matched = false;
+		for (const auto &candidate : available) {
+			if (candidate == t) {
+				resolved.push_back(t);
+				matched = true;
+				break;
+			}
+		}
+		if (matched) {
+			continue; // exact full-name match: use it verbatim
+		}
+		// No exact match: expand the substring to every available test containing it.
+		for (const auto &candidate : available) {
+			if (contains_case_insensitive(candidate, t)) {
+				resolved.push_back(candidate);
+				if (did_substring_expand) {
+					*did_substring_expand = true;
+				}
+			}
+		}
+	}
+	return resolved;
 }
 
 fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout)
@@ -84,26 +119,14 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	if (test_names_.empty()) {
 		resolved = test_names_;
 	} else {
-		std::vector<std::string> available = project_manager::get_instance().get_available_tests();
-		for (const auto &t : test_names_) {
-			bool matched = false;
-			for (const auto &candidate : available) {
-				if (candidate == t) {
-					resolved.push_back(t);
-					matched = true;
-					break;
-				}
-			}
-			if (matched) {
-				continue; // exact full-name match: use it verbatim
-			}
-			// No exact match: expand the substring to every available test containing it.
-			for (const auto &candidate : available) {
-				if (contains_case_insensitive(candidate, t)) {
-					resolved.push_back(candidate);
-					did_substring_expand = true;
-				}
-			}
+		resolved = resolve_test_names(test_names_, &did_substring_expand);
+		// If nothing resolved, the in-memory test list may be stale (e.g. tests were added to
+		// meson.build after the editor populated the cache). Invalidate the cache so the next
+		// get_available_tests() forces a real refresh, then retry the resolution once before
+		// giving up. This makes newly-registered tests discoverable without an editor restart.
+		if (resolved.empty()) {
+			project_manager::get_instance().invalidate_available_tests_cache();
+			resolved = resolve_test_names(test_names_, &did_substring_expand);
 		}
 	}
 

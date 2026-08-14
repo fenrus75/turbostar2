@@ -1,6 +1,8 @@
 #pragma once
 #include <atomic>
 #include <cassert>
+#include <chrono>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -133,6 +135,11 @@ class project_manager
 	// Test management
 	std::vector<std::string> get_available_tests();
 	void refresh_available_tests();
+	// Forces the cached available-test list to be rebuilt on the next call to
+	// get_available_tests(). Used when the build definition may have changed
+	// (e.g. meson.build edited) or when a lookup for a requested test name missed
+	// (so newly-registered tests become discoverable without a restart).
+	void invalidate_available_tests_cache();
 
 	// Executable candidate scanning
 	std::vector<std::string> detect_executable_candidates();
@@ -169,6 +176,16 @@ class project_manager
 	void inventory_project(std::stop_token stop);
 	void software_map_loop(std::stop_token stop);
 	void update_software_map_markdown();
+	// Returns true if the meson.build used to populate the available-test list
+	// has a different mtime than when the list was last refreshed. Used by
+	// get_available_tests() to invalidate the cached list when build definitions
+	// change (e.g. new test targets added to meson.build).
+	bool build_definition_changed() const;
+	// Resolves the build directory used for meson test listing. Prefers the
+	// configured build directory; if empty or lacking build.ninja, falls back to a
+	// build directory found under the project root (e.g. build/). Returns empty if
+	// none is usable.
+	std::string resolve_build_dir() const;
 
 	struct directory_info {
 		std::string path;
@@ -192,6 +209,19 @@ class project_manager
 
 	std::vector<std::string> available_tests_;
 	bool tests_ready_{false};
+	// Last-modified time of the build definition file (meson.build) seen when the
+	// available-test list was last refreshed. When get_available_tests() is called
+	// and this timestamp is older than the on-disk meson.build mtime, the cached
+	// list is considered stale because newly-registered test binaries would not
+	// appear in `meson test --list` output.
+	std::filesystem::file_time_type tests_meson_build_mtime_;
+	// Wall-clock time (steady clock) when the available-test list was last
+	// refreshed. Provides an upper bound on staleness: even if meson.build is
+	// unchanged, a very old cached list is refreshed so a long-running editor
+	// session does not miss tests added/changed through other means (e.g. a
+	// different working copy checked out, generated test fixtures, etc.),
+	// while still caching effectively for back-to-back lookups.
+	std::chrono::steady_clock::time_point tests_list_refreshed_at_;
 
 	/*
 	 * layout_mutex_ protects the project_layout structure.

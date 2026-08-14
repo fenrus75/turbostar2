@@ -609,19 +609,80 @@ std::vector<std::string> project_manager::get_available_tests()
 {
 	if (!tests_ready_) {
 		refresh_available_tests();
+	} else if (build_definition_changed()) {
+		// The build definition (e.g. meson.build) has been modified since we last
+		// listed tests, so the cached list may not include newly-registered test
+		// binaries. Refresh once so additions are discoverable without a restart.
+		event_logger::get_instance().log("project_manager: build definition changed, refreshing available tests.");
+		refresh_available_tests();
+	} else if (tests_list_refreshed_at_ != std::chrono::steady_clock::time_point{}
+		   && std::chrono::steady_clock::now() - tests_list_refreshed_at_ > std::chrono::minutes(5)) {
+		// Upper bound on staleness: regardless of meson.build mtime, refresh a
+		// list that hasn't been rebuilt in >5 minutes so tests added through
+		// other means eventually appear, while keeping caching effective for
+		// back-to-back lookups.
+		event_logger::get_instance().log("project_manager: available tests cache is >5 minutes old, refreshing.");
+		refresh_available_tests();
 	}
 	return available_tests_;
+}
+
+void project_manager::invalidate_available_tests_cache()
+{
+	tests_ready_ = false;
+}
+
+bool project_manager::build_definition_changed() const
+{
+	// The meson.build that feeds the test list lives in the project root. Compare
+	// its current mtime against the one recorded when the list was last refreshed.
+	const fs::path meson_build = fs::path(project_root_) / "meson.build";
+	std::error_code ec;
+	auto mtime = fs::last_write_time(meson_build, ec);
+	if (ec) {
+		// If meson.build cannot be stat'd, conservatively treat it as unchanged to
+		// avoid spurious refresh churn (the initial populate already happened).
+		return false;
+	}
+	return mtime != tests_meson_build_mtime_;
+}
+
+std::string project_manager::resolve_build_dir() const
+{
+	std::string build_dir = config_manager::get_instance().get_build_directory();
+	fs::path build_path(build_dir);
+	if (build_path.is_relative()) {
+		build_path = fs::path(project_root_) / build_path;
+	}
+
+	// If the configured build dir exists and looks like a meson build (has
+	// build.ninja), use it directly.
+	std::error_code ec;
+	if (!build_path.empty() && fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja")) {
+		return build_path.string();
+	}
+
+	// Fallback: scan the project root for a directory containing build.ninja
+	// (e.g. build/) so test listing works even when no build dir is configured
+	// (headless / unit-test environments).
+	if (!project_root_.empty()) {
+		ec.clear();
+		for (const auto &entry : fs::directory_iterator(project_root_, fs::directory_options::skip_permission_denied, ec)) {
+			if (ec) {
+				break;
+			}
+			if (entry.is_directory() && fs::exists(entry.path() / "build.ninja")) {
+				return entry.path().string();
+			}
+		}
+	}
+	return build_path.string(); // fall back to the configured (possibly empty) dir
 }
 
 void project_manager::refresh_available_tests()
 {
 	std::string build_system = config_manager::get_instance().get_build_system();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
-
-	fs::path build_path(build_dir);
-	if (build_path.is_relative()) {
-		build_path = fs::path(project_root_) / build_path;
-	}
+	fs::path build_path(resolve_build_dir());
 
 	std::string cmd;
 
@@ -631,7 +692,22 @@ void project_manager::refresh_available_tests()
 		// Fallback or not supported for other systems yet
 		tests_ready_ = true;
 		available_tests_.clear();
+		tests_list_refreshed_at_ = std::chrono::steady_clock::now();
 		return;
+	}
+
+	// Record the current meson.build mtime so a subsequent change is detected by
+	// build_definition_changed(). Capture before the (potentially slow) listing so
+	// an edit racing with this refresh still triggers the next refresh.
+	std::error_code ec;
+	const fs::path meson_build = fs::path(project_root_) / "meson.build";
+	auto mtime = fs::last_write_time(meson_build, ec);
+	if (!ec) {
+		tests_meson_build_mtime_ = mtime;
+	} else {
+		// If stat fails, leave the previous mtime in place so the cache stays
+		// valid until a successful refresh records a fresh timestamp.
+		event_logger::get_instance().log("project_manager: could not stat meson.build: {}", ec.message());
 	}
 
 	sync_command_runner runner;
@@ -639,6 +715,11 @@ void project_manager::refresh_available_tests()
 	runner.set_project_dir(project_root_);
 
 	std::string output = runner.execute_and_get_output(cmd);
+	// Record the refresh time regardless of success/failure so a failing `meson
+	// test --list` (e.g. transient) does not cause every subsequent lookup to
+	// retry the slow command in a tight loop. A failed refresh simply leaves the
+	// previous list (if any) in place but re-arms after the staleness bound.
+	tests_list_refreshed_at_ = std::chrono::steady_clock::now();
 	if (runner.get_exit_code() != 0) {
 		event_logger::get_instance().log("Failed to list tests: {}", output);
 		tests_ready_ = true;

@@ -1430,6 +1430,12 @@ test_project_layout = executable('test_project_layout',
   include_directories: 'src')
 test('unit_project_layout', test_project_layout, suite: 'agent')
 
+test_available_tests = executable('test_available_tests',
+  ['tests/unit/test_available_tests.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  include_directories: 'src')
+test('unit_test_available_tests', test_available_tests, is_parallel: false, suite: 'agent')
+
 test_output_filter = executable('test_output_filter',
   ['tests/unit/test_output_filter.cpp'],
   include_directories: 'src')
