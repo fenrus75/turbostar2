@@ -2,12 +2,10 @@
 #include "agentlib/subagent_manager.h"
 #include "markdown_extract_agent.h"
 
-namespace tools {
+extern "C" {
+
 void register_markdown_extract(void);
 void unregister_markdown_extract(void);
-}
-
-extern "C" {
 
 const char *plugin_name(void)
 {
@@ -21,7 +19,7 @@ const char *plugin_description(void)
 
 void plugin_run(void)
 {
-	tools::register_markdown_extract();
+	register_markdown_extract();
 	agentlib::subagent_manager::get_instance().register_subagent("markdown_extractor", markdown_extract_agent_md);
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"markdown_extract",
@@ -34,7 +32,7 @@ void plugin_run(void)
 
 void plugin_unload(void)
 {
-	tools::unregister_markdown_extract();
+	unregister_markdown_extract();
 	agentlib::subagent_manager::get_instance().unregister_subagent("markdown_extractor");
 	agentlib::tool_registry::get_instance().unregister_tool_family("markdown_extract");
 }
