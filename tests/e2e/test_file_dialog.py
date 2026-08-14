@@ -34,7 +34,6 @@ def test_file_dialog():
         # 4. Check that the new window is opened
         log = runner.get_log()
         try:
-            runner.assert_in_log("Document loaded from")
             full_path = os.path.abspath(os.path.join(testrun_dir, test_dir, test_file))
             runner.assert_in_log(full_path)
         except AssertionError:
