@@ -15,6 +15,11 @@
 #include <exception>
 #include <fcntl.h>
 #include <cerrno>
+#include <climits>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #if __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -27,8 +32,8 @@ namespace crash_handler
 
 int crash_fd = -1;
 static int reserved_fd = -1;
-static char crash_filepath[512] = "";
-static char crashprocess_path[512] = "";
+static char crash_filepath[PATH_MAX + 1] = "";
+static char crashprocess_path[PATH_MAX + 1] = "";
 
 // [Signal-Safe]
 // Computes string length using stack-only pointer traversal. Safe to call in signal handlers.
@@ -51,7 +56,7 @@ static void resolve_crashprocess_path()
 	std::error_code ec;
 
 	// 1. Try relative to current running executable
-	char exe_buf[512];
+	char exe_buf[PATH_MAX + 1];
 	ssize_t len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
 	if (len > 0) {
 		exe_buf[len] = '\0';
@@ -329,7 +334,7 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		}
 	}
 
-	char exe_path[512];
+	char exe_path[PATH_MAX + 1];
 	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
 	if (len > 0) {
 		exe_path[len] = '\0';

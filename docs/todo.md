@@ -20,10 +20,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - fs_file_codemap silently truncates to "Top N of total" symbols; add a full:true option (or make it default
   for small files / markdown) so whole-file section indexes can be seen when auditing for duplicates/gaps.
 
-- we should time and report how long the user took to respond to run_shell_command tools to discourage their use by the agent
-
-- we should have an option to keep a log of all run_shell_command strings
-
 - we should use our log to make a regexp engine to live recommend alternatives to the agent
 
 - markdown_extract() tool call that uses an agent call to extract information from a file
