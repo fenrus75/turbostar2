@@ -1,5 +1,6 @@
 #include "../../agentlib/tool_registry.h"
 #include "run_shell_command.h"
+#include "shell_command_resteer.h"
 
 namespace tools
 {
@@ -20,6 +21,12 @@ bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args,
         parsed_args_.is_async = false;
     }
 
+    if (args.contains("force") && args["force"].is_boolean()) {
+        parsed_args_.force = args["force"].get<bool>();
+    } else {
+        parsed_args_.force = false;
+    }
+
     if (parsed_args_.command.empty()) {
         out_error = "Command cannot be empty.";
         return false;
@@ -29,6 +36,18 @@ bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args,
         out_error = "Command contains forbidden ANSI escape sequences.";
         return false;
     }
+
+    // Evaluate regex re-steering engine if force is false
+    if (!parsed_args_.force) {
+        auto rec = evaluate_shell_command_resteer(parsed_args_.command);
+        if (rec.matched && rec.confidence >= 0.90) {
+            out_error = "Denied: Shell command matches native tool recommendation to prevent unnecessary user approval interrupts. " +
+                        rec.explanation + " Recommended native call: " + rec.suggested_tool +
+                        ". If native tools are genuinely insufficient, retry with force: true to request explicit user approval.";
+            return false;
+        }
+    }
+
     return true;
 }
 

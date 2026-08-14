@@ -10,6 +10,7 @@ struct run_shell_command_args {
     std::string command;
     int timeout = 300;
     bool is_async = false;
+    bool force = false;
 };
 
 class run_shell_command_tool : public agentlib::llm_tool {
@@ -45,6 +46,10 @@ public:
                 {"async", {
                     {"type", "boolean"},
                     {"description", "Optional. If true, runs the command in the background. Default is false."}
+                }},
+                {"force", {
+                    {"type", "boolean"},
+                    {"description", "Optional. Set to true ONLY if native specialized tools are genuinely insufficient and you require explicit user approval for a raw shell command."}
                 }}
             }},
             {"required", nlohmann::json::array({"command"})}

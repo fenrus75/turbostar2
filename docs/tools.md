@@ -298,9 +298,12 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://out.md`) to save the converted output directly to disk.
 
 ### `run_shell_command`
-*   **Description:** Runs an arbitrary shell command safely within the sandbox. The command will be subject to user permission approval. The agent should strongly consider using direct/specialized tools instead of run_shell_command where possible, as run_shell_command requires explicit user permission and interrupts the agent flow. When the user is explicitly prompted for approval, the tool result includes the approval latency (e.g. `(approved by user in 2.4s)`) so the agent can gauge the interactive cost of shell access. If the "Log shell commands" preference is enabled, approved commands are appended to `~/.cache/turbostar/shell_commands.log`.
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files or fs_find_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff (use git_status, git_diff_unstaged, git_log).
 *   **Arguments:**
     *   `command` *(string, required)*: The exact shell command to execute.
+    *   `timeout` *(integer, optional)*: Optional timeout in seconds. Default is 300.
+    *   `async` *(boolean, optional)*: Optional. If true, runs the command in the background. Default is false.
+    *   `force` *(boolean, optional)*: Set to true ONLY if native specialized tools are genuinely insufficient and you require explicit user approval for a raw shell command.
 
 ---
 

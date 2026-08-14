@@ -568,10 +568,20 @@ test('unit_test_run_python', test_run_python, is_parallel: false, suite: 'agent'
 test_run_shell_command = executable('test_run_shell_command',
   ['tests/unit/test_run_shell_command.cpp',
    'src/tools/run_shell_command/run_shell_command_entry.cpp',
-   'src/tools/run_shell_command/run_shell_command_security.cpp'],
+   'src/tools/run_shell_command/run_shell_command_security.cpp',
+   'src/tools/run_shell_command/shell_command_resteer.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_run_shell_command', test_run_shell_command, suite: 'agent')
+
+test_shell_command_resteer = executable('test_shell_command_resteer',
+  ['tests/unit/test_shell_command_resteer.cpp',
+   'src/tools/run_shell_command/run_shell_command_entry.cpp',
+   'src/tools/run_shell_command/run_shell_command_security.cpp',
+   'src/tools/run_shell_command/shell_command_resteer.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_shell_command_resteer', test_shell_command_resteer, suite: 'agent')
 
 test_sqlite_list_db = executable('test_sqlite_list_db',
   'tests/unit/test_sqlite_list_db.cpp',

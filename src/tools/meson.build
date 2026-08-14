@@ -39,6 +39,7 @@ tools_sources = files(
   'apply_text_filter/apply_text_filter_security.cpp',
   'run_shell_command/run_shell_command_entry.cpp',
   'run_shell_command/run_shell_command_security.cpp',
+  'run_shell_command/shell_command_resteer.cpp',
   'crashdump_list/crashdump_list_entry.cpp',
   'crashdump_list/crashdump_list_security.cpp',
   'crashdump_get_info/crashdump_get_info_entry.cpp',
