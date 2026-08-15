@@ -76,7 +76,7 @@ class run_python_validator : public agentlib::tool_validator
 		static bool uv_checked = false;
 		static bool uv_available = false;
 		if (!uv_checked) {
-			uv_available = (system("which uv > /dev/null 2>&1") == 0);
+			uv_available = (access("/usr/bin/uv", X_OK) == 0 || access("/usr/local/bin/uv", X_OK) == 0);
 			uv_checked = true;
 		}
 		return uv_available;

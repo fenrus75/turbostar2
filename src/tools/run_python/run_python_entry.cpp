@@ -1,6 +1,8 @@
 #include <deque>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <random>
 #include <sstream>
 #include <unistd.h>
@@ -72,17 +74,19 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 
 	if (args_.code) {
 		if (bandit_installed) {
-			static std::mt19937 rng(std::random_device{}());
-			std::uniform_int_distribution<uint32_t> dist(0, 0xFFFFFFFF);
-			std::string temp_name = ".bandit_tmp_" + std::to_string(dist(rng)) + ".py";
-			temp_file_path = ctx.fs_security.get_working_directory() / temp_name;
-
-			std::ofstream out(temp_file_path);
-			if (!out) {
+			std::string tmpl = (ctx.fs_security.get_working_directory() / ".bandit_tmp_XXXXXX.py").string();
+			std::vector<char> tmpl_vec(tmpl.begin(), tmpl.end());
+			tmpl_vec.push_back('\0');
+			int fd = mkostemps(tmpl_vec.data(), 3, O_CLOEXEC);
+			if (fd == -1) {
 				return "Execution Error: Failed to create temporary file for security check.";
 			}
-			out << *args_.code;
-			out.close();
+			temp_file_path = tmpl_vec.data();
+			if (write(fd, args_.code->data(), args_.code->size()) < 0) {
+				close(fd);
+				return "Execution Error: Failed to write to temporary file for security check.";
+			}
+			close(fd);
 			bandit_target_path = temp_file_path.string();
 		}
 	} else {
@@ -127,14 +131,34 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
+	// Validate dependencies to prevent option smuggling
+	for (const auto &dep : args_.dependencies) {
+		if (dep.empty() || dep.starts_with('-')) {
+			return "Execution Error: Invalid dependency specification '" + dep + "'. Options cannot be smuggled as package names.";
+		}
+		for (char c : dep) {
+			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '.' && c != '[' && c != ']' && c != '=' && c != '>' && c != '<' && c != '!') {
+				return "Execution Error: Invalid characters in dependency package name '" + dep + "'.";
+			}
+		}
+	}
+
 	live_python_runner runner(interaction_, ctx.trigger_ui_update);
 	runner.apply_strict_agent_profile();
-	if (!args_.dependencies.empty()) {
-		runner.set_network_access(true);
-	}
 	runner.set_enable_crash_catcher(true);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 	runner.set_timeout(args_.timeout);
+
+	// Allow read access to the directory containing the resolved script path
+	if (!args_.code && !bandit_target_path.empty()) {
+		std::filesystem::path p(bandit_target_path);
+		runner.add_extra_ro_path(p.parent_path().string());
+	}
+
+	// If a venv is requested, expose it read-only to the sandbox
+	if (args_.venv_dir) {
+		runner.add_extra_ro_path(*args_.venv_dir);
+	}
 
 	// Allow uv cache explicitly if it exists
 	const char *home = std::getenv("HOME");
@@ -145,18 +169,11 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// Allow access to the virtual tmp:// scratch directory on disk
+	// Allow access to the virtual tmp:// scratch directory on disk and project .turbostar directory
 	runner.add_extra_rw_path(fs_utils::get_project_tmp_dir());
-
-	// Allow access to the directory containing the resolved script path, in case it is in another VFS domain like images://
-	if (!args_.code && !bandit_target_path.empty()) {
-		std::filesystem::path p(bandit_target_path);
-		runner.add_extra_rw_path(p.parent_path().string());
-	}
-
-	// If a venv is requested, expose it to the sandbox so its interpreter and site-packages are accessible.
-	if (args_.venv_dir) {
-		runner.add_extra_rw_path(*args_.venv_dir);
+	std::string turbostar_dir = (ctx.fs_security.get_working_directory() / ".turbostar").string();
+	if (std::filesystem::exists(turbostar_dir)) {
+		runner.add_extra_rw_path(turbostar_dir);
 	}
 
 	std::string script_path;
@@ -164,7 +181,6 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	if (args_.code) {
 		// We will use stdin
 	} else {
-		// The path is already validated and resolved above in resolved_path/bandit_target_path
 		script_path = bandit_target_path;
 	}
 
@@ -176,19 +192,17 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	// Install any requested dependencies into the active interpreter's environment before
-	// running the script. With an explicit venv we install into that venv; otherwise we rely on
-	// uv's ephemeral environment. If we have dependencies and no uv and no venv, we cannot satisfy them.
+	// running the script.
 	bool install_deps = !args_.dependencies.empty();
 	if (install_deps && args_.venv_dir) {
-		// Prefer 'uv pip install' into the venv; fall back to the venv's own pip.
 		std::string install_cmd;
 		if (access("/usr/bin/uv", X_OK) == 0) {
-			install_cmd = "uv pip install --python " + fs_utils::escape_shell_arg(python_interp) + " ";
+			install_cmd = "uv pip install --python " + fs_utils::escape_shell_arg(python_interp) + " -- ";
 			for (const auto &dep : args_.dependencies) {
 				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
 			}
 		} else {
-			install_cmd = fs_utils::escape_shell_arg(python_interp) + " -m pip install ";
+			install_cmd = fs_utils::escape_shell_arg(python_interp) + " -m pip install -- ";
 			for (const auto &dep : args_.dependencies) {
 				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
 			}
@@ -257,6 +271,11 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 			  "investigate.";
 	}
 
+	constexpr size_t kMaxPythonOutputBytes = 32 * 1024; // 32 KB cap
+	if (output.length() > kMaxPythonOutputBytes) {
+		output = output.substr(0, kMaxPythonOutputBytes) + "\n\n...[python output truncated due to 32KB length limit]...";
+	}
+
 	if (output.empty()) {
 		output = "Process finished successfully with no output.";
 		if (interaction_) {
@@ -267,7 +286,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	return output;
+	return fs_utils::wrap_prompt_untrusted_data_tag("python_output", output);
 }
 
 } // namespace tools
