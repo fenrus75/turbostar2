@@ -65,6 +65,14 @@ class a2a_connect_server_validator : public agentlib::tool_validator
 				out_error = "Server URL cannot be empty.";
 				return false;
 			}
+			if (!raw.url.starts_with("http://") && !raw.url.starts_with("https://")) {
+				out_error = "Server URL must start with http:// or https://.";
+				return false;
+			}
+			if (raw.url.find("169.254.") != std::string::npos) {
+				out_error = "Security Violation: Access to cloud metadata endpoint (169.254.x.x) is blocked.";
+				return false;
+			}
 			if (raw.name.find(':') != std::string::npos || raw.name.find('/') != std::string::npos) {
 				out_error = "Server name cannot contain colons or slashes.";
 				return false;

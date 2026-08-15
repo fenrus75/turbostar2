@@ -1,4 +1,5 @@
 #include "a2a_connect_server.h"
+#include "fs_utils.h"
 #include <format>
 #include "a2a/a2a_client.h"
 #include "a2a/a2a_server_manager.h"
@@ -47,7 +48,8 @@ std::string a2a_connect_server_tool::execute(agentlib::tool_context &)
 		skills_summary = std::format("\nExposed agent skills/profiles: {}", nlohmann::json(card->skills).dump());
 	}
 
-	return std::format("Successfully connected to A2A server '{}' ({}) at '{}'.{}", args_.name, card->name, args_.url, skills_summary);
+	std::string res = std::format("Successfully connected to A2A server '{}' ({}) at '{}'.{}", args_.name, card->name, args_.url, skills_summary);
+	return fs_utils::wrap_prompt_untrusted_data_tag("a2a_server_connection_result", res);
 }
 
 } // namespace tools
