@@ -261,6 +261,22 @@ int main()
 			assert(read_file() == "void strict_foo() {\n    x();\n}\n");
 		}
 
+		// 16. Windowed replacement with start_line and end_line
+		{
+			write_file("line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nTarget block\nline 11\n");
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "Target block"},
+				{"replacement_content", "Windowed block replacement"},
+				{"start_line", 8},
+				{"end_line", 11}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Windowed search result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(read_file() == "line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nWindowed block replacement\nline 11\n");
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

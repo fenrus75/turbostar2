@@ -13,6 +13,8 @@ struct fs_replace_content_args {
     std::string replacement_content;
     std::optional<int> line_hint;
     std::optional<std::string> function_hint;
+    std::optional<int> start_line;
+    std::optional<int> end_line;
     bool strict{false}; // If true, reject (and revert) edits that leave braces unbalanced instead of warning.
 };
 
@@ -61,6 +63,14 @@ public:
                 {"function_hint", {
                     {"type", "string"},
                     {"description", "Optional. The name of the enclosing function, method, or class (e.g. 'execute_disk_fallback'). Highly recommended for long files to restrict search scope and resolve ambiguity."}
+                }},
+                {"start_line", {
+                    {"type", "integer"},
+                    {"description", "Optional. A 1-based start line number establishing a search window boundary for target_content."}
+                }},
+                {"end_line", {
+                    {"type", "integer"},
+                    {"description", "Optional. A 1-based end line number establishing a search window boundary for target_content."}
                 }},
                 {"strict", {
                     {"type", "boolean"},

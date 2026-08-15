@@ -150,6 +150,8 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `replacement_content` *(string, required)*: The new content that will replace `target_content`.
     *   `line_hint` *(integer, optional)*: A 1-based line number hinting where the block starts. Required to resolve ambiguity if the target content appears multiple times.
     *   `function_hint` *(string, optional)*: The name of the enclosing function, method, or class (e.g., `'execute'`). Highly recommended for long files to restrict search scope and resolve ambiguity.
+    *   `start_line` *(integer, optional)*: A 1-based start line number establishing a search window boundary for target content.
+    *   `end_line` *(integer, optional)*: A 1-based end line number establishing a search window boundary for target content.
     *   `strict` *(boolean, optional)*: If true, reject (and revert) the edit when it would leave braces unbalanced, instead of applying it and only issuing a warning. Defaults to false.
 
 ### `fs_write_file`

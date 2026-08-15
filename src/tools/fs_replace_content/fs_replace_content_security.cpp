@@ -71,6 +71,41 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
         args_.line_hint = hint;
         args_.function_hint = func_hint;
 
+        std::optional<int> start_l;
+        if (raw_args.contains("start_line")) {
+            if (!raw_args["start_line"].is_number_integer()) {
+                out_error = "Invalid 'start_line' parameter (must be an integer).";
+                return false;
+            }
+            int sl_val = raw_args["start_line"].get<int>();
+            if (sl_val < 1) {
+                out_error = "'start_line' must be a positive 1-based integer.";
+                return false;
+            }
+            start_l = sl_val;
+        }
+
+        std::optional<int> end_l;
+        if (raw_args.contains("end_line")) {
+            if (!raw_args["end_line"].is_number_integer()) {
+                out_error = "Invalid 'end_line' parameter (must be an integer).";
+                return false;
+            }
+            int el_val = raw_args["end_line"].get<int>();
+            if (el_val < 1) {
+                out_error = "'end_line' must be a positive 1-based integer.";
+                return false;
+            }
+            if (start_l && el_val < *start_l) {
+                out_error = "'end_line' must be greater than or equal to 'start_line'.";
+                return false;
+            }
+            end_l = el_val;
+        }
+
+        args_.start_line = start_l;
+        args_.end_line = end_l;
+
         if (raw_args.contains("strict")) {
             if (!raw_args["strict"].is_boolean()) {
                 out_error = "Invalid 'strict' parameter (must be a boolean).";

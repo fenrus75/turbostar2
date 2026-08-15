@@ -455,15 +455,19 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
 
     std::vector<std::string> file_lines = split_lines(file_content);
 
-    // Resolve scope using function_hint if provided
-    int scope_start = 1;
-    int scope_end = std::numeric_limits<int>::max();
+    // Resolve scope using function_hint, start_line, or end_line if provided
+    int scope_start = args_.start_line.value_or(1);
+    int scope_end = args_.end_line.value_or(std::numeric_limits<int>::max());
     if (args_.function_hint.has_value() && !args_.function_hint->empty()) {
         std::string_view f_hint = args_.function_hint.value();
+        int func_start = 1;
+        int func_end = std::numeric_limits<int>::max();
         auto symbols = project_manager::get_instance().lsp_query_document_symbols(args_.safe_path);
-        if (!find_symbol_range(symbols, f_hint, scope_start, scope_end)) {
-            fallback_find_symbol_range(file_lines, f_hint, scope_start, scope_end);
+        if (!find_symbol_range(symbols, f_hint, func_start, func_end)) {
+            fallback_find_symbol_range(file_lines, f_hint, func_start, func_end);
         }
+        scope_start = std::max(scope_start, func_start);
+        scope_end = std::min(scope_end, func_end);
     }
 
     // 2. Find strict exact matches
