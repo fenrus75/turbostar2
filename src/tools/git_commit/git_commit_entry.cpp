@@ -2,8 +2,10 @@
 #include <fstream>
 #include <format>
 #include <system_error>
-#include "../../codereview_manager.h"
-#include "../../fs_utils.h"
+#include <atomic>
+#include <chrono>
+#include "codereview_manager.h"
+#include "fs_utils.h"
 #include "git_commit.h"
 
 namespace tools
@@ -55,9 +57,12 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 		return "Failed: No staged changes found. Use git_add to stage files first.";
 	}
 
-	// Write commit message to a temporary file to avoid shell injection
+	// Write commit message to a temporary file with a unique random ID to avoid collision/symlink hijacking
+	static std::atomic<uint64_t> counter{0};
+	auto now_ns = std::chrono::steady_clock::now().time_since_epoch().count();
+	std::string unique_id = std::to_string(now_ns) + "_" + std::to_string(++counter);
 	std::filesystem::path temp_dir = std::filesystem::path(fs_utils::get_project_tmp_dir());
-	std::filesystem::path msg_file = temp_dir / ("commit_msg_" + std::to_string(std::hash<std::string>{}(message_)) + ".txt");
+	std::filesystem::path msg_file = temp_dir / ("commit_msg_" + unique_id + ".txt");
 
 	std::ofstream out(msg_file);
 	if (!out) {
@@ -75,7 +80,16 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 
 	if (output.find("fatal:") != std::string::npos || output.find("error:") != std::string::npos) {
 		set_failure(ctx, "Git commit failed");
-		return "Failed to commit:\n```\n" + output + "\n```";
+		if (output.length() > 20000) {
+			output.resize(20000);
+			output += "\n...[truncated]...";
+		}
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_commit_result", "Failed to commit:\n```\n" + output + "\n```");
+	}
+
+	if (output.length() > 20000) {
+		output.resize(20000);
+		output += "\n...[truncated]...";
 	}
 
 	set_success(ctx, "Commit created");
@@ -118,7 +132,7 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	return ret_msg;
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_commit_result", ret_msg);
 }
 
 } // namespace tools
