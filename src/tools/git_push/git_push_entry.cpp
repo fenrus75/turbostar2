@@ -1,6 +1,7 @@
 #include <future>
-#include "../../agentlib/tool_context.h"
-#include "../../fs_utils.h"
+#include <chrono>
+#include "agentlib/tool_context.h"
+#include "fs_utils.h"
 #include "git_push.h"
 
 namespace tools
@@ -19,7 +20,7 @@ std::string git_push_tool::execute(agentlib::tool_context &ctx)
 {
 	if (force_) {
 		if (!ctx.queue) {
-			return "Error: No event queue available to prompt the user for force push permission.";
+			return fs_utils::wrap_prompt_untrusted_data_tag("git_push_result", "Error: No event queue available to prompt the user for force push permission.");
 		}
 
 		auto promise = std::make_shared<std::promise<std::string>>();
@@ -35,14 +36,18 @@ std::string git_push_tool::execute(agentlib::tool_context &ctx)
 		ctx.queue->push(ev);
 
 		std::string response;
-		try {
-			response = future.get();
-		} catch (const std::exception &e) {
-			return std::string("Error: Failed to get user response - ") + e.what();
+		if (future.wait_for(std::chrono::seconds(30)) == std::future_status::ready) {
+			try {
+				response = future.get();
+			} catch (const std::exception &e) {
+				return fs_utils::wrap_prompt_untrusted_data_tag("git_push_result", std::string("Error: Failed to get user response - ") + e.what());
+			}
+		} else {
+			response = "Deny";
 		}
 
 		if (response != "Allow") {
-			return "Error: Permission denied by user for force push.";
+			return fs_utils::wrap_prompt_untrusted_data_tag("git_push_result", "Error: Permission denied by user for force push.");
 		}
 	}
 
@@ -52,17 +57,27 @@ std::string git_push_tool::execute(agentlib::tool_context &ctx)
 	}
 	std::string output = fs_utils::execute_command_sync(cmd);
 
-	// git push outputs to stderr even on success, so we must check for fatal/error keywords,
-	// or specifically look for success indicators like "up-to-date" or "resolving deltas" or "forced update".
-	if ((output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos &&
-	     output.find("Everything up-to-date") != std::string::npos) ||
-	    output.find("->") != std::string::npos || output.find("forced update") != std::string::npos) {
+	bool has_error = (output.find("fatal:") != std::string::npos ||
+			  output.find("error:") != std::string::npos ||
+			  output.find("rejected") != std::string::npos ||
+			  output.find("[rejected]") != std::string::npos);
+
+	bool has_success = (output.find("Everything up-to-date") != std::string::npos ||
+			    output.find("->") != std::string::npos ||
+			    output.find("forced update") != std::string::npos);
+
+	if (output.length() > 20000) {
+		output.resize(20000);
+		output += "\n...[truncated]...";
+	}
+
+	if (!has_error && has_success) {
 		set_success(ctx, "Git push successful");
-		return "Successfully pushed to remote:\n```\n" + output + "\n```";
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_push_result", "Successfully pushed to remote:\n```\n" + output + "\n```");
 	}
 
 	set_failure(ctx, "Git push failed");
-	return "Failed to push to remote:\n```\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_push_result", "Failed to push to remote:\n```\n" + output + "\n```");
 }
 
 } // namespace tools

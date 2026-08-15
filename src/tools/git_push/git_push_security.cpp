@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "git_push.h"
 
 namespace tools
