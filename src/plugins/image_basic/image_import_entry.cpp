@@ -14,9 +14,19 @@ namespace tools
 
 static std::string extract_domain(const std::string &url)
 {
-	std::regex url_regex(R"(^https?://([^/:]+))");
+	std::string target = url;
+	size_t pos = target.find("://");
+	if (pos != std::string::npos) {
+		target = target.substr(pos + 3);
+	}
+	size_t at_pos = target.find('@');
+	size_t slash_pos = target.find('/');
+	if (at_pos != std::string::npos && (slash_pos == std::string::npos || at_pos < slash_pos)) {
+		target = target.substr(at_pos + 1);
+	}
+	std::regex url_regex(R"(^([^/:]+))");
 	std::smatch match;
-	if (std::regex_search(url, match, url_regex)) {
+	if (std::regex_search(target, match, url_regex)) {
 		return match[1].str();
 	}
 	return "";
@@ -24,14 +34,23 @@ static std::string extract_domain(const std::string &url)
 
 static bool is_local_ip(const std::string &domain)
 {
-	if (domain == "localhost" || domain == "127.0.0.1" || domain == "::1")
+	if (domain == "localhost" || domain == "127.0.0.1" || domain == "::1" || domain == "0.0.0.0")
+		return true;
+	if (domain.starts_with("127."))
 		return true;
 	if (domain.starts_with("192.168."))
 		return true;
 	if (domain.starts_with("10."))
 		return true;
-	if (domain.starts_with("172.")) {
+	if (domain.starts_with("169.254.")) // AWS / cloud metadata service
 		return true;
+	if (domain.starts_with("172.")) {
+		int b1 = 0, b2 = 0;
+		if (std::sscanf(domain.c_str(), "%d.%d", &b1, &b2) == 2) {
+			if (b1 == 172 && b2 >= 16 && b2 <= 31) {
+				return true;
+			}
+		}
 	}
 	return false;
 }
@@ -40,12 +59,21 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 {
 	size_t realsize = size * nmemb;
 	std::string *mem = static_cast<std::string *>(userp);
+	const size_t MAX_SIZE = 32 * 1024 * 1024; // 32 MB download limit
+	if (mem->size() + realsize > MAX_SIZE) {
+		return 0; // Abort download
+	}
 	mem->append(static_cast<const char *>(contents), realsize);
 	return realsize;
 }
 
 static std::string perform_http_get(const std::string &url, int timeout_seconds = 30)
 {
+	std::string domain = extract_domain(url);
+	if (domain.empty() || is_local_ip(domain)) {
+		return "Error: Cannot fetch from internal or local network addresses.";
+	}
+
 	CURL *curl = curl_easy_init();
 	if (!curl) {
 		return "Error: failed to initialize libcurl.";
@@ -56,6 +84,9 @@ static std::string perform_http_get(const std::string &url, int timeout_seconds 
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &read_buffer);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+	curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+	curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeout_seconds));
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 

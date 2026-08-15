@@ -1,8 +1,10 @@
 #include "plugins/image_basic/image_grayscale_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include <cstddef>
 #include <format>
 #include "images/image_manager.h"
+#include "fs_utils.h"
 #include <exception>
 
 namespace tools
@@ -22,17 +24,13 @@ bool image_grayscale_tool::validate_runtime(const agentlib::tool_context & /*ctx
 std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		Magick::InitializeMagick(nullptr);
+		set_magick_resource_limits();
 
 		Magick::Image img(args_.safe_path);
 		int img_w = img.columns();
 		int img_h = img.rows();
 		img.type(Magick::GrayscaleType);
 
-		// Compute the average grayscale intensity (0-255 scale) across all pixels. Since
-		// grayscale is not binary, average luminance is the natural summary statistic (unlike
-		// the white/black percentage used for thresholding). Gamma-aware imaging is not assumed;
-		// this gives the mean decoded R=G=B value.
 		const size_t total_pixels = static_cast<size_t>(img_w) * static_cast<size_t>(img_h);
 		double luminance_sum = 0.0;
 		for (int y = 0; y < img_h; ++y) {
@@ -54,19 +52,21 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, "grayscale");
+
+		std::error_code ec;
+		std::filesystem::remove(temp_out, ec);
+
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest grayscale image to VFS.");
 			return "Error: Failed to re-ingest grayscale image into VFS cache.";
 		}
 
-		// Report the image dimensions and average luminance (0-255) so the caller can judge
-		// the brightness of the resulting grayscale image.
 		std::string result_msg = std::format("Successfully converted image to grayscale ({}x{}, average luminance {}/255). New URI: {}",
 					    img_w, img_h, avg_luminance, new_uri);
 		set_success(ctx, "Converted image to grayscale");
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
-		return result_msg;
+		return fs_utils::wrap_prompt_untrusted_data_tag("image_grayscale_result", result_msg);
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());

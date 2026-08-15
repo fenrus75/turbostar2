@@ -42,12 +42,12 @@ bool image_threshold_validator::validate_args_impl(const nlohmann::json &raw_jso
 			return false;
 		}
 
-		if (parsed.windowWidth <= 0) {
-			out_error = "windowWidth must be a positive integer.";
+		if (parsed.windowWidth <= 0 || parsed.windowWidth > 512) {
+			out_error = "windowWidth must be between 1 and 512.";
 			return false;
 		}
-		if (parsed.windowHeight <= 0) {
-			out_error = "windowHeight must be a positive integer.";
+		if (parsed.windowHeight <= 0 || parsed.windowHeight > 512) {
+			out_error = "windowHeight must be between 1 and 512.";
 			return false;
 		}
 

@@ -1,6 +1,8 @@
 #include "plugins/image_basic/image_rotate_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include "images/image_manager.h"
+#include "fs_utils.h"
 #include <exception>
 
 namespace tools
@@ -20,7 +22,7 @@ bool image_rotate_tool::validate_runtime(const agentlib::tool_context & /*ctx*/,
 std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		Magick::InitializeMagick(nullptr);
+		set_magick_resource_limits();
 
 		Magick::Image img(args_.safe_path);
 		int orig_w = img.columns();
@@ -28,8 +30,6 @@ std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 
 		img.rotate(args_.degrees);
 
-		// Rotation (especially non-right-angle) can grow the canvas, so report the
-		// resulting dimensions to confirm the geometric change.
 		int new_w = img.columns();
 		int new_h = img.rows();
 
@@ -43,19 +43,21 @@ std::string image_rotate_tool::execute(agentlib::tool_context &ctx)
 
 		std::string origin_ops = std::format("rotate({})", args_.degrees);
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
+
+		std::error_code ec;
+		std::filesystem::remove(temp_out, ec);
+
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest rotated image to VFS.");
 			return "Error: Failed to re-ingest rotated image into VFS cache.";
 		}
 
-		// Report the rotation angle and the before/after dimensions so the caller can
-		// confirm the rotation (including canvas growth for non-right-angles) took effect.
 		std::string result_msg = std::format("Successfully rotated image by {} degrees from {}x{} to {}x{}. New URI: {}",
 					    args_.degrees, orig_w, orig_h, new_w, new_h, new_uri);
 		set_success(ctx, "Rotated image");
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
-		return result_msg;
+		return fs_utils::wrap_prompt_untrusted_data_tag("image_rotate_result", result_msg);
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());

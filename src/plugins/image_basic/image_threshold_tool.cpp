@@ -1,7 +1,9 @@
 #include "plugins/image_basic/image_threshold_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include <cstddef>
 #include "images/image_manager.h"
+#include "fs_utils.h"
 #include <exception>
 
 namespace tools
@@ -21,7 +23,7 @@ bool image_threshold_tool::validate_runtime(const agentlib::tool_context & /*ctx
 std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		Magick::InitializeMagick(nullptr);
+		set_magick_resource_limits();
 
 		Magick::Image img(args_.safe_path);
 		int img_w = img.columns();
@@ -33,9 +35,6 @@ std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 			img.adaptiveThreshold(args_.windowWidth, args_.windowHeight, args_.offset);
 		}
 
-		// Thresholding produces a binary (black/white) image, so count the number of
-		// "white" pixels (intensity above the midpoint) and report the percentage split to
-		// give the caller a concrete sense of the binarized histogram.
 		const size_t total_pixels = static_cast<size_t>(img_w) * static_cast<size_t>(img_h);
 		size_t white_count = 0;
 		for (int y = 0; y < img_h; ++y) {
@@ -60,20 +59,22 @@ std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 
 		std::string origin_ops = args_.level.has_value() ? std::format("threshold({})", *args_.level) : std::format("adaptiveThreshold({},{},{})", args_.windowWidth, args_.windowHeight, args_.offset);
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
+
+		std::error_code ec;
+		std::filesystem::remove(temp_out, ec);
+
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest thresholded image to VFS.");
 			return "Error: Failed to re-ingest thresholded image into VFS cache.";
 		}
 
-		// Report the threshold variant (fixes a previously unused variable) and the resulting
-		// white/black pixel split so the caller can judge the binarized histogram.
 		std::string threshold_type = args_.level.has_value() ? "standard" : "adaptive";
 		std::string result_msg = std::format("Successfully applied {} threshold filter to image ({}x{}, {}% white / {}% black). New URI: {}",
 					    threshold_type, img_w, img_h, white_pct, 100 - white_pct, new_uri);
 		set_success(ctx, "Applied threshold to image");
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
-		return result_msg;
+		return fs_utils::wrap_prompt_untrusted_data_tag("image_threshold_result", result_msg);
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());

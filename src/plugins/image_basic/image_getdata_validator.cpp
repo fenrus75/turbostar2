@@ -23,7 +23,7 @@ bool image_getdata_validator::validate_args_impl(const nlohmann::json &raw_json,
 			return false;
 		}
 		args_.filename = parsed.filename;
-		args_.max_bytes = (parsed.max_bytes > 0) ? parsed.max_bytes : 51200;
+		args_.max_bytes = std::clamp<size_t>((parsed.max_bytes > 0) ? parsed.max_bytes : 51200, 1024, 10 * 1024 * 1024);
 		args_.thumbnail = parsed.thumbnail;
 		return true;
 	} catch (const std::exception &e) {

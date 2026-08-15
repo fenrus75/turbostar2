@@ -1,4 +1,5 @@
 #include "plugins/image_basic/image_getdata_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -57,16 +58,22 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 		// 50 KB limit) while remaining a reasonably sized view. The `thumbnail` option is
 		// applied on the decoded in-memory image and is fully ephemeral - it never writes
 		// to the VFS cache or mappings, so this tool stays "pure" (read/get only).
+		std::error_code ec;
+		uint64_t file_size = std::filesystem::file_size(src_path, ec);
+		if (!ec && file_size > 50 * 1024 * 1024) {
+			return "Error: Image file size exceeds maximum 50 MB limit.";
+		}
+
+		// Optional ephemeral thumbnail
 		if (args_.thumbnail) {
 			std::vector<unsigned char> thumb_buffer;
 #ifdef HAS_GRAPHICSMAGICK
 			try {
-				Magick::InitializeMagick(nullptr);
+				set_magick_resource_limits();
+
 				Magick::Image img(src_path);
 				int w = img.columns();
 				int h = img.rows();
-				// Scale so the largest dimension is exactly kThumbnailMaxDim, preserving
-				// aspect ratio (integer math rounds the secondary dimension).
 				double scale = static_cast<double>(image_getdata_args::kThumbnailMaxDim) / std::max(w, h);
 				int tw = static_cast<int>(w * scale);
 				int th = static_cast<int>(h * scale);
@@ -94,8 +101,6 @@ std::string image_getdata_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
-		std::error_code ec;
-		uint64_t file_size = std::filesystem::file_size(src_path, ec);
 		if (buffer.empty() && !ec && file_size > limit) {
 			std::string err =
 			    std::format("Error: Image size ({} bytes) exceeds maximum size limit of {} bytes (~{} KB). Use image_resize, "

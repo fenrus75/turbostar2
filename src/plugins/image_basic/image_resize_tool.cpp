@@ -1,6 +1,8 @@
 #include "plugins/image_basic/image_resize_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include "images/image_manager.h"
+#include "fs_utils.h"
 #include <exception>
 
 namespace tools
@@ -20,7 +22,7 @@ bool image_resize_tool::validate_runtime(const agentlib::tool_context & /*ctx*/,
 std::string image_resize_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		Magick::InitializeMagick(nullptr);
+		set_magick_resource_limits();
 
 		Magick::Image img(args_.safe_path);
 		int orig_w = img.columns();
@@ -47,6 +49,9 @@ std::string image_resize_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Calculated target dimensions must be positive (got " +
 			       std::to_string(target_w) + "x" + std::to_string(target_h) + ").";
 		}
+		if (target_w > 8192 || target_h > 8192) {
+			return "Error: Target dimensions exceed maximum allowed 8192x8192.";
+		}
 
 		img.zoom(Magick::Geometry(target_w, target_h));
 
@@ -60,19 +65,21 @@ std::string image_resize_tool::execute(agentlib::tool_context &ctx)
 
 		std::string origin_ops = std::format("resize({},{})", target_w, target_h);
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.original_uri, origin_ops);
+
+		std::error_code ec;
+		std::filesystem::remove(temp_out, ec);
+
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest resized image to VFS.");
 			return "Error: Failed to re-ingest resized image into VFS cache.";
 		}
 
-		// Report both the original and new dimensions so the caller can confirm the
-		// operation (including any aspect-ratio-preserving adjustment) took effect.
 		std::string result_msg = std::format("Successfully resized image from {}x{} to {}x{}. New URI: {}",
 					    orig_w, orig_h, target_w, target_h, new_uri);
 		set_success(ctx, std::format("Resized image from {}x{} to {}x{}", orig_w, orig_h, target_w, target_h));
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
-		return result_msg;
+		return fs_utils::wrap_prompt_untrusted_data_tag("image_resize_result", result_msg);
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());

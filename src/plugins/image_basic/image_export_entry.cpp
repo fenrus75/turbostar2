@@ -5,6 +5,7 @@
 #include "images/image_manager.h"
 #include "mime.h"
 #include "image_export.h"
+#include "plugins/image_basic/image_basic_utils.h"
 
 #ifdef HAS_GRAPHICSMAGICK
 #include <Magick++.h>
@@ -42,6 +43,12 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Source image could not be resolved in VFS database.";
 		}
 
+		std::error_code ec;
+		uint64_t file_size = std::filesystem::file_size(src_path, ec);
+		if (!ec && file_size > 100 * 1024 * 1024) {
+			return "Error: Image file size exceeds 100 MB export limit.";
+		}
+
 		bool is_vfs = (args_.safe_path.find("://") != std::string::npos);
 		int src_w = 0;
 		int src_h = 0;
@@ -56,7 +63,8 @@ std::string image_export_tool::execute(agentlib::tool_context &ctx)
 			std::string file_content;
 #ifdef HAS_GRAPHICSMAGICK
 			try {
-				Magick::InitializeMagick(nullptr);
+				set_magick_resource_limits();
+
 				Magick::Image img(src_path);
 				src_w = img.columns();
 				src_h = img.rows();

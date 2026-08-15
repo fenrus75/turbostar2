@@ -1,5 +1,7 @@
 #include "agentlib/tool_registry.h"
 #include "filter_registry.h"
+#include "images/image_manager.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -13,11 +15,12 @@ static std::string generate_image_thumbnail_json(const std::string &input_json_s
 		int width = args["width"].get<int>();
 		int height = args["height"].get<int>();
 
-		if (width <= 0 || height <= 0 || path.empty()) {
+		if (width <= 0 || width > 512 || height <= 0 || height > 512 || path.empty()) {
 			return "{}";
 		}
 
-		Magick::InitializeMagick(nullptr);
+		tools::set_magick_resource_limits();
+
 		Magick::Image image;
 		image.quiet(false);
 		image.read(path);
@@ -96,6 +99,7 @@ static std::string generate_image_thumbnail_json(const std::string &input_json_s
 		};
 
 		auto quantize = [](double val) -> int {
+			if (std::isnan(val) || std::isinf(val)) return 0;
 			int int_val = std::clamp(static_cast<int>(val), 0, 255);
 			return std::clamp(((int_val + 15) / 32) * 32, 0, 255);
 		};

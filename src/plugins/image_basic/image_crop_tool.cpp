@@ -1,6 +1,8 @@
 #include "plugins/image_basic/image_crop_tool.h"
+#include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
 #include "images/image_manager.h"
+#include "fs_utils.h"
 #include <exception>
 
 namespace tools
@@ -20,7 +22,7 @@ bool image_crop_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, s
 std::string image_crop_tool::execute(agentlib::tool_context &ctx)
 {
 	try {
-		Magick::InitializeMagick(nullptr);
+		set_magick_resource_limits();
 
 		Magick::Image img(args_.safe_path);
 		int orig_w = img.columns();
@@ -44,20 +46,22 @@ std::string image_crop_tool::execute(agentlib::tool_context &ctx)
 
 		std::string origin_ops = std::format("crop({},{},{},{})", args_.x, args_.y, args_.width, args_.height);
 		std::string new_uri = images::image_manager::get_instance().ingest_image(temp_out, target_alias, args_.name, origin_ops);
+
+		std::error_code ec;
+		std::filesystem::remove(temp_out, ec);
+
 		if (new_uri.empty()) {
 			set_failure(ctx, "Failed to ingest cropped image to VFS.");
 			return "Error: Failed to re-ingest cropped image into VFS cache.";
 		}
 
-		// Report original -> cropped dimensions along with the selected region so the caller
-		// can confirm the crop coordinates produced the expected extent.
 		std::string result_msg = std::format("Successfully cropped image from {}x{} to {}x{} (region x={}..{}, y={}..{}). New URI: {}",
 					    orig_w, orig_h, args_.width, args_.height, args_.x, args_.x + args_.width - 1,
 					    args_.y, args_.y + args_.height - 1, new_uri);
 		set_success(ctx, "Cropped image");
 		interaction_->set_output_image(new_uri);
 		interaction_->set_result(result_msg);
-		return result_msg;
+		return fs_utils::wrap_prompt_untrusted_data_tag("image_crop_result", result_msg);
 
 	} catch (const Magick::Exception &e) {
 		set_failure(ctx, e.what());
