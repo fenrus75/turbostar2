@@ -1,5 +1,6 @@
 #include <filesystem>
 #include "agentlib/tool_registry.h"
+#include "fs_utils.h"
 #include "security_scan_c.h"
 
 namespace tools
@@ -20,6 +21,11 @@ bool security_scan_c_validator::validate_args_impl(const nlohmann::json &args, c
 		return false;
 	}
 
+	if (args["paths"].size() > 64) {
+		out_error = "Too many paths specified (maximum 64 allowed).";
+		return false;
+	}
+
 	for (const auto &path_val : args["paths"]) {
 		if (!path_val.is_string()) {
 			out_error = "All items in 'paths' must be strings.";
@@ -35,8 +41,8 @@ bool security_scan_c_validator::validate_args_impl(const nlohmann::json &args, c
 			return false;
 		}
 
-		if (!std::filesystem::exists(resolved_path)) {
-			out_error = "File does not exist: " + raw_path;
+		if (!fs_utils::is_regular_file(resolved_path)) {
+			out_error = "File is not a regular file: " + raw_path;
 			return false;
 		}
 
