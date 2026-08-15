@@ -25,7 +25,7 @@ private:
 
 class list_code_review_items_validator : public agentlib::tool_validator {
 public:
-	std::string get_family() const override { return "base|code_review"; }
+	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "list_code_review_items"; }
 	std::string get_description() const override {
 		return "Lists all code review items, with optional filters for filename, severity, and resolution status.";

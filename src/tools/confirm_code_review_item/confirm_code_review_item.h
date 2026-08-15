@@ -23,7 +23,7 @@ private:
 
 class confirm_code_review_item_validator : public agentlib::tool_validator {
 public:
-	std::string get_family() const override { return "base|code_review"; }
+	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "confirm_code_review_item"; }
 	std::string get_description() const override {
 		return "Confirms the correctness of a code review item (new -> confirmed) or verifies its resolution (resolved -> verified-fixed).";
