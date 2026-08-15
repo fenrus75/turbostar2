@@ -3,6 +3,7 @@
 #include <fstream>
 #include <re2/re2.h>
 #include <vector>
+#include "fs_utils.h"
 #include "hex/elf.h"
 #include "elf_list_symbols.h"
 
@@ -17,6 +18,19 @@ elf_list_symbols_tool::elf_list_symbols_tool(elf_list_symbols_args args)
 bool elf_list_symbols_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string & /*out_error*/) const
 {
 	return true;
+}
+
+static std::string escape_markdown_table_str(const std::string &untrusted_str)
+{
+	std::string out;
+	out.reserve(untrusted_str.size());
+	for (char c : untrusted_str) {
+		if (c == '|') out += "\\|";
+		else if (c == '\n' || c == '\r') out += " ";
+		else if (c == '\\') out += "\\\\";
+		else if (static_cast<unsigned char>(c) >= 32 && c != 127) out += c;
+	}
+	return out;
 }
 
 std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
@@ -62,10 +76,11 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
+	std::string safe_req_path = escape_markdown_table_str(args_.requested_path);
 	std::string result = std::format("### ELF Symbol Table: {}\n\n"
 					 "| Name | Offset/Value | Size |\n"
 					 "| --- | --- | --- |\n",
-					 args_.requested_path);
+					 safe_req_path);
 
 	const auto &symbols = parser.get_symbols();
 	size_t count = 0;
@@ -73,7 +88,8 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 		if (filter_re && !re2::RE2::PartialMatch(sym.name, *filter_re)) {
 			continue;
 		}
-		result += std::format("| {} | 0x{:X} | 0x{:X} |\n", sym.name, sym.offset, sym.size);
+		std::string safe_sym_name = escape_markdown_table_str(sym.name);
+		result += std::format("| {} | 0x{:X} | 0x{:X} |\n", safe_sym_name, sym.offset, sym.size);
 		count++;
 		if (count >= 200) {
 			result += "\n*(Remaining symbols omitted to save context. Refine your query pattern to find specific symbols.)*\n";
@@ -82,7 +98,7 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx, "Listed " + std::to_string(count) + " symbols.");
-	return result;
+	return fs_utils::wrap_prompt_untrusted_data_tag("elf_symbols_result", result);
 }
 
 } // namespace tools

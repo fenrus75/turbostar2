@@ -1,7 +1,9 @@
 #include <nlohmann/json.hpp>
 #include <string>
+#include <re2/re2.h>
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "elf_list_symbols.h"
 
 namespace tools
@@ -64,6 +66,24 @@ class elf_list_symbols_validator : public agentlib::tool_validator
 			std::string canonical_path;
 			if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
 				return false;
+			}
+
+			if (!parsed.pattern.empty()) {
+				if (parsed.pattern.length() > 256) {
+					out_error = "Validation Error: pattern exceeds maximum length of 256 characters.";
+					return false;
+				}
+				if (!fs_utils::is_safe_for_ui(parsed.pattern)) {
+					out_error = "Security Violation: pattern contains unsafe control characters.";
+					return false;
+				}
+				re2::RE2::Options options;
+				options.set_case_sensitive(false);
+				re2::RE2 test_re(parsed.pattern, options);
+				if (!test_re.ok()) {
+					out_error = "Validation Error: Invalid regular expression pattern.";
+					return false;
+				}
 			}
 
 			args_.requested_path = parsed.path;
