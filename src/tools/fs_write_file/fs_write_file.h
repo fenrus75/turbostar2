@@ -27,6 +27,18 @@ private:
 
 class fs_write_file_validator : public agentlib::tool_validator {
 public:
+    bool is_pure() const override { return false; }
+    bool is_pure(const nlohmann::json &args) const override
+    {
+        if (args.contains("path") && args["path"].is_string()) {
+            std::string p = args["path"].get<std::string>();
+            if (p.rfind("tmp://", 0) == 0 || p.rfind("images://", 0) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     std::string get_name() const override { return "fs_write_file"; }
     std::string get_description() const override { return "Creates a new file, overwrites an existing file, or safely appends content to an existing file."; }
     

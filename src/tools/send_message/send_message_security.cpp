@@ -18,8 +18,8 @@ class send_message_validator : public agentlib::tool_validator
       public:
 	bool is_pure() const override
 	{
-		return false;
-	} // Modifies state of another agent
+		return true;
+	} // Subagent messaging does not modify project codebase
 
 	std::string get_name() const override
 	{

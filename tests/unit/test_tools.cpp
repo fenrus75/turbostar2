@@ -662,6 +662,43 @@ extern std::string troff2md(std::string troff_content);
 		ctx.fs_security.set_vfs(nullptr);
 	}
 
+	std::cout << "\nTesting read-only agent tool purity enforcement..." << std::endl;
+	{
+		tool_context ro_ctx = ctx;
+		ro_ctx.properties.read_only = true;
+
+		auto find_val = [&](const std::string &name) -> std::shared_ptr<tool_validator> {
+			for (const auto &v : registry.get_all_registered_validators()) {
+				if (v->get_name() == name) return v;
+			}
+			return nullptr;
+		};
+
+		// Pure tools MUST succeed for read-only agents
+		auto val_cr = find_val("create_code_review_item");
+		assert(val_cr && val_cr->is_pure());
+
+		auto val_sub = find_val("invoke_subagent");
+		assert(val_sub && val_sub->is_pure());
+
+		auto val_msg = find_val("send_message");
+		assert(val_msg && val_msg->is_pure());
+
+		auto val_crop = find_val("image_crop");
+		assert(val_crop && val_crop->is_pure());
+
+		// Dynamic is_pure(args) for fs_write_file
+		auto val_write = find_val("fs_write_file");
+		assert(val_write != nullptr);
+		assert(!val_write->is_pure(nlohmann::json{{"path", "src/main.cpp"}}));
+		assert(val_write->is_pure(nlohmann::json{{"path", "tmp://scratch.txt"}}));
+		assert(val_write->is_pure(nlohmann::json{{"path", "images://test.png"}}));
+
+		// Writing to workspace file as read-only MUST be blocked
+		std::string ro_write_res = registry.execute_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"test\"}", ro_ctx);
+		assert(ro_write_res.find("Security Violation: Agent is in read-only mode") != std::string::npos);
+	}
+
 	std::cout << "\nAll test tools verified!" << std::endl;
 	return 0;
 }

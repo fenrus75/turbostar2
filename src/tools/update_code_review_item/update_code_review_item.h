@@ -32,6 +32,7 @@ public:
 	// invalid/stale even when no *active* reviews remain and the "code_review" family would
 	// otherwise auto-deactivate via has_active_items()). The mutation pair create<->update must
 	// be symmetric in gating so a developer can always adjust or retire a finding.
+	bool is_pure() const override { return true; }
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "update_code_review_item"; }
 	std::string get_description() const override {

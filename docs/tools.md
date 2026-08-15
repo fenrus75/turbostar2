@@ -23,6 +23,9 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
    - **For directory paths:** `"Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir')."`
 2. **Tool-Specific Additions**: If a tool has specific requirements or rules for its path argument, append it as a **second sentence** directly following the standard base description.
 
+### Tool Purity & Read-Only Execution
+Tools in Turbostar implement `is_pure()` to enforce read-only agent security rules. A tool call is **PURE** (`is_pure() == true`) if it does not modify, delete, or overwrite persistent files in the Project Codebase or Workspace Source Tree. Read-only agents are permitted to execute pure tools, agent workflow tools (`activate_tool_family`, `invoke_subagent`, `report_final_result`), code review database tools (`create_code_review_item`), in-memory VFS memory (`images://`), and temporary scratchpads (`tmp://`). See [design-pure.md](file:///home/arjan/git/turbostar2/docs/design-pure.md) for full specification.
+
 ---
 
 ## 1. File System Reading & Inspection

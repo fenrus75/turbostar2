@@ -12,7 +12,7 @@ class image_compose_validator : public agentlib::tool_validator
 	image_compose_validator() = default;
 	~image_compose_validator() override = default;
 
-	bool is_pure() const override { return false; }
+	bool is_pure() const override { return true; }
 	std::string get_name() const override { return "image_compose"; }
 	std::string get_description() const override
 	{

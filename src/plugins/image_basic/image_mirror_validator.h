@@ -12,7 +12,7 @@ class image_mirror_validator : public agentlib::tool_validator
 	image_mirror_validator() = default;
 	~image_mirror_validator() override = default;
 
-	bool is_pure() const override { return false; }
+	bool is_pure() const override { return true; }
 	std::string get_name() const override { return "image_mirror"; }
 	std::string get_description() const override
 	{

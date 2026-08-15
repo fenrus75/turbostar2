@@ -36,7 +36,7 @@ class image_import_validator : public agentlib::tool_validator
 	image_import_validator() = default;
 	~image_import_validator() override = default;
 
-	bool is_pure() const override { return false; }
+	bool is_pure() const override { return true; }
 	std::string get_name() const override { return "image_import"; }
 	std::string get_description() const override
 	{

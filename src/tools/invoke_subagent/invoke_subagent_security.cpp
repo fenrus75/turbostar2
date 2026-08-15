@@ -31,8 +31,8 @@ class invoke_subagent_validator : public agentlib::tool_validator
       public:
 	bool is_pure() const override
 	{
-		return false;
-	} // Modifies agent state
+		return true;
+	} // Subagent orchestration does not modify project codebase
 
 	std::string get_name() const override
 	{

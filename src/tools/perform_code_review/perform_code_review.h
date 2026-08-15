@@ -30,6 +30,10 @@ class perform_code_review_tool : public agentlib::llm_tool_action
 class perform_code_review_validator : public agentlib::tool_validator
 {
       public:
+	bool is_pure() const override
+	{
+		return true;
+	}
 	std::string get_family() const override
 	{
 		return "base|code_review";

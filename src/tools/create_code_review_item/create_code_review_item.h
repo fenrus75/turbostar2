@@ -33,6 +33,10 @@ class create_code_review_item_tool : public agentlib::llm_tool_action
 class create_code_review_item_validator : public agentlib::tool_validator
 {
       public:
+	bool is_pure() const override
+	{
+		return true;
+	}
 	std::string get_family() const override
 	{
 		return "base|code_review";

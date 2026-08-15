@@ -12,7 +12,7 @@ class image_resize_validator : public agentlib::tool_validator
 	image_resize_validator() = default;
 	~image_resize_validator() override = default;
 
-	bool is_pure() const override { return false; }
+	bool is_pure() const override { return true; }
 	std::string get_name() const override { return "image_resize"; }
 	std::string get_description() const override
 	{

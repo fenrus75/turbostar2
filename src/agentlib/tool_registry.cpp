@@ -307,17 +307,17 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
-	if (ctx.properties.read_only && !validator->is_pure()) {
-		res.error_message =
-		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
-		return res;
-	}
-
 	nlohmann::json args;
 	try {
 		args = nlohmann::json::parse(args_json_string);
 	} catch (const std::exception &e) {
 		res.error_message = "Error parsing tool arguments: " + std::string(e.what());
+		return res;
+	}
+
+	if (ctx.properties.read_only && !validator->is_pure(args)) {
+		res.error_message =
+		    "Security Violation: Agent is in read-only mode and cannot execute state-modifying tool '" + name + "'.";
 		return res;
 	}
 

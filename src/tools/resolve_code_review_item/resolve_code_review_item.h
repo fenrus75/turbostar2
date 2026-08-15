@@ -24,6 +24,7 @@ private:
 
 class resolve_code_review_item_validator : public agentlib::tool_validator {
 public:
+	bool is_pure() const override { return true; }
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "resolve_code_review_item"; }
 	std::string get_description() const override {

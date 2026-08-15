@@ -54,9 +54,10 @@ public:
     virtual std::string get_description() const = 0;
     virtual nlohmann::json get_parameters_schema() const = 0;
 
-    // Indicates if the tool is "pure" (has no side effects).
-    // Pure tools (e.g., read, list, status) can be safely executed repeatedly.
+    // Indicates if the tool is "pure" (has no persistent side effects on the project codebase).
+    // Pure tools (e.g., read, list, status, code review database, scratch VFS) can be safely executed by read-only agents.
     virtual bool is_pure() const { return false; }
+    virtual bool is_pure(const nlohmann::json & /*args*/) const { return is_pure(); }
 
     // Returns the tool family name (default is "base")
     virtual std::string get_family() const { return "base"; }

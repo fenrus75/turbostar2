@@ -26,7 +26,7 @@ private:
 
 class agent_mark_episode_validator : public agentlib::tool_validator {
 public:
-    bool is_pure() const override { return false; }
+    bool is_pure() const override { return true; }
 
     std::string get_name() const override { return "agent_mark_episode"; }
     std::string get_description() const override {
