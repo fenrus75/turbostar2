@@ -25,10 +25,29 @@ Top design documentation: `docs/design.md`
 - label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` whenever appropriate
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
 - add extensive comments describing goals, constraints, ownership, and design intent (the "why"), rather than restating code implementation logic.
-- **Security Considerations**:
+- **Security & Untrusted Data Lifecycle**:
   - Adopt a security-first mindset when generating code.
-  - Clearly label variables and parameters holding untrusted (user/network) data in comments.
-  - Validate untrusted input as early as possible.
+  - **Definition**: Any data originating from user input, CLI flags, network requests (HTTP/A2A), LLM prompts, subagent outputs, environment variables, database records, or un-canonicalized file paths MUST be treated as **untrusted**.
+  - **Explicit Variable & Parameter Naming**:
+    - **Variable Names**: All variables holding untrusted data MUST use the `untrusted_` prefix (e.g., `untrusted_path`, `untrusted_url`, `untrusted_json`).
+    - **Function Parameters**: Parameters taking untrusted data MUST be named with the `untrusted_` prefix OR annotated with `/* untrusted */` in the signature (e.g., `void parse_card(/* untrusted */ const std::string &untrusted_json)`).
+  - **Data Cleaning & Approved Conversion Functions**:
+    - Never operate directly on `untrusted_` variables. Clean or validate them using approved boundary functions, and assign the output to a clean variable name (e.g., `safe_path`, `canonical_url`, `clean_name`):
+      1. **Path & File Security**:
+         - `ctx.fs_security.validate_access(untrusted_path, access_type, OUT canonical_path, OUT error)`: Resolves and checks sandbox permissions.
+         - `fs_utils::is_regular_file(untrusted_path)`: Verifies path is a regular file (blocks FIFOs, sockets, and device nodes).
+         - `fs_utils::is_valid_db_name(untrusted_name)`: Enforces `[a-zA-Z0-9_-]` whitelist for SQLite DB names.
+      2. **Shell Injection Prevention**:
+         - `fs_utils::escape_shell_arg(untrusted_str)`: Escapes arguments safely for shell execution.
+         - `fs_utils::is_shell_safe(untrusted_str)`: Checks allowlist of safe shell characters.
+         - `fs_utils::format_command(...)`: Formats shell commands while automatically escaping all string/path arguments.
+      3. **Prompt & Context Injection Prevention**:
+         - `fs_utils::wrap_prompt_untrusted_data_tag(tag, untrusted_content)`: Wraps data in XML tags (`<tag>...</tag>`) and neutralizes closing tag breakout attempts (`</tag>`).
+         - `fs_utils::escape_json_string(untrusted_content)`: Escapes control bytes and quotes for JSON payloads.
+      4. **UI & Control Character Sanitization**:
+         - `fs_utils::is_safe_for_ui(untrusted_str)`: Rejects non-printable characters and ANSI escape sequences.
+      5. **SQL Safety**:
+         - `sqlite_query_validation::strip_comments_and_check_restricted_keywords(untrusted_sql)`: Strips comment blocks before checking restricted SQL commands.
   - Verify all buffer and array accesses against underflows and overflows.
 - all `#include ""` should be relative to the `src/` directory (e.g., `#include "fs_utils.h"` or `#include "agentlib/tool_registry.h"` instead of using relative `../../` paths), since `src/` is in the compiler include paths.
 - use #pragma ONCE for include guards
