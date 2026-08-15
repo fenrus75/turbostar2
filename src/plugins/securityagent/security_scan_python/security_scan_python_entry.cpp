@@ -28,11 +28,16 @@ std::string security_scan_python_tool::execute(agentlib::tool_context &ctx)
 
 	std::string cmd = "/usr/bin/bandit -q -f json";
 	for (const auto &path : safe_paths_) {
+		if (!fs_utils::is_regular_file(path)) {
+			set_failure(ctx, "File is not a regular file: " + path);
+			return "Error: File is not a regular file: " + path;
+		}
 		cmd += " " + fs_utils::escape_shell_arg(path);
 	}
 
 	sync_command_runner runner;
-	runner.apply_build_profile();
+	runner.apply_strict_agent_profile();
+	runner.set_timeout(60);
 
 	std::string output = runner.execute_and_get_output(cmd);
 	int exit_code = runner.get_exit_code();
@@ -42,15 +47,16 @@ std::string security_scan_python_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Bandit returned empty output.";
 	}
 
-	// Bandit returns 0 if no issues found, 1 if issues found.
-	// Both are successful runs that return the JSON report.
 	if (exit_code != 0 && exit_code != 1) {
 		set_failure(ctx, "Bandit execution failed with exit code " + std::to_string(exit_code));
-		return "Error: Bandit execution failed with exit code " + std::to_string(exit_code) + ".\nOutput:\n" + output;
+		return fs_utils::wrap_prompt_untrusted_data_tag("bandit_scan_result", "Error: Bandit execution failed with exit code " + std::to_string(exit_code) + ".\nOutput:\n" + output);
 	}
 
 	set_success(ctx, "Scan completed successfully.");
-	return output;
+	if (output.size() > 32768) {
+		output = output.substr(0, 32768) + "\n... (truncated)";
+	}
+	return fs_utils::wrap_prompt_untrusted_data_tag("bandit_scan_result", output);
 }
 
 } // namespace tools
