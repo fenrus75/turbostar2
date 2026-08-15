@@ -26,6 +26,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `fs_replace_symbol` / AST-scoped code edits: add a symbol or scope-based edit tool (or parameter) that targets a named method or class scope (e.g. `Class::method`) and applies replacements relative to the function boundaries, preventing global file line shifts from affecting edits.
 
+- Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Bounded Line-Range Windowing: Upgrade Turbostar's file editing tools to support non-contiguous multi-chunk edits in a single tool invocation (similar to Antigravity's `multi_replace_file_content`). Add `start_line` and `end_line` search boundaries to `fs_replace_content` to prevent ambiguous string matches elsewhere in large files, and enforce atomic transactional rollbacks if any chunk in a batch fails to match or breaks syntax.
+
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
 		- well we need tupple: plugin, name -> value, so it's slightly more complex
