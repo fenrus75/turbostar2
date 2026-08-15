@@ -1,5 +1,6 @@
-#include "../../agentlib/ai_agent.h"
-#include "../../agentlib/interactions/system_message.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/interactions/system_message.h"
+#include "fs_utils.h"
 #include "agent_restore_context.h"
 
 namespace tools
@@ -26,15 +27,17 @@ bool agent_restore_context_tool::validate_runtime(const agentlib::tool_context &
 
 std::string agent_restore_context_tool::execute(agentlib::tool_context &ctx)
 {
+	std::string res;
 	if (ctx.active_agent) {
 		if (ctx.active_agent->page_in_context(args_.episode_id, args_.compression_level)) {
-			return "Context successfully restored. The previous conversation history has been injected into your active "
-			       "memory.";
+			res = "Context successfully restored. The previous conversation history has been injected into your active memory.";
 		} else {
-			return "Error: Could not find or load episode archive: " + args_.episode_id;
+			res = "Error: Could not find or load episode archive: " + args_.episode_id;
 		}
+	} else {
+		res = "Error: No active agent context.";
 	}
-	return "Error: No active agent context.";
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_restore_context_result", res);
 }
 
 } // namespace tools

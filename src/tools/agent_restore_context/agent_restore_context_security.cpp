@@ -1,5 +1,6 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "agent_restore_context.h"
+#include <cctype>
 
 namespace tools {
 
@@ -25,6 +26,20 @@ nlohmann::json agent_restore_context_validator::get_parameters_schema() const {
 bool agent_restore_context_validator::validate_args_impl(const nlohmann::json& raw_json, const agentlib::tool_context& /*ctx*/, std::string& out_error) const {
     try {
         args_ = raw_json.get<agent_restore_context_args>();
+        if (args_.episode_id.empty() || args_.episode_id.length() > 128) {
+            out_error = "Validation Error: episode_id must be non-empty and max 128 characters.";
+            return false;
+        }
+        for (char c : args_.episode_id) {
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
+                out_error = "Security Violation: episode_id contains invalid or unsafe characters.";
+                return false;
+            }
+        }
+        if (args_.compression_level < 0 || args_.compression_level > 3) {
+            out_error = "Validation Error: compression_level must be between 0 and 3.";
+            return false;
+        }
         return true;
     } catch (const std::exception& e) {
         out_error = "Invalid arguments: " + std::string(e.what());

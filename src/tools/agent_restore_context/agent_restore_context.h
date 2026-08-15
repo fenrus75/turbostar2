@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
-#include "../../agentlib/llm_tool.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/llm_tool.h"
+#include "agentlib/tool_validator.h"
 
 namespace tools {
 
