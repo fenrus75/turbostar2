@@ -1,6 +1,7 @@
 #include <format>
 #include "get_subagent_status.h"
 #include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -30,7 +31,8 @@ std::string get_subagent_status_tool::execute(agentlib::tool_context& ctx) {
 	}
 
 	std::string status_str = agentlib::agent_status_to_name(target_agent->get_status());
-	return std::format("Agent ID: {}\nName: {}\nStatus: {}\n", target_agent->get_id(), target_agent->get_name(), status_str);
+	std::string msg = std::format("Agent ID: {}\nName: {}\nStatus: {}\n", target_agent->get_id(), target_agent->get_name(), status_str);
+	return fs_utils::wrap_prompt_untrusted_data_tag("get_subagent_status_result", msg);
 }
 
 } // namespace tools

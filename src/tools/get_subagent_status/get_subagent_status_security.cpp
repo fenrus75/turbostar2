@@ -1,20 +1,21 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "get_subagent_status.h"
 
 namespace tools
 {
 
 struct get_subagent_status_raw_args {
-	int id;
+	int id{-1};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(get_subagent_status_raw_args, id);
 
 class get_subagent_status_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Queries subagent state without mutating project codebase.
 	bool is_pure() const override
 	{
 		return true;
@@ -40,8 +41,16 @@ class get_subagent_status_validator : public agentlib::tool_validator
 	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
 				std::string &out_error) const override
 	{
+		if (!args_json.contains("id")) {
+			out_error = "Argument parsing error: missing required field 'id'";
+			return false;
+		}
 		try {
 			get_subagent_status_raw_args raw_args = args_json.get<get_subagent_status_raw_args>();
+			if (raw_args.id < 0) {
+				out_error = "Invalid subagent ID: must be non-negative.";
+				return false;
+			}
 			args_.id = raw_args.id;
 			return true;
 		} catch (const std::exception &e) {
