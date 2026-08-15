@@ -140,6 +140,11 @@ class project_manager
 	// (e.g. meson.build edited) or when a lookup for a requested test name missed
 	// (so newly-registered tests become discoverable without a restart).
 	void invalidate_available_tests_cache() noexcept;
+	// Resolves the build directory used for meson test listing. Prefers the
+	// configured build directory; if empty or lacking build.ninja, falls back to a
+	// build directory found under the project root (e.g. build/). Returns empty if
+	// none is usable.
+	std::string resolve_build_dir() const;
 
 	// Executable candidate scanning
 	std::vector<std::string> detect_executable_candidates();
@@ -181,11 +186,6 @@ class project_manager
 	// get_available_tests() to invalidate the cached list when build definitions
 	// change (e.g. new test targets added to meson.build).
 	bool build_definition_changed() const;
-	// Resolves the build directory used for meson test listing. Prefers the
-	// configured build directory; if empty or lacking build.ninja, falls back to a
-	// build directory found under the project root (e.g. build/). Returns empty if
-	// none is usable.
-	std::string resolve_build_dir() const;
 
 	struct directory_info {
 		std::string path;

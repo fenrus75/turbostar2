@@ -636,6 +636,12 @@ void project_manager::invalidate_available_tests_cache() noexcept
 
 bool project_manager::build_definition_changed() const
 {
+	if (config_manager::get_instance().get_build_system() != "meson") {
+		return false;
+	}
+	if (tests_meson_build_mtime_ == std::filesystem::file_time_type{}) {
+		return false;
+	}
 	// The meson.build that feeds the test list lives in the project root. Compare
 	// its current mtime against the one recorded when the list was last refreshed.
 	const fs::path meson_build = fs::path(project_root_) / "meson.build";
@@ -653,14 +659,14 @@ std::string project_manager::resolve_build_dir() const
 {
 	std::string build_dir = config_manager::get_instance().get_build_directory();
 	fs::path build_path(build_dir);
-	if (build_path.is_relative()) {
+	if (build_path.is_relative() && !project_root_.empty()) {
 		build_path = fs::path(project_root_) / build_path;
 	}
 
 	// If the configured build dir exists and looks like a meson build (has
 	// build.ninja), use it directly.
 	std::error_code ec;
-	if (!build_path.empty() && fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja")) {
+	if (!build_path.empty() && fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja", ec)) {
 		return build_path.string();
 	}
 
@@ -673,12 +679,13 @@ std::string project_manager::resolve_build_dir() const
 			if (ec) {
 				break;
 			}
-			if (entry.is_directory() && fs::exists(entry.path() / "build.ninja")) {
+			std::error_code ec2;
+			if (entry.is_directory(ec2) && fs::exists(entry.path() / "build.ninja", ec2)) {
 				return entry.path().string();
 			}
 		}
 	}
-	return build_path.string(); // fall back to the configured (possibly empty) dir
+	return (fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja", ec)) ? build_path.string() : "";
 }
 
 void project_manager::refresh_available_tests()

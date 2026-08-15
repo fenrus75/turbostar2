@@ -21,7 +21,7 @@ namespace tools
 static bool contains_case_insensitive(std::string_view haystack, std::string_view needle)
 {
 	if (needle.empty()) {
-		return true;
+		return false;
 	}
 	auto to_lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
 	std::string hay(haystack);
@@ -36,11 +36,14 @@ static bool contains_case_insensitive(std::string_view haystack, std::string_vie
 // did_substring_expand to true if at least one requested name was a substring expansion rather
 // than an exact match.
 static std::vector<std::string> resolve_test_names(std::span<const std::string> test_names,
-						    bool *did_substring_expand)
+						    bool &did_substring_expand)
 {
 	std::vector<std::string> resolved;
 	const std::vector<std::string> available = project_manager::get_instance().get_available_tests();
 	for (const auto &t : test_names) {
+		if (t.empty()) {
+			continue;
+		}
 		bool matched = false;
 		for (const auto &candidate : available) {
 			if (candidate == t) {
@@ -60,9 +63,7 @@ static std::vector<std::string> resolve_test_names(std::span<const std::string> 
 				if (std::find(resolved.begin(), resolved.end(), candidate) == resolved.end()) {
 					resolved.push_back(candidate);
 				}
-				if (did_substring_expand) {
-					*did_substring_expand = true;
-				}
+				did_substring_expand = true;
 			}
 		}
 	}
@@ -100,16 +101,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string build_system = config_manager::get_instance().get_build_system();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
-	
-	std::string proj_root = project_manager::get_instance().get_project_root();
-	std::filesystem::path build_path(build_dir);
-	if (build_path.is_relative()) {
-		build_path = std::filesystem::path(proj_root) / build_path;
-	}
-	if (!std::filesystem::exists(build_path / "build.ninja") && std::filesystem::exists(std::filesystem::path(proj_root) / "build.ninja")) {
-		build_path = proj_root;
-	}
+	std::filesystem::path build_path = project_manager::get_instance().resolve_build_dir();
 
 	// Resolve each requested test name against the project's available-test list. The agent
 	// may pass a substring of the full test name (e.g. "run_shell_command" instead of
@@ -124,14 +116,14 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	if (test_names_.empty()) {
 		resolved = test_names_;
 	} else {
-		resolved = resolve_test_names(test_names_, &did_substring_expand);
+		resolved = resolve_test_names(test_names_, did_substring_expand);
 		// If nothing resolved, the in-memory test list may be stale (e.g. tests were added to
 		// meson.build after the editor populated the cache). Invalidate the cache so the next
 		// get_available_tests() forces a real refresh, then retry the resolution once before
 		// giving up. This makes newly-registered tests discoverable without an editor restart.
 		if (resolved.empty()) {
 			project_manager::get_instance().invalidate_available_tests_cache();
-			resolved = resolve_test_names(test_names_, &did_substring_expand);
+			resolved = resolve_test_names(test_names_, did_substring_expand);
 		}
 	}
 
@@ -154,10 +146,10 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 			cmd += ")\"";
 		}
 	} else if (build_system == "make") {
-		cmd = "make test -C " + build_dir;
+		cmd = "make test -C " + build_path.string();
 		// Make doesn't have a standard way to run individual tests via 'make test'
 	} else {
-		cmd = build_system + " test " + build_dir; // Fallback
+		cmd = build_system + " test " + build_path.string(); // Fallback
 	}
 
 	// If the agent passed specific test names but none resolved, surface that clearly with a
