@@ -604,6 +604,20 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::codereview_action) {
 		logger.log("Dispatching codereview_action event for item ID {} action {}", ev.key_code, ev.payload);
+		if (ev.payload == "clear_all") {
+			codereview_manager::get_instance().clear_all();
+			set_status_message("Cleared all code review items.", status_priorities::INFO);
+			for (auto &win : windows_) {
+				if (auto cr_win = dynamic_cast<code_review_window *>(win.get())) {
+					cr_win->refresh();
+				}
+			}
+			needs_full_redraw_ = true;
+			editor_event update_ev;
+			update_ev.type = event_type::codereview_updated;
+			global_queue_.push(update_ev);
+			return;
+		}
 		auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);
 		if (item_opt) {
 			codereview_edit_item_id_ = ev.key_code;

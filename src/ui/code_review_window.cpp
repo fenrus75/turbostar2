@@ -193,6 +193,7 @@ void code_review_window::draw_border() const
 	addstr("  [E] Edit");
 	addstr("  [A] Comment");
 	addstr("  [P] Re-process");
+	addstr("  [X] Clear All");
 }
 
 bool code_review_window::process_events()
@@ -238,6 +239,13 @@ bool code_review_window::process_events()
 			} else if (key == 'p' || key == 'P') {
 				reprocess_item();
 				needs_render = true;
+			} else if (key == 'x' || key == 'X') {
+				editor_event action_ev;
+				action_ev.type = event_type::codereview_action;
+				action_ev.key_code = -1;
+				action_ev.payload = "clear_all";
+				global_queue_.push(action_ev);
+				needs_render = true;
 			} else if (key == 's' || key == 'S') {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
@@ -266,7 +274,14 @@ bool code_review_window::process_events()
 			if (ev->type == event_type::mouse_click && ev->mouse_y == y_ + height_ - 1) {
 				int click_x = ev->mouse_x - x_;
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
-				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
+				if (click_x >= 125) {
+					editor_event action_ev;
+					action_ev.type = event_type::codereview_action;
+					action_ev.key_code = -1;
+					action_ev.payload = "clear_all";
+					global_queue_.push(action_ev);
+					needs_render = true;
+				} else if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
 					// Check click coordinates relative to actions list on bottom border
 					if (click_x >= 2 && click_x < 15) {
 						go_to_source();
