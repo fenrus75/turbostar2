@@ -27,25 +27,14 @@ std::string security_scan_semgrep_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No files specified for scan.";
 	}
 
-	bool is_html = false;
+	std::string cmd = "/usr/bin/uvx -q semgrep scan --config auto --config p/security-audit --config p/secrets --json --quiet --";
 	for (const auto &path : safe_paths_) {
-		if (std::filesystem::path(path).extension() == ".html") {
-			is_html = true;
-			break;
+		if (!fs_utils::is_regular_file(path)) {
+			set_failure(ctx, "File is not a regular file: " + path);
+			return "Error: File is not a regular file: " + path;
 		}
-	}
-
-	std::string cmd;
-	if (is_html) {
-		cmd = "/usr/bin/uvx -q semgrep scan --config auto --json --quiet --include=\"*.html\"";
-	} else {
-		cmd = "/usr/bin/uvx -q semgrep scan --config=auto --json --quiet --config \"p/security-audit\" --config \"p/secrets\"";
-	}
-
-	for (const auto &path : safe_paths_) {
 		cmd += " " + fs_utils::escape_shell_arg(path);
 	}
-	cmd += " 2>/dev/null";
 
 	std::string output;
 	int exit_code = 0;
@@ -55,7 +44,8 @@ std::string security_scan_semgrep_tool::execute(agentlib::tool_context &ctx)
 	} else {
 		sync_command_runner runner;
 		runner.apply_build_profile();
-		runner.set_home_access(home_access_t::read_write);
+		runner.set_home_access(home_access_t::read_only);
+		runner.set_timeout(60);
 
 		output = runner.execute_and_get_output(cmd);
 		exit_code = runner.get_exit_code();
@@ -68,11 +58,14 @@ std::string security_scan_semgrep_tool::execute(agentlib::tool_context &ctx)
 
 	if (exit_code != 0) {
 		set_failure(ctx, "Semgrep execution failed with exit code " + std::to_string(exit_code));
-		return "Error: Semgrep execution failed with exit code " + std::to_string(exit_code) + ".\nOutput:\n" + output;
+		return fs_utils::wrap_prompt_untrusted_data_tag("semgrep_scan_result", "Error: Semgrep execution failed with exit code " + std::to_string(exit_code) + ".\nOutput:\n" + output);
 	}
 
 	set_success(ctx, "Scan completed successfully.");
-	return output;
+	if (output.size() > 32768) {
+		output = output.substr(0, 32768) + "\n... (truncated)";
+	}
+	return fs_utils::wrap_prompt_untrusted_data_tag("semgrep_scan_result", output);
 }
 
 } // namespace tools
