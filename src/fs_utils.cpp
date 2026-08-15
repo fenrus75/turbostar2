@@ -585,6 +585,21 @@ std::string escape_json_string(std::string_view input, bool include_quotes)
 	return escaped;
 }
 
+std::string wrap_prompt_untrusted_data_tag(std::string_view tag, std::string_view content)
+{
+	std::string safe_content(content);
+	std::string close_tag = std::format("</{}>", tag);
+	std::string escaped_close = std::format("&lt;/{}>", tag);
+
+	size_t pos = 0;
+	while ((pos = safe_content.find(close_tag, pos)) != std::string::npos) {
+		safe_content.replace(pos, close_tag.length(), escaped_close);
+		pos += escaped_close.length();
+	}
+
+	return std::format("<{}>\n{}\n</{}>", tag, safe_content, tag);
+}
+
 std::string shorten_filename(std::string_view filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

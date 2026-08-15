@@ -145,6 +145,14 @@ std::string unescape_string(std::string_view input);
  * @param include_quotes If true, wraps the escaped output in double quotes ("..."). Defaults to false.
  */
 std::string escape_json_string(std::string_view input, bool include_quotes = false);
+
+/**
+ * @brief Safely wraps untrusted user or LLM input within XML data tags for system and subagent prompt interpolation.
+ * Sanitizes closing tag breakout attempts (e.g. </tag>) to prevent prompt injection into subordinate agents.
+ * @param tag The XML tag name (e.g. "user_query", "target_path").
+ * @param content The untrusted input content to wrap.
+ */
+std::string wrap_prompt_untrusted_data_tag(std::string_view tag, std::string_view content);
 /**
  * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable
  * characters or ANSI escape sequences to prevent malicious agents from spoofing UI elements.
