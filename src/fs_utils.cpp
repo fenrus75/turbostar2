@@ -99,40 +99,17 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 
 bool is_binary_file(std::string_view filepath)
 {
+	return get_file_type(filepath) == file_type_t::BINARY;
+}
+
+bool is_regular_file(std::string_view filepath) noexcept
+{
 	if (filepath.empty()) {
 		return false;
 	}
-	std::filesystem::path fpath(filepath);
 	std::error_code ec;
-	if (!std::filesystem::is_regular_file(fpath, ec)) {
-		return false;
-	}
-	uint64_t size = std::filesystem::file_size(fpath, ec);
-	if (ec || size == 0) {
-		return false;
-	}
-	std::ifstream file(fpath, std::ios::binary);
-	if (!file.is_open()) {
-		return false;
-	}
-	char buffer[4096];
-	file.read(buffer, std::min<size_t>(size, sizeof(buffer)));
-	size_t bytes_read = file.gcount();
-	for (size_t i = 0; i < bytes_read; ++i) {
-		unsigned char b = static_cast<unsigned char>(buffer[i]);
-		if (b == 0) {
-			return true;
-		}
-		// Heuristic: Control characters under 32 (except tab, newline, vertical tab, form feed, carriage return, and escape)
-		// indicate a binary file. DEL (127) also indicates a binary file.
-		if (b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) {
-			return true;
-		}
-		if (b == 127) {
-			return true;
-		}
-	}
-	return false;
+	std::filesystem::path fpath(filepath);
+	return std::filesystem::is_regular_file(fpath, ec);
 }
 
 file_type_t get_file_type(std::string_view filepath)

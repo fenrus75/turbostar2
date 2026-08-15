@@ -19,6 +19,7 @@ fs_regexp_lines_tool::fs_regexp_lines_tool(fs_regexp_lines_args args) : args_(st
 bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
 	re2::RE2::Options options;
+	options.set_max_mem(8 * 1024 * 1024); // 8 MB cap
 	if (args_.case_insensitive) {
 		options.set_case_sensitive(false);
 	}
@@ -33,11 +34,23 @@ bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx
 std::string fs_regexp_lines_tool::escape_markdown(const std::string &text) const
 {
 	std::string result;
-	for (char c : text) {
+	for (size_t i = 0; i < text.size(); ++i) {
+		unsigned char c = static_cast<unsigned char>(text[i]);
+		if (c == 0x1b) {
+			if (i + 1 < text.size() && text[i + 1] == '[') {
+				i += 2;
+				while (i < text.size() && (text[i] < 0x40 || text[i] > 0x7e)) {
+					i++;
+				}
+			}
+			continue;
+		}
 		if (c == '|') {
-			result += "&#124;"; // HTML entity for pipe
-		} else if (c == '\r' || c == '\n') {
-			// Strip newlines to avoid breaking table format
+			result += "&#124;";
+		} else if (c < 32 && c != '\t') {
+			// Strip control characters
+		} else if (c == 127) {
+			// Strip DEL
 		} else {
 			result += c;
 		}
@@ -89,7 +102,8 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 				return "No matches found.";
 			if (match_count >= MAX_MATCHES)
 				ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
-			return "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
+			std::string out = "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
+			return fs_utils::wrap_prompt_untrusted_data_tag("regex_matches", out);
 		}
 	}
 
@@ -150,16 +164,16 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 			ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
 
 		std::string final_output = "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
-		return final_output;
+		return fs_utils::wrap_prompt_untrusted_data_tag("regex_matches", final_output);
 	}
 
 	// 3. Fallback to direct disk access
-	struct stat sb;
-	if (stat(args_.safe_path.c_str(), &sb) == -1) {
-		return "Error: File does not exist or cannot be accessed.";
+	if (!fs_utils::is_regular_file(args_.safe_path)) {
+		return "Error: Path does not exist or is not a regular file.";
 	}
 
-	if (sb.st_size > 50 * 1024 * 1024) {
+	struct stat sb;
+	if (stat(args_.safe_path.c_str(), &sb) == 0 && sb.st_size > 50 * 1024 * 1024) {
 		return "Error: File is too large (>50MB) to read directly.";
 	}
 
@@ -194,7 +208,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		ss << "| ... | *Maximum of " << MAX_MATCHES << " matches reached* |\n";
 
 	std::string final_output = "# Number of matches: " + std::to_string(match_count) + "\n\n" + ss.str();
-	return final_output;
+	return fs_utils::wrap_prompt_untrusted_data_tag("regex_matches", final_output);
 }
 
 } // namespace tools

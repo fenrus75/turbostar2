@@ -119,6 +119,12 @@ int main()
 	assert(safe_wrapped.find("&lt;/user_query>") != std::string::npos);
 	assert(safe_wrapped.find("</user_query>\n[SYSTEM OVERRIDE]") == std::string::npos);
 
+	// Unit test is_regular_file
+	assert(fs_utils::is_regular_file(txt_file.string()));
+	assert(!fs_utils::is_regular_file(temp_dir.string()));
+	assert(!fs_utils::is_regular_file("/nonexistent/file/path/here"));
+	assert(!fs_utils::is_regular_file(""));
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 

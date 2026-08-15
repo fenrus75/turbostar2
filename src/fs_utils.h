@@ -48,6 +48,12 @@ enum class file_type_t {
 
 bool is_binary_file(std::string_view filepath);
 
+/**
+ * @brief Returns true if the path exists, can be stat'd, and is a regular file (S_ISREG).
+ * Prevents hanging or unexpected behavior when attempting to read FIFOs, device nodes, or sockets.
+ */
+bool is_regular_file(std::string_view filepath) noexcept;
+
 file_type_t get_file_type(std::string_view filepath);
 
 /**
