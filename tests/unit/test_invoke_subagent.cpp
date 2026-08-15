@@ -4,6 +4,7 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/subagent_manager.h"
+#include "../../src/vfs/system_vfs_provider.h"
 #include "../../src/project_manager.h"
 #include "a2a/a2a_server_manager.h"
 #include "tools/invoke_subagent/invoke_subagent.h"
@@ -179,7 +180,48 @@ int main()
 			assert(transactions[2]->get_turns()[0]->get_content().starts_with("Third system message (should not merge with user in between)"));
 		}
 
-		std::cout << "agent_create tool verified successfully!" << std::endl;
+		// 9. Test monotonic subagent IDs, disk archiving, and VFS fallback reading
+		{
+			std::cout << "Testing monotonic subagent IDs and VFS disk archiving fallback..." << std::endl;
+			auto seq_agent = ai_agent::create(10, "SeqParentAgent", model, nullptr, nullptr);
+			auto sub1 = seq_agent->spawn_subagent("Child1");
+			int id1 = sub1->get_id();
+			assert(id1 == 1001);
+
+			auto sub2 = seq_agent->spawn_subagent("Child2");
+			int id2 = sub2->get_id();
+			assert(id2 == 1002);
+
+			sub1->set_final_result("Child1 completed task successfully");
+
+			// Remove sub1 (triggers archive_to_cache)
+			seq_agent->remove_subagent(id1);
+
+			// Re-spawn subagent -> ID should be 1003 (monotonic, not 1002 reuse!)
+			auto sub3 = seq_agent->spawn_subagent("Child3");
+			int id3 = sub3->get_id();
+			assert(id3 == 1003);
+
+			// Verify VFS fallback reading for archived sub1
+			turbostar::system_vfs_provider sys_vfs;
+			tool_context vfs_ctx;
+			vfs_ctx.active_agent = seq_agent.get();
+
+			std::string fr_uri = "system://subagents/" + std::to_string(id1) + "/final_result.md";
+			std::string tr_uri = "system://subagents/" + std::to_string(id1) + "/transcript.md";
+
+			auto fr_opt = sys_vfs.read_file(fr_uri);
+			assert(fr_opt.has_value());
+			std::string fr_content = std::string((*fr_opt)->view());
+			assert(fr_content.find("Child1 completed task successfully") != std::string::npos);
+
+			auto tr_opt = sys_vfs.read_file(tr_uri);
+			assert(tr_opt.has_value());
+			std::string tr_content = std::string((*tr_opt)->view());
+			assert(tr_content.find("Execution Transcript for Subagent 1001") != std::string::npos);
+		}
+
+		std::cout << "invoke_subagent tool verified successfully!" << std::endl;
 	}
 
 	return 0;

@@ -272,6 +272,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	mutable std::mutex state_mutex_;
 	std::condition_variable status_cv_;
 	std::vector<std::shared_ptr<ai_agent>> subagents_;
+	uint64_t subagent_sequence_counter_{0};
 	std::vector<std::string> active_skills_;
 	std::string original_system_prompt_;
 	std::string final_result_;
@@ -279,6 +280,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	bool notify_parent_on_completion_{true};
 	bool suppress_parent_injection_{false};
 	std::string animation_name_{"default"};
+
+	void archive_to_cache() const;
 
       private:
 	ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider);

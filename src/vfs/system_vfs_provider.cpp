@@ -228,6 +228,11 @@ static std::string generate_subagent_summary(int id)
 {
 	auto agent = agentlib::ai_agent::find_agent_by_id(id);
 	if (!agent) {
+		std::string archive_path = fs_utils::get_project_cache_root() + "/agents/" + std::to_string(id) + "/status.md";
+		if (std::filesystem::exists(archive_path)) {
+			std::ifstream in(archive_path);
+			return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		}
 		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
 	}
 
@@ -267,6 +272,11 @@ static std::string generate_subagent_final_result(int id)
 {
 	auto agent = agentlib::ai_agent::find_agent_by_id(id);
 	if (!agent) {
+		std::string archive_path = fs_utils::get_project_cache_root() + "/agents/" + std::to_string(id) + "/final_result.md";
+		if (std::filesystem::exists(archive_path)) {
+			std::ifstream in(archive_path);
+			return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		}
 		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
 	}
 
@@ -284,6 +294,11 @@ static std::string generate_subagent_transcript(int id, const std::string &query
 {
 	auto agent = agentlib::ai_agent::find_agent_by_id(id);
 	if (!agent) {
+		std::string archive_path = fs_utils::get_project_cache_root() + "/agents/" + std::to_string(id) + "/transcript.md";
+		if (std::filesystem::exists(archive_path)) {
+			std::ifstream in(archive_path);
+			return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		}
 		return "Subagent ID " + std::to_string(id) + " was not found or has exited.";
 	}
 

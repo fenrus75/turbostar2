@@ -928,7 +928,8 @@ std::map<std::string, int> ai_agent::get_stats() const
 std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string &name)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
-	int new_id = id_ * 100 + static_cast<int>(subagents_.size()) + 1;
+	uint64_t seq = ++subagent_sequence_counter_;
+	int new_id = static_cast<int>(id_ * 100 + seq);
 	auto subagent = ai_agent::create(new_id, name, model_, global_queue_, doc_provider_);
 	subagent->set_parent(shared_from_this());
 	subagents_.push_back(subagent);
@@ -943,9 +944,62 @@ std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string &name)
 	return subagent;
 }
 
+void ai_agent::archive_to_cache() const
+{
+	std::string dir = fs_utils::get_project_cache_root() + "/agents/" + std::to_string(id_);
+	std::error_code ec;
+	std::filesystem::create_directories(dir, ec);
+
+	// 1. Write status
+	{
+		std::ofstream out_st(dir + "/status.md");
+		if (out_st.is_open()) {
+			out_st << "# Subagent Status: " << name_ << " (ID " << id_ << ")\n\n"
+			       << "- **Status**: " << agent_status_to_string(get_status()) << "\n"
+			       << "- **Role**: " << agent_role_to_string(get_role()) << "\n"
+			       << "- **Task**: " << (task_description_.empty() ? "(none specified)" : task_description_) << "\n";
+		}
+	}
+
+	// 2. Write final result
+	if (has_final_result()) {
+		std::ofstream out_fr(dir + "/final_result.md");
+		if (out_fr.is_open()) {
+			out_fr << "# Final Result for Subagent " << id_ << " (" << name_ << ")\n\n"
+			       << get_final_result() << "\n";
+		}
+	}
+
+	// 3. Write transcript
+	{
+		auto interactions = get_interactions();
+		std::stringstream ss_tr;
+		ss_tr << "# Execution Transcript for Subagent " << id_ << " (" << name_ << ")\n\n";
+		if (interactions.empty()) {
+			ss_tr << "No interaction turns recorded for subagent " << id_ << ".\n";
+		} else {
+			for (size_t i = 0; i < interactions.size(); ++i) {
+				const auto &inter = interactions[i];
+				if (!inter)
+					continue;
+				ss_tr << "### Turn " << (i + 1) << "\n" << inter->get_raw_text() << "\n\n";
+			}
+		}
+		std::ofstream out_tr(dir + "/transcript.md");
+		if (out_tr.is_open()) {
+			out_tr << ss_tr.str();
+		}
+	}
+}
+
 void ai_agent::remove_subagent(int id)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
+	for (auto &sub : subagents_) {
+		if (sub && sub->get_id() == id) {
+			sub->archive_to_cache();
+		}
+	}
 	subagents_.erase(std::remove_if(subagents_.begin(), subagents_.end(),
 					[id](const std::shared_ptr<ai_agent> &agent) { return agent->get_id() == id; }),
 			 subagents_.end());
