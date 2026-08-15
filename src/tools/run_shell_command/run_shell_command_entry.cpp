@@ -219,7 +219,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 					output = "\n...[output truncated due to length]...\n" + output;
 				}
 
-				std::string formatted_injection = "\n\n--- ASYNC COMMAND COMPLETED ---\n```\n" + output + "\n```";
+				std::string formatted_injection = "\n\n--- ASYNC COMMAND COMPLETED ---\n" + fs_utils::wrap_prompt_untrusted_data_tag("shell_output", output);
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
 
 				// Wake up the LLM
@@ -253,7 +253,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return "```\n" + output + "\n```" + approval_note;
+	return fs_utils::wrap_prompt_untrusted_data_tag("shell_output", output) + approval_note;
 }
 
 } // namespace tools

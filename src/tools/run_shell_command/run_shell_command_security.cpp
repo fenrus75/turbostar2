@@ -14,6 +14,10 @@ bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args,
     } else {
         parsed_args_.timeout = 300;
     }
+    if (parsed_args_.timeout <= 0 || parsed_args_.timeout > 3600) {
+        out_error = "Timeout must be between 1 and 3600 seconds.";
+        return false;
+    }
 
     if (args.contains("async") && args["async"].is_boolean()) {
         parsed_args_.is_async = args["async"].get<bool>();

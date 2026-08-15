@@ -19,6 +19,21 @@ static std::string trim_str(std::string_view s)
 	return std::string(s.substr(start, end - start));
 }
 
+static std::string sanitize_for_prompt_quote(std::string_view input)
+{
+	std::string res;
+	for (char c : input) {
+		if (c == '"') {
+			res += "\\\"";
+		} else if (c == '\\') {
+			res += "\\\\";
+		} else {
+			res += c;
+		}
+	}
+	return res;
+}
+
 shell_command_recommendation evaluate_shell_command_resteer(const std::string &command_line)
 {
 	shell_command_recommendation rec;
@@ -35,7 +50,7 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	std::smatch match;
 
 	if (std::regex_search(cmd, match, test_list_grep_regex)) {
-		std::string kw = match[1].str();
+		std::string kw = sanitize_for_prompt_quote(match[1].str());
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_read_lines(path=\"system://project/testlist.md?search={}\")", kw);
@@ -56,7 +71,7 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	static const std::regex ninja_test_exec_regex(R"(^ninja\s+(?:-C\s+\S+\s+)*(test_[\w_]+)$)", std::regex::icase);
 
 	if (std::regex_match(cmd, match, meson_test_exec_regex) || std::regex_match(cmd, match, direct_binary_exec_regex) || std::regex_match(cmd, match, ninja_test_exec_regex)) {
-		std::string tname = match[1].str();
+		std::string tname = sanitize_for_prompt_quote(match[1].str());
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_run_tests(test_names=[\"{}\"])", tname);
@@ -71,7 +86,7 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	if (std::regex_match(cmd, match, sed_read_regex)) {
 		std::string s_line = match[1].str();
 		std::string e_line = match[2].str();
-		std::string file_path = match[3].str();
+		std::string file_path = sanitize_for_prompt_quote(match[3].str());
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_read_lines(path=\"{}\", start_line={}, end_line={})", file_path, s_line, e_line);
@@ -80,7 +95,7 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	}
 	if (std::regex_match(cmd, match, head_read_regex)) {
 		std::string e_line = match[1].str();
-		std::string file_path = match[2].str();
+		std::string file_path = sanitize_for_prompt_quote(match[2].str());
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_read_lines(path=\"{}\", start_line=1, end_line={})", file_path, e_line);
@@ -93,8 +108,8 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	static const std::regex find_name_regex(R"(^find\s+([^\s]+)\s+-name\s+["']?([^"'\s]+)["']?)", std::regex::icase);
 
 	if (std::regex_match(cmd, match, grep_search_regex)) {
-		std::string pat = match[1].str();
-		std::string path_opt = match[2].matched ? match[2].str() : ".";
+		std::string pat = sanitize_for_prompt_quote(match[1].str());
+		std::string path_opt = sanitize_for_prompt_quote(match[2].matched ? match[2].str() : ".");
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_grep_files(pattern=\"{}\", path=\"{}\")", pat, path_opt);
