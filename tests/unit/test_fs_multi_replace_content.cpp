@@ -134,6 +134,28 @@ int main()
 		assert(result.find("unbalanced braces") != std::string::npos);
 	}
 
+	// Test 4: File health tracking & Edit ID attribution
+	{
+		std::string canonical_p = fs::canonical(test_file).string();
+		ctx.file_health_tracker[canonical_p].state = agentlib::lsp_health_state::clean;
+
+		tools::fs_multi_replace_content_args args;
+		args.path = "sample.cpp";
+		args.safe_path = canonical_p;
+
+		tools::replace_chunk chunk;
+		chunk.function_scope = "func1";
+		chunk.target_content = "void func1() {";
+		chunk.replacement_content = "void func1_updated() {";
+		args.chunks.push_back(chunk);
+
+		tools::fs_multi_replace_content_tool tool(args);
+		std::string result = tool.execute(ctx);
+
+		assert(result.find("[Edit ID:") != std::string::npos);
+		assert(ctx.edit_sequence_counter > 0);
+	}
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 
