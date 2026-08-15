@@ -52,6 +52,7 @@ private:
  */
 class agent_compress_history_validator : public agentlib::tool_validator {
 public:
+    // Pure Domain 2 (Agent & Workflow State): Pages out conversation history in session memory, no codebase disk mutations.
     bool is_pure() const override { return true; }
 
     std::string get_name() const override { return "agent_compress_history"; }

@@ -1,5 +1,6 @@
 #include <format>
 #include "agent_compress_history.h"
+#include "fs_utils.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/interactions/system_message.h"
 
@@ -49,7 +50,7 @@ std::string agent_compress_history_tool::execute(agentlib::tool_context &ctx)
 	try {
 		ctx.active_agent->page_out_prior_context(args_.target_episode_id, args_.include_all_prior, args_.title, args_.summary,
 							 args_.tags);
-		return "History successfully paged out. Your context window has been cleared and replaced with a summary pointer.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("agent_compress_history_result", "History successfully paged out. Your context window has been cleared and replaced with a summary pointer.");
 	} catch (const std::exception &e) {
 		return std::format("Error while paging out history: {}", e.what());
 	}

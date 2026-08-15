@@ -76,6 +76,22 @@ bool agent_compress_history_validator::validate_args_impl(const nlohmann::json& 
             out_error = "Security Violation: Summary contains unsafe control characters or escape sequences.";
             return false;
         }
+
+        // Security check: Validate tags array
+        if (args_.tags.size() > 20) {
+            out_error = "Security Violation: 'tags' array exceeds maximum limit of 20 items.";
+            return false;
+        }
+        for (const auto &tag : args_.tags) {
+            if (tag.empty() || tag.length() > 100) {
+                out_error = "Security Violation: Tag must be non-empty and max 100 characters.";
+                return false;
+            }
+            if (!fs_utils::is_safe_for_ui(tag)) {
+                out_error = "Security Violation: Tag contains unsafe control characters or escape sequences.";
+                return false;
+            }
+        }
         
         return true;
     } catch (const std::exception& e) {
