@@ -1,7 +1,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "agent_start_app.h"
 
 namespace tools
@@ -46,7 +47,7 @@ class agent_start_app_validator : public agentlib::tool_validator
 		      {"wait_for_time",
 		       {{"type", "integer"},
 			{"description",
-			 "Optional time in seconds to wait for the application to finish after starting. Defaults to 0 (async execution)."},
+			 "Optional time in seconds to wait for the application to finish after starting. Defaults to 0 (async execution, max 300)."},
 			{"default", 0}}},
 		      {"collect_performance",
 		       {{"type", "boolean"},
@@ -61,16 +62,21 @@ class agent_start_app_validator : public agentlib::tool_validator
 	{
 		try {
 			agent_start_app_raw_args raw = args_json.get<agent_start_app_raw_args>();
+			if (raw.args.length() > 1024) {
+				out_error = "Validation Error: args parameter exceeds maximum length of 1024 characters.";
+				return false;
+			}
 			// Check for command injection/chaining characters in args
 			for (char c : raw.args) {
 				if (c == ';' || c == '&' || c == '|' || c == '`' || c == '$' ||
-				    c == '<' || c == '>' || c == '(' || c == ')' || c == '\n' || c == '\r') {
+				    c == '<' || c == '>' || c == '(' || c == ')' || c == '\'' || c == '"' ||
+				    c == '\\' || c == '\n' || c == '\r') {
 					out_error = "Security Violation: Unsafe characters detected in arguments.";
 					return false;
 				}
 			}
-			if (raw.wait_for_time < 0) {
-				out_error = "Validation Error: wait_for_time must be non-negative.";
+			if (raw.wait_for_time < 0 || raw.wait_for_time > 300) {
+				out_error = "Validation Error: wait_for_time must be between 0 and 300 seconds.";
 				return false;
 			}
 			args_.args = raw.args;

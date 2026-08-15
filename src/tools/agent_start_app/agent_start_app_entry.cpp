@@ -1,4 +1,5 @@
 #include "agent_start_app.h"
+#include "fs_utils.h"
 #include <nlohmann/json.hpp>
 
 namespace tools
@@ -43,7 +44,7 @@ std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
 		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id));
 	}
 
-	return output.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_start_app_result", output.dump(2));
 }
 
 } // namespace tools
