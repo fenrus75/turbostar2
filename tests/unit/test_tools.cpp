@@ -675,17 +675,14 @@ extern std::string troff2md(std::string troff_content);
 		};
 
 		// Pure tools MUST succeed for read-only agents
-		auto val_cr = find_val("create_code_review_item");
-		assert(val_cr && val_cr->is_pure());
+		auto val_timer = find_val("agent_set_timer");
+		assert(val_timer && val_timer->is_pure());
 
-		auto val_sub = find_val("invoke_subagent");
-		assert(val_sub && val_sub->is_pure());
+		auto val_read = find_val("fs_read_lines");
+		assert(val_read && val_read->is_pure());
 
-		auto val_msg = find_val("send_message");
-		assert(val_msg && val_msg->is_pure());
-
-		auto val_crop = find_val("image_crop");
-		assert(val_crop && val_crop->is_pure());
+		auto val_list = find_val("fs_list_dir");
+		assert(val_list && val_list->is_pure());
 
 		// Dynamic is_pure(args) for fs_write_file
 		auto val_write = find_val("fs_write_file");

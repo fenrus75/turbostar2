@@ -540,6 +540,51 @@ std::string unescape_string(std::string_view input)
 	return result;
 }
 
+std::string escape_json_string(std::string_view input, bool include_quotes)
+{
+	std::string escaped;
+	escaped.reserve(input.size() + (include_quotes ? 16 : 14));
+	if (include_quotes) {
+		escaped += '"';
+	}
+	for (char c : input) {
+		switch (c) {
+			case '"':
+				escaped += "\\\"";
+				break;
+			case '\\':
+				escaped += "\\\\";
+				break;
+			case '\b':
+				escaped += "\\b";
+				break;
+			case '\f':
+				escaped += "\\f";
+				break;
+			case '\n':
+				escaped += "\\n";
+				break;
+			case '\r':
+				escaped += "\\r";
+				break;
+			case '\t':
+				escaped += "\\t";
+				break;
+			default:
+				if (static_cast<unsigned char>(c) < 0x20) {
+					escaped += std::format("\\u{:04x}", static_cast<unsigned char>(c));
+				} else {
+					escaped += c;
+				}
+				break;
+		}
+	}
+	if (include_quotes) {
+		escaped += '"';
+	}
+	return escaped;
+}
+
 std::string shorten_filename(std::string_view filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

@@ -137,6 +137,14 @@ std::string escape_shell_arg(std::string_view arg);
  * @brief Unescapes backslash sequences like \\n, \\t, etc. into literal characters.
  */
 std::string unescape_string(std::string_view input);
+
+/**
+ * @brief Escapes a string to make it safe for insertion into a JSON payload according to RFC 8259.
+ * Escapes double quotes, backslashes, control characters (\\b, \\f, \\n, \\r, \\t), and control bytes (0x00-0x1F).
+ * @param input The raw untrusted input string to escape.
+ * @param include_quotes If true, wraps the escaped output in double quotes ("..."). Defaults to false.
+ */
+std::string escape_json_string(std::string_view input, bool include_quotes = false);
 /**
  * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable
  * characters or ANSI escape sequences to prevent malicious agents from spoofing UI elements.

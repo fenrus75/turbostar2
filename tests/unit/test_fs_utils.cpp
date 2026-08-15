@@ -97,6 +97,18 @@ int main()
 	// Reset override project directory to empty
 	fs_utils::set_override_project_dir("");
 
+	// Unit test escape_json_string
+	std::string plain = "Hello World 123";
+	assert(fs_utils::escape_json_string(plain) == "Hello World 123");
+	assert(fs_utils::escape_json_string(plain, true) == "\"Hello World 123\"");
+
+	std::string special = "Hello \"World\"\nLine 2\tTabbed\\Backslash";
+	assert(fs_utils::escape_json_string(special) == "Hello \\\"World\\\"\\nLine 2\\tTabbed\\\\Backslash");
+	assert(fs_utils::escape_json_string(special, true) == "\"Hello \\\"World\\\"\\nLine 2\\tTabbed\\\\Backslash\"");
+
+	std::string ctrl_bytes = "\x01\x1f";
+	assert(fs_utils::escape_json_string(ctrl_bytes) == "\\u0001\\u001f");
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 
