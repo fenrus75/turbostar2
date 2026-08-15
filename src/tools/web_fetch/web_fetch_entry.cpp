@@ -11,9 +11,14 @@
 namespace tools
 {
 
+struct download_buffer {
+	std::string data;
+	size_t max_bytes{20 * 1024 * 1024}; // 20 MB cap
+};
+
 static std::string extract_domain(const std::string &url)
 {
-	std::regex url_regex(R"(^https?://([^/:]+))");
+	std::regex url_regex(R"(^https?://(?:[^@/]+@)?([^/:]+))");
 	std::smatch match;
 	if (std::regex_search(url, match, url_regex)) {
 		return match[1].str();
@@ -23,13 +28,24 @@ static std::string extract_domain(const std::string &url)
 
 static bool is_local_ip(const std::string &domain)
 {
-	if (domain == "localhost" || domain == "127.0.0.1" || domain == "::1")
+	if (domain == "localhost" || domain == "127.0.0.1" || domain == "::1" || domain == "0.0.0.0")
 		return true;
 	if (domain.starts_with("192.168."))
 		return true;
 	if (domain.starts_with("10."))
 		return true;
+	if (domain.starts_with("169.254.")) // Link-local / Cloud metadata API
+		return true;
 	if (domain.starts_with("172.")) {
+		auto parts = fs_utils::split_string(domain, '.');
+		if (parts.size() >= 2) {
+			try {
+				int second = std::stoi(parts[1]);
+				if (second >= 16 && second <= 31) return true;
+			} catch (...) {}
+		}
+	}
+	if (domain.starts_with("fe80:") || domain.starts_with("fc00:") || domain.starts_with("fd00:")) {
 		return true;
 	}
 	return false;
@@ -38,8 +54,11 @@ static bool is_local_ip(const std::string &domain)
 static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t realsize = size * nmemb;
-	std::string *mem = static_cast<std::string *>(userp);
-	mem->append(static_cast<const char *>(contents), realsize);
+	download_buffer *buf = static_cast<download_buffer *>(userp);
+	if (buf->data.size() + realsize > buf->max_bytes) {
+		return 0; // Abort download with CURLE_WRITE_ERROR
+	}
+	buf->data.append(static_cast<const char *>(contents), realsize);
 	return realsize;
 }
 
@@ -50,11 +69,16 @@ static std::string perform_http_get(const std::string &url, int timeout_seconds 
 		return "Error: failed to initialize libcurl.";
 	}
 
-	std::string read_buffer;
+	download_buffer buf;
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &read_buffer);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+	curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+	curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeout_seconds));
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
@@ -62,10 +86,13 @@ static std::string perform_http_get(const std::string &url, int timeout_seconds 
 	curl_easy_cleanup(curl);
 
 	if (res != CURLE_OK) {
+		if (res == CURLE_WRITE_ERROR && buf.data.size() >= buf.max_bytes) {
+			return "Error: Download size limit exceeded (20 MB maximum).\n";
+		}
 		return "curl: (" + std::to_string(res) + ") " + curl_easy_strerror(res) + "\n\nProcess exited with code " + std::to_string(res) + "\n";
 	}
 
-	return read_buffer;
+	return buf.data;
 }
 
 web_fetch_tool::web_fetch_tool(web_fetch_args args) : args_(std::move(args))
@@ -203,7 +230,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		output += "\n\n...[output truncated due to length]...";
 	}
 
-	return "```\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("fetched_web_content", output);
 }
 
 } // namespace tools
