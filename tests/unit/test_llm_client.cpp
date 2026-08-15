@@ -29,9 +29,9 @@
 #include <vector>
 
 #include "test_watchdog.h"
-#include "../../src/agentlib/llm_client.h"
-#include "../../src/agentlib/llm_transport.h"
-#include "../../src/agentlib/llm_types.h"
+#include "agentlib/llm_client.h"
+#include "agentlib/llm_transport.h"
+#include "agentlib/llm_types.h"
 
 using namespace agentlib;
 

@@ -26,18 +26,18 @@ void to_json(nlohmann::json &j, const review_item &item)
 
 void from_json(const nlohmann::json &j, review_item &item)
 {
-	j.at("id").get_to(item.id);
-	j.at("datestamp").get_to(item.datestamp);
-	j.at("git_hash").get_to(item.git_hash);
-	j.at("summary").get_to(item.summary);
-	j.at("filename").get_to(item.filename);
-	j.at("line_number").get_to(item.line_number);
-	j.at("line_content").get_to(item.line_content);
-	j.at("state").get_to(item.state);
-	j.at("severity").get_to(item.severity);
-	j.at("description").get_to(item.description);
-	j.at("proposed_fix").get_to(item.proposed_fix);
-	j.at("resolved_in_commit").get_to(item.resolved_in_commit);
+	item.id = j.value("id", 0);
+	item.datestamp = j.value<uint64_t>("datestamp", 0);
+	item.git_hash = j.value("git_hash", "");
+	item.summary = j.value("summary", "");
+	item.filename = j.value("filename", "");
+	item.line_number = j.value("line_number", 0);
+	item.line_content = j.value("line_content", "");
+	item.state = j.value("state", "new");
+	item.severity = j.value("severity", "medium");
+	item.description = j.value("description", "");
+	item.proposed_fix = j.value("proposed_fix", "");
+	item.resolved_in_commit = j.value("resolved_in_commit", "");
 }
 
 codereview_manager &codereview_manager::get_instance()

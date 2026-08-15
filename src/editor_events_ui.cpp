@@ -46,7 +46,7 @@ static int find_free_port()
 	if (sock < 0)
 		return 1234;
 
-	struct sockaddr_in addr;
+	struct sockaddr_in addr{};
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	addr.sin_port = 0;
@@ -645,14 +645,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					headless_agents_.push_back(verifier_agent);
 				}
 
-				if (verifier_agent) {
-					std::string verifier_model_id = config_manager::get_instance().get_task_model_id("code_verifier");
-					auto verifier_model = agentlib::ai_model_registry::get_instance().get_model(verifier_model_id);
-					if (verifier_model) {
-						verifier_agent->set_model(verifier_model);
-					}
-					verifier_agent->set_role(agentlib::agent_role::verifier);
-
+				if (verifier_agent && verifier_agent->get_model()) {
 					std::string system_prompt = "You are a code review verification agent. Your task is to verify the "
 								    "code review findings reported by the reviewer agent.\n"
 								    "Inspect the files and verify if the reported issues are correct, "
@@ -689,7 +682,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					set_status_message(std::format("Verification agent started in background for item #{}...", item.id),
 							   status_priorities::INFO);
 				} else {
-					set_status_message("Error: Failed to create verification agent.", status_priorities::WARNING);
+					set_status_message("Error: Failed to create verification agent (no valid model configured).", status_priorities::WARNING);
 				}
 			}
 		}
@@ -718,6 +711,9 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				found_agent = agent;
 				break;
 			}
+		}
+		if (!found_agent) {
+			found_agent = agentlib::ai_agent::find_agent_by_id(target_id);
 		}
 
 		if (found_agent) {
@@ -761,7 +757,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		// Find the active agent window
 		for (auto &win : windows_) {
 			if (auto agent_win = dynamic_cast<agent_window *>(win.get())) {
-				if (agent_win->get_agent()->get_id() == ev.key_code) {
+				if (agent_win->get_agent() && agent_win->get_agent()->get_id() == ev.key_code) {
 					agent_win->on_agent_update();
 				}
 			}
@@ -815,9 +811,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					if (j.is_array()) {
 						target_doc->apply_external_edits_json(json_str);
 					}
-				} catch (...) {
-					logger.log("Error parsing apply_edits json.");
+				} catch (const std::exception &e) {
+					logger.log(std::format("Error parsing apply_edits json: {}", e.what()));
 				}
+			} else {
+				logger.log(std::format("Warning: apply_edits target document not found for path '{}'", safe_path));
 			}
 		}
 		return;
@@ -1035,8 +1033,21 @@ bool editor::write_to_run(int run_id, std::string_view data)
 		if (fd < 0 || !tw->is_alive())
 			return false;
 		tw->reset_last_modified();
-		ssize_t w = write(fd, data.data(), data.size());
-		return (w == static_cast<ssize_t>(data.size()));
+		size_t total_written = 0;
+		while (total_written < data.size()) {
+			ssize_t w = write(fd, data.data() + total_written, data.size() - total_written);
+			if (w > 0) {
+				total_written += static_cast<size_t>(w);
+			} else if (w < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+					usleep(5000);
+				}
+				continue;
+			} else {
+				break;
+			}
+		}
+		return (total_written == data.size());
 	});
 }
 
@@ -1171,6 +1182,8 @@ agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view 
 		});
 	};
 
+	auto last_refresh = std::chrono::steady_clock::time_point{};
+
 	while (true) {
 		auto now = std::chrono::steady_clock::now();
 		if (now - start >= max_dur) {
@@ -1181,18 +1194,19 @@ agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view 
 			break;
 		}
 
-		// Refresh crash dumps and check if any crashdump matches this run_id.
-		// crashdump_manager is internally mutex-protected (thread-safe), so the refresh
-		// can run here on the agent thread; only the windows_ state is marshaled.
-		crashdump_manager::get_instance().refresh("");
-		auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
-		if (!dumps.empty()) {
-			res.status = "ended";
-			auto [found, alive, age] = snapshot_run_state();
-			res.age_ms = age;
-			res.is_alive = found ? alive : false;
-			res.crash_notification = crashdump_manager::format_crash_notification(dumps);
-			break;
+		// Throttle crashdump refreshes to at most once per second while waiting
+		if (now - last_refresh >= std::chrono::seconds(1)) {
+			crashdump_manager::get_instance().refresh("");
+			last_refresh = now;
+			auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+			if (!dumps.empty()) {
+				res.status = "ended";
+				auto [found, alive, age] = snapshot_run_state();
+				res.age_ms = age;
+				res.is_alive = found ? alive : false;
+				res.crash_notification = crashdump_manager::format_crash_notification(dumps);
+				break;
+			}
 		}
 
 		auto [found, alive, age] = snapshot_run_state();
