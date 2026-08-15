@@ -298,7 +298,7 @@ public:
 		size_t bits_needed = bits;
 		while (bits_needed > 0) {
 			if (byte_idx_ >= data_.size()) {
-				return 257; // End of Data
+				throw std::runtime_error("LZWDecode: unexpected EOF reading bitstream");
 			}
 			size_t bits_available = 8 - bit_idx_;
 			size_t bits_to_take = std::min(bits_needed, bits_available);
@@ -409,6 +409,8 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         else throw std::runtime_error("Could not auto-detect format from magic bytes");
     }
 
+    constexpr size_t kMaxDecompressSize = 128 * 1024 * 1024; // 128 MB cap
+
     if (fmt == "zlib" || fmt == "gzip") {
         z_stream zs;
         memset(&zs, 0, sizeof(zs));
@@ -427,6 +429,10 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
             ret = inflate(&zs, 0);
             if (result.size() < zs.total_out) {
                 result.insert(result.end(), outbuffer.begin(), outbuffer.begin() + (outbuffer.size() - zs.avail_out));
+                if (result.size() > kMaxDecompressSize) {
+                    inflateEnd(&zs);
+                    throw std::runtime_error("Decompressed data size exceeds 128 MB limit");
+                }
             }
         } while (ret == Z_OK);
         inflateEnd(&zs);
@@ -443,14 +449,18 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
                         ret = inflate(&zs, 0);
                         if (result.size() < zs.total_out) {
                             result.insert(result.end(), outbuffer.begin(), outbuffer.begin() + (outbuffer.size() - zs.avail_out));
+                            if (result.size() > kMaxDecompressSize) {
+                                inflateEnd(&zs);
+                                throw std::runtime_error("Decompressed data size exceeds 128 MB limit");
+                            }
                         }
                     } while (ret == Z_OK);
                     inflateEnd(&zs);
                 }
             }
-            if (result.empty()) {
-                throw std::runtime_error("inflate failed - invalid format?");
-            }
+        }
+        if (ret != Z_STREAM_END && ret != Z_OK && result.empty()) {
+            throw std::runtime_error("inflate failed - invalid format or corrupt stream");
         }
         return result;
     }
@@ -459,6 +469,7 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
         unsigned long long const rSize = ZSTD_getFrameContentSize(input.data(), input.size());
         if (rSize == ZSTD_CONTENTSIZE_ERROR) throw std::runtime_error("Not compressed by zstd");
         if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) throw std::runtime_error("Original size unknown");
+        if (rSize > kMaxDecompressSize) throw std::runtime_error("Decompressed data size exceeds 128 MB limit");
         std::vector<uint8_t> result(rSize);
         size_t dSize = ZSTD_decompress(result.data(), rSize, input.data(), input.size());
         if (ZSTD_isError(dSize)) throw std::runtime_error("ZSTD_decompress failed - invalid format?");
@@ -482,15 +493,21 @@ std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const st
     throw std::runtime_error("Unsupported or unavailable decompression format: " + fmt);
 }
 
-std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file) {
+std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file, agentlib::virtual_file_system* vfs) {
     if (!output_file.empty()) {
         std::string uri = output_file;
         if (uri.find("://") == std::string::npos) {
             uri = "file://" + fs_utils::safe_absolute(output_file).string();
         }
 
-        agentlib::virtual_file_system vfs;
-        std::string result = vfs.write_file(uri, data.data(), data.size());
+        std::string result;
+        if (vfs) {
+            result = vfs->write_file(uri, data.data(), data.size());
+        } else {
+            agentlib::virtual_file_system fallback_vfs;
+            result = fallback_vfs.write_file(uri, data.data(), data.size());
+        }
+
         if (result.empty()) {
             throw std::runtime_error("Could not write output to VFS path: " + output_file);
         }

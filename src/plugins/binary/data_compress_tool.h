@@ -8,9 +8,11 @@ namespace tools {
 struct data_compress_args {
 	std::string input_data;
 	std::string path;
+	std::string safe_path;
 	std::string format;
 	std::string output_format;
 	std::string output_path;
+	std::string safe_output_path;
 };
 
 class data_compress_tool : public agentlib::llm_tool_action {

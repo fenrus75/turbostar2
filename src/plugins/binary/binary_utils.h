@@ -24,6 +24,6 @@ std::vector<uint8_t> compress_data(const std::vector<uint8_t>& input, const std:
 std::vector<uint8_t> decompress_data(const std::vector<uint8_t>& input, const std::string& format);
 
 // Formats binary output based on requested output_format ("text", "hex", "base64", "file"), output_file name (if writing to file)
-std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file = "");
+std::string format_binary_output(const std::vector<uint8_t>& data, const std::string& output_format, const std::string& output_file = "", agentlib::virtual_file_system* vfs = nullptr);
 
 } // namespace binary_utils

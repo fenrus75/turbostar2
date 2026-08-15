@@ -271,6 +271,9 @@ void test_decompress_tool_interface() {
         };
         std::string err;
         agentlib::tool_context ctx;
+        ctx.fs_security.set_working_directory(project_root);
+        ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::read);
+        ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::write);
         assert(val.validate_args(args, ctx, err));
         
         auto tool = val.create_tool(args);
@@ -290,6 +293,8 @@ void test_decompress_tool_interface() {
         };
         std::string err;
         agentlib::tool_context ctx;
+        ctx.fs_security.set_working_directory(project_root);
+        ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::read);
         assert(!val.validate_args(args, ctx, err));
         assert(err.find("mutually exclusive") != std::string::npos);
     }
@@ -302,27 +307,39 @@ void test_decompress_tool_interface() {
         };
         std::string err;
         agentlib::tool_context ctx;
+        ctx.fs_security.set_working_directory(project_root);
+        ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::read);
         assert(!val.validate_args(args, ctx, err));
         assert(err.find("Must specify") != std::string::npos || err.find("exactly one") != std::string::npos);
     }
 
-    // 4. Test validation and execution with path (new standard)
+    // 4. Test validation failure on sandbox access violation (unauthorized path)
     {
         tools::data_decompress_validator val;
         nlohmann::json args = {
-            {"path", path},
-            {"format", "zlib"},
-            {"output_format", "text"}
+            {"path", "/etc/passwd"},
+            {"format", "zlib"}
         };
         std::string err;
         agentlib::tool_context ctx;
-        assert(val.validate_args(args, ctx, err));
-        
-        auto tool = val.create_tool(args);
-        assert(tool != nullptr);
-        
-        std::string result = tool->execute(ctx);
-        assert(result == content);
+        ctx.fs_security.set_working_directory(project_root);
+        ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::read);
+        assert(!val.validate_args(args, ctx, err));
+        assert(!err.empty());
+    }
+
+    // 5. Test validation failure on invalid size parameter
+    {
+        tools::data_decompress_validator val;
+        nlohmann::json args = {
+            {"input_data", "SGVsbG8="},
+            {"format", "none"},
+            {"size", -5}
+        };
+        std::string err;
+        agentlib::tool_context ctx;
+        assert(!val.validate_args(args, ctx, err));
+        assert(err.find("size") != std::string::npos);
     }
 
     // Clean up

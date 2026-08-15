@@ -19,7 +19,7 @@ nlohmann::json data_compress_validator::get_parameters_schema() const {
 	    {"required", nlohmann::json::array()}};
 }
 
-bool data_compress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &, std::string &out_error) const {
+bool data_compress_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const {
 	try {
 		args_.input_data = raw_json.value("input_data", "");
 		args_.path = raw_json.value("path", "");
@@ -38,7 +38,31 @@ bool data_compress_validator::validate_args_impl(const nlohmann::json &raw_json,
 			out_error = "Parameters 'input_data' and 'path' are mutually exclusive.";
 			return false;
 		}
-		
+
+		if (has_file) {
+			if (args_.path.find("://") == std::string::npos) {
+				std::string canonical_path;
+				if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, canonical_path, out_error)) {
+					return false;
+				}
+				args_.safe_path = canonical_path;
+			} else {
+				args_.safe_path = args_.path;
+			}
+		}
+
+		if (!args_.output_path.empty()) {
+			if (args_.output_path.find("://") == std::string::npos) {
+				std::string canonical_output;
+				if (!ctx.fs_security.validate_access(args_.output_path, agentlib::access_type::write, canonical_output, out_error)) {
+					return false;
+				}
+				args_.safe_output_path = canonical_output;
+			} else {
+				args_.safe_output_path = args_.output_path;
+			}
+		}
+
 		return true;
 	} catch (const std::exception &e) {
 		out_error = "Invalid arguments: " + std::string(e.what());
