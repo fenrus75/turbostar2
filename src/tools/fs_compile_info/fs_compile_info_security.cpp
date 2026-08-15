@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "fs_compile_info.h"
 
 namespace tools

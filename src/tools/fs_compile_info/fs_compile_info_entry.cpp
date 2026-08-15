@@ -1,9 +1,10 @@
+#include "build_error_manager.h"
+#include "config_manager.h"
+#include "fs_utils.h"
+#include "fs_compile_info.h"
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
-#include "../../build_error_manager.h"
-#include "../../config_manager.h"
-#include "../../fs_utils.h"
-#include "fs_compile_info.h"
 
 namespace tools
 {
@@ -67,13 +68,29 @@ std::string fs_compile_info_tool::execute(agentlib::tool_context &ctx)
 	compile_table << "| Line | Column | Severity | Message |\n";
 	compile_table << "| ---- | ------ | -------- | ------- |\n";
 
+	std::filesystem::path safe_norm = std::filesystem::path(safe_path_).lexically_normal();
+
+	size_t compile_count = 0;
 	for (const auto &err : errors) {
-		// Simple string match on the filename. The error manager stores what gcc outputted,
-		// which could be relative or absolute.
-		if (err.filepath.find(requested_path_) != std::string::npos || safe_path_.find(err.filepath) != std::string::npos) {
+		std::filesystem::path err_norm = std::filesystem::path(err.filepath).lexically_normal();
+		bool is_match = (err_norm == safe_norm);
+		if (!is_match && err_norm.is_relative()) {
+			std::string safe_str = safe_norm.string();
+			std::string err_str = err_norm.string();
+			if (safe_str.ends_with(err_str) && (safe_str.length() == err_str.length() || safe_str[safe_str.length() - err_str.length() - 1] == '/')) {
+				is_match = true;
+			}
+		}
+
+		if (is_match) {
 			found_compile_errors = true;
 			compile_table << "| " << err.line << " | " << err.column << " | " << (err.is_warning ? "Warning" : "Error") << " | "
 				      << escape_markdown(err.message) << " |\n";
+			compile_count++;
+			if (compile_count >= 50) {
+				compile_table << "\n*(Truncated: showing first 50 compiler diagnostics)*\n";
+				break;
+			}
 		}
 	}
 
@@ -95,9 +112,15 @@ std::string fs_compile_info_tool::execute(agentlib::tool_context &ctx)
 				found_lsp_diagnostics = true;
 				ss << "| Line | Column | Severity | Source | Message |\n";
 				ss << "| ---- | ------ | -------- | ------ | ------- |\n";
+				size_t lsp_count = 0;
 				for (const auto &d : diagnostics) {
-					ss << "| " << (d.line + 1) << " | " << (d.column + 1) << " | " << d.severity << " | " << d.source
+					ss << "| " << (d.line + 1) << " | " << (d.column + 1) << " | " << d.severity << " | " << escape_markdown(d.source)
 					   << " | " << escape_markdown(d.message) << " |\n";
+					lsp_count++;
+					if (lsp_count >= 50) {
+						ss << "\n*(Truncated: showing first 50 LSP diagnostics)*\n";
+						break;
+					}
 				}
 			}
 		}
@@ -107,7 +130,13 @@ std::string fs_compile_info_tool::execute(agentlib::tool_context &ctx)
 		ss << "*(No live LSP diagnostics available. File might be clean or not currently open.)*\n";
 	}
 
-	return ss.str();
+	std::string output = ss.str();
+	if (output.length() > 10000) {
+		output.resize(10000);
+		output += "\n\n*(Output truncated at 10,000 characters)*\n";
+	}
+
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_compile_info_result", output);
 }
 
 } // namespace tools
