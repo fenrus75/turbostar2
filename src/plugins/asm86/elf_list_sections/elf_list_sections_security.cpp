@@ -2,6 +2,7 @@
 #include <string>
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "elf_list_sections.h"
 
 namespace tools
