@@ -1,6 +1,7 @@
 #include <filesystem>
-#include "../../agentlib/tool_registry.h"
-#include "../../build_error_manager.h"
+#include "agentlib/tool_registry.h"
+#include "build_error_manager.h"
+#include "fs_utils.h"
 #include "flag_as_error.h"
 
 namespace tools
@@ -49,27 +50,35 @@ bool flag_as_error_security::validate_args_impl(const nlohmann::json &args, cons
 		return false;
 	}
 
+	std::string error_str = args["error_string"].get<std::string>();
+	if (error_str.length() > 2000) {
+		out_error = "Validation Error: 'error_string' parameter exceeds maximum length of 2000 characters.";
+		return false;
+	}
+	if (!fs_utils::is_safe_for_ui(error_str)) {
+		out_error = "Security Violation: 'error_string' contains unsafe control characters or escape sequences.";
+		return false;
+	}
+
 	std::string path = args["path"].get<std::string>();
 	std::string safe_path;
 	if (!ctx.fs_security.validate_access(path, agentlib::access_type::read, safe_path, out_error)) {
 		return false;
 	}
 
+	parsed_safe_path_ = safe_path;
+	parsed_error_string_ = error_str;
 	return true;
 }
 
 std::unique_ptr<agentlib::llm_tool> flag_as_error_security::create_tool_impl(const nlohmann::json &args) const
 {
-	std::string path = args["path"].get<std::string>();
-	std::string safe_path;
-	std::string dummy_error;
-
 	flag_as_error_args t_args;
-	t_args.safe_path = path; // We will validate again in execute or just use the filename
+	t_args.safe_path = parsed_safe_path_;
 	t_args.line = args["line"].get<int>();
 	t_args.column = args["column"].get<int>();
 	t_args.length = args["length"].get<int>();
-	t_args.error_string = args["error_string"].get<std::string>();
+	t_args.error_string = parsed_error_string_;
 	t_args.is_warning = args["is_warning"].get<bool>();
 
 	return std::make_unique<flag_as_error_tool>(t_args);

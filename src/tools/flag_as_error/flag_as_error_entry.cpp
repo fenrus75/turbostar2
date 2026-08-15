@@ -1,4 +1,5 @@
-#include "../../build_error_manager.h"
+#include "build_error_manager.h"
+#include "fs_utils.h"
 #include "flag_as_error.h"
 
 namespace tools
@@ -28,11 +29,13 @@ std::string flag_as_error_tool::execute(agentlib::tool_context & /*ctx*/)
 	// We don't have direct access to global queue here, but the active window
 	// will pick up the errors on its next render cycle.
 
+	std::string msg;
 	if (args_.is_warning) {
-		return "Warning flagged at " + args_.safe_path + ":" + std::to_string(args_.line);
+		msg = "Warning flagged at " + args_.safe_path + ":" + std::to_string(args_.line);
 	} else {
-		return "Error flagged at " + args_.safe_path + ":" + std::to_string(args_.line);
+		msg = "Error flagged at " + args_.safe_path + ":" + std::to_string(args_.line);
 	}
+	return fs_utils::wrap_prompt_untrusted_data_tag("flag_as_error_result", msg);
 }
 
 } // namespace tools
