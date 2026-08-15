@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "open_in_editor.h"
 
 namespace tools
