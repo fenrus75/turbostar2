@@ -35,8 +35,13 @@ bool git_blame_validator::validate_args_impl(const nlohmann::json &raw_json, con
 			return false;
 		}
 
+		std::string real_check_path = raw.path;
+		if (real_check_path.find("file://") == 0) {
+			real_check_path = real_check_path.substr(7);
+		}
+
 		std::string resolved_path;
-		if (!ctx.fs_security.validate_access(raw.path, agentlib::access_type::read, resolved_path, out_error)) {
+		if (!ctx.fs_security.validate_access(real_check_path, agentlib::access_type::read, resolved_path, out_error)) {
 			return false;
 		}
 

@@ -49,12 +49,45 @@ struct blame_group {
 	std::string commit_hash;
 };
 
+static std::string sanitize_table_cell(std::string_view text, size_t max_len = 200)
+{
+	std::string res;
+	for (size_t i = 0; i < text.size() && res.size() < max_len; ++i) {
+		unsigned char c = static_cast<unsigned char>(text[i]);
+		if (c == 0x1b) {
+			if (i + 1 < text.size() && text[i + 1] == '[') {
+				i += 2;
+				while (i < text.size() && (text[i] < 0x40 || text[i] > 0x7e)) {
+					i++;
+				}
+			}
+			continue;
+		}
+		if (c == '`') {
+			res += "\\`";
+		} else if (c == '|') {
+			res += "&#124;";
+		} else if (c < 32 && c != '\t') {
+			// strip control bytes
+		} else if (c == 127) {
+			// strip DEL
+		} else {
+			res += c;
+		}
+	}
+	return res;
+}
+
 std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 {
 	// Read file lines for grounding and bounds validation
 	std::vector<std::string> file_lines;
 	{
-		std::ifstream infile(args_.safe_path);
+		std::string real_read_path = args_.safe_path;
+		if (real_read_path.find("file://") == 0) {
+			real_read_path = real_read_path.substr(7);
+		}
+		std::ifstream infile(real_read_path);
 		if (!infile.is_open()) {
 			set_failure(ctx, "Failed to open file");
 			return "Failed to open file: " + args_.requested_path;
@@ -88,12 +121,22 @@ std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 		std::swap(start_line, end_line);
 	}
 
+	// Bound line range width to max 500 lines per call to protect context window
+	if (end_line - start_line + 1 > 500) {
+		end_line = start_line + 499;
+	}
+
+	std::string real_git_path = args_.safe_path;
+	if (real_git_path.find("file://") == 0) {
+		real_git_path = real_git_path.substr(7);
+	}
+
 	// Run git blame command using porcelain mode
 	std::string cmd = std::format("git --no-pager blame -L {},{} --porcelain -- {}",
-		start_line, end_line, fs_utils::escape_shell_arg(args_.safe_path));
+		start_line, end_line, fs_utils::escape_shell_arg(real_git_path));
 	std::string output = fs_utils::execute_command_sync(cmd);
 
-	if (output.find("fatal:") != std::string::npos) {
+	if (output.find("fatal:") != std::string::npos || output.find("not a git repository") != std::string::npos) {
 		set_failure(ctx, "Git blame failed");
 		return "Failed: Path is not tracked by Git or not in a Git repository.";
 	}
@@ -230,28 +273,14 @@ std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 			grounding_code = file_lines[group.start_line - 1];
 		}
 
-		// Escape table separators and backticks
-		std::string escaped_code;
-		for (char c : grounding_code) {
-			if (c == '`') {
-				escaped_code += "\\`";
-			} else if (c == '|') {
-				escaped_code += "\\|";
-			} else {
-				escaped_code += c;
-			}
-		}
+		std::string escaped_code = sanitize_table_cell(grounding_code, 200);
+		std::string escaped_summary = sanitize_table_cell(summary, 200);
 
-		// Strip trailing line breaks
-		while (!escaped_code.empty() && (escaped_code.back() == '\n' || escaped_code.back() == '\r')) {
-			escaped_code.pop_back();
-		}
-
-		result += std::format("| {} | `{}` | {} | `{}` | {} |\n", range_str, display_hash, date, escaped_code, summary);
+		result += std::format("| {} | `{}` | {} | `{}` | {} |\n", range_str, display_hash, date, escaped_code, escaped_summary);
 	}
 
 	set_success(ctx, "Blame retrieved");
-	return result;
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_blame", result);
 }
 
 } // namespace tools
