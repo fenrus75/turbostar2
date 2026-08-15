@@ -138,10 +138,7 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 		return "Error: start_offset is out of bounds.";
 	}
 
-	size_t limit = start + args_.size;
-	if (limit > file_data.size()) {
-		limit = file_data.size();
-	}
+	size_t limit = (args_.size > file_data.size() - start) ? file_data.size() : start + args_.size;
 
 	std::string result = std::format("### Hexdump: {} [0x{:X} - 0x{:X}]\n```\n", args_.requested_path, start, limit);
 	for (size_t row = (start / 16) * 16; row < limit; row += 16) {

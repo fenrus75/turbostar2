@@ -107,6 +107,35 @@ void test_hexwrite_tool()
 		assert(bytes[9] == static_cast<char>(0xBB));
 	}
 
+	// Test 3: Excessively large offset cap rejection
+	{
+		tools::hexwrite_args args;
+		args.requested_path = test_file;
+		args.safe_path = test_file;
+		args.offset = 1000000000; // 1 GB (exceeds 512 MB cap)
+		args.hex_data = "aa bb";
+
+		tools::hexwrite_tool tool(args);
+		std::string result = tool.execute(ctx);
+		assert(result.find("Error:") != std::string::npos);
+		assert(result.find("exceeds maximum allowed limit") != std::string::npos);
+	}
+
+	// Test 4: Missing file offset_by_name error handling
+	{
+		tools::hexwrite_args args;
+		args.requested_path = "non_existent_file_for_named_offset.bin";
+		args.safe_path = "non_existent_file_for_named_offset.bin";
+		args.offset = 0;
+		args.hex_data = "aa bb";
+		args.offset_by_name = ".text";
+
+		tools::hexwrite_tool tool(args);
+		std::string result = tool.execute(ctx);
+		assert(result.find("Error:") != std::string::npos);
+		assert(result.find("Could not open file") != std::string::npos);
+	}
+
 	std::filesystem::remove(test_file);
 	std::cout << "test_hexwrite_tool passed!" << std::endl;
 }

@@ -62,6 +62,13 @@ bool hexwrite_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std
 
 std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 {
+	constexpr size_t kMaxHexWriteOffset = 512 * 1024 * 1024; // 512 MB cap
+	constexpr size_t kMaxHexWriteData   = 64  * 1024 * 1024; // 64 MB cap
+
+	if (args_.safe_path.find("file://") == 0) {
+		args_.safe_path = args_.safe_path.substr(7);
+	}
+
 	auto vfs = ctx.fs_security.get_vfs();
 	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
 		args_.safe_path = vfs->get_local_path(args_.safe_path);
@@ -79,38 +86,62 @@ std::string hexwrite_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No data provided to write.";
 	}
 
+	if (bytes.size() > kMaxHexWriteData) {
+		set_failure(ctx, "Hex data payload exceeds maximum allowed limit (64 MB).");
+		return "Error: Hex data payload exceeds maximum allowed limit (64 MB).";
+	}
+
 	size_t start = args_.offset;
+	if (start > kMaxHexWriteOffset) {
+		set_failure(ctx, "Write offset exceeds maximum allowed limit (512 MB).");
+		return "Error: Write offset exceeds maximum allowed limit (512 MB).";
+	}
+
 	if (!args_.offset_by_name.empty()) {
 		std::ifstream infile(args_.safe_path, std::ios::binary);
-		if (infile.is_open()) {
-			infile.seekg(0, std::ios::end);
-			std::streamsize file_size = infile.tellg();
-			infile.seekg(0, std::ios::beg);
+		if (!infile.is_open()) {
+			set_failure(ctx, "Could not open file to resolve offset by name: " + args_.safe_path);
+			return "Error: Could not open file to resolve offset by name: " + args_.safe_path;
+		}
 
-			std::vector<uint8_t> file_bytes(file_size);
-			if (file_size > 0 && infile.read(reinterpret_cast<char *>(file_bytes.data()), file_size)) {
-				auto highlighter = hex_highlighter_registry::get_instance().detect_highlighter(file_bytes);
-				if (highlighter && highlighter->parse(file_bytes)) {
-					auto resolved_offset = highlighter->get_offset_by_name(args_.offset_by_name);
-					if (resolved_offset) {
-						start = *resolved_offset;
-					} else {
-						infile.close();
-						set_failure(ctx, "Could not resolve named chunk or symbol: " + args_.offset_by_name);
-						return "Error: Could not resolve named chunk or symbol: " + args_.offset_by_name;
-					}
+		infile.seekg(0, std::ios::end);
+		std::streamsize file_size = infile.tellg();
+		infile.seekg(0, std::ios::beg);
+
+		if (file_size > 50 * 1024 * 1024) {
+			infile.close();
+			set_failure(ctx, "File size exceeds 50MB limit for offset_by_name resolution.");
+			return "Error: File size exceeds 50MB limit for offset_by_name resolution.";
+		}
+
+		std::vector<uint8_t> file_bytes(file_size);
+		if (file_size > 0 && infile.read(reinterpret_cast<char *>(file_bytes.data()), file_size)) {
+			auto highlighter = hex_highlighter_registry::get_instance().detect_highlighter(file_bytes);
+			if (highlighter && highlighter->parse(file_bytes)) {
+				auto resolved_offset = highlighter->get_offset_by_name(args_.offset_by_name);
+				if (resolved_offset) {
+					start = *resolved_offset;
 				} else {
 					infile.close();
-					set_failure(ctx, "File format not supported for offset resolution by name.");
-					return "Error: Cannot resolve offset by name for this file format (no highlighter).";
+					set_failure(ctx, "Could not resolve named chunk or symbol: " + args_.offset_by_name);
+					return "Error: Could not resolve named chunk or symbol: " + args_.offset_by_name;
 				}
-			} else if (file_size == 0) {
+			} else {
 				infile.close();
-				set_failure(ctx, "File is empty; cannot resolve offset by name.");
-				return "Error: File is empty; cannot resolve offset by name.";
+				set_failure(ctx, "File format not supported for offset resolution by name.");
+				return "Error: Cannot resolve offset by name for this file format (no highlighter).";
 			}
+		} else if (file_size == 0) {
 			infile.close();
+			set_failure(ctx, "File is empty; cannot resolve offset by name.");
+			return "Error: File is empty; cannot resolve offset by name.";
 		}
+		infile.close();
+	}
+
+	if (start > kMaxHexWriteOffset) {
+		set_failure(ctx, "Resolved write offset exceeds maximum allowed limit (512 MB).");
+		return "Error: Resolved write offset exceeds maximum allowed limit (512 MB).";
 	}
 
 	// Create file if it does not exist

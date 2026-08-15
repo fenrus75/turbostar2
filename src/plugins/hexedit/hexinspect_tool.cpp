@@ -128,7 +128,16 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 	if (args_.offset == 0 && args_.offset_by_name.empty()) {
 		std::string structure_summary = highlighter->get_structure_summary();
 		if (!structure_summary.empty()) {
-			std::string filename = std::filesystem::path(args_.requested_path).filename().string();
+			std::string raw_fn = std::filesystem::path(args_.requested_path).filename().string();
+			std::string filename;
+			for (char c : raw_fn) {
+				if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') {
+					filename += c;
+				} else {
+					filename += '_';
+				}
+			}
+			if (filename.empty()) filename = "file";
 
 			if (highlighter->prefer_summary_in_tmp_only()) {
 				std::string tmp_uri = "tmp://inspected_structure_" + filename + ".md";

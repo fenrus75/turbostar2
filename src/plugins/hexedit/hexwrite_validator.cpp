@@ -27,7 +27,7 @@ nlohmann::json hexwrite_validator::get_parameters_schema() const
 	    {"type", "object"},
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the file relative to the project root."}}},
-	      {"offset", {{"type", "integer"}, {"minimum", 0}, {"description", "Byte offset at which to overwrite. Defaults to 0."}}},
+	      {"offset", {{"type", "integer"}, {"minimum", 0}, {"maximum", 536870912}, {"description", "Byte offset at which to overwrite. Defaults to 0."}}},
 	      {"data", {{"type", "string"}, {"description", "Hexadecimal data string to write (e.g. '7f 45 4c 46' or '7f454c46' or '0x7f, 0x45')."}}},
 	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve offset automatically."}}}}},
 	    {"required", nlohmann::json::array({"path", "data"})}};
