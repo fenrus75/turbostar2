@@ -59,10 +59,14 @@ std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 					args_.crash_id
 				);
 			}
-			return result;
+			if (result.length() > 20000) {
+				result.resize(20000);
+				result += "\n\n*(Output truncated at 20,000 characters)*\n";
+			}
+			return fs_utils::wrap_prompt_untrusted_data_tag("crashdump_get_info_result", result);
 		}
 	}
-	return std::format("Error: No crashdump found with ID {}", args_.crash_id);
+	return "Error: No crashdump found with ID " + args_.crash_id;
 }
 
 } // namespace tools

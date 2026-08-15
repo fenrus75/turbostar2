@@ -42,9 +42,15 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 	{
 		try {
 			crashdump_get_info_raw_args raw_args = args_json.get<crashdump_get_info_raw_args>();
-			if (raw_args.crash_id.empty()) {
-				out_error = "Crash ID cannot be empty.";
+			if (raw_args.crash_id.empty() || raw_args.crash_id.length() > 128) {
+				out_error = "Validation Error: crash_id must be non-empty and max 128 characters.";
 				return false;
+			}
+			for (char c : raw_args.crash_id) {
+				if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
+					out_error = "Security Violation: crash_id contains invalid or unsafe characters.";
+					return false;
+				}
 			}
 			args_.crash_id = raw_args.crash_id;
 			return true;
