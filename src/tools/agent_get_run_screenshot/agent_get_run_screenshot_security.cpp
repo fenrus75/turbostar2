@@ -57,9 +57,10 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 		try {
 			agent_get_run_screenshot_raw_args raw = args_json.get<agent_get_run_screenshot_raw_args>();
 			if (raw.run_id < 0) {
-				out_error = "Invalid run_id specified.";
+				out_error = "Invalid run_id specified: must be non-negative.";
 				return false;
 			}
+			args_ = agent_get_run_screenshot_args{raw.run_id, raw.settle};
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());
@@ -67,11 +68,13 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 		}
 	}
 
-	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &args) const override
+	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json & /*args*/) const override
 	{
-		agent_get_run_screenshot_raw_args raw = args.get<agent_get_run_screenshot_raw_args>();
-		return std::make_unique<agent_get_run_screenshot_tool>(agent_get_run_screenshot_args{raw.run_id, raw.settle});
+		return std::make_unique<agent_get_run_screenshot_tool>(args_);
 	}
+
+      private:
+	mutable agent_get_run_screenshot_args args_;
 };
 
 REGISTER_TOOL(agent_get_run_screenshot_validator)

@@ -1,4 +1,5 @@
 #include "agent_get_run_screenshot.h"
+#include "fs_utils.h"
 #include <format>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -68,8 +69,23 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	try {
+		std::vector<std::string> clean_grid;
+		clean_grid.reserve(snap.grid.size());
+		for (const auto &line : snap.grid) {
+			std::string clean_line;
+			clean_line.reserve(line.size());
+			for (char c : line) {
+				if (static_cast<unsigned char>(c) >= 32 && c != 127) {
+					clean_line += c;
+				} else if (c == '\t') {
+					clean_line += ' ';
+				}
+			}
+			clean_grid.push_back(clean_line);
+		}
+
 		nlohmann::json snap_json = {
-		    {"grid", snap.grid},
+		    {"grid", clean_grid},
 		    {"cursor_x", snap.cursor_x},
 		    {"cursor_y", snap.cursor_y},
 		    {"cursor_visible", snap.cursor_visible},
@@ -80,7 +96,7 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		set_success(ctx, std::format("Captured screenshot of run_id {}", args_.run_id));
-		return snap_json.dump();
+		return fs_utils::wrap_prompt_untrusted_data_tag("agent_get_run_screenshot_result", snap_json.dump(2));
 	} catch (const std::exception &e) {
 		set_failure(ctx, std::format("JSON serialization failed: {}", e.what()));
 		return "Error: JSON serialization failed.";
