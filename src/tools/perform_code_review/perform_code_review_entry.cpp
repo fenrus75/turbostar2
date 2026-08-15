@@ -106,6 +106,7 @@ static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_age
 		return;
 	}
 	verifier_agent->set_role(agentlib::agent_role::verifier);
+	verifier_agent->set_read_only(true);
 	verifier_agent->set_model(verifier_model);
 	// The verifier uses confirm_code_review_item / list_code_review_items (code_review family);
 	// grant the family explicitly so availability does not depend on transient global state.
@@ -281,6 +282,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to create code reviewer agent.";
 		}
 		reviewer_agent->set_role(agentlib::agent_role::reviewer);
+		reviewer_agent->set_read_only(true);
 		reviewer_agent->set_model(reviewer_model);
 		reviewer_agent->add_active_tool_family("code_review");
 

@@ -1,5 +1,6 @@
 #include "../../agentlib/tool_registry.h"
 #include "perform_code_review.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -21,6 +22,23 @@ bool perform_code_review_validator::validate_args_impl(const nlohmann::json &raw
 
 		if (parsed.files.empty()) {
 			out_error = "Files array must not be empty.";
+			return false;
+		}
+		if (parsed.files.size() > 100) {
+			out_error = "Files array exceeds maximum limit of 100 files.";
+			return false;
+		}
+
+		if (parsed.instructions.length() > 10000) {
+			out_error = "Instructions exceed maximum length of 10000 characters.";
+			return false;
+		}
+		if (!parsed.instructions.empty() && !fs_utils::is_safe_for_ui(parsed.instructions)) {
+			out_error = "Security Violation: Instructions contain unsafe control characters.";
+			return false;
+		}
+		if (parsed.result_file.length() > 512) {
+			out_error = "result_file path exceeds maximum length of 512 characters.";
 			return false;
 		}
 
