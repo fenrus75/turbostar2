@@ -123,6 +123,12 @@ struct last_search_info {
 	bool is_regex{false};
 	bool case_insensitive{false};
 };
+
+/*
+ * g_last_search_mutex protects the g_last_search static state used for duplicate search detection.
+ * Locking rules: Acquire g_last_search_mutex before reading or updating g_last_search.
+ */
+static std::mutex g_last_search_mutex;
 static last_search_info g_last_search;
 
 std::vector<lsp_manager::symbol_info> fs_grep_files_tool::get_lsp_symbols(const std::string &query)
@@ -188,21 +194,24 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	std::string curr_ex_ext = args_.exclude_ext ? *args_.exclude_ext : "";
 	std::string curr_ex_pat = args_.exclude_pattern ? *args_.exclude_pattern : "";
 
-	if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
-	    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
-	    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
-	    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive) {
-		is_duplicate = true;
-	}
+	{
+		std::lock_guard<std::mutex> lock(g_last_search_mutex);
+		if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
+		    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
+		    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
+		    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive) {
+			is_duplicate = true;
+		}
 
-	g_last_search.pattern = args_.pattern;
-	g_last_search.safe_search_path = args_.safe_search_path;
-	g_last_search.include_ext = curr_ext;
-	g_last_search.exclude_path = curr_ex_path;
-	g_last_search.exclude_ext = curr_ex_ext;
-	g_last_search.exclude_pattern = curr_ex_pat;
-	g_last_search.is_regex = args_.is_regex;
-	g_last_search.case_insensitive = args_.case_insensitive;
+		g_last_search.pattern = args_.pattern;
+		g_last_search.safe_search_path = args_.safe_search_path;
+		g_last_search.include_ext = curr_ext;
+		g_last_search.exclude_path = curr_ex_path;
+		g_last_search.exclude_ext = curr_ex_ext;
+		g_last_search.exclude_pattern = curr_ex_pat;
+		g_last_search.is_regex = args_.is_regex;
+		g_last_search.case_insensitive = args_.case_insensitive;
+	}
 
 	if (is_duplicate) {
 		std::string display_path = "project root";
@@ -358,6 +367,12 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	try {
 		auto process_file = [&](const fs::path &path) {
 			std::string abs_path_str = path.string();
+			std::string safe_file_path;
+			std::string access_err;
+			if (!ctx.fs_security.validate_access(abs_path_str, agentlib::access_type::read, safe_file_path, access_err)) {
+				return;
+			}
+
 			std::string rel_path_str = fs::relative(path, root_path).string();
 
 			if (is_file_excluded(path, rel_path_str)) {
@@ -665,7 +680,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		ctx.trigger_ui_update();
 	}
 
-	return result_str;
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_grep_files_result", result_str);
 }
 
 } // namespace tools

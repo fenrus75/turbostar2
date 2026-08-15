@@ -102,7 +102,7 @@ bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args,
             args_.exclude_pattern = std::nullopt;
         }
         
-        args_.limit = raw_args.value("limit", 50);
+        args_.limit = std::clamp<int>(raw_args.value("limit", 50), 0, 500);
         args_.context_lines = raw_args.value("context_lines", 0);
         if (args_.context_lines < 0) args_.context_lines = 0;
         if (args_.context_lines > 10) args_.context_lines = 10;
