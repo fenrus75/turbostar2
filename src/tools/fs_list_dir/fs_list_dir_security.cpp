@@ -1,5 +1,6 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "fs_list_dir.h"
+#include <algorithm>
 
 namespace tools
 {
@@ -15,7 +16,7 @@ nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 				    "ELF architectures)."}}},
 		  {"limit",
 		   {{"type", "integer"},
-		    {"description", "Optional. Maximum number of files to return in the list. Defaults to 100."},
+		    {"description", "Optional. Maximum number of files to return in the list. Defaults to 100 (max 1000)."},
 		    {"default", 100}}},
 		  {"offset",
 		   {{"type", "integer"},
@@ -44,11 +45,7 @@ bool fs_list_dir_validator::validate_args_impl(const nlohmann::json &args, const
 			out_error = "Invalid 'limit' parameter: must be an integer.";
 			return false;
 		}
-		args_.limit = args["limit"].get<int>();
-		if (args_.limit <= 0) {
-			out_error = "'limit' parameter must be greater than 0.";
-			return false;
-		}
+		args_.limit = std::clamp<int>(args["limit"].get<int>(), 1, 1000);
 	}
 	args_.offset = 0;
 	if (args.contains("offset")) {

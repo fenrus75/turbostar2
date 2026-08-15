@@ -7,9 +7,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
-#include "../../agentlib/document_provider.h"
-#include "../../agentlib/virtual_file_system.h"
-#include "../../fs_utils.h"
+#include "agentlib/document_provider.h"
+#include "agentlib/virtual_file_system.h"
+#include "fs_utils.h"
 #include "mime.h"
 #include "fs_list_dir.h"
 
@@ -68,23 +68,23 @@ std::string fs_list_dir_tool::execute(agentlib::tool_context &ctx)
 
 	size_t total_items = result.entries.size();
 	
-	// Apply pagination slicing
-	int start = args_.offset;
-	int count = args_.limit;
+	// Apply safe pagination slicing
+	size_t start = std::clamp<size_t>(args_.offset >= 0 ? static_cast<size_t>(args_.offset) : 0, 0, total_items);
+	size_t count = std::clamp<size_t>(args_.limit >= 0 ? static_cast<size_t>(args_.limit) : 0, 0, 1000);
+	size_t end = std::clamp<size_t>(start + count, start, total_items);
 	
 	std::vector<dir_entry_metadata> sliced_entries;
-	if (start < static_cast<int>(total_items)) {
-		int end = std::min(start + count, static_cast<int>(total_items));
+	if (start < end) {
 		sliced_entries.assign(result.entries.begin() + start, result.entries.begin() + end);
 	}
 	
 	result.entries = std::move(sliced_entries);
-	result.offset = start;
-	result.limit = count;
+	result.offset = static_cast<int>(start);
+	result.limit = static_cast<int>(count);
 	result.total_items = total_items;
 
 	set_success(ctx, "Found " + std::to_string(total_items) + " items");
-	return format_entries_table(result);
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_list_dir_result", format_entries_table(result));
 }
 
 // Scans and retrieves file metadata for Virtual File System directories.
@@ -252,18 +252,37 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 	return result;
 }
 
-// Formats directory entry results into a unified Markdown table representation.
+static std::string escape_markdown_table_cell(const std::string &untrusted_str)
+{
+	std::string out;
+	out.reserve(untrusted_str.size());
+	for (char c : untrusted_str) {
+		if (c == '|') out += "\\|";
+		else if (c == '\n' || c == '\r') out += " ";
+		else if (c == '\\') out += "\\\\";
+		else if (static_cast<unsigned char>(c) >= 32 && c != 127) out += c;
+	}
+	return out;
+}
+
+// Formats directory metadata into a markdown table representation.
 std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result) const
 {
+	if (!result.success) {
+		return "Error: " + result.error_message;
+	}
+
 	std::stringstream ss;
-	if (args_.path.find("://") != std::string::npos) {
-		ss << "# Virtual Directory " << result.directory_name << "\n\n";
-	} else {
-		ss << "# Directory " << result.directory_name << "\n\n";
+	ss << "### Directory Listing: " << result.directory_name << "\n\n";
+
+	if (result.total_items == 0) {
+		ss << "*Directory is empty.*\n";
+		return ss.str();
 	}
 
 	int start_human = (result.total_items == 0) ? 0 : (result.offset + 1);
-	int end_human = result.offset + result.entries.size();
+	int end_human = std::min(result.offset + result.limit, static_cast<int>(result.total_items));
+
 	ss << "*Showing files " << start_human << " - " << end_human << " out of " << result.total_items << "*\n\n";
 
 	if (end_human < static_cast<int>(result.total_items)) {
@@ -280,12 +299,15 @@ std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result
 
 	for (const auto &meta : result.entries) {
 		std::string type_str(1, meta.type);
+		std::string safe_fn = escape_markdown_table_cell(meta.filename);
+		std::string safe_perm = escape_markdown_table_cell(meta.permissions);
+		std::string safe_det = escape_markdown_table_cell(meta.details);
 		if (args_.rich_metadata) {
-			ss << "| " << meta.filename << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
-			   << meta.permissions << " | " << meta.details << " |\n";
+			ss << "| " << safe_fn << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
+			   << safe_perm << " | " << safe_det << " |\n";
 		} else {
-			ss << "| " << meta.filename << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
-			   << meta.permissions << " |\n";
+			ss << "| " << safe_fn << " | " << type_str << " | " << meta.size_bytes << " | " << meta.size_lines << " | "
+			   << safe_perm << " |\n";
 		}
 	}
 
