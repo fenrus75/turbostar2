@@ -2,45 +2,10 @@
 #include "agentlib/tool_validator.h"
 #include "fs_utils.h"
 #include "plugins/sqlite/sqlite_perform.h"
-#include <cctype>
-#include <string>
-#include <vector>
+#include "plugins/sqlite/sqlite_query_validation.h"
 
 namespace tools
 {
-
-static bool validate_query_safety(const std::string &query, std::string &out_error)
-{
-	size_t start = query.find_first_not_of(" \t\n\r");
-	if (start == std::string::npos) {
-		out_error = "Query cannot be empty or whitespace-only.";
-		return false;
-	}
-
-	std::string trimmed = query.substr(start);
-
-	size_t semicolon_pos = trimmed.find(';');
-	if (semicolon_pos != std::string::npos) {
-		if (semicolon_pos != trimmed.size() - 1) {
-			out_error = "Multi-statement queries are not allowed. Only a single SQL statement is permitted.";
-			return false;
-		}
-		trimmed = trimmed.substr(0, trimmed.size() - 1);
-	}
-
-	std::string upper_query;
-	upper_query.reserve(trimmed.size());
-	for (char c : trimmed) {
-		upper_query += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-	}
-
-	if (upper_query.find("ATTACH") == 0) {
-		out_error = "ATTACH statements are not allowed for security reasons.";
-		return false;
-	}
-
-	return true;
-}
 
 class sqlite_perform_validator : public agentlib::tool_validator
 {

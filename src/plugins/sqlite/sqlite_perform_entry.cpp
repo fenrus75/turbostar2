@@ -6,64 +6,30 @@
 #include <vector>
 #include "fs_utils.h"
 #include "plugins/sqlite/sqlite_perform.h"
+#include "plugins/sqlite/sqlite_query_validation.h"
 
 namespace tools
 {
 
 namespace
 {
-bool validate_query_safety(const std::string &query, std::string &out_error)
+std::string sanitize_cell(std::string_view val)
 {
-	size_t start = query.find_first_not_of(" \t\n\r");
-	if (start == std::string::npos) {
-		out_error = "Query cannot be empty or whitespace-only.";
-		return false;
-	}
-
-	std::string trimmed = query.substr(start);
-
-	size_t semicolon_pos = trimmed.find(';');
-	if (semicolon_pos != std::string::npos) {
-		if (semicolon_pos != trimmed.size() - 1) {
-			out_error = "Multi-statement queries are not allowed. Only a single SQL statement is permitted.";
-			return false;
+	std::string res;
+	for (char c : val) {
+		if (c == '|') {
+			res += "&#124;";
+		} else if (c == '\n' || c == '\r' || c == '\t') {
+			res += " ";
+		} else if (static_cast<unsigned char>(c) < 32) {
+			// skip control chars
+		} else {
+			res += c;
 		}
-		trimmed = trimmed.substr(0, trimmed.size() - 1);
 	}
-
-	std::string upper_query;
-	upper_query.reserve(trimmed.size());
-	for (char c : trimmed) {
-		upper_query += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-	}
-
-	if (upper_query.find("ATTACH") == 0) {
-		out_error = "ATTACH statements are not allowed for security reasons.";
-		return false;
-	}
-
-	return true;
+	return res;
 }
 } // namespace
-
-sqlite_perform_tool::sqlite_perform_tool(std::string database, std::string query)
-    : database_(std::move(database)), query_(std::move(query))
-{
-}
-
-bool sqlite_perform_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
-{
-	if (!fs_utils::is_valid_db_name(database_)) {
-		out_error = "Database name must contain only a-z, A-Z, 0-9, _, and -.";
-		return false;
-	}
-
-	if (!validate_query_safety(query_, out_error)) {
-		return false;
-	}
-
-	return true;
-}
 
 struct callback_data {
 	std::vector<std::string> headers;
@@ -91,32 +57,42 @@ static int callback(void *data_ptr, int argc, char **argv, char **azColName)
 	return 0;
 }
 
+sqlite_perform_tool::sqlite_perform_tool(std::string database, std::string query)
+    : database_(std::move(database)), query_(std::move(query))
+{
+}
+
+bool sqlite_perform_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
+{
+	if (!fs_utils::is_valid_db_name(database_)) {
+		out_error = "Database name must contain only a-z, A-Z, 0-9, _, and -.";
+		return false;
+	}
+
+	return validate_query_safety(query_, out_error);
+}
+
 std::string sqlite_perform_tool::execute(agentlib::tool_context & /*ctx*/)
 {
 	std::string db_dir = fs_utils::get_project_db_dir();
-	std::filesystem::path db_path = std::filesystem::path(db_dir) / (database_ + ".db");
-
-	std::error_code ec;
-	if (!std::filesystem::exists(db_path, ec)) {
-		return "Error: Database '" + database_ + "' does not exist. Call sqlite_create_db first.";
-	}
+	std::filesystem::create_directories(db_dir);
+	std::string db_path = db_dir + "/" + database_ + ".db";
 
 	sqlite3 *db = nullptr;
-	int rc = sqlite3_open(db_path.c_str(), &db);
-	if (rc != SQLITE_OK) {
-		std::string err = sqlite3_errmsg(db);
-		sqlite3_close(db);
-		return "Error opening database '" + database_ + "': " + err;
+	if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK) {
+		std::string err = db ? sqlite3_errmsg(db) : "Unknown error";
+		if (db)
+			sqlite3_close(db);
+		return "Error opening database: " + err;
 	}
 
-	char *errmsg = nullptr;
 	callback_data data;
+	char *err_msg = nullptr;
 
-	rc = sqlite3_exec(db, query_.c_str(), callback, &data, &errmsg);
-	if (rc != SQLITE_OK) {
-		std::string err = errmsg ? errmsg : "Unknown error";
-		if (errmsg) {
-			sqlite3_free(errmsg);
+	if (sqlite3_exec(db, query_.c_str(), callback, &data, &err_msg) != SQLITE_OK) {
+		std::string err = err_msg ? err_msg : "Unknown error";
+		if (err_msg) {
+			sqlite3_free(err_msg);
 		}
 		sqlite3_close(db);
 		return "Error executing query: " + err;
@@ -131,7 +107,7 @@ std::string sqlite_perform_tool::execute(agentlib::tool_context & /*ctx*/)
 	std::stringstream ss;
 	ss << "| ";
 	for (size_t i = 0; i < data.headers.size(); i++) {
-		ss << data.headers[i] << (i + 1 == data.headers.size() ? " |\n" : " | ");
+		ss << sanitize_cell(data.headers[i]) << (i + 1 == data.headers.size() ? " |\n" : " | ");
 	}
 
 	ss << "|";
@@ -143,11 +119,11 @@ std::string sqlite_perform_tool::execute(agentlib::tool_context & /*ctx*/)
 	for (const auto &row : data.rows) {
 		ss << "| ";
 		for (size_t i = 0; i < row.size(); i++) {
-			ss << row[i] << (i + 1 == row.size() ? " |\n" : " | ");
+			ss << sanitize_cell(row[i]) << (i + 1 == row.size() ? " |\n" : " | ");
 		}
 	}
 
-	return ss.str();
+	return fs_utils::wrap_prompt_untrusted_data_tag("sqlite_result", ss.str());
 }
 
 } // namespace tools

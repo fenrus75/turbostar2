@@ -29,8 +29,13 @@ std::string sqlite_delete_db_tool::execute(agentlib::tool_context & /*ctx*/)
 	}
 
 	if (!std::filesystem::remove(db_path, ec)) {
-		return "Error deleting database '" + database_ + "': " + ec.message();
+		std::string err = ec ? ec.message() : "Permission denied or file locked";
+		return "Error deleting database '" + database_ + "': " + err;
 	}
+
+	std::filesystem::remove(std::filesystem::path(db_dir) / (database_ + ".db-wal"), ec);
+	std::filesystem::remove(std::filesystem::path(db_dir) / (database_ + ".db-shm"), ec);
+	std::filesystem::remove(std::filesystem::path(db_dir) / (database_ + ".db-journal"), ec);
 
 	return "Database '" + database_ + "' deleted successfully.";
 }
