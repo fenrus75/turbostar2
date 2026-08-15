@@ -37,12 +37,9 @@ static bool is_local_ip(const std::string &domain)
 	if (domain.starts_with("169.254.")) // Link-local / Cloud metadata API
 		return true;
 	if (domain.starts_with("172.")) {
-		auto parts = fs_utils::split_string(domain, '.');
-		if (parts.size() >= 2) {
-			try {
-				int second = std::stoi(parts[1]);
-				if (second >= 16 && second <= 31) return true;
-			} catch (...) {}
+		int oct1 = 0, oct2 = 0;
+		if (sscanf(domain.c_str(), "%d.%d", &oct1, &oct2) == 2 && oct1 == 172) {
+			if (oct2 >= 16 && oct2 <= 31) return true;
 		}
 	}
 	if (domain.starts_with("fe80:") || domain.starts_with("fc00:") || domain.starts_with("fd00:")) {
