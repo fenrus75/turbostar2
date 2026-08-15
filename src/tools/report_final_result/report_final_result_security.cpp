@@ -15,6 +15,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(report_final_result_raw_args, re
 class report_final_result_validator final : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Stores final subagent result in-memory.
 	bool is_pure() const override
 	{
 		return true;
@@ -40,12 +41,16 @@ class report_final_result_validator final : public agentlib::tool_validator
 	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
 				std::string &out_error) const override
 	{
-		if (!args_json.contains("result")) {
-			out_error = "Argument parsing error: missing required field 'result'";
+		if (!args_json.contains("result") || !args_json["result"].is_string()) {
+			out_error = "Argument parsing error: missing required string field 'result'";
 			return false;
 		}
 		try {
 			report_final_result_raw_args raw_args = args_json.get<report_final_result_raw_args>();
+			if (raw_args.result.length() > 100000) {
+				out_error = "Validation Error: 'result' exceeds maximum length limit of 100,000 characters.";
+				return false;
+			}
 			args_.result = raw_args.result;
 			return true;
 		} catch (const std::exception &e) {

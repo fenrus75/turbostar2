@@ -1,5 +1,6 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "agent_mark_episode.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -38,12 +39,20 @@ bool agent_mark_episode_validator::validate_args_impl(const nlohmann::json& raw_
             out_error = "Title length exceeds limit of 500 characters";
             return false;
         }
+        if (!fs_utils::is_safe_for_ui(args_.title)) {
+            out_error = "Title contains unsafe control or ANSI escape characters";
+            return false;
+        }
         if (args_.summary.empty()) {
             out_error = "Summary cannot be empty";
             return false;
         }
         if (args_.summary.length() > 500) {
             out_error = "Summary length exceeds limit of 500 characters";
+            return false;
+        }
+        if (!fs_utils::is_safe_for_ui(args_.summary)) {
+            out_error = "Summary contains unsafe control or ANSI escape characters";
             return false;
         }
         return true;

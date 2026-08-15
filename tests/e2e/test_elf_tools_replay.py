@@ -29,15 +29,15 @@ def run_test():
         
     output = result.stdout
     
-    if "[Tool Result] Tool family 'x86' has been successfully activated." not in output:
+    if "Tool family 'x86' has been successfully activated." not in output:
         print("Failed to find tool family x86 activation result in output.")
         sys.exit(1)
         
-    if "[Tool Result] ### ELF Section Headers:" not in output:
+    if "ELF Section Headers" not in output:
         print("Failed to find ELF Section Headers tool result in output.")
         sys.exit(1)
         
-    if "[Tool Result] ### ELF Symbol Table: build/turbostar" not in output:
+    if "ELF Symbol Table" not in output:
         print("Failed to find ELF Symbol Table tool result in output.")
         sys.exit(1)
         

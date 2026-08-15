@@ -1,5 +1,6 @@
 #include "report_final_result.h"
 #include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -17,7 +18,7 @@ std::string report_final_result_tool::execute(agentlib::tool_context& ctx) {
     if (ctx.active_agent) {
         ctx.active_agent->set_final_result(args_.result);
     }
-    return "Final result reported successfully.";
+    return fs_utils::wrap_prompt_untrusted_data_tag("report_final_result_result", "Final result reported successfully.");
 }
 
 } // namespace tools

@@ -2,6 +2,7 @@
 #include <thread>
 #include "wait_for_subagent.h"
 #include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -27,7 +28,7 @@ std::string wait_for_subagent_tool::execute(agentlib::tool_context& ctx) {
 	}
 
 	if (!target_agent) {
-		return "Error: Could not find subagent with ID " + std::to_string(args_.id);
+		return fs_utils::wrap_prompt_untrusted_data_tag("wait_for_subagent_result", "Error: Could not find subagent with ID " + std::to_string(args_.id));
 	}
 
 	ctx.active_agent->set_status(agentlib::agent_status::waiting, target_agent->get_id());
@@ -40,7 +41,8 @@ std::string wait_for_subagent_tool::execute(agentlib::tool_context& ctx) {
 	}
 
 	std::string result_desc = target_agent->has_final_result() ? "final result." : "interaction history.";
-	return base_msg + " Use agent_get_output(" + std::to_string(args_.id) + ") to retrieve its " + result_desc;
+	std::string res = base_msg + " Use agent_get_output(" + std::to_string(args_.id) + ") to retrieve its " + result_desc;
+	return fs_utils::wrap_prompt_untrusted_data_tag("wait_for_subagent_result", res);
 }
 
 } // namespace tools

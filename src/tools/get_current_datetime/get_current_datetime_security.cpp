@@ -1,6 +1,6 @@
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "get_current_datetime.h"
 
 namespace tools
@@ -9,6 +9,7 @@ namespace tools
 class get_current_datetime_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Reads system clock datetime in-memory.
 	bool is_pure() const override
 	{
 		return true;

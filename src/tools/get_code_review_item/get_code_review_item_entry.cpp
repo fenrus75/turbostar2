@@ -1,6 +1,7 @@
 #include "get_code_review_item.h"
-#include "../../agentlib/ai_agent.h"
-#include "../../codereview_manager.h"
+#include "agentlib/ai_agent.h"
+#include "codereview_manager.h"
+#include "fs_utils.h"
 #include <format>
 #include <nlohmann/json.hpp>
 
@@ -26,28 +27,27 @@ std::string get_code_review_item_tool::execute(agentlib::tool_context& ctx)
 			{"status", "error"},
 			{"message", std::format("Code review item with ID {} not found.", args_.id)}
 		};
-		return err_json.dump(2);
+		return fs_utils::wrap_prompt_untrusted_data_tag("get_code_review_item_result", err_json.dump(2));
 	}
 
 	const auto& item = item_opt.value();
 
 	// Enforce visibility restriction: only verifiers can see resolved/verified-fixed items
-	if (ctx.active_agent) {
-		if (ctx.active_agent->get_role() != agentlib::agent_role::verifier) {
-			if (item.state == "resolved" || item.state == "verified-fixed") {
-				set_failure(ctx, std::format("Error: Code review item {} is resolved/verified and restricted to verifiers.", args_.id));
-				nlohmann::json err_json = {
-					{"status", "error"},
-					{"message", std::format("Access denied. Item {} is resolved/verified and restricted to the verifier role.", args_.id)}
-				};
-				return err_json.dump(2);
-			}
+	agentlib::agent_role role = ctx.active_agent ? ctx.active_agent->get_role() : ctx.properties.role;
+	if (role != agentlib::agent_role::verifier) {
+		if (item.state == "resolved" || item.state == "verified-fixed") {
+			set_failure(ctx, std::format("Error: Code review item {} is resolved/verified and restricted to verifiers.", args_.id));
+			nlohmann::json err_json = {
+				{"status", "error"},
+				{"message", std::format("Access denied. Item {} is resolved/verified and restricted to the verifier role.", args_.id)}
+			};
+			return fs_utils::wrap_prompt_untrusted_data_tag("get_code_review_item_result", err_json.dump(2));
 		}
 	}
 
 	set_success(ctx);
 	nlohmann::json item_j = item;
-	return item_j.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("get_code_review_item_result", item_j.dump(2));
 }
 
 } // namespace tools

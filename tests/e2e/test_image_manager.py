@@ -15,7 +15,7 @@ def test_image_persistence():
     runner = TurbostarRunner()
     
     project_root = os.environ.get('PROJECT_ROOT', os.getcwd())
-    logo_path = os.path.join(project_root, 'tests', 'data', 'logo.jpg')
+    logo_path = os.path.abspath(os.path.join(project_root, 'logo.jpg'))
     
     try:
         runner.start(home_dir=temp_home)

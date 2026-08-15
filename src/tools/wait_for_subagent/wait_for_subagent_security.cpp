@@ -1,20 +1,21 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "wait_for_subagent.h"
 
 namespace tools
 {
 
 struct wait_for_subagent_raw_args {
-	int id;
+	int id{-1};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(wait_for_subagent_raw_args, id);
 
 class wait_for_subagent_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Waits on subagent lifecycle state in-memory.
 	bool is_pure() const override
 	{
 		return true;
@@ -41,7 +42,15 @@ class wait_for_subagent_validator : public agentlib::tool_validator
 				std::string &out_error) const override
 	{
 		try {
+			if (!args_json.contains("id") || !args_json["id"].is_number()) {
+				out_error = "Validation Error: Missing required 'id' parameter.";
+				return false;
+			}
 			wait_for_subagent_raw_args raw_args = args_json.get<wait_for_subagent_raw_args>();
+			if (raw_args.id < 0) {
+				out_error = "Validation Error: 'id' must be non-negative.";
+				return false;
+			}
 			args_.id = raw_args.id;
 			return true;
 		} catch (const std::exception &e) {

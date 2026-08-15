@@ -358,8 +358,11 @@ std::string image_manager::ingest_image(
 
 	try {
 		std::filesystem::copy_file(temp_path, dest_path, std::filesystem::copy_options::overwrite_existing);
-		std::error_code ec_rem;
-		std::filesystem::remove(temp_path, ec_rem);
+		std::string tmp_dir = fs_utils::get_project_tmp_dir();
+		if (!tmp_dir.empty() && temp_path.starts_with(tmp_dir)) {
+			std::error_code ec_rem;
+			std::filesystem::remove(temp_path, ec_rem);
+		}
 	} catch (...) {
 		return "";
 	}

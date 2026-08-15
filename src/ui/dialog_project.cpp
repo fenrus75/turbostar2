@@ -47,20 +47,22 @@ class file_dialog_impl : public dialog
 	{
 		auto on_tb_submit = [this](const std::string &val) {
 			std::string final_val = val;
-			std::string suggestion = get_fs_view()->get_autocomplete_suggestion(val);
-			if (!suggestion.empty()) {
-				final_val = suggestion;
+			if (!val.contains('/') && !fs::path(val).is_absolute()) {
+				std::string suggestion = get_fs_view()->get_autocomplete_suggestion(val);
+				if (!suggestion.empty()) {
+					final_val = suggestion;
+				}
 			}
 			if (final_val.empty())
 				return;
 
-			fs::path entered_path = get_fs_view()->get_current_path() / final_val;
+			fs::path entered_path = fs::path(final_val).is_absolute() ? fs::path(final_val) : (get_fs_view()->get_current_path() / final_val);
 			if (fs::exists(entered_path) && fs::is_directory(entered_path)) {
 				get_fs_view()->set_current_path(fs::canonical(entered_path));
 				get_textbox()->set_buffer("");
 			} else {
 				set_action(dialog_result::confirmed);
-				set_result((get_fs_view()->get_current_path() / final_val).string());
+				set_result(entered_path.string());
 			}
 		};
 
@@ -97,11 +99,10 @@ class file_dialog_impl : public dialog
 		btns->add_child(std::make_unique<ui_button>("btn_ok", "Ok", 'o', [this]() {
 			std::string val = *get_value("filename");
 			if (!val.empty()) {
-				fs::path entered_path = get_fs_view()->get_current_path() / val;
-				if (fs::is_directory(entered_path)) {
+				fs::path entered_path = fs::path(val).is_absolute() ? fs::path(val) : (get_fs_view()->get_current_path() / val);
+				if (fs::exists(entered_path) && fs::is_directory(entered_path)) {
 					get_fs_view()->set_current_path(fs::canonical(entered_path));
 					get_textbox()->set_buffer("");
-					set_focus_by_name("filename");
 				} else {
 					set_action(dialog_result::confirmed);
 					set_result(entered_path.string());

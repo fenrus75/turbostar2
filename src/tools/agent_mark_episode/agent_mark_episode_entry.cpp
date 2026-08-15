@@ -1,6 +1,7 @@
 #include "agent_mark_episode.h"
-#include "../../agentlib/ai_agent.h"
-#include "../../agentlib/interactions/system_message.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/interactions/system_message.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -21,7 +22,7 @@ std::string agent_mark_episode_tool::execute(agentlib::tool_context& ctx) {
     if (ctx.active_agent) {
         ctx.active_agent->snapshot_episode(args_.title, args_.summary, args_.tags);
     }
-    return res;
+    return fs_utils::wrap_prompt_untrusted_data_tag("agent_mark_episode_result", res);
 }
 
 } // namespace tools
