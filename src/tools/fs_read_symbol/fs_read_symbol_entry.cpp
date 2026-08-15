@@ -3,12 +3,14 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <format>
 #include "mime.h"
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
 #include "agentlib/virtual_file_system.h"
 #include "project_manager.h"
 #include "fs_read_symbol.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -120,6 +122,10 @@ bool fs_read_symbol_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 {
+	if (fs_utils::is_binary_file(args_.safe_path)) {
+		return "Error: Cannot read symbols from binary file: " + args_.requested_path;
+	}
+
 	ctx.file_drift_tracker.erase(args_.safe_path);
 
 	// 1. Read document content to feed to didOpen notification
@@ -165,11 +171,12 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Symbol '" + args_.symbol_name + "' was not found in '" + args_.requested_path + "'.";
 	}
 
-	// 5. Read lines for each match and compile output formatted similarly to fs_read_lines
+	// 5. Read lines for each match (capped at max 20 matches)
 	std::stringstream ss;
 	size_t total_lines = count_total_lines(args_.safe_path, ctx);
+	size_t num_matches = std::min<size_t>(matches.size(), 20);
 
-	for (size_t i = 0; i < matches.size(); ++i) {
+	for (size_t i = 0; i < num_matches; ++i) {
 		const auto &match = matches[i];
 		int match_start = match.range.start_y + 1;
 		int match_end = match.range.end_y + 1;
@@ -183,7 +190,7 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		int symbol_len = match_end - match_start;
 
 		int keep_prev = 0;
-		if (offset >= 1 && !is_whitespace_only(raw_lines[offset - 1])) {
+		if (offset >= 1 && offset <= static_cast<int>(raw_lines.size()) && !is_whitespace_only(raw_lines[offset - 1])) {
 			keep_prev = 1;
 			if (offset >= 2 && !is_whitespace_only(raw_lines[offset - 2])) {
 				keep_prev = 2;
@@ -192,9 +199,9 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 
 		int symbol_end_idx = offset + symbol_len;
 		int keep_next = 0;
-		if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 1 && !is_whitespace_only(raw_lines[symbol_end_idx + 1])) {
+		if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 1 && symbol_end_idx + 1 >= 0 && !is_whitespace_only(raw_lines[symbol_end_idx + 1])) {
 			keep_next = 1;
-			if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 2 && !is_whitespace_only(raw_lines[symbol_end_idx + 2])) {
+			if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 2 && symbol_end_idx + 2 >= 0 && !is_whitespace_only(raw_lines[symbol_end_idx + 2])) {
 				keep_next = 2;
 			}
 		}
@@ -202,8 +209,10 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		int start = match_start - keep_prev;
 		int end = match_end + keep_next;
 
-		// Slice target lines from raw_lines
-		std::vector<std::string> lines(raw_lines.begin() + (offset - keep_prev), raw_lines.begin() + (symbol_end_idx + keep_next + 1));
+		// Safely slice target lines from raw_lines with explicit bounds clamping
+		size_t slice_start = std::clamp<size_t>(offset - keep_prev >= 0 ? offset - keep_prev : 0, 0, raw_lines.size());
+		size_t slice_end = std::clamp<size_t>(symbol_end_idx + keep_next + 1 >= 0 ? symbol_end_idx + keep_next + 1 : 0, slice_start, raw_lines.size());
+		std::vector<std::string> lines(raw_lines.begin() + slice_start, raw_lines.begin() + slice_end);
 
 		size_t max_backticks = count_max_consecutive_backticks(lines);
 		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
@@ -220,13 +229,20 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		   << fence << lang << "\n";
 		int current_line = start;
 		for (const auto &line : lines) {
-			ss << current_line << ": " << line << "\n";
+			std::string clean_line;
+			clean_line.reserve(line.size());
+			for (unsigned char c : line) {
+				if (c < 32 && c != '\t') continue;
+				if (c == 127) continue;
+				clean_line.push_back(static_cast<char>(c));
+			}
+			ss << current_line << ": " << clean_line << "\n";
 			current_line++;
 		}
 		ss << fence << "\n\n";
 	}
 
-	return ss.str();
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_symbol_result", ss.str());
 }
 
 std::vector<std::string> fs_read_symbol_tool::read_lines(const std::string &path, int start, int end, agentlib::tool_context &ctx) const

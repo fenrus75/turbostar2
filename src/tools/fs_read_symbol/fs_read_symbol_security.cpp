@@ -1,6 +1,7 @@
 #include <nlohmann/json.hpp>
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "fs_read_symbol.h"
 
 namespace tools
@@ -67,9 +68,23 @@ class fs_read_symbol_validator : public agentlib::tool_validator
 			return false;
 		}
 
+		if (!fs_utils::is_regular_file(canonical_path)) {
+			out_error = "Target is not a regular file: " + path_arg;
+			return false;
+		}
+
+		if (symbol_name_arg.length() > 256) {
+			out_error = "symbol_name exceeds maximum length of 256 characters.";
+			return false;
+		}
+		if (!fs_utils::is_safe_for_ui(symbol_name_arg)) {
+			out_error = "Security Violation: symbol_name contains unsafe control characters.";
+			return false;
+		}
+
 		args_.requested_path = path_arg;
-		args_.symbol_name = symbol_name_arg;
 		args_.safe_path = canonical_path;
+		args_.symbol_name = symbol_name_arg;
 
 		return true;
 	}
