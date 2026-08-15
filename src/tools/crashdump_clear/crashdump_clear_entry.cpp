@@ -1,5 +1,6 @@
 #include "crashdump_clear.h"
-#include "../../crashdump_manager.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -13,7 +14,7 @@ std::string crashdump_clear_tool::execute(agentlib::tool_context &ctx)
 {
 	crashdump_manager::get_instance().clear_all();
 	set_success(ctx, "all crash dumps cleared");
-	return "Successfully cleared all crash dumps.";
+	return fs_utils::wrap_prompt_untrusted_data_tag("crashdump_clear_result", "Successfully cleared all crash dumps.");
 }
 
 } // namespace tools

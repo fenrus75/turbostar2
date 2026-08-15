@@ -1,4 +1,5 @@
 #include "ask_user.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -19,7 +20,7 @@ bool ask_user_tool::validate_runtime(const agentlib::tool_context &ctx, std::str
 std::string ask_user_tool::execute(agentlib::tool_context &ctx)
 {
 	if (!ctx.queue) {
-		return "Error: No event queue available to prompt the user.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("ask_user_result", "Error: No event queue available to prompt the user.");
 	}
 
 	auto promise = std::make_shared<std::promise<std::string>>();
@@ -35,9 +36,10 @@ std::string ask_user_tool::execute(agentlib::tool_context &ctx)
 
 	// Wait for the UI thread to resolve the promise
 	try {
-		return future.get();
+		std::string user_res = future.get();
+		return fs_utils::wrap_prompt_untrusted_data_tag("ask_user_result", user_res);
 	} catch (const std::exception &e) {
-		return std::string("Error: Failed to get user response - ") + e.what();
+		return fs_utils::wrap_prompt_untrusted_data_tag("ask_user_result", std::string("Error: Failed to get user response - ") + e.what());
 	}
 }
 

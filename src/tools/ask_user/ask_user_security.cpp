@@ -1,8 +1,9 @@
 #include <nlohmann/json.hpp>
 #include <optional>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "ask_user.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -17,6 +18,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ask_user_raw_args, questions);
 class ask_user_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Prompts user for interactive input during agent execution.
 	bool is_pure() const override
 	{
 		return true;
@@ -62,21 +64,51 @@ class ask_user_validator : public agentlib::tool_validator
 				return false;
 			}
 
-			// We only support single question for now
+			if (parsed.questions.size() > 1) {
+				out_error = "Validation Error: Multiple questions in a single ask_user call are not supported.";
+				return false;
+			}
+
 			auto &q = parsed.questions[0];
 			if (!q.contains("question") || !q["question"].is_string()) {
 				out_error = "Question must have a 'question' string.";
 				return false;
 			}
 
-			args_.question = q["question"].get<std::string>();
+			std::string q_str = q["question"].get<std::string>();
+			if (q_str.empty()) {
+				out_error = "Validation Error: Question string cannot be empty.";
+				return false;
+			}
+			if (q_str.length() > 1000) {
+				out_error = "Validation Error: Question string exceeds maximum length limit of 1000 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(q_str)) {
+				out_error = "Validation Error: Question contains unsafe control or ANSI escape characters.";
+				return false;
+			}
+
+			args_.question = q_str;
 			if (q.contains("options") && q["options"].is_array()) {
+				if (q["options"].size() > 10) {
+					out_error = "Validation Error: Exceeded maximum option limit of 10 options.";
+					return false;
+				}
 				for (const auto &opt : q["options"]) {
+					std::string opt_str;
 					if (opt.is_string()) {
-						args_.options.push_back(opt.get<std::string>());
-					} else if (opt.is_object() && opt.contains("label")) {
-						// Sometimes schemas pass object arrays with label/description
-						args_.options.push_back(opt["label"].get<std::string>());
+						opt_str = opt.get<std::string>();
+					} else if (opt.is_object() && opt.contains("label") && opt["label"].is_string()) {
+						opt_str = opt["label"].get<std::string>();
+					}
+					if (!opt_str.empty()) {
+						if (opt_str.length() > 100) {
+							opt_str = opt_str.substr(0, 97) + "...";
+						}
+						if (fs_utils::is_safe_for_ui(opt_str)) {
+							args_.options.push_back(opt_str);
+						}
 					}
 				}
 			}

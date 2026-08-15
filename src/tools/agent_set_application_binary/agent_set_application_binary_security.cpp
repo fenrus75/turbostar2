@@ -1,8 +1,10 @@
 #include <memory>
+#include <filesystem>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_set_application_binary.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -15,6 +17,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(agent_set_application_binary_raw_args, path);
 class agent_set_application_binary_validator : public agentlib::tool_validator
 {
       public:
+	// Impure Domain 3 (Editor & System State): Sets main application binary path in config.
 	bool is_pure() const override
 	{
 		return false;
@@ -44,6 +47,18 @@ class agent_set_application_binary_validator : public agentlib::tool_validator
 			agent_set_application_binary_raw_args raw_args = args_json.get<agent_set_application_binary_raw_args>();
 			if (raw_args.path.empty()) {
 				out_error = "Argument validation error: 'path' cannot be empty.";
+				return false;
+			}
+			if (std::filesystem::path(raw_args.path).is_absolute() || raw_args.path.starts_with('/')) {
+				out_error = "Validation Error: Absolute paths are not permitted. Path must be relative to build/ directory.";
+				return false;
+			}
+			if (raw_args.path.find("..") != std::string::npos) {
+				out_error = "Validation Error: Path traversal ('..') is prohibited.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(raw_args.path)) {
+				out_error = "Validation Error: Path contains invalid or non-printable characters.";
 				return false;
 			}
 			args_.path = raw_args.path;

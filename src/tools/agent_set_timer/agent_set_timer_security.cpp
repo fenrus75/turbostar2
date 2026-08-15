@@ -1,20 +1,21 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_set_timer.h"
 
 namespace tools
 {
 
 struct agent_set_timer_raw_args {
-	int seconds;
+	int seconds{0};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_set_timer_raw_args, seconds);
 
 class agent_set_timer_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Schedules an in-memory background timer for the agent.
 	bool is_pure() const override
 	{
 		return true;
@@ -32,7 +33,7 @@ class agent_set_timer_validator : public agentlib::tool_validator
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {{"type", "object"},
-			{"properties", {{"seconds", {{"type", "integer"}, {"description", "The duration in seconds to wait."}}}}},
+			{"properties", {{"seconds", {{"type", "integer"}, {"description", "The duration in seconds to wait (1 to 86400)."}}}}},
 			{"required", nlohmann::json::array({"seconds"})}};
 	}
 
@@ -42,6 +43,10 @@ class agent_set_timer_validator : public agentlib::tool_validator
 	{
 		try {
 			agent_set_timer_raw_args raw_args = args_json.get<agent_set_timer_raw_args>();
+			if (raw_args.seconds <= 0 || raw_args.seconds > 86400) {
+				out_error = "Validation Error: 'seconds' must be between 1 and 86400 (24 hours).";
+				return false;
+			}
 			args_.seconds = raw_args.seconds;
 			return true;
 		} catch (const std::exception &e) {

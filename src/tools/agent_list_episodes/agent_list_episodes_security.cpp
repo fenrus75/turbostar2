@@ -1,7 +1,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_list_episodes.h"
 
 namespace tools
@@ -10,6 +10,7 @@ namespace tools
 class agent_list_episodes_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Reads in-memory episode index and hints.
 	bool is_pure() const override
 	{
 		return true;

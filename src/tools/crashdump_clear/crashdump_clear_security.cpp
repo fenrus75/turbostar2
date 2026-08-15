@@ -1,6 +1,6 @@
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "crashdump_clear.h"
 
 namespace tools
@@ -9,6 +9,7 @@ namespace tools
 class crashdump_clear_validator : public agentlib::tool_validator
 {
       public:
+	// Impure Domain 3 (Editor & System State): Deletes crash dump files from disk and clears state.
 	bool is_pure() const override
 	{
 		return false;

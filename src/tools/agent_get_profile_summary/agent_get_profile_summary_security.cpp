@@ -1,8 +1,8 @@
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
-#include "agent_get_profile_summary.h"
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "agent_get_profile_summary.h"
 
 namespace tools
 {
@@ -15,6 +15,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_profile_summary_raw_ar
 class agent_get_profile_summary_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Reads in-memory profile summary data.
 	bool is_pure() const override
 	{
 		return true;
@@ -40,7 +41,7 @@ class agent_get_profile_summary_validator : public agentlib::tool_validator
 			{"oneOf", nlohmann::json::array({nlohmann::json{{"type", "string"}}, nlohmann::json{{"type", "integer"}}})}}},
 		      {"limit",
 		       {{"type", "integer"},
-			{"description", "Maximum number of top functions and lines to return. Defaults to 10."},
+			{"description", "Maximum number of top functions and lines to return. Defaults to 10 (max 100)."},
 			{"default", 10}}}}}};
 	}
 
@@ -60,8 +61,8 @@ class agent_get_profile_summary_validator : public agentlib::tool_validator
 			args_.limit = 10;
 			if (args_json.contains("limit") && args_json["limit"].is_number()) {
 				int lim = args_json["limit"].get<int>();
-				if (lim <= 0) {
-					out_error = "Validation Error: limit must be greater than 0.";
+				if (lim <= 0 || lim > 100) {
+					out_error = "Validation Error: limit must be between 1 and 100.";
 					return false;
 				}
 				args_.limit = lim;

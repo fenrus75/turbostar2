@@ -1,5 +1,5 @@
-#include "../../config_manager.h"
-#include "../../fs_utils.h"
+#include "config_manager.h"
+#include "fs_utils.h"
 #include "agent_set_application_binary.h"
 
 namespace tools
@@ -23,7 +23,7 @@ std::string agent_set_application_binary_tool::execute(agentlib::tool_context &c
 	}
 
 	set_success(ctx, "Main executable set to: " + args_.path);
-	return "Main application binary path successfully set to: " + args_.path;
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_set_application_binary_result", "Main application binary path successfully set to: " + args_.path);
 }
 
 } // namespace tools

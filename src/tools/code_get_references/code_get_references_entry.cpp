@@ -1,5 +1,5 @@
-#include "../../fs_utils.h"
-#include "../../project_manager.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 #include "code_get_references.h"
 
 namespace tools
@@ -10,28 +10,37 @@ std::string code_get_references_tool::execute(agentlib::tool_context &ctx)
 	std::string safe_path;
 	std::string error;
 	if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, safe_path, error)) {
-		return "Error: " + error;
+		return fs_utils::wrap_prompt_untrusted_data_tag("code_get_references_result", "Error: " + error);
 	}
 
 	if (!project_manager::get_instance().lsp_is_supported_file(safe_path)) {
-		return "Error: LSP is not supported for this file type.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("code_get_references_result", "Error: LSP is not supported for this file type.");
 	}
 
 	auto locations = project_manager::get_instance().lsp_query_references(safe_path, args_.line - 1, args_.character);
 	if (locations.empty()) {
-		return "No references found.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("code_get_references_result", "No references found.");
 	}
 
 	nlohmann::json result = nlohmann::json::array();
 	for (const auto &loc : locations) {
-		result.push_back({{"path", loc.path},
+		std::string resolved_out_path;
+		std::string out_err;
+		// SECURITY CHECK: Sanitize LSP output paths against file security allowlist
+		if (!ctx.fs_security.validate_access(loc.path, agentlib::access_type::read, resolved_out_path, out_err)) {
+			continue; // Skip external/unauthorized paths outside workspace
+		}
+
+		std::string display_path = fs_utils::make_relative_to_project(resolved_out_path);
+
+		result.push_back({{"path", display_path},
 				  {"start_line", loc.range.start_y + 1},
 				  {"start_character", loc.range.start_x},
 				  {"end_line", loc.range.end_y + 1},
 				  {"end_character", loc.range.end_x}});
 	}
 
-	return result.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("code_get_references_result", result.dump(2));
 }
 
 class code_get_references_validator : public agentlib::tool_validator

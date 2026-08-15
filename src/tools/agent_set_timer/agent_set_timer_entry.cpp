@@ -1,9 +1,10 @@
 #include <chrono>
 #include <format>
 #include <thread>
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/ai_agent.h"
 #include "agent_set_timer.h"
-#include "../../event_logger.h"
+#include "event_logger.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -42,7 +43,7 @@ std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 		}
 	}).detach();
 
-	return std::format("Timer set for {} seconds.", args_.seconds);
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_set_timer_result", std::format("Timer set for {} seconds.", args_.seconds));
 }
 
 } // namespace tools
