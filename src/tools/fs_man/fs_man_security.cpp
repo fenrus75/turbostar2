@@ -1,5 +1,5 @@
 #include "fs_man.h"
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 
 namespace tools {
 

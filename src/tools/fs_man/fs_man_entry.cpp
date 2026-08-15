@@ -1,4 +1,5 @@
 #include "fs_man.h"
+#include "fs_utils.h"
 #include "../troff2md.h"
 #include <algorithm>
 #include <cctype>
@@ -69,8 +70,9 @@ static bool match_man_file(const std::filesystem::path& file_path, const std::st
 	return true;
 }
 
-// Decompresses a man page file. If the file ends in .gz, uses zlib.
+// Decompresses a man page file up to 2MB. If the file ends in .gz, uses zlib.
 static std::string decompress_man_page(const std::filesystem::path& path) {
+	constexpr size_t max_bytes = 2 * 1024 * 1024; // 2MB cap
 	if (path.extension() == ".gz") {
 		gzFile file = gzopen(path.c_str(), "rb");
 		if (!file) return "";
@@ -80,21 +82,47 @@ static std::string decompress_man_page(const std::filesystem::path& path) {
 		int bytes_read;
 		while ((bytes_read = gzread(file, buffer, sizeof(buffer))) > 0) {
 			content.append(buffer, bytes_read);
+			if (content.size() >= max_bytes) {
+				content.resize(max_bytes);
+				break;
+			}
 		}
 		gzclose(file);
 		return content;
 	} else {
 		std::ifstream in(path, std::ios::binary);
 		if (!in) return "";
-		std::stringstream ss;
-		ss << in.rdbuf();
-		return ss.str();
+		std::string content;
+		char buffer[4096];
+		while (in.read(buffer, sizeof(buffer)) || in.gcount() > 0) {
+			content.append(buffer, in.gcount());
+			if (content.size() >= max_bytes) {
+				content.resize(max_bytes);
+				break;
+			}
+		}
+		return content;
 	}
 }
 
-// Resolves a redirect path relative to base_dir
+// Resolves a redirect path relative to base_dir, strictly validating containment
 static std::filesystem::path find_redirect_file(const std::filesystem::path& base_dir, const std::string& rel_path) {
-	std::filesystem::path target = base_dir / rel_path;
+	if (rel_path.empty() || rel_path.front() == '/' || rel_path.front() == '\\' || rel_path.find("..") != std::string::npos) {
+		return "";
+	}
+
+	std::filesystem::path target = (base_dir / rel_path).lexically_normal();
+	std::filesystem::path base_norm = base_dir.lexically_normal();
+
+	std::string target_str = target.string();
+	std::string base_str = base_norm.string();
+	if (!base_str.empty() && base_str.back() != '/') {
+		base_str += '/';
+	}
+	if (!target_str.starts_with(base_str)) {
+		return "";
+	}
+
 	if (std::filesystem::exists(target)) {
 		return target;
 	}
@@ -446,7 +474,7 @@ std::string fs_man_tool::execute(agentlib::tool_context& ctx) {
 	}
 
 	set_success(ctx, std::format("Successfully loaded man page for {}", args_.name));
-	return md_content;
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_man_result", md_content);
 }
 
 } // namespace tools
