@@ -90,6 +90,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 
 	// Blocks until the agent's status is idle or error
 	void wait_until_idle();
+	bool wait_until_idle_for(std::chrono::milliseconds timeout);
 
 	int get_waiting_on_id() const
 	{

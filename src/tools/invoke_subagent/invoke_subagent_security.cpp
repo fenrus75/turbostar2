@@ -32,7 +32,7 @@ class invoke_subagent_validator : public agentlib::tool_validator
 	bool is_pure() const override
 	{
 		return true;
-	} // Subagent orchestration does not modify project codebase
+	} // Subagent orchestration is pure; read-only parent agents force child subagents to inherit read_only = true
 
 	std::string get_name() const override
 	{
@@ -102,15 +102,10 @@ class invoke_subagent_validator : public agentlib::tool_validator
 	}
 
       protected:
-	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context &ctx,
+	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
 				std::string &out_error) const override
 	{
 		try {
-			if (ctx.active_agent && ctx.active_agent->is_read_only()) {
-				out_error = "Execution Error: Agent is in read-only mode and cannot spawn subagents.";
-				return false;
-			}
-
 			invoke_subagent_raw_args raw_args = args_json.get<invoke_subagent_raw_args>();
 			if (raw_args.name.empty()) {
 				out_error = "Agent name cannot be empty.";
@@ -174,6 +169,32 @@ class invoke_subagent_validator : public agentlib::tool_validator
 			if (raw_args.profile.empty() && raw_args.task.empty() && raw_args.subagent_name.empty()) {
 				out_error = "You must provide either a 'subagent_name', 'profile', or 'task' to invoke a subagent.";
 				return false;
+			}
+
+			if (!raw_args.repository_url.empty()) {
+				if (raw_args.repository_url.length() > 512) {
+					out_error = "repository_url exceeds maximum length of 512 characters.";
+					return false;
+				}
+				for (char c : raw_args.repository_url) {
+					if (std::isspace(static_cast<unsigned char>(c)) || c == ';' || c == '|' || c == '&' || c == '$' || c == '`' || c == '\'' || c == '"' || c == '<' || c == '>') {
+						out_error = "Security Violation: repository_url contains invalid characters.";
+						return false;
+					}
+				}
+			}
+
+			if (!raw_args.git_ref.empty()) {
+				if (raw_args.git_ref.length() > 128) {
+					out_error = "git_ref exceeds maximum length of 128 characters.";
+					return false;
+				}
+				for (char c : raw_args.git_ref) {
+					if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_' && c != '.' && c != '/' && c != '@') {
+						out_error = "Security Violation: git_ref contains invalid characters.";
+						return false;
+					}
+				}
 			}
 
 			args_.name = raw_args.name;

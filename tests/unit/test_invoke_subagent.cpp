@@ -129,26 +129,20 @@ int main()
 			}
 		}
 
-		// 7. Rejection if agent is read-only
+		// 7. Read-only inheritance: read-only parent can invoke subagent, child inherits read_only = true
 		auto original_ro = agent->is_read_only();
 		agent->set_read_only(true);
 		auto prep = registry.prepare_tool("invoke_subagent",
 			"{\"name\": \"sub_ro\", \"task\": \"task\"}", ctx);
-		assert(prep.tool == nullptr);
-		assert(prep.error_message.find("read-only") != std::string::npos);
+		assert(prep.tool != nullptr);
+		assert(prep.error_message.empty());
 
-		// Directly test validate_runtime on the tool under read-only state
-		{
-			tools::invoke_subagent_args sub_args;
-			sub_args.name = "sub_ro";
-			sub_args.profile = "profile";
-			sub_args.task = "task";
-			sub_args.wait = false;
-			tools::invoke_subagent_tool direct_tool(sub_args);
-			std::string direct_err;
-			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
-			assert(direct_err.find("read-only") != std::string::npos);
-		}
+		std::string res_ro = prep.tool->execute(ctx);
+		assert(res_ro.find("sub_ro") != std::string::npos);
+		auto sub_ro_agents = agent->get_subagents();
+		assert(!sub_ro_agents.empty());
+		auto child_sub = sub_ro_agents.back();
+		assert(child_sub->is_read_only() == true);
 
 		agent->set_read_only(original_ro);
 

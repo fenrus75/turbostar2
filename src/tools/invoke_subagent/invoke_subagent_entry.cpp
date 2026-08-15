@@ -23,10 +23,6 @@ bool invoke_subagent_tool::validate_runtime(const agentlib::tool_context &ctx, s
 		out_error = "Execution Error: No active agent context available.";
 		return false;
 	}
-	if (ctx.active_agent->is_read_only()) {
-		out_error = "Execution Error: Agent is in read-only mode and cannot spawn subagents.";
-		return false;
-	}
 	return true;
 }
 
@@ -34,9 +30,6 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 {
 	if (!ctx.active_agent) {
 		return "Error: No active agent context available.";
-	}
-	if (ctx.active_agent->is_read_only()) {
-		return "Error: Agent is in read-only mode.";
 	}
 
 	std::string target_name = !args_.subagent_name.empty() ? args_.subagent_name : args_.name;
@@ -102,7 +95,7 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 		auto sa = agentlib::subagent_manager::get_instance().find_subagent_by_name(args_.subagent_name);
 		if (sa) {
 			agentlib::agent_properties props = new_agent->get_properties();
-			props.read_only = sa->read_only;
+			props.read_only = sa->read_only || ctx.active_agent->is_read_only();
 			if (!sa->tool_families.empty()) {
 				props.active_families = sa->tool_families;
 			}
@@ -116,6 +109,12 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 				new_agent->inject_context("system", sa->system_prompt);
 			}
 		}
+	}
+
+	if (ctx.active_agent->is_read_only()) {
+		agentlib::agent_properties props = new_agent->get_properties();
+		props.read_only = true;
+		new_agent->set_properties(props);
 	}
 
 	if (!args_.profile.empty()) {
@@ -134,15 +133,19 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 	auto old_status = ctx.active_agent->get_status();
 	ctx.active_agent->set_status(agentlib::agent_status::waiting, new_agent->get_id());
 	new_agent->set_notify_parent_on_completion(false);
-	new_agent->wait_until_idle();
+	bool completed = new_agent->wait_until_idle_for(std::chrono::seconds(120));
 	ctx.active_agent->set_status(old_status);
+
+	if (!completed) {
+		return "Error: Timed out waiting for subagent '" + args_.name + "' to complete task (120s limit exceeded).";
+	}
 
 	if (new_agent->get_status() == agentlib::agent_status::error) {
 		return std::format("Subagent '{}' encountered an error during execution.", args_.name);
 	}
 
 	if (new_agent->has_final_result()) {
-		return new_agent->get_final_result();
+		return fs_utils::wrap_prompt_untrusted_data_tag("subagent_result", new_agent->get_final_result());
 	}
 
 	// Retrieve interactions and find the last LLM response
@@ -150,7 +153,7 @@ std::string invoke_subagent_tool::execute(agentlib::tool_context &ctx)
 	for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
 		auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
 		if (res) {
-			return res->get_text();
+			return fs_utils::wrap_prompt_untrusted_data_tag("subagent_result", res->get_text());
 		}
 	}
 

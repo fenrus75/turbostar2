@@ -584,6 +584,14 @@ void ai_agent::wait_until_idle()
 	});
 }
 
+bool ai_agent::wait_until_idle_for(std::chrono::milliseconds timeout)
+{
+	std::unique_lock<std::mutex> lock(state_mutex_);
+	return status_cv_.wait_for(lock, timeout, [this]() {
+		return status_ == agent_status::idle || status_ == agent_status::error || status_ == agent_status::dead;
+	});
+}
+
 void ai_agent::cancel_current_task()
 {
 	std::shared_ptr<llm_client> local_client;
