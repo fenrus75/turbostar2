@@ -25,13 +25,14 @@ std::string resolve_code_review_item_tool::execute(agentlib::tool_context& ctx)
 	bool success = codereview_manager::get_instance().resolve_code_review_item(args_.id, args_.commit_hash);
 
 	if (!success) {
-		set_failure(ctx, std::format("Error: Code review item with ID {} not found.", args_.id));
+		std::string err_msg = std::format("Error: Code review item with ID {} not found or has invalid state for resolution.", args_.id);
+		set_failure(ctx, err_msg);
 		// Prefix with "Error: " so the agent run-loop classifies this as a failed tool result
 		// (is_error heuristic in ai_agent.cpp).
 		nlohmann::json err_json = {
 			{"id", args_.id},
 			{"status", "error"},
-			{"message", std::format("Code review item with ID {} not found.", args_.id)}
+			{"message", err_msg}
 		};
 		return "Error: " + err_json.dump(2);
 	}

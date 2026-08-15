@@ -116,9 +116,18 @@ void codereview_manager::save_project_unlocked() const
 			j["items"].push_back(item);
 		}
 
-		std::ofstream f(path);
+		std::string tmp_path = path + ".tmp";
+		std::ofstream f(tmp_path);
 		if (f.is_open()) {
 			f << j.dump(4);
+			f.close();
+			std::error_code ec;
+			std::filesystem::rename(tmp_path, path, ec);
+			if (ec) {
+				event_logger::get_instance().log(std::format("Failed to rename code review file: {}", ec.message()));
+			}
+		} else {
+			event_logger::get_instance().log(std::format("Failed to open temporary file for writing code reviews: {}", tmp_path));
 		}
 	} catch (const std::exception &e) {
 		event_logger::get_instance().log(std::format("Error saving code reviews: {}", e.what()));
@@ -222,6 +231,9 @@ bool codereview_manager::resolve_code_review_item(int id, const std::string &com
 	std::unique_lock lock(mutex_);
 	for (auto &item : items_) {
 		if (item.id == id) {
+			if (item.state == "verified-fixed") {
+				return false; // Cannot downgrade a verified-fixed item
+			}
 			item.state = "resolved";
 			item.resolved_in_commit = commit_hash;
 			save_project_unlocked();

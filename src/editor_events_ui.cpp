@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <format>
 #include <fstream>
-#include <lsp/json/json.h>
+#include <nlohmann/json.hpp>
 #include <ncurses.h>
 #include <netinet/in.h>
 #include <sstream>
@@ -213,6 +213,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			}
 		}
 		active_dialog_ = create_message_dialog("Loaded Plugins", lines);
+		active_dialog_mode_ = dialog_mode::none;
 		set_focus(focus_target::dialog, "menu_plugins");
 		return;
 	}
@@ -220,6 +221,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	if (ev.type == event_type::tool_status) {
 		logger.log("Dispatching tool_status event.");
 		active_dialog_ = create_tool_status_dialog();
+		active_dialog_mode_ = dialog_mode::none;
 		set_focus(focus_target::dialog, "menu_tool_status");
 		return;
 	}
@@ -636,9 +638,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				if (main_agent) {
 					verifier_agent = main_agent->spawn_subagent("Review Verifier");
 				} else {
+					static std::atomic<int> next_verifier_id{9900};
 					auto default_model = agentlib::ai_model_registry::get_instance().get_default_model();
 					verifier_agent =
-					    agentlib::ai_agent::create(9999, "Review Verifier", default_model, &global_queue_, this);
+					    agentlib::ai_agent::create(next_verifier_id++, "Review Verifier", default_model, &global_queue_, this);
 					headless_agents_.push_back(verifier_agent);
 				}
 
@@ -907,8 +910,9 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		int app_h = (total_h * 2) / 3;
 		int gdb_h = total_h - app_h;
 
-		int app_id = 1000 + static_cast<int>(windows_.size());
-		int gdb_id = 1001 + static_cast<int>(windows_.size());
+		static std::atomic<int> next_run_id{1000};
+		int app_id = next_run_id.fetch_add(2);
+		int gdb_id = app_id + 1;
 
 		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, app_h, "Run Output");
 		app_tw->set_display_priority(10);
@@ -925,7 +929,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		}
 
 		std::string gdbserver_cmd =
-		    "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + build_exe.string();
+		    "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + fs_utils::escape_shell_arg(build_exe.string());
 		if (!args.empty()) {
 			gdbserver_cmd += std::format(" {}", args);
 		}
@@ -948,7 +952,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		if (auto_continue && config_manager::get_instance().get_gdb_auto_continue()) {
 			gdb_cmd += " -ex \"continue\"";
 		}
-		gdb_cmd += " " + build_exe.string();
+		gdb_cmd += " " + fs_utils::escape_shell_arg(build_exe.string());
 
 		logger.log("Starting gdb: " + gdb_cmd);
 		if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
@@ -1260,7 +1264,7 @@ static bool extract_system_coredump(const std::string &crash_id)
 
 	fs::path out_path = dump_dir / ("core." + crash_id);
 
-	std::string cmd = std::format("coredumpctl --user dump {} -o {}", crash_id, fs_utils::escape_shell_arg(out_path.string()));
+	std::string cmd = std::format("coredumpctl --user dump {} -o {}", fs_utils::escape_shell_arg(crash_id), fs_utils::escape_shell_arg(out_path.string()));
 	int exit_code = std::system(cmd.c_str());
 	if (exit_code == 0 && fs::exists(out_path) && fs::file_size(out_path) > 0) {
 		return true;

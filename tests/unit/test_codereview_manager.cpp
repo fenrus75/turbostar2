@@ -86,6 +86,12 @@ void test_codereview_manager_lifecycle()
 	item_opt = manager.get_code_review_item(id1);
 	assert(item_opt->state == "verified-fixed");
 
+	// Test 7b: Attempt to resolve a verified-fixed item (must be rejected)
+	bool resolve_again = manager.resolve_code_review_item(id1, "anothercommit456");
+	assert(!resolve_again);
+	item_opt = manager.get_code_review_item(id1);
+	assert(item_opt->state == "verified-fixed");
+
 	// Test 8: List items (by default resolved/verified-fixed are excluded)
 	items = manager.list_code_review_items();
 	assert(items.empty());
