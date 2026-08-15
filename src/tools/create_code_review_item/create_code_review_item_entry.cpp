@@ -1,25 +1,22 @@
-#include <format>
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include "create_code_review_item.h"
+#include "fs_utils.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/interactions/action.h"
 #include "codereview_manager.h"
-#include "create_code_review_item.h"
+#include <format>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 namespace tools
 {
 
 // Sanitize untrusted (LLM-supplied) text before it is interpolated into the parent agent's
-// context. The summary/filename arrive from the model and could theoretically contain control
-// characters or newlines that would break out of the single-line notification or be interpreted
-// as instruction text (prompt-injection surface). We strip CR/LF/tabs and all C0 control chars,
-// keep the bytes printable, and clamp long summaries to a bounded length so the injected line
-// stays small and predictable.
-static std::string sanitize_for_parent_line(const std::string &text, size_t max_len = 200)
+// context.
+static std::string sanitize_for_parent_line(const std::string &untrusted_text, size_t max_len = 200)
 {
 	std::string out;
-	out.reserve(text.size());
-	for (unsigned char c : text) {
+	out.reserve(untrusted_text.size());
+	for (unsigned char c : untrusted_text) {
 		if (c < 32 || c == 127) {
 			continue; // strip CR, LF, tab and all other C0 control characters
 		}
@@ -27,6 +24,10 @@ static std::string sanitize_for_parent_line(const std::string &text, size_t max_
 	}
 	if (out.size() > max_len) {
 		out.resize(max_len);
+		// Avoid truncating in the middle of a UTF-8 multi-byte sequence
+		while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80) {
+			out.pop_back();
+		}
 	}
 	return out;
 }
@@ -48,8 +49,7 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 {
 	// 1. Resolve line content from file if line number was specified but no content was supplied.
 	//    safe_path may be a plain disk path OR a VFS URI (tmp://, system://, github://, ...).
-	//    std::ifstream cannot open VFS URIs, so route those through the VFS reader.
-	if (args_.line_number > 0 && args_.line_content.empty() && !args_.safe_path.empty()) {
+	if (args_.line_number > 0 && args_.line_number <= 50000 && args_.line_content.empty() && !args_.safe_path.empty()) {
 		std::string line_content;
 		if (args_.safe_path.find("://") != std::string::npos) {
 			auto vfs = ctx.fs_security.get_vfs();
@@ -95,17 +95,10 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 	int item_id = codereview_manager::get_instance().create_code_review_item(
 	    args_.summary, args_.filename, args_.line_number, args_.line_content, args_.severity, args_.description, args_.proposed_fix);
 
-	// 3. Optional parent notification, kept deliberately SHORT (single line) so it serves as a
-	// lightweight "an item was filed" signal rather than duplicating the full finding (which is
-	// persisted in the DB and surfaced via list_code_review_items / toolcall returns).
-	// Suppressed entirely when the calling agent opts out via set_suppress_parent_injection()
-	// (e.g. synchronous perform_code_review, where results come back through the toolcall).
+	// 3. Optional parent notification
 	if (ctx.active_agent && !ctx.active_agent->is_suppress_parent_injection()) {
 		auto parent = ctx.active_agent->get_parent();
 		if (parent) {
-			// file/summary are untrusted (model-supplied): strip control chars and clamp length
-			// before interpolation so the notification cannot smuggle instructions or newlines
-			// into the parent's context (prompt-injection hardening).
 			std::string safe_summary = sanitize_for_parent_line(args_.summary);
 			std::string safe_filename = sanitize_for_parent_line(args_.filename);
 			std::string parent_msg = std::format("Subagent created code review item #{} ({}): {}:{} - {}", item_id,
@@ -129,7 +122,7 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 					{"filename", args_.filename},
 					{"line_number", args_.line_number},
 					{"line_content", args_.line_content}};
-	return response_json.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("create_code_review_item_result", response_json.dump(2));
 }
 
 } // namespace tools

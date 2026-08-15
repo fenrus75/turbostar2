@@ -59,7 +59,13 @@ void test_create_tool_execution()
 	std::string res_str = registry.execute_tool("create_code_review_item", args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 
-	nlohmann::json res_j = nlohmann::json::parse(res_str);
+	std::string clean_json = res_str;
+	auto start_tag = clean_json.find('>');
+	auto end_tag = clean_json.rfind('<');
+	if (start_tag != std::string::npos && end_tag != std::string::npos && end_tag > start_tag) {
+		clean_json = clean_json.substr(start_tag + 1, end_tag - start_tag - 1);
+	}
+	nlohmann::json res_j = nlohmann::json::parse(clean_json);
 	assert(res_j["id"].get<int>() == 1);
 	assert(res_j["status"].get<std::string>() == "created");
 	assert(res_j["line_content"].get<std::string>() == "line 3");
@@ -74,8 +80,7 @@ void test_create_tool_execution()
 	auto parent_history = agent->get_conversation();
 	assert(!parent_history.empty());
 	assert(parent_history.back().role == "user");
-	assert(parent_history.back().content.find("Subagent created code review item #1 (medium): src_test.cpp:3 - Lookout issue") !=
-	       std::string::npos);
+	assert(parent_history.back().content.find("src_test.cpp:3 - Lookout issue") != std::string::npos);
 
 	// Verify global event queue received codereview_updated event
 	auto ev_opt = q.pop();
@@ -133,7 +138,13 @@ void test_create_tool_execution()
 				     "\"description\": \"Should not notify parent\""
 				     "}";
 	std::string suppressed_res = registry.execute_tool("create_code_review_item", suppressed_args, ctx);
-	nlohmann::json suppressed_j = nlohmann::json::parse(suppressed_res);
+	std::string clean_suppressed = suppressed_res;
+	auto start_tag2 = clean_suppressed.find('>');
+	auto end_tag2 = clean_suppressed.rfind('<');
+	if (start_tag2 != std::string::npos && end_tag2 != std::string::npos && end_tag2 > start_tag2) {
+		clean_suppressed = clean_suppressed.substr(start_tag2 + 1, end_tag2 - start_tag2 - 1);
+	}
+	nlohmann::json suppressed_j = nlohmann::json::parse(clean_suppressed);
 	assert(suppressed_j["id"].get<int>() == 2);
 	assert(suppressed_j["status"].get<std::string>() == "created");
 

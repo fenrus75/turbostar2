@@ -59,7 +59,7 @@ bool create_code_review_item_validator::validate_args_impl(const nlohmann::json 
 		}
 
 		args_.summary = parsed.summary;
-		args_.filename = parsed.path;
+		args_.filename = canonical_path;
 		args_.line_number = parsed.line_number;
 		args_.line_content = parsed.line_content;
 		args_.severity = parsed.severity;
