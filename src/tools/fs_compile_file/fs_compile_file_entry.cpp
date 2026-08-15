@@ -137,12 +137,18 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 			  "investigate.";
 	}
 
+	if (output.length() > 10000) {
+		output = output.substr(output.length() - 10000);
+		output = "\n...[output truncated due to length]...\n" + output;
+	}
+
 	std::string notes = agentlib::get_all_file_health_attribution_notes(ctx);
 	if (!notes.empty()) {
 		output += notes;
 	}
 
-	return "NOTE: Single-file compilation only checks syntax and does not link or build the project binary. To update the executable, use fs_compile_project.\n\n```bash\n$ " + cmd + "\n" + output + "\n```";
+	std::string final_formatted = "NOTE: Single-file compilation only checks syntax and does not link or build the project binary. To update the executable, use fs_compile_project.\n\n```bash\n$ " + cmd + "\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_compile_file_output", final_formatted);
 }
 
 } // namespace tools

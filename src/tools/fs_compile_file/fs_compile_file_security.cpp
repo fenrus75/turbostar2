@@ -9,13 +9,14 @@ bool fs_compile_file_validator::validate_args_impl(const nlohmann::json &args, c
 	try {
 		if (args.is_object()) {
 			for (auto it = args.begin(); it != args.end(); ++it) {
-				if (it.key() != "path" && it.key() != "async") {
+				if (it.key() != "path" && it.key() != "async" && it.key() != "timeout") {
 					out_error = "Unexpected argument: " + it.key();
 					return false;
 				}
 			}
 		}
 		args_ = args.get<fs_compile_file_args>();
+		args_.timeout = std::clamp<int>(args_.timeout, 1, 3600);
 		std::string resolved_path;
 		if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, resolved_path, out_error)) {
 			return false;
