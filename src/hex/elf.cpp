@@ -489,9 +489,10 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 			}
 
 			size_t sym_count = symtab_size / symtab_entsize;
+			size_t req_sym_size = header_.is_64 ? 24 : 16;
 			for (size_t j = 0; j < sym_count; ++j) {
 				size_t sym_start = symtab_offset + j * symtab_entsize;
-				if (sym_start + symtab_entsize > data.size())
+				if (sym_start + req_sym_size > data.size() || symtab_entsize < req_sym_size)
 					break;
 
 				uint32_t st_name = 0;

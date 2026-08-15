@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <sstream>
 #include <chrono>
+#include <atomic>
 #include <algorithm>
 #include <cctype>
 
@@ -326,8 +327,9 @@ std::string image_manager::resolve_uri(const std::string &uri)
 
 std::string image_manager::get_temp_image_path()
 {
+	static std::atomic<uint64_t> counter{0};
 	auto tmp_dir = std::filesystem::path(fs_utils::get_project_tmp_dir());
-	auto filename = "img_tmp_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".tmp";
+	auto filename = "img_tmp_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "_" + std::to_string(++counter) + ".tmp";
 	return (tmp_dir / filename).string();
 }
 
@@ -356,7 +358,8 @@ std::string image_manager::ingest_image(
 
 	try {
 		std::filesystem::copy_file(temp_path, dest_path, std::filesystem::copy_options::overwrite_existing);
-//		std::filesystem::remove(temp_path);
+		std::error_code ec_rem;
+		std::filesystem::remove(temp_path, ec_rem);
 	} catch (...) {
 		return "";
 	}

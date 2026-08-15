@@ -294,7 +294,7 @@ std::string command_runner::build_command(const std::string &raw_command) const
 	cmd += sandbox_hardening_flags(is_kernel_pair_supported());
 	cmd += "-p Environment=TURBOSTAR_SANDBOXED=1 ";
 
-	if (!network_access_ && !allow_display_) {
+	if (!network_access_) {
 		cmd += "-p PrivateNetwork=true ";
 	}
 

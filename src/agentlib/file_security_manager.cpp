@@ -126,7 +126,21 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 		size_t scheme_pos = requested_path.find("://");
 		std::string scheme = requested_path.substr(0, scheme_pos);
 
-		if (scheme == "file" || scheme == "tmp" || scheme == "images") {
+		if (scheme == "file") {
+			std::string raw_file_path = requested_path.substr(7); // strip file://
+			std::string inner_resolved;
+			if (!validate_access(raw_file_path, requested_perm, inner_resolved, out_error)) {
+				return false;
+			}
+			out_resolved_path = "file://" + inner_resolved;
+			return true;
+		}
+
+		if (scheme == "tmp" || scheme == "images") {
+			if (requested_path.find("..") != std::string::npos) {
+				out_error = "Path traversal prohibited in virtual scheme.";
+				return false;
+			}
 			out_resolved_path = requested_path;
 			return true;
 		}
