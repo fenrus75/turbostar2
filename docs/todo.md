@@ -24,13 +24,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `fs_replace_lines` dry-run verification: perform dry-run verification against `original_text` for all batch edits in `fs_replace_lines` before applying any mutations. If any line check fails after accounting for previous edits, reject the batch cleanly to prevent partial line-drift edits.
 
-- Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Shared Replacement Engine (Schedule: Execute immediately following the completion of the 236 code review items in `review.json` to avoid shifting line numbers during reviews):
-  * **Directory & File Layout**: Co-locate both single-chunk (`fs_replace_content`) and multi-chunk (`fs_multi_replace_content`) tools inside `src/tools/fs_replace_content/` with dedicated `.h`/`.cpp` files per class per project rules (`fs_multi_replace_content.h`, `fs_multi_replace_content_entry.cpp`, `fs_multi_replace_content_security.cpp`).
-  * **Shared Engine (`fs_replace_engine.h/cpp`)**: Extract core scope resolution, relaxed matching, and brace-balance checks into a shared `fs_replace_engine`. `fs_replace_content` passes a 1-element chunk vector, while `fs_multi_replace_content` passes an N-element chunk vector.
-  * **Three-Tiered Scope Windowing**:
-    1. **Dynamic AST/LSP Scope Resolution (`function_scope`)**: Look up `function_scope` ("`MyClass::my_function`" or "`validate_args_impl`") via `codemap_utils` / LSP to automatically resolve `[start_line, end_line]` function bounds on-the-fly. Makes multi-chunk edits immune to line-drift caused by prior edits higher in the file!
-    2. **Explicit Line Bounds (`start_line`, `end_line`)**: Support explicit 1-based line range numbers for raw/non-function edits.
-    3. **Atomic Transactional Rollback**: If any chunk in a batch fails to match or breaks syntax/brace-balance, roll back all chunks in the file edit cleanly.
 
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
@@ -398,6 +391,13 @@ remember to describe features in terms of the benefit to the user or the agent, 
   6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
   8. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
+## 15-08-2026
+- Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Shared Replacement Engine (`src/tools/fs_replace_content/`, `src/codemap_utils.h/cpp`, `src/mime.h/cpp`, `docs/tools.md`, `tests/unit/test_fs_multi_replace_content.cpp`, `meson.build`):
+  1. **Shared Engine (`fs_replace_engine.h/cpp`)**: Created shared replacement engine co-located in `src/tools/fs_replace_content/`, encapsulating multi-chunk batch replacements, relaxed line matching, scope windowing, and multiline-aware brace balance verification (`calculate_brace_balance`). Refactored `fs_replace_content` to execute via `fs_replace_engine`.
+  2. **Multi-Chunk Tool (`fs_multi_replace_content`)**: Built `fs_multi_replace_content` accepting an array of `{target_content, replacement_content, line_hint, function_scope, start_line, end_line}` chunk objects. Executes atomic transactional rollback if any chunk fails to match or breaks syntax/brace-balance in strict mode.
+  3. **Symbol Scope & Language Enhancements**: Added `tools::find_symbol_by_hint` in `codemap_utils.h/cpp` for LSP/regex symbol resolution and `mime::uses_brace_syntax` in `mime.h/cpp` for language-aware brace syntax detection. Integrated whole-file and symbol scope brace balance tracking (`check_brace_warnings`).
+  4. **Documentation & Unit Tests**: Updated `docs/tools.md` schema documentation and added unit test suite `test_fs_multi_replace_content.cpp` verifying multi-chunk editing, three-tiered scope windowing, atomic transactional rollbacks, and strict mode brace balance rejections. Verified 100% test suite pass rate.
+
 - `sqlite` Non-Default Tool Family Migration (`src/tools/sqlite_*/`, `src/agentlib/tool_registry.cpp`, `src/agentcli/main.cpp`, `tests/unit/`, `tests/e2e/`, `docs/todo.md`):
   1. Updated `sqlite_create_db_validator`, `sqlite_delete_db_validator`, `sqlite_list_db_validator`, and `sqlite_perform_validator` to return tool family `"sqlite"`.
   2. Registered `sqlite` tool family in `tool_registry` constructor with custom activation reason (*"Activate when inspecting, creating, or querying local SQLite databases, or if you want to keep a todo list in a database"*) and detailed guidance.
