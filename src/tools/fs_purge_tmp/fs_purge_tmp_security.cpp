@@ -1,5 +1,6 @@
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "fs_purge_tmp.h"
 
 namespace tools
@@ -40,9 +41,20 @@ class fs_purge_tmp_validator : public agentlib::tool_validator
 		if (!ctx.fs_security.validate_access("tmp://", agentlib::access_type::write, resolved_path, out_error)) {
 			return false;
 		}
-		if (args.contains("substring") && !args["substring"].is_string()) {
-			out_error = "Parameter 'substring' must be a string.";
-			return false;
+		if (args.contains("substring")) {
+			if (!args["substring"].is_string()) {
+				out_error = "Parameter 'substring' must be a string.";
+				return false;
+			}
+			std::string sub = args["substring"].get<std::string>();
+			if (sub.length() > 128) {
+				out_error = "Validation Error: 'substring' parameter exceeds maximum length of 128 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(sub)) {
+				out_error = "Security Violation: 'substring' contains unsafe control characters.";
+				return false;
+			}
 		}
 		return true;
 	}
