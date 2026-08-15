@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "../../agentlib/tool_validator.h"
-#include "../../agentlib/llm_tool.h"
+#include "agentlib/tool_validator.h"
+#include "agentlib/llm_tool.h"
 
 namespace tools
 {
@@ -43,6 +43,17 @@ class apply_text_filter_validator : public agentlib::tool_validator
 
 	bool is_pure() const override
 	{
+		return false;
+	}
+
+	bool is_pure(const nlohmann::json &args) const override
+	{
+		if (args.contains("output_path") && args["output_path"].is_string()) {
+			std::string out = args["output_path"].get<std::string>();
+			if (!out.empty() && !out.starts_with("tmp://") && !out.starts_with("images://")) {
+				return false;
+			}
+		}
 		return true;
 	}
 

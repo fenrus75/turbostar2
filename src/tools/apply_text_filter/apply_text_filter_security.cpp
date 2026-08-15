@@ -1,7 +1,8 @@
 #include "apply_text_filter.h"
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/ai_agent.h"
-#include "../../filter_registry.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/ai_agent.h"
+#include "filter_registry.h"
+#include "fs_utils.h"
 #include <nlohmann/json.hpp>
 
 namespace tools
@@ -44,6 +45,10 @@ bool apply_text_filter_validator::validate_args_impl(const nlohmann::json &args,
 			return false;
 		}
 		text = args["text"].get<std::string>();
+		if (text.length() > 10485760) {
+			out_error = "Validation Error: 'text' parameter exceeds maximum allowed length of 10MB.";
+			return false;
+		}
 	}
 
 	std::string path;
