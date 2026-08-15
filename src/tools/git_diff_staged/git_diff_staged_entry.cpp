@@ -1,4 +1,4 @@
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "git_diff_staged.h"
 
 namespace tools
@@ -16,12 +16,12 @@ bool git_diff_staged_tool::validate_runtime(const agentlib::tool_context & /*ctx
 
 std::string git_diff_staged_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string cmd = "git --no-pager diff --staged --no-color --unified=3 -- " + safe_path_;
+	std::string cmd = "git --no-pager diff --staged --no-color --unified=3 -- " + fs_utils::escape_shell_arg(safe_path_);
 	std::string output = fs_utils::execute_command_sync(cmd);
 
 	if (output.empty()) {
 		set_success(ctx, "No staged changes");
-		return "No staged changes found for: " + safe_path_;
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_diff_staged_result", "No staged changes found for: " + safe_path_);
 	}
 
 	if (output.length() > 30000) {
@@ -29,7 +29,7 @@ std::string git_diff_staged_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx, "Diff retrieved");
-	return "```diff\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_diff_staged_result", "```diff\n" + output + "\n```");
 }
 
 } // namespace tools
