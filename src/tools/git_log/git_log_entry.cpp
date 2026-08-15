@@ -1,4 +1,4 @@
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "git_log.h"
 #include <format>
 
@@ -23,11 +23,15 @@ std::string git_log_tool::execute(agentlib::tool_context &ctx)
 
 	if (output.empty()) {
 		set_success(ctx, "No commits found");
-		return "Repository appears to have no commits.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_log_result", "Repository appears to have no commits.");
+	}
+
+	if (output.length() > 20000) {
+		output = output.substr(0, 20000) + "\n...[git log truncated due to length]...";
 	}
 
 	set_success(ctx, "Log retrieved");
-	return "```\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_log_result", "```\n" + output + "\n```");
 }
 
 } // namespace tools

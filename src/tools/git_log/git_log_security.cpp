@@ -1,4 +1,5 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
+#include <algorithm>
 #include "git_log.h"
 
 namespace tools
@@ -17,7 +18,7 @@ bool git_log_validator::validate_args_impl(const nlohmann::json& args, const age
 				out_error = "'limit' parameter must be greater than 0.";
 				return false;
 			}
-			args_.limit = limit;
+			args_.limit = std::min(limit, 1000);
 		}
 		return true;
 	} catch (const std::exception& e) {
