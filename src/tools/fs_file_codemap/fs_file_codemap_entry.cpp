@@ -1,5 +1,6 @@
 #include "fs_file_codemap.h"
 #include "codemap_utils.h"
+#include "fs_utils.h"
 
 #include <fstream>
 
@@ -69,20 +70,24 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 	// Check if this is a header file with a matching implementation file
 	std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
 	if (!matching_impl.empty()) {
-		auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, args_.min_lines);
-		if (!impl_symbols.empty()) {
-			size_t impl_total = impl_symbols.size();
-			size_t impl_omitted = 0;
-			if (args_.max_symbols > 0 && impl_symbols.size() > static_cast<size_t>(args_.max_symbols)) {
-				impl_omitted = impl_symbols.size() - args_.max_symbols;
-				impl_symbols.resize(args_.max_symbols);
+		std::string safe_impl;
+		std::string out_err;
+		if (ctx.fs_security.validate_access(matching_impl, agentlib::access_type::read, safe_impl, out_err) && fs_utils::is_regular_file(safe_impl)) {
+			auto impl_symbols = get_document_codemap_symbols(safe_impl, ctx, args_.min_lines);
+			if (!impl_symbols.empty()) {
+				size_t impl_total = impl_symbols.size();
+				size_t impl_omitted = 0;
+				if (args_.max_symbols > 0 && impl_symbols.size() > static_cast<size_t>(args_.max_symbols)) {
+					impl_omitted = impl_symbols.size() - args_.max_symbols;
+					impl_symbols.resize(args_.max_symbols);
+				}
+				std::filesystem::path ip(safe_impl);
+				table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true, 0, impl_total, impl_omitted, &ctx);
 			}
-			std::filesystem::path ip(matching_impl);
-			table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true, 0, impl_total, impl_omitted, &ctx);
 		}
 	}
 
-	return table;
+	return fs_utils::wrap_prompt_untrusted_data_tag("codemap_result", table);
 }
 
 } // namespace tools

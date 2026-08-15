@@ -68,17 +68,23 @@ protected:
 			full_arg = raw_json["full"].get<bool>();
 		}
 
-		int max_symbols_arg = 0;
+		int max_symbols_arg = 500;
 		if (raw_json.contains("max_symbols")) {
 			if (!raw_json["max_symbols"].is_number_integer()) {
 				out_error = "Invalid 'max_symbols' integer parameter.";
 				return false;
 			}
-			max_symbols_arg = std::max(0, raw_json["max_symbols"].get<int>());
+			int requested_max = raw_json["max_symbols"].get<int>();
+			max_symbols_arg = (requested_max <= 0) ? 500 : std::min(1000, requested_max);
+		}
+
+		std::string check_path = path_arg;
+		if (check_path.starts_with("file://")) {
+			check_path = check_path.substr(7);
 		}
 
 		std::string canonical_path;
-		if (!ctx.fs_security.validate_access(path_arg, agentlib::access_type::read, canonical_path, out_error)) {
+		if (!ctx.fs_security.validate_access(check_path, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
 		}
 
