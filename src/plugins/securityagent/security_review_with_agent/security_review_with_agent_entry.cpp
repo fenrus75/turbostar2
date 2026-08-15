@@ -44,7 +44,7 @@ You are executing in an automated, headless environment. Note the following comm
 - **Visible Channels**: The *only* outputs visible to the user are:
   1. The contents of the configured output file (if provided). You MUST write your findings to this file using the `fs_write_file` tool (or update/modify it using `fs_replace_content`). Merely outputting findings in your text response is NOT sufficient because the user cannot see it.
   2. Any items filed or updated via the `create_code_review_item` and `update_code_review_item` tools.
-  3. The final result string passed as arguments to the `agent_report_final_result` tool.
+  3. The final result string passed as arguments to the `report_final_result` tool.
 
 Ensure all critical security issues, descriptions, and recommended fixes are fully filed through these channels. Do not write text expecting user dialogue.
 
@@ -77,8 +77,8 @@ You are allowed to read any related files (such as headers, imports, or referenc
 
 # Concluding Your Review
 
-MANDATORY STEP: At the end of the code review task, you **must** use the `agent_report_final_result` tool to indicate your completion and report your final summary (including the total count of security issues identified).
-- Reminder: You MUST NOT ask the user any questions (e.g. asking if you should create formal code review items). Do NOT wait for user input, just complete the review, write your final findings to the output file using `fs_write_file`, and invoke the `agent_report_final_result` tool.)raw";
+MANDATORY STEP: At the end of the code review task, you **must** use the `report_final_result` tool to indicate your completion and report your final summary (including the total count of security issues identified).
+- Reminder: You MUST NOT ask the user any questions (e.g. asking if you should create formal code review items). Do NOT wait for user input, just complete the review, write your final findings to the output file using `fs_write_file`, and invoke the `report_final_result` tool.)raw";
 
 security_review_with_agent_tool::security_review_with_agent_tool(security_review_with_agent_args args)
     : agentlib::llm_tool_action("Performing security code review"), args_(std::move(args))

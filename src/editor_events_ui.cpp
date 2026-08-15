@@ -675,7 +675,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					verifier_agent->inject_context("system", system_prompt);
 					verifier_agent->inject_context(
 					    "system", "Instructions for subagent: When you have completed your verification, call the "
-						      "`agent_report_final_result` tool to report your final findings.");
+						      "`report_final_result` tool to report your final findings.");
 
 					std::string task_prompt =
 					    std::format("Please re-investigate and verify code review item #{} in file '{}' at line {}.\n"

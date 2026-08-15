@@ -18,6 +18,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 - if you are in the agent window, and go to the file menu, and hit <ESC>, the menu never goes away
+	- it's not actually that simple.. cannot reproduce easily
 
 - toolcall:// namespace that lets us nest toolcalls?
 

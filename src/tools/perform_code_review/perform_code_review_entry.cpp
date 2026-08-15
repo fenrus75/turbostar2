@@ -125,7 +125,7 @@ static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_age
 	verifier_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	verifier_agent->inject_context("system", system_prompt);
 	verifier_agent->inject_context("system", "Instructions for subagent: When you have completed your verification, call the "
-						 "`agent_report_final_result` tool to report your final findings.");
+						 "`report_final_result` tool to report your final findings.");
 
 	std::string task_prompt = "Perform review verification on the following files:\n";
 	for (const auto &f : args.files) {
@@ -344,7 +344,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 				"### Final Output Guidelines:\n"
 				"Once and only once you have created/updated all code review items for all identified issues using the tools:\n"
 				"1. Write a markdown summary of your findings to the designated report file if one is configured: `{}`.\n"
-				"2. Report your final results back to the parent agent using the `agent_report_final_result` tool.",
+				"2. Report your final results back to the parent agent using the `report_final_result` tool.",
 				files_list_str, reviews_section, args_.result_file);
 
 		reviewer_agent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
