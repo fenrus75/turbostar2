@@ -144,9 +144,9 @@ As time went by, C-Cube was restructured (and eventually devolved into [Harmonic
 
 ### Books
 
-- Miano, John M, "Compressed Image File Formats"; 1999, Addison-Wesley [ISBN](https://en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-201-60443-6](https://en.wikipedia.org/wiki/Special:BookSources/978-0-201-60443-6)
+- Miano, John M, "Compressed Image File Formats"; 1999, Addison-Wesley [ISBN](https://en.wikipedia.org/wiki/ISBN_%28identifier%29) [978-0-201-60443-6](https://en.wikipedia.org/wiki/Special:BookSources/978-0-201-60443-6)
 
-- Pennebaker, William B. and [Joan L. Mitchell](https://en.wikipedia.org/wiki/Joan_L._Mitchell): *JPEG still image data compression standard*; 3rd edition, 1993, Springer [ISBN](https://en.wikipedia.org/wiki/ISBN_(identifier)) [978-0-442-01272-4](https://en.wikipedia.org/wiki/Special:BookSources/978-0-442-01272-4)
+- Pennebaker, William B. and [Joan L. Mitchell](https://en.wikipedia.org/wiki/Joan_L._Mitchell): *JPEG still image data compression standard*; 3rd edition, 1993, Springer [ISBN](https://en.wikipedia.org/wiki/ISBN_%28identifier%29) [978-0-442-01272-4](https://en.wikipedia.org/wiki/Special:BookSources/978-0-442-01272-4)
 
 ### Standards
 

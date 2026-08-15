@@ -3,6 +3,8 @@
 #include <lexbor/dom/interfaces/element.h>
 #include <lexbor/dom/dom.h>
 #include "markdown_utils.h"
+#include "plugins/html/html_sanitize.h"
+#include "fs_utils.h"
 #include <fstream>
 #include <sstream>
 
@@ -12,33 +14,9 @@ namespace tools
 namespace
 {
 
-std::string trim(const std::string &s)
+void find_images(lxb_html_document_t * /*document*/, lxb_dom_node_t *node, std::vector<std::pair<std::string, std::string>> &images, int depth = 0)
 {
-	size_t start = s.find_first_not_of(" \t\r\n");
-	if (start == std::string::npos)
-		return "";
-	size_t end = s.find_last_not_of(" \t\r\n");
-	return s.substr(start, end - start + 1);
-}
-
-std::string sanitize_value(const std::string &raw)
-{
-	std::string result;
-	for (char c : raw) {
-		if (c == '|') {
-			result += "\\|";
-		} else if (c == '\n' || c == '\r' || c == '\t') {
-			result += " ";
-		} else {
-			result += c;
-		}
-	}
-	return trim(result);
-}
-
-void find_images(lxb_html_document_t * /*document*/, lxb_dom_node_t *node, std::vector<std::pair<std::string, std::string>> &images)
-{
-	if (!node)
+	if (!node || depth > 64 || images.size() >= 1000)
 		return;
 
 	if (lxb_dom_node_type(node) == LXB_DOM_NODE_TYPE_ELEMENT && lxb_dom_node_tag_id(node) == LXB_TAG_IMG) {
@@ -58,12 +36,19 @@ void find_images(lxb_html_document_t * /*document*/, lxb_dom_node_t *node, std::
 				alt = std::string(reinterpret_cast<const char *>(alt_val), alt_len);
 			}
 
-			images.push_back({sanitize_value(alt), sanitize_value(src)});
+			std::string safe_src;
+			if (src.starts_with("data:")) {
+				safe_src = "[data-uri-image-omitted]";
+			} else {
+				safe_src = html_sanitize::sanitize_link_url(src);
+			}
+
+			images.push_back({html_sanitize::sanitize_markdown_cell(alt), safe_src});
 		}
 	}
 
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		find_images(nullptr, child, images);
+		find_images(nullptr, child, images, depth + 1);
 	}
 }
 
@@ -81,6 +66,10 @@ bool html_list_images_tool::validate_runtime(const agentlib::tool_context & /*ct
 
 std::string html_list_images_tool::execute(agentlib::tool_context & /*ctx*/)
 {
+	if (!fs_utils::is_regular_file(args_.safe_path)) {
+		return "Error: Target path is not a regular file.";
+	}
+
 	std::ifstream ifs(args_.safe_path, std::ios::binary);
 	if (!ifs) {
 		return "Error: Unable to open file " + args_.requested_path;
@@ -118,13 +107,14 @@ std::string html_list_images_tool::execute(agentlib::tool_context & /*ctx*/)
 		return "No images found in the HTML file.";
 	}
 
-	std::string tbl = "### Images extracted from: " + args_.requested_path + "\n\n";
+	std::string tbl = "### Images extracted from: " + html_sanitize::sanitize_markdown_cell(args_.requested_path) + "\n\n";
 	tbl += "| Alt Text | Image URL |\n| --- | --- |\n";
 	for (const auto &img : images) {
 		tbl += "| " + (img.first.empty() ? "*(no alt text)*" : img.first) + " | " + img.second + " |\n";
 	}
 
-	return markdown_utils::align_all_tables(tbl, false);
+	std::string aligned = markdown_utils::align_all_tables(tbl, false);
+	return fs_utils::wrap_prompt_untrusted_data_tag("extracted_images", aligned);
 }
 
 } // namespace tools

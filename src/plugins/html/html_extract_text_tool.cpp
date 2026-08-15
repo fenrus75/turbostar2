@@ -1,4 +1,6 @@
 #include "plugins/html/html_extract_text_tool.h"
+#include "plugins/html/html_sanitize.h"
+#include "fs_utils.h"
 #include <lexbor/html/parser.h>
 #include <lexbor/dom/interfaces/element.h>
 #include <lexbor/dom/dom.h>
@@ -252,9 +254,9 @@ std::string extract_base_url(lxb_html_document_t *document)
 }
 
 void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string &out, bool rich, int &list_depth,
-	       std::vector<int> &list_counters, bool &in_main_content, const std::string &base_url, int &nav_container_depth)
+	       std::vector<int> &list_counters, bool &in_main_content, const std::string &base_url, int &nav_container_depth, int depth = 0)
 {
-	if (!node)
+	if (!node || depth > 64 || out.size() >= 32768)
 		return;
 
 	lxb_dom_node_type_t type = lxb_dom_node_type(node);
@@ -478,10 +480,14 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 			if (href.starts_with("//")) {
 				href = "https:" + href;
 			} else if (href.starts_with("/") && !base_url.empty()) {
-				href = base_url + href;
+				if (base_url.starts_with("http://") || base_url.starts_with("https://")) {
+					href = base_url + href;
+				}
 			}
 
-			out += "[" + link_text + "](" + href + ")";
+			std::string safe_url = html_sanitize::sanitize_link_url(href);
+			std::string safe_text = html_sanitize::sanitize_markdown_cell(link_text);
+			out += "[" + safe_text + "](" + safe_url + ")";
 			return;
 		}
 	}
@@ -499,7 +505,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 		out += "`";
 
 	for (lxb_dom_node_t *child = lxb_dom_node_first_child(node); child != nullptr; child = lxb_dom_node_next(child)) {
-		walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth);
+		walk_node(document, child, out, rich, list_depth, list_counters, in_main_content, base_url, nav_container_depth, depth + 1);
 	}
 
 	if (is_bold && rich)
@@ -524,6 +530,15 @@ bool html_extract_text_tool::validate_runtime(const agentlib::tool_context & /*c
 
 std::string html_extract_text_tool::execute(agentlib::tool_context & /*ctx*/)
 {
+	if (!fs_utils::is_regular_file(args_.safe_path)) {
+		return "Error: Target path is not a regular file.";
+	}
+	std::error_code ec;
+	auto sz = std::filesystem::file_size(args_.safe_path, ec);
+	if (ec || sz > 5 * 1024 * 1024) {
+		return "Error: Target file exceeds 5MB size limit.";
+	}
+
 	std::ifstream ifs(args_.safe_path, std::ios::binary);
 	if (!ifs) {
 		return "Error: Unable to open file " + args_.requested_path;
@@ -532,7 +547,8 @@ std::string html_extract_text_tool::execute(agentlib::tool_context & /*ctx*/)
 	std::string html_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 	ifs.close();
 
-	return html::convert_to_markdown(html_content, args_.rich);
+	std::string result = html::convert_to_markdown(html_content, args_.rich);
+	return fs_utils::wrap_prompt_untrusted_data_tag("extracted_text", result);
 }
 
 } // namespace tools

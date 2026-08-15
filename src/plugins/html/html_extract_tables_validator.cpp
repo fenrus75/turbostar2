@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include "agentlib/tool_registry.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -28,7 +29,11 @@ bool html_extract_tables_validator::validate_args_impl(const nlohmann::json &raw
 			return false;
 		}
 
-		// Enforce 5MB size limit
+		// Enforce 5MB size limit and regular file check
+		if (!fs_utils::is_regular_file(canonical_path)) {
+			out_error = "Target path is not a regular file.";
+			return false;
+		}
 		std::error_code ec;
 		auto sz = std::filesystem::file_size(canonical_path, ec);
 		if (ec) {

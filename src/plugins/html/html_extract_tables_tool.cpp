@@ -1,4 +1,6 @@
 #include "plugins/html/html_extract_tables_tool.h"
+#include "plugins/html/html_sanitize.h"
+#include "fs_utils.h"
 #include <lexbor/html/parser.h>
 #include <lexbor/dom/interfaces/element.h>
 #include <lexbor/dom/dom.h>
@@ -269,10 +271,11 @@ std::string html_extract_tables_tool::execute(agentlib::tool_context & /*ctx*/)
 		}
 		ofs << aligned_markdown;
 		ofs.close();
-		return "Successfully extracted " + std::to_string(tables_found) + " tables and wrote them to " + args_.output_path + ".";
+		std::string msg = "Successfully extracted " + std::to_string(tables_found) + " tables and wrote them to " + args_.output_path + ".";
+		return fs_utils::wrap_prompt_untrusted_data_tag("extracted_tables_summary", msg);
 	}
 
-	return aligned_markdown;
+	return fs_utils::wrap_prompt_untrusted_data_tag("extracted_tables", aligned_markdown);
 }
 
 } // namespace tools

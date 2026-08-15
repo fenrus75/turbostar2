@@ -30,13 +30,22 @@ void plugin_run(void)
 	register_html_list_images();
 	register_html_extract_text();
 	agentlib::filter_registry::get_instance().register_filter("html_to_markdown", [](const std::string &html_content) {
-		return html::convert_to_markdown(html_content, true);
+		if (html_content.size() > 5 * 1024 * 1024) return std::string("Error: HTML content exceeds 5MB limit.");
+		std::string res = html::convert_to_markdown(html_content, true);
+		if (res.size() > 32768) res = res.substr(0, 32768) + "\n... (truncated)";
+		return res;
 	}, {"web"});
 	agentlib::filter_registry::get_instance().register_filter("html_to_markdown_plain", [](const std::string &html_content) {
-		return html::convert_to_markdown(html_content, false);
+		if (html_content.size() > 5 * 1024 * 1024) return std::string("Error: HTML content exceeds 5MB limit.");
+		std::string res = html::convert_to_markdown(html_content, false);
+		if (res.size() > 32768) res = res.substr(0, 32768) + "\n... (truncated)";
+		return res;
 	}, {"web"});
 	agentlib::filter_registry::get_instance().register_filter("html_extract_tables", [](const std::string &html_content) {
-		return html::extract_tables(html_content);
+		if (html_content.size() > 5 * 1024 * 1024) return std::string("Error: HTML content exceeds 5MB limit.");
+		std::string res = html::extract_tables(html_content);
+		if (res.size() > 32768) res = res.substr(0, 32768) + "\n... (truncated)";
+		return res;
 	}, {"web"});
 	agentlib::tool_registry::get_instance().register_tool_family("html", "Activate when extracting data, tables, or info from HTML documents");
 }
