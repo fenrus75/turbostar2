@@ -1,4 +1,4 @@
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "git_unstage.h"
 
 namespace tools
@@ -18,7 +18,7 @@ std::string git_unstage_tool::execute(agentlib::tool_context &ctx)
 {
 	if (safe_paths_.empty()) {
 		set_failure(ctx, "No paths provided");
-		return "Failed: No paths provided to git_unstage.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_unstage_result", "Failed: No paths provided to git_unstage.");
 	}
 
 	std::string cmd = "git restore --staged -- ";
@@ -28,10 +28,14 @@ std::string git_unstage_tool::execute(agentlib::tool_context &ctx)
 
 	std::string output = fs_utils::execute_command_sync(cmd);
 
-	if (output.empty() || (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos)) {
+	bool has_error = (output.find("fatal:") != std::string::npos || output.find("error:") != std::string::npos ||
+			  (output.find("Process exited with code") != std::string::npos && output.find("Process exited with code 0") == std::string::npos));
+
+	if (!has_error) {
 		set_success(ctx, "Files unstaged");
-		return "Successfully unstaged " + std::to_string(safe_paths_.size()) + " path(s).\n" +
-		       (output.empty() ? "" : "```\n" + output + "\n```");
+		std::string msg = "Successfully unstaged " + std::to_string(safe_paths_.size()) + " path(s).\n" +
+				  (output.empty() ? "" : "```\n" + output + "\n```");
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_unstage_result", msg);
 	}
 
 	// Fallback for older git versions that don't support restore
@@ -42,15 +46,19 @@ std::string git_unstage_tool::execute(agentlib::tool_context &ctx)
 		}
 		output = fs_utils::execute_command_sync(cmd);
 
-		if (output.empty() || (output.find("fatal:") == std::string::npos && output.find("error:") == std::string::npos)) {
-			set_success(ctx, "Files unstaged (fallback)");
-			return "Successfully unstaged " + std::to_string(safe_paths_.size()) + " path(s) using fallback command.\n" +
-			       (output.empty() ? "" : "```\n" + output + "\n```");
+		bool fallback_error = (output.find("fatal:") != std::string::npos || output.find("error:") != std::string::npos ||
+				       (output.find("Process exited with code") != std::string::npos && output.find("Process exited with code 0") == std::string::npos));
+
+		if (!fallback_error) {
+			set_success(ctx, "Files unstaged");
+			std::string msg = "Successfully unstaged " + std::to_string(safe_paths_.size()) + " path(s).\n" +
+					  (output.empty() ? "" : "```\n" + output + "\n```");
+			return fs_utils::wrap_prompt_untrusted_data_tag("git_unstage_result", msg);
 		}
 	}
 
 	set_failure(ctx, "Git unstage failed");
-	return "Failed to unstage files:\n```\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_unstage_result", "Failed to unstage files:\n```\n" + output + "\n```");
 }
 
 } // namespace tools

@@ -1,4 +1,4 @@
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "git_branch_create.h"
 
 namespace tools
@@ -18,14 +18,16 @@ std::string git_branch_create_tool::execute(agentlib::tool_context &ctx)
 {
 	std::string output = fs_utils::execute_command_sync("git branch {}", branch_name_);
 
-	// git branch outputs nothing on success
-	if (output.empty() || output.find("fatal:") == std::string::npos) {
+	bool has_error = (output.find("fatal:") != std::string::npos || output.find("error:") != std::string::npos ||
+			  (output.find("Process exited with code") != std::string::npos && output.find("Process exited with code 0") == std::string::npos));
+
+	if (!has_error) {
 		set_success(ctx, "Branch created");
-		return "Successfully created branch: `" + branch_name_ + "`";
+		return fs_utils::wrap_prompt_untrusted_data_tag("git_branch_create_result", "Successfully created branch: `" + branch_name_ + "`");
 	}
 
 	set_failure(ctx, "Failed to create branch");
-	return "Failed to create branch:\n```\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("git_branch_create_result", "Failed to create branch:\n```\n" + output + "\n```");
 }
 
 } // namespace tools

@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "git_unstage.h"
 
 namespace tools
@@ -25,11 +25,18 @@ bool git_unstage_validator::validate_args_impl(const nlohmann::json &args, const
 		}
 
 		std::string raw_path = path_val.get<std::string>();
+		if (raw_path.find("://") != std::string::npos) {
+			out_error = "Validation Error: git_unstage cannot operate on virtual VFS paths ('" + raw_path + "').";
+			return false;
+		}
+		if (raw_path.find(".git") != std::string::npos) {
+			out_error = "Security Violation: Cannot unstage paths inside .git directory.";
+			return false;
+		}
+
 		std::string resolved_path;
 
 		// Stage 1 Security: Validate against the file_security_manager.
-		// We require read permission since this modifies index metadata, but not the working tree file contents themselves (unlike
-		// git_restore).
 		if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::read, resolved_path, out_error)) {
 			out_error = "Access denied for path '" + raw_path + "': " + out_error;
 			return false;
