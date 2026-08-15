@@ -1,6 +1,7 @@
 #include "resolve_code_review_item.h"
-#include "../../agentlib/ai_agent.h"
-#include "../../codereview_manager.h"
+#include "agentlib/ai_agent.h"
+#include "codereview_manager.h"
+#include "fs_utils.h"
 #include <format>
 #include <nlohmann/json.hpp>
 
@@ -27,14 +28,12 @@ std::string resolve_code_review_item_tool::execute(agentlib::tool_context& ctx)
 	if (!success) {
 		std::string err_msg = std::format("Error: Code review item with ID {} not found or has invalid state for resolution.", args_.id);
 		set_failure(ctx, err_msg);
-		// Prefix with "Error: " so the agent run-loop classifies this as a failed tool result
-		// (is_error heuristic in ai_agent.cpp).
 		nlohmann::json err_json = {
 			{"id", args_.id},
 			{"status", "error"},
 			{"message", err_msg}
 		};
-		return "Error: " + err_json.dump(2);
+		return fs_utils::wrap_prompt_untrusted_data_tag("resolve_code_review_item_result", "Error: " + err_json.dump(2));
 	}
 
 	// 2. Broadcast the codereview_updated event to the global event queue.
@@ -44,7 +43,7 @@ std::string resolve_code_review_item_tool::execute(agentlib::tool_context& ctx)
 	if (ctx.queue) {
 		editor_event ev;
 		ev.type = event_type::codereview_updated;
-		ev.key_code = args_.id;
+		ev.payload = std::to_string(args_.id);
 		ctx.queue->push(ev);
 	}
 
@@ -54,7 +53,7 @@ std::string resolve_code_review_item_tool::execute(agentlib::tool_context& ctx)
 		{"id", args_.id},
 		{"status", "resolved"}
 	};
-	return response_json.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("resolve_code_review_item_result", response_json.dump(2));
 }
 
 } // namespace tools

@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
 #include <optional>
-#include "../../agentlib/llm_tool_action.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/llm_tool_action.h"
+#include "agentlib/tool_validator.h"
 
 namespace tools {
 
@@ -24,6 +24,7 @@ private:
 
 class resolve_code_review_item_validator : public agentlib::tool_validator {
 public:
+	// Pure Domain 3 (Editor Internal Metadata): Resolves internal code review items in editor state.
 	bool is_pure() const override { return true; }
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "resolve_code_review_item"; }

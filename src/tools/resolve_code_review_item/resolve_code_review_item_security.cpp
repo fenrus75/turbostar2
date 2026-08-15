@@ -1,4 +1,4 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "resolve_code_review_item.h"
 
 namespace tools {
@@ -30,6 +30,18 @@ bool resolve_code_review_item_validator::validate_args_impl(
 		if (parsed.commit_hash.empty()) {
 			out_error = "Commit hash must not be empty.";
 			return false;
+		}
+
+		if (parsed.commit_hash.length() < 7 || parsed.commit_hash.length() > 40) {
+			out_error = "Validation Error: commit_hash must be between 7 and 40 hexadecimal characters.";
+			return false;
+		}
+
+		for (char c : parsed.commit_hash) {
+			if (!std::isxdigit(static_cast<unsigned char>(c))) {
+				out_error = "Validation Error: commit_hash contains non-hexadecimal characters.";
+				return false;
+			}
 		}
 
 		args_.id = parsed.id;
