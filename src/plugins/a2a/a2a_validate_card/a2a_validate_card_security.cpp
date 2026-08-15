@@ -35,6 +35,11 @@ bool a2a_validate_card_validator::validate_args_impl(const nlohmann::json &raw_j
 			args_.safe_path.clear();
 		}
 
+		if (parsed.card_data.length() > 1048576) {
+			out_error = "card_data exceeds maximum size limit of 1MB (1048576 bytes).";
+			return false;
+		}
+
 		args_.card_data = parsed.card_data;
 		return true;
 	} catch (const std::exception &e) {

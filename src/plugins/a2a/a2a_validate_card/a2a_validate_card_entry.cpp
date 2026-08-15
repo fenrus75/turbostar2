@@ -1,4 +1,5 @@
 #include "a2a_validate_card.h"
+#include "fs_utils.h"
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -17,6 +18,17 @@ bool a2a_validate_card_tool::validate_runtime(const agentlib::tool_context & /*c
 	return true;
 }
 
+static std::string sanitize_card_str(const std::string &untrusted_str)
+{
+	std::string clean;
+	clean.reserve(untrusted_str.size());
+	for (unsigned char c : untrusted_str) {
+		if (c < 32 || c == 127) continue;
+		clean.push_back(static_cast<char>(c));
+	}
+	return clean;
+}
+
 std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 {
 	std::string json_str = args_.card_data;
@@ -27,7 +39,12 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 			if (vfs) {
 				auto view_opt = vfs->read_file(args_.safe_path);
 				if (view_opt) {
-					json_str = std::string(view_opt.value()->view());
+					std::string_view v = view_opt.value()->view();
+					if (v.size() > 1048576) {
+						set_failure(ctx, "File exceeds maximum size limit of 1MB");
+						return "Error: Card file exceeds maximum size limit of 1MB.";
+					}
+					json_str = std::string(v);
 				} else {
 					set_failure(ctx, "Virtual file not found");
 					return "Error: Virtual file not found or empty: " + args_.requested_path;
@@ -37,11 +54,21 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 				return "Error: VFS not available to read virtual path.";
 			}
 		} else {
-			std::ifstream f(args_.safe_path);
+			if (!fs_utils::is_regular_file(args_.safe_path)) {
+				set_failure(ctx, "Not a regular file");
+				return "Error: Target is not a regular file: " + args_.requested_path;
+			}
+			std::ifstream f(args_.safe_path, std::ios::binary | std::ios::ate);
 			if (!f.is_open()) {
 				set_failure(ctx, "Could not open file");
 				return "Error: Could not open file for reading: " + args_.requested_path;
 			}
+			auto sz = f.tellg();
+			if (sz > 1048576) {
+				set_failure(ctx, "File exceeds maximum size limit of 1MB");
+				return "Error: Card file exceeds maximum size limit of 1MB.";
+			}
+			f.seekg(0, std::ios::beg);
 			json_str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 		}
 	}
@@ -56,12 +83,14 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 		card = nlohmann::json::parse(json_str);
 	} catch (const std::exception &e) {
 		set_failure(ctx, "Invalid JSON syntax");
-		return std::format("### A2A Agent Card Validation Report\n\n- **Status**: ❌ INVALID\n- **Error**: JSON Syntax Error: {}\n", e.what());
+		std::string err_rep = std::format("### A2A Agent Card Validation Report\n\n- **Status**: ❌ INVALID\n- **Error**: JSON Syntax Error: {}\n", e.what());
+		return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_validation_report", err_rep);
 	}
 
 	if (!card.is_object()) {
 		set_failure(ctx, "Card root must be a JSON object");
-		return "### A2A Agent Card Validation Report\n\n- **Status**: ❌ INVALID\n- **Error**: Root JSON entity must be an object.\n";
+		std::string err_rep = "### A2A Agent Card Validation Report\n\n- **Status**: ❌ INVALID\n- **Error**: Root JSON entity must be an object.\n";
+		return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_validation_report", err_rep);
 	}
 
 	std::vector<std::string> errors;
@@ -113,13 +142,13 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 		for (const auto &err : errors) {
 			out += std::format("  - {}\n", err);
 		}
-		return out;
+		return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_validation_report", out);
 	}
 
 	set_success(ctx, "Card validation succeeded");
-	std::string agent_name = card.value("name", "unnamed");
-	std::string agent_desc = card.value("description", "");
-	std::string agent_ver = card.value("version", "1.0.0");
+	std::string agent_name = sanitize_card_str(card.value("name", "unnamed"));
+	std::string agent_desc = sanitize_card_str(card.value("description", ""));
+	std::string agent_ver = sanitize_card_str(card.value("version", "1.0.0"));
 
 	std::string report = std::format(
 	    "### A2A Agent Card Validation Report\n\n"
@@ -135,7 +164,7 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 		for (const auto &s : card["skills"]) {
 			if (s.is_string()) {
 				if (!first) report += ", ";
-				report += "`" + s.get<std::string>() + "`";
+				report += "`" + sanitize_card_str(s.get<std::string>()) + "`";
 				first = false;
 			}
 		}
@@ -156,7 +185,7 @@ std::string a2a_validate_card_tool::execute(agentlib::tool_context &ctx)
 		report += std::format("- **Output Schema**: Valid JSON Schema ({} properties)\n", prop_count);
 	}
 
-	return report;
+	return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_validation_report", report);
 }
 
 } // namespace tools
