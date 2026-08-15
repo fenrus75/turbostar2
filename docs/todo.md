@@ -24,9 +24,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `fs_replace_lines` dry-run verification: perform dry-run verification against `original_text` for all batch edits in `fs_replace_lines` before applying any mutations. If any line check fails after accounting for previous edits, reject the batch cleanly to prevent partial line-drift edits.
 
-- `fs_replace_symbol` / AST-scoped code edits: add a symbol or scope-based edit tool (or parameter) that targets a named method or class scope (e.g. `Class::method`) and applies replacements relative to the function boundaries, preventing global file line shifts from affecting edits.
-
-- Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Bounded Line-Range Windowing: Upgrade Turbostar's file editing tools to support non-contiguous multi-chunk edits in a single tool invocation (similar to Antigravity's `multi_replace_file_content`). Add `start_line` and `end_line` search boundaries to `fs_replace_content` to prevent ambiguous string matches elsewhere in large files, and enforce atomic transactional rollbacks if any chunk in a batch fails to match or breaks syntax.
+- Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Scope-Bounded Windowing: Upgrade Turbostar's file editing tools to support non-contiguous multi-chunk edits in a single tool invocation (similar to Antigravity's `multi_replace_file_content`). Support three levels of search windowing per chunk:
+  1. **Dynamic AST/LSP Scope Resolution (`function_scope`)**: Look up `function_scope` ("`MyClass::my_function`" or "`validate_args_impl`") via `codemap_utils` / LSP to automatically resolve `[start_line, end_line]` function bounds on-the-fly. This makes edits immune to line-drift caused by prior edits higher in the file!
+  2. **Explicit Line Bounds (`start_line`, `end_line`)**: Allow explicit 1-based line range numbers for raw/non-function edits.
+  3. **Atomic Transactional Rollback**: If any chunk in a batch fails to match or breaks syntax/brace-balance, roll back all chunks in the file edit cleanly.
 
 - we need to allow for plugin settings somehow, to ask for API keys and such
 	- maybe just allow string <-> string settings (so a std::map basically)
