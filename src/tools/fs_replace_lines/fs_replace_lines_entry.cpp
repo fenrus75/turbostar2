@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include "../../agentlib/file_health_utils.h"
-#include "../../agentlib/interactions/base.h"
+#include "../../fs_utils.h"
 #include "../../project_manager.h"
 #include "../../utf8.h"
 #include "fs_replace_lines.h"
@@ -380,7 +380,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 						matches = false;
 						break;
 					}
-				} else if (actual_trimmed.find(expected_trimmed) != 0) {
+				} else if (actual_trimmed != expected_trimmed) {
 					matches = false;
 					break;
 				}
@@ -486,29 +486,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 
 std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string result_msg;
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-		// Create a JSON payload of the edits to send to the UI thread
-		nlohmann::json edits_json = nlohmann::json::array();
-		for (const auto &edit : args_.edits) {
-			nlohmann::json edit_json;
-			edit_json["line_number"] = edit.line_number;
-			edit_json["type"] = edit.type;
-			edit_json["original_text"] = edit.original_text;
-			edit_json["replace_with"] = edit.replace_with;
-			edits_json.push_back(edit_json);
-		}
-
-		// Note: For live edits in the UI, diffing is harder to synchronously capture
-		// since the doc_provider applies it asynchronously. For now, we only
-		// compute the rich diff in the disk fallback mode, or we can fetch the file contents here if needed.
-		// Let's fallback to disk if we want the diff. Actually, doc_provider->apply_live_edits could be synchronous, but reading
-		// before/after is safer via disk fallback for the agent's view. For the sake of this feature, we will execute the disk
-		// fallback first to compute the diff and then still apply the live edit if open.
-	}
-
-	// We always compute the diff via the disk logic so the agent UI sees what happened
-	result_msg = execute_disk_fallback(ctx);
+	std::string result_msg = execute_disk_fallback(ctx);
 
 	// Update the file drift tracker if we applied edits successfully
 	if (result_msg.find("Successfully applied") == 0) {
@@ -542,20 +520,29 @@ std::string fs_replace_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	return result_msg;
+	return fs_utils::wrap_prompt_untrusted_data_tag("replaced_lines_summary", result_msg);
 }
 
 std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context &ctx)
 {
 	std::string path_to_use = args_.safe_path;
+	if (path_to_use.find("file://") == 0) {
+		path_to_use = path_to_use.substr(7);
+	}
 	auto* vfs = ctx.fs_security.get_vfs();
-	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
-		path_to_use = vfs->get_local_path(args_.safe_path);
+	if (vfs && vfs->is_local_path_available(path_to_use)) {
+		path_to_use = vfs->get_local_path(path_to_use);
+	}
+
+	std::string check_err;
+	std::string rechecked_path;
+	if (!ctx.fs_security.validate_access(path_to_use, agentlib::access_type::write, rechecked_path, check_err)) {
+		return "Error: Security validation failed prior to write: " + check_err;
 	}
 
 	std::vector<std::string> lines;
 
-	// 1. Read file into memory (we know it's valid from validate_runtime)
+	// 1. Read file into memory
 	std::ifstream in(path_to_use);
 	if (!in.is_open()) {
 		return "Error: Could not open file for reading during execution.";
@@ -572,33 +559,40 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 
 	std::vector<std::string> before_lines = lines;
 
-	// 2. Apply edits (Guaranteed descending order and verified by validator)
+	// 2. Apply edits with explicit bounds checks
 	for (const auto &edit : args_.edits) {
-	        int idx = edit.line_number - 1;
+		int idx = edit.line_number - 1;
+		if (idx < 0 || idx > static_cast<int>(lines.size())) {
+			return "Error: Edit line number " + std::to_string(edit.line_number) + " is out of bounds during execution.";
+		}
 
-	        if (edit.type == "remove") {
-	                lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
-	        } else if (edit.type == "add") {
-	                // Split newstring by newlines to support multiline insertions
-	                std::vector<std::string> new_parts;
-	                if (edit.replace_with.empty()) {
-	                        new_parts.push_back("");
-	                } else {
-	                        std::stringstream ss(edit.replace_with);
-	                        std::string part;
-	                        while (std::getline(ss, part)) {
-	                                if (!part.empty() && part.back() == '\r')
-	                                        part.pop_back();
-	                                new_parts.push_back(part);
-	                        }
-	                }
-	                lines.insert(lines.begin() + idx, new_parts.begin(), new_parts.end());
+		if (edit.type == "remove") {
+			if (idx + edit.lines_to_remove > static_cast<int>(lines.size())) {
+				return "Error: Remove edit range exceeds line count during execution.";
+			}
+			lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
+		} else if (edit.type == "add") {
+			std::vector<std::string> new_parts;
+			if (edit.replace_with.empty()) {
+				new_parts.push_back("");
+			} else {
+				std::stringstream ss(edit.replace_with);
+				std::string part;
+				while (std::getline(ss, part)) {
+					if (!part.empty() && part.back() == '\r')
+						part.pop_back();
+					new_parts.push_back(part);
+				}
+			}
+			lines.insert(lines.begin() + idx, new_parts.begin(), new_parts.end());
+		} else if (edit.type == "replace") {
+			if (idx + edit.lines_to_remove > static_cast<int>(lines.size())) {
+				return "Error: Replace edit range exceeds line count during execution.";
+			}
+			lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
 
-	        } else if (edit.type == "replace") {
-	                // Replace the current line with the new lines
-	                lines.erase(lines.begin() + idx, lines.begin() + idx + edit.lines_to_remove);
-
-	                std::vector<std::string> new_parts;			if (edit.replace_with.empty()) {
+			std::vector<std::string> new_parts;
+			if (edit.replace_with.empty()) {
 				new_parts.push_back("");
 			} else {
 				std::stringstream ss(edit.replace_with);

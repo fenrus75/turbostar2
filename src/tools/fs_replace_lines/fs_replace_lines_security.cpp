@@ -100,8 +100,13 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 		}
 
 		// Perform the file security manager check (access_type::write)
+		std::string real_check_path = raw_path;
+		if (real_check_path.find("file://") == 0) {
+			real_check_path = real_check_path.substr(7);
+		}
+
 		std::string canonical_path;
-		if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::write, canonical_path, out_error)) {
+		if (!ctx.fs_security.validate_access(real_check_path, agentlib::access_type::write, canonical_path, out_error)) {
 			return false;
 		}
 
