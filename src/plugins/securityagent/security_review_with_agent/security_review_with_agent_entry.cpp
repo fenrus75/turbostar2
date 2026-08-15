@@ -101,7 +101,29 @@ bool security_review_with_agent_tool::validate_runtime(const agentlib::tool_cont
 std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx)
 {
 	if (!ctx.active_agent) {
-		return "Error: No active agent context available.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: No active agent context available.");
+	}
+
+	// Defense-in-depth: Re-validate files read access at execute time
+	std::vector<std::string> resolved_files;
+	for (const auto &file_path : args_.files) {
+		std::string resolved_path;
+		std::string err;
+		if (!ctx.fs_security.validate_access(file_path, agentlib::access_type::read, resolved_path, err)) {
+			set_failure(ctx, err);
+			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: Access denied for file '" + file_path + "': " + err);
+		}
+		resolved_files.push_back(resolved_path);
+	}
+
+	// Defense-in-depth: Re-validate output_path write access at execute time
+	std::string resolved_output_path;
+	if (!args_.output_path.empty()) {
+		std::string err;
+		if (!ctx.fs_security.validate_access(args_.output_path, agentlib::access_type::write, resolved_output_path, err)) {
+			set_failure(ctx, err);
+			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: Access denied for output path '" + args_.output_path + "': " + err);
+		}
 	}
 
 	auto parent = ctx.active_agent->shared_from_this();
@@ -119,7 +141,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	// 2. Spawn subagent
 	auto subagent = parent->spawn_subagent("Security Reviewer");
 	if (!subagent) {
-		return "Error: Failed to create security reviewer agent.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: Failed to create security reviewer agent.");
 	}
 
 	subagent->set_role(agentlib::agent_role::reviewer);
@@ -128,8 +150,8 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	subagent->set_exit_implicitly_on_idle(true);
 	subagent->set_notify_parent_on_completion(false);
 
-	if (!args_.output_path.empty()) {
-		subagent->set_allowed_write_file(args_.output_path);
+	if (!resolved_output_path.empty()) {
+		subagent->set_allowed_write_file(resolved_output_path);
 	}
 
 	// 3. Equip with securityagent and code_review tool families
@@ -138,7 +160,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 
 	// 4. Construct reporting instructions
 	std::string reporting_instr;
-	if (!args_.output_path.empty()) {
+	if (!resolved_output_path.empty()) {
 		reporting_instr = std::format(
 		    "**After each phase**, you MUST write/append your findings to the configured output file `{}` using the `fs_write_file` tool "
 		    "(or update it using the `fs_replace_content` tool).\n"
@@ -146,7 +168,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 		    "to actually write the findings to the file `{}`. If the file does not exist yet, create it with your initial findings. "
 		    "Avoid reporting issues already identified in earlier phases as duplicates. If a previously "
 		    "flagged issue is encountered in a later phase, update the existing entry in the file with any new details or findings.",
-		    args_.output_path, args_.output_path);
+		    resolved_output_path, resolved_output_path);
 	} else {
 		reporting_instr = "**After each phase**, use the `create_code_review_item` tool to report any items found in this phase.";
 	}
@@ -154,38 +176,40 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 	// 5. Construct files to review list
 	std::string files_list_str;
 	std::string files_comma_str;
-	for (size_t i = 0; i < args_.files.size(); ++i) {
-		files_list_str += std::format("- {}\n", args_.files[i]);
+	for (size_t i = 0; i < resolved_files.size(); ++i) {
+		files_list_str += std::format("- {}\n", resolved_files[i]);
 		if (i > 0) {
 			files_comma_str += ", ";
 		}
-		files_comma_str += args_.files[i];
+		files_comma_str += resolved_files[i];
 	}
 
-	// 6. Construct extra instructions. If the caller omitted instructions, we default to
-	// directing the agent to review the target files and save the output in the configured
-	// result file (if any). This provides a fallback prompt that outlines its clear objective.
+	// 6. Construct extra instructions
 	std::string extra_instr = args_.instructions;
 	if (extra_instr.empty()) {
-		if (!args_.output_path.empty()) {
-			extra_instr = std::format("Review {} for security and place the result in `{}`.", files_comma_str, args_.output_path);
+		if (!resolved_output_path.empty()) {
+			extra_instr = std::format("Review {} for security and place the result in `{}`.", files_comma_str, resolved_output_path);
 		} else {
 			extra_instr = std::format("Review {} for security.", files_comma_str);
 		}
 	}
 
+	// Frame untrusted data explicitly with XML tags
+	std::string framed_files_list = fs_utils::wrap_prompt_untrusted_data_tag("files_to_review", files_list_str);
+	std::string framed_extra_instr = fs_utils::wrap_prompt_untrusted_data_tag("extra_instructions", extra_instr);
+
 	// 7. Inject template variables into system prompt
 	std::string system_prompt = SECURITY_SCAN_PROMPT_TEMPLATE;
 	system_prompt = replace_placeholder(system_prompt, "{{REPORTING_INSTRUCTIONS}}", reporting_instr);
-	system_prompt = replace_placeholder(system_prompt, "{{FILES_TO_REVIEW}}", files_list_str);
-	system_prompt = replace_placeholder(system_prompt, "{{EXTRA_INSTRUCTIONS}}", extra_instr);
+	system_prompt = replace_placeholder(system_prompt, "{{FILES_TO_REVIEW}}", framed_files_list);
+	system_prompt = replace_placeholder(system_prompt, "{{EXTRA_INSTRUCTIONS}}", framed_extra_instr);
 
 	// 8. Inject prompts
 	subagent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	subagent->inject_context("system", system_prompt);
 
-	std::string task_prompt = std::format("Please perform a security code review on the following files:\n{}", files_list_str);
-	task_prompt += std::format("\nSpecific focus / instructions:\n{}", extra_instr);
+	std::string task_prompt = std::format("Please perform a security code review on the following files:\n{}", framed_files_list);
+	task_prompt += std::format("\nSpecific focus / instructions:\n{}", framed_extra_instr);
 	subagent->submit_prompt(task_prompt);
 
 	// 9. Synchronously wait for the subagent to finish
@@ -196,23 +220,28 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 
 	set_success(ctx);
 
+	std::string final_output;
 	if (subagent->get_status() == agentlib::agent_status::error) {
-		return std::format("Security Reviewer Agent '{}' encountered an error during execution.", subagent->get_name());
-	}
-
-	if (subagent->has_final_result()) {
-		return subagent->get_final_result();
-	}
-
-	const auto &interactions = subagent->get_interactions();
-	for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
-		auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
-		if (res) {
-			return res->get_text();
+		final_output = std::format("Security Reviewer Agent '{}' encountered an error during execution.", subagent->get_name());
+	} else if (subagent->has_final_result()) {
+		final_output = subagent->get_final_result();
+	} else {
+		const auto &interactions = subagent->get_interactions();
+		bool found = false;
+		for (auto it = interactions.rbegin(); it != interactions.rend(); ++it) {
+			auto res = std::dynamic_pointer_cast<agentlib::interaction_llm_response>(*it);
+			if (res) {
+				final_output = res->get_text();
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			final_output = std::format("Security Reviewer Agent '{}' completed successfully, but no final response was found.", subagent->get_name());
 		}
 	}
 
-	return std::format("Security Reviewer Agent '{}' completed successfully, but no final response was found.", subagent->get_name());
+	return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", final_output);
 }
 
 } // namespace tools
