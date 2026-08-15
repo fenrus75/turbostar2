@@ -281,11 +281,16 @@ static std::string resolve_file_path(const std::string &input_path, const agentl
 		std::error_code ec;
 		std::filesystem::path p(cand);
 		std::filesystem::path norm_p = p.lexically_normal();
+		std::string safe_path, err;
 		if (std::filesystem::exists(norm_p, ec) && !std::filesystem::is_directory(norm_p, ec)) {
-			return norm_p.string();
+			if (ctx.fs_security.validate_access(norm_p.string(), agentlib::access_type::read, safe_path, err)) {
+				return safe_path;
+			}
 		}
 		if (std::filesystem::exists(cand, ec) && !std::filesystem::is_directory(cand, ec)) {
-			return cand;
+			if (ctx.fs_security.validate_access(cand, agentlib::access_type::read, safe_path, err)) {
+				return safe_path;
+			}
 		}
 	}
 
@@ -296,7 +301,10 @@ static std::string resolve_file_path(const std::string &input_path, const agentl
 		for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_root, ec)) {
 			if (ec) break;
 			if (entry.is_regular_file() && entry.path().filename().string() == target_fname) {
-				return entry.path().string();
+				std::string safe_path, err;
+				if (ctx.fs_security.validate_access(entry.path().string(), agentlib::access_type::read, safe_path, err)) {
+					return safe_path;
+				}
 			}
 		}
 	}
@@ -465,6 +473,12 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 					entry["file_path"] = rel_file_path;
 				}
 				line_samples.push_back(entry);
+				if (line_samples.size() >= 200) {
+					break;
+				}
+			}
+			if (line_samples.size() >= 200) {
+				break;
 			}
 		}
 	}
@@ -487,7 +501,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 	};
 
 	set_success(ctx, "Retrieved profile details (" + std::to_string(line_samples.size()) + " line entries)");
-	return output.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_profile_details_result", output.dump(2));
 }
 
 } // namespace tools

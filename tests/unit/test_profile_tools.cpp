@@ -9,6 +9,18 @@
 using namespace agentlib;
 using namespace turbostar;
 
+static nlohmann::json parse_tool_json(std::string result)
+{
+	if (result.starts_with("<agent_profile_details_result>")) {
+		result = result.substr(std::string("<agent_profile_details_result>").length());
+		size_t end_pos = result.rfind("</agent_profile_details_result>");
+		if (end_pos != std::string::npos) {
+			result = result.substr(0, end_pos);
+		}
+	}
+	return nlohmann::json::parse(result);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -58,6 +70,13 @@ int main()
 		assert(prep.error_message.empty());
 
 		std::string result = prep.tool->execute(ctx);
+		if (result.starts_with("<agent_profile_details_result>")) {
+			result = result.substr(std::string("<agent_profile_details_result>").length());
+			size_t end_pos = result.rfind("</agent_profile_details_result>");
+			if (end_pos != std::string::npos) {
+				result = result.substr(0, end_pos);
+			}
+		}
 		auto res_json = nlohmann::json::parse(result);
 		assert(res_json["total_samples"] == 1000);
 		assert(res_json["target_samples"] == 600);
@@ -82,6 +101,13 @@ int main()
 		assert(prep.error_message.empty());
 
 		std::string result = prep.tool->execute(ctx);
+		if (result.starts_with("<agent_profile_details_result>")) {
+			result = result.substr(std::string("<agent_profile_details_result>").length());
+			size_t end_pos = result.rfind("</agent_profile_details_result>");
+			if (end_pos != std::string::npos) {
+				result = result.substr(0, end_pos);
+			}
+		}
 		auto res_json = nlohmann::json::parse(result);
 		assert(res_json["total_samples"] == 1000);
 		assert(res_json["target_samples"] == 600);
@@ -102,7 +128,7 @@ int main()
 		assert(prep.error_message.empty());
 
 		std::string result = prep.tool->execute(ctx);
-		auto res_json = nlohmann::json::parse(result);
+		auto res_json = parse_tool_json(result);
 		assert(res_json["target_samples"] == 200);
 		assert(!res_json["line_samples"].empty());
 		std::cout << "agent_get_profile_details (mismatched signature filter) verified successfully!" << std::endl;
@@ -115,7 +141,7 @@ int main()
 		assert(prep.error_message.empty());
 
 		std::string result = prep.tool->execute(ctx);
-		auto res_json = nlohmann::json::parse(result);
+		auto res_json = parse_tool_json(result);
 		assert(!res_json["line_samples"].empty());
 		std::cout << "agent_get_profile_details (all) verified successfully!" << std::endl;
 	}
