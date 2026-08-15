@@ -11,10 +11,6 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
             return false;
         }
         std::string raw_path = raw_args["path"].get<std::string>();
-        if (raw_path.find("..") != std::string::npos) {
-            out_error = "Path cannot contain '..' directory traversal.";
-            return false;
-        }
 
         if (!raw_args.contains("target_content") || !raw_args["target_content"].is_string()) {
             out_error = "Missing or invalid 'target_content' parameter.";
@@ -58,9 +54,14 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
             }
         }
 
+        std::string check_path = raw_path;
+        if (check_path.starts_with("file://")) {
+            check_path = check_path.substr(7);
+        }
+
         // Perform file security manager check (write access)
         std::string canonical_path;
-        if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::write, canonical_path, out_error)) {
+        if (!ctx.fs_security.validate_access(check_path, agentlib::access_type::write, canonical_path, out_error)) {
             return false;
         }
 

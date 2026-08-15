@@ -100,13 +100,12 @@ int main()
 			assert(read_file() == "target block\nline 2\nsubstituted\nline 4\n");
 		}
 
-		// 6. Security check: reject ".." directory traversal
+		// 6. Security check: reject directory traversal
 		{
 			std::string args = "{\"path\": \"../tmp/escaped.txt\", \"target_content\": \"foo\", \"replacement_content\": \"bar\"}";
 			auto prep = registry.prepare_tool("fs_replace_content", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
-			assert(prep.error_message.find("cannot contain '..' directory traversal") != std::string::npos);
 		}
 
 		// 7. VFS Success case: replacement in a local VFS file (tmp://)

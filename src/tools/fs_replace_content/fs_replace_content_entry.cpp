@@ -1,4 +1,5 @@
 #include "fs_replace_content.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <cstdlib>
 #include <format>
@@ -149,17 +150,18 @@ static bool find_symbol_range(const std::vector<lsp_manager::symbol_node>& nodes
 
 static bool fallback_find_symbol_range(const std::vector<std::string>& file_lines, std::string_view hint, int& out_start, int& out_end) {
     if (hint.empty()) return false;
-    for (size_t i = 0; i < file_lines.size(); ++i) {
+    int total_lines = static_cast<int>(std::min(file_lines.size(), static_cast<size_t>(10000000)));
+    for (int i = 0; i < total_lines; ++i) {
         const auto& line = file_lines[i];
         if (line.find(hint) != std::string::npos) {
             if (line.find('(') != std::string::npos || line.find('{') != std::string::npos ||
                 line.find("def ") != std::string::npos || line.find("class ") != std::string::npos ||
                 line.find("fn ") != std::string::npos || line.find("struct ") != std::string::npos) {
-                out_start = static_cast<int>(i + 1);
+                out_start = i + 1;
                 int brace_count = 0;
                 bool found_brace = false;
-                out_end = std::min(static_cast<int>(file_lines.size()), out_start + 120);
-                for (size_t j = i; j < file_lines.size(); ++j) {
+                out_end = std::min(total_lines, out_start + 120);
+                for (int j = i; j < total_lines; ++j) {
                     for (char c : file_lines[j]) {
                         if (c == '{') {
                             brace_count++;
@@ -167,7 +169,7 @@ static bool fallback_find_symbol_range(const std::vector<std::string>& file_line
                         } else if (c == '}') {
                             brace_count--;
                             if (found_brace && brace_count <= 0) {
-                                out_end = static_cast<int>(j + 1);
+                                out_end = j + 1;
                                 return true;
                             }
                         }
@@ -443,6 +445,21 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
     if (vfs && vfs->is_local_path_available(args_.safe_path)) {
         path_to_use = vfs->get_local_path(args_.safe_path);
     }
+
+    std::string check_path = path_to_use;
+    if (check_path.starts_with("file://")) {
+        check_path = check_path.substr(7);
+    }
+    std::string canonical_check;
+    std::string val_err;
+    if (!ctx.fs_security.validate_access(check_path, agentlib::access_type::write, canonical_check, val_err)) {
+        return "Error: Access denied for file write: " + val_err;
+    }
+    if (!fs_utils::is_regular_file(canonical_check)) {
+        return "Error: Target path is not a regular file: " + path_to_use;
+    }
+    path_to_use = canonical_check;
+
     // 1. Read file into string
     std::ifstream in(path_to_use, std::ios::binary);
     if (!in.is_open()) {
@@ -661,13 +678,28 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
         return err;
     }
 
-    // 7. Write substituted content back to disk
-    std::ofstream out(path_to_use, std::ios::binary | std::ios::trunc);
-    if (!out.is_open()) {
-        return "Error: Could not open file for writing during execution.";
+    // 7. Write substituted content back to disk using atomic temp file + rename
+    std::string tmp_path = path_to_use + ".tmp." + std::to_string(getpid());
+    {
+        std::ofstream out(tmp_path, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) {
+            return "Error: Could not open temporary file for writing during execution.";
+        }
+        out.write(new_content.data(), new_content.length());
+        out.close();
     }
-    out.write(new_content.data(), new_content.length());
-    out.close();
+
+    std::error_code ec_rename;
+    std::filesystem::rename(tmp_path, path_to_use, ec_rename);
+    if (ec_rename) {
+        std::filesystem::remove(tmp_path, ec_rename);
+        std::ofstream out(path_to_use, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) {
+            return "Error: Could not open target file for writing during execution.";
+        }
+        out.write(new_content.data(), new_content.length());
+        out.close();
+    }
 
     bool is_buffer = (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) != nullptr);
 
@@ -691,7 +723,7 @@ std::string fs_replace_content_tool::execute_disk_fallback(agentlib::tool_contex
         }
     }
 
-    return result_msg;
+    return fs_utils::wrap_prompt_untrusted_data_tag("replace_content_result", result_msg);
 }
 
 } // namespace tools
