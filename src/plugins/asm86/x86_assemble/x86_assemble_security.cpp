@@ -2,6 +2,7 @@
 #include <string>
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "x86_assemble.h"
 
 namespace tools
@@ -63,8 +64,17 @@ class x86_assemble_validator : public agentlib::tool_validator
 	{
 		try {
 			x86_assemble_raw_args parsed = raw_json.get<x86_assemble_raw_args>();
+
 			if (parsed.instruction.empty()) {
 				out_error = "Instruction cannot be empty.";
+				return false;
+			}
+			if (parsed.instruction.length() > 1024) {
+				out_error = "Instruction exceeds maximum length of 1024 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(parsed.instruction)) {
+				out_error = "Security Violation: Instruction contains unsafe control characters.";
 				return false;
 			}
 
