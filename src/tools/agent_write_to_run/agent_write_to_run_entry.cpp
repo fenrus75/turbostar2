@@ -1,10 +1,35 @@
 #include "agent_write_to_run.h"
+#include "fs_utils.h"
 #include <chrono>
 #include <thread>
 #include <numeric>
 
 namespace tools
 {
+
+static std::string sanitize_pty_output(const std::string &raw)
+{
+	std::string out;
+	out.reserve(raw.size());
+	bool in_escape = false;
+	for (size_t i = 0; i < raw.size(); ++i) {
+		char c = raw[i];
+		if (c == '\033') {
+			in_escape = true;
+			continue;
+		}
+		if (in_escape) {
+			if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~') {
+				in_escape = false;
+			}
+			continue;
+		}
+		if (c == '\n' || c == '\r' || c == '\t' || (static_cast<unsigned char>(c) >= 32 && c != 127)) {
+			out += c;
+		}
+	}
+	return out;
+}
 
 bool agent_write_to_run_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
@@ -43,11 +68,16 @@ std::string agent_write_to_run_tool::execute(agentlib::tool_context &ctx)
 			ctx.doc_provider->set_run_recording(args_.run_id, false);
 			std::vector<std::string> recorded = ctx.doc_provider->get_run_recorded_data(args_.run_id);
 			std::string output_str = std::accumulate(recorded.begin(), recorded.end(), std::string{});
+			output_str = sanitize_pty_output(output_str);
+			if (output_str.length() > 20000) {
+				output_str.resize(20000);
+				output_str += "\n\n*(Output truncated at 20,000 characters)*\n";
+			}
 			set_success(ctx, "Wrote " + std::to_string(args_.data.length()) + " bytes to run_id " + std::to_string(args_.run_id) + " and captured output.");
-			return output_str;
+			return fs_utils::wrap_prompt_untrusted_data_tag("agent_write_to_run_result", output_str);
 		} else {
 			set_success(ctx, "Wrote " + std::to_string(args_.data.length()) + " bytes to run_id " + std::to_string(args_.run_id));
-			return "Successfully wrote input data to the PTY master.";
+			return fs_utils::wrap_prompt_untrusted_data_tag("agent_write_to_run_result", "Successfully wrote input data to the PTY master.");
 		}
 	} else {
 		if (args_.output) {

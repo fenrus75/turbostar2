@@ -1,8 +1,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
-#include "../../fs_utils.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "fs_utils.h"
 #include "agent_write_to_run.h"
 
 namespace tools
