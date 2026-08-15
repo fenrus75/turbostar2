@@ -70,6 +70,17 @@ static std::vector<std::string> resolve_test_names(std::span<const std::string> 
 	return resolved;
 }
 
+static std::string escape_ctest_regex(const std::string &name)
+{
+	static const std::set<char> meta = {'^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}', '\\'};
+	std::string out;
+	for (char c : name) {
+		if (meta.contains(c)) out += '\\';
+		out += c;
+	}
+	return out;
+}
+
 fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout)
     : test_names_(std::move(test_names)), timeout_(timeout)
 {
@@ -139,7 +150,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		if (!resolved.empty()) {
 			cmd += " -R \"(";
 			for (size_t i = 0; i < resolved.size(); ++i) {
-				cmd += resolved[i];
+				cmd += escape_ctest_regex(resolved[i]);
 				if (i < resolved.size() - 1)
 					cmd += "|";
 			}
@@ -198,7 +209,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return "```bash\n$ " + cmd + "\n" + output + "\n```";
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_run_tests_result", "```bash\n$ " + cmd + "\n" + output + "\n```");
 }
 
 } // namespace tools

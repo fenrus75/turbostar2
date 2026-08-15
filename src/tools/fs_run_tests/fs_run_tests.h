@@ -1,9 +1,9 @@
 #pragma once
 #include <string>
 #include <memory>
-#include "../../agentlib/llm_tool.h"
-#include "../../agentlib/tool_validator.h"
-#include "../../agentlib/interactions/terminal.h"
+#include "agentlib/llm_tool.h"
+#include "agentlib/tool_validator.h"
+#include "agentlib/interactions/terminal.h"
 
 namespace tools {
 
@@ -44,23 +44,12 @@ public:
     }
 
 protected:
-    bool validate_args_impl(const nlohmann::json& /*args*/, const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const override {
-        return true;
-    }
+    bool validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const override;
+    std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json& args) const override;
 
-    std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json& args) const override {
-        std::vector<std::string> tests;
-        if (args.contains("test_names") && args["test_names"].is_array()) {
-            for (const auto& t : args["test_names"]) {
-                tests.push_back(t.get<std::string>());
-            }
-        }
-        int timeout = 300;
-        if (args.contains("timeout") && args["timeout"].is_number_integer()) {
-            timeout = args["timeout"].get<int>();
-        }
-        return std::make_unique<fs_run_tests_tool>(tests, timeout);
-    }
+private:
+    mutable std::vector<std::string> parsed_test_names_;
+    mutable int parsed_timeout_{300};
 };
 
 } // namespace tools
