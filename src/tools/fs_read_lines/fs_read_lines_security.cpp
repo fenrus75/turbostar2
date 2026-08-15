@@ -68,9 +68,14 @@ class fs_read_lines_validator : public agentlib::tool_validator
 				return false;
 			}
 
+			std::string check_path = parsed.path;
+			if (check_path.starts_with("file://")) {
+				check_path = check_path.substr(7);
+			}
+
 			// CRITICAL: Perform the file security manager check (access_type::read)
 			std::string canonical_path;
-			if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
+			if (!ctx.fs_security.validate_access(check_path, agentlib::access_type::read, canonical_path, out_error)) {
 				return false;
 			}
 

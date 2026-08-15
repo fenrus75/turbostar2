@@ -211,6 +211,14 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
 			total_lines = doc_snapshot->get_line_count();
 		} else {
+			if (!fs_utils::is_regular_file(args_.safe_path)) {
+				return "Error: Target is not a regular file.";
+			}
+			std::error_code ec;
+			auto sz = std::filesystem::file_size(args_.safe_path, ec);
+			if (ec || sz > 50 * 1024 * 1024) {
+				return "Error: File is too large (>50MB) to read.";
+			}
 			std::ifstream file(args_.safe_path, std::ios::binary);
 			if (file.is_open()) {
 				total_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
@@ -445,10 +453,22 @@ file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snaps
 file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int start, int end) const
 {
 	file_read_result result;
+	if (!fs_utils::is_regular_file(path)) {
+		result.success = false;
+		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
+		return result;
+	}
+
 	struct stat sb;
 	if (stat(path.c_str(), &sb) == -1) {
 		result.success = false;
 		result.error_message = "Error: File does not exist or cannot be accessed: " + path;
+		return result;
+	}
+
+	if (!S_ISREG(sb.st_mode)) {
+		result.success = false;
+		result.error_message = "Error: Target path is not a regular file: " + path;
 		return result;
 	}
 
@@ -485,14 +505,12 @@ file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int
 		}
 	}
 
-	// Reset stream state and seek back to the beginning to start content extraction.
 	file.clear();
 	file.seekg(0);
 
 	std::string line;
 	int current_line = 1;
 
-	// Fast-forward past lines preceding the requested range.
 	while (current_line < start && std::getline(file, line)) {
 		current_line++;
 	}
@@ -501,12 +519,38 @@ file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int
 		result.lines.reserve(end - start + 1);
 	}
 
-	// Read lines within requested range, trimming carriage returns for cross-platform robustness.
 	while (current_line <= end && std::getline(file, line)) {
 		if (!line.empty() && line.back() == '\r') {
 			line.pop_back();
 		}
-		result.lines.emplace_back(line);
+		if (line.size() > 4096) {
+			line = line.substr(0, 4096) + "... (line truncated)";
+		}
+
+		// Sanitize ANSI escapes and control characters
+		std::string clean_line;
+		clean_line.reserve(line.size());
+		for (size_t idx = 0; idx < line.size(); ++idx) {
+			unsigned char c = static_cast<unsigned char>(line[idx]);
+			if (c == 0x1b) {
+				if (idx + 1 < line.size() && line[idx + 1] == '[') {
+					idx += 2;
+					while (idx < line.size() && (line[idx] < 0x40 || line[idx] > 0x7e)) {
+						idx++;
+					}
+				}
+				continue;
+			}
+			if (c < 32 && c != '\t') {
+				// skip control chars
+			} else if (c == 127) {
+				// skip DEL
+			} else {
+				clean_line += c;
+			}
+		}
+
+		result.lines.emplace_back(clean_line);
 		current_line++;
 	}
 
