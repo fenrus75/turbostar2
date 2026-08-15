@@ -1,5 +1,6 @@
 #include "get_subagent_output.h"
 #include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 #include <format>
 #include <memory>
 #include <string>
@@ -41,9 +42,10 @@ std::string get_subagent_output_tool::execute(agentlib::tool_context &ctx)
 	if (target_agent->has_final_result()) {
 		std::string final_res = target_agent->get_final_result();
 		if (!args_.keep) {
+			target_agent->close();
 			ctx.active_agent->remove_subagent(target_agent->get_id());
 		}
-		return final_res;
+		return fs_utils::wrap_prompt_untrusted_data_tag("subagent_output", final_res);
 	}
 
 	auto interactions = target_agent->get_interactions();
@@ -52,17 +54,25 @@ std::string get_subagent_output_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string history_text;
+	size_t accumulated = 0;
 	for (const auto &interaction : interactions) {
-		history_text += std::format("{}\n\n", interaction->get_raw_text());
+		std::string raw = interaction->get_raw_text();
+		if (accumulated + raw.size() > 32768) {
+			history_text += raw.substr(0, 32768 - accumulated) + "\n... (history truncated)\n";
+			break;
+		}
+		history_text += raw + "\n\n";
+		accumulated += raw.size() + 2;
 	}
 
 	std::string response;
 	if (!args_.keep) {
+		target_agent->close();
 		ctx.active_agent->remove_subagent(target_agent->get_id());
 		response = std::format(
 			"Interaction history for Subagent ID {} ({}):\n\n"
 			"{}--- End of History ---\n"
-			"Subagent {} has been automatically terminated.",
+			"Subagent {} has been terminated and resources freed.",
 			target_agent->get_id(), target_agent->get_name(), history_text, args_.id);
 	} else {
 		response = std::format(
@@ -73,7 +83,7 @@ std::string get_subagent_output_tool::execute(agentlib::tool_context &ctx)
 			target_agent->get_id(), target_agent->get_name(), history_text, target_agent->get_id(), target_agent->get_id());
 	}
 
-	return response;
+	return fs_utils::wrap_prompt_untrusted_data_tag("subagent_output", response);
 }
 
 } // namespace tools

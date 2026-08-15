@@ -49,7 +49,7 @@ int main()
 		// 3. Success case with keep = false (default)
 		result = registry.execute_tool("get_subagent_output", std::format("{{\"id\": {}}}", sub_id), ctx);
 		std::cout << "Result keep=false:\n" << result << std::endl;
-		assert(result.find("automatically terminated") != std::string::npos);
+		assert(result.find("terminated") != std::string::npos);
 		assert(agent->get_subagents().empty()); // Should be removed
 
 		// 4. Try to query a non-existent subagent
