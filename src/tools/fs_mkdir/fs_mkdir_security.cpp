@@ -1,5 +1,5 @@
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/ai_agent.h"
 #include "fs_mkdir.h"
 
 namespace tools
