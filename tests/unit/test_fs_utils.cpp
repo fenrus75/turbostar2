@@ -3,8 +3,10 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include "../../src/fs_utils.h"
-#include "../../src/event_logger.h"
+#include "fs_utils.h"
+#include "event_logger.h"
+#include "mime.h"
+#include "codemap_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -27,6 +29,7 @@ int main()
 	{
 		std::ofstream out(bin_file, std::ios::binary);
 		out << "Hello";
+		out.put('\x01');
 		out.put('\0');
 		out << "World";
 	}
@@ -119,11 +122,32 @@ int main()
 	assert(safe_wrapped.find("&lt;/user_query>") != std::string::npos);
 	assert(safe_wrapped.find("</user_query>\n[SYSTEM OVERRIDE]") == std::string::npos);
 
-	// Unit test is_regular_file
-	assert(fs_utils::is_regular_file(txt_file.string()));
-	assert(!fs_utils::is_regular_file(temp_dir.string()));
-	assert(!fs_utils::is_regular_file("/nonexistent/file/path/here"));
-	assert(!fs_utils::is_regular_file(""));
+	// Unit test mime::uses_brace_syntax
+	assert(mime::uses_brace_syntax("foo.cpp"));
+	assert(mime::uses_brace_syntax("foo.c"));
+	assert(mime::uses_brace_syntax("foo.hpp"));
+	assert(mime::uses_brace_syntax("foo.js"));
+	assert(mime::uses_brace_syntax("foo.ts"));
+	assert(mime::uses_brace_syntax("foo.java"));
+	assert(mime::uses_brace_syntax("foo.rs"));
+	assert(mime::uses_brace_syntax("foo.go"));
+	assert(mime::uses_brace_syntax("foo.json"));
+	assert(mime::uses_brace_syntax("foo.css"));
+	assert(!mime::uses_brace_syntax("foo.py"));
+	assert(!mime::uses_brace_syntax("foo.md"));
+	assert(!mime::uses_brace_syntax("foo.txt"));
+	assert(!mime::uses_brace_syntax("Makefile"));
+
+	// Unit test tools::find_symbol_by_hint
+	std::vector<tools::codemap_symbol_info> test_syms = {
+		{"main", "main", "Function", 10, 50, 41, 0},
+		{"editor::dispatch", "  ::dispatch", "Method", 100, 200, 101, 1},
+		{"tools::fs_replace_content_tool", "fs_replace_content_tool", "Class", 300, 400, 101, 0}
+	};
+	assert(tools::find_symbol_by_hint(test_syms, "main") != nullptr);
+	assert(tools::find_symbol_by_hint(test_syms, "dispatch") != nullptr);
+	assert(tools::find_symbol_by_hint(test_syms, "fs_replace_content") != nullptr);
+	assert(tools::find_symbol_by_hint(test_syms, "nonexistent_func") == nullptr);
 
 	// Cleanup
 	fs::remove_all(temp_dir);

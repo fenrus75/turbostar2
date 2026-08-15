@@ -575,4 +575,31 @@ const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbo
 	return best_match;
 }
 
+const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_info> &symbols, std::string_view hint)
+{
+	if (hint.empty())
+		return nullptr;
+
+	// 1. Exact match against name or display_name (without leading spaces)
+	for (const auto &sym : symbols) {
+		std::string_view clean_display = sym.display_name;
+		size_t first_non_space = clean_display.find_first_not_of(" \t:");
+		if (first_non_space != std::string_view::npos) {
+			clean_display.remove_prefix(first_non_space);
+		}
+		if (sym.name == hint || clean_display == hint) {
+			return &sym;
+		}
+	}
+
+	// 2. Substring match against name or display_name
+	for (const auto &sym : symbols) {
+		if (sym.name.find(hint) != std::string::npos || sym.display_name.find(hint) != std::string::npos) {
+			return &sym;
+		}
+	}
+
+	return nullptr;
+}
+
 } // namespace tools

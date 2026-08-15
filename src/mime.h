@@ -41,4 +41,10 @@ std::string get_language_from_extension(std::string_view path);
  */
 std::string detect_file_description(std::string_view path);
 
+/**
+ * @brief Checks if a file path or extension uses curly brace '{' '}' syntax for code blocks.
+ * Returns true for C, C++, C#, Java, Rust, Go, JS, TS, PHP, CSS, JSON, etc.
+ */
+bool uses_brace_syntax(std::string_view path_or_ext);
+
 } // namespace mime

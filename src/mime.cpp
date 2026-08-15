@@ -227,4 +227,26 @@ std::string detect_buffer_description([[maybe_unused]] std::string_view buffer)
 	return "Unknown file type";
 }
 
+bool uses_brace_syntax(std::string_view path_or_ext)
+{
+	std::string lang = get_language_from_extension(path_or_ext);
+	if (lang == "cpp" || lang == "javascript" || lang == "rust" || lang == "go" ||
+	    lang == "java" || lang == "css" || lang == "json" || lang == "xml" || lang == "html") {
+		return true;
+	}
+
+	std::filesystem::path p(path_or_ext);
+	std::string ext = p.extension().string();
+	if (!ext.empty() && ext.front() == '.') {
+		ext.erase(0, 1);
+	}
+	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	});
+
+	return (ext == "cs" || ext == "php" || ext == "kt" || ext == "kts" ||
+		ext == "swift" || ext == "scala" || ext == "d" || ext == "glsl" ||
+		ext == "hlsl" || ext == "verilog" || ext == "v" || ext == "jsonc");
+}
+
 } // namespace mime

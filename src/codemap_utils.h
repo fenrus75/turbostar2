@@ -54,4 +54,7 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 // Find the innermost symbol enclosing line_number in a list of codemap symbols
 const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number);
 
+// Find a symbol in a list of codemap symbols matching a hint string (e.g. function or class name)
+const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_info> &symbols, std::string_view hint);
+
 } // namespace tools
