@@ -2,9 +2,10 @@
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "agentlib/ai_agent.h"
-#include "agentlib/tool_registry.h"
-#include "project_manager.h"
+#include "../../src/agentlib/ai_agent.h"
+#include "../../src/agentlib/tool_registry.h"
+#include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 #include "event_queue.h"
 
 using namespace agentlib;
@@ -114,7 +115,7 @@ int main()
 			ctx.doc_provider = &mock;
 			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"output\": true}", ctx);
 			std::cout << "Success with output path result: " << res << std::endl;
-			assert(res == "simulated recorded output");
+			assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "simulated recorded output");
 			assert(mock.is_recording == false);
 		}
 

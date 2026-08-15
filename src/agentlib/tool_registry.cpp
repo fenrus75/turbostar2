@@ -2,6 +2,7 @@
 #include <iostream>
 #include "ai_agent.h"
 #include "statistics_manager.h"
+#include "fs_utils.h"
 
 namespace agentlib
 {
@@ -380,6 +381,12 @@ std::string tool_registry::execute_tool(const std::string &name, const std::stri
 	}
 
 	return result;
+}
+
+std::string tool_registry::execute_tool_unwrapped(const std::string &name, const std::string &args_json_string, tool_context &ctx) const
+{
+	std::string res = execute_tool(name, args_json_string, ctx);
+	return fs_utils::unwrap_prompt_untrusted_data_tag(res);
 }
 
 } // namespace agentlib

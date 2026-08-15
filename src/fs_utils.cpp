@@ -580,6 +580,36 @@ std::string wrap_prompt_untrusted_data_tag(std::string_view tag, std::string_vie
 	return std::format("<{}>\n{}\n</{}>", tag, safe_content, tag);
 }
 
+std::string unwrap_prompt_untrusted_data_tag(std::string_view content)
+{
+	std::string s(content);
+	size_t first_tag_open = s.find('<');
+	if (first_tag_open == std::string::npos) {
+		return s;
+	}
+	size_t first_tag_close = s.find('>', first_tag_open);
+	if (first_tag_close == std::string::npos) {
+		return s;
+	}
+	std::string tag_name = s.substr(first_tag_open + 1, first_tag_close - (first_tag_open + 1));
+	if (tag_name.empty() || tag_name[0] == '/') {
+		return s;
+	}
+	std::string close_tag = std::format("</{}>", tag_name);
+	size_t last_tag_open = s.rfind(close_tag);
+	if (last_tag_open == std::string::npos || last_tag_open <= first_tag_close) {
+		return s;
+	}
+
+	std::string inner = s.substr(first_tag_close + 1, last_tag_open - (first_tag_close + 1));
+	size_t start = inner.find_first_not_of("\r\n");
+	size_t end = inner.find_last_not_of("\r\n");
+	if (start == std::string::npos || end == std::string::npos) {
+		return "";
+	}
+	return inner.substr(start, end - start + 1);
+}
+
 std::string shorten_filename(std::string_view filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

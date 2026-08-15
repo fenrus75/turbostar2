@@ -33,7 +33,7 @@ int main()
 	// Test 1: Open regular file
 	{
 		tools::open_in_editor_validator validator;
-		nlohmann::json args = {{"path", "test.txt"}};
+		nlohmann::json args = {{"path", regular_file.string()}};
 
 		std::string error;
 		bool valid = validator.validate_args(args, ctx, error);
@@ -43,7 +43,8 @@ int main()
 		assert(tool != nullptr && "Tool should be created");
 
 		std::string result = tool->execute(ctx);
-		assert(result.find("Successfully opened") != std::string::npos && "Result should indicate success");
+		std::cout << "open_in_editor result: " << result << std::endl;
+		assert(result.find("Successfully pushed open_file event") != std::string::npos && "Result should indicate success");
 
 		// Verify event is pushed to queue
 		auto ev = queue.pop();

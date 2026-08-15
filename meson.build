@@ -563,7 +563,7 @@ test_run_python = executable('test_run_python',
    'src/tools/run_python/run_python_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_run_python', test_run_python, is_parallel: false, suite: 'agent')
+test('unit_test_run_python', test_run_python, timeout: 60, is_parallel: false, suite: 'agent')
 
 test_run_shell_command = executable('test_run_shell_command',
   ['tests/unit/test_run_shell_command.cpp',

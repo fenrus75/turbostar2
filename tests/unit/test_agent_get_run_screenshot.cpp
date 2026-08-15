@@ -67,7 +67,7 @@ int main()
 		{
 			std::string res_crash = registry.execute_tool("agent_get_run_screenshot", "{\"run_id\": 43}", ctx);
 			assert(res_crash.find("CRASH DETECTED") != std::string::npos);
-			assert(res_crash.find("\"is_alive\":false") != std::string::npos);
+			assert(res_crash.find("\"is_alive\": false") != std::string::npos || res_crash.find("\"is_alive\":false") != std::string::npos);
 		}
 
 		// 2. Failure: Run ID not found

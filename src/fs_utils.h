@@ -160,6 +160,11 @@ std::string escape_json_string(std::string_view input, bool include_quotes = fal
  */
 std::string wrap_prompt_untrusted_data_tag(std::string_view tag, std::string_view content);
 /**
+ * @brief Unwraps content enclosed within an XML prompt data tag (<tag>...</tag>).
+ * @param content The wrapped or raw content.
+ */
+std::string unwrap_prompt_untrusted_data_tag(std::string_view content);
+/**
  * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable
  * characters or ANSI escape sequences to prevent malicious agents from spoofing UI elements.
  */

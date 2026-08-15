@@ -118,7 +118,7 @@ int main()
 		assert_contains(cmd, "systemd-run");
 		assert_contains(cmd, "-p 'Environment=DISPLAY=:99'");
 		assert_contains(cmd, "-p 'Environment=SDL_VIDEODRIVER=x11'");
-		assert_not_contains(cmd, "-p PrivateNetwork=true");
+		assert_contains(cmd, "-p PrivateNetwork=true");
 		assert_contains(cmd, "BindReadOnlyPaths=");
 		assert_contains(cmd, "'Environment=XAUTHORITY=/tmp/.Xauthority'");
 		assert_contains(cmd, "mesa_shader_cache");

@@ -4,6 +4,7 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/tool_registry.h"
 #include "project_manager.h"
+#include "fs_utils.h"
 
 using namespace agentlib;
 
@@ -30,8 +31,9 @@ int main()
 		// 1. Read poem file in base64 format (default)
 		{
 			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 0, \"size\": 10}";
-			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
-			std::cout << "Read binary result (b64): " << res << std::endl;
+			std::string raw_res = registry.execute_tool("fs_read_binary", args, ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+			std::cout << "Read binary result (b64): " << raw_res << std::endl;
 			assert(!res.empty());
 			assert(res.find("Error:") == std::string::npos);
 			assert(res.find("data:text/plain;base64,") == 0);
@@ -40,8 +42,9 @@ int main()
 		// Success case: read first 4 bytes of poem.txt in hex format
 		{
 			std::string args = "{\"path\": \"" + poem_path + "\", \"offset\": 0, \"size\": 4, \"format\": \"hex\"}";
-			std::string res = registry.execute_tool("fs_read_binary", args, ctx);
-			std::cout << "Read binary result (hex): " << res << std::endl;
+			std::string raw_res = registry.execute_tool("fs_read_binary", args, ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+			std::cout << "Read binary result (hex): " << raw_res << std::endl;
 			assert(!res.empty());
 			assert(res.find("Error:") == std::string::npos);
 			assert(res.length() == 11);

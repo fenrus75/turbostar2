@@ -63,7 +63,7 @@ void test_update_tool_execution()
 	std::string res_str = registry.execute_tool("update_code_review_item", args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 
-	nlohmann::json res_j = nlohmann::json::parse(res_str);
+	nlohmann::json res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
 	assert(res_j["id"].get<int>() == 1);
 	assert(res_j["status"].get<std::string>() == "updated");
 

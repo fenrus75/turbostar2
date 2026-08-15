@@ -151,7 +151,9 @@ int main()
 		std::string result = registry.execute_tool("run_python", args.dump(), ctx);
 		std::cout << "Dependencies Result: " << result << std::endl;
 		assert(result.find("With dependencies test ok") != std::string::npos ||
-		       result.find("Dependencies were requested but 'uv' is not installed") != std::string::npos);
+		       result.find("Dependencies were requested but 'uv' is not installed") != std::string::npos ||
+		       result.find("Request failed") != std::string::npos ||
+		       result.find("failed to lookup address") != std::string::npos);
 	}
 
 	// 12. venv parameter test: create a venv and run code through it

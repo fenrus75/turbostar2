@@ -51,6 +51,9 @@ class tool_registry
 	// Executes the two-stage security and execution pipeline (Legacy / Convenience)
 	std::string execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
 
+	// Executes the tool pipeline and unwraps any XML prompt data tag (<tag>...</tag>)
+	std::string execute_tool_unwrapped(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
+
 	// Used to register and query activation reasons for tool families
 	void register_tool_family(const std::string &name, const std::string &reason, const std::string &guidance = "");
 	void unregister_tool_family(const std::string &name);

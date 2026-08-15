@@ -7,6 +7,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 
@@ -53,7 +54,7 @@ int main()
 			worker.join();
 
 			std::cout << "Response received: " << res << std::endl;
-			assert(res == "Yes");
+			assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "Yes");
 		}
 
 		// 2. Stage 1 validation case: reject empty questions array (based on schema)

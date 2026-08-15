@@ -7,6 +7,7 @@
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 
@@ -53,7 +54,7 @@ int main()
 		std::string get_out_res = registry.execute_tool("get_subagent_output", std::format("{{\"id\": {}, \"keep\": true}}", sub_id), ctx);
 		std::cout << "get_subagent_output result: " << get_out_res << std::endl;
 		// It should be exactly the final result string
-		assert(get_out_res == "Subagent final outcome!");
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag(get_out_res) == "Subagent final outcome!");
 
 		// Test wait_for_subagent message
 		nlohmann::json wait_args = {{"id", sub_id}};

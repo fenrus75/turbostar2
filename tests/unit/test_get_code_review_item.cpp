@@ -56,7 +56,7 @@ void test_get_tool_execution()
 	std::string res_str = registry.execute_tool("get_code_review_item", args_json, ctx);
 	std::cout << "Result Developer id1:\n" << res_str << std::endl;
 
-	nlohmann::json res_j = nlohmann::json::parse(res_str);
+	nlohmann::json res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
 	assert(res_j["id"].get<int>() == 1);
 	assert(res_j["state"].get<std::string>() == "new");
 	assert(res_j["summary"].get<std::string>() == "Null Deref");
@@ -65,7 +65,7 @@ void test_get_tool_execution()
 	args_json = "{\"id\": 2}";
 	res_str = registry.execute_tool("get_code_review_item", args_json, ctx);
 	std::cout << "Result Developer id2 (denied):\n" << res_str << std::endl;
-	res_j = nlohmann::json::parse(res_str);
+	res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
 	assert(res_j.contains("status"));
 	assert(res_j["status"].get<std::string>() == "error");
 	assert(res_j["message"].get<std::string>().find("restricted") != std::string::npos);
@@ -74,7 +74,7 @@ void test_get_tool_execution()
 	agent->set_role(agent_role::verifier);
 	res_str = registry.execute_tool("get_code_review_item", args_json, ctx);
 	std::cout << "Result Verifier id2 (allowed):\n" << res_str << std::endl;
-	res_j = nlohmann::json::parse(res_str);
+	res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
 	assert(res_j["id"].get<int>() == 2);
 	assert(res_j["state"].get<std::string>() == "resolved");
 	assert(res_j["resolved_in_commit"].get<std::string>() == "commit123");

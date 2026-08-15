@@ -66,7 +66,7 @@ void test_resolve_tool_execution()
 	std::string res_str = registry.execute_tool("resolve_code_review_item", args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 
-	nlohmann::json res_j = nlohmann::json::parse(res_str);
+	nlohmann::json res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
 	assert(res_j["id"].get<int>() == 1);
 	assert(res_j["status"].get<std::string>() == "resolved");
 
@@ -86,7 +86,7 @@ void test_resolve_tool_execution()
 	auto ev_opt = q.pop();
 	assert(ev_opt.has_value());
 	assert(ev_opt->type == event_type::codereview_updated);
-	assert(ev_opt->key_code == 1);
+	assert(ev_opt->payload == "1");
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");

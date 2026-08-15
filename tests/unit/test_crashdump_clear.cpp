@@ -59,7 +59,7 @@ int main()
 	agentlib::tool_context ctx;
 	
 	std::string result = tool.execute(ctx);
-	assert(result == "Successfully cleared all crash dumps.");
+	assert(fs_utils::unwrap_prompt_untrusted_data_tag(result) == "Successfully cleared all crash dumps.");
 	
 	// 4. Verify results
 	assert(crashdump_manager::get_instance().get_crashdumps().empty());

@@ -83,7 +83,7 @@ int main()
 		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
 		assert(res.find("Structure summary has been written to tmp://inspected_structure_") != std::string::npos);
 		
-		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_mock_elf_hexinspect.bin.md";
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_mock_elf_hexinspect_bin.md";
 		assert(std::filesystem::exists(tmp_physical_path));
 
 		std::ifstream ifs_tmp(tmp_physical_path);
@@ -215,14 +215,14 @@ int main()
 		// Verify it contains the preview table and a note about the tmp file
 		assert(res.find("### Archive Contents (TAR)") != std::string::npos);
 		assert(res.find("Archive content summary was too large for direct inclusion") != std::string::npos);
-		assert(res.find("tmp://archive_contents_mock_large_tar.tar.md") != std::string::npos);
+		assert(res.find("tmp://archive_contents_mock_large_tar_tar.md") != std::string::npos);
 
 		// Verify the first entry is in the preview, but not the last
 		assert(res.find("`file_0.txt`") != std::string::npos);
 		assert(res.find("`file_44.txt`") == std::string::npos);
 
 		// Verify the file was written to the VFS and contains the full list
-		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/archive_contents_mock_large_tar.tar.md";
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/archive_contents_mock_large_tar_tar.md";
 		assert(std::filesystem::exists(tmp_physical_path));
 		
 		std::ifstream ifs_tmp(tmp_physical_path);
@@ -241,10 +241,10 @@ int main()
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 
 		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
-		assert(res.find("Structure summary has been written to tmp://inspected_structure_shared-mime-info-spec.pdf.md") != std::string::npos);
+		assert(res.find("Structure summary has been written to tmp://inspected_structure_shared-mime-info-spec_pdf.md") != std::string::npos);
 		assert(res.find("### PDF Structural Overview") == std::string::npos); // Bypassed inline preview
 
-		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_shared-mime-info-spec.pdf.md";
+		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_shared-mime-info-spec_pdf.md";
 		assert(std::filesystem::exists(tmp_physical_path));
 
 		std::ifstream ifs_tmp(tmp_physical_path);

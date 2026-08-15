@@ -5,20 +5,14 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/perf_manager.h"
 #include "../../src/project_manager.h"
+#include "../../src/fs_utils.h"
 
 using namespace agentlib;
 using namespace turbostar;
 
 static nlohmann::json parse_tool_json(std::string result)
 {
-	if (result.starts_with("<agent_profile_details_result>")) {
-		result = result.substr(std::string("<agent_profile_details_result>").length());
-		size_t end_pos = result.rfind("</agent_profile_details_result>");
-		if (end_pos != std::string::npos) {
-			result = result.substr(0, end_pos);
-		}
-	}
-	return nlohmann::json::parse(result);
+	return nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(result));
 }
 
 int main()
@@ -56,7 +50,7 @@ int main()
 		assert(prep.error_message.empty());
 
 		std::string result = prep.tool->execute(ctx);
-		auto res_json = nlohmann::json::parse(result);
+		auto res_json = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(result));
 		assert(res_json["total_samples"] == 1000);
 		assert(res_json["top_functions"].size() == 2);
 		assert(res_json["top_functions"][0]["function_name"] == "test_func_a");
@@ -162,19 +156,19 @@ int main()
 		// Test summary for run_1 via string "run_1" and integer 1
 		auto prep1 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_1\"}", ctx);
 		assert(prep1.tool != nullptr);
-		auto res1 = nlohmann::json::parse(prep1.tool->execute(ctx));
+		auto res1 = parse_tool_json(prep1.tool->execute(ctx));
 		assert(res1["total_samples"] == 2000);
 		assert(res1["run_id"] == "run_1");
 
 		auto prep1_num = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": 1}", ctx);
 		assert(prep1_num.tool != nullptr);
-		auto res1_num = nlohmann::json::parse(prep1_num.tool->execute(ctx));
+		auto res1_num = parse_tool_json(prep1_num.tool->execute(ctx));
 		assert(res1_num["total_samples"] == 2000);
 
 		// Test summary for run_2
 		auto prep2 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_2\"}", ctx);
 		assert(prep2.tool != nullptr);
-		auto res2 = nlohmann::json::parse(prep2.tool->execute(ctx));
+		auto res2 = parse_tool_json(prep2.tool->execute(ctx));
 		assert(res2["total_samples"] == 3000);
 		assert(res2["run_id"] == "run_2");
 

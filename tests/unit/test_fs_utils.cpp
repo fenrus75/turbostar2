@@ -24,6 +24,12 @@ int main()
 	}
 	assert(!fs_utils::is_binary_file(txt_file.string()));
 
+	// XML prompt tag wrap / unwrap test
+	std::string wrapped_tag = fs_utils::wrap_prompt_untrusted_data_tag("my_tag", "hello world");
+	assert(wrapped_tag == "<my_tag>\nhello world\n</my_tag>");
+	assert(fs_utils::unwrap_prompt_untrusted_data_tag(wrapped_tag) == "hello world");
+	assert(fs_utils::unwrap_prompt_untrusted_data_tag("raw content") == "raw content");
+
 	// 2. Binary file (should return true)
 	fs::path bin_file = temp_dir / "test.bin";
 	{

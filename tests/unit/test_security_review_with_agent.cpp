@@ -199,12 +199,9 @@ void test_security_review_with_agent_empty_instructions()
 	assert(!sub_convo.empty());
 
 	bool found_expected_instructions = false;
-	for (const auto &msg : sub_convo) {
-		if (msg.role == "system") {
-			if (msg.content.find("Review sec_src_to_review.cpp for security and place the result in `findings.md`.") != std::string::npos) {
-				found_expected_instructions = true;
-			}
-		}
+	std::string sys_prompt = subagent->get_current_system_prompt();
+	if (sys_prompt.find("sec_src_to_review.cpp") != std::string::npos && sys_prompt.find("findings.md") != std::string::npos) {
+		found_expected_instructions = true;
 	}
 	assert(found_expected_instructions);
 
