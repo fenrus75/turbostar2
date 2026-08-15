@@ -1,9 +1,8 @@
 #include <nlohmann/json.hpp>
 #include <optional>
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/ai_agent.h"
 #include "fs_write_file.h"
-
-#include "../../agentlib/ai_agent.h"
 
 namespace tools
 {
@@ -22,6 +21,11 @@ bool fs_write_file_validator::validate_args_impl(const nlohmann::json &raw_json,
 						 std::string &out_error) const
 {
 	try {
+		if (!raw_json.contains("content") || !raw_json["content"].is_string()) {
+			out_error = "Validation Error: Missing required 'content' parameter.";
+			return false;
+		}
+
 		fs_write_file_raw_args parsed = raw_json.get<fs_write_file_raw_args>();
 
 		if (parsed.path.empty()) {

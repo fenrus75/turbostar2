@@ -170,6 +170,9 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 			length = 1;
 			instr_text = std::format("db 0x{:02x}", bytes[offset]);
 		}
+		if (length == 0) {
+			length = 1;
+		}
 
 		std::string bytes_str;
 		for (size_t i = 0; i < length; ++i) {

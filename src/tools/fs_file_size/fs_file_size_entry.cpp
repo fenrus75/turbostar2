@@ -1,5 +1,6 @@
 #include <filesystem>
 #include "fs_file_size.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -24,38 +25,42 @@ std::string fs_file_size_tool::execute(agentlib::tool_context &ctx)
 			if (info) {
 				if (info->type == 'D') {
 					set_failure(ctx, "Path is not a regular file");
-					return "Error: The specified path is not a regular file (it may be a directory, device, or special file)";
+					return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: The specified path is not a regular file (it may be a directory, device, or special file)");
 				}
 				set_success(ctx, std::to_string(info->size) + " bytes");
-				return std::to_string(info->size) + " bytes";
+				return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", std::to_string(info->size) + " bytes");
 			}
 		}
 
-		std::error_code ec;
+		std::string resolved_path;
+		std::string err;
+		if (!ctx.fs_security.validate_access(safe_path_, agentlib::access_type::read, resolved_path, err)) {
+			set_failure(ctx, err);
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: Access denied: " + err);
+		}
 
-		// SECURITY CHECK: Verify the path points to a regular file
-		// This prevents querying directories, devices, sockets, or other special files
-		auto status = std::filesystem::status(safe_path_, ec);
+		std::error_code ec;
+		auto status = std::filesystem::status(resolved_path, ec);
 		if (ec) {
 			set_failure(ctx, ec.message());
-			return "Error checking file status: " + ec.message();
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error checking file status: " + ec.message());
 		}
 
 		if (!std::filesystem::is_regular_file(status)) {
 			set_failure(ctx, "Path is not a regular file");
-			return "Error: The specified path is not a regular file (it may be a directory, device, or special file)";
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: The specified path is not a regular file (it may be a directory, device, or special file)");
 		}
 
-		auto size = std::filesystem::file_size(safe_path_, ec);
+		auto size = std::filesystem::file_size(resolved_path, ec);
 		if (ec) {
 			set_failure(ctx, ec.message());
-			return "Error reading file size: " + ec.message();
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error reading file size: " + ec.message());
 		}
 		set_success(ctx, std::to_string(size) + " bytes");
-		return std::to_string(size) + " bytes";
+		return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", std::to_string(size) + " bytes");
 	} catch (const std::exception &e) {
 		set_failure(ctx, std::string(e.what()));
-		return "Error: " + std::string(e.what());
+		return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: " + std::string(e.what()));
 	}
 }
 

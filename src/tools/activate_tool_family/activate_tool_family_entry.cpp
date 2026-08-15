@@ -1,7 +1,8 @@
 #include <sstream>
 #include "agentlib/tool_registry.h"
-#include "../../agentlib/ai_agent.h"
+#include "agentlib/ai_agent.h"
 #include "activate_tool_family.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -30,7 +31,7 @@ std::string activate_tool_family_tool::execute(agentlib::tool_context &ctx)
 		ss << "\n\nGuidance for using the '" << args_.name << "' tool family:\n" << guidance;
 	}
 
-	return ss.str();
+	return fs_utils::wrap_prompt_untrusted_data_tag("activate_tool_family_result", ss.str());
 }
 
 } // namespace tools

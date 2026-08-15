@@ -1,6 +1,7 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/skill_manager.h"
 #include "activate_skill.h"
+#include "fs_utils.h"
 
 namespace tools
 {
@@ -19,7 +20,8 @@ std::string activate_skill_tool::execute(agentlib::tool_context &ctx)
 	if (ctx.active_agent) {
 		ctx.active_agent->add_active_skill(args_.name);
 	}
-	return agentlib::skill_manager::get_instance().format_skill_content(args_.name);
+	std::string res = agentlib::skill_manager::get_instance().format_skill_content(args_.name);
+	return fs_utils::wrap_prompt_untrusted_data_tag("activate_skill_result", res);
 }
 
 } // namespace tools

@@ -130,7 +130,7 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     std::stringstream ss;
     if (matches.empty()) {
         set_success(ctx, "No matches found");
-        return "No matches found for glob pattern '" + pattern_ + "'.";
+        return fs_utils::wrap_prompt_untrusted_data_tag("fs_glob_result", "No matches found for glob pattern '" + pattern_ + "'.");
     }
 
     ss << "# Glob Results for '" << pattern_ << "' (" << total_matches << " matches):\n\n";
@@ -140,8 +140,13 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
         if (fs::is_regular_file(abs_path)) {
             try {
                 auto size_bytes = fs::file_size(abs_path);
-                std::string size_lines = fs_utils::count_lines_in_file(abs_path.string());
-                info = " (" + std::to_string(size_bytes) + " bytes, " + size_lines + " lines)";
+                std::string size_lines;
+                if (size_bytes <= 1 * 1024 * 1024) {
+                    size_lines = fs_utils::count_lines_in_file(abs_path.string()) + " lines";
+                } else {
+                    size_lines = ">1MB";
+                }
+                info = " (" + std::to_string(size_bytes) + " bytes, " + size_lines + ")";
             } catch (...) {
                 // Ignore failures to read metadata (like permissions/symlinks)
             }
@@ -154,7 +159,7 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     }
 
     set_success(ctx, "Found " + std::to_string(total_matches) + " matches");
-    return ss.str();
+    return fs_utils::wrap_prompt_untrusted_data_tag("fs_glob_result", ss.str());
 }
 
 } // namespace tools

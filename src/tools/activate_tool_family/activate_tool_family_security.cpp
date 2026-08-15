@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 #include <string>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "activate_tool_family.h"
 
 namespace tools
@@ -17,6 +17,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(activate_tool_family_raw_args, n
 class activate_tool_family_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Activates in-memory tool family guidance for the current agent session.
 	bool is_pure() const override
 	{
 		return true;

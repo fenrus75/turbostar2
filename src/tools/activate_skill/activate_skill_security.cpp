@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <string>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/skill_manager.h"
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/skill_manager.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "activate_skill.h"
 
 namespace tools
@@ -18,6 +18,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(activate_skill_raw_args, name);
 class activate_skill_validator : public agentlib::tool_validator
 {
       public:
+	// Pure Domain 2 (Agent & Workflow State): Activates in-memory skill guidance for the current agent session.
 	bool is_pure() const override
 	{
 		return true;

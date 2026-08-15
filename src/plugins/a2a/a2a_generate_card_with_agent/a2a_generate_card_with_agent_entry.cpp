@@ -31,10 +31,17 @@ std::string a2a_generate_card_with_agent_tool::execute(agentlib::tool_context &c
 		}
 	}
 
+	std::string resolved_dest;
+	std::string err;
+	if (!ctx.fs_security.validate_access(dest_card_path, agentlib::access_type::write, resolved_dest, err)) {
+		set_failure(ctx, err);
+		return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_generator_result", "Error: Write access denied for destination card path '" + dest_card_path + "': " + err);
+	}
+
 	auto subagent_opt = agentlib::subagent_manager::get_instance().find_subagent_by_name("a2acardgenerator");
 	if (!subagent_opt) {
 		set_failure(ctx, "a2acardgenerator subagent not registered");
-		return "Error: `a2acardgenerator` subagent is not registered.";
+		return fs_utils::wrap_prompt_untrusted_data_tag("a2a_card_generator_result", "Error: `a2acardgenerator` subagent is not registered.");
 	}
 
 	std::string task_prompt = std::format(
@@ -42,12 +49,13 @@ std::string a2a_generate_card_with_agent_tool::execute(agentlib::tool_context &c
 	    "1. Validate the synthesized card using `a2a_validate_card`.\n"
 	    "2. Write the validated card to `{}`.\n"
 	    "3. Report the final validation status and synthesized card summary.",
-	    args_.safe_path, dest_card_path);
+	    args_.safe_path, resolved_dest);
 
 	std::string res;
 	if (ctx.active_agent) {
 		auto new_agent = ctx.active_agent->spawn_subagent("a2acardgenerator");
 		if (new_agent) {
+			new_agent->set_allowed_write_file(resolved_dest);
 			new_agent->set_task_description(task_prompt);
 			new_agent->submit_prompt(task_prompt);
 			new_agent->wait_until_idle_for(std::chrono::seconds(60));
