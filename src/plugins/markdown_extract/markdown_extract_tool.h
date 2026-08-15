@@ -6,8 +6,10 @@ namespace tools {
 
 struct markdown_extract_args {
 	std::string path;
+	std::string safe_path;
 	std::string query;
 	std::string output_path;
+	std::string safe_output_path;
 	bool is_async{false};
 };
 

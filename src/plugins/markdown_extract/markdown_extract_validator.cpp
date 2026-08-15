@@ -3,7 +3,7 @@
 
 namespace tools {
 
-bool markdown_extract_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context & /*ctx*/, std::string &out_error) const
+bool markdown_extract_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	if (!args.contains("path") || !args["path"].is_string()) {
 		out_error = "Parameter 'path' is required and must be a string.";
@@ -35,6 +35,28 @@ bool markdown_extract_validator::validate_args_impl(const nlohmann::json &args, 
 		args_.is_async = args["async"].get<bool>();
 	} else {
 		args_.is_async = false;
+	}
+
+	if (args_.path.find("://") == std::string::npos) {
+		std::string canonical_path;
+		if (!ctx.fs_security.validate_access(args_.path, agentlib::access_type::read, canonical_path, out_error)) {
+			return false;
+		}
+		args_.safe_path = canonical_path;
+	} else {
+		args_.safe_path = args_.path;
+	}
+
+	if (!args_.output_path.empty()) {
+		if (args_.output_path.find("://") == std::string::npos) {
+			std::string canonical_output;
+			if (!ctx.fs_security.validate_access(args_.output_path, agentlib::access_type::write, canonical_output, out_error)) {
+				return false;
+			}
+			args_.safe_output_path = canonical_output;
+		} else {
+			args_.safe_output_path = args_.output_path;
+		}
 	}
 
 	return true;

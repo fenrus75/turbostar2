@@ -50,6 +50,21 @@ int main()
 		assert(tool != nullptr);
 	}
 
+	// 3b. Validation failure: unauthorized local path
+	{
+		agentlib::tool_context ctx;
+		ctx.fs_security.set_working_directory("/tmp");
+		ctx.fs_security.add_allowed_root("/tmp", agentlib::access_type::read);
+		std::string err;
+		nlohmann::json unauth_args = {
+			{"path", "/etc/passwd"},
+			{"query", "root"}
+		};
+		bool ok = validator.validate_args(unauth_args, ctx, err);
+		assert(!ok);
+		assert(!err.empty());
+	}
+
 	// 4. Verify report_final_result is pure and executable in read_only context
 	{
 		agentlib::tool_context ro_ctx;

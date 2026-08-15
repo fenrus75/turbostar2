@@ -58,16 +58,19 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 		model = parent->get_model();
 	}
 
-	// 2. Determine document line count
+	// 2. Determine document line count & target path
+	std::string target_p = !args_.safe_path.empty() ? args_.safe_path : args_.path;
+	std::string target_out = !args_.safe_output_path.empty() ? args_.safe_output_path : args_.output_path;
+
 	std::string line_count_str = "0";
-	if (args_.path.find("://") != std::string::npos) {
+	if (target_p.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		agentlib::virtual_file_system local_vfs;
 		if (!vfs) {
 			vfs = &local_vfs;
 		}
-		if (vfs->exists(args_.path)) {
-			auto content_opt = vfs->read_file(args_.path);
+		if (vfs->exists(target_p)) {
+			auto content_opt = vfs->read_file(target_p);
 			if (content_opt && *content_opt) {
 				std::string_view sv = (*content_opt)->view();
 				size_t lines = std::count(sv.begin(), sv.end(), '\n') + 1;
@@ -75,8 +78,7 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 	} else {
-		std::filesystem::path full_path = std::filesystem::path(project_manager::get_instance().get_project_root()) / args_.path;
-		line_count_str = fs_utils::count_lines_in_file(full_path.string());
+		line_count_str = fs_utils::count_lines_in_file(target_p);
 		if (line_count_str.empty()) {
 			line_count_str = "0";
 		}
@@ -93,23 +95,26 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 	subagent->set_exit_implicitly_on_idle(true);
 	subagent->set_notify_parent_on_completion(false);
 
-	if (!args_.output_path.empty()) {
-		subagent->set_allowed_write_file(args_.output_path);
+	if (!target_out.empty()) {
+		subagent->set_allowed_write_file(target_out);
 		subagent->set_read_only(false);
 	}
 
-	// 4. Inject prompt template variables
+	// 4. Inject prompt template variables safely using XML data tag wrappers
+	std::string safe_query_tag = fs_utils::wrap_prompt_untrusted_data_tag("user_query", args_.query);
+	std::string safe_file_tag = fs_utils::wrap_prompt_untrusted_data_tag("target_file", target_p);
+
 	std::string system_prompt = markdown_extract_agent_md;
-	system_prompt = replace_placeholder(system_prompt, "@@filename@@", args_.path);
+	system_prompt = replace_placeholder(system_prompt, "@@filename@@", safe_file_tag);
 	system_prompt = replace_placeholder(system_prompt, "@@lines@@", line_count_str);
-	system_prompt = replace_placeholder(system_prompt, "@@query@@", args_.query);
-	system_prompt = replace_placeholder(system_prompt, "@@output_path@@", args_.output_path.empty() ? "None" : args_.output_path);
+	system_prompt = replace_placeholder(system_prompt, "@@query@@", safe_query_tag);
+	system_prompt = replace_placeholder(system_prompt, "@@output_path@@", target_out.empty() ? "None" : target_out);
 
 	subagent->inject_context("system", project_manager::get_instance().get_project_knowledge_prompt());
 	subagent->inject_context("system", system_prompt);
 
-	std::string task_prompt = std::format("Please inspect document `{}` ({} lines) and extract all relevant information for query: `{}`.",
-					      args_.path, line_count_str, args_.query);
+	std::string task_prompt = std::format("Please inspect target document ({} lines) and extract all relevant information for query:\n{}\n{}",
+					      line_count_str, safe_file_tag, safe_query_tag);
 	subagent->submit_prompt(task_prompt);
 
 	// 5. Handle Async vs Sync Execution
@@ -152,20 +157,19 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 		return std::format("Markdown Extractor completed successfully, but no content was extracted for query `{}`.", args_.query);
 	}
 
-	// 6. Write to output_path if requested
-	if (!args_.output_path.empty()) {
+	// 6. Write to target_out if requested
+	if (!target_out.empty()) {
 		bool write_ok = false;
-		if (args_.output_path.find("://") != std::string::npos) {
+		if (target_out.find("://") != std::string::npos) {
 			auto vfs = ctx.fs_security.get_vfs();
 			agentlib::virtual_file_system local_vfs;
 			if (!vfs) {
 				vfs = &local_vfs;
 			}
-			std::string res_desc = vfs->write_file(args_.output_path, extracted_text.data(), extracted_text.size());
+			std::string res_desc = vfs->write_file(target_out, extracted_text.data(), extracted_text.size());
 			write_ok = !res_desc.empty();
 		} else {
-			std::filesystem::path out_full = std::filesystem::path(project_manager::get_instance().get_project_root()) / args_.output_path;
-			std::ofstream ofs(out_full, std::ios::binary);
+			std::ofstream ofs(target_out, std::ios::binary);
 			if (ofs.is_open()) {
 				ofs << extracted_text;
 				write_ok = true;
@@ -173,11 +177,11 @@ std::string markdown_extract_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (write_ok) {
-			return std::format("### Markdown Extraction Complete\n\nExtracted content for query `{}` saved to `{}`.\n", args_.query, args_.output_path);
+			return std::format("### Markdown Extraction Complete\n\nExtracted content for query saved to `{}`.\n", target_out);
 		} else {
 			return std::format("### Markdown Extraction Complete (File Write Failed)\n\n"
 					   "Failed to write output to `{}`. Extracted Content:\n\n{}",
-					   args_.output_path, extracted_text);
+					   target_out, extracted_text);
 		}
 	}
 
