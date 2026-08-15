@@ -1,5 +1,6 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "update_code_review_item.h"
+#include "fs_utils.h"
 #include <set>
 
 namespace tools {
@@ -46,6 +47,28 @@ bool update_code_review_item_validator::validate_args_impl(
 			};
 			if (allowed_severities.find(*parsed.severity) == allowed_severities.end()) {
 				out_error = "Invalid severity level. Must be one of: nit, low, medium, high, critical.";
+				return false;
+			}
+		}
+
+		if (parsed.description) {
+			if (parsed.description->length() > 16384) {
+				out_error = "Validation Error: description exceeds maximum length of 16384 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(*parsed.description)) {
+				out_error = "Security Violation: description contains unsafe control characters.";
+				return false;
+			}
+		}
+
+		if (parsed.proposed_fix) {
+			if (parsed.proposed_fix->length() > 16384) {
+				out_error = "Validation Error: proposed_fix exceeds maximum length of 16384 characters.";
+				return false;
+			}
+			if (!fs_utils::is_safe_for_ui(*parsed.proposed_fix)) {
+				out_error = "Security Violation: proposed_fix contains unsafe control characters.";
 				return false;
 			}
 		}

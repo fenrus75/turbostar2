@@ -1,6 +1,7 @@
 #include "update_code_review_item.h"
-#include "../../agentlib/ai_agent.h"
-#include "../../codereview_manager.h"
+#include "agentlib/ai_agent.h"
+#include "codereview_manager.h"
+#include "fs_utils.h"
 #include <format>
 #include <nlohmann/json.hpp>
 
@@ -59,7 +60,7 @@ std::string update_code_review_item_tool::execute(agentlib::tool_context& ctx)
 		{"id", args_.id},
 		{"status", "updated"}
 	};
-	return response_json.dump(2);
+	return fs_utils::wrap_prompt_untrusted_data_tag("update_code_review_item_result", response_json.dump(2));
 }
 
 } // namespace tools
