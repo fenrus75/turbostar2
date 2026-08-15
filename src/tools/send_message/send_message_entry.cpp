@@ -1,5 +1,6 @@
 #include "send_message.h"
 #include "agentlib/ai_agent.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -30,7 +31,8 @@ std::string send_message_tool::execute(agentlib::tool_context& ctx) {
 
 	target_agent->submit_prompt(args_.message);
 
-	return "Message successfully queued for delivery to Agent ID " + std::to_string(args_.id) + " (" + target_agent->get_name() + ").";
+	std::string msg = "Message successfully queued for delivery to Agent ID " + std::to_string(args_.id) + " (" + target_agent->get_name() + ").";
+	return fs_utils::wrap_prompt_untrusted_data_tag("send_message_result", msg);
 }
 
 } // namespace tools
